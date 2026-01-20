@@ -54,8 +54,8 @@ for spec in "${specs[@]}"; do
     echo ""
     echo "--- Iteration $i/$MAX_ITER ---"
     
-    # Run zai WITHOUT -p flag for interactive execution
-    zai --dangerously-skip-permissions "$(cat $spec_path)"
+    # Run zai with --print flag for non-interactive auto-exit
+    zai --print --dangerously-skip-permissions "$(cat $spec_path)"
     
     echo ""
     echo "Running verification..."
