@@ -66,7 +66,7 @@ for spec in "${specs[@]}"; do
       
       echo "✅ Verification passed"
       git add -A
-      git commit -m "Completed: $spec (iteration $i)"
+      git commit -m "Completed: $spec (iteration $i)" || true
       echo "{\"spec\": \"$spec\", \"completed_at\": \"$(date -Iseconds)\", \"iterations\": $i, \"status\": \"success\"}" >> progress.json
       break
     else
