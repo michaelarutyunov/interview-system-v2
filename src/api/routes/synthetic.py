@@ -14,7 +14,6 @@ from src.api.schemas import (
     SyntheticRespondResponse,
     SyntheticMultiRequest,
     SyntheticSequenceRequest,
-    PersonasResponse,
 )
 from src.llm.prompts.synthetic import get_available_personas
 from src.services.synthetic_service import SyntheticService, get_synthetic_service

@@ -186,8 +186,3 @@ class SyntheticSequenceRequest(BaseModel):
     session_id: str = Field(..., description="Session identifier")
     persona: str = Field(default="health_conscious", description="Persona ID")
     product_name: str = Field(default="the product", description="Product name for context")
-
-
-class PersonasResponse(BaseModel):
-    """Response with available personas."""
-    personas: Dict[str, str] = Field(..., description="Mapping of persona_id to persona_name")
