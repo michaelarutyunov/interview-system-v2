@@ -8,6 +8,75 @@ from ui.components.chat import ChatInterface, initialize_chat_state
 from unittest.mock import MagicMock
 
 
+@pytest.fixture
+def mock_streamlit_state():
+    """Fixture to mock Streamlit session state."""
+    import streamlit as st
+
+    if not hasattr(st, "session_state"):
+        st.session_state = MagicMock()
+
+    st.session_state.current_session = None
+    st.session_state.chat_history = []
+    st.session_state.opening_displayed = False
+
+    yield st.session_state
+
+    delattr(st, "session_state")
+
+
+@pytest.fixture
+def sample_graph_data():
+    """Fixture providing sample graph data."""
+    return {
+        "nodes": [
+            {
+                "id": "n1",
+                "label": "creamy texture",
+                "node_type": "attribute",
+                "confidence": 0.9,
+            },
+            {
+                "id": "n2",
+                "label": "satisfying",
+                "node_type": "functional_consequence",
+                "confidence": 0.8,
+            },
+        ],
+        "edges": [
+            {
+                "id": "e1",
+                "source_node_id": "n1",
+                "target_node_id": "n2",
+                "edge_type": "leads_to",
+                "confidence": 0.8,
+            },
+        ],
+    }
+
+
+@pytest.fixture
+def sample_status_data():
+    """Fixture providing sample status data."""
+    return {
+        "turn_number": 3,
+        "max_turns": 20,
+        "coverage": 0.4,
+        "target_coverage": 0.8,
+        "status": "active",
+        "should_continue": True,
+        "strategy_selected": "deepen",
+        "strategy_reasoning": "Shallow chain, explore deeper",
+        "scoring": {
+            "coverage": 0.4,
+            "depth": 0.2,
+            "saturation": 0.0,
+            "novelty": 1.0,
+            "richness": 0.8,
+        },
+    }
+
+
 class TestAPIClient:
     """Tests for API client."""
 
