@@ -9,6 +9,7 @@ Tests performance requirements including:
 
 import pytest
 import asyncio
+import json
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -206,7 +207,7 @@ class TestPerformanceRequirements:
                 json={"concept_id": "test", "config": {"concept_name": "Test"}}
             )
             session_id = create_resp.json()["id"]
-            await client.post(f"/session/{session_id}/start")
+            await client.post(f"/sessions/{session_id}/start")
 
             # Try to process turns concurrently
             # This should either work sequentially or error
