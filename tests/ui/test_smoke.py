@@ -69,3 +69,42 @@ class TestChatInterface:
 
         assert hasattr(st.session_state, "chat_history")
         assert hasattr(st.session_state, "opening_displayed")
+
+
+from ui.components.graph import GraphVisualizer
+
+
+class TestGraphVisualizer:
+    """Tests for graph visualizer component."""
+
+    def test_init_creates_layout_algorithms(self):
+        """GraphVisualizer initializes with layout algorithms."""
+        visualizer = GraphVisualizer()
+
+        assert "Spring" in visualizer.layout_algorithms
+        assert "Kamada-Kawai" in visualizer.layout_algorithms
+        assert "Circular" in visualizer.layout_algorithms
+        assert len(visualizer.layout_algorithms) >= 5
+
+    def test_node_colors_defined(self):
+        """Node type colors are defined for all MEC types."""
+        visualizer = GraphVisualizer()
+
+        required_types = [
+            "attribute",
+            "functional_consequence",
+            "psychosocial_consequence",
+            "instrumental_value",
+            "terminal_value",
+        ]
+
+        for node_type in required_types:
+            assert node_type in visualizer.NODE_COLORS
+
+    def test_node_colors_are_hex(self):
+        """Node colors are valid hex color codes."""
+        visualizer = GraphVisualizer()
+
+        for color in visualizer.NODE_COLORS.values():
+            assert color.startswith("#")
+            assert len(color) == 7  # #RRGGBB format
