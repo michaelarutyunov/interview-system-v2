@@ -237,11 +237,6 @@ def parse_synthetic_response(response_text: str) -> str:
         text = text[:-3]
     text = text.strip()
 
-    # Remove regular quote wrapping if present
-    if text.startswith('"') and text.endswith('"'):
-        text = text[1:-1]
-    text = text.strip()
-
     # Remove "Response:" prefix
     if text.lower().startswith("response:"):
         text = text[9:].strip()

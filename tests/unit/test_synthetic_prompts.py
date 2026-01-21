@@ -166,7 +166,7 @@ class TestParseSyntheticResponse:
 
     def test_parse_whitespace_cleanup(self):
         """Cleans up extra whitespace."""
-        response = '  "  Response with spaces  "  '
+        response = '  Response   with   spaces  '
         parsed = parse_synthetic_response(response)
 
         assert parsed == "Response with spaces"

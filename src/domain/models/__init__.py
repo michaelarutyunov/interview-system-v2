@@ -1,4 +1,21 @@
-"""Domain models."""
-from src.domain.models.session import Session, SessionState
+"""Domain models package."""
 
-__all__ = ["Session", "SessionState"]
+from .session import Session, SessionState
+from .knowledge_graph import KGNode, KGEdge, GraphState, NodeType, EdgeType
+from .utterance import Utterance, Speaker
+from .extraction import ExtractedConcept, ExtractedRelationship, ExtractionResult
+
+__all__ = [
+    "Session",
+    "SessionState",
+    "KGNode",
+    "KGEdge",
+    "GraphState",
+    "NodeType",
+    "EdgeType",
+    "Utterance",
+    "Speaker",
+    "ExtractedConcept",
+    "ExtractedRelationship",
+    "ExtractionResult",
+]
