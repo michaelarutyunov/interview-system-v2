@@ -2,5 +2,15 @@
 
 from src.services.scoring.base import ScorerBase, ScorerOutput
 from src.services.scoring.coverage import CoverageScorer
+from src.services.scoring.depth import DepthScorer
+from src.services.scoring.novelty import NoveltyScorer
+from src.services.scoring.saturation import SaturationScorer
 
-__all__ = ["ScorerBase", "ScorerOutput", "CoverageScorer"]
+__all__ = [
+    "ScorerBase",
+    "ScorerOutput",
+    "CoverageScorer",
+    "DepthScorer",
+    "NoveltyScorer",
+    "SaturationScorer",
+]
