@@ -8,7 +8,6 @@ Uses mocked LLM responses to avoid actual API calls during testing.
 """
 
 import pytest
-import json
 import tempfile
 from pathlib import Path
 from httpx import ASGITransport, AsyncClient
@@ -51,62 +50,6 @@ async def client(test_db):
 
 
 @pytest.fixture
-def mock_llm_extraction_response():
-    """Mock LLM response for extraction."""
-    return json.dumps({
-        "concepts": [
-            {
-                "text": "creamy texture",
-                "node_type": "attribute",
-                "confidence": 0.9,
-                "source_quote": "I love the creamy texture"
-            },
-            {
-                "text": "satisfying",
-                "node_type": "functional_consequence",
-                "confidence": 0.8,
-                "source_quote": "it's really satisfying"
-            },
-            {
-                "text": "feel healthy",
-                "node_type": "psychosocial_consequence",
-                "confidence": 0.85,
-                "source_quote": "makes me feel healthy"
-            }
-        ],
-        "relationships": [
-            {
-                "source_text": "creamy texture",
-                "target_text": "satisfying",
-                "relationship_type": "leads_to",
-                "confidence": 0.75,
-                "source_quote": "the creamy texture makes it satisfying"
-            },
-            {
-                "source_text": "satisfying",
-                "target_text": "feel healthy",
-                "relationship_type": "leads_to",
-                "confidence": 0.8,
-                "source_quote": "feeling satisfying makes me feel healthy"
-            }
-        ],
-        "discourse_markers": ["because", "makes"]
-    })
-
-
-@pytest.fixture
-def mock_llm_question_response():
-    """Mock LLM response for question generation."""
-    return "You mentioned that creamy texture is satisfying. Why is that feeling important to you?"
-
-
-@pytest.fixture
-def mock_llm_opening_response():
-    """Mock LLM response for opening question."""
-    return "I'd love to hear your thoughts about Oat Milk. What comes to mind when you think about it?"
-
-
-@pytest.fixture
 def synthetic_responses():
     """Mock synthetic responses for different personas."""
     return {
@@ -137,9 +80,6 @@ class TestSyntheticInterviewFlow:
     async def test_synthetic_interview_completes(
         self,
         client,
-        mock_llm_extraction_response,
-        mock_llm_question_response,
-        mock_llm_opening_response,
         synthetic_responses,
     ):
         """Test complete synthetic interview flow (synthetic generation only)."""
@@ -195,7 +135,6 @@ class TestSyntheticInterviewFlow:
             )
             assert synthetic_resp.status_code == 200
             synthetic_answer = synthetic_resp.json()["response"]
-            assert synthetic_answer
             assert synthetic_answer  # Should have content
 
             # Step 3: Get another synthetic response with context
@@ -275,8 +214,8 @@ class TestSyntheticInterviewFlow:
 
             # Verify we got 3 different responses
             assert len(all_responses) == 3
-            # Responses should vary
-            assert len(set(all_responses)) > 0  # At least some variety
+            # Responses should vary (at least 2 unique from 3)
+            assert len(set(all_responses)) >= 2
 
     @pytest.mark.asyncio
     async def test_synthetic_multi_persona_comparison(
@@ -445,7 +384,7 @@ class TestSyntheticServiceIntegration:
 
             # At least one should show variation (in real scenario with deflection)
             response_texts = [r["response"] for r in results]
-            assert len(set(response_texts)) > 0  # At least some variation
+            assert len(set(response_texts)) >= 2  # At least 2 unique from 3
 
     @pytest.mark.asyncio
     async def test_service_handles_all_personas(self, client):
