@@ -7,7 +7,10 @@ All application exceptions inherit from InterviewSystemError.
 
 class InterviewSystemError(Exception):
     """Base exception for all application errors."""
-    pass
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)
 
 
 # =============================================================================
@@ -48,6 +51,11 @@ class LLMResponseParseError(LLMError):
     pass
 
 
+class LLMInvalidResponseError(LLMError):
+    """LLM returned invalid or unexpected response."""
+    pass
+
+
 # =============================================================================
 # Session Errors
 # =============================================================================
@@ -78,6 +86,11 @@ class SessionAbandonedError(SessionError):
 
 class ExtractionError(InterviewSystemError):
     """Failed to extract concepts from response."""
+    pass
+
+
+class ValidationError(InterviewSystemError):
+    """Input validation failed."""
     pass
 
 

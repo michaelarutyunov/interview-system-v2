@@ -15,6 +15,7 @@ from src.core.logging import configure_logging, get_logger
 from src.persistence.database import init_database, check_database_health
 from src.api.routes import health, sessions, synthetic
 from src.api.routes.concepts import router as concepts_router
+from src.api.exception_handlers import setup_exception_handlers
 
 # Configure logging before anything else
 configure_logging()
@@ -64,6 +65,9 @@ if settings.debug:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+# Setup exception handlers
+setup_exception_handlers(app)
 
 # Include routers
 app.include_router(health.router, tags=["system"])
