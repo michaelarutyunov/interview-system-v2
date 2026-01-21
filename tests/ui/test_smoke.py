@@ -4,6 +4,8 @@
 import pytest
 
 from ui.api_client import APIClient, SessionInfo
+from ui.components.chat import ChatInterface, initialize_chat_state
+from unittest.mock import MagicMock
 
 
 class TestAPIClient:
@@ -45,3 +47,25 @@ class TestSessionInfo:
         assert info.concept_id == "oat_milk_v1"
         assert info.status == "active"
         assert info.opening_question == "What do you think?"
+
+
+class TestChatInterface:
+    """Tests for chat interface component."""
+
+    def test_init_with_api_client(self):
+        """ChatInterface initializes with API client."""
+        mock_client = MagicMock(spec=APIClient)
+        chat = ChatInterface(mock_client)
+        assert chat.api_client == mock_client
+        assert chat.max_history == 100
+
+    def test_initialize_chat_state(self):
+        """initialize_chat_state sets defaults."""
+        import streamlit as st
+        if not hasattr(st, "session_state"):
+            st.session_state = MagicMock()
+
+        initialize_chat_state()
+
+        assert hasattr(st.session_state, "chat_history")
+        assert hasattr(st.session_state, "opening_displayed")
