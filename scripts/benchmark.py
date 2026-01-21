@@ -47,8 +47,8 @@ class BenchmarkResult:
         self.name = name
         self.latencies_ms: List[float] = []
         self.errors: List[Dict] = []
-        self.start_time = None
-        self.end_time = None
+        self.start_time: float | None = None
+        self.end_time: float | None = None
 
     def add_latency(self, latency_ms: float):
         """Add a latency measurement."""
@@ -251,7 +251,7 @@ class LiveBenchmark:
     Tests end-to-end latency with real LLM calls.
     """
 
-    def __init__(self, runs: int = 10, api_key: str = None):
+    def __init__(self, runs: int = 10, api_key: str | None = None):
         self.runs = runs
         self.api_key = api_key
         self.result = BenchmarkResult(f"Live ({runs} turns)")
