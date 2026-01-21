@@ -28,3 +28,8 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+
+# Custom
+commands.md
+
+

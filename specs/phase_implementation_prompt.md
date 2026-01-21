@@ -1,17 +1,17 @@
-# Implement Phase 4
+# Implement Phase 5
 
 ## Pre-requisites setup
-run /specs/phase-4/prerequisites.sh
+run /specs/phase-5/prerequisites.sh
 
 ## Tasks to implement
-read /specs/phase-4/*.md
+read /specs/phase-5/*.md
 
 ## Reference Documents
-- ./IMPLEMENTATION_PLAN.md Section 4 (Phase 4 tasks 4.1-4.5)
-- ./PRD.md Sections 4.6, 6.2, 8.4 (Synthetic Respondent & Testing)
-- ./ENGINEERING_GUIDE.md (testing architecture)
+- ./IMPLEMENTATION_PLAN.md Section 5 (Phase 5 tasks 5.1-5.7)
+- ./PRD.md Section 12 (Open Questions: Frontend framework)
+- ./ENGINEERING_GUIDE.md (UI architecture)
 - ./AGENTS.md
-- v1 reference code: /home/mikhailarutyunov/projects/graph-enabled-ai-interviewer/src/services/synthetic_service.py
+- v1 reference code: /home/mikhailarutyunov/projects/graph-enabled-ai-interviewer/src/ui/
 
 ## Development Workflow
 - Use UV instead of pip
