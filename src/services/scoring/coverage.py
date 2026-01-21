@@ -3,12 +3,17 @@
 Boosts coverage strategies when gaps exist in the interview.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import structlog
 
 from src.domain.models.knowledge_graph import GraphState
 from src.services.scoring.base import ScorerBase, ScorerOutput
+
+
+# Default configuration values
+DEFAULT_GAP_BOOST = 2.0
+DEFAULT_COVERAGE_THRESHOLD = 0.8
 
 
 logger = structlog.get_logger(__name__)
@@ -34,15 +39,15 @@ class CoverageScorer(ScorerBase):
 
     def __init__(self, config: Dict[str, Any] = None):
         super().__init__(config)
-        self.gap_boost = self.params.get("gap_boost", 2.0)
-        self.coverage_threshold = self.params.get("coverage_threshold", 0.8)
+        self.gap_boost = self.params.get("gap_boost", DEFAULT_GAP_BOOST)
+        self.coverage_threshold = self.params.get("coverage_threshold", DEFAULT_COVERAGE_THRESHOLD)
 
     async def score(
         self,
         strategy: Dict[str, Any],
         focus: Dict[str, Any],
         graph_state: GraphState,
-        recent_nodes: List[Dict[str, Any]],
+        recent_nodes: list[Dict[str, Any]],
     ) -> ScorerOutput:
         """
         Score based on element coverage.
@@ -65,12 +70,15 @@ class CoverageScorer(ScorerBase):
         elements_total = graph_state.properties.get("elements_total", 0)
         elements_seen = graph_state.properties.get("elements_seen", set())
 
+        # Extract type check once to avoid redundant isinstance checks
+        is_elements_seen_set = isinstance(elements_seen, set)
+
         signals["elements_total"] = elements_total
-        signals["elements_seen_count"] = len(elements_seen) if isinstance(elements_seen, set) else 0
+        signals["elements_seen_count"] = len(elements_seen) if is_elements_seen_set else 0
 
         # Calculate coverage ratio
         if elements_total > 0:
-            seen_count = len(elements_seen) if isinstance(elements_seen, set) else 0
+            seen_count = len(elements_seen) if is_elements_seen_set else 0
             coverage_ratio = seen_count / elements_total
         else:
             coverage_ratio = 1.0  # No elements = full coverage
