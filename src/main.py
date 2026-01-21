@@ -13,7 +13,7 @@ import structlog
 from src.core.config import settings
 from src.core.logging import configure_logging, get_logger
 from src.persistence.database import init_database, check_database_health
-from src.api.routes import health, sessions
+from src.api.routes import health, sessions, synthetic
 
 # Configure logging before anything else
 configure_logging()
@@ -67,6 +67,7 @@ if settings.debug:
 # Include routers
 app.include_router(health.router, tags=["system"])
 app.include_router(sessions.router)
+app.include_router(synthetic.router)
 
 
 # Root endpoint
