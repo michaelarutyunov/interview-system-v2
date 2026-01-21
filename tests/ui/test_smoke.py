@@ -217,3 +217,32 @@ class TestMetricsPanel:
         }
         # Just verify data structure is accepted
         assert "turn_number" in status_data
+
+
+from ui.components.controls import SessionControls, initialize_session_state
+
+
+class TestSessionControls:
+    """Tests for session controls component."""
+
+    def test_init_with_api_client(self):
+        """SessionControls initializes with API client."""
+        mock_client = MagicMock(spec=APIClient)
+        controls = SessionControls(mock_client)
+        assert controls.api_client == mock_client
+
+
+class TestSessionStateInitialization:
+    """Tests for session state initialization functions."""
+
+    def test_initialize_session_state_sets_defaults(self):
+        """initialize_session_state() sets default values."""
+        import streamlit as st
+        if not hasattr(st, "session_state"):
+            st.session_state = MagicMock()
+
+        initialize_session_state()
+
+        assert hasattr(st.session_state, "current_session")
+        assert hasattr(st.session_state, "sessions")
+        assert hasattr(st.session_state, "confirm_delete")
