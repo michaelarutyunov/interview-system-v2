@@ -56,19 +56,6 @@ async def create_session(
     return response.json()
 
 
-async def start_session(
-    client: httpx.AsyncClient,
-    api_url: str,
-    session_id: str,
-) -> Dict[str, Any]:
-    """Start a session and get the opening question."""
-    response = await client.post(
-        f"{api_url}/sessions/{session_id}/start",
-    )
-    response.raise_for_status()
-    return response.json()
-
-
 async def get_synthetic_response(
     client: httpx.AsyncClient,
     api_url: str,
@@ -161,12 +148,8 @@ async def run_interview(
 
             results["session_id"] = session_id
 
-            # Start session to get opening question
-            if verbose:
-                print(f"Starting session...")
-
-            start_result = await start_session(client, api_url, session_id)
-            opening_question = start_result["opening_question"]
+            # Get opening question from session response
+            opening_question = session.get("opening_question", "")
 
             if verbose:
                 print(f"Opening question: {opening_question}")
@@ -197,7 +180,6 @@ async def run_interview(
 
                 # Get synthetic response
                 interview_context = {
-                    "product_name": "Oat Milk",
                     "turn_number": turn_num,
                     "coverage_achieved": current_coverage,
                 }
