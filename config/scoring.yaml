@@ -1,0 +1,174 @@
+# Two-tier scoring system configuration
+#
+# Tier 1: Hard constraints (boolean vetoes)
+# - Early exit on first veto
+# - No weights, all equal veto power
+#
+# Tier 2: Weighted additive scoring
+# - Weights must sum to 1.0
+# - Scores in range [0, 2] with 1.0 as neutral
+
+scoring:
+  # Tier 1 scorers (hard constraints)
+  tier1_scorers:
+    - id: knowledge_ceiling
+      class: KnowledgeCeilingScorer
+      enabled: true
+      params:
+        min_confidence: 0.5
+        negative_patterns:
+          - "don't know"
+          - "not sure"
+          - "never heard"
+          - "no idea"
+          - "unfamiliar"
+
+    - id: element_exhausted
+      class: ElementExhaustedScorer
+      enabled: true
+      params:
+        max_mentions: 5
+        lookback_window: 10
+
+    - id: recent_redundancy
+      class: RecentRedundancyScorer
+      enabled: true
+      params:
+        similarity_threshold: 0.85
+        lookback_window: 6
+        method: "tfidf_cosine"  # jaccard, cosine, or embeddings
+
+  # Tier 2 scorers (weighted additive)
+  tier2_scorers:
+    - id: coverage_gap
+      class: CoverageGapScorer
+      enabled: true
+      weight: 0.20
+      params:
+        gap_types:
+          - "unmentioned"
+          - "no_reaction"
+          - "no_comprehension"
+          - "unconnected"
+        boost_per_gap: 0.15
+
+    - id: ambiguity
+      class: AmbiguityScorer
+      enabled: true
+      weight: 0.15
+      params:
+        high_clarity_threshold: 0.8
+        low_clarity_threshold: 0.5
+        hedge_words:
+          - "maybe"
+          - "perhaps"
+          - "possibly"
+          - "sort of"
+          - "kind of"
+          - "i think"
+          - "i guess"
+          - "probably"
+          - "not sure"
+
+    - id: depth_breadth_balance
+      class: DepthBreadthBalanceScorer
+      enabled: true
+      weight: 0.20
+      params:
+        target_ratio: 0.5  # 0.5 = balanced, 0.7 = depth-favoring
+        low_breadth_threshold: 0.4
+        high_breadth_threshold: 0.7
+        low_depth_threshold: 2.0
+        high_depth_threshold: 4.0
+
+    - id: engagement
+      class: EngagementScorer
+      enabled: true
+      weight: 0.15
+      params:
+        low_momentum_threshold: 30
+        high_momentum_threshold: 100
+        elaboration_markers:
+          - "because"
+          - "since"
+          - "for example"
+          - "specifically"
+          - "such as"
+          - "meaning"
+        enthusiasm_markers:
+          - "!"
+          - "really"
+          - "absolutely"
+          - "love"
+          - "great"
+          - "perfect"
+
+    - id: strategy_diversity
+      class: StrategyDiversityScorer
+      enabled: true
+      weight: 0.15
+      params:
+        lookback_window: 5
+        moderate_use_threshold: 2
+        overuse_threshold: 3
+        moderate_penalty: 0.8
+        overuse_penalty: 0.6
+
+    - id: novelty
+      class: NoveltyScorer
+      enabled: true
+      weight: 0.15
+      params:
+        lookback_window: 8
+        fresh_threshold: 1
+        overdiscussed_threshold: 4
+        fresh_boost: 1.2
+        overdiscussed_penalty: 0.7
+
+  # Validation rules
+  validation:
+    tier2_weights_must_sum_to: 1.0
+    tolerance: 0.01
+    require_at_least_one_tier1: false  # Tier 1 optional for now
+    warn_if_tier1_veto_rate_exceeds: 0.8
+
+# Strategy definitions
+strategies:
+  - id: deepen
+    name: "Deepen Understanding"
+    type_category: "depth"
+    priority_base: 1.0
+    enabled: true
+
+  - id: broaden
+    name: "Explore Breadth"
+    type_category: "breadth"
+    priority_base: 0.9
+    enabled: true
+
+  - id: cover_element
+    name: "Cover Stimulus Element"
+    type_category: "coverage"
+    priority_base: 1.1
+    enabled: true
+
+  - id: closing
+    name: "Closing Interview"
+    type_category: "closing"
+    priority_base: 0.5
+    enabled: true
+    min_turns: 8  # Minimum turns before closing is applicable
+
+  - id: reflection
+    name: "Reflection / Meta-Question"
+    type_category: "reflection"
+    priority_base: 0.7
+    enabled: true
+    emergency_only: true  # Only when all else fails
+
+# Engine configuration
+engine:
+  veto_on_first: true  # Stop Tier 1 evaluation on first veto
+  score_precision: 4   # Decimal places for score display
+  alternatives_count: 3  # Number of alternatives to track
+  alternatives_min_score: 0.3  # Minimum score for alternatives
