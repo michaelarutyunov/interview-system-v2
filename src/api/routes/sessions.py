@@ -34,6 +34,8 @@ from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
 from src.services.session_service import SessionService
 from src.services.export_service import ExportService
+from src.services.scoring.two_tier import create_scoring_engine, TwoTierScoringEngine
+from src.services.strategy_service import StrategyService
 
 log = structlog.get_logger(__name__)
 
@@ -50,8 +52,44 @@ def get_session_repository() -> SessionRepository:
 SessionRepoDep = Annotated[SessionRepository, Depends(get_session_repository)]
 
 
+def get_scoring_engine() -> TwoTierScoringEngine:
+    """
+    Dependency that provides a TwoTierScoringEngine instance.
+
+    Loads configuration from config/scoring.yaml and initializes
+    all Tier 2 scorers with their weights.
+    """
+    # Create engine from YAML config
+    engine = create_scoring_engine()
+    log.info("scoring_engine_created", engine=str(engine))
+    return engine
+
+
+ScoringEngineDep = Annotated[TwoTierScoringEngine, Depends(get_scoring_engine)]
+
+
+def get_strategy_service(
+    scoring_engine: ScoringEngineDep,
+) -> StrategyService:
+    """
+    Dependency that provides a StrategyService instance.
+
+    Uses the TwoTierScoringEngine for strategy selection.
+    """
+    service = StrategyService(
+        scoring_engine=scoring_engine,
+        config={},  # Use default config
+    )
+    log.info("strategy_service_created")
+    return service
+
+
+StrategyServiceDep = Annotated[StrategyService, Depends(get_strategy_service)]
+
+
 async def get_session_service(
     db: aiosqlite.Connection = Depends(get_db),
+    strategy_service: StrategyService = Depends(get_strategy_service),
 ) -> SessionService:
     """
     Create SessionService with dependencies.
@@ -64,6 +102,7 @@ async def get_session_service(
     return SessionService(
         session_repo=session_repo,
         graph_repo=graph_repo,
+        strategy_service=strategy_service,  # Inject StrategyService
     )
 
 

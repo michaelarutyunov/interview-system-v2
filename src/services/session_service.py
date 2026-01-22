@@ -30,6 +30,7 @@ from src.services.question_service import QuestionService
 from src.services.strategy_service import StrategyService, SelectionResult
 from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
+from src.persistence.database import get_db_connection
 
 log = structlog.get_logger(__name__)
 
@@ -175,12 +176,13 @@ class SessionService:
         graph_state = await self.graph.get_graph_state(session_id)
         recent_nodes = await self.graph.get_recent_nodes(session_id, limit=5)
 
-        # Step 6: Select strategy using adaptive scoring (Phase 3)
+        # Step 6: Select strategy using two-tier adaptive scoring
         # Fall back to Phase 2 hardcoded behavior if strategy_service not available
         if self.strategy:
             selection = await self.strategy.select(
                 graph_state=graph_state,
                 recent_nodes=[n.dict() for n in recent_nodes],
+                conversation_history=context.recent_utterances,  # Pass conversation history for Tier 1 scorers
             )
             strategy = selection.selected_strategy["id"]
             focus = selection.selected_focus
@@ -248,11 +250,15 @@ class SessionService:
         )
 
         # Step 10: Update session turn count
-        await self.session_repo.update(
-            session_id,
+        from src.domain.models.session import SessionState
+        updated_state = SessionState(
+            methodology=context.methodology,
+            concept_id=context.concept_id,
+            concept_name=context.concept_name,
             turn_count=context.turn_number + 1,
-            updated_at=datetime.utcnow(),
+            coverage_score=0.0,  # Will be computed on-demand
         )
+        await self.session_repo.update_state(session_id, updated_state)
 
         latency_ms = int((time.perf_counter() - start_time) * 1000)
 
@@ -292,11 +298,9 @@ class SessionService:
                 "depth_achieved": graph_state.nodes_by_type,
             },
             scoring={
-                "strategy_id": selection.selected_strategy["id"] if selection else strategy,
-                "strategy_name": selection.selected_strategy["name"] if selection else strategy,
-                "focus_type": selection.selected_focus.get("focus_type") if selection and selection.selected_focus else None,
-                "final_score": selection.final_score if selection else 0.0,
-                "reasoning": selection.scoring_reasoning[-3:] if selection and selection.scoring_reasoning else [],  # Last 3 steps
+                "coverage": 0.0,  # Phase 3: computed by CoverageScorer
+                "depth": 0.0,  # Phase 3: computed by DepthScorer
+                "saturation": 0.0,  # Phase 3: computed by SaturationScorer
             },
             strategy_selected=strategy,
             next_question=next_question,
@@ -321,9 +325,9 @@ class SessionService:
         if not session:
             raise ValueError(f"Session {session_id} not found")
 
-        # Get concept name from config
-        concept_name = session.config.get("concept_name", "the product")
-        concept_description = session.config.get("concept_description", "")
+        # Get concept name from session
+        concept_name = session.concept_name
+        concept_description = ""  # Not stored in Session model
 
         question = await self.question.generate_opening_question(
             concept_name=concept_name,
@@ -369,8 +373,8 @@ class SessionService:
             session_id=session_id,
             methodology=session.methodology,
             concept_id=session.concept_id,
-            concept_name=session.config.get("concept_name", ""),
-            turn_number=session.turn_count or 1,
+            concept_name=session.concept_name,
+            turn_number=session.state.turn_count or 1,
             recent_utterances=recent_utterances,
             graph_state=graph_state,
             recent_nodes=recent_nodes,
@@ -398,15 +402,19 @@ class SessionService:
         utterance_id = str(uuid4())
         now = datetime.utcnow().isoformat()
 
-        # Insert into utterances table
-        await self.session_repo.db.execute(
-            """
-            INSERT INTO utterances (id, session_id, turn_number, speaker, text, discourse_markers, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (utterance_id, session_id, turn_number, speaker, text, "[]", now),
-        )
-        await self.session_repo.db.commit()
+        # Use database connection directly
+        db = await get_db_connection()
+        try:
+            await db.execute(
+                """
+                INSERT INTO utterances (id, session_id, turn_number, speaker, text, discourse_markers, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (utterance_id, session_id, turn_number, speaker, text, "[]", now),
+            )
+            await db.commit()
+        finally:
+            await db.close()
 
         return Utterance(
             id=utterance_id,
@@ -429,16 +437,20 @@ class SessionService:
         Returns:
             List of {"speaker": str, "text": str} dicts
         """
-        cursor = await self.session_repo.db.execute(
-            """
-            SELECT speaker, text FROM utterances
-            WHERE session_id = ?
-            ORDER BY turn_number DESC, created_at DESC
-            LIMIT ?
-            """,
-            (session_id, limit),
-        )
-        rows = await cursor.fetchall()
+        db = await get_db_connection()
+        try:
+            cursor = await db.execute(
+                """
+                SELECT speaker, text FROM utterances
+                WHERE session_id = ?
+                ORDER BY turn_number DESC, created_at DESC
+                LIMIT ?
+                """,
+                (session_id, limit),
+            )
+            rows = await cursor.fetchall()
+        finally:
+            await db.close()
 
         # Reverse to get chronological order
         return [{"speaker": row[0], "text": row[1]} for row in reversed(rows)]

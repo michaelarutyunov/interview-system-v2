@@ -10,7 +10,6 @@ Integrates all UI components:
 Run with: streamlit run ui/streamlit_app.py
 """
 
-import asyncio
 from typing import Optional, Dict, Any
 import streamlit as st
 
@@ -195,7 +194,7 @@ def _process_turn(
     """Process a user turn through the API."""
     with st.spinner("Processing..."):
         try:
-            result = asyncio.run(api_client.submit_turn(session_id, user_input))
+            result = api_client.submit_turn(session_id, user_input)
 
             # Store result for diagnostics
             st.session_state.last_turn_result = result
@@ -249,7 +248,7 @@ def _render_metrics_tab(status_data: Dict[str, Any], graph_data: Optional[Dict])
 def _get_session_status(api_client: APIClient, session_id: str) -> Dict[str, Any]:
     """Get current session status from API."""
     try:
-        return asyncio.run(api_client.get_session_status(session_id))
+        return api_client.get_session_status(session_id)
     except Exception as e:
         st.error(f"Failed to get session status: {str(e)}")
         return {}
@@ -258,7 +257,7 @@ def _get_session_status(api_client: APIClient, session_id: str) -> Dict[str, Any
 def _get_session_graph(api_client: APIClient, session_id: str) -> Dict[str, Any]:
     """Get session knowledge graph from API."""
     try:
-        return asyncio.run(api_client.get_session_graph(session_id))
+        return api_client.get_session_graph(session_id)
     except Exception as e:
         st.error(f"Failed to get graph data: {str(e)}")
         return {}

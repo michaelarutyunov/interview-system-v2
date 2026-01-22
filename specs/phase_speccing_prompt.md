@@ -1,4 +1,4 @@
-# Develop tasks to implement phase 5
+# Develop tasks to implement phase 6
 
 ## Goal
 Develop a set of tasks and save them in a dedicated folder
@@ -16,4 +16,4 @@ Develop a set of tasks and save them in a dedicated folder
 - Delegate to sub-agents where appropriate to preserve context
 
 ## Expected Deliverables
-- All tasks and pre-requisites setup script are saved in folder specs/phase-5
+- All tasks and pre-requisites setup script are saved in folder specs/phase-6

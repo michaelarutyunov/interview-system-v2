@@ -52,7 +52,7 @@ class SessionControls:
             self._render_new_session()
 
         with tab2:
-            return self._render_session_list()
+            self._render_session_list()
 
         with tab3:
             self._render_export()
@@ -71,41 +71,43 @@ class SessionControls:
             label_visibility="collapsed",
         )
 
-        # Optional parameters
-        with st.expander("Advanced Options"):
-            max_turns = st.number_input(
-                "Max Turns",
-                min_value=5,
-                max_value=50,
-                value=20,
-            )
-
-            target_coverage = st.slider(
-                "Target Coverage",
-                min_value=0.1,
-                max_value=1.0,
-                value=0.8,
-                step=0.1,
-            )
+        # Methodology selection
+        methodology = st.selectbox(
+            "Methodology",
+            options=["means_end_chain", "laddering", "critical_incident"],
+            label_visibility="collapsed",
+        )
 
         # Create button
         if st.button("🚀 Start Interview", type="primary", use_container_width=True):
-            self._create_session(concept_id, max_turns, target_coverage)
+            self._create_session(concept_id, methodology)
 
-    def _create_session(self, concept_id: str, max_turns: int, target_coverage: float):
+    def _create_session(self, concept_id: str, methodology: str):
         """Create a new session."""
         with st.spinner("Creating session..."):
             try:
                 session_info = st.session_state.api_client.create_session(
                     concept_id=concept_id,
-                    max_turns=max_turns,
-                    target_coverage=target_coverage,
+                    methodology=methodology,
                 )
+
+                # Start the session to get opening question
+                opening_question = st.session_state.api_client.start_session(session_info.id)
 
                 # Store in session state
                 st.session_state.current_session = session_info
                 st.session_state.chat_history = []
                 st.session_state.opening_displayed = False
+
+                # Add opening question to chat
+                if opening_question:
+                    from ui.components.chat import ChatInterface
+                    chat = ChatInterface(st.session_state.api_client)
+                    chat.add_assistant_message(opening_question)
+                    st.session_state.opening_displayed = True
+
+                # Invalidate sessions cache so it reloads with new session
+                st.session_state.sessions = None
 
                 st.success(f"Session {session_info.id[:8]} created!")
                 st.rerun()
@@ -122,6 +124,18 @@ class SessionControls:
             self._load_sessions()
 
         sessions = st.session_state.get("sessions", [])
+
+        # Validate sessions format (detect bad cached data from before fix)
+        if sessions and isinstance(sessions, dict):
+            # Old format: {"sessions": [...], "total": N}
+            if "sessions" in sessions:
+                sessions = sessions["sessions"]
+                st.session_state.sessions = sessions
+            else:
+                # Bad data, clear and reload
+                st.session_state.sessions = None
+                self._load_sessions()
+                sessions = st.session_state.get("sessions", [])
 
         if not sessions:
             st.info("No sessions found.")
@@ -237,8 +251,8 @@ class SessionControls:
     def _load_sessions(self):
         """Load sessions from API."""
         try:
-            sessions = st.session_state.api_client.list_sessions()
-            st.session_state.sessions = sessions
+            response = st.session_state.api_client.list_sessions()
+            st.session_state.sessions = response.get("sessions", [])
         except Exception as e:
             st.error(f"Failed to load sessions: {str(e)}")
             st.session_state.sessions = []
@@ -269,26 +283,26 @@ class SessionControls:
         """Export session data."""
         with st.spinner("Exporting..."):
             try:
-                client = st.session_state.api_client._get_client()
+                import httpx
+                with httpx.Client(timeout=30.0) as client:
+                    # Call export endpoint
+                    params = {"format": format.lower()}
+                    response = client.get(
+                        f"{st.session_state.api_client.base_url}/sessions/{session_id}/export",
+                        params=params,
+                    )
+                    response.raise_for_status()
 
-                # Call export endpoint
-                params = {"format": format.lower()}
-                response = client.get(
-                    f"{st.session_state.api_client.base_url}/sessions/{session_id}/export",
-                    params=params,
-                )
-                response.raise_for_status()
+                    data = response.text
 
-                data = response.text
-
-                # Display download button
-                st.download_button(
-                    label=f"Download {format}",
-                    data=data,
-                    file_name=f"session_{session_id[:8]}.{format.lower()}",
-                    mime=f"application/{format.lower()}",
-                    type="primary",
-                )
+                    # Display download button
+                    st.download_button(
+                        label=f"Download {format}",
+                        data=data,
+                        file_name=f"session_{session_id[:8]}.{format.lower()}",
+                        mime=f"application/{format.lower()}",
+                        type="primary",
+                    )
 
             except Exception as e:
                 st.error(f"Export failed: {str(e)}")

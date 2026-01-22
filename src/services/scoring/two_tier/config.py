@@ -45,10 +45,33 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     """
     if config_path is None:
         # Default path: config/scoring.yaml relative to project root
-        project_root = Path(__file__).parent.parent.parent.parent
-        config_path = project_root / "config" / "scoring.yaml"
+        # Use a more robust path resolution that works with sys.path manipulation
+        try:
+            # Try to find project root by looking for the config directory
+            current = Path(__file__).resolve().parent
 
-    config_path = Path(config_path)
+            # Go up directories until we find config/scoring.yaml or reach a limit
+            for _ in range(6):  # Max 6 levels up
+                check_path = current / "config" / "scoring.yaml"
+                if check_path.exists():
+                    config_path = str(check_path)
+                    break
+                current = current.parent
+
+            if config_path is None:
+                # Fallback to current working directory / config / scoring.yaml
+                cwd_config = Path.cwd() / "config" / "scoring.yaml"
+                if cwd_config.exists():
+                    config_path = str(cwd_config)
+        except Exception:
+            pass
+
+    # If still None, use default config
+    if config_path is None:
+        logger.warning("Config file not found, using defaults")
+        return _get_default_config()
+
+    config_path = Path(config_path).resolve()
 
     if not config_path.exists():
         logger.warning(f"Config file not found: {config_path}, using defaults")
