@@ -8,19 +8,19 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.domain.models.turn import TurnContext
+    from .context import PipelineContext
 
 
 class TurnStage(ABC):
     """
     Abstract base class for pipeline stages.
 
-    Each stage must implement the process() method which takes a TurnContext,
+    Each stage must implement the process() method which takes a PipelineContext,
     performs its operation, updates the context, and returns the modified context.
     """
 
     @abstractmethod
-    async def process(self, context: "TurnContext") -> "TurnContext":
+    async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
         Process this stage, update context, return modified context.
 

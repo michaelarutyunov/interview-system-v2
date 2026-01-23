@@ -13,7 +13,7 @@ from src.domain.models.utterance import Utterance
 
 
 @dataclass
-class TurnContext:
+class PipelineContext:
     """
     Context object that accumulates state through pipeline stages.
 

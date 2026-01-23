@@ -4,14 +4,10 @@ Stage 3: Extract concepts and relationships.
 ADR-008 Phase 3: Use ExtractionService to extract knowledge from user input.
 """
 
-from typing import TYPE_CHECKING
-
 import structlog
 
 from ..base import TurnStage
-
-if TYPE_CHECKING:
-    from src.domain.models.turn import TurnContext
+from ..context import PipelineContext
 
 log = structlog.get_logger(__name__)
 
@@ -20,7 +16,7 @@ class ExtractionStage(TurnStage):
     """
     Extract concepts and relationships from user input.
 
-    Populates TurnContext.extraction.
+    Populates PipelineContext.extraction.
     """
 
     def __init__(self, extraction_service):
@@ -32,7 +28,7 @@ class ExtractionStage(TurnStage):
         """
         self.extraction = extraction_service
 
-    async def process(self, context: "TurnContext") -> "TurnContext":
+    async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
         Extract concepts/relationships from user input.
 
@@ -58,7 +54,7 @@ class ExtractionStage(TurnStage):
 
         return context
 
-    def _format_context_for_extraction(self, context: "TurnContext") -> str:
+    def _format_context_for_extraction(self, context: "PipelineContext") -> str:
         """
         Format context for extraction prompt.
 

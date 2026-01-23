@@ -11,7 +11,7 @@ from ..base import TurnStage
 
 
 if TYPE_CHECKING:
-    from src.domain.models.turn import TurnContext
+    from ..context import PipelineContext
 log = structlog.get_logger(__name__)
 
 
@@ -19,7 +19,7 @@ class ContinuationStage(TurnStage):
     """
     Determine if interview should continue.
 
-    Populates TurnContext.should_continue and TurnContext.focus_concept.
+    Populates PipelineContext.should_continue and PipelineContext.focus_concept.
     """
 
     def __init__(self, question_service):
@@ -31,7 +31,7 @@ class ContinuationStage(TurnStage):
         """
         self.question = question_service
 
-    async def process(self, context: "TurnContext") -> "TurnContext":
+    async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
         Determine if we should continue and select focus concept.
 

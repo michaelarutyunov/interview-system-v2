@@ -14,7 +14,7 @@ from ..base import TurnStage
 
 
 if TYPE_CHECKING:
-    from src.domain.models.turn import TurnContext
+    from ..context import PipelineContext
 log = structlog.get_logger(__name__)
 
 
@@ -22,14 +22,14 @@ class UtteranceSavingStage(TurnStage):
     """
     Save user utterance to the database.
 
-    Populates TurnContext.user_utterance.
+    Populates PipelineContext.user_utterance.
     """
 
     def __init__(self):
         """Initialize stage."""
         pass
 
-    async def process(self, context: "TurnContext") -> "TurnContext":
+    async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
         Save user utterance to the database.
 

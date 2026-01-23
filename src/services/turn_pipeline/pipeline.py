@@ -10,7 +10,7 @@ from typing import List
 import structlog
 
 from .base import TurnStage
-from .context import TurnContext
+from .context import PipelineContext
 from .result import TurnResult
 
 log = structlog.get_logger(__name__)
@@ -33,7 +33,7 @@ class TurnPipeline:
         self.stages = stages
         self.logger = log
 
-    async def execute(self, context: TurnContext) -> TurnResult:
+    async def execute(self, context: PipelineContext) -> TurnResult:
         """
         Execute all stages sequentially.
 
@@ -96,7 +96,7 @@ class TurnPipeline:
 
         return self._build_result(context, latency_ms)
 
-    def _build_result(self, context: TurnContext, latency_ms: int) -> TurnResult:
+    def _build_result(self, context: PipelineContext, latency_ms: int) -> TurnResult:
         """
         Build TurnResult from context.
 

@@ -14,14 +14,14 @@ from ..base import TurnStage
 log = structlog.get_logger(__name__)
 
 if TYPE_CHECKING:
-    from src.domain.models.turn import TurnContext
+    from ..context import PipelineContext
 
 
 class ContextLoadingStage(TurnStage):
     """
     Load session context at the start of turn processing.
 
-    Populates TurnContext with:
+    Populates PipelineContext with:
     - Session metadata (methodology, concept, turn number, mode)
     - Graph state (node count, edge count, depth)
     - Recent nodes
@@ -43,7 +43,7 @@ class ContextLoadingStage(TurnStage):
         self.session_repo = session_repo
         self.graph = graph_service
 
-    async def process(self, context: "TurnContext") -> "TurnContext":
+    async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
         Load session context into the context object.
 

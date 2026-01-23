@@ -11,7 +11,7 @@ from ..base import TurnStage
 
 
 if TYPE_CHECKING:
-    from src.domain.models.turn import TurnContext
+    from ..context import PipelineContext
 log = structlog.get_logger(__name__)
 
 
@@ -19,7 +19,7 @@ class StrategySelectionStage(TurnStage):
     """
     Select questioning strategy using two-tier adaptive scoring.
 
-    Populates TurnContext.strategy, TurnContext.selection_result, and TurnContext.focus.
+    Populates PipelineContext.strategy, PipelineContext.selection_result, and PipelineContext.focus.
     Falls back to Phase 2 hardcoded behavior if strategy_service not available.
     """
 
@@ -32,7 +32,7 @@ class StrategySelectionStage(TurnStage):
         """
         self.strategy = strategy_service
 
-    async def process(self, context: "TurnContext") -> "TurnContext":
+    async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
         Select strategy using two-tier adaptive scoring.
 
@@ -71,7 +71,7 @@ class StrategySelectionStage(TurnStage):
 
         return context
 
-    def _select_strategy(self, context: "TurnContext") -> str:
+    def _select_strategy(self, context: "PipelineContext") -> str:
         """
         Fallback strategy selection (Phase 2 behavior).
 

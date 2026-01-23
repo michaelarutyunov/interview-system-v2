@@ -11,7 +11,7 @@ from ..base import TurnStage
 
 
 if TYPE_CHECKING:
-    from src.domain.models.turn import TurnContext
+    from ..context import PipelineContext
 log = structlog.get_logger(__name__)
 
 
@@ -19,7 +19,7 @@ class StateComputationStage(TurnStage):
     """
     Compute current graph state.
 
-    Refreshes TurnContext.graph_state and TurnContext.recent_nodes.
+    Refreshes PipelineContext.graph_state and PipelineContext.recent_nodes.
     """
 
     def __init__(self, graph_service):
@@ -31,7 +31,7 @@ class StateComputationStage(TurnStage):
         """
         self.graph = graph_service
 
-    async def process(self, context: "TurnContext") -> "TurnContext":
+    async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
         Refresh graph state after updates.
 

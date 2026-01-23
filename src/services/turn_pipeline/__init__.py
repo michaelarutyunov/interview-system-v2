@@ -6,13 +6,13 @@ breaking up the monolithic SessionService.process_turn() method into testable st
 """
 
 from .base import TurnStage
-from .context import TurnContext
+from .context import PipelineContext
 from .pipeline import TurnPipeline
 from .result import TurnResult
 
 __all__ = [
     "TurnStage",
-    "TurnContext",
+    "PipelineContext",
     "TurnPipeline",
     "TurnResult",
 ]

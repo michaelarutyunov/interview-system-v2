@@ -26,7 +26,7 @@ from src.services.strategy_service import StrategyService, SelectionResult
 from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
 from src.persistence.repositories.utterance_repo import UtteranceRepository
-from src.services.turn_pipeline import TurnPipeline, TurnContext, TurnResult as PipelineTurnResult
+from src.services.turn_pipeline import TurnPipeline, PipelineContext, TurnResult as PipelineTurnResult
 from src.services.turn_pipeline.stages import (
     ContextLoadingStage,
     UtteranceSavingStage,
@@ -202,7 +202,7 @@ class SessionService:
         log.info("processing_turn", session_id=session_id, input_length=len(user_input))
 
         # Create initial context
-        context = TurnContext(
+        context = PipelineContext(
             session_id=session_id,
             user_input=user_input,
         )

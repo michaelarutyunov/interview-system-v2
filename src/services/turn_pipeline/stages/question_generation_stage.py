@@ -11,7 +11,7 @@ from ..base import TurnStage
 
 
 if TYPE_CHECKING:
-    from src.domain.models.turn import TurnContext
+    from ..context import PipelineContext
 log = structlog.get_logger(__name__)
 
 
@@ -19,7 +19,7 @@ class QuestionGenerationStage(TurnStage):
     """
     Generate follow-up question.
 
-    Populates TurnContext.next_question.
+    Populates PipelineContext.next_question.
     """
 
     def __init__(self, question_service):
@@ -31,7 +31,7 @@ class QuestionGenerationStage(TurnStage):
         """
         self.question = question_service
 
-    async def process(self, context: "TurnContext") -> "TurnContext":
+    async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
         Generate follow-up question or closing message.
 

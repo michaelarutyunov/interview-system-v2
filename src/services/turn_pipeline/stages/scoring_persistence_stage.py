@@ -15,7 +15,7 @@ from ..base import TurnStage
 
 
 if TYPE_CHECKING:
-    from src.domain.models.turn import TurnContext
+    from ..context import PipelineContext
 log = structlog.get_logger(__name__)
 
 
@@ -36,7 +36,7 @@ class ScoringPersistenceStage(TurnStage):
         """
         self.session_repo = session_repo
 
-    async def process(self, context: "TurnContext") -> "TurnContext":
+    async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
         Save scoring data and update session turn count.
 
@@ -234,7 +234,7 @@ class ScoringPersistenceStage(TurnStage):
             )
         )
 
-    async def _update_turn_count(self, context: "TurnContext"):
+    async def _update_turn_count(self, context: "PipelineContext"):
         """Update session turn count."""
         from src.domain.models.session import SessionState
 

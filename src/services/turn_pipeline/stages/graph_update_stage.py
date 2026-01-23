@@ -11,7 +11,7 @@ from ..base import TurnStage
 
 
 if TYPE_CHECKING:
-    from src.domain.models.turn import TurnContext
+    from ..context import PipelineContext
 log = structlog.get_logger(__name__)
 
 
@@ -19,7 +19,7 @@ class GraphUpdateStage(TurnStage):
     """
     Update knowledge graph with extracted data.
 
-    Populates TurnContext.nodes_added and TurnContext.edges_added.
+    Populates PipelineContext.nodes_added and PipelineContext.edges_added.
     """
 
     def __init__(self, graph_service):
@@ -31,7 +31,7 @@ class GraphUpdateStage(TurnStage):
         """
         self.graph = graph_service
 
-    async def process(self, context: "TurnContext") -> "TurnContext":
+    async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
         Update knowledge graph with extraction results.
 
