@@ -428,34 +428,83 @@ repos:
 
 ### Adding a New Scoring Metric
 
-1. **Create scorer in `src/services/scoring/`:**
+**Note**: The scoring system uses a two-tier architecture implemented in ADR-006. Tier 1 provides filtering, Tier 2 provides detailed scoring. Most new metrics should be added as Tier 2 scorers.
+
+1. **Create scorer in `src/services/scoring/tier2/`:**
    ```python
-   # src/services/scoring/my_metric.py
-   from .base import ScoringMetric
+   # src/services/scoring/tier2/my_metric.py
+   from src.services.scoring.base import ScorerOutput, ScorerBase
 
-   class MyMetric(ScoringMetric):
-       def __init__(self, weight: float = 1.0):
-           super().__init__(name="my_metric", weight=weight)
+   class MyMetricScorer(ScorerBase):
+       """Custom scoring metric for strategy selection."""
 
-       async def calculate(self, graph: KnowledgeGraph) -> float:
-           # Calculate metric based on graph state
-           return 0.5
+       def __init__(self, config: dict | None = None):
+           super().__init__(config or {})
+           self.threshold = self.config.get("threshold", 0.5)
+
+       async def score(
+           self,
+           candidate: StrategyCandidate,
+           context: TurnContext,
+       ) -> ScorerOutput:
+           # Calculate score based on candidate and context
+           raw_score = await self._calculate_score(candidate, context)
+
+           return self.make_output(
+               raw_score=raw_score,
+               weight=self.weight,
+           )
+
+       async def _calculate_score(
+           self,
+           candidate: StrategyCandidate,
+           context: TurnContext,
+       ) -> float:
+           # Your scoring logic here
+           # Read from context.graph_state, context.extraction, etc.
+           return 1.0
    ```
 
-2. **Register in arbitration service:**
+2. **Register in tier2 scorer factory:**
    ```python
-   # src/services/scoring/arbitration.py
-   from .my_metric import MyMetric
+   # src/services/scoring/tier2/__init__.py
+   from .my_metric import MyMetricScorer
 
-   class ScoringArbitrator:
-       def __init__(self):
-           self.metrics = [
-               CoverageMetric(),
-               DepthMetric(),
-               SaturationMetric(),
-               MyMetric(weight=0.5),  # Add new metric
-           ]
+   def get_tier2_scorers(config: dict) -> list[ScorerBase]:
+       return [
+           CoverageGapScorer(config.get("coverage_gap", {})),
+           DepthScorer(config.get("depth", {})),
+           MyMetricScorer(config.get("my_metric", {})),  # Add new scorer
+       ]
    ```
+
+3. **Add configuration (optional):**
+   ```yaml
+   # config/scoring.yaml
+   tier2_scorers:
+     my_metric:
+       enabled: true
+       weight: 0.15
+       threshold: 0.5
+   ```
+
+4. **Add tests:**
+   ```python
+   # tests/unit/test_my_metric_scorer.py
+   import pytest
+   from src.services.scoring.tier2.my_metric import MyMetricScorer
+
+   @pytest.mark.asyncio
+   async def test_my_metric_scoring():
+       scorer = MyMetricScorer({"weight": 0.15, "threshold": 0.5})
+       # Test your scorer logic
+   ```
+
+**Key benefits of this architecture** (from ADR-008):
+- Changes are isolated to single files
+- No need to modify SessionService, pipeline, or API
+- Scorers only read from TurnContext (no direct DB/LLM calls)
+- Easy to test in isolation
 
 ### Adding a New Prompt
 
@@ -681,11 +730,56 @@ sqlitebrowser data/interview.db
 
 ### Key Design Patterns
 
+- **Pipeline Pattern** (ADR-008): Turn processing through 10 independent stages
 - **Repository Pattern**: Data access abstraction
 - **Service Layer**: Business logic encapsulation
 - **Dependency Injection**: FastAPI Depends for testability
 - **Factory Pattern**: Service creation with dependencies
 - **Strategy Pattern**: Scoring metrics and question strategies
+
+### Pipeline Architecture (ADR-008)
+
+The core turn processing flow uses a pipeline pattern with 10 independent stages:
+
+```
+SessionService.process_turn()
+    │
+    └─→ TurnPipeline.execute(TurnContext)
+            │
+            ├─→ ContextLoadingStage       # Load session metadata
+            ├─→ UtteranceSavingStage      # Save user input
+            ├─→ ExtractionStage           # Extract concepts
+            ├─→ GraphUpdateStage          # Update knowledge graph
+            ├─→ StateComputationStage     # Recompute graph state
+            ├─→ StrategySelectionStage    # Select strategy (scoring)
+            ├─→ ContinuationStage         # Decide to continue
+            ├─→ QuestionGenerationStage   # Generate next question
+            ├─→ ResponseSavingStage       # Save system response
+            └─→ ScoringPersistenceStage   # Save scoring data
+```
+
+**TurnContext** is the data bucket that flows through stages:
+```python
+@dataclass
+class TurnContext:
+    session_id: str
+    user_input: str
+    turn_number: int
+    methodology: str = ""
+    graph_state: Optional[GraphState] = None
+    extraction: Optional[ExtractionResult] = None
+    strategy: str = "deepen"
+    next_question: str = ""
+    should_continue: bool = True
+    # ... and more
+```
+
+**Key principle**: Each stage only reads/writes TurnContext. No stage calls another stage directly. This makes changes isolated and safe.
+
+**For more details**:
+- `docs/data_flow_diagram.md` - Complete pipeline flow documentation
+- `docs/raw_ideas/pipeline_architecture_visualization.md` - Before/after comparison with examples
+- `docs/adr/008-internal-api-boundaries-pipeline-pattern.md` - Full ADR
 
 ### Directory Structure
 
@@ -696,16 +790,24 @@ src/
 │   └── schemas.py         # Request/response models
 ├── core/                  # Configuration, logging
 ├── domain/                # Business entities
-│   └── models/
+│   └── models/            # Pydantic models (TurnContext, TurnResult, etc.)
 ├── llm/                   # LLM integration
 │   ├── client.py
 │   └── prompts/
 ├── persistence/           # Data persistence
 │   ├── database.py
 │   ├── migrations/
-│   └── repositories/
+│   └── repositories/      # Session, Graph, Utterance repositories
 └── services/              # Business logic
-    ├── scoring/
+    ├── scoring/           # Two-tier scoring system
+    │   ├── tier1/         # Filter stages
+    │   └── tier2/         # Scoring modules
+    ├── turn_pipeline/     # Pipeline orchestrator (ADR-008)
+    │   ├── stages/        # 10 independent stages
+    │   ├── base.py        # TurnStage base class
+    │   ├── context.py     # TurnContext dataclass
+    │   ├── pipeline.py    # TurnPipeline orchestrator
+    │   └── result.py      # TurnResult model
     └── ...
 ```
 
