@@ -15,7 +15,7 @@ class SessionRepository:
     def __init__(self, db_path: str):
         self.db_path = db_path
 
-    async def create(self, session: Session, config: Dict[str, Any] = None) -> Session:
+    async def create(self, session: Session, config: Optional[Dict[str, Any]] = None) -> Session:
         """Create a new session."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -35,6 +35,8 @@ class SessionRepository:
                 "SELECT * FROM sessions WHERE id = ?", (session.id,)
             )
             row = await cursor.fetchone()
+            if not row:
+                raise ValueError(f"Session {session.id} not found after creation")
             return self._row_to_session(row)
 
     async def get(self, session_id: str) -> Optional[Session]:

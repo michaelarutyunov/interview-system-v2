@@ -11,7 +11,7 @@ Ensures that:
 import ast
 import sys
 from pathlib import Path
-from typing import List, Set, Tuple
+from typing import List, Tuple
 
 
 class LoggingChecker(ast.NodeVisitor):

@@ -1,7 +1,5 @@
 """Tests for logging configuration."""
 
-import logging
-import pytest
 import structlog
 
 from src.core.logging import configure_logging, get_logger

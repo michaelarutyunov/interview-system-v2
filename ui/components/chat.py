@@ -1,7 +1,7 @@
 # ui/components/chat.py
 """Chat interface component for Streamlit demo UI."""
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional
 import streamlit as st
 
 from ui.api_client import APIClient, SessionInfo

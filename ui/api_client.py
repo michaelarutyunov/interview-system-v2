@@ -124,7 +124,7 @@ class APIClient:
                 response = client.get(f"{self.base_url}/sessions/{session_id}/status")
                 response.raise_for_status()
                 return response.json()
-        except httpx.HTTPStatusError as e:
+        except httpx.HTTPStatusError:
             # If endpoint doesn't exist, return default status
             return {
                 "turn_number": 0,

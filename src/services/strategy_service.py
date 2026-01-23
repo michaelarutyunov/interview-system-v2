@@ -402,6 +402,7 @@ class StrategyService:
                 focuses.append(Focus(
                     focus_type="depth_exploration",
                     node_id=last_node.get("id"),
+                    element_id=None,
                     focus_description=f"Deepen: {last_node.get('label', 'topic')}",
                     confidence=0.8,
                 ))
@@ -409,6 +410,8 @@ class StrategyService:
                 # Fallback: open depth focus
                 focuses.append(Focus(
                     focus_type="depth_exploration",
+                    node_id=None,
+                    element_id=None,
                     focus_description="Deepen understanding",
                     confidence=0.5,
                 ))
@@ -417,6 +420,8 @@ class StrategyService:
         elif strategy_id == "broaden":
             focuses.append(Focus(
                 focus_type="breadth_exploration",
+                node_id=None,
+                element_id=None,
                 focus_description="Explore new aspects",
                 confidence=1.0,
             ))
@@ -432,6 +437,7 @@ class StrategyService:
             for element in uncovered:
                 focuses.append(Focus(
                     focus_type="coverage_gap",
+                    node_id=None,
                     element_id=element,
                     focus_description=f"Cover: {element}",
                     confidence=1.0,
@@ -446,6 +452,8 @@ class StrategyService:
             if turn_count >= min_turns:
                 focuses.append(Focus(
                     focus_type="closing",
+                    node_id=None,
+                    element_id=None,
                     focus_description="Closing interview - thank you for sharing",
                     confidence=1.0,
                 ))
@@ -454,6 +462,8 @@ class StrategyService:
         elif strategy_id == "reflection":
             focuses.append(Focus(
                 focus_type="reflection",
+                node_id=None,
+                element_id=None,
                 focus_description="Reflection - is there anything else you'd like to share?",
                 confidence=1.0,
             ))
@@ -479,6 +489,8 @@ class StrategyService:
             if turn_count >= min_turns:
                 closing_focus = Focus(
                     focus_type="closing",
+                    node_id=None,
+                    element_id=None,
                     focus_description="Closing interview",
                 )
                 return SelectionResult(
@@ -493,6 +505,8 @@ class StrategyService:
         if reflection_strategy:
             reflection_focus = Focus(
                 focus_type="reflection",
+                node_id=None,
+                element_id=None,
                 focus_description="Is there anything else you'd like to share?",
             )
             return SelectionResult(
@@ -507,6 +521,8 @@ class StrategyService:
         if broaden_strategy:
             broaden_focus = Focus(
                 focus_type="breadth_exploration",
+                node_id=None,
+                element_id=None,
                 focus_description="Fallback: Explore new aspects",
             )
             return SelectionResult(
@@ -520,6 +536,8 @@ class StrategyService:
         logger.error("No fallback strategies available in self.strategies")
         broaden_focus = Focus(
             focus_type="breadth_exploration",
+            node_id=None,
+            element_id=None,
             focus_description="Let's explore something new",
         )
         return SelectionResult(

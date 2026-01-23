@@ -131,4 +131,4 @@ class ContextLoadingStage(TurnStage):
             await db.close()
 
         # Reverse to get chronological order
-        return [{"speaker": row[0], "text": row[1]} for row in reversed(rows)]
+        return list(reversed([{"speaker": row[0], "text": row[1]} for row in rows]))

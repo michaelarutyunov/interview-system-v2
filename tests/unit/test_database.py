@@ -59,6 +59,7 @@ async def test_get_db_connection():
             try:
                 cursor = await db.execute("SELECT 1")
                 row = await cursor.fetchone()
+                assert row is not None
                 assert row[0] == 1
             finally:
                 await db.close()

@@ -4,7 +4,7 @@ Implements TF-IDF cosine similarity to detect redundant questions.
 """
 
 from collections import Counter
-from typing import List, Tuple
+from typing import List, Tuple, Optional, Dict, Any
 import math
 
 import structlog
@@ -48,7 +48,7 @@ class TFIDFCosineSimilarity:
         self,
         text1: str,
         text2: str,
-        history: List[str] = None,
+        history: Optional[List[str]] = None,
     ) -> float:
         """
         Compute cosine similarity between two texts using TF-IDF.
@@ -221,7 +221,7 @@ class TFIDFCosineSimilarity:
         return similarity
 
 
-def create_similarity_calculator(config: dict = None) -> TFIDFCosineSimilarity:
+def create_similarity_calculator(config: Optional[Dict[str, Any]] = None) -> TFIDFCosineSimilarity:
     """Factory function to create TF-IDF cosine similarity calculator."""
     config = config or {}
 

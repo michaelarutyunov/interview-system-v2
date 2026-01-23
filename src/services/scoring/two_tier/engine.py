@@ -267,8 +267,10 @@ class TwoTierScoringEngine:
                 # Continue with other scorers
 
         # Step 2: Apply phase multiplier
-        phase_profile = self.phase_profiles.get(phase, {})
-        phase_multiplier = phase_profile.get(strategy.get("id", ""), 1.0)
+        phase_key = phase or "exploratory"
+        phase_profile = self.phase_profiles.get(phase_key, {})
+        strategy_id = strategy.get("id") or ""
+        phase_multiplier = phase_profile.get(strategy_id, 1.0)
         final_score = scorer_sum * phase_multiplier
 
         reasoning_trace.append(

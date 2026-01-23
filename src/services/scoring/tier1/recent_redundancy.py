@@ -4,7 +4,7 @@ Vetoes strategies when the proposed question is too similar to recent questions,
 using TF-IDF cosine similarity to detect semantic overlap.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import structlog
 
@@ -35,7 +35,7 @@ class RecentRedundancyScorer(Tier1Scorer):
     - method: "tfidf_cosine" (TF-IDF with cosine similarity)
     """
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
 
         self.similarity_threshold = self.params.get("similarity_threshold", 0.85)
@@ -165,6 +165,6 @@ class RecentRedundancyScorer(Tier1Scorer):
         return recent_questions
 
 
-def create_recent_redundancy_scorer(config: Dict[str, Any] = None) -> RecentRedundancyScorer:
+def create_recent_redundancy_scorer(config: Optional[Dict[str, Any]] = None) -> RecentRedundancyScorer:
     """Factory function to create RecentRedundancyScorer."""
     return RecentRedundancyScorer(config=config)

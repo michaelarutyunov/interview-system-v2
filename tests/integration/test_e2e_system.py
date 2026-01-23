@@ -12,9 +12,8 @@ import pytest
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 from httpx import ASGITransport, AsyncClient
-import time
 
 from src.main import app
 from src.persistence.database import init_database

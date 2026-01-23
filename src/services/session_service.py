@@ -319,14 +319,14 @@ class SessionService:
         candidate_id = str(uuid.uuid4())
 
         # Convert Focus to dict if needed
-        if hasattr(focus, 'to_dict'):
-            focus_dict = focus.to_dict()
+        if isinstance(focus, dict):
+            focus_dict: Dict[str, Any] = focus
+        elif hasattr(focus, 'to_dict'):
+            focus_dict: Dict[str, Any] = focus.to_dict()
         elif hasattr(focus, 'model_dump'):  # Pydantic v2
-            focus_dict = focus.model_dump()
-        elif hasattr(focus, 'dict'):  # Pydantic v1
-            focus_dict = focus.dict()
+            focus_dict: Dict[str, Any] = focus.model_dump()
         else:
-            focus_dict = focus
+            focus_dict: Dict[str, Any] = focus  # type: ignore[assignment]
 
         # Extract Tier 1 and Tier 2 results
         tier1_results = []

@@ -95,7 +95,7 @@ class TestAPIClient:
     def test_get_client_creates_httpx_client(self):
         """_get_client creates httpx.AsyncClient."""
         client = APIClient()
-        httpx_client = client._get_client()
+        httpx_client = client._get_client()  # type: ignore[attr-defined]
         assert httpx_client is not None
         assert hasattr(httpx_client, "post")
 
@@ -140,7 +140,7 @@ class TestChatInterface:
         assert hasattr(st.session_state, "opening_displayed")
 
 
-from ui.components.graph import GraphVisualizer
+from ui.components.graph import GraphVisualizer  # noqa: E402
 
 
 class TestGraphVisualizer:
@@ -179,7 +179,7 @@ class TestGraphVisualizer:
             assert len(color) == 7  # #RRGGBB format
 
 
-from ui.components.metrics import MetricsPanel
+from ui.components.metrics import MetricsPanel  # noqa: E402
 
 
 class TestMetricsPanel:
@@ -203,7 +203,7 @@ class TestMetricsPanel:
         if not hasattr(st, "session_state"):
             st.session_state = MagicMock()
 
-        panel = MetricsPanel()
+        MetricsPanel()
         status_data = {
             "turn_number": 5,
             "max_turns": 20,
@@ -219,7 +219,7 @@ class TestMetricsPanel:
         assert "turn_number" in status_data
 
 
-from ui.components.controls import SessionControls, initialize_session_state
+from ui.components.controls import SessionControls, initialize_session_state  # noqa: E402
 
 
 class TestSessionControls:

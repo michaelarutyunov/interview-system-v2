@@ -1,6 +1,5 @@
 """Tests for synthetic respondent prompts."""
 
-import pytest
 
 from src.llm.prompts.synthetic import (
     get_synthetic_system_prompt,

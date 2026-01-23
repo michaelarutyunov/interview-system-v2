@@ -1,10 +1,9 @@
 """Tests for session service."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 
-from src.services.session_service import SessionService, TurnResult, SessionContext
+from src.services.session_service import SessionService, TurnResult
 from src.domain.models.extraction import ExtractionResult, ExtractedConcept
 from src.domain.models.knowledge_graph import GraphState, KGNode
 

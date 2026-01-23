@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, patch
 from src.main import app
 from src.persistence.database import init_database
 from src.llm.client import LLMResponse
-from src.domain.models.knowledge_graph import GraphState, KGNode
+from src.domain.models.knowledge_graph import KGNode
 
 
 # ============ FIXTURES ============

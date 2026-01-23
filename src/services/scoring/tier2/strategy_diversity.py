@@ -4,7 +4,7 @@ Measures recency of strategy use.
 Encourages varied questioning patterns to avoid repetitive interview feel.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import structlog
 
@@ -29,7 +29,7 @@ class StrategyDiversityScorer(Tier2Scorer):
     Weight: 0.10-0.15 (lower - variety is good but not primary goal)
     """
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
         if "weight" not in self.config:
             self.weight = 0.10

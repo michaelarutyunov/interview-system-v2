@@ -26,11 +26,6 @@ from typing import List, Dict
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.services.session_service import SessionService
-from src.services.extraction_service import ExtractionService
-from src.services.graph_service import GraphService
-from src.services.question_service import QuestionService
-from src.persistence.repositories.session_repo import SessionRepository
-from src.persistence.repositories.graph_repo import GraphRepository
 from src.domain.models.extraction import ExtractionResult, ExtractedConcept
 from src.domain.models.knowledge_graph import GraphState, KGNode
 
@@ -132,7 +127,7 @@ class BenchmarkResult:
             print(f"  p95:     {self.p95_ms:.0f}ms")
             print(f"  p99:     {self.p99_ms:.0f}ms")
 
-            print(f"\n✅ PRD Validation:")
+            print("\n✅ PRD Validation:")
             prd_status = "✓ PASS" if self.passed_prd else "✗ FAIL"
             print(f"  p95 < {PRD_LATENCY_P95_MS}ms: {prd_status}")
 
@@ -156,7 +151,7 @@ class MockBenchmark:
 
     async def run(self) -> BenchmarkResult:
         """Run the mock benchmark."""
-        print(f"\n🚀 Starting Mock Benchmark")
+        print("\n🚀 Starting Mock Benchmark")
         print(f"   Turns: {self.runs}")
         print(f"   Sessions: {self.sessions}")
 
@@ -258,9 +253,9 @@ class LiveBenchmark:
 
     async def run(self) -> BenchmarkResult:
         """Run the live benchmark."""
-        print(f"\n🚀 Starting Live Benchmark")
+        print("\n🚀 Starting Live Benchmark")
         print(f"   Turns: {self.runs}")
-        print(f"   ⚠️  This will make real LLM API calls")
+        print("   ⚠️  This will make real LLM API calls")
 
         # Check for API key
         if not self.api_key:

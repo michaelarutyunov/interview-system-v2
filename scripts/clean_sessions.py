@@ -10,7 +10,9 @@ async def main():
     # First count
     db = await aiosqlite.connect(db_path)
     cur = await db.execute('SELECT COUNT(*) FROM sessions')
-    count = (await cur.fetchone())[0]
+    row = await cur.fetchone()
+    assert row is not None
+    count = row[0]
     print(f"Found {count} sessions")
 
     if count == 0:
@@ -34,7 +36,9 @@ async def main():
 
     # Verify
     cur = await db.execute('SELECT COUNT(*) FROM sessions')
-    remaining = (await cur.fetchone())[0]
+    row = await cur.fetchone()
+    assert row is not None
+    remaining = row[0]
 
     print(f"✓ Deleted {count - remaining} sessions")
     print(f"✓ Remaining: {remaining}")

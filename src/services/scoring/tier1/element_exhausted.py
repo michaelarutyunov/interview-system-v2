@@ -4,7 +4,7 @@ Vetoes strategies when a focus element has been mentioned too many times
 and relationships have been established (no more to learn).
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import structlog
 
@@ -30,7 +30,7 @@ class ElementExhaustedScorer(Tier1Scorer):
     - lookback_window: How many recent turns to check (default: 10)
     """
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
 
         self.max_mentions = self.params.get("max_mentions", 5)
@@ -155,6 +155,6 @@ class ElementExhaustedScorer(Tier1Scorer):
         return len(related_nodes) >= 2
 
 
-def create_element_exhausted_scorer(config: Dict[str, Any] = None) -> ElementExhaustedScorer:
+def create_element_exhausted_scorer(config: Optional[Dict[str, Any]] = None) -> ElementExhaustedScorer:
     """Factory function to create ElementExhaustedScorer."""
     return ElementExhaustedScorer(config=config)

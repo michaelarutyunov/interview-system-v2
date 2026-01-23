@@ -16,6 +16,7 @@ dependencies = [
     "streamlit>=1.31.0",
     "plotly>=5.18.0",
     "networkx>=3.2",
+    "python-louvain>=0.16",
 ]
 
 [project.optional-dependencies]

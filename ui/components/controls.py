@@ -9,7 +9,7 @@ Provides sidebar controls for:
 - Exporting session data
 """
 
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 import streamlit as st
 
 from ui.api_client import APIClient, SessionInfo
@@ -240,7 +240,6 @@ class SessionControls:
 
         with st.spinner("Deleting session..."):
             try:
-                import httpx
                 client = st.session_state.api_client._get_client()
                 client.delete(f"{st.session_state.api_client.base_url}/sessions/{session_id}")
 

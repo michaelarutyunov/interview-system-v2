@@ -94,7 +94,9 @@ class GraphRepository:
 
         log.info("node_created", node_id=node_id, label=label, node_type=node_type, stance=stance)
 
-        return await self.get_node(node_id)
+        node = await self.get_node(node_id)
+        assert node is not None, "Node should exist just after creation"
+        return node
 
     async def get_node(self, node_id: str) -> Optional[KGNode]:
         """
@@ -308,7 +310,9 @@ class GraphRepository:
             type=edge_type,
         )
 
-        return await self.get_edge(edge_id)
+        edge = await self.get_edge(edge_id)
+        assert edge is not None, "Edge should exist just after creation"
+        return edge
 
     async def get_edge(self, edge_id: str) -> Optional[KGEdge]:
         """
@@ -432,14 +436,16 @@ class GraphRepository:
             "SELECT COUNT(*) FROM kg_nodes WHERE session_id = ? AND superseded_by IS NULL",
             (session_id,),
         )
-        node_count = (await cursor.fetchone())[0]
+        row = await cursor.fetchone()
+        node_count = row[0] if row else 0
 
         # Edge count
         cursor = await self.db.execute(
             "SELECT COUNT(*) FROM kg_edges WHERE session_id = ?",
             (session_id,),
         )
-        edge_count = (await cursor.fetchone())[0]
+        row = await cursor.fetchone()
+        edge_count = row[0] if row else 0
 
         # Nodes by type
         cursor = await self.db.execute(
@@ -476,7 +482,8 @@ class GraphRepository:
             """,
             (session_id, session_id),
         )
-        orphan_count = (await cursor.fetchone())[0]
+        row = await cursor.fetchone()
+        orphan_count = row[0] if row else 0
 
         # Max depth (simplified: just count depth levels)
         # Full graph traversal would be expensive; use node type as proxy
@@ -505,7 +512,7 @@ class GraphRepository:
             source_utterance_ids=json.loads(row["source_utterance_ids"]) if row["source_utterance_ids"] else [],
             recorded_at=datetime.fromisoformat(row["recorded_at"]),
             superseded_by=row["superseded_by"],
-            stance=row.get("stance", 0),  # Default to 0 for existing nodes
+            stance=row["stance"] if "stance" in row.keys() else 0,  # Default to 0 for existing nodes
         )
 
     def _row_to_edge(self, row: aiosqlite.Row) -> KGEdge:

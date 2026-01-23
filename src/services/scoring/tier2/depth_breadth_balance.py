@@ -4,7 +4,7 @@ Measures whether strategy aligns with current depth/breadth needs.
 Boosts strategies that maintain balance between exploration and exploitation.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import structlog
 
@@ -32,7 +32,7 @@ class DepthBreadthBalanceScorer(Tier2Scorer):
     Weight: 0.20-0.25 (high - prevents monotonic interviews)
     """
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
         if "weight" not in self.config:
             self.weight = 0.20

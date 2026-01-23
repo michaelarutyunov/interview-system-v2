@@ -4,7 +4,7 @@ Vetoes strategies when respondent explicitly indicates lack of knowledge
 about the focus topic (e.g., "I don't know", "never heard of it").
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import structlog
 
@@ -30,7 +30,7 @@ class KnowledgeCeilingScorer(Tier1Scorer):
     - min_confidence: Minimum confidence to consider
     """
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
 
         # Knowledge lack patterns to detect
@@ -152,8 +152,8 @@ class KnowledgeCeilingScorer(Tier1Scorer):
     def _extract_topic_terms(
         self,
         focus_description: str,
-        element_id: str = None,
-        node_id: str = None,
+        element_id: Optional[str] = None,
+        node_id: Optional[str] = None,
     ) -> List[str]:
         """
         Extract topic terms from focus for knowledge checking.
@@ -191,6 +191,6 @@ class KnowledgeCeilingScorer(Tier1Scorer):
         return list(set(terms))  # Remove duplicates
 
 
-def create_knowledge_ceiling_scorer(config: Dict[str, Any] = None) -> KnowledgeCeilingScorer:
+def create_knowledge_ceiling_scorer(config: Optional[Dict[str, Any]] = None) -> KnowledgeCeilingScorer:
     """Factory function to create KnowledgeCeilingScorer."""
     return KnowledgeCeilingScorer(config=config)

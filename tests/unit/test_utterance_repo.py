@@ -9,6 +9,7 @@ from pathlib import Path
 from src.persistence.database import init_database
 from src.persistence.repositories.utterance_repo import UtteranceRepository
 from src.domain.models.utterance import Utterance
+from typing import Optional
 
 
 @pytest.fixture
@@ -27,7 +28,7 @@ def repo(db_path):
 
 
 def create_test_utterance(
-    utterance_id: str = None,
+    utterance_id: Optional[str] = None,
     session_id: str = "test-session-1",
     turn_number: int = 1,
     speaker: str = "user",

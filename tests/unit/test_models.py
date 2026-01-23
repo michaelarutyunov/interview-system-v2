@@ -1,12 +1,10 @@
 """Tests for domain models."""
 
 import pytest
-from datetime import datetime, timezone
 
 from src.domain.models import (
     KGNode, KGEdge, GraphState,
-    Utterance, Speaker,
-    ExtractedConcept, ExtractedRelationship, ExtractionResult,
+    Utterance, ExtractedConcept, ExtractedRelationship, ExtractionResult,
 )
 
 

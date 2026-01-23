@@ -2,7 +2,7 @@
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
 from src.main import app
 from src.llm.client import LLMResponse

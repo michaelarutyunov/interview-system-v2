@@ -12,7 +12,7 @@ import asyncio
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 from httpx import ASGITransport, AsyncClient
 import time
 
@@ -224,7 +224,12 @@ class TestPerformanceRequirements:
             )
 
             # At least one should succeed
-            successes = [r for r in results if not isinstance(r, Exception) and r.status_code == 200]
+            successes = []
+            for r in results:
+                if not isinstance(r, Exception):
+                    status = getattr(r, "status_code", None)
+                    if status == 200:
+                        successes.append(r)
             assert len(successes) >= 1
 
     @pytest.mark.asyncio

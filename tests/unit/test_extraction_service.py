@@ -1,7 +1,7 @@
 """Tests for extraction service."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 from src.services.extraction_service import ExtractionService
 from src.domain.models.extraction import ExtractionResult

@@ -1,7 +1,7 @@
 """Tests for question service."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 from src.services.question_service import QuestionService
 from src.llm.client import LLMResponse

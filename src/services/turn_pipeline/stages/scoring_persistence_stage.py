@@ -88,6 +88,7 @@ class ScoringPersistenceStage(TurnStage):
 
         # Extract scoring details from two-tier result if available
         scorer_details = {}
+        reasoning_trace_last = None
         if selection_result and selection_result.scoring_result:
             scorer_details = {
                 "tier1_results": [
@@ -113,6 +114,9 @@ class ScoringPersistenceStage(TurnStage):
                 "final_score": selection_result.scoring_result.final_score,
                 "vetoed_by": selection_result.scoring_result.vetoed_by,
             }
+            # Extract last reasoning entry
+            if selection_result.scoring_result.reasoning_trace:
+                reasoning_trace_last = selection_result.scoring_result.reasoning_trace[-1]
 
         async with aiosqlite.connect(str(self.session_repo.db_path)) as db:
             # Save winner to scoring_history (legacy)
@@ -130,7 +134,7 @@ class ScoringPersistenceStage(TurnStage):
                     scoring.get("depth", 0.0),
                     scoring.get("saturation", 0.0),
                     strategy,
-                    selection_result.scoring_result.reasoning_trace[-1] if selection_result.scoring_result and selection_result.scoring_result.reasoning_trace else None,
+                    reasoning_trace_last,
                     json.dumps(scorer_details),
                 )
             )

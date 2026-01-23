@@ -8,7 +8,6 @@ from src.services.synthetic_service import (
     get_synthetic_service,
 )
 from src.llm.client import LLMResponse
-from src.domain.models.knowledge_graph import GraphState
 
 
 class TestSyntheticService:
@@ -118,7 +117,7 @@ class TestSyntheticService:
 
         service = SyntheticService(llm_client=mock_llm)
 
-        result = await service.generate_response(
+        await service.generate_response(
             question="What do you think?",
             session_id="test-session",
             interview_context={

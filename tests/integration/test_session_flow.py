@@ -9,7 +9,7 @@ Uses mocked LLM responses to avoid actual API calls.
 
 import pytest
 from httpx import AsyncClient, ASGITransport
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import patch
 import tempfile
 from pathlib import Path
 import json
@@ -293,7 +293,9 @@ class TestGraphPersistence:
                 "SELECT COUNT(*) FROM kg_nodes WHERE session_id = ?",
                 (session_id,)
             )
-            count = (await cursor.fetchone())[0]
+            row = await cursor.fetchone()
+            assert row is not None
+            count = row[0]
             assert count >= 2  # At least 2 concepts extracted
 
     @pytest.mark.asyncio
@@ -335,8 +337,9 @@ class TestGraphPersistence:
             utterances = await cursor.fetchall()
 
             # Should have: system (opening), user (input), system (question)
-            assert len(utterances) >= 3
-            speakers = [u[0] for u in utterances]
+            utterances_list = list(utterances)
+            assert len(utterances_list) >= 3
+            speakers = [u[0] for u in utterances_list]
             assert "system" in speakers
             assert "user" in speakers
 

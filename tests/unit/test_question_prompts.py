@@ -1,6 +1,5 @@
 """Tests for question prompts."""
 
-import pytest
 
 from src.llm.prompts.question import (
     get_question_system_prompt,
@@ -9,7 +8,6 @@ from src.llm.prompts.question import (
     get_opening_question_user_prompt,
     get_graph_summary,
     format_question,
-    STRATEGY_DESCRIPTIONS,
 )
 
 

@@ -17,11 +17,10 @@ from ui.api_client import APIClient
 from ui.components.chat import ChatInterface, initialize_chat_state
 from ui.components.graph import GraphVisualizer, render_graph_stats
 from ui.components.metrics import MetricsPanel, render_turn_diagnostics, render_coverage_details
-from ui.components.scoring import ScoringTab, render_scoring_tab
+from ui.components.scoring import render_scoring_tab
 from ui.components.controls import (
     SessionControls,
     initialize_session_state,
-    get_current_session,
 )
 
 
@@ -84,8 +83,9 @@ def main():
 
     if st.sidebar.button("🔄 Reconnect"):
         st.session_state.api_url = api_url
-        st.session_state.api_client = APIClient(base_url=api_url)
-        st.sidebar.success("Reconnected!")
+        if api_url:  # Ensure not empty before creating client
+            st.session_state.api_client = APIClient(base_url=api_url)
+            st.sidebar.success("Reconnected!")
 
     # Main content area
     if not current_session:

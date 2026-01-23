@@ -7,8 +7,7 @@ Validates PRD requirement: Response latency <5s p95 (Section 2.2)
 import pytest
 import time
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import List, Dict
+from unittest.mock import AsyncMock, MagicMock
 
 from src.services.session_service import SessionService, TurnResult
 from src.domain.models.extraction import ExtractionResult, ExtractedConcept, ExtractedRelationship
@@ -196,7 +195,7 @@ class TestTurnLatency:
             f"Avg latency {avg_latency:.0f}ms exceeds typical target"
         )
 
-        print(f"\nTurn latencies (ms): {[f'{l:.0f}' for l in latencies]}")
+        print(f"\nTurn latencies (ms): {[f'{lat:.0f}' for lat in latencies]}")
         print(f"Average: {avg_latency:.0f}ms, Max: {max_latency:.0f}ms")
 
     @pytest.mark.asyncio
@@ -342,7 +341,6 @@ class TestResourceUsage:
         This is a basic check; production would use memory profilers.
         """
         import gc
-        import sys
 
         mock_session_repo.get = AsyncMock(return_value=mock_session)
         cursor = AsyncMock()
@@ -425,7 +423,7 @@ class TestLatencyPercentiles:
             f"p95 latency {p95:.0f}ms exceeds PRD target of {PRD_LATENCY_P95_TARGET_MS}ms"
         )
 
-        print(f"\nLatency percentiles:")
+        print("\nLatency percentiles:")
         print(f"  p50 (median): {p50:.0f}ms")
         print(f"  p95:          {p95:.0f}ms (PRD target: {PRD_LATENCY_P95_TARGET_MS}ms)")
         print(f"  p99:          {p99:.0f}ms")

@@ -2,7 +2,6 @@
 
 import os
 import pytest
-from pathlib import Path
 
 
 def test_settings_defaults():
@@ -16,7 +15,7 @@ def test_settings_defaults():
     assert s.llm_model == "claude-sonnet-4-20250514"
     assert s.default_max_turns == 20
     assert s.default_target_coverage == 0.8
-    assert s.debug == False
+    assert not s.debug
 
 
 def test_settings_from_env():
@@ -28,7 +27,7 @@ def test_settings_from_env():
         from src.core.config import Settings
         s = Settings()
 
-        assert s.debug == True
+        assert s.debug
         assert s.default_max_turns == 30
     finally:
         del os.environ["DEBUG"]

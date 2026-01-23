@@ -45,6 +45,10 @@ class GraphUpdateStage(TurnStage):
             log.warning("no_extraction_to_add", session_id=context.session_id)
             return context
 
+        if not context.user_utterance:
+            log.warning("no_user_utterance_for_graph_update", session_id=context.session_id)
+            return context
+
         nodes, edges = await self.graph.add_extraction_to_graph(
             session_id=context.session_id,
             extraction=context.extraction,

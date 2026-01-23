@@ -34,8 +34,8 @@ def get_clusters(graph: nx.Graph, turn_number: int) -> Dict[str, int]:
         return _cluster_cache[turn_number]
 
     try:
-        import python_louvain
-        partition = python_louvain.best_partition(graph)
+        import community  # python-louvain package
+        partition = community.best_partition(graph)
         _cluster_cache[turn_number] = partition
         logger.info(f"Computed {len(set(partition.values()))} clusters for turn {turn_number}")
         return partition
@@ -260,7 +260,7 @@ def median_cluster_degree(
     if not nodes:
         return 0.0
 
-    degrees = [graph.degree(n) for n in nodes]
+    degrees = [d for _, d in graph.degree(nodes)]  # type: ignore[arg-type]
     degrees.sort()
 
     n = len(degrees)

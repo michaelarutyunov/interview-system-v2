@@ -52,6 +52,8 @@ class UtteranceRepository:
                 (utterance.id,)
             )
             row = await cursor.fetchone()
+            if not row:
+                raise ValueError(f"Utterance {utterance.id} not found after save")
             return self._row_to_utterance(row)
 
     async def get_recent(self, session_id: str, limit: int = 10) -> List[Utterance]:

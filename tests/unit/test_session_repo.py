@@ -9,6 +9,7 @@ from pathlib import Path
 from src.persistence.database import init_database
 from src.persistence.repositories.session_repo import SessionRepository
 from src.domain.models.session import Session, SessionState
+from typing import Optional
 
 
 @pytest.fixture
@@ -27,7 +28,7 @@ def repo(db_path):
 
 
 def create_test_session(
-    session_id: str = None,
+    session_id: Optional[str] = None,
     methodology: str = "mec",
     concept_id: str = "concept-1",
     concept_name: str = "Test Concept",
@@ -213,4 +214,5 @@ async def test_update_state_updates_timestamp(db_path):
     await repo.update_state("update-timestamp-test", new_state)
 
     updated = await repo.get("update-timestamp-test")
+    assert updated is not None
     assert updated.updated_at >= original_updated_at

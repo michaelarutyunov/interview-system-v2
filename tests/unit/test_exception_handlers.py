@@ -2,13 +2,11 @@
 Unit tests for global exception handlers.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from fastapi import status, FastAPI
 from fastapi.testclient import TestClient
-from fastapi import Request
 import pytest
 
-from src.main import app
 from src.api.exception_handlers import setup_exception_handlers
 from src.core.exceptions import (
     InterviewSystemError,

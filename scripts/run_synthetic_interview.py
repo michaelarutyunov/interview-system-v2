@@ -20,7 +20,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
 import httpx
 
@@ -236,7 +236,7 @@ async def run_interview(
             results["success"] = True
 
             if verbose:
-                print(f"\n=== Interview Complete ===")
+                print("\n=== Interview Complete ===")
                 print(f"Total turns: {len(results['turns'])}")
                 print(f"Final coverage: {current_coverage * 100:.1f}%")
                 print(f"Status: {session_info.get('status', 'unknown')}")
@@ -283,7 +283,7 @@ def validate_results(results: Dict[str, Any]) -> bool:
     checks_total += 1
     turn_errors = [t for t in results.get("turns", []) if t.get("error")]
     if not turn_errors:
-        print(f"✅ No turn errors")
+        print("✅ No turn errors")
         checks_passed += 1
     else:
         print(f"❌ {len(turn_errors)} turn errors")
@@ -359,7 +359,7 @@ def main():
 
     args = parser.parse_args()
 
-    print(f"Starting synthetic interview test...")
+    print("Starting synthetic interview test...")
     print(f"  API URL: {args.api_url}")
     print(f"  Persona: {args.persona}")
     print(f"  Concept: {args.concept_id}")

@@ -1,7 +1,7 @@
 """Tests for graph service."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 from src.services.graph_service import GraphService
 from src.domain.models.extraction import (

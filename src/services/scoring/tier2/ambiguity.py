@@ -4,7 +4,7 @@ Measures clarity/confidence of nodes in the focus area.
 Boosts strategies that clarify ambiguous content.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import structlog
 
@@ -31,7 +31,7 @@ class AmbiguityScorer(Tier2Scorer):
     Weight: 0.15-0.20 (medium - quality matters but secondary to coverage)
     """
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
         if "weight" not in self.config:
             self.weight = 0.15

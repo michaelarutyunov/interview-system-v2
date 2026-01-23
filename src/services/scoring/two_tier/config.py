@@ -82,16 +82,16 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
         logger.warning("Config file not found, using defaults")
         return _get_default_config()
 
-    config_path = Path(config_path).resolve()
+    config_path_obj = Path(config_path).resolve()
 
-    if not config_path.exists():
-        logger.warning(f"Config file not found: {config_path}, using defaults")
+    if not config_path_obj.exists():
+        logger.warning(f"Config file not found: {config_path_obj}, using defaults")
         return _get_default_config()
 
-    with open(str(config_path)) as f:
+    with open(str(config_path_obj)) as f:
         config = yaml.safe_load(f)
 
-    logger.info(f"Loaded configuration from {config_path}")
+    logger.info(f"Loaded configuration from {config_path_obj}")
     return config
 
 

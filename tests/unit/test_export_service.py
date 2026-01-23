@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from src.services.export_service import ExportService
-from src.domain.models.knowledge_graph import KGNode, KGEdge
+from src.domain.models.knowledge_graph import KGNode
 
 
 class TestExportService:
