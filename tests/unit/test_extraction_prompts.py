@@ -10,9 +10,8 @@ from src.llm.prompts.extraction import (
     get_extractability_user_prompt,
     parse_extraction_response,
     parse_extractability_response,
-    NODE_TYPE_DESCRIPTIONS,
-    EDGE_TYPE_DESCRIPTIONS,
 )
+from src.core.schema_loader import load_methodology
 
 
 class TestExtractionPrompts:
@@ -21,16 +20,28 @@ class TestExtractionPrompts:
     def test_system_prompt_includes_node_types(self):
         """System prompt includes all node type descriptions."""
         prompt = get_extraction_system_prompt()
+        schema = load_methodology("means_end_chain")
 
-        for node_type in NODE_TYPE_DESCRIPTIONS:
+        # Check that all node types from schema are in prompt
+        for node_type in schema.get_valid_node_types():
             assert node_type in prompt
 
     def test_system_prompt_includes_edge_types(self):
         """System prompt includes all edge type descriptions."""
         prompt = get_extraction_system_prompt()
+        schema = load_methodology("means_end_chain")
 
-        for edge_type in EDGE_TYPE_DESCRIPTIONS:
+        # Check that all edge types from schema are in prompt
+        for edge_type in schema.get_valid_edge_types():
             assert edge_type in prompt
+
+    def test_system_prompt_uses_schema_descriptions(self):
+        """System prompt uses descriptions from schema."""
+        prompt = get_extraction_system_prompt()
+
+        # Check for examples that are in the schema
+        assert "creamy texture" in prompt or "plant-based" in prompt
+        assert "Causal or enabling relationship" in prompt
 
     def test_system_prompt_specifies_json_output(self):
         """System prompt specifies JSON output format."""

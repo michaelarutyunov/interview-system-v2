@@ -11,34 +11,29 @@ All prompts produce JSON for structured parsing.
 
 from typing import Dict, Any
 
-# Node type descriptions for Means-End Chain methodology
-NODE_TYPE_DESCRIPTIONS = {
-    "attribute": "Concrete product feature or characteristic (e.g., 'creamy texture', 'plant-based')",
-    "functional_consequence": "Tangible outcome from using the product (e.g., 'easier to digest', 'mixes well')",
-    "psychosocial_consequence": "Emotional or social outcome (e.g., 'feel healthier', 'impress friends')",
-    "instrumental_value": "Preferred mode of behavior (e.g., 'being responsible', 'taking care of myself')",
-    "terminal_value": "End-state of existence (e.g., 'happiness', 'security', 'self-fulfillment')",
-}
-
-# Edge type descriptions
-EDGE_TYPE_DESCRIPTIONS = {
-    "leads_to": "Causal or enabling relationship (source enables/causes target)",
-    "revises": "Contradiction - newer belief supersedes older one",
-}
+from src.core.schema_loader import load_methodology
 
 
-def get_extraction_system_prompt() -> str:
+def get_extraction_system_prompt(methodology: str = "means_end_chain") -> str:
     """
     Get system prompt for concept/relationship extraction.
+
+    Args:
+        methodology: Methodology schema name (e.g., "means_end_chain")
 
     Returns:
         System prompt string for LLM
     """
+    # Load schema and get descriptions
+    schema = load_methodology(methodology)
+    node_descriptions = schema.get_node_descriptions()
+    edge_descriptions = schema.get_edge_descriptions()
+
     node_types_str = "\n".join(
-        f"  - {name}: {desc}" for name, desc in NODE_TYPE_DESCRIPTIONS.items()
+        f"  - {name}: {desc}" for name, desc in node_descriptions.items()
     )
     edge_types_str = "\n".join(
-        f"  - {name}: {desc}" for name, desc in EDGE_TYPE_DESCRIPTIONS.items()
+        f"  - {name}: {desc}" for name, desc in edge_descriptions.items()
     )
 
     return f"""You are an expert qualitative researcher extracting knowledge from interview responses.
@@ -51,6 +46,17 @@ Your task is to identify concepts and relationships from the respondent's text t
 ## Valid Edge Types:
 {edge_types_str}
 
+## Stance Detection:
+For each concept, determine the respondent's stance:
+- +1 (positive): Respondent expresses liking, preference, agreement, or positive emotions
+- 0 (neutral): Respondent states facts or neutral observations without clear positive/negative sentiment
+- -1 (negative): Respondent expresses dislike, criticism, disagreement, or negative emotions
+
+Examples:
+- "I love how creamy it is" → stance: +1
+- "It mixes well" → stance: 0
+- "I hate the aftertaste" → stance: -1
+
 ## Extraction Guidelines:
 1. Only extract concepts EXPLICITLY mentioned or clearly implied
 2. Use the respondent's own language for concept labels
@@ -59,6 +65,7 @@ Your task is to identify concepts and relationships from the respondent's text t
 5. Look for discourse markers that signal relationships
 6. Assign confidence based on how explicit the concept/relationship is
 7. Include the verbatim quote that supports each extraction
+8. Determine stance based on sentiment and emotional content
 
 ## Output Format:
 Return valid JSON with this structure:
@@ -68,6 +75,7 @@ Return valid JSON with this structure:
       "text": "concept label in respondent's words",
       "node_type": "one of the valid node types",
       "confidence": 0.0-1.0,
+      "stance": -1, 0, or 1,
       "source_quote": "verbatim text that supports this"
     }}
   ],

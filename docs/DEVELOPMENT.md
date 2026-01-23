@@ -483,6 +483,51 @@ repos:
        return response
    ```
 
+### Adding a New Methodology
+
+Methodology schemas define the ontology (node types, edge types, valid connections) and are stored as YAML files in `config/methodologies/`. See [ADR-007](../adr/007-yaml-based-methodology-schema.md) for details.
+
+1. **Create YAML schema in `config/methodologies/`:**
+   ```yaml
+   # config/methodologies/my_methodology.yaml
+   name: my_methodology
+   version: "1.0"
+   description: "Brief description of the methodology"
+
+   node_types:
+     - name: concept
+       description: "Core concept or idea"
+       examples:
+         - "example 1"
+         - "example 2"
+
+   edge_types:
+     - name: relates_to
+       description: "Semantic relationship"
+
+   valid_connections:
+     relates_to:
+       - [concept, concept]  # concept can relate to concept
+   ```
+
+2. **Load schema in services:**
+   ```python
+   from src.core.schema_loader import load_methodology
+
+   # In service __init__
+   def __init__(self, methodology: str = "my_methodology"):
+       self.schema = load_methodology(methodology)
+
+   # Validate against schema
+   if not self.schema.is_valid_node_type(node_type):
+       log.warning("invalid_node_type", type=node_type)
+   ```
+
+3. **Schema is automatically used for:**
+   - Extraction validation (invalid types/connections rejected)
+   - LLM prompt generation (node/edge descriptions)
+   - Graph constraints enforcement
+
 ---
 
 ## Debugging

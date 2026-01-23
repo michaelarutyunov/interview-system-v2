@@ -155,7 +155,10 @@ class TestExtractionService:
             {"source_text": "a", "target_text": ""},  # Empty target
         ]
 
-        relationships = service._parse_relationships(raw)
+        # Provide concept_types map
+        concept_types = {"a": "attribute", "b": "functional_consequence"}
+
+        relationships = service._parse_relationships(raw, concept_types)
 
         assert len(relationships) == 1
         assert relationships[0].source_text == "a"

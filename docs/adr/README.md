@@ -45,3 +45,8 @@ Accepted | Proposed | Deprecated | Superseded by [ADR-YYY]
 |-----|-------|--------|------|
 | [001](001-sync-async-dual-api.md) | Dual Sync/Async API for APIClient | Accepted | 2025-01-21 |
 | [002](002-streamlit-framework-choice.md) | Streamlit Framework Choice for Demo UI | Accepted | 2025-01-21 |
+| [003](003-adopt-phase3-adaptive-strategy.md) | Adopt Phase 3 Adaptive Strategy | Accepted | 2025-01-21 |
+| [004](004-two-tier-scoring-system.md) | Two-Tier Scoring System | Accepted | 2025-01-22 |
+| [005](005-dual-mode-interview-architecture.md) | Dual-Mode Interview Architecture | Accepted | 2025-01-22 |
+| [006](006-scoring-architecture.md) | Enhanced Scoring Architecture | Accepted | 2025-01-22 |
+| [007](007-yaml-based-methodology-schema.md) | YAML-Based Methodology Schema Externalization | Accepted | 2026-01-23 |

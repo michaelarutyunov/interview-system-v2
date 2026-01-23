@@ -1,0 +1,61 @@
+name: means_end_chain
+version: "2.0"
+description: "Laddering: attributes → consequences → values"
+
+node_types:
+  - name: attribute
+    description: "Concrete product feature or characteristic"
+    examples:
+      - "creamy texture"
+      - "plant-based"
+      - "sustainable packaging"
+
+  - name: functional_consequence
+    description: "Tangible outcome from using the product"
+    examples:
+      - "easier to digest"
+      - "mixes well with coffee"
+
+  - name: psychosocial_consequence
+    description: "Emotional or social outcome"
+    examples:
+      - "feel healthier"
+      - "gain respect from peers"
+
+  - name: instrumental_value
+    description: "Preferred mode of behavior"
+    examples:
+      - "being responsible"
+      - "taking care of myself"
+
+  - name: terminal_value
+    description: "End-state of existence, core life goal"
+    examples:
+      - "self-respect"
+      - "sense of accomplishment"
+      - "family security"
+
+edge_types:
+  - name: leads_to
+    description: "Causal or enabling relationship"
+
+  - name: revises
+    description: "Contradiction - newer belief supersedes older one"
+
+# Which node type pairs can be connected by which edge type.
+# Connections not listed here are invalid.
+valid_connections:
+  leads_to:
+    # Same-level connections (consequence → consequence is legitimate)
+    - [attribute, attribute]
+    - [attribute, functional_consequence]
+    - [functional_consequence, functional_consequence]
+    - [functional_consequence, psychosocial_consequence]
+    - [psychosocial_consequence, psychosocial_consequence]
+    - [psychosocial_consequence, instrumental_value]
+    - [instrumental_value, instrumental_value]
+    - [instrumental_value, terminal_value]
+
+  revises:
+    # Any node can revise any node (contradictions are unconstrained)
+    - ["*", "*"]

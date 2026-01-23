@@ -130,7 +130,8 @@ interview-system-v2/
 ├── ui/
 │   └── streamlit_app.py    # Demo UI
 ├── config/
-│   └── concepts/           # Concept configuration YAML files
+│   ├── concepts/           # Concept configuration YAML files
+│   └── methodologies/      # Methodology schema definitions (node/edge types)
 ├── docs/                   # Documentation
 ├── .env.example            # Environment template
 ├── pyproject.toml          # Project configuration
@@ -301,7 +302,7 @@ The system supports multiple qualitative research methodologies:
 - **Laddering**: Deepens understanding through progressive questioning
 - **Critical Incident**: Examines specific experiences and behaviors
 
-Concepts are configured via YAML files in `config/concepts/`.
+Methodology schemas (node types, edge types, and validation rules) are defined in `config/methodologies/` as YAML files (see [ADR-007](docs/adr/007-yaml-based-methodology-schema.md)). Concepts are configured via YAML files in `config/concepts/`.
 
 ## Documentation
 

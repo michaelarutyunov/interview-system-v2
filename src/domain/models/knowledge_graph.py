@@ -7,7 +7,12 @@ from enum import Enum
 
 
 class NodeType(str, Enum):
-    """Valid node types for Means-End Chain methodology."""
+    """Valid node types for Means-End Chain methodology.
+
+    DEPRECATED: This enum is kept for IDE autocomplete only.
+    The authoritative source of truth is config/methodologies/means_end_chain.yaml.
+    Use src.core.schema_loader.load_methodology() to get valid types at runtime.
+    """
     ATTRIBUTE = "attribute"
     FUNCTIONAL_CONSEQUENCE = "functional_consequence"
     PSYCHOSOCIAL_CONSEQUENCE = "psychosocial_consequence"
@@ -16,7 +21,12 @@ class NodeType(str, Enum):
 
 
 class EdgeType(str, Enum):
-    """Valid edge types."""
+    """Valid edge types.
+
+    DEPRECATED: This enum is kept for IDE autocomplete only.
+    The authoritative source of truth is config/methodologies/means_end_chain.yaml.
+    Use src.core.schema_loader.load_methodology() to get valid types at runtime.
+    """
     LEADS_TO = "leads_to"
     REVISES = "revises"
 

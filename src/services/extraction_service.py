@@ -11,7 +11,7 @@ Graceful degradation: Returns empty result on LLM errors.
 """
 
 import time
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 import structlog
 
@@ -29,6 +29,7 @@ from src.domain.models.extraction import (
     ExtractedRelationship,
     ExtractionResult,
 )
+from src.core.schema_loader import load_methodology
 
 log = structlog.get_logger(__name__)
 
@@ -45,6 +46,7 @@ class ExtractionService:
         llm_client: Optional[LLMClient] = None,
         skip_extractability_check: bool = False,
         min_word_count: int = 3,
+        methodology: str = "means_end_chain",
     ):
         """
         Initialize extraction service.
@@ -53,12 +55,18 @@ class ExtractionService:
             llm_client: LLM client instance (creates default if None)
             skip_extractability_check: Skip fast pre-filter (for testing)
             min_word_count: Minimum words for extractability
+            methodology: Methodology schema name (e.g., "means_end_chain")
         """
         self.llm = llm_client or get_llm_client()
         self.skip_extractability_check = skip_extractability_check
         self.min_word_count = min_word_count
+        self.schema = load_methodology(methodology)
 
-        log.info("extraction_service_initialized")
+        log.info(
+            "extraction_service_initialized",
+            methodology=methodology,
+            node_types=len(self.schema.node_types),
+        )
 
     async def extract(
         self,
@@ -112,7 +120,14 @@ class ExtractionService:
 
         # Step 4: Convert to domain models
         concepts = self._parse_concepts(extraction_data.get("concepts", []))
-        relationships = self._parse_relationships(extraction_data.get("relationships", []))
+
+        # Build concept_types map for relationship validation
+        concept_types = {c.text.lower(): c.node_type for c in concepts}
+
+        relationships = self._parse_relationships(
+            extraction_data.get("relationships", []),
+            concept_types,
+        )
         discourse_markers = extraction_data.get("discourse_markers", [])
 
         latency_ms = int((time.perf_counter() - start_time) * 1000)
@@ -208,7 +223,18 @@ class ExtractionService:
                     confidence=float(raw.get("confidence", 0.8)),
                     source_quote=raw.get("source_quote", ""),
                     properties=raw.get("properties", {}),
+                    stance=int(raw.get("stance", 0)),  # Default to neutral (0)
                 )
+
+                # Schema validation: check node type is valid
+                if not self.schema.is_valid_node_type(concept.node_type):
+                    log.warning(
+                        "invalid_node_type",
+                        node_type=concept.node_type,
+                        text=concept.text,
+                    )
+                    continue  # Skip invalid concept
+
                 if concept.text:  # Skip empty concepts
                     concepts.append(concept)
             except Exception as e:
@@ -217,13 +243,16 @@ class ExtractionService:
         return concepts
 
     def _parse_relationships(
-        self, raw_relationships: List[dict]
+        self,
+        raw_relationships: List[dict],
+        concept_types: Dict[str, str],
     ) -> List[ExtractedRelationship]:
         """
         Convert raw extraction data to ExtractedRelationship models.
 
         Args:
             raw_relationships: List of relationship dicts from LLM
+            concept_types: Map from concept text (lowercase) to node type
 
         Returns:
             List of ExtractedRelationship models
@@ -238,6 +267,31 @@ class ExtractionService:
                     confidence=float(raw.get("confidence", 0.7)),
                     source_quote=raw.get("source_quote", ""),
                 )
+
+                # Schema validation: check edge type is valid
+                if not self.schema.is_valid_edge_type(rel.relationship_type):
+                    log.warning(
+                        "invalid_edge_type",
+                        relationship_type=rel.relationship_type,
+                    )
+                    continue  # Skip invalid edge type
+
+                # Schema validation: check connection is allowed
+                source_type = concept_types.get(rel.source_text.lower())
+                target_type = concept_types.get(rel.target_text.lower())
+
+                if source_type and target_type:
+                    if not self.schema.is_valid_connection(
+                        rel.relationship_type, source_type, target_type
+                    ):
+                        log.warning(
+                            "invalid_connection",
+                            edge_type=rel.relationship_type,
+                            source_type=source_type,
+                            target_type=target_type,
+                        )
+                        continue  # Skip invalid connection
+
                 if rel.source_text and rel.target_text:  # Skip incomplete
                     relationships.append(rel)
             except Exception as e:
