@@ -4,9 +4,14 @@ Stage 3: Extract concepts and relationships.
 ADR-008 Phase 3: Use ExtractionService to extract knowledge from user input.
 """
 
+from typing import TYPE_CHECKING
+
 import structlog
 
 from ..base import TurnStage
+
+if TYPE_CHECKING:
+    from src.domain.models.turn import TurnContext
 
 log = structlog.get_logger(__name__)
 

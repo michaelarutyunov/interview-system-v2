@@ -3,6 +3,7 @@ Stage 9: Save system response.
 
 ADR-008 Phase 3: Persist system utterance to the database.
 """
+from typing import TYPE_CHECKING
 
 from datetime import datetime
 from uuid import uuid4
@@ -11,6 +12,9 @@ import structlog
 
 from ..base import TurnStage
 
+
+if TYPE_CHECKING:
+    from src.domain.models.turn import TurnContext
 log = structlog.get_logger(__name__)
 
 

@@ -3,6 +3,7 @@ Stage 10: Persist scoring data and update session state.
 
 ADR-008 Phase 3: Save scoring results and update turn count.
 """
+from typing import TYPE_CHECKING
 
 import uuid
 import aiosqlite
@@ -12,6 +13,9 @@ import structlog
 
 from ..base import TurnStage
 
+
+if TYPE_CHECKING:
+    from src.domain.models.turn import TurnContext
 log = structlog.get_logger(__name__)
 
 

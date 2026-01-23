@@ -3,15 +3,18 @@ Stage 1: Load session context.
 
 ADR-008 Phase 3: Load session metadata, graph state, and recent utterances.
 """
+from typing import TYPE_CHECKING
 
 import aiosqlite
 import json
-
 import structlog
 
 from ..base import TurnStage
 
 log = structlog.get_logger(__name__)
+
+if TYPE_CHECKING:
+    from src.domain.models.turn import TurnContext
 
 
 class ContextLoadingStage(TurnStage):

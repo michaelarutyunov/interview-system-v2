@@ -3,11 +3,15 @@ Stage 7: Determine continuation.
 
 ADR-008 Phase 3: Decide if interview should continue or end.
 """
+from typing import TYPE_CHECKING
 
 import structlog
 
 from ..base import TurnStage
 
+
+if TYPE_CHECKING:
+    from src.domain.models.turn import TurnContext
 log = structlog.get_logger(__name__)
 
 
