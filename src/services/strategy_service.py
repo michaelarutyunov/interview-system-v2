@@ -96,7 +96,7 @@ class StrategyService:
     def __init__(
         self,
         scoring_engine: TwoTierScoringEngine,
-        config: Dict[str, Any] = None,
+        config: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize strategy selector.
@@ -106,12 +106,18 @@ class StrategyService:
             config: Selector configuration
         """
         self.scoring_engine = scoring_engine
-        self.config = config or {}
+        self.config: Dict[str, Any] = config or {}
         self.strategies = {s["id"]: s for s in STRATEGIES if s.get("enabled", True)}
 
         # Configuration
         self._alternatives_count = self.config.get("alternatives_count", 3)
         self._alternatives_min_score = self.config.get("alternatives_min_score", 0.3)
+
+        # Phase configuration
+        self._exploratory_min_turns = self.config.get("exploratory_min_turns", 8)
+        self._focused_coverage_threshold = self.config.get("focused_coverage_threshold", 0.6)
+        self._closing_min_turns = self.config.get("closing_min_turns", 20)
+        self._closing_coverage_threshold = self.config.get("closing_coverage_threshold", 0.95)
 
         logger.info(
             "StrategyService initialized (two-tier)",
@@ -124,21 +130,24 @@ class StrategyService:
         graph_state: GraphState,
         recent_nodes: List[Dict[str, Any]],
         conversation_history: List[Dict[str, str]] = None,
+        mode: str = "coverage_driven",  # NEW: Interview mode
     ) -> SelectionResult:
         """
         Select the best strategy for the current state.
 
         Algorithm:
-        1. Filter applicable strategies
-        2. Generate focuses for each applicable strategy
-        3. Score all (strategy, focus) pairs using two-tier engine
-        4. Select highest-scoring non-vetoed combination
-        5. Return result with top alternatives
+        1. Determine interview phase
+        2. Filter applicable strategies
+        3. Generate focuses for each applicable strategy
+        4. Score all (strategy, focus) pairs using two-tier engine
+        5. Select highest-scoring non-vetoed combination
+        6. Return result with top alternatives
 
         Args:
             graph_state: Current graph state
             recent_nodes: List of recent nodes from last N turns
             conversation_history: Recent conversation turns (for Tier 1 scorers)
+            mode: Interview mode (coverage_driven or graph_driven) - NEW
 
         Returns:
             SelectionResult with selected strategy, focus, and alternatives
@@ -146,9 +155,23 @@ class StrategyService:
         logger.debug(
             "Starting strategy selection (two-tier)",
             turn_count=graph_state.properties.get("turn_count", 0),
+            mode=mode,
         )
 
         conversation_history = conversation_history or []
+
+        # Store mode in graph_state properties for scorers to access
+        graph_state.properties["interview_mode"] = mode
+
+        # Determine phase before scoring
+        phase = self._determine_phase(graph_state)
+        graph_state.set_phase(phase)
+
+        logger.debug(
+            "Phase determined",
+            phase=phase,
+            turn_count=graph_state.properties.get("turn_count", 0),
+        )
 
         # Score all (strategy, focus) combinations
         candidates: List[StrategyCandidate] = []
@@ -173,6 +196,7 @@ class StrategyService:
                         graph_state=graph_state,
                         recent_nodes=recent_nodes,
                         conversation_history=conversation_history,
+                        phase=phase,  # Pass phase to scoring engine
                     )
 
                     candidate = StrategyCandidate(
@@ -256,6 +280,59 @@ class StrategyService:
             scoring_result=top_candidate.scoring_result,
             alternative_strategies=alternatives,
         )
+
+    def _determine_phase(self, graph_state: GraphState) -> str:
+        """
+        Determine interview phase based on state.
+
+        Phase transition rules:
+        - exploratory: turn_count < exploratory_min_turns (default 8)
+        - focused: coverage_ratio > focused_coverage_threshold (default 0.6)
+        - closing: coverage_ratio > closing_coverage_threshold (default 0.95)
+                  OR turn_count > closing_min_turns (default 20)
+
+        Args:
+            graph_state: Current graph state
+
+        Returns:
+            Phase string: 'exploratory', 'focused', or 'closing'
+        """
+        turn_count = graph_state.properties.get('turn_count', 0)
+        coverage_ratio = self._get_coverage_ratio(graph_state)
+
+        # Check closing conditions first (highest priority)
+        if coverage_ratio > self._closing_coverage_threshold or turn_count > self._closing_min_turns:
+            return 'closing'
+
+        # Check exploratory conditions
+        if turn_count < self._exploratory_min_turns:
+            return 'exploratory'
+
+        # Check focused conditions
+        if coverage_ratio > self._focused_coverage_threshold:
+            return 'focused'
+
+        # Default to exploratory
+        return 'exploratory'
+
+    def _get_coverage_ratio(self, graph_state: GraphState) -> float:
+        """
+        Calculate coverage ratio from graph state.
+
+        Args:
+            graph_state: Current graph state
+
+        Returns:
+            Coverage ratio between 0.0 and 1.0
+        """
+        coverage_state = graph_state.properties.get("coverage_state", {})
+        elements_seen = set(coverage_state.get("elements_seen", []))
+        elements_total = coverage_state.get("elements_total", [])
+
+        if not elements_total:
+            return 0.0
+
+        return len(elements_seen) / len(elements_total)
 
     def _get_possible_focuses(
         self,

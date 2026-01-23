@@ -14,6 +14,7 @@ class ExtractedConcept(BaseModel):
     confidence: float = Field(default=0.8, ge=0.0, le=1.0)
     source_quote: str = ""  # Verbatim quote from utterance
     properties: Dict[str, Any] = Field(default_factory=dict)
+    stance: int = Field(default=0, ge=-1, le=1)  # Stance: -1 (negative), 0 (neutral), +1 (positive)
 
 
 class ExtractedRelationship(BaseModel):

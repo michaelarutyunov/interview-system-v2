@@ -5,13 +5,16 @@ Provides async interface for LLM calls with:
 - Structured logging of requests/responses
 - Timeout handling
 - Usage tracking (tokens)
+- Dual client support (main for generation, light for scoring)
 
-Single provider for v2 MVP. Extensible for future providers.
+Supports two LLM configurations:
+- llm_main: For question generation (Claude Sonnet/GPT-4)
+- llm_light: For scoring tasks (Claude Haiku/GPT-4o-mini)
 """
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Literal
 import time
 
 import httpx
@@ -20,6 +23,9 @@ import structlog
 from src.core.config import settings
 
 log = structlog.get_logger(__name__)
+
+
+LLMClientType = Literal["main", "light"]
 
 
 @dataclass
@@ -62,6 +68,7 @@ class AnthropicClient(LLMClient):
     """Anthropic Claude API client.
 
     Uses httpx for async HTTP calls to the Messages API.
+    Supports both main and light configurations.
     """
 
     def __init__(
@@ -69,22 +76,39 @@ class AnthropicClient(LLMClient):
         api_key: Optional[str] = None,
         model: Optional[str] = None,
         timeout: Optional[float] = None,
+        client_type: LLMClientType = "main",
     ):
         """
         Initialize Anthropic client.
 
         Args:
             api_key: API key (defaults to settings.anthropic_api_key)
-            model: Model ID (defaults to settings.llm_model)
-            timeout: Request timeout in seconds (defaults to settings.llm_timeout_seconds)
+            model: Model ID (defaults based on client_type)
+            timeout: Request timeout in seconds (defaults based on client_type)
+            client_type: "main" for generation, "light" for scoring
 
         Raises:
             ValueError: If API key is not configured
         """
         self.api_key = api_key or settings.anthropic_api_key
-        self.model = model or settings.llm_model
+        self.client_type = client_type
         self.base_url = "https://api.anthropic.com/v1"
-        self.timeout = timeout or settings.llm_timeout_seconds
+
+        # Set model based on client type
+        if model:
+            self.model = model
+        elif client_type == "main":
+            self.model = settings.llm_main_model
+        else:  # light
+            self.model = settings.llm_light_model
+
+        # Set timeout based on client type
+        if timeout is not None:
+            self.timeout = timeout
+        elif client_type == "main":
+            self.timeout = settings.llm_main_timeout_seconds
+        else:  # light
+            self.timeout = settings.llm_light_timeout_seconds
 
         if not self.api_key:
             raise ValueError(
@@ -94,6 +118,7 @@ class AnthropicClient(LLMClient):
 
         log.info(
             "anthropic_client_initialized",
+            client_type=self.client_type,
             model=self.model,
             timeout=self.timeout,
         )
@@ -111,8 +136,8 @@ class AnthropicClient(LLMClient):
         Args:
             prompt: User message
             system: Optional system prompt
-            temperature: Sampling temperature (defaults to settings.llm_temperature)
-            max_tokens: Max tokens (defaults to settings.llm_max_tokens)
+            temperature: Sampling temperature (defaults based on client_type)
+            max_tokens: Max tokens (defaults based on client_type)
 
         Returns:
             LLMResponse with content and usage stats
@@ -129,25 +154,38 @@ class AnthropicClient(LLMClient):
             "anthropic-version": "2023-06-01",
         }
 
+        # Set defaults based on client type
+        if max_tokens is None:
+            if self.client_type == "main":
+                max_tokens = settings.llm_main_max_tokens
+            else:
+                max_tokens = settings.llm_light_max_tokens
+
+        if temperature is None:
+            if self.client_type == "main":
+                temperature = settings.llm_main_temperature
+            else:
+                temperature = settings.llm_light_temperature
+
         payload: Dict[str, Any] = {
             "model": self.model,
-            "max_tokens": max_tokens or settings.llm_max_tokens,
+            "max_tokens": max_tokens,
             "messages": [{"role": "user", "content": prompt}],
         }
 
         if system:
             payload["system"] = system
 
-        if temperature is not None:
-            payload["temperature"] = temperature
-        else:
-            payload["temperature"] = settings.llm_temperature
+        payload["temperature"] = temperature
 
         log.debug(
             "llm_call_start",
+            client_type=self.client_type,
             model=self.model,
             prompt_length=len(prompt),
             system_length=len(system) if system else 0,
+            temperature=temperature,
+            max_tokens=max_tokens,
         )
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -173,6 +211,7 @@ class AnthropicClient(LLMClient):
 
         log.info(
             "llm_call_complete",
+            client_type=self.client_type,
             model=self.model,
             latency_ms=round(latency_ms, 2),
             input_tokens=usage["input_tokens"],
@@ -188,9 +227,12 @@ class AnthropicClient(LLMClient):
         )
 
 
-def get_llm_client() -> LLMClient:
+def get_llm_client(client_type: LLMClientType = "main") -> LLMClient:
     """
     Factory for LLM client based on configuration.
+
+    Args:
+        client_type: "main" for question generation, "light" for scoring tasks
 
     Returns:
         LLMClient instance (AnthropicClient for v2)
@@ -198,9 +240,35 @@ def get_llm_client() -> LLMClient:
     Raises:
         ValueError: If unknown provider configured
     """
-    provider = settings.llm_provider
+    # Select provider based on client type
+    if client_type == "main":
+        provider = settings.llm_main_provider
+    else:
+        provider = settings.llm_light_provider
 
     if provider == "anthropic":
-        return AnthropicClient()
+        return AnthropicClient(client_type=client_type)
     else:
-        raise ValueError(f"Unknown LLM provider: {provider}")
+        raise ValueError(
+            f"Unknown LLM provider for {client_type}: {provider}"
+        )
+
+
+def get_main_llm_client() -> LLMClient:
+    """
+    Factory for main LLM client (question generation).
+
+    Returns:
+        LLMClient instance configured for question generation
+    """
+    return get_llm_client("main")
+
+
+def get_light_llm_client() -> LLMClient:
+    """
+    Factory for light LLM client (scoring tasks).
+
+    Returns:
+        LLMClient instance configured for scoring tasks
+    """
+    return get_llm_client("light")

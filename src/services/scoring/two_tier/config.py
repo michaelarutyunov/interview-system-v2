@@ -11,6 +11,11 @@ import structlog
 import yaml
 
 from src.services.scoring.two_tier import TwoTierScoringEngine, Tier1Scorer, Tier2Scorer
+from src.services.scoring.tier1 import (
+    KnowledgeCeilingScorer,
+    ElementExhaustedScorer,
+    RecentRedundancyScorer,
+)
 from src.services.scoring.tier2 import (
     CoverageGapScorer,
     AmbiguityScorer,
@@ -22,6 +27,13 @@ from src.services.scoring.tier2 import (
 
 logger = structlog.get_logger(__name__)
 
+
+# Tier 1 scorer class mapping
+TIER1_SCORER_CLASSES = {
+    "KnowledgeCeilingScorer": KnowledgeCeilingScorer,
+    "ElementExhaustedScorer": ElementExhaustedScorer,
+    "RecentRedundancyScorer": RecentRedundancyScorer,
+}
 
 # Tier 2 scorer class mapping
 TIER2_SCORER_CLASSES = {
@@ -77,7 +89,7 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
         logger.warning(f"Config file not found: {config_path}, using defaults")
         return _get_default_config()
 
-    with open(config_path) as f:
+    with open(str(config_path)) as f:
         config = yaml.safe_load(f)
 
     logger.info(f"Loaded configuration from {config_path}")
@@ -98,48 +110,65 @@ def _get_default_config() -> Dict[str, Any]:
                     "id": "coverage_gap",
                     "class": "CoverageGapScorer",
                     "enabled": True,
-                    "weight": 0.20,
+                    "strategy_weights": {
+                        "deepen": 0.30,
+                        "broaden": 0.24,
+                        "cover_element": 0.30,
+                        "default": 0.20,
+                    },
                     "params": {},
                 },
                 {
                     "id": "ambiguity",
                     "class": "AmbiguityScorer",
                     "enabled": True,
-                    "weight": 0.15,
+                    "strategy_weights": {
+                        "deepen": 0.20,
+                        "default": 0.15,
+                    },
                     "params": {},
                 },
                 {
                     "id": "depth_breadth_balance",
                     "class": "DepthBreadthBalanceScorer",
                     "enabled": True,
-                    "weight": 0.20,
+                    "strategy_weights": {
+                        "deepen": 0.20,
+                        "broaden": 0.20,
+                        "default": 0.15,
+                    },
                     "params": {},
                 },
                 {
                     "id": "engagement",
                     "class": "EngagementScorer",
                     "enabled": True,
-                    "weight": 0.15,
+                    "strategy_weights": {
+                        "default": 0.15,
+                    },
                     "params": {},
                 },
                 {
                     "id": "strategy_diversity",
                     "class": "StrategyDiversityScorer",
                     "enabled": True,
-                    "weight": 0.15,
+                    "strategy_weights": {
+                        "default": 0.15,
+                    },
                     "params": {},
                 },
                 {
                     "id": "novelty",
                     "class": "NoveltyScorer",
                     "enabled": True,
-                    "weight": 0.15,
+                    "strategy_weights": {
+                        "default": 0.15,
+                    },
                     "params": {},
                 },
             ],
             "validation": {
-                "tier2_weights_must_sum_to": 1.0,
-                "tolerance": 0.01,
+                "require_strategy_weights": True,
             },
         },
         "engine": {
@@ -147,6 +176,29 @@ def _get_default_config() -> Dict[str, Any]:
             "score_precision": 4,
             "alternatives_count": 3,
             "alternatives_min_score": 0.3,
+            "phase_profiles": {
+                "exploratory": {
+                    "deepen": 0.8,
+                    "broaden": 1.2,
+                    "cover_element": 1.1,
+                    "closing": 0.0,
+                    "reflection": 0.3,
+                },
+                "focused": {
+                    "deepen": 1.3,
+                    "broaden": 0.4,
+                    "cover_element": 1.1,
+                    "closing": 0.5,
+                    "reflection": 0.7,
+                },
+                "closing": {
+                    "deepen": 0.3,
+                    "broaden": 0.2,
+                    "cover_element": 0.5,
+                    "closing": 1.5,
+                    "reflection": 0.3,
+                },
+            },
         },
     }
 
@@ -175,17 +227,70 @@ def create_tier2_scorers(config: Dict[str, Any]) -> List[Tier2Scorer]:
             logger.warning(f"Unknown Tier 2 scorer class: {class_name}")
             continue
 
+        # Ensure strategy_weights exists in config (new format)
+        if "strategy_weights" not in scorer_config:
+            # Migrate from old weight format to new strategy_weights format
+            # For backward compatibility, set default weights
+            old_weight = scorer_config.get("weight", 0.15)
+            scorer_config["strategy_weights"] = {
+                "default": old_weight
+            }
+            logger.debug(
+                f"Migrated scorer {scorer_config['id']} from old 'weight' format "
+                f"to new 'strategy_weights' format (default={old_weight})"
+            )
+
         # Create scorer instance with config
         scorer = scorer_class(config=scorer_config)
         scorers.append(scorer)
 
-        logger.debug(f"Created Tier 2 scorer: {scorer}")
+        logger.debug(
+            f"Created Tier 2 scorer: {scorer}",
+            strategy_weights=list(scorer.config.get("strategy_weights", {}).keys())
+        )
+
+    return scorers
+
+
+def create_tier1_scorers(config: Dict[str, Any]) -> List[Tier1Scorer]:
+    """Create Tier 1 scorer instances from configuration.
+
+    Args:
+        config: Configuration dictionary
+
+    Returns:
+        List of initialized Tier 1 scorers
+    """
+    scorers = []
+
+    tier1_configs = config.get("scoring", {}).get("tier1_scorers", [])
+
+    for scorer_config in tier1_configs:
+        if not scorer_config.get("enabled", True):
+            continue
+
+        class_name = scorer_config.get("class")
+        scorer_class = TIER1_SCORER_CLASSES.get(class_name)
+
+        if scorer_class is None:
+            logger.warning(f"Unknown Tier 1 scorer class: {class_name}")
+            continue
+
+        # Create scorer instance with config
+        scorer = scorer_class(config=scorer_config)
+        scorers.append(scorer)
+
+        logger.debug(f"Created Tier 1 scorer: {scorer}")
 
     return scorers
 
 
 def validate_weights(scorers: List[Tier2Scorer], config: Dict[str, Any]) -> bool:
-    """Validate that Tier 2 scorer weights sum to 1.0.
+    """Validate strategy_weights configuration.
+
+    With the new formula (scorer_sum × phase_multiplier), we don't require
+    weights to sum to 1.0. Instead, we validate that each scorer has
+    strategy_weights properly configured.
 
     Args:
         scorers: List of Tier 2 scorers
@@ -195,21 +300,44 @@ def validate_weights(scorers: List[Tier2Scorer], config: Dict[str, Any]) -> bool
         True if weights are valid, False otherwise
 
     Raises:
-        ValueError: If weights don't sum to 1.0
+        ValueError: If strategy_weights are misconfigured
     """
-    validation = config.get("scoring", {}).get("validation", {})
-    target_sum = validation.get("tier2_weights_must_sum_to", 1.0)
-    tolerance = validation.get("tolerance", 0.01)
+    if not scorers:
+        logger.warning("No Tier 2 scorers to validate")
+        return True
 
-    total_weight = sum(s.weight for s in scorers)
+    # Check that each scorer has strategy_weights with at least a default
+    for scorer in scorers:
+        strategy_weights = scorer.config.get("strategy_weights", {})
 
-    if abs(total_weight - target_sum) > tolerance:
-        raise ValueError(
-            f"Tier 2 weights must sum to {target_sum} (current: {total_weight:.4f}). "
-            f"Scorers: {[(s.scorer_id, s.weight) for s in scorers]}"
-        )
+        if not strategy_weights:
+            raise ValueError(
+                f"Scorer {scorer.scorer_id} has no 'strategy_weights' configured. "
+                f"Each scorer must have strategy_weights with at least a 'default' key."
+            )
 
-    logger.info(f"Tier 2 weights validated: total={total_weight:.4f}")
+        if "default" not in strategy_weights:
+            raise ValueError(
+                f"Scorer {scorer.scorer_id} has no 'default' weight in strategy_weights. "
+                f"Each scorer must have a default weight as fallback."
+            )
+
+        # Validate that weights are numeric and reasonable
+        for strategy_id, weight in strategy_weights.items():
+            if not isinstance(weight, (int, float)):
+                raise ValueError(
+                    f"Scorer {scorer.scorer_id} has non-numeric weight for "
+                    f"strategy '{strategy_id}': {weight}"
+                )
+            if weight < 0 or weight > 2.0:
+                logger.warning(
+                    f"Scorer {scorer.scorer_id} has unusual weight for "
+                    f"strategy '{strategy_id}': {weight} (expected 0-2 range)"
+                )
+
+    logger.info(
+        f"Tier 2 strategy_weights validated: {len(scorers)} scorers with proper config"
+    )
     return True
 
 
@@ -221,13 +349,17 @@ def create_scoring_engine(
 
     Args:
         config_path: Path to YAML config file. If None, uses default path.
-        tier1_scorers: Optional list of Tier 1 scorers (not yet implemented)
+        tier1_scorers: Optional list of Tier 1 scorers (overrides config if provided)
 
     Returns:
         Initialized TwoTierScoringEngine
     """
     # Load configuration
     config = load_config(config_path)
+
+    # Create Tier 1 scorers from config (unless overridden)
+    if tier1_scorers is None:
+        tier1_scorers = create_tier1_scorers(config)
 
     # Create Tier 2 scorers
     tier2_scorers = create_tier2_scorers(config)
@@ -239,11 +371,18 @@ def create_scoring_engine(
     if tier2_scorers:
         validate_weights(tier2_scorers, config)
 
-    # Tier 1 scorers (empty for now - will be implemented separately)
-    tier1_scorers = tier1_scorers or []
-
-    # Get engine configuration
+    # Get engine configuration (includes phase_profiles)
     engine_config = config.get("engine", {})
+
+    # Add phase_profiles to engine_config if present
+    phase_profiles = config.get("engine", {}).get("phase_profiles", {})
+    if phase_profiles:
+        engine_config["phase_profiles"] = phase_profiles
+        logger.info(
+            f"Loaded phase_profiles: {list(phase_profiles.keys())}"
+        )
+    else:
+        logger.warning("No phase_profiles found in engine config")
 
     # Create engine
     engine = TwoTierScoringEngine(
@@ -257,6 +396,7 @@ def create_scoring_engine(
         num_tier1=len(tier1_scorers),
         num_tier2=len(tier2_scorers),
         config_path=config_path,
+        has_phase_profiles=bool(phase_profiles),
     )
 
     return engine

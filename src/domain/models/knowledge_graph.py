@@ -35,6 +35,7 @@ class KGNode(BaseModel):
     source_utterance_ids: List[str] = Field(default_factory=list)
     recorded_at: datetime = Field(default_factory=datetime.utcnow)
     superseded_by: Optional[str] = None  # Node ID that supersedes this one (for REVISES)
+    stance: int = Field(default=0, ge=-1, le=1)  # Stance: -1 (negative), 0 (neutral), +1 (positive)
 
     model_config = {"from_attributes": True}
 
@@ -63,3 +64,15 @@ class GraphState(BaseModel):
     max_depth: int = 0  # Longest chain from attribute to value
     orphan_count: int = 0  # Nodes with no edges
     properties: Dict[str, Any] = Field(default_factory=dict)  # Additional state properties
+
+    def get_phase(self) -> str:
+        """Get current interview phase."""
+        return self.properties.get('phase', 'exploratory')
+
+    def set_phase(self, phase: str) -> None:
+        """Transition to a new phase.
+
+        Args:
+            phase: New phase ('exploratory', 'focused', or 'closing')
+        """
+        self.properties['phase'] = phase

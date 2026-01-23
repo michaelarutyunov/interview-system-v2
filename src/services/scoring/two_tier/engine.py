@@ -28,6 +28,8 @@ class ScoringResult:
     tier2_outputs: List[Tier2Output] = field(default_factory=list)
     vetoed_by: Optional[str] = None
     reasoning_trace: List[str] = field(default_factory=list)
+    scorer_sum: Optional[float] = None  # Sum of weighted scorer outputs (before phase multiplier)
+    phase_multiplier: Optional[float] = None  # Phase multiplier applied to scorer_sum
 
 
 class TwoTierScoringEngine:
@@ -38,13 +40,15 @@ class TwoTierScoringEngine:
     1. Run all Tier 1 scorers sequentially
     2. If any veto → return vetoed result (early exit)
     3. If all pass → run all Tier 2 scorers
-    4. Compute final score: base + Σ(weight × score)
+    4. Compute final score: scorer_sum × phase_multiplier
+       where scorer_sum = Σ(strategy_weight × raw_score)
     5. Return complete result with reasoning trace
 
     Features:
     - Early exit on first veto (performance)
     - Complete reasoning trace for debugging
-    - Validation that weights sum to 1.0
+    - Strategy-scorer weight matrix from config
+    - Phase-based modulation (exploratory/focused/closing)
     - Error handling for failed scorers
     """
 
@@ -65,6 +69,16 @@ class TwoTierScoringEngine:
         self.tier2_scorers = [s for s in tier2_scorers if s.enabled]
         self.config = config or {}
 
+        # Load phase profiles from config
+        self.phase_profiles = self.config.get("phase_profiles", {})
+        if not self.phase_profiles:
+            logger.warning("No phase_profiles configured, using defaults")
+            self.phase_profiles = {
+                "exploratory": {},
+                "focused": {},
+                "closing": {},
+            }
+
         # Validate Tier 2 weights sum to 1.0
         self._validate_weights()
 
@@ -79,24 +93,33 @@ class TwoTierScoringEngine:
             tier1_scorers=[s.scorer_id for s in self.tier1_scorers],
             tier2_scorers=[s.scorer_id for s in self.tier2_scorers],
             total_tier2_weight=sum(s.weight for s in self.tier2_scorers),
+            phases_available=list(self.phase_profiles.keys()),
         )
 
     def _validate_weights(self):
-        """Validate that Tier 2 weights sum to 1.0."""
-        total_weight = sum(s.weight for s in self.tier2_scorers)
+        """Validate strategy_weights configuration.
 
+        With the new formula, we don't require weights to sum to 1.0 anymore.
+        Instead, we validate that each scorer has at least a default weight.
+        """
         if not self.tier2_scorers:
             logger.warning("No Tier 2 scorers enabled")
             return
 
-        tolerance = self.config.get("weight_tolerance", 0.01)
-        if abs(total_weight - 1.0) > tolerance:
-            raise ValueError(
-                f"Tier 2 weights must sum to 1.0 (current: {total_weight:.4f}). "
-                f" Scorers: {[(s.scorer_id, s.weight) for s in self.tier2_scorers]}"
-            )
+        # Check that each scorer has strategy_weights configured
+        for scorer in self.tier2_scorers:
+            strategy_weights = scorer.config.get("strategy_weights", {})
+            if "default" not in strategy_weights:
+                logger.warning(
+                    f"Scorer {scorer.scorer_id} has no 'default' weight in strategy_weights. "
+                    f"Will use 0.1 as fallback."
+                )
 
-        logger.debug("Tier 2 weights validated", total_weight=total_weight)
+        logger.debug(
+            "Tier 2 scorers validated",
+            num_scorers=len(self.tier2_scorers),
+            scorer_ids=[s.scorer_id for s in self.tier2_scorers],
+        )
 
     async def score_candidate(
         self,
@@ -105,15 +128,18 @@ class TwoTierScoringEngine:
         graph_state: GraphState,
         recent_nodes: List[Dict[str, Any]],
         conversation_history: List[Dict[str, str]],
+        phase: Optional[str] = None,
     ) -> ScoringResult:
         """Score a single (strategy, focus) candidate using two-tier approach.
 
         Args:
-            strategy: Strategy dict with priority_base
+            strategy: Strategy dict
             focus: Focus dict
             graph_state: Current graph state
             recent_nodes: List of recent node dicts
             conversation_history: Recent conversation turns
+            phase: Current interview phase (exploratory/focused/closing).
+                   If None, defaults to 'exploratory'.
 
         Returns:
             ScoringResult with final score and complete reasoning
@@ -122,9 +148,11 @@ class TwoTierScoringEngine:
         tier1_outputs = []
         tier2_outputs = []
 
-        # Get base score from strategy
-        base_score = strategy.get("priority_base", 1.0)
-        reasoning_trace.append(f"Base score: {base_score:.{self._score_precision}f}")
+        # Determine phase (default to exploratory if not specified)
+        if phase is None:
+            phase = graph_state.properties.get("phase", "exploratory")
+
+        reasoning_trace.append(f"Phase: {phase}")
 
         # ===== TIER 1: Hard Constraints =====
         for scorer in self.tier1_scorers:
@@ -181,11 +209,19 @@ class TwoTierScoringEngine:
                 # Continue with other scorers
 
         # ===== TIER 2: Weighted Additive Scoring =====
-        final_score = base_score
-        tier2_contribution = 0.0
+        # Step 1: Sum weighted scorer outputs for this strategy
+        scorer_sum = 0.0
 
         for scorer in self.tier2_scorers:
             try:
+                # Get strategy-specific weight from config
+                strategy_weights = scorer.config.get("strategy_weights", {})
+                strategy_weight = strategy_weights.get(
+                    strategy.get("id"),
+                    strategy_weights.get("default", 0.1)
+                )
+
+                # Scorer returns raw score (independent of weights)
                 output = await scorer.score(
                     strategy=strategy,
                     focus=focus,
@@ -195,26 +231,30 @@ class TwoTierScoringEngine:
                 )
                 tier2_outputs.append(output)
 
-                # Add weighted contribution
-                final_score += output.contribution
-                tier2_contribution += output.contribution
+                # Apply strategy_weight to raw_score
+                contribution = strategy_weight * output.raw_score
+                scorer_sum += contribution
+
+                # Update output with strategy weight for debugging
+                output.weight = strategy_weight
+                output.contribution = contribution
 
                 # Log the scoring
                 trace = (
                     f"{output.scorer_id}: "
-                    f"{output.raw_score:.{self._score_precision}f} × "
-                    f"{output.weight:.2f} = "
-                    f"{output.contribution:.{self._score_precision}f} → "
-                    f"cumulative={final_score:.{self._score_precision}f}"
+                    f"raw={output.raw_score:.{self._score_precision}f} × "
+                    f"strategy_weight={strategy_weight:.2f} = "
+                    f"{contribution:.{self._score_precision}f} → "
+                    f"scorer_sum={scorer_sum:.{self._score_precision}f}"
                 )
                 reasoning_trace.append(trace + f" ({output.reasoning})")
                 logger.debug(
                     "Tier2 scoring",
                     scorer=output.scorer_id,
                     raw_score=output.raw_score,
-                    weight=output.weight,
-                    contribution=output.contribution,
-                    cumulative=final_score,
+                    strategy_weight=strategy_weight,
+                    contribution=contribution,
+                    scorer_sum=scorer_sum,
                 )
 
             except Exception as e:
@@ -227,10 +267,24 @@ class TwoTierScoringEngine:
                 reasoning_trace.append(f"{scorer.scorer_id}: ERROR - {str(e)}")
                 # Continue with other scorers
 
+        # Step 2: Apply phase multiplier
+        phase_profile = self.phase_profiles.get(phase, {})
+        phase_multiplier = phase_profile.get(strategy.get("id", ""), 1.0)
+        final_score = scorer_sum * phase_multiplier
+
+        reasoning_trace.append(
+            f"Phase multiplier: {phase_multiplier:.2f} → "
+            f"final_score = {scorer_sum:.{self._score_precision}f} × {phase_multiplier:.2f} = "
+            f"{final_score:.{self._score_precision}f}"
+        )
+
         logger.debug(
             "Scoring complete",
             strategy=strategy.get("id"),
             focus_type=focus.get("focus_type"),
+            phase=phase,
+            scorer_sum=scorer_sum,
+            phase_multiplier=phase_multiplier,
             final_score=final_score,
             tier1_count=len(tier1_outputs),
             tier2_count=len(tier2_outputs),
@@ -244,6 +298,8 @@ class TwoTierScoringEngine:
             tier2_outputs=tier2_outputs,
             vetoed_by=None,
             reasoning_trace=reasoning_trace,
+            scorer_sum=scorer_sum,
+            phase_multiplier=phase_multiplier,
         )
 
     async def score_all_candidates(
@@ -252,6 +308,7 @@ class TwoTierScoringEngine:
         graph_state: GraphState,
         recent_nodes: List[Dict[str, Any]],
         conversation_history: List[Dict[str, str]],
+        phase: Optional[str] = None,
     ) -> List[ScoringResult]:
         """Score multiple (strategy, focus) candidates.
 
@@ -260,11 +317,17 @@ class TwoTierScoringEngine:
             graph_state: Current graph state
             recent_nodes: List of recent node dicts
             conversation_history: Recent conversation turns
+            phase: Current interview phase (exploratory/focused/closing).
+                   If None, defaults to graph_state.phase or 'exploratory'.
 
         Returns:
             List of ScoringResults, sorted by final_score (descending)
         """
         results = []
+
+        # Determine phase once for all candidates
+        if phase is None:
+            phase = graph_state.properties.get("phase", "exploratory")
 
         for strategy, focus in candidates:
             result = await self.score_candidate(
@@ -273,6 +336,7 @@ class TwoTierScoringEngine:
                 graph_state=graph_state,
                 recent_nodes=recent_nodes,
                 conversation_history=conversation_history,
+                phase=phase,
             )
             results.append(result)
 
@@ -281,6 +345,7 @@ class TwoTierScoringEngine:
 
         logger.info(
             "Scored all candidates",
+            phase=phase,
             total_candidates=len(candidates),
             vetoed_count=sum(1 for r in results if r.vetoed_by),
             top_score=results[0].final_score if results else 0,
