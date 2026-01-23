@@ -11,7 +11,13 @@ from typing import Any, Dict, List, Optional
 import structlog
 
 from src.domain.models.knowledge_graph import GraphState
-from src.services.scoring.two_tier.base import Tier1Scorer, Tier1Output, Tier2Scorer, Tier2Output
+from src.services.scoring.two_tier.base import (
+    Tier1Scorer,
+    Tier1Output,
+    Tier2Scorer,
+    Tier2Output,
+)
+from src.core.exceptions import ScorerFailureError
 
 logger = structlog.get_logger(__name__)
 
@@ -27,7 +33,9 @@ class ScoringResult:
     tier2_outputs: List[Tier2Output] = field(default_factory=list)
     vetoed_by: Optional[str] = None
     reasoning_trace: List[str] = field(default_factory=list)
-    scorer_sum: Optional[float] = None  # Sum of weighted scorer outputs (before phase multiplier)
+    scorer_sum: Optional[float] = (
+        None  # Sum of weighted scorer outputs (before phase multiplier)
+    )
     phase_multiplier: Optional[float] = None  # Phase multiplier applied to scorer_sum
 
 
@@ -198,14 +206,16 @@ class TwoTierScoringEngine:
                     )
 
             except Exception as e:
-                logger.warning(
-                    "Tier1 scorer failed",
+                logger.error(
+                    "Tier1 scorer failed - terminating interview",
                     scorer=scorer.scorer_id,
                     error=str(e),
                     strategy=strategy.get("id"),
+                    exc_info=True,
                 )
-                reasoning_trace.append(f"{scorer.scorer_id}: ERROR - {str(e)}")
-                # Continue with other scorers
+                raise ScorerFailureError(
+                    f"Tier 1 scorer {scorer.scorer_id} failed: {str(e)}"
+                ) from e
 
         # ===== TIER 2: Weighted Additive Scoring =====
         # Step 1: Sum weighted scorer outputs for this strategy
@@ -216,8 +226,7 @@ class TwoTierScoringEngine:
                 # Get strategy-specific weight from config
                 strategy_weights = scorer.config.get("strategy_weights", {})
                 strategy_weight = strategy_weights.get(
-                    strategy.get("id"),
-                    strategy_weights.get("default", 0.1)
+                    strategy.get("id"), strategy_weights.get("default", 0.1)
                 )
 
                 # Scorer returns raw score (independent of weights)
@@ -257,14 +266,16 @@ class TwoTierScoringEngine:
                 )
 
             except Exception as e:
-                logger.warning(
-                    "Tier2 scorer failed",
+                logger.error(
+                    "Tier2 scorer failed - terminating interview",
                     scorer=scorer.scorer_id,
                     error=str(e),
                     strategy=strategy.get("id"),
+                    exc_info=True,
                 )
-                reasoning_trace.append(f"{scorer.scorer_id}: ERROR - {str(e)}")
-                # Continue with other scorers
+                raise ScorerFailureError(
+                    f"Tier 2 scorer {scorer.scorer_id} failed: {str(e)}"
+                ) from e
 
         # Step 2: Apply phase multiplier
         phase_key = phase or "exploratory"
@@ -342,7 +353,9 @@ class TwoTierScoringEngine:
             results.append(result)
 
         # Sort by final score (descending), vetoed candidates go to bottom
-        results.sort(key=lambda r: (0 if r.vetoed_by else 1, r.final_score), reverse=True)
+        results.sort(
+            key=lambda r: (0 if r.vetoed_by else 1, r.final_score), reverse=True
+        )
 
         logger.info(
             "Scored all candidates",

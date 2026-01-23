@@ -17,8 +17,10 @@ class InterviewSystemError(Exception):
 # Configuration Errors
 # =============================================================================
 
+
 class ConfigurationError(InterviewSystemError):
     """Invalid or missing configuration."""
+
     pass
 
 
@@ -26,33 +28,40 @@ class ConfigurationError(InterviewSystemError):
 # LLM Errors
 # =============================================================================
 
+
 class LLMError(InterviewSystemError):
     """Base for LLM-related errors."""
+
     pass
 
 
 class LLMTimeoutError(LLMError):
     """LLM call timed out."""
+
     pass
 
 
 class LLMRateLimitError(LLMError):
     """LLM rate limit exceeded."""
+
     pass
 
 
 class LLMContentFilterError(LLMError):
     """Content filtered by LLM provider."""
+
     pass
 
 
 class LLMResponseParseError(LLMError):
     """Failed to parse LLM response."""
+
     pass
 
 
 class LLMInvalidResponseError(LLMError):
     """LLM returned invalid or unexpected response."""
+
     pass
 
 
@@ -60,23 +69,28 @@ class LLMInvalidResponseError(LLMError):
 # Session Errors
 # =============================================================================
 
+
 class SessionError(InterviewSystemError):
     """Session-related error."""
+
     pass
 
 
 class SessionNotFoundError(SessionError):
     """Session does not exist."""
+
     pass
 
 
 class SessionCompletedError(SessionError):
     """Attempted operation on completed session."""
+
     pass
 
 
 class SessionAbandonedError(SessionError):
     """Session was abandoned."""
+
     pass
 
 
@@ -84,13 +98,16 @@ class SessionAbandonedError(SessionError):
 # Extraction Errors
 # =============================================================================
 
+
 class ExtractionError(InterviewSystemError):
     """Failed to extract concepts from response."""
+
     pass
 
 
 class ValidationError(InterviewSystemError):
     """Input validation failed."""
+
     pass
 
 
@@ -98,16 +115,44 @@ class ValidationError(InterviewSystemError):
 # Graph Errors
 # =============================================================================
 
+
 class GraphError(InterviewSystemError):
     """Knowledge graph operation error."""
+
     pass
 
 
 class NodeNotFoundError(GraphError):
     """Node does not exist."""
+
     pass
 
 
 class DuplicateNodeError(GraphError):
     """Attempted to create duplicate node."""
+
+    pass
+
+
+# =============================================================================
+# Scoring Errors
+# =============================================================================
+
+
+class ScoringError(InterviewSystemError):
+    """Base for scoring-related errors."""
+
+    pass
+
+
+class ScorerFailureError(ScoringError):
+    """Raised when a scorer fails and interview should terminate (MVP fail-fast).
+
+    For MVP single-interview mode, any scorer failure terminates the interview
+    immediately with a clear error message. This ensures immediate visibility
+    of scoring issues during testing.
+
+    See ADR-009 for rationale and migration path to production resilience.
+    """
+
     pass
