@@ -158,7 +158,7 @@ class StrategyService:
         self,
         graph_state: GraphState,
         recent_nodes: List[Dict[str, Any]],
-        conversation_history: List[Dict[str, str]] = None,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
         mode: str = "coverage_driven",  # NEW: Interview mode
     ) -> SelectionResult:
         """
@@ -261,8 +261,8 @@ class StrategyService:
             logger.warning("No valid candidates - using fallback")
             return await self._get_fallback_result(graph_state, recent_nodes, conversation_history)
 
-        # Filter out vetoed candidates
-        non_vetoed = [c for c in candidates if c.scoring_result.vetoed_by is None]
+        # Filter out vetoed candidates (scoring_result may be None for fallback candidates)
+        non_vetoed = [c for c in candidates if c.scoring_result is None or c.scoring_result.vetoed_by is None]
 
         # If all vetoed, use closing strategy per ADR-004
         if not non_vetoed:
@@ -463,8 +463,8 @@ class StrategyService:
     async def _get_fallback_result(
         self,
         graph_state: GraphState,
-        recent_nodes: List[Dict[str, Any]],
-        conversation_history: List[Dict[str, str]],
+        recent_nodes: List[Dict[str, Any]],  # noqa: ARG001 - reserved for future use
+        conversation_history: List[Dict[str, str]],  # noqa: ARG001 - reserved for future use
     ) -> SelectionResult:
         """Return fallback strategy when no candidates available.
 
@@ -504,12 +504,30 @@ class StrategyService:
 
         # Last resort: broaden
         broaden_strategy = self.strategies.get("broaden")
+        if broaden_strategy:
+            broaden_focus = Focus(
+                focus_type="breadth_exploration",
+                focus_description="Fallback: Explore new aspects",
+            )
+            return SelectionResult(
+                selected_strategy=broaden_strategy,
+                selected_focus=broaden_focus,
+                final_score=0.0,
+                scoring_result=None,
+            )
+
+        # Ultimate fallback: hardcoded broadening strategy
+        logger.error("No fallback strategies available in self.strategies")
         broaden_focus = Focus(
             focus_type="breadth_exploration",
-            focus_description="Fallback: Explore new aspects",
+            focus_description="Let's explore something new",
         )
         return SelectionResult(
-            selected_strategy=broaden_strategy,
+            selected_strategy={
+                "id": "broaden",
+                "name": "Broaden",
+                "description": "Fallback broadening strategy",
+            },
             selected_focus=broaden_focus,
             final_score=0.0,
             scoring_result=None,

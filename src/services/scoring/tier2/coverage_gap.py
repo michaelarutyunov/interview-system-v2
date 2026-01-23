@@ -4,7 +4,7 @@ Measures how many coverage gaps the focus addresses.
 Boosts strategies that fill missing knowledge gaps.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import structlog
 
@@ -32,7 +32,7 @@ class CoverageGapScorer(Tier2Scorer):
     Weight: 0.20-0.25 (high - coverage is primary goal)
     """
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
         # Default weight for coverage scorer
         if "weight" not in self.config:
@@ -57,8 +57,8 @@ class CoverageGapScorer(Tier2Scorer):
         strategy: Dict[str, Any],
         focus: Dict[str, Any],
         graph_state: GraphState,
-        recent_nodes: List[Dict[str, Any]],
-        conversation_history: List[Dict[str, str]],
+        recent_nodes: List[Dict[str, Any]],  # noqa: ARG001 - reserved for future use
+        conversation_history: List[Dict[str, str]],  # noqa: ARG001 - reserved for future use
     ) -> Tier2Output:
         """Score based on coverage gaps addressed by this focus.
 
