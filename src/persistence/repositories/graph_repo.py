@@ -48,6 +48,7 @@ class GraphRepository:
         confidence: float = 0.8,
         properties: Optional[dict] = None,
         source_utterance_ids: Optional[List[str]] = None,
+        stance: int = 0,
     ) -> KGNode:
         """
         Create a new knowledge graph node.
@@ -59,6 +60,7 @@ class GraphRepository:
             confidence: Extraction confidence (0.0-1.0)
             properties: Additional properties
             source_utterance_ids: IDs of source utterances
+            stance: Stance value (-1, 0, or +1)
 
         Returns:
             Created KGNode
@@ -72,8 +74,8 @@ class GraphRepository:
             """
             INSERT INTO kg_nodes (
                 id, session_id, label, node_type, confidence,
-                properties, source_utterance_ids, recorded_at, superseded_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                properties, source_utterance_ids, recorded_at, superseded_by, stance
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 node_id,
@@ -85,11 +87,12 @@ class GraphRepository:
                 json.dumps(source_ids),
                 now,
                 None,
+                stance,
             ),
         )
         await self.db.commit()
 
-        log.info("node_created", node_id=node_id, label=label, node_type=node_type)
+        log.info("node_created", node_id=node_id, label=label, node_type=node_type, stance=stance)
 
         return await self.get_node(node_id)
 
@@ -502,6 +505,7 @@ class GraphRepository:
             source_utterance_ids=json.loads(row["source_utterance_ids"]) if row["source_utterance_ids"] else [],
             recorded_at=datetime.fromisoformat(row["recorded_at"]),
             superseded_by=row["superseded_by"],
+            stance=row.get("stance", 0),  # Default to 0 for existing nodes
         )
 
     def _row_to_edge(self, row: aiosqlite.Row) -> KGEdge:

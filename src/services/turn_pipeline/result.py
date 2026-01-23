@@ -1,0 +1,24 @@
+"""
+Result object for turn processing pipeline.
+
+ADR-008 Phase 3: TurnResult is returned by the pipeline.
+"""
+
+from dataclasses import dataclass
+
+
+@dataclass
+class TurnResult:
+    """
+    Result of processing a single turn.
+
+    Matches PRD Section 8.6 response structure.
+    """
+    turn_number: int
+    extracted: dict  # concepts, relationships
+    graph_state: dict  # node_count, edge_count, depth_achieved
+    scoring: dict  # strategy_id, score, reasoning (Phase 3)
+    strategy_selected: str
+    next_question: str
+    should_continue: bool
+    latency_ms: int = 0

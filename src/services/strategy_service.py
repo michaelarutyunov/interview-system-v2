@@ -9,11 +9,13 @@ Two-tier approach:
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import structlog
 
+from src.core.config import interview_config
 from src.domain.models.knowledge_graph import GraphState
+from src.domain.models.turn import Focus
 from src.services.scoring.two_tier import TwoTierScoringEngine, ScoringResult
 
 
@@ -24,20 +26,38 @@ logger = structlog.get_logger(__name__)
 class StrategyCandidate:
     """A scored (strategy, focus) combination."""
     strategy: Dict[str, Any]
-    focus: Dict[str, Any]
+    focus: Union[Focus, Dict[str, Any]]  # Accept both for backward compatibility
     score: float
     scoring_result: Optional[ScoringResult] = None  # Full two-tier result
+
+    def get_focus_dict(self) -> Dict[str, Any]:
+        """Get focus as dict for backward compatibility."""
+        if isinstance(self.focus, Focus):
+            return self.focus.to_dict()
+        return self.focus
+
+    def get_focus_typed(self) -> Optional[Focus]:
+        """Get focus as typed Focus model."""
+        if isinstance(self.focus, Focus):
+            return self.focus
+        return Focus.from_dict(self.focus)
 
 
 @dataclass
 class SelectionResult:
     """Result of strategy selection."""
     selected_strategy: Dict[str, Any]
-    selected_focus: Dict[str, Any]
+    selected_focus: Union[Focus, Dict[str, Any]]  # Accept both for compatibility
     final_score: float
     scoring_result: Optional[ScoringResult] = None  # Full two-tier result
     alternative_strategies: List[StrategyCandidate] = field(default_factory=list)
     selection_timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def get_selected_focus_dict(self) -> Dict[str, Any]:
+        """Get selected focus as dict for backward compatibility."""
+        if isinstance(self.selected_focus, Focus):
+            return self.selected_focus.to_dict()
+        return self.selected_focus
 
 
 # Strategy definitions (two-tier system)
@@ -103,21 +123,30 @@ class StrategyService:
 
         Args:
             scoring_engine: Configured TwoTierScoringEngine with all scorers
-            config: Selector configuration
+            config: Selector configuration (deprecated - use interview_config.yaml)
         """
         self.scoring_engine = scoring_engine
         self.config: Dict[str, Any] = config or {}
         self.strategies = {s["id"]: s for s in STRATEGIES if s.get("enabled", True)}
 
-        # Configuration
-        self._alternatives_count = self.config.get("alternatives_count", 3)
-        self._alternatives_min_score = self.config.get("alternatives_min_score", 0.3)
+        # Load from centralized interview config (Phase 4: ADR-008)
+        self._alternatives_count = interview_config.strategy_service.alternatives_count
+        self._alternatives_min_score = interview_config.strategy_service.alternatives_min_score
 
-        # Phase configuration
-        self._exploratory_min_turns = self.config.get("exploratory_min_turns", 8)
-        self._focused_coverage_threshold = self.config.get("focused_coverage_threshold", 0.6)
-        self._closing_min_turns = self.config.get("closing_min_turns", 20)
-        self._closing_coverage_threshold = self.config.get("closing_coverage_threshold", 0.95)
+        # Phase configuration from centralized config
+        self._exploratory_min_turns = interview_config.phases.exploratory.max_turns
+        self._focused_coverage_threshold = interview_config.phases.focused.coverage_threshold or 0.6
+        self._closing_min_turns = interview_config.phases.closing.min_turns
+        self._closing_coverage_threshold = interview_config.phases.closing.coverage_threshold or 0.95
+
+        # Allow override via config parameter for backward compatibility
+        if config:
+            self._alternatives_count = config.get("alternatives_count", self._alternatives_count)
+            self._alternatives_min_score = config.get("alternatives_min_score", self._alternatives_min_score)
+            self._exploratory_min_turns = config.get("exploratory_min_turns", self._exploratory_min_turns)
+            self._focused_coverage_threshold = config.get("focused_coverage_threshold", self._focused_coverage_threshold)
+            self._closing_min_turns = config.get("closing_min_turns", self._closing_min_turns)
+            self._closing_coverage_threshold = config.get("closing_coverage_threshold", self._closing_coverage_threshold)
 
         logger.info(
             "StrategyService initialized (two-tier)",
@@ -189,10 +218,13 @@ class StrategyService:
 
             # Score each (strategy, focus) pair
             for focus in focuses:
+                # Convert Focus model to dict for scoring engine compatibility
+                focus_dict = focus.model_dump() if isinstance(focus, Focus) else focus
+
                 try:
                     scoring_result = await self.scoring_engine.score_candidate(
                         strategy=strategy,
-                        focus=focus,
+                        focus=focus_dict,
                         graph_state=graph_state,
                         recent_nodes=recent_nodes,
                         conversation_history=conversation_history,
@@ -201,7 +233,7 @@ class StrategyService:
 
                     candidate = StrategyCandidate(
                         strategy=strategy,
-                        focus=focus,
+                        focus=focus_dict,
                         score=scoring_result.final_score,
                         scoring_result=scoring_result,
                     )
@@ -210,7 +242,7 @@ class StrategyService:
                     logger.debug(
                         "Candidate scored",
                         strategy_id=strategy["id"],
-                        focus_type=focus.get("focus_type"),
+                        focus_type=focus_dict.get("focus_type"),
                         score=scoring_result.final_score,
                         vetoed_by=scoring_result.vetoed_by,
                     )
@@ -219,7 +251,7 @@ class StrategyService:
                     logger.warning(
                         "Failed to score candidate",
                         strategy_id=strategy["id"],
-                        focus_type=focus.get("focus_type"),
+                        focus_type=focus_dict.get("focus_type"),
                         error=str(e),
                     )
                     continue
@@ -267,7 +299,7 @@ class StrategyService:
         logger.info(
             "Strategy selected (two-tier)",
             strategy_id=top_candidate.strategy["id"],
-            focus_type=top_candidate.focus.get("focus_type"),
+            focus_type=top_candidate.focus.get("focus_type") if isinstance(top_candidate.focus, dict) else top_candidate.focus.focus_type,
             score=top_candidate.score,
             num_alternatives=len(alternatives),
             vetoed_by=top_candidate.scoring_result.vetoed_by if top_candidate.scoring_result else None,
@@ -338,7 +370,7 @@ class StrategyService:
         self,
         strategy: Dict[str, Any],
         graph_state: GraphState,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[Union[Focus, Dict[str, Any]]]:
         """
         Generate possible focus targets for a strategy.
 
@@ -354,10 +386,10 @@ class StrategyService:
             graph_state: Current graph state
 
         Returns:
-            List of possible focuses
+            List of possible focuses (as typed Focus models for new code, dicts for compatibility)
         """
         strategy_id = strategy["id"]
-        focuses: List[Dict[str, Any]] = []
+        focuses: List[Union[Focus, Dict[str, Any]]] = []
 
         # Depth strategy: focus on most recent node
         if strategy_id == "deepen":
@@ -366,27 +398,28 @@ class StrategyService:
             if recent_nodes:
                 # Focus on the most recent node
                 last_node = recent_nodes[-1]
-                focuses.append({
-                    "node_id": last_node.get("id"),
-                    "focus_type": "depth_exploration",
-                    "focus_description": f"Deepen: {last_node.get('label', 'topic')}",
-                    "confidence": 0.8,
-                })
+                # Create typed Focus model
+                focuses.append(Focus(
+                    focus_type="depth_exploration",
+                    node_id=last_node.get("id"),
+                    focus_description=f"Deepen: {last_node.get('label', 'topic')}",
+                    confidence=0.8,
+                ))
             else:
                 # Fallback: open depth focus
-                focuses.append({
-                    "focus_type": "depth_exploration",
-                    "focus_description": "Deepen understanding",
-                    "confidence": 0.5,
-                })
+                focuses.append(Focus(
+                    focus_type="depth_exploration",
+                    focus_description="Deepen understanding",
+                    confidence=0.5,
+                ))
 
         # Breadth strategy: single open focus
         elif strategy_id == "broaden":
-            focuses.append({
-                "focus_type": "breadth_exploration",
-                "focus_description": "Explore new aspects",
-                "confidence": 1.0,
-            })
+            focuses.append(Focus(
+                focus_type="breadth_exploration",
+                focus_description="Explore new aspects",
+                confidence=1.0,
+            ))
 
         # Coverage strategy: one focus per uncovered element
         elif strategy_id == "cover_element":
@@ -397,12 +430,12 @@ class StrategyService:
             uncovered = [e for e in elements_total if e not in elements_seen]
 
             for element in uncovered:
-                focuses.append({
-                    "element_id": element,
-                    "focus_type": "coverage_gap",
-                    "focus_description": f"Cover: {element}",
-                    "confidence": 1.0,
-                })
+                focuses.append(Focus(
+                    focus_type="coverage_gap",
+                    element_id=element,
+                    focus_description=f"Cover: {element}",
+                    confidence=1.0,
+                ))
 
         # Closing strategy: single closing focus
         elif strategy_id == "closing":
@@ -411,19 +444,19 @@ class StrategyService:
 
             # Only applicable if minimum turns reached
             if turn_count >= min_turns:
-                focuses.append({
-                    "focus_type": "closing",
-                    "focus_description": "Closing interview - thank you for sharing",
-                    "confidence": 1.0,
-                })
+                focuses.append(Focus(
+                    focus_type="closing",
+                    focus_description="Closing interview - thank you for sharing",
+                    confidence=1.0,
+                ))
 
         # Reflection strategy: single meta-question focus
         elif strategy_id == "reflection":
-            focuses.append({
-                "focus_type": "reflection",
-                "focus_description": "Reflection - is there anything else you'd like to share?",
-                "confidence": 1.0,
-            })
+            focuses.append(Focus(
+                focus_type="reflection",
+                focus_description="Reflection - is there anything else you'd like to share?",
+                confidence=1.0,
+            ))
 
         return focuses
 
@@ -444,10 +477,10 @@ class StrategyService:
             min_turns = closing_strategy.get("min_turns", 8)
 
             if turn_count >= min_turns:
-                closing_focus = {
-                    "focus_type": "closing",
-                    "focus_description": "Closing interview",
-                }
+                closing_focus = Focus(
+                    focus_type="closing",
+                    focus_description="Closing interview",
+                )
                 return SelectionResult(
                     selected_strategy=closing_strategy,
                     selected_focus=closing_focus,
@@ -458,10 +491,10 @@ class StrategyService:
         # Otherwise use reflection strategy
         reflection_strategy = self.strategies.get("reflection")
         if reflection_strategy:
-            reflection_focus = {
-                "focus_type": "reflection",
-                "focus_description": "Is there anything else you'd like to share?",
-            }
+            reflection_focus = Focus(
+                focus_type="reflection",
+                focus_description="Is there anything else you'd like to share?",
+            )
             return SelectionResult(
                 selected_strategy=reflection_strategy,
                 selected_focus=reflection_focus,
@@ -471,10 +504,10 @@ class StrategyService:
 
         # Last resort: broaden
         broaden_strategy = self.strategies.get("broaden")
-        broaden_focus = {
-            "focus_type": "breadth_exploration",
-            "focus_description": "Fallback: Explore new aspects",
-        }
+        broaden_focus = Focus(
+            focus_type="breadth_exploration",
+            focus_description="Fallback: Explore new aspects",
+        )
         return SelectionResult(
             selected_strategy=broaden_strategy,
             selected_focus=broaden_focus,

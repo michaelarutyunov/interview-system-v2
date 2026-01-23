@@ -87,6 +87,9 @@ class DepthBreadthBalanceScorer(Tier2Scorer):
         # Score based on alignment
         raw_score = 1.0  # Default: neutral
 
+        # Initialize reasoning for all paths
+        reasoning = f"Unknown strategy type '{strategy_type}' (breadth: {breadth_pct:.1%}, depth: {depth_avg:.1f})"
+
         if breadth_needed:
             if strategy_type in ["breadth", "coverage"]:
                 # Breadth strategy when breadth is needed - strong boost
@@ -96,6 +99,10 @@ class DepthBreadthBalanceScorer(Tier2Scorer):
                 # Depth strategy when breadth is needed - penalty
                 raw_score = 0.7
                 reasoning = f"Breadth needed (current: {breadth_pct:.1%}), but strategy is {strategy_id}"
+            else:
+                # Unexpected strategy type when breadth needed
+                raw_score = 0.9
+                reasoning = f"Breadth needed (current: {breadth_pct:.1%}), but strategy is {strategy_id}"
         elif depth_needed:
             if strategy_type == "depth":
                 # Depth strategy when depth is needed - strong boost
@@ -104,6 +111,10 @@ class DepthBreadthBalanceScorer(Tier2Scorer):
             elif strategy_type in ["breadth", "coverage"]:
                 # Breadth strategy when depth is needed - penalty
                 raw_score = 0.7
+                reasoning = f"Depth needed (current: {depth_avg:.1f}), but strategy is {strategy_id}"
+            else:
+                # Unexpected strategy type when depth needed
+                raw_score = 0.9
                 reasoning = f"Depth needed (current: {depth_avg:.1f}), but strategy is {strategy_id}"
         else:
             # Balanced - slight boost for any strategy
@@ -138,10 +149,24 @@ class DepthBreadthBalanceScorer(Tier2Scorer):
             Breadth percentage (0.0-1.0)
         """
         coverage_state = graph_state.properties.get("coverage_state", {})
-        elements_seen = set(coverage_state.get("elements_seen", []))
-        elements_total = set(coverage_state.get("elements_total", []))
+        elements_seen = coverage_state.get("elements_seen", [])
 
-        if not elements_total:
+        # Fallback: use node type diversity as breadth proxy
+        # More unique node types = broader exploration
+        if not elements_seen:
+            nodes_by_type = graph_state.nodes_by_type
+            if nodes_by_type:
+                # Count types with at least one node
+                unique_types_count = len([k for k, v in nodes_by_type.items() if v > 0])
+                # Rough heuristic: 5 unique types = 100% breadth
+                return min(1.0, unique_types_count / 5.0)
+
+            return 0.0
+
+        # Try to get total elements from config (if stored)
+        elements_total = coverage_state.get("elements_total", [])
+
+        if not elements_total or len(elements_total) == 0:
             return 0.0
 
         return len(elements_seen) / len(elements_total)

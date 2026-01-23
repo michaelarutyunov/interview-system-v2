@@ -6,7 +6,7 @@ Endpoints for session management and turn processing.
 
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated
+from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import Response
@@ -25,6 +25,14 @@ from src.api.schemas import (
     ScoringSchema,
     ExtractedConceptSchema,
     ExtractedRelationshipSchema,
+    NodeSchema,
+    EdgeSchema,
+    GraphResponse,
+    SessionStatusResponse,
+    ScoringCandidateSchema,
+    ScoringTurnResponse,
+    Tier1ResultSchema,
+    Tier2ResultSchema,
 )
 from src.core.config import settings
 from src.core.exceptions import SessionNotFoundError, SessionCompletedError
@@ -34,6 +42,7 @@ from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
 from src.services.session_service import SessionService
 from src.services.export_service import ExportService
+from src.services.graph_service import GraphService
 from src.services.scoring.two_tier import create_scoring_engine, TwoTierScoringEngine
 from src.services.strategy_service import StrategyService
 
@@ -87,6 +96,16 @@ def get_strategy_service(
 StrategyServiceDep = Annotated[StrategyService, Depends(get_strategy_service)]
 
 
+async def get_graph_repository(
+    db: aiosqlite.Connection = Depends(get_db),
+) -> GraphRepository:
+    """Dependency that provides a GraphRepository instance."""
+    return GraphRepository(db)
+
+
+GraphRepoDep = Annotated[GraphRepository, Depends(get_graph_repository)]
+
+
 async def get_session_service(
     db: aiosqlite.Connection = Depends(get_db),
     strategy_service: StrategyService = Depends(get_strategy_service),
@@ -121,8 +140,9 @@ async def create_session(
     session_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
 
-    # Get concept_name from config
+    # Get concept_name and max_turns from config
     concept_name = request.config.get("concept_name", request.concept_id)
+    max_turns = request.config.get("max_turns", 20)
 
     session = Session(
         id=session_id,
@@ -132,22 +152,26 @@ async def create_session(
         created_at=now,
         updated_at=now,
         status="active",
+        mode=request.mode,  # NEW: Pass mode from request
         state=SessionState(
             methodology=request.methodology,
             concept_id=request.concept_id,
             concept_name=concept_name,
             turn_count=0,
-            coverage_score=0.0
+            coverage_score=0.0,
+            mode=request.mode  # NEW: Pass mode to state
         )
     )
 
-    created_session = await session_repo.create(session)
+    # Create session with config
+    created_session = await session_repo.create(session, request.config)
 
     log.info(
         "session_created",
         session_id=session_id,
         methodology=request.methodology,
-        concept_id=request.concept_id
+        concept_id=request.concept_id,
+        max_turns=max_turns
     )
 
     return SessionResponse(
@@ -159,6 +183,7 @@ async def create_session(
         turn_count=created_session.state.turn_count or 0,
         created_at=created_session.created_at,
         updated_at=created_session.updated_at,
+        mode=created_session.mode  # NEW: Include mode in response
     )
 
 
@@ -180,6 +205,7 @@ async def list_sessions(
                 turn_count=s.state.turn_count or 0,
                 created_at=s.created_at,
                 updated_at=s.updated_at,
+                mode=s.mode  # NEW: Include mode in response
             )
             for s in sessions
         ],
@@ -211,6 +237,7 @@ async def get_session(
         turn_count=session.state.turn_count or 0,
         created_at=session.created_at,
         updated_at=session.updated_at,
+        mode=session.mode  # NEW: Include mode in response
     )
 
 
@@ -230,6 +257,113 @@ async def delete_session(
         )
 
     log.info("session_deleted", session_id=session_id)
+
+
+@router.get("/{session_id}/status", response_model=SessionStatusResponse)
+async def get_session_status(
+    session_id: str,
+    service: SessionService = Depends(get_session_service),
+):
+    """Get session status including current strategy."""
+    try:
+        status_data = await service.get_status(session_id)
+        return SessionStatusResponse(**status_data)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+
+@router.get("/{session_id}/graph", response_model=GraphResponse)
+async def get_session_graph(
+    session_id: str,
+    graph_repo: GraphRepoDep,
+):
+    """Get session knowledge graph nodes and edges."""
+    # Get nodes
+    nodes = await graph_repo.get_nodes_by_session(session_id)
+
+    # Get edges
+    edges = await graph_repo.get_edges_by_session(session_id)
+
+    return GraphResponse(
+        nodes=[
+            NodeSchema(
+                id=node.id,
+                label=node.label,
+                node_type=node.node_type,
+                confidence=node.confidence,
+                properties=node.properties or {},
+            )
+            for node in nodes
+        ],
+        edges=[
+            EdgeSchema(
+                id=edge.id,
+                source_id=edge.source_node_id,
+                target_id=edge.target_node_id,
+                edge_type=edge.edge_type,
+                confidence=edge.confidence,
+                properties=edge.properties or {},
+            )
+            for edge in edges
+        ],
+        node_count=len(nodes),
+        edge_count=len(edges),
+    )
+
+
+@router.get("/{session_id}/scoring/{turn_number}", response_model=ScoringTurnResponse)
+async def get_turn_scoring(
+    session_id: str,
+    turn_number: int,
+    service: SessionService = Depends(get_session_service),
+):
+    """Get all scoring candidates for a specific turn.
+
+    Returns all (strategy, focus) candidates that were considered,
+    including their Tier 1 veto results, Tier 2 scores, and final ranking.
+    """
+    scoring_data = await service.get_turn_scoring(session_id, turn_number)
+
+    # Convert candidates to schemas
+    candidates = [
+        ScoringCandidateSchema(**c) for c in scoring_data["candidates"]
+    ]
+
+    return ScoringTurnResponse(
+        session_id=scoring_data["session_id"],
+        turn_number=scoring_data["turn_number"],
+        candidates=candidates,
+        winner_strategy_id=scoring_data["winner_strategy_id"],
+    )
+
+
+@router.get("/{session_id}/scoring", response_model=List[ScoringTurnResponse])
+async def get_all_scoring(
+    session_id: str,
+    service: SessionService = Depends(get_session_service),
+):
+    """Get all scoring data for all turns in a session.
+
+    Returns a list of turns with their candidates.
+    """
+    scoring_data_list = await service.get_all_scoring(session_id)
+
+    results = []
+    for scoring_data in scoring_data_list:
+        candidates = [
+            ScoringCandidateSchema(**c) for c in scoring_data["candidates"]
+        ]
+        results.append(ScoringTurnResponse(
+            session_id=scoring_data["session_id"],
+            turn_number=scoring_data["turn_number"],
+            candidates=candidates,
+            winner_strategy_id=scoring_data["winner_strategy_id"],
+        ))
+
+    return results
 
 
 # ============ TURN PROCESSING (Phase 2) ============

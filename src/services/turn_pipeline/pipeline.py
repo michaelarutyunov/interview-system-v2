@@ -1,0 +1,156 @@
+"""
+Pipeline orchestrator for turn processing.
+
+ADR-008 Phase 3: TurnPipeline executes stages sequentially with timing and error handling.
+"""
+
+import time
+from typing import List
+
+import structlog
+
+from .base import TurnStage
+from .context import TurnContext
+from .result import TurnResult
+
+log = structlog.get_logger(__name__)
+
+
+class TurnPipeline:
+    """
+    Orchestrates execution of pipeline stages.
+
+    Executes stages sequentially, tracking timing and handling errors.
+    """
+
+    def __init__(self, stages: List[TurnStage]):
+        """
+        Initialize pipeline with a list of stages.
+
+        Args:
+            stages: Ordered list of TurnStage instances
+        """
+        self.stages = stages
+        self.logger = log
+
+    async def execute(self, context: TurnContext) -> TurnResult:
+        """
+        Execute all stages sequentially.
+
+        Args:
+            context: Initial turn context with session_id and user_input
+
+        Returns:
+            TurnResult with extraction, graph state, next question
+
+        Raises:
+            Exception: If any stage fails
+        """
+        start_time = time.perf_counter()
+
+        self.logger.info(
+            "pipeline_started",
+            session_id=context.session_id,
+            num_stages=len(self.stages),
+        )
+
+        for stage in self.stages:
+            stage_start = time.perf_counter()
+
+            try:
+                self.logger.debug(
+                    "stage_started",
+                    stage_name=stage.stage_name,
+                    session_id=context.session_id,
+                )
+
+                context = await stage.process(context)
+
+                stage_elapsed = (time.perf_counter() - stage_start) * 1000
+                context.stage_timings[stage.stage_name] = stage_elapsed
+
+                self.logger.debug(
+                    "stage_completed",
+                    stage_name=stage.stage_name,
+                    duration_ms=stage_elapsed,
+                )
+
+            except Exception as e:
+                self.logger.error(
+                    "stage_failed",
+                    stage_name=stage.stage_name,
+                    error=str(e),
+                    exc_info=True,
+                )
+                raise
+
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
+
+        self.logger.info(
+            "pipeline_completed",
+            session_id=context.session_id,
+            turn_number=context.turn_number,
+            latency_ms=latency_ms,
+            stage_timings=context.stage_timings,
+        )
+
+        return self._build_result(context, latency_ms)
+
+    def _build_result(self, context: TurnContext, latency_ms: int) -> TurnResult:
+        """
+        Build TurnResult from context.
+
+        Args:
+            context: Final turn context
+            latency_ms: Total pipeline latency
+
+        Returns:
+            TurnResult
+        """
+        # Build extracted data
+        extracted = {
+            "concepts": [],
+            "relationships": [],
+        }
+
+        if context.extraction:
+            extracted["concepts"] = [
+                {
+                    "text": c.text,
+                    "type": c.node_type,
+                    "confidence": c.confidence,
+                }
+                for c in context.extraction.concepts
+            ]
+            extracted["relationships"] = [
+                {
+                    "source": r.source_text,
+                    "target": r.target_text,
+                    "type": r.relationship_type,
+                }
+                for r in context.extraction.relationships
+            ]
+
+        # Build graph state
+        graph_state = {}
+        if context.graph_state:
+            graph_state = {
+                "node_count": context.graph_state.node_count,
+                "edge_count": context.graph_state.edge_count,
+                "depth_achieved": context.graph_state.nodes_by_type,
+            }
+
+        return TurnResult(
+            turn_number=context.turn_number,
+            extracted=extracted,
+            graph_state=graph_state,
+            scoring=context.scoring or {
+                "coverage": 0.0,
+                "depth": 0.0,
+                "saturation": 0.0,
+            },
+            strategy_selected=context.strategy,
+            next_question=context.next_question,
+            should_continue=context.should_continue,
+            latency_ms=latency_ms,
+        )

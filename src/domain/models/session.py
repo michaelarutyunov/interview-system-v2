@@ -3,6 +3,8 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field
 
+from src.domain.models.interview_state import InterviewMode
+
 
 class SessionState(BaseModel):
     """Current state of an interview session."""
@@ -12,6 +14,7 @@ class SessionState(BaseModel):
     turn_count: int = 0
     coverage_score: float = 0.0
     last_strategy: Optional[str] = None
+    mode: InterviewMode = InterviewMode.COVERAGE_DRIVEN  # NEW: Interview execution mode
 
 
 class Session(BaseModel):
@@ -24,3 +27,4 @@ class Session(BaseModel):
     updated_at: datetime
     state: SessionState
     status: str = Field(default="active")  # "active", "completed", "abandoned"
+    mode: InterviewMode = InterviewMode.COVERAGE_DRIVEN  # NEW: Interview execution mode

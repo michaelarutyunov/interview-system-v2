@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
+from src.domain.models.interview_state import InterviewMode
+
 
 # ============ SESSION SCHEMAS (from Phase 1) ============
 
@@ -16,6 +18,10 @@ class SessionCreate(BaseModel):
     methodology: str = Field(default="means_end_chain")
     concept_id: str
     config: Dict[str, Any] = Field(default_factory=dict)
+    mode: InterviewMode = Field(
+        default=InterviewMode.COVERAGE_DRIVEN,
+        description="Interview execution mode: coverage_driven (systematic) or graph_driven (exploratory)"
+    )
 
 
 class SessionResponse(BaseModel):
@@ -28,6 +34,7 @@ class SessionResponse(BaseModel):
     turn_count: int = 0
     created_at: datetime
     updated_at: datetime
+    mode: InterviewMode = InterviewMode.COVERAGE_DRIVEN  # NEW: Interview execution mode
 
 
 class SessionListResponse(BaseModel):
@@ -186,3 +193,87 @@ class SyntheticSequenceRequest(BaseModel):
     session_id: str = Field(..., description="Session identifier")
     persona: str = Field(default="health_conscious", description="Persona ID")
     product_name: str = Field(default="the product", description="Product name for context")
+
+
+# ============ STATUS AND GRAPH SCHEMAS ============
+
+class NodeSchema(BaseModel):
+    """Knowledge graph node."""
+    id: str
+    label: str
+    node_type: str
+    confidence: float
+    properties: Dict[str, Any] = Field(default_factory=dict)
+
+
+class EdgeSchema(BaseModel):
+    """Knowledge graph edge."""
+    id: str
+    source_id: str
+    target_id: str
+    edge_type: str
+    confidence: float
+    properties: Dict[str, Any] = Field(default_factory=dict)
+
+
+class GraphResponse(BaseModel):
+    """Knowledge graph response."""
+    nodes: List[NodeSchema] = Field(default_factory=list)
+    edges: List[EdgeSchema] = Field(default_factory=list)
+    node_count: int = 0
+    edge_count: int = 0
+
+
+class SessionStatusResponse(BaseModel):
+    """Session status response."""
+    turn_number: int
+    max_turns: int
+    coverage: float = 0.0
+    target_coverage: float  # No default - must be provided by service
+    status: str
+    should_continue: bool
+    strategy_selected: str = "unknown"
+    strategy_reasoning: Optional[str] = None
+
+
+# ============ SCORING CANDIDATES SCHEMAS ============
+
+class Tier1ResultSchema(BaseModel):
+    """Tier 1 scorer result."""
+    scorer_id: str
+    is_veto: bool
+    reasoning: str
+    signals: Dict[str, Any] = Field(default_factory=dict)
+
+
+class Tier2ResultSchema(BaseModel):
+    """Tier 2 scorer result."""
+    scorer_id: str
+    raw_score: float
+    weight: float
+    contribution: float
+    reasoning: str
+    signals: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ScoringCandidateSchema(BaseModel):
+    """A scoring candidate (strategy + focus)."""
+    id: str
+    strategy_id: str
+    strategy_name: str
+    focus_type: str
+    focus_description: Optional[str] = None
+    final_score: float
+    is_selected: bool
+    vetoed_by: Optional[str] = None
+    tier1_results: List[Tier1ResultSchema] = Field(default_factory=list)
+    tier2_results: List[Tier2ResultSchema] = Field(default_factory=list)
+    reasoning: Optional[str] = None
+
+
+class ScoringTurnResponse(BaseModel):
+    """Scoring candidates for a specific turn."""
+    session_id: str
+    turn_number: int
+    candidates: List[ScoringCandidateSchema]
+    winner_strategy_id: Optional[str] = None

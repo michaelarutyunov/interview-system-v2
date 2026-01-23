@@ -6,9 +6,10 @@ All configuration is validated using Pydantic.
 """
 
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
-from pydantic import Field
+import yaml
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -179,5 +180,140 @@ class Settings(BaseSettings):
     )
 
 
+# ============================================================================
+# Interview Configuration (from YAML)
+# ============================================================================
+
+class PhaseConfig(BaseModel):
+    """Configuration for a single interview phase."""
+    min_turns: int = Field(default=0, ge=0, description="Starting turn for this phase")
+    max_turns: Optional[int] = Field(default=None, ge=0, description="Last turn for this phase (exclusive)")
+    coverage_threshold: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="Coverage threshold to enter/exit phase")
+    max_coverage: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="Coverage below which we stay in phase")
+
+
+class SessionConfig(BaseModel):
+    """Interview session configuration."""
+    max_turns: int = Field(default=20, ge=1, le=100, description="Maximum turns before forcing close")
+    target_coverage: float = Field(default=0.80, ge=0.0, le=1.0, description="Target coverage ratio")
+    min_turns: int = Field(default=5, ge=1, le=20, description="Minimum turns before early termination")
+
+
+class StrategyPhasesConfig(BaseModel):
+    """Strategy applicability by phase."""
+    exploratory: list[str] = Field(default_factory=list, description="Strategies available in exploratory phase")
+    focused: list[str] = Field(default_factory=list, description="Strategies available in focused phase")
+    closing: list[str] = Field(default_factory=list, description="Strategies available in closing phase")
+
+
+class StrategyServiceConfig(BaseModel):
+    """Strategy service configuration."""
+    alternatives_count: int = Field(default=3, ge=1, le=10, description="Number of alternative strategies to track")
+    alternatives_min_score: float = Field(default=0.3, ge=0.0, le=1.0, description="Minimum score for alternatives")
+
+
+class SessionServiceConfig(BaseModel):
+    """Session service configuration."""
+    context_utterance_limit: int = Field(default=10, ge=1, le=50, description="Number of recent utterances in context")
+    context_node_limit: int = Field(default=5, ge=1, le=20, description="Number of recent nodes in context")
+    extraction_context_limit: int = Field(default=5, ge=1, le=20, description="Recent utterances for extraction context")
+
+
+class GraphServiceConfig(BaseModel):
+    """Graph service configuration."""
+    recent_nodes_limit: int = Field(default=5, ge=1, le=20, description="Default lookback window for recent nodes")
+    min_confidence_threshold: float = Field(default=0.5, ge=0.0, le=1.0, description="Minimum confidence for concept extraction")
+
+
+class CoverageConfig(BaseModel):
+    """Coverage calculation configuration."""
+    include_elements: list[str] = Field(default_factory=lambda: ["stimulus_elements", "extracted_concepts"])
+    min_elements_threshold: int = Field(default=3, ge=1, le=20, description="Minimum elements before coverage is meaningful")
+
+
+class PhasesConfig(BaseModel):
+    """All phase configurations."""
+    exploratory: PhaseConfig = Field(default_factory=PhaseConfig)
+    focused: PhaseConfig = Field(default_factory=PhaseConfig)
+    closing: PhaseConfig = Field(default_factory=PhaseConfig)
+
+
+class InterviewConfig(BaseModel):
+    """
+    Complete interview configuration loaded from interview_config.yaml.
+
+    This contains all interview-specific parameters that were previously
+    hardcoded across multiple services.
+    """
+    session: SessionConfig = Field(default_factory=SessionConfig)
+    phases: PhasesConfig = Field(default_factory=PhasesConfig)
+    strategy_phases: StrategyPhasesConfig = Field(default_factory=StrategyPhasesConfig)
+    strategy_service: StrategyServiceConfig = Field(default_factory=StrategyServiceConfig)
+    session_service: SessionServiceConfig = Field(default_factory=SessionServiceConfig)
+    graph_service: GraphServiceConfig = Field(default_factory=GraphServiceConfig)
+    coverage: CoverageConfig = Field(default_factory=CoverageConfig)
+
+    @field_validator("strategy_phases")
+    @classmethod
+    def validate_strategy_phases(cls, v: StrategyPhasesConfig) -> StrategyPhasesConfig:
+        """Validate that strategy phases lists are not empty."""
+        if not v.exploratory and not v.focused and not v.closing:
+            raise ValueError("At least one phase must have strategies defined")
+        return v
+
+
+def load_interview_config(config_path: Optional[Path] = None) -> InterviewConfig:
+    """
+    Load interview configuration from YAML file.
+
+    Args:
+        config_path: Path to interview_config.yaml. If None, uses default path.
+
+    Returns:
+        InterviewConfig with validated settings
+
+    Raises:
+        FileNotFoundError: If config file not found
+        ValueError: If config validation fails
+    """
+    if config_path is None:
+        # Default path: config/interview_config.yaml relative to project root
+        try:
+            current = Path(__file__).resolve().parent.parent.parent
+
+            # Look for config/interview_config.yaml
+            check_path = current / "config" / "interview_config.yaml"
+            if check_path.exists():
+                config_path = check_path
+            else:
+                # Fallback to current working directory
+                cwd_config = Path.cwd() / "config" / "interview_config.yaml"
+                if cwd_config.exists():
+                    config_path = cwd_config
+                else:
+                    # Use default config if file not found
+                    return InterviewConfig()
+        except Exception:
+            # Use default config on any error
+            return InterviewConfig()
+
+    config_path = Path(config_path).resolve()
+
+    if not config_path.exists():
+        # Return default config if file not found
+        return InterviewConfig()
+
+    with open(str(config_path)) as f:
+        config_data = yaml.safe_load(f)
+
+    if not config_data:
+        return InterviewConfig()
+
+    return InterviewConfig(**config_data)
+
+
 # Global settings instance
 settings = Settings()
+
+# Global interview config instance
+interview_config = load_interview_config()

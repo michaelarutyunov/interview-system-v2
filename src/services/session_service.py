@@ -1,55 +1,50 @@
 """
 Session orchestration service.
 
-Orchestrates the complete turn processing pipeline:
-1. Save user utterance
-2. Extract concepts and relationships
-3. Update knowledge graph
-4. Compute graph state
-5. Select strategy (Phase 2: hardcoded "deepen")
-6. Generate follow-up question
-7. Save system utterance
-8. Return TurnResult
+ADR-008 Phase 3: Uses TurnPipeline for composable turn processing.
 
-This is the main entry point for interview turn processing.
+This service provides the main entry point for interview turn processing,
+delegating to a pipeline of stages for actual processing.
 """
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from uuid import uuid4
 
 import structlog
 
+from src.core.config import interview_config
 from src.domain.models.extraction import ExtractionResult
 from src.domain.models.knowledge_graph import GraphState, KGNode
 from src.domain.models.utterance import Utterance
+from src.domain.models.turn import Focus
 from src.services.extraction_service import ExtractionService
 from src.services.graph_service import GraphService
 from src.services.question_service import QuestionService
 from src.services.strategy_service import StrategyService, SelectionResult
 from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
-from src.persistence.database import get_db_connection
+from src.persistence.repositories.utterance_repo import UtteranceRepository
+from src.services.turn_pipeline import TurnPipeline, TurnContext, TurnResult as PipelineTurnResult
+from src.services.turn_pipeline.stages import (
+    ContextLoadingStage,
+    UtteranceSavingStage,
+    ExtractionStage,
+    GraphUpdateStage,
+    StateComputationStage,
+    StrategySelectionStage,
+    ContinuationStage,
+    QuestionGenerationStage,
+    ResponseSavingStage,
+    ScoringPersistenceStage,
+)
 
 log = structlog.get_logger(__name__)
 
 
-@dataclass
-class TurnResult:
-    """
-    Result of processing a single turn.
-
-    Matches PRD Section 8.6 response structure.
-    """
-    turn_number: int
-    extracted: Dict[str, Any]  # concepts, relationships
-    graph_state: Dict[str, Any]  # node_count, edge_count, depth_achieved
-    scoring: Dict[str, Any]  # strategy_id, score, reasoning (Phase 3)
-    strategy_selected: str
-    next_question: str
-    should_continue: bool
-    latency_ms: int = 0
+# Re-export TurnResult for backward compatibility
+TurnResult = PipelineTurnResult
 
 
 @dataclass
@@ -64,6 +59,8 @@ class SessionContext:
     concept_id: str
     concept_name: str
     turn_number: int
+    mode: str  # NEW: Interview mode (coverage_driven or graph_driven)
+    max_turns: int = 20
     recent_utterances: List[Dict[str, str]] = field(default_factory=list)
     graph_state: Optional[GraphState] = None
     recent_nodes: List[KGNode] = field(default_factory=list)
@@ -73,6 +70,7 @@ class SessionService:
     """
     Orchestrates interview session turn processing.
 
+    ADR-008 Phase 3: Uses TurnPipeline for composable turn processing.
     Main entry point for processing user input and generating responses.
     """
 
@@ -84,11 +82,12 @@ class SessionService:
         graph_service: Optional[GraphService] = None,
         question_service: Optional[QuestionService] = None,
         strategy_service: Optional[StrategyService] = None,
-        max_turns: int = 20,
-        target_coverage: float = 0.8,
+        utterance_repo: Optional[UtteranceRepository] = None,
+        max_turns: Optional[int] = None,
+        target_coverage: Optional[float] = None,
     ):
         """
-        Initialize session service.
+        Initialize session service with pipeline.
 
         Args:
             session_repo: Session repository
@@ -97,8 +96,9 @@ class SessionService:
             graph_service: Graph service (creates default if None)
             question_service: Question service (creates default if None)
             strategy_service: Strategy service (creates default if None)
-            max_turns: Maximum turns before forcing close
-            target_coverage: Coverage target (Phase 3)
+            utterance_repo: Utterance repository (creates default if None)
+            max_turns: Maximum turns before forcing close (defaults to interview_config.yaml)
+            target_coverage: Coverage target (defaults to interview_config.yaml)
         """
         self.session_repo = session_repo
         self.graph_repo = graph_repo
@@ -109,10 +109,63 @@ class SessionService:
         self.question = question_service or QuestionService()
         self.strategy = strategy_service
 
-        self.max_turns = max_turns
-        self.target_coverage = target_coverage
+        # Create utterance repo if not provided
+        if utterance_repo is None:
+            utterance_repo = UtteranceRepository(str(session_repo.db_path))
+        self.utterance_repo = utterance_repo
 
-        log.info("session_service_initialized", max_turns=max_turns)
+        # Load from centralized interview config (Phase 4: ADR-008)
+        self.max_turns = max_turns if max_turns is not None else interview_config.session.max_turns
+        self.target_coverage = target_coverage if target_coverage is not None else interview_config.session.target_coverage
+
+        # Build pipeline with all stages
+        self.pipeline = self._build_pipeline()
+
+        log.info(
+            "session_service_initialized",
+            max_turns=self.max_turns,
+            target_coverage=self.target_coverage,
+            pipeline_stages=len(self.pipeline.stages),
+        )
+
+    def _build_pipeline(self) -> TurnPipeline:
+        """
+        Build the turn processing pipeline with all stages.
+
+        Returns:
+            TurnPipeline configured with all stages
+        """
+        stages = [
+            ContextLoadingStage(
+                session_repo=self.session_repo,
+                graph_service=self.graph,
+            ),
+            UtteranceSavingStage(),
+            ExtractionStage(
+                extraction_service=self.extraction,
+            ),
+            GraphUpdateStage(
+                graph_service=self.graph,
+            ),
+            StateComputationStage(
+                graph_service=self.graph,
+            ),
+            StrategySelectionStage(
+                strategy_service=self.strategy,
+            ),
+            ContinuationStage(
+                question_service=self.question,
+            ),
+            QuestionGenerationStage(
+                question_service=self.question,
+            ),
+            ResponseSavingStage(),
+            ScoringPersistenceStage(
+                session_repo=self.session_repo,
+            ),
+        ]
+
+        return TurnPipeline(stages=stages)
 
     async def process_turn(
         self,
@@ -120,18 +173,21 @@ class SessionService:
         user_input: str,
     ) -> TurnResult:
         """
-        Process a single interview turn.
+        Process a single interview turn using the pipeline.
 
-        Pipeline:
-        1. Load session context
-        2. Save user utterance
-        3. Extract concepts/relationships
-        4. Update knowledge graph
-        5. Compute graph state
-        6. Select strategy (Phase 2: hardcoded)
-        7. Generate follow-up question
-        8. Save system utterance
-        9. Return TurnResult
+        ADR-008 Phase 3: Delegates to TurnPipeline with composable stages.
+
+        Pipeline stages:
+        1. ContextLoadingStage - Load session metadata and graph state
+        2. UtteranceSavingStage - Save user utterance
+        3. ExtractionStage - Extract concepts/relationships
+        4. GraphUpdateStage - Update knowledge graph
+        5. StateComputationStage - Refresh graph state
+        6. StrategySelectionStage - Select questioning strategy
+        7. ContinuationStage - Determine if should continue
+        8. QuestionGenerationStage - Generate follow-up question
+        9. ResponseSavingStage - Save system utterance
+        10. ScoringPersistenceStage - Save scoring and update turn count
 
         Args:
             session_id: Session ID
@@ -143,169 +199,179 @@ class SessionService:
         Raises:
             ValueError: If session not found
         """
-        import time
-        start_time = time.perf_counter()
-
         log.info("processing_turn", session_id=session_id, input_length=len(user_input))
 
-        # Step 1: Load session context
-        context = await self._load_context(session_id)
-
-        # Step 2: Save user utterance
-        user_utterance = await self._save_utterance(
+        # Create initial context
+        context = TurnContext(
             session_id=session_id,
-            turn_number=context.turn_number,
-            speaker="user",
-            text=user_input,
+            user_input=user_input,
         )
 
-        # Step 3: Extract concepts/relationships
-        extraction = await self.extraction.extract(
-            text=user_input,
-            context=self._format_context_for_extraction(context),
-        )
-
-        # Step 4: Update knowledge graph
-        nodes, edges = await self.graph.add_extraction_to_graph(
-            session_id=session_id,
-            extraction=extraction,
-            utterance_id=user_utterance.id,
-        )
-
-        # Step 5: Compute graph state
-        graph_state = await self.graph.get_graph_state(session_id)
-        recent_nodes = await self.graph.get_recent_nodes(session_id, limit=5)
-
-        # Step 6: Select strategy using two-tier adaptive scoring
-        # Fall back to Phase 2 hardcoded behavior if strategy_service not available
-        if self.strategy:
-            selection = await self.strategy.select(
-                graph_state=graph_state,
-                recent_nodes=[n.dict() for n in recent_nodes],
-                conversation_history=context.recent_utterances,  # Pass conversation history for Tier 1 scorers
-            )
-            strategy = selection.selected_strategy["id"]
-            focus = selection.selected_focus
-        else:
-            # Phase 2: fallback to hardcoded selection
-            strategy = self._select_strategy(
-                graph_state=graph_state,
-                turn_number=context.turn_number,
-                extraction=extraction,
-            )
-            selection = None
-            focus = None
-
-        # Step 7: Determine if we should continue
-        should_continue = self._should_continue(
-            turn_number=context.turn_number,
-            graph_state=graph_state,
-            strategy=strategy,
-        )
-
-        # Step 8: Generate follow-up question
-        if should_continue:
-            # Determine focus concept from selection or use heuristic
-            if selection and focus:
-                # Use focus from strategy service selection
-                if "node_id" in focus and recent_nodes:
-                    # Find the node in recent_nodes
-                    focus_concept = next(
-                        (n.label for n in recent_nodes if str(n.id) == focus["node_id"]),
-                        # Fallback to description if node not found
-                        focus.get("focus_description", "the topic")
-                    )
-                else:
-                    # Use focus description as fallback
-                    focus_concept = focus.get("focus_description", "the topic")
-            else:
-                # Phase 2: fall back to heuristic selection
-                focus_concept = self.question.select_focus_concept(
-                    recent_nodes=recent_nodes,
-                    graph_state=graph_state,
-                    strategy=strategy,
-                )
-
-            # Add current utterance to recent for context
-            updated_utterances = context.recent_utterances + [
-                {"speaker": "user", "text": user_input}
-            ]
-
-            next_question = await self.question.generate_question(
-                focus_concept=focus_concept,
-                recent_utterances=updated_utterances,
-                graph_state=graph_state,
-                recent_nodes=recent_nodes,
-                strategy=strategy,
-            )
-        else:
-            next_question = "Thank you for sharing your thoughts with me today. This has been very helpful."
-
-        # Step 9: Save system utterance
-        await self._save_utterance(
-            session_id=session_id,
-            turn_number=context.turn_number,
-            speaker="system",
-            text=next_question,
-        )
-
-        # Step 10: Update session turn count
-        from src.domain.models.session import SessionState
-        updated_state = SessionState(
-            methodology=context.methodology,
-            concept_id=context.concept_id,
-            concept_name=context.concept_name,
-            turn_count=context.turn_number + 1,
-            coverage_score=0.0,  # Will be computed on-demand
-        )
-        await self.session_repo.update_state(session_id, updated_state)
-
-        latency_ms = int((time.perf_counter() - start_time) * 1000)
+        # Execute pipeline
+        result = await self.pipeline.execute(context)
 
         log.info(
             "turn_processed",
             session_id=session_id,
-            turn_number=context.turn_number,
-            concepts_extracted=len(extraction.concepts),
-            strategy=strategy,
-            should_continue=should_continue,
-            latency_ms=latency_ms,
+            turn_number=result.turn_number,
+            strategy=result.strategy_selected,
+            should_continue=result.should_continue,
+            latency_ms=result.latency_ms,
         )
 
-        return TurnResult(
-            turn_number=context.turn_number,
-            extracted={
-                "concepts": [
+        return result
+
+    async def _save_scoring(
+        self,
+        session_id: str,
+        turn_number: int,
+        strategy: str,
+        scoring: Dict[str, Any],
+        selection_result: Any = None,
+    ):
+        """Save scoring data to scoring_history table and all candidates to scoring_candidates."""
+        import uuid
+        import json
+
+        scoring_id = str(uuid.uuid4())
+
+        # Extract scoring details from two-tier result if available
+        scorer_details = {}
+        if selection_result and selection_result.scoring_result:
+            scorer_details = {
+                "tier1_results": [
                     {
-                        "text": c.text,
-                        "type": c.node_type,
-                        "confidence": c.confidence,
+                        "scorer_id": t.scorer_id,
+                        "is_veto": t.is_veto,
+                        "reasoning": t.reasoning,
+                        "signals": t.signals,
                     }
-                    for c in extraction.concepts
+                    for t in selection_result.scoring_result.tier1_outputs
                 ],
-                "relationships": [
+                "tier2_results": [
                     {
-                        "source": r.source_text,
-                        "target": r.target_text,
-                        "type": r.relationship_type,
+                        "scorer_id": t.scorer_id,
+                        "raw_score": t.raw_score,
+                        "weight": t.weight,
+                        "contribution": t.contribution,
+                        "reasoning": t.reasoning,
+                        "signals": t.signals,
                     }
-                    for r in extraction.relationships
+                    for t in selection_result.scoring_result.tier2_outputs
                 ],
-            },
-            graph_state={
-                "node_count": graph_state.node_count,
-                "edge_count": graph_state.edge_count,
-                "depth_achieved": graph_state.nodes_by_type,
-            },
-            scoring={
-                "coverage": 0.0,  # Phase 3: computed by CoverageScorer
-                "depth": 0.0,  # Phase 3: computed by DepthScorer
-                "saturation": 0.0,  # Phase 3: computed by SaturationScorer
-            },
+                "final_score": selection_result.scoring_result.final_score,
+                "vetoed_by": selection_result.scoring_result.vetoed_by,
+            }
+
+        # Save winner to scoring_history (legacy)
+        await self.session_repo.save_scoring_history(
+            scoring_id=scoring_id,
+            session_id=session_id,
+            turn_number=turn_number,
+            coverage_score=scoring.get("coverage", 0.0),
+            depth_score=scoring.get("depth", 0.0),
+            saturation_score=scoring.get("saturation", 0.0),
             strategy_selected=strategy,
-            next_question=next_question,
-            should_continue=should_continue,
-            latency_ms=latency_ms,
+            strategy_reasoning=selection_result.scoring_result.reasoning_trace[-1] if selection_result.scoring_result and selection_result.scoring_result.reasoning_trace else None,
+            scorer_details=scorer_details,
+        )
+
+        # Save ALL candidates to scoring_candidates table
+        if selection_result:
+            # Save the winner
+            await self._save_candidate(
+                session_id=session_id,
+                turn_number=turn_number,
+                strategy_id=selection_result.selected_strategy["id"],
+                strategy_name=selection_result.selected_strategy.get("name", ""),
+                focus=selection_result.selected_focus,
+                final_score=selection_result.final_score,
+                is_selected=True,
+                scoring_result=selection_result.scoring_result,
+            )
+
+            # Save alternatives
+            for alternative in selection_result.alternative_strategies:
+                await self._save_candidate(
+                    session_id=session_id,
+                    turn_number=turn_number,
+                    strategy_id=alternative.strategy["id"],
+                    strategy_name=alternative.strategy.get("name", ""),
+                    focus=alternative.focus,
+                    final_score=alternative.score,
+                    is_selected=False,
+                    scoring_result=alternative.scoring_result,
+                )
+
+    async def _save_candidate(
+        self,
+        session_id: str,
+        turn_number: int,
+        strategy_id: str,
+        strategy_name: str,
+        focus: Union["Focus", Dict[str, Any]],  # Accept both typed Focus and dict for compatibility
+        final_score: float,
+        is_selected: bool,
+        scoring_result: Any,
+    ):
+        """Save a single candidate to the scoring_candidates table."""
+        import uuid
+
+        candidate_id = str(uuid.uuid4())
+
+        # Convert Focus to dict if needed
+        if hasattr(focus, 'to_dict'):
+            focus_dict = focus.to_dict()
+        elif hasattr(focus, 'model_dump'):  # Pydantic v2
+            focus_dict = focus.model_dump()
+        elif hasattr(focus, 'dict'):  # Pydantic v1
+            focus_dict = focus.dict()
+        else:
+            focus_dict = focus
+
+        # Extract Tier 1 and Tier 2 results
+        tier1_results = []
+        tier2_results = []
+
+        if scoring_result:
+            tier1_results = [
+                {
+                    "scorer_id": t.scorer_id,
+                    "is_veto": t.is_veto,
+                    "reasoning": t.reasoning,
+                    "signals": t.signals,
+                }
+                for t in scoring_result.tier1_outputs
+            ]
+            tier2_results = [
+                {
+                    "scorer_id": t.scorer_id,
+                    "raw_score": t.raw_score,
+                    "weight": t.weight,
+                    "contribution": t.contribution,
+                    "reasoning": t.reasoning,
+                    "signals": t.signals,
+                }
+                for t in scoring_result.tier2_outputs
+            ]
+
+        # Build reasoning trace
+        reasoning = " | ".join(scoring_result.reasoning_trace) if scoring_result and scoring_result.reasoning_trace else None
+
+        await self.session_repo.save_scoring_candidate(
+            candidate_id=candidate_id,
+            session_id=session_id,
+            turn_number=turn_number,
+            strategy_id=strategy_id,
+            strategy_name=strategy_name,
+            focus_type=focus_dict.get("focus_type", ""),
+            focus_description=focus_dict.get("focus_description", "")[:500],  # Limit length
+            final_score=final_score,
+            is_selected=is_selected,
+            vetoed_by=scoring_result.vetoed_by if scoring_result else None,
+            tier1_results=tier1_results,
+            tier2_results=tier2_results,
+            reasoning=reasoning,
         )
 
     async def start_session(
@@ -360,14 +426,24 @@ class SessionService:
         if not session:
             raise ValueError(f"Session {session_id} not found")
 
-        # Get recent utterances
-        recent_utterances = await self._get_recent_utterances(session_id, limit=10)
+        # Get session config to read max_turns
+        config = await self.session_repo.get_config(session_id)
+        max_turns = config.get("max_turns", interview_config.session.max_turns)
+
+        # Get recent utterances (use config limit)
+        recent_utterances = await self._get_recent_utterances(
+            session_id,
+            limit=interview_config.session_service.context_utterance_limit
+        )
 
         # Get graph state
         graph_state = await self.graph.get_graph_state(session_id)
 
-        # Get recent nodes
-        recent_nodes = await self.graph.get_recent_nodes(session_id, limit=5)
+        # Get recent nodes (use config limit)
+        recent_nodes = await self.graph.get_recent_nodes(
+            session_id,
+            limit=interview_config.session_service.context_node_limit
+        )
 
         return SessionContext(
             session_id=session_id,
@@ -375,6 +451,8 @@ class SessionService:
             concept_id=session.concept_id,
             concept_name=session.concept_name,
             turn_number=session.state.turn_count or 1,
+            mode=session.mode.value,  # NEW: Pass mode from session
+            max_turns=max_turns,
             recent_utterances=recent_utterances,
             graph_state=graph_state,
             recent_nodes=recent_nodes,
@@ -399,30 +477,17 @@ class SessionService:
         Returns:
             Created Utterance
         """
-        utterance_id = str(uuid4())
-        now = datetime.utcnow().isoformat()
-
-        # Use database connection directly
-        db = await get_db_connection()
-        try:
-            await db.execute(
-                """
-                INSERT INTO utterances (id, session_id, turn_number, speaker, text, discourse_markers, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (utterance_id, session_id, turn_number, speaker, text, "[]", now),
-            )
-            await db.commit()
-        finally:
-            await db.close()
-
-        return Utterance(
-            id=utterance_id,
+        utterance = Utterance(
+            id=str(uuid4()),
             session_id=session_id,
             turn_number=turn_number,
             speaker=speaker,
             text=text,
+            discourse_markers=[],
+            created_at=datetime.utcnow()
         )
+
+        return await self.utterance_repo.save(utterance)
 
     async def _get_recent_utterances(
         self, session_id: str, limit: int = 10
@@ -437,23 +502,12 @@ class SessionService:
         Returns:
             List of {"speaker": str, "text": str} dicts
         """
-        db = await get_db_connection()
-        try:
-            cursor = await db.execute(
-                """
-                SELECT speaker, text FROM utterances
-                WHERE session_id = ?
-                ORDER BY turn_number DESC, created_at DESC
-                LIMIT ?
-                """,
-                (session_id, limit),
-            )
-            rows = await cursor.fetchall()
-        finally:
-            await db.close()
+        utterances = await self.utterance_repo.get_recent(session_id, limit=limit)
 
-        # Reverse to get chronological order
-        return [{"speaker": row[0], "text": row[1]} for row in reversed(rows)]
+        return [
+            {"speaker": u.speaker, "text": u.text}
+            for u in utterances
+        ]
 
     def _format_context_for_extraction(self, context: SessionContext) -> str:
         """
@@ -469,7 +523,8 @@ class SessionService:
             return ""
 
         lines = []
-        for utt in context.recent_utterances[-5:]:
+        limit = interview_config.session_service.extraction_context_limit
+        for utt in context.recent_utterances[-limit:]:
             speaker = "Respondent" if utt["speaker"] == "user" else "Interviewer"
             lines.append(f"{speaker}: {utt['text']}")
 
@@ -508,6 +563,7 @@ class SessionService:
     def _should_continue(
         self,
         turn_number: int,
+        max_turns: int,
         graph_state: GraphState,
         strategy: str,
     ) -> bool:
@@ -516,6 +572,7 @@ class SessionService:
 
         Args:
             turn_number: Current turn number
+            max_turns: Maximum turns for this session
             graph_state: Current graph state
             strategy: Selected strategy
 
@@ -523,8 +580,8 @@ class SessionService:
             True if should continue, False if should end
         """
         # Max turns reached
-        if turn_number >= self.max_turns:
-            log.info("session_ending", reason="max_turns")
+        if turn_number >= max_turns:
+            log.info("session_ending", reason="max_turns", turn_number=turn_number, max_turns=max_turns)
             return False
 
         # Strategy is close
@@ -535,3 +592,116 @@ class SessionService:
         # Phase 3 will add: coverage target reached, saturation detected
 
         return True
+
+    async def get_status(self, session_id: str) -> dict:
+        """
+        Get session status including current strategy.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            Dict with turn_number, max_turns, coverage, target_coverage,
+            status, should_continue, strategy_selected, strategy_reasoning
+        """
+        session = await self.session_repo.get(session_id)
+        if not session:
+            raise ValueError(f"Session {session_id} not found")
+
+        # Get session config to read max_turns and target_coverage
+        config = await self.session_repo.get_config(session_id)
+        max_turns = config.get("max_turns", interview_config.session.max_turns)
+        target_coverage = config.get("target_coverage", interview_config.session.target_coverage)
+
+        # Calculate coverage from concept_elements
+        coverage_stats = await self.session_repo.get_coverage_stats(session_id)
+        total_elements = coverage_stats["total_elements"]
+        covered_elements = coverage_stats["covered_elements"]
+        coverage = covered_elements / total_elements if total_elements > 0 else 0.0
+
+        # Get the most recent turn to extract strategy from scoring_history
+        strategy_data = await self.session_repo.get_latest_strategy(session_id)
+        strategy = strategy_data["strategy"]
+        reasoning = strategy_data["reasoning"]
+
+        return {
+            "turn_number": session.state.turn_count or 0,
+            "max_turns": max_turns,
+            "coverage": coverage,
+            "target_coverage": target_coverage,
+            "status": session.status,
+            "should_continue": session.status == "active",
+            "strategy_selected": strategy,
+            "strategy_reasoning": reasoning,
+        }
+
+    async def get_turn_scoring(self, session_id: str, turn_number: int) -> dict:
+        """
+        Get all scoring candidates for a specific turn.
+
+        Args:
+            session_id: Session ID
+            turn_number: Turn number
+
+        Returns:
+            Dict with session_id, turn_number, candidates list, and winner_strategy_id
+        """
+        import json
+
+        rows = await self.session_repo.get_turn_scoring(session_id, turn_number)
+
+        if not rows:
+            return {
+                "session_id": session_id,
+                "turn_number": turn_number,
+                "candidates": [],
+                "winner_strategy_id": None,
+            }
+
+        candidates = []
+        winner_strategy_id = None
+
+        for row in rows:
+            candidate = {
+                "id": row["id"],
+                "strategy_id": row["strategy_id"],
+                "strategy_name": row["strategy_name"],
+                "focus_type": row["focus_type"],
+                "focus_description": row["focus_description"],
+                "final_score": row["final_score"],
+                "is_selected": bool(row["is_selected"]),
+                "vetoed_by": row["vetoed_by"],
+                "tier1_results": json.loads(row["tier1_results"]) if row["tier1_results"] else [],
+                "tier2_results": json.loads(row["tier2_results"]) if row["tier2_results"] else [],
+                "reasoning": row["reasoning"],
+            }
+            candidates.append(candidate)
+
+            if candidate["is_selected"]:
+                winner_strategy_id = candidate["strategy_id"]
+
+        return {
+            "session_id": session_id,
+            "turn_number": turn_number,
+            "candidates": candidates,
+            "winner_strategy_id": winner_strategy_id,
+        }
+
+    async def get_all_scoring(self, session_id: str) -> list:
+        """
+        Get all scoring data for all turns in a session.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            List of turn scoring dicts
+        """
+        turn_numbers = await self.session_repo.get_all_turn_numbers_with_scoring(session_id)
+
+        results = []
+        for turn_num in turn_numbers:
+            turn_data = await self.get_turn_scoring(session_id, turn_num)
+            results.append(turn_data)
+
+        return results
