@@ -29,7 +29,7 @@
 │                      Service Layer: SessionService                          │
 │                    process_turn(session_id, user_input)                       │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │ 1. Create TurnContext (data transfer object)                          │  │
+│  │ 1. Create PipelineContext (data transfer object)                          │  │
 │  │ 2. Delegate to TurnPipeline.execute(context)                           │  │
 │  │ 3. Return TurnResult                                               │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
@@ -41,7 +41,7 @@
 │                     execute(context) → 10 sequential stages                │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
 │  │  │                                                                       │  │
-│  │  ▼  TurnContext (data bucket) flows through stages:                     │  │
+│  │  ▼  PipelineContext (data bucket) flows through stages:                     │  │
 │  │  │                                                                       │  │
 │  │  ├─→ ContextLoadingStage     → adds: methodology, graph_state            │  │
 │  │  ├─→ UtteranceSavingStage    → adds: user_utterance                  │  │
@@ -54,7 +54,7 @@
 │  │ ├─→ ResponseSavingStage     → adds: system_utterance             │  │
 │  │ └─→ ScoringPersistenceStage → adds: scoring                        │  │
 │  │                                                                       │  │
-│  │  Each stage is independent - only reads/writes TurnContext           │  │
+│  │  Each stage is independent - only reads/writes PipelineContext           │  │
 │  │  No stage calls another stage directly                                │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -82,14 +82,14 @@
 **Purpose**: Load session metadata and current state
 
 **Reads from**:
-- `TurnContext.session_id`
+- `PipelineContext.session_id`
 
 **Interacts with**:
 - `SessionRepository.get_session()` - session config
 - `GraphRepository.get_graph_state()` - current graph state
 - `UtteranceRepository.get_recent()` - conversation history
 
-**Writes to TurnContext**:
+**Writes to PipelineContext**:
 - `methodology`, `concept_id`, `concept_name`, `max_turns`
 - `graph_state` (GraphState object)
 - `recent_utterances` (list)
@@ -102,12 +102,12 @@
 **Purpose**: Persist user input to database
 
 **Reads from**:
-- `TurnContext.session_id`, `user_input`, `turn_number`
+- `PipelineContext.session_id`, `user_input`, `turn_number`
 
 **Interacts with**:
 - `UtteranceRepository.save()` - save user utterance
 
-**Writes to TurnContext**:
+**Writes to PipelineContext**:
 - `user_utterance` (Utterance object)
 
 ---
@@ -117,12 +117,12 @@
 **Purpose**: Extract concepts and relationships from user input
 
 **Reads from**:
-- `TurnContext.user_input`, `graph_state`, `recent_utterances`
+- `PipelineContext.user_input`, `graph_state`, `recent_utterances`
 
 **Interacts with**:
 - `ExtractionService.extract()` - LLM-based extraction
 
-**Writes to TurnContext**:
+**Writes to PipelineContext**:
 - `extraction` (ExtractionResult with concepts/relationships)
 
 ---
@@ -132,12 +132,12 @@
 **Purpose**: Update knowledge graph with extracted data
 
 **Reads from**:
-- `TurnContext.extraction`, `session_id`
+- `PipelineContext.extraction`, `session_id`
 
 **Interacts with**:
 - `GraphService.add_extraction_to_graph()` - add nodes/edges
 
-**Writes to TurnContext**:
+**Writes to PipelineContext**:
 - `nodes_added` (list of KGNode)
 - `edges_added` (list of edges)
 
@@ -148,12 +148,12 @@
 **Purpose**: Recompute graph state after updates
 
 **Reads from**:
-- `TurnContext.session_id`
+- `PipelineContext.session_id`
 
 **Interacts with**:
 - `GraphService.get_graph_state()` - get updated state
 
-**Writes to TurnContext**:
+**Writes to PipelineContext**:
 - `graph_state` (refreshed GraphState object)
 
 ---
@@ -163,12 +163,12 @@
 **Purpose**: Select questioning strategy using two-tier scoring
 
 **Reads from**:
-- `TurnContext.graph_state`, `recent_nodes`, `extraction`
+- `PipelineContext.graph_state`, `recent_nodes`, `extraction`
 
 **Interacts with**:
 - `StrategyService.select_strategy()` - scoring + selection
 
-**Writes to TurnContext**:
+**Writes to PipelineContext**:
 - `strategy` (strategy_id string)
 - `focus` (dict with node_id/element_id)
 - `selection_result` (full selection data)
@@ -181,12 +181,12 @@
 **Purpose**: Determine if interview should continue
 
 **Reads from**:
-- `TurnContext.turn_number`, `graph_state`, `strategy`
+- `PipelineContext.turn_number`, `graph_state`, `strategy`
 
 **Interacts with**:
 - Business logic to check coverage, max_turns, etc.
 
-**Writes to TurnContext**:
+**Writes to PipelineContext**:
 - `should_continue` (boolean)
 - `focus_concept` (string)
 
@@ -197,12 +197,12 @@
 **Purpose**: Generate follow-up question based on strategy
 
 **Reads from**:
-- `TurnContext.strategy`, `focus`, `recent_utterances`
+- `PipelineContext.strategy`, `focus`, `recent_utterances`
 
 **Interacts with**:
 - `QuestionService.generate_question()` - LLM-based generation
 
-**Writes to TurnContext**:
+**Writes to PipelineContext**:
 - `next_question` (question text)
 
 ---
@@ -212,12 +212,12 @@
 **Purpose**: Persist system utterance to database
 
 **Reads from**:
-- `TurnContext.session_id`, `next_question`, `turn_number`
+- `PipelineContext.session_id`, `next_question`, `turn_number`
 
 **Interacts with**:
 - `UtteranceRepository.save()` - save system utterance
 
-**Writes to TurnContext**:
+**Writes to PipelineContext**:
 - `system_utterance` (Utterance object)
 
 ---
@@ -227,20 +227,20 @@
 **Purpose**: Save scoring data for analysis
 
 **Reads from**:
-- `TurnContext.session_id`, `turn_number`, `scoring`, `strategy`
+- `PipelineContext.session_id`, `turn_number`, `scoring`, `strategy`
 
 **Interacts with**:
 - `SessionRepository.save_scoring_candidate()` - save scoring details
 - `SessionRepository.save_scoring_history()` - save scoring summary
 
-**Writes to TurnContext**:
+**Writes to PipelineContext**:
 - (updates turn tracking in session)
 
 ---
 
 ## Data Flow Summary
 
-| Stage | Input from TurnContext | Output to TurnContext | External Dependencies |
+| Stage | Input from PipelineContext | Output to PipelineContext | External Dependencies |
 |-------|------------------------|----------------------|----------------------|
 | **1. ContextLoading** | session_id | methodology, graph_state, recent_utterances | SessionRepository, GraphRepository, UtteranceRepository |
 | **2. UtteranceSaving** | user_input, session_id | user_utterance | UtteranceRepository |
@@ -258,9 +258,9 @@
 ## Key Data Structures
 
 ```python
-# TurnContext (data bucket passed between stages)
+# PipelineContext (data bucket passed between stages)
 @dataclass
-class TurnContext:
+class PipelineContext:
     # Input (immutable)
     session_id: str
     user_input: str
