@@ -3,7 +3,6 @@
 Loads scorer configurations from YAML and initializes the TwoTierScoringEngine.
 """
 
-import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 

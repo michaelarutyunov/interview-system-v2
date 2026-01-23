@@ -22,7 +22,7 @@ from src.domain.models.turn import Focus
 from src.services.extraction_service import ExtractionService
 from src.services.graph_service import GraphService
 from src.services.question_service import QuestionService
-from src.services.strategy_service import StrategyService, SelectionResult
+from src.services.strategy_service import StrategyService
 from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
 from src.persistence.repositories.utterance_repo import UtteranceRepository
@@ -231,7 +231,6 @@ class SessionService:
     ):
         """Save scoring data to scoring_history table and all candidates to scoring_candidates."""
         import uuid
-        import json
 
         scoring_id = str(uuid.uuid4())
 

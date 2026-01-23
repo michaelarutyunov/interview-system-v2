@@ -190,7 +190,7 @@ def get_synthetic_user_prompt(
     if previous_concepts:
         # Show last 5 concepts
         recent_concepts = previous_concepts[-5:]
-        prompt_parts.append(f"## Concepts already mentioned:")
+        prompt_parts.append("## Concepts already mentioned:")
         prompt_parts.append(f"{', '.join(recent_concepts)}")
         prompt_parts.append("")
 

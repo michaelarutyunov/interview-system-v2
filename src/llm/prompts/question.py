@@ -11,7 +11,7 @@ Phase 2: Hardcoded "deepen" strategy.
 Phase 3: Full strategy selection.
 """
 
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 
 
 # Strategy descriptions for prompts

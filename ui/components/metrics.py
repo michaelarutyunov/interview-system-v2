@@ -72,9 +72,9 @@ class MetricsPanel:
             delta=None,
         )
 
-        # Progress bar
+        # Progress bar (clamp to [0, 1] to handle edge case where turn_number exceeds max_turns)
         if max_turns > 0:
-            progress = turn_number / max_turns
+            progress = min(turn_number / max_turns, 1.0)
             st.progress(progress)
 
     def _render_coverage(self, status_data: Dict[str, Any]):
@@ -186,8 +186,9 @@ class MetricsPanel:
         strategy_descriptions = {
             "deepen": "🔍 Deepen - Explore deeper in current topic chain",
             "broaden": "🌐 Broaden - Find new topic branches",
-            "cover": "🎯 Cover - Introduce unexplored elements",
-            "close": "✅ Close - Wrap up the interview",
+            "cover_element": "🎯 Cover - Introduce unexplored elements",
+            "closing": "✅ Closing - Wrap up the interview",
+            "reflection": "🤔 Reflection - Meta-question about the experience",
         }
 
         st.info(strategy_descriptions.get(strategy, f"Strategy: {strategy}"))

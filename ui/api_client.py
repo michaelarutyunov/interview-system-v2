@@ -113,9 +113,6 @@ class APIClient:
     def get_session_status(self, session_id: str) -> Dict[str, Any]:
         """Get current session status (synchronous).
 
-        Note: The /status endpoint doesn't exist yet, so this returns
-        basic session info from the /sessions/{id} endpoint.
-
         Args:
             session_id: Session identifier
 
@@ -124,19 +121,9 @@ class APIClient:
         """
         try:
             with httpx.Client(timeout=self.timeout) as client:
-                response = client.get(f"{self.base_url}/sessions/{session_id}")
+                response = client.get(f"{self.base_url}/sessions/{session_id}/status")
                 response.raise_for_status()
-                data = response.json()
-                # Transform SessionResponse to status-like format
-                return {
-                    "turn_number": data.get("turn_count", 0),
-                    "max_turns": 20,  # Default
-                    "coverage": 0.0,   # Not available in SessionResponse
-                    "target_coverage": 0.8,
-                    "status": data.get("status", "unknown"),
-                    "should_continue": data.get("status") == "active",
-                    "strategy_selected": "unknown",  # Not available
-                }
+                return response.json()
         except httpx.HTTPStatusError as e:
             # If endpoint doesn't exist, return default status
             return {
@@ -152,21 +139,25 @@ class APIClient:
     def get_session_graph(self, session_id: str) -> Dict[str, Any]:
         """Get session knowledge graph (synchronous).
 
-        Note: The /graph endpoint doesn't exist yet.
-
         Args:
             session_id: Session identifier
 
         Returns:
-            Empty graph data
+            Graph data with nodes and edges
         """
-        # Graph endpoint doesn't exist yet, return empty graph
-        return {
-            "nodes": [],
-            "edges": [],
-            "node_count": 0,
-            "edge_count": 0,
-        }
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(f"{self.base_url}/sessions/{session_id}/graph")
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError:
+            # If endpoint doesn't exist, return empty graph
+            return {
+                "nodes": [],
+                "edges": [],
+                "node_count": 0,
+                "edge_count": 0,
+            }
 
     def list_sessions(self) -> Dict[str, Any]:
         """List all sessions (synchronous).
@@ -193,6 +184,41 @@ class APIClient:
             response.raise_for_status()
             data = response.json()
             return data.get("opening_question", "")
+
+    def get_turn_scoring(self, session_id: str, turn_number: int) -> Dict[str, Any]:
+        """Get scoring candidates for a specific turn (synchronous).
+
+        Args:
+            session_id: Session identifier
+            turn_number: Turn number
+
+        Returns:
+            Scoring candidates data with all (strategy, focus) combinations
+        """
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(f"{self.base_url}/sessions/{session_id}/scoring/{turn_number}")
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError:
+            return {"session_id": session_id, "turn_number": turn_number, "candidates": []}
+
+    def get_all_scoring(self, session_id: str) -> List[Dict[str, Any]]:
+        """Get all scoring data for all turns in a session (synchronous).
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            List of turns with their scoring candidates
+        """
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(f"{self.base_url}/sessions/{session_id}/scoring")
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError:
+            return []
 
     def close(self):
         """Close the HTTP client (no-op, clients are auto-closed)."""
@@ -264,9 +290,6 @@ class APIClient:
     async def get_session_status_async(self, session_id: str) -> Dict[str, Any]:
         """Get current session status (asynchronous).
 
-        Note: The /status endpoint doesn't exist yet, so this returns
-        basic session info from the /sessions/{id} endpoint.
-
         Args:
             session_id: Session identifier
 
@@ -275,19 +298,9 @@ class APIClient:
         """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(f"{self.base_url}/sessions/{session_id}")
+                response = await client.get(f"{self.base_url}/sessions/{session_id}/status")
                 response.raise_for_status()
-                data = response.json()
-                # Transform SessionResponse to status-like format
-                return {
-                    "turn_number": data.get("turn_count", 0),
-                    "max_turns": 20,
-                    "coverage": 0.0,
-                    "target_coverage": 0.8,
-                    "status": data.get("status", "unknown"),
-                    "should_continue": data.get("status") == "active",
-                    "strategy_selected": "unknown",
-                }
+                return response.json()
         except httpx.HTTPStatusError:
             return {
                 "turn_number": 0,
@@ -302,21 +315,24 @@ class APIClient:
     async def get_session_graph_async(self, session_id: str) -> Dict[str, Any]:
         """Get session knowledge graph (asynchronous).
 
-        Note: The /graph endpoint doesn't exist yet.
-
         Args:
             session_id: Session identifier
 
         Returns:
-            Empty graph data
+            Graph data with nodes and edges
         """
-        # Graph endpoint doesn't exist yet
-        return {
-            "nodes": [],
-            "edges": [],
-            "node_count": 0,
-            "edge_count": 0,
-        }
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(f"{self.base_url}/sessions/{session_id}/graph")
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError:
+            return {
+                "nodes": [],
+                "edges": [],
+                "node_count": 0,
+                "edge_count": 0,
+            }
 
     async def list_sessions_async(self) -> Dict[str, Any]:
         """List all sessions (asynchronous).
@@ -343,6 +359,41 @@ class APIClient:
             response.raise_for_status()
             data = response.json()
             return data.get("opening_question", "")
+
+    async def get_turn_scoring_async(self, session_id: str, turn_number: int) -> Dict[str, Any]:
+        """Get scoring candidates for a specific turn (asynchronous).
+
+        Args:
+            session_id: Session identifier
+            turn_number: Turn number
+
+        Returns:
+            Scoring candidates data with all (strategy, focus) combinations
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(f"{self.base_url}/sessions/{session_id}/scoring/{turn_number}")
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError:
+            return {"session_id": session_id, "turn_number": turn_number, "candidates": []}
+
+    async def get_all_scoring_async(self, session_id: str) -> List[Dict[str, Any]]:
+        """Get all scoring data for all turns in a session (asynchronous).
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            List of turns with their scoring candidates
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(f"{self.base_url}/sessions/{session_id}/scoring")
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError:
+            return []
 
     async def close_async(self):
         """Close the HTTP client (no-op, clients are auto-closed)."""

@@ -6,7 +6,7 @@ All configuration is validated using Pydantic.
 """
 
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Optional
 
 import yaml
 from pydantic import BaseModel, Field, field_validator

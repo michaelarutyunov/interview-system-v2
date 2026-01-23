@@ -9,7 +9,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 import structlog
-from pydantic import BaseModel
 
 from src.domain.models.knowledge_graph import GraphState
 from src.services.scoring.two_tier.base import Tier1Scorer, Tier1Output, Tier2Scorer, Tier2Output

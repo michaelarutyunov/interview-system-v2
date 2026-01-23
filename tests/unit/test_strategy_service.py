@@ -2,16 +2,15 @@
 
 import pytest
 from src.services.strategy_service import StrategyService, SelectionResult
-from src.services.scoring.arbitration import ArbitrationEngine
-from src.services.scoring.coverage import CoverageScorer
+from src.services.scoring.two_tier import create_scoring_engine
 from src.domain.models.knowledge_graph import GraphState
 
 
 @pytest.fixture
 def strategy_service():
     """Create a StrategyService with test config."""
-    engine = ArbitrationEngine([CoverageScorer()])
-    return StrategyService(engine, config={"veto_threshold": 0.1})
+    engine = create_scoring_engine()
+    return StrategyService(engine, config={})
 
 
 @pytest.mark.asyncio
@@ -67,5 +66,5 @@ async def test_fallback_when_no_candidates(monkeypatch, strategy_service):
 
     result = await strategy_service.select(graph_state, [])
 
-    # Should return fallback (broaden strategy)
-    assert result.selected_strategy["id"] == "broaden"
+    # Should return fallback (reflection strategy when all candidates vetoed)
+    assert result.selected_strategy["id"] == "reflection"

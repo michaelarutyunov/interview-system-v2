@@ -10,7 +10,7 @@ Generates follow-up questions based on:
 Uses LLM for natural language generation.
 """
 
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 
 import structlog
 

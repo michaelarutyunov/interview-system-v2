@@ -17,6 +17,7 @@ from ui.api_client import APIClient
 from ui.components.chat import ChatInterface, initialize_chat_state
 from ui.components.graph import GraphVisualizer, render_graph_stats
 from ui.components.metrics import MetricsPanel, render_turn_diagnostics, render_coverage_details
+from ui.components.scoring import ScoringTab, render_scoring_tab
 from ui.components.controls import (
     SessionControls,
     initialize_session_state,
@@ -126,7 +127,7 @@ def _render_welcome_screen():
 def _render_interview_screen(api_client: APIClient, current_session):
     """Render the main interview interface."""
     # Create tabs for main content
-    tab1, tab2, tab3 = st.tabs(["💬 Interview", "🕸️ Knowledge Graph", "📊 Metrics"])
+    tab1, tab2, tab3, tab4 = st.tabs(["💬 Interview", "🕸️ Knowledge Graph", "📊 Metrics", "🎯 Scoring"])
 
     # Get current data
     status_data = _get_session_status(api_client, current_session.id)
@@ -143,6 +144,10 @@ def _render_interview_screen(api_client: APIClient, current_session):
     # Tab 3: Metrics
     with tab3:
         _render_metrics_tab(status_data, graph_data)
+
+    # Tab 4: Scoring
+    with tab4:
+        render_scoring_tab(api_client, current_session)
 
 
 def _render_interview_tab(

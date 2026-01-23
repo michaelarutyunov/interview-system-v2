@@ -10,7 +10,6 @@ import structlog
 from src.core.exceptions import (
     InterviewSystemError,
     ConfigurationError,
-    LLMError,
     LLMTimeoutError,
     LLMRateLimitError,
     SessionNotFoundError,

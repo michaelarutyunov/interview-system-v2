@@ -31,8 +31,6 @@ from src.api.schemas import (
     SessionStatusResponse,
     ScoringCandidateSchema,
     ScoringTurnResponse,
-    Tier1ResultSchema,
-    Tier2ResultSchema,
 )
 from src.core.config import settings
 from src.core.exceptions import SessionNotFoundError, SessionCompletedError
@@ -42,7 +40,6 @@ from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
 from src.services.session_service import SessionService
 from src.services.export_service import ExportService
-from src.services.graph_service import GraphService
 from src.services.scoring.two_tier import create_scoring_engine, TwoTierScoringEngine
 from src.services.strategy_service import StrategyService
 
@@ -463,7 +460,7 @@ async def process_turn(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
-    except SessionCompletedError as e:
+    except SessionCompletedError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Session has already completed",

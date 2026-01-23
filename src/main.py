@@ -8,11 +8,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import structlog
 
 from src.core.config import settings
 from src.core.logging import configure_logging, get_logger
-from src.persistence.database import init_database, check_database_health
+from src.persistence.database import init_database
 from src.api.routes import health, sessions, synthetic
 from src.api.routes.concepts import router as concepts_router
 from src.api.exception_handlers import setup_exception_handlers

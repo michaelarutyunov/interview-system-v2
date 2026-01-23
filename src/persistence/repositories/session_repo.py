@@ -6,6 +6,7 @@ from typing import Optional, Dict, Any
 import aiosqlite
 
 from src.domain.models.session import Session, SessionState
+from src.domain.models.utterance import Utterance
 
 
 class SessionRepository:
@@ -80,7 +81,6 @@ class SessionRepository:
 
     async def get_utterances(self, session_id: str) -> list:
         """Get all utterances for a session."""
-        from src.domain.models.utterance import Utterance
 
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -259,8 +259,6 @@ class SessionRepository:
 
     def _row_to_utterance(self, row: aiosqlite.Row) -> Utterance:
         """Convert a database row to an Utterance model."""
-        from src.domain.models.utterance import Utterance
-
         return Utterance(
             id=row["id"],
             session_id=row["session_id"],

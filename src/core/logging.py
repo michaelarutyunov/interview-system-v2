@@ -8,7 +8,6 @@ Provides consistent, structured logging across the application with:
 """
 
 import logging
-import sys
 from typing import List
 
 import structlog

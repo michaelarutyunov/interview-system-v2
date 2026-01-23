@@ -11,7 +11,7 @@ See ADR-005: docs/adr/005-dual-mode-interview-architecture.md
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Union, TYPE_CHECKING
+from typing import Dict, List, Optional, Any, TYPE_CHECKING
 from enum import Enum
 
 if TYPE_CHECKING:

@@ -87,8 +87,6 @@ class AmbiguityScorer(Tier2Scorer):
         # Get node_id from focus if available
         node_id = focus.get("node_id")
 
-        # Calculate ambiguity score
-        ambiguity_score = 0.5  # Start with medium ambiguity
         confidence_values = []
         hedge_count = 0
 
