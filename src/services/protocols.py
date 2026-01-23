@@ -11,7 +11,7 @@ from typing import Protocol, List, Optional, Dict, Any
 
 from src.domain.models.extraction import ExtractionResult
 from src.domain.models.knowledge_graph import GraphState, KGNode, KGEdge
-from src.domain.models.turn import TurnContext, TurnResult, Focus
+from src.domain.models.turn import TurnResult
 from src.domain.models.interview_state import InterviewMode
 
 
@@ -177,7 +177,7 @@ class IStrategyService(Protocol):
         self,
         graph_state: GraphState,
         recent_nodes: List[Dict[str, Any]],
-        conversation_history: List[Dict[str, str]] = None,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
         mode: InterviewMode = InterviewMode.COVERAGE_DRIVEN,
     ) -> "SelectionResult":
         """
