@@ -281,14 +281,10 @@ class LiveBenchmark:
             print("   Skipping live benchmark.")
             return self.result
 
-        # TODO: Implement live benchmark with real services
-        # This requires:
-        # - Real database setup
-        # - LLM client configuration
-        # - Session creation
-        # - Turn processing with real calls
+        # Bead: pqx - Implement live benchmark with real services
+        # Requires: real database setup, LLM client config, session creation, turn processing
 
-        print("\n⚠️  Live benchmark not yet implemented")
+        print("\n⚠️  Live benchmark not yet implemented (see bead: pqx)")
         return self.result
 
 

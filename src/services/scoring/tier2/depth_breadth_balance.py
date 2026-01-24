@@ -45,8 +45,7 @@ class DepthBreadthBalanceScorer(Tier2Scorer):
         self.high_breadth_threshold = self.params.get("high_breadth_threshold", 0.7)
         # NOTE: low_depth_threshold lowered to 0.5 (from 2.0) to match current proxy formula
         # Current formula (edge_count/node_count * 2) gives 0.15-0.30 for sparse graphs
-        # TODO: Implement actual chain length calculation (BFS from root to leaf nodes)
-        # Blocker: Requires proper edge connectivity (extraction prompt fix should help)
+        # Bead: tud - Implement actual chain length calculation (BFS from root to leaf nodes)
         self.low_depth_threshold = self.params.get("low_depth_threshold", 0.5)
         self.high_depth_threshold = self.params.get("high_depth_threshold", 1.5)
 
@@ -189,8 +188,7 @@ class DepthBreadthBalanceScorer(Tier2Scorer):
         Returns:
             Average depth (float)
         """
-        # For now, use node count as a proxy for depth
-        # TODO: Implement actual chain length calculation from graph structure
+        # Bead: tud - For now, use edge ratio as proxy for depth
         node_count = graph_state.node_count
 
         # Heuristic: more nodes = potentially deeper exploration

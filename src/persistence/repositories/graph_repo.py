@@ -502,11 +502,10 @@ class GraphRepository:
         elements_seen = [row[0] for row in await cursor.fetchall()]
 
         # Build coverage_state in properties
-        # Note: elements_total should be loaded from concept config (config/concepts/{concept_id}.yaml)
-        # For now, leave empty - CoverageGapScorer will use fallback (node type diversity)
+        # Bead: xbc - Load elements_total from concept config
         coverage_state = {
             "elements_seen": elements_seen,
-            "elements_total": [],  # TODO: Load from concept config
+            "elements_total": [],  # Load from config/concepts/{concept_id}.yaml
         }
 
         return GraphState(

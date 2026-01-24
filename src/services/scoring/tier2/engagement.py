@@ -38,7 +38,7 @@ class EngagementScorer(Tier2Scorer):
         # Momentum thresholds
         # NOTE: high_momentum_threshold lowered to 70 (from 100) to align with actual observed values
         # Session analysis shows momentum ranges 35-70; 100 was unreachable
-        # TODO: Revisit after more data collection - may need relative (percentile-based) thresholds
+        # Bead: 5rt - Revisit after more data collection (may need percentile-based thresholds)
         self.low_momentum_threshold = self.params.get("low_momentum_threshold", 30)
         self.high_momentum_threshold = self.params.get("high_momentum_threshold", 70)
 
