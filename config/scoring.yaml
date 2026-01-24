@@ -148,31 +148,36 @@ strategies:
   - id: deepen
     name: "Deepen Understanding"
     type_category: "depth"
+    priority_base: 1.0
     enabled: true
     prompt_hint: "Explore deeper into why this is important."
 
   - id: broaden
     name: "Explore Breadth"
     type_category: "breadth"
+    priority_base: 0.9
     enabled: true
     prompt_hint: "Expand to related areas or perspectives."
 
   - id: cover_element
     name: "Cover Stimulus Element"
     type_category: "coverage"
+    priority_base: 1.1
     enabled: true
     prompt_hint: "Ensure this element from the stimulus is addressed."
 
   - id: closing
     name: "Closing Interview"
     type_category: "closing"
+    priority_base: 0.5  # Lower base - only use when appropriate
     enabled: true
     prompt_hint: "Begin to wrap up the interview."
-    min_turns: 8  # Minimum turns before closing is applicable
+    # Note: Phase system controls timing via phase multipliers (no min_turns needed)
 
   - id: reflection
     name: "Reflection / Meta-Question"
     type_category: "reflection"
+    priority_base: 0.7  # Emergency fallback
     enabled: true
     prompt_hint: "Ask a meta-question about the interview process."
     emergency_only: true  # Only when all else fails
@@ -180,24 +185,28 @@ strategies:
   - id: bridge
     name: "Lateral Bridge to Peripheral"
     type_category: "peripheral"
+    priority_base: 0.8
     enabled: true
     prompt_hint: "Explicitly link to what was just said, then gently shift to a related but distinct area."
 
   - id: contrast
     name: "Introduce Counter-Example"
     type_category: "contrast"
+    priority_base: 0.7
     enabled: true
     prompt_hint: "Politely introduce a counter-example or opposite case to test boundaries."
 
   - id: ease
     name: "Ease / Rapport Repair"
     type_category: "interaction"
+    priority_base: 0.6
     enabled: true
     prompt_hint: "Simplify or soften the question, encourage participation."
 
   - id: synthesis
     name: "Summarise & Invite Extension"
     type_category: "transition"
+    priority_base: 0.8
     enabled: true
     prompt_hint: "Briefly summarise what you've heard and invite correction or addition."
 

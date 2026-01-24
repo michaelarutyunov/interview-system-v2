@@ -131,7 +131,21 @@ class StrategyService:
         """
         self.scoring_engine = scoring_engine
         self.config: Dict[str, Any] = config or {}
-        self.strategies = {s["id"]: s for s in STRATEGIES if s.get("enabled", True)}
+
+        # Load strategies from scoring.yaml config (bead ztd)
+        # Strategies are now defined in config/scoring.yaml instead of hardcoded
+        config_strategies = scoring_engine.config.get("strategies", [])
+        if config_strategies:
+            self.strategies = {
+                s["id"]: s for s in config_strategies if s.get("enabled", True)
+            }
+        else:
+            # Fallback to hardcoded STRATEGIES if config doesn't have strategies
+            # This maintains backward compatibility
+            logger.warning(
+                "No strategies found in scoring config, using hardcoded STRATEGIES fallback"
+            )
+            self.strategies = {s["id"]: s for s in STRATEGIES if s.get("enabled", True)}
 
         # Load from centralized interview config (Phase 4: ADR-008)
         self._alternatives_count = interview_config.strategy_service.alternatives_count
@@ -487,6 +501,58 @@ class StrategyService:
                     element_id=None,
                     focus_description="Reflection - is there anything else you'd like to share?",
                     confidence=1.0,
+                )
+            )
+
+        # Bridge strategy: link to recent, then shift to peripheral
+        elif strategy_id == "bridge":
+            # Try to find a peripheral node (low degree) to bridge to
+            # For now, use open exploration with bridge context
+            focuses.append(
+                Focus(
+                    focus_type="lateral_bridge",
+                    node_id=None,
+                    element_id=None,
+                    focus_description="Bridge to related area - link to what was said, then explore a new angle",
+                    confidence=0.7,
+                )
+            )
+
+        # Contrast strategy: introduce counter-example
+        elif strategy_id == "contrast":
+            # Try to find a node with opposite stance for contrast
+            # For now, use open exploration with contrast context
+            focuses.append(
+                Focus(
+                    focus_type="counter_example",
+                    node_id=None,
+                    element_id=None,
+                    focus_description="Contrast - consider the opposite case or a different perspective",
+                    confidence=0.7,
+                )
+            )
+
+        # Ease strategy: simplify/soften the question
+        elif strategy_id == "ease":
+            focuses.append(
+                Focus(
+                    focus_type="rapport_repair",
+                    node_id=None,
+                    element_id=None,
+                    focus_description="Ease - simplify the question and make it more conversational",
+                    confidence=1.0,
+                )
+            )
+
+        # Synthesis strategy: summarize and invite extension
+        elif strategy_id == "synthesis":
+            focuses.append(
+                Focus(
+                    focus_type="synthesis",
+                    node_id=None,
+                    element_id=None,
+                    focus_description="Synthesis - summarize what you've heard and invite correction or addition",
+                    confidence=0.8,
                 )
             )
 
