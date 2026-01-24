@@ -3,6 +3,7 @@ Stage 8: Generate follow-up question.
 
 ADR-008 Phase 3: Use QuestionService to generate next question.
 """
+
 from typing import TYPE_CHECKING
 
 import structlog

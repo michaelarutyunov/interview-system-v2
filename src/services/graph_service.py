@@ -259,9 +259,7 @@ class GraphService:
         """
         return await self.repo.get_node(node_id)
 
-    async def get_nodes_of_type(
-        self, session_id: str, node_type: str
-    ) -> List[KGNode]:
+    async def get_nodes_of_type(self, session_id: str, node_type: str) -> List[KGNode]:
         """
         Get all nodes of a specific type.
 
@@ -275,9 +273,7 @@ class GraphService:
         all_nodes = await self.repo.get_nodes_by_session(session_id)
         return [n for n in all_nodes if n.node_type == node_type]
 
-    async def get_recent_nodes(
-        self, session_id: str, limit: int = 5
-    ) -> List[KGNode]:
+    async def get_recent_nodes(self, session_id: str, limit: int = 5) -> List[KGNode]:
         """
         Get most recently added nodes.
 

@@ -25,6 +25,7 @@ def test_settings_from_env():
 
     try:
         from src.core.config import Settings
+
         s = Settings()
 
         assert s.debug

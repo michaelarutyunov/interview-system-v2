@@ -22,6 +22,7 @@ from src.llm.client import LLMResponse
 
 # ============ FIXTURES ============
 
+
 @pytest.fixture
 async def test_db():
     """Create and initialize test database."""
@@ -55,31 +56,63 @@ def mock_llm_responses():
     """Mock LLM responses for a complete interview."""
     return {
         "opening": "Tell me about your experience with Oat Milk.",
-        "extraction_1": json.dumps({
-            "concepts": [
-                {"text": "creamy texture", "node_type": "attribute", "confidence": 0.9, "source_quote": "creamy texture"},
-                {"text": "satisfying", "node_type": "functional_consequence", "confidence": 0.85, "source_quote": "satisfying"},
-            ],
-            "relationships": [
-                {"source_text": "creamy texture", "target_text": "satisfying", "relationship_type": "leads_to", "confidence": 0.8, "source_quote": "texture makes it satisfying"},
-            ],
-            "discourse_markers": ["because"]
-        }),
+        "extraction_1": json.dumps(
+            {
+                "concepts": [
+                    {
+                        "text": "creamy texture",
+                        "node_type": "attribute",
+                        "confidence": 0.9,
+                        "source_quote": "creamy texture",
+                    },
+                    {
+                        "text": "satisfying",
+                        "node_type": "functional_consequence",
+                        "confidence": 0.85,
+                        "source_quote": "satisfying",
+                    },
+                ],
+                "relationships": [
+                    {
+                        "source_text": "creamy texture",
+                        "target_text": "satisfying",
+                        "relationship_type": "leads_to",
+                        "confidence": 0.8,
+                        "source_quote": "texture makes it satisfying",
+                    },
+                ],
+                "discourse_markers": ["because"],
+            }
+        ),
         "question_1": "You mentioned the creamy texture feels satisfying. Why is that important to you?",
-        "extraction_2": json.dumps({
-            "concepts": [
-                {"text": "healthy choice", "node_type": "psychosocial_consequence", "confidence": 0.88, "source_quote": "healthy choice"},
-            ],
-            "relationships": [
-                {"source_text": "satisfying", "target_text": "healthy choice", "relationship_type": "leads_to", "confidence": 0.82, "source_quote": "satisfying because it's healthy"},
-            ],
-            "discourse_markers": []
-        }),
+        "extraction_2": json.dumps(
+            {
+                "concepts": [
+                    {
+                        "text": "healthy choice",
+                        "node_type": "psychosocial_consequence",
+                        "confidence": 0.88,
+                        "source_quote": "healthy choice",
+                    },
+                ],
+                "relationships": [
+                    {
+                        "source_text": "satisfying",
+                        "target_text": "healthy choice",
+                        "relationship_type": "leads_to",
+                        "confidence": 0.82,
+                        "source_quote": "satisfying because it's healthy",
+                    },
+                ],
+                "discourse_markers": [],
+            }
+        ),
         "question_2": "How does making healthy choices impact your daily life?",
     }
 
 
 # ============ TEST CLASS: COMPLETE INTERVIEW WORKFLOW ============
+
 
 class TestCompleteInterviewWorkflow:
     """Tests for complete interview workflow from start to finish."""
@@ -98,11 +131,29 @@ class TestCompleteInterviewWorkflow:
         with patch("src.llm.client.AnthropicClient.complete") as mock_complete:
             # Set up mock responses in sequence
             mock_complete.side_effect = [
-                LLMResponse(content=mock_llm_responses["opening"], model="test", latency_ms=100),
-                LLMResponse(content=mock_llm_responses["extraction_1"], model="test", latency_ms=200),
-                LLMResponse(content=mock_llm_responses["question_1"], model="test", latency_ms=100),
-                LLMResponse(content=mock_llm_responses["extraction_2"], model="test", latency_ms=200),
-                LLMResponse(content=mock_llm_responses["question_2"], model="test", latency_ms=100),
+                LLMResponse(
+                    content=mock_llm_responses["opening"], model="test", latency_ms=100
+                ),
+                LLMResponse(
+                    content=mock_llm_responses["extraction_1"],
+                    model="test",
+                    latency_ms=200,
+                ),
+                LLMResponse(
+                    content=mock_llm_responses["question_1"],
+                    model="test",
+                    latency_ms=100,
+                ),
+                LLMResponse(
+                    content=mock_llm_responses["extraction_2"],
+                    model="test",
+                    latency_ms=200,
+                ),
+                LLMResponse(
+                    content=mock_llm_responses["question_2"],
+                    model="test",
+                    latency_ms=100,
+                ),
             ]
 
             # Step 1: Create session
@@ -113,9 +164,9 @@ class TestCompleteInterviewWorkflow:
                     "methodology": "means_end_chain",
                     "config": {
                         "concept_name": "Oat Milk",
-                        "concept_description": "Plant-based milk alternative"
-                    }
-                }
+                        "concept_description": "Plant-based milk alternative",
+                    },
+                },
             )
             assert create_response.status_code == 201
             session_data = create_response.json()
@@ -128,12 +179,17 @@ class TestCompleteInterviewWorkflow:
             assert start_response.status_code == 200
             start_data = start_response.json()
             assert "opening_question" in start_data
-            assert "Oat Milk" in start_data["opening_question"] or "experience" in start_data["opening_question"].lower()
+            assert (
+                "Oat Milk" in start_data["opening_question"]
+                or "experience" in start_data["opening_question"].lower()
+            )
 
             # Step 3: Process first turn
             turn1_response = await client.post(
                 f"/sessions/{session_id}/turns",
-                json={"text": "I love the creamy texture because it's really satisfying"}
+                json={
+                    "text": "I love the creamy texture because it's really satisfying"
+                },
             )
             assert turn1_response.status_code == 200
             turn1_data = turn1_response.json()
@@ -145,14 +201,17 @@ class TestCompleteInterviewWorkflow:
             # Step 4: Process second turn
             turn2_response = await client.post(
                 f"/sessions/{session_id}/turns",
-                json={"text": "It makes me feel like I'm making a healthy choice"}
+                json={"text": "It makes me feel like I'm making a healthy choice"},
             )
             assert turn2_response.status_code == 200
             turn2_data = turn2_response.json()
             assert turn2_data["turn_number"] == 2
             assert len(turn2_data["extracted"]["concepts"]) >= 1
             # Graph should have grown
-            assert turn2_data["graph_state"]["node_count"] >= turn1_data["graph_state"]["node_count"]
+            assert (
+                turn2_data["graph_state"]["node_count"]
+                >= turn1_data["graph_state"]["node_count"]
+            )
 
             # Step 5: Get session details
             session_response = await client.get(f"/sessions/{session_id}")
@@ -173,15 +232,28 @@ class TestCompleteInterviewWorkflow:
         """
         with patch("src.llm.client.AnthropicClient.complete") as mock_complete:
             mock_complete.side_effect = [
-                LLMResponse(content=mock_llm_responses["opening"], model="test", latency_ms=100),
-                LLMResponse(content=mock_llm_responses["extraction_1"], model="test", latency_ms=200),
-                LLMResponse(content=mock_llm_responses["question_1"], model="test", latency_ms=100),
+                LLMResponse(
+                    content=mock_llm_responses["opening"], model="test", latency_ms=100
+                ),
+                LLMResponse(
+                    content=mock_llm_responses["extraction_1"],
+                    model="test",
+                    latency_ms=200,
+                ),
+                LLMResponse(
+                    content=mock_llm_responses["question_1"],
+                    model="test",
+                    latency_ms=100,
+                ),
             ]
 
             # 1. Create session
             create_resp = await client.post(
                 "/sessions",
-                json={"concept_id": "test-product", "config": {"concept_name": "Test Product"}}
+                json={
+                    "concept_id": "test-product",
+                    "config": {"concept_name": "Test Product"},
+                },
             )
             assert create_resp.status_code == 201
             session_id = create_resp.json()["id"]
@@ -204,8 +276,7 @@ class TestCompleteInterviewWorkflow:
             # 4. Update through a turn
             await client.post(f"/sessions/{session_id}/start")
             await client.post(
-                f"/sessions/{session_id}/turns",
-                json={"text": "I like it"}
+                f"/sessions/{session_id}/turns", json={"text": "I like it"}
             )
 
             # Verify turn count updated
@@ -223,11 +294,14 @@ class TestCompleteInterviewWorkflow:
 
 # ============ TEST CLASS: SYNTHETIC INTERVIEW INTEGRATION ============
 
+
 class TestSyntheticInterviewIntegration:
     """Tests for synthetic interview integration with real endpoints."""
 
     @pytest.mark.asyncio
-    async def test_synthetic_interview_achieves_coverage(self, client, mock_llm_responses):
+    async def test_synthetic_interview_achieves_coverage(
+        self, client, mock_llm_responses
+    ):
         """
         Test that a synthetic interview can achieve coverage:
         1. Create session
@@ -240,31 +314,45 @@ class TestSyntheticInterviewIntegration:
             # Mock responses for both session and synthetic generation
             mock_complete.side_effect = [
                 # Session opening
-                LLMResponse(content=mock_llm_responses["opening"], model="test", latency_ms=100),
+                LLMResponse(
+                    content=mock_llm_responses["opening"], model="test", latency_ms=100
+                ),
                 # Synthetic response
                 LLMResponse(
                     content="The creamy texture is amazing, it makes my coffee taste so much better and I feel good about choosing a plant-based option.",
                     model="test",
-                    latency_ms=150
+                    latency_ms=150,
                 ),
                 # Extraction
-                LLMResponse(content=mock_llm_responses["extraction_1"], model="test", latency_ms=200),
+                LLMResponse(
+                    content=mock_llm_responses["extraction_1"],
+                    model="test",
+                    latency_ms=200,
+                ),
                 # Next question
-                LLMResponse(content=mock_llm_responses["question_1"], model="test", latency_ms=100),
+                LLMResponse(
+                    content=mock_llm_responses["question_1"],
+                    model="test",
+                    latency_ms=100,
+                ),
                 # Second synthetic response
                 LLMResponse(
                     content="It's important because I'm trying to live a more sustainable lifestyle.",
                     model="test",
-                    latency_ms=150
+                    latency_ms=150,
                 ),
                 # Second extraction
-                LLMResponse(content=mock_llm_responses["extraction_2"], model="test", latency_ms=200),
+                LLMResponse(
+                    content=mock_llm_responses["extraction_2"],
+                    model="test",
+                    latency_ms=200,
+                ),
             ]
 
             # 1. Create and start session
             create_resp = await client.post(
                 "/sessions",
-                json={"concept_id": "oat-milk", "config": {"concept_name": "Oat Milk"}}
+                json={"concept_id": "oat-milk", "config": {"concept_name": "Oat Milk"}},
             )
             session_id = create_resp.json()["id"]
 
@@ -278,11 +366,8 @@ class TestSyntheticInterviewIntegration:
                     "question": opening_question,
                     "session_id": session_id,
                     "persona": "health_conscious",
-                    "interview_context": {
-                        "product_name": "Oat Milk",
-                        "turn_number": 1
-                    }
-                }
+                    "interview_context": {"product_name": "Oat Milk", "turn_number": 1},
+                },
             )
             assert synthetic_resp.status_code == 200
             synthetic_data = synthetic_resp.json()
@@ -292,7 +377,7 @@ class TestSyntheticInterviewIntegration:
             # 3. Process turn with synthetic response
             turn_resp = await client.post(
                 f"/sessions/{session_id}/turns",
-                json={"text": synthetic_data["response"]}
+                json={"text": synthetic_data["response"]},
             )
             assert turn_resp.status_code == 200
             turn_data = turn_resp.json()
@@ -303,6 +388,7 @@ class TestSyntheticInterviewIntegration:
 
 
 # ============ TEST CLASS: EXPORT FORMATS ============
+
 
 class TestExportFormats:
     """Tests for all export format endpoints."""
@@ -318,27 +404,36 @@ class TestExportFormats:
         """
         with patch("src.llm.client.AnthropicClient.complete") as mock_complete:
             mock_complete.side_effect = [
-                LLMResponse(content=mock_llm_responses["opening"], model="test", latency_ms=100),
-                LLMResponse(content=mock_llm_responses["extraction_1"], model="test", latency_ms=200),
-                LLMResponse(content=mock_llm_responses["question_1"], model="test", latency_ms=100),
+                LLMResponse(
+                    content=mock_llm_responses["opening"], model="test", latency_ms=100
+                ),
+                LLMResponse(
+                    content=mock_llm_responses["extraction_1"],
+                    model="test",
+                    latency_ms=200,
+                ),
+                LLMResponse(
+                    content=mock_llm_responses["question_1"],
+                    model="test",
+                    latency_ms=100,
+                ),
             ]
 
             # Setup session with data
             create_resp = await client.post(
                 "/sessions",
-                json={"concept_id": "test", "config": {"concept_name": "Test Product"}}
+                json={"concept_id": "test", "config": {"concept_name": "Test Product"}},
             )
             session_id = create_resp.json()["id"]
             await client.post(f"/sessions/{session_id}/start")
             await client.post(
                 f"/sessions/{session_id}/turns",
-                json={"text": "I love the creamy texture"}
+                json={"text": "I love the creamy texture"},
             )
 
             # 1. Export as JSON
             json_resp = await client.get(
-                f"/sessions/{session_id}/export",
-                params={"format": "json"}
+                f"/sessions/{session_id}/export", params={"format": "json"}
             )
             assert json_resp.status_code == 200
             assert json_resp.headers["content-type"] == "application/json"
@@ -347,8 +442,7 @@ class TestExportFormats:
 
             # 2. Export as Markdown
             md_resp = await client.get(
-                f"/sessions/{session_id}/export",
-                params={"format": "markdown"}
+                f"/sessions/{session_id}/export", params={"format": "markdown"}
             )
             assert md_resp.status_code == 200
             assert md_resp.headers["content-type"] == "text/markdown"
@@ -359,8 +453,7 @@ class TestExportFormats:
 
             # 3. Export as CSV
             csv_resp = await client.get(
-                f"/sessions/{session_id}/export",
-                params={"format": "csv"}
+                f"/sessions/{session_id}/export", params={"format": "csv"}
             )
             assert csv_resp.status_code == 200
             assert csv_resp.headers["content-type"] == "text/csv"
@@ -371,6 +464,7 @@ class TestExportFormats:
 
 
 # ============ TEST CLASS: CONCEPT ENDPOINTS ============
+
 
 class TestConceptEndpoints:
     """Tests for concept knowledge endpoints."""
@@ -415,6 +509,7 @@ class TestConceptEndpoints:
 
 # ============ TEST CLASS: HEALTH ENDPOINT ============
 
+
 class TestHealthEndpoint:
     """Tests for health check endpoints."""
 
@@ -450,6 +545,7 @@ class TestHealthEndpoint:
 
 # ============ TEST CLASS: ERROR HANDLING ============
 
+
 class TestE2EErrorHandling:
     """Tests for error handling across E2E flows."""
 
@@ -464,8 +560,7 @@ class TestE2EErrorHandling:
 
         # Turn processing should also fail
         turn_resp = await client.post(
-            f"/sessions/{fake_id}/turns",
-            json={"text": "test"}
+            f"/sessions/{fake_id}/turns", json={"text": "test"}
         )
         assert turn_resp.status_code in [404, 500]
 
@@ -473,20 +568,20 @@ class TestE2EErrorHandling:
     async def test_invalid_export_format(self, client):
         """Test that invalid export format returns 422."""
         create_resp = await client.post(
-            "/sessions",
-            json={"concept_id": "test", "config": {"concept_name": "Test"}}
+            "/sessions", json={"concept_id": "test", "config": {"concept_name": "Test"}}
         )
         session_id = create_resp.json()["id"]
 
         # Invalid format
         export_resp = await client.get(
             f"/sessions/{session_id}/export",
-            params={"format": "xml"}  # Not supported
+            params={"format": "xml"},  # Not supported
         )
         assert export_resp.status_code == 422
 
 
 # ============ TEST CLASS: MULTI-SESSION SCENARIOS ============
+
 
 class TestMultiSessionScenarios:
     """Tests for multiple concurrent sessions."""
@@ -498,37 +593,51 @@ class TestMultiSessionScenarios:
             # Create first session
             mock_complete.side_effect = [
                 LLMResponse(content="Question 1", model="test", latency_ms=100),
-                LLMResponse(content=mock_llm_responses["extraction_1"], model="test", latency_ms=200),
+                LLMResponse(
+                    content=mock_llm_responses["extraction_1"],
+                    model="test",
+                    latency_ms=200,
+                ),
                 LLMResponse(content="Next question 1", model="test", latency_ms=100),
             ]
 
             resp1 = await client.post(
                 "/sessions",
-                json={"concept_id": "product-a", "config": {"concept_name": "Product A"}}
+                json={
+                    "concept_id": "product-a",
+                    "config": {"concept_name": "Product A"},
+                },
             )
             session1_id = resp1.json()["id"]
             await client.post(f"/sessions/{session1_id}/start")
             await client.post(
                 f"/sessions/{session1_id}/turns",
-                json={"text": "Response for product A"}
+                json={"text": "Response for product A"},
             )
 
             # Create second session
             mock_complete.side_effect = [
                 LLMResponse(content="Question 2", model="test", latency_ms=100),
-                LLMResponse(content=mock_llm_responses["extraction_2"], model="test", latency_ms=200),
+                LLMResponse(
+                    content=mock_llm_responses["extraction_2"],
+                    model="test",
+                    latency_ms=200,
+                ),
                 LLMResponse(content="Next question 2", model="test", latency_ms=100),
             ]
 
             resp2 = await client.post(
                 "/sessions",
-                json={"concept_id": "product-b", "config": {"concept_name": "Product B"}}
+                json={
+                    "concept_id": "product-b",
+                    "config": {"concept_name": "Product B"},
+                },
             )
             session2_id = resp2.json()["id"]
             await client.post(f"/sessions/{session2_id}/start")
             await client.post(
                 f"/sessions/{session2_id}/turns",
-                json={"text": "Response for product B"}
+                json={"text": "Response for product B"},
             )
 
             # Verify both sessions exist independently
@@ -541,4 +650,6 @@ class TestMultiSessionScenarios:
             # Verify they have different concepts
             session1_data = await client.get(f"/sessions/{session1_id}")
             session2_data = await client.get(f"/sessions/{session2_id}")
-            assert session1_data.json()["concept_id"] != session2_data.json()["concept_id"]
+            assert (
+                session1_data.json()["concept_id"] != session2_data.json()["concept_id"]
+            )

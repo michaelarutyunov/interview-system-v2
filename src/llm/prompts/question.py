@@ -57,9 +57,9 @@ def get_question_system_prompt(strategy: str = "deepen") -> str:
 
     return f"""You are a skilled qualitative researcher conducting an interview using the Means-End Chain methodology.
 
-Your current strategy is: **{strat['name']}**
-Strategy intent: {strat['intent']}
-Probe style: {strat['probe_style']}
+Your current strategy is: **{strat["name"]}**
+Strategy intent: {strat["intent"]}
+Probe style: {strat["probe_style"]}
 
 ## Interview Guidelines:
 1. Ask ONE question at a time

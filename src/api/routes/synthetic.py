@@ -25,6 +25,7 @@ router = APIRouter(prefix="/synthetic", tags=["synthetic"])
 
 # ============ DEPENDENCY INJECTION ============
 
+
 async def get_synthetic_service_dep() -> SyntheticService:
     """
     Dependency that provides a SyntheticService instance.
@@ -38,6 +39,7 @@ SyntheticServiceDep = Annotated[SyntheticService, Depends(get_synthetic_service_
 
 
 # ============ ENDPOINTS ============
+
 
 @router.post(
     "/respond",

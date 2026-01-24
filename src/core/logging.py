@@ -37,16 +37,14 @@ def configure_logging() -> None:
 
     if settings.debug:
         # Development: pretty console output with colors
-        processors = shared_processors + [
-            structlog.dev.ConsoleRenderer(colors=True)
-        ]
+        processors = shared_processors + [structlog.dev.ConsoleRenderer(colors=True)]
     else:
         # Production: JSON output for log aggregation
         processors = shared_processors + [
             # Format exceptions as dicts
             structlog.processors.dict_tracebacks,
             # Render as JSON
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ]
 
     structlog.configure(

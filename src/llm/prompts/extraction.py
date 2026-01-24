@@ -7,6 +7,11 @@ Extracts:
 - Discourse markers (linguistic signals)
 
 All prompts produce JSON for structured parsing.
+
+Architecture:
+- Universal principles are hardcoded (apply to all methodologies)
+- Methodology-specific content loaded from schema YAML
+- Prompts are methodology-agnostic and schema-driven
 """
 
 from typing import Dict, Any
@@ -36,11 +41,38 @@ def get_extraction_system_prompt(methodology: str = "means_end_chain") -> str:
         f"  - {name}: {desc}" for name, desc in edge_descriptions.items()
     )
 
+    # Methodology-specific content from schema
+    methodology_guidelines = schema.get_extraction_guidelines()
+    methodology_examples = schema.get_relationship_examples()
+
+    # Build methodology-specific section
+    methodology_section = ""
+    if methodology_guidelines:
+        guidelines_str = "\n".join(f"  - {g}" for g in methodology_guidelines)
+        methodology_section += f"""
+## Methodology-Specific Extraction Guidelines ({methodology}):
+{guidelines_str}
+"""
+
+    if methodology_examples:
+        examples_str = ""
+        for name, example_spec in methodology_examples.items():
+            examples_str += f"""
+**{name.replace('_', ' ').title()}:**
+{example_spec.description}
+Example: {example_spec.example}
+Extract: {example_spec.extraction}
+"""
+        methodology_section += f"""
+## Relationship Extraction Examples ({methodology}):
+{examples_str}
+"""
+
     return f"""You are an expert qualitative researcher extracting knowledge from interview responses.
 
 Your task is to identify concepts and relationships from the respondent's text that reveal their mental model about the product being discussed.
 
-## Valid Node Types (Means-End Chain):
+## Valid Node Types ({methodology.replace('_', ' ').title()}):
 {node_types_str}
 
 ## Valid Edge Types:
@@ -57,16 +89,14 @@ Examples:
 - "It mixes well" → stance: 0
 - "I hate the aftertaste" → stance: -1
 
-## Extraction Guidelines:
+## Universal Extraction Principles:
 1. Only extract concepts EXPLICITLY mentioned or clearly implied
 2. Use the respondent's own language for concept labels
 3. Classify each concept into the most appropriate node type
-4. Identify causal relationships indicated by language like "because", "so", "that's why"
-5. Look for discourse markers that signal relationships
-6. Assign confidence based on how explicit the concept/relationship is
-7. Include the verbatim quote that supports each extraction
-8. Determine stance based on sentiment and emotional content
-
+4. Assign confidence based on how explicit the concept/relationship is
+5. Include the verbatim quote that supports each extraction
+6. Determine stance based on sentiment and emotional content
+{methodology_section}
 ## Output Format:
 Return valid JSON with this structure:
 {{
@@ -114,36 +144,38 @@ def get_extraction_user_prompt(text: str, context: str = "") -> str:
     return prompt
 
 
-def get_extractability_system_prompt() -> str:
+def get_extractability_system_prompt(methodology: str = "means_end_chain") -> str:
     """
     Get system prompt for assessing extractability.
 
     Used as a fast pre-filter before full extraction.
 
+    Args:
+        methodology: Methodology schema name (e.g., "means_end_chain")
+
     Returns:
         System prompt string
     """
-    return """You are assessing whether text contains extractable knowledge for a qualitative research interview.
+    # Load methodology-specific extractability criteria
+    schema = load_methodology(methodology)
+    criteria = schema.get_extractability_criteria()
+
+    extractable_items = "\n".join(f"- {item}" for item in criteria.extractable_contains)
+    non_extractable_items = "\n".join(f"- {item}" for item in criteria.non_extractable_contains)
+
+    return f"""You are assessing whether text contains extractable knowledge for a qualitative research interview ({methodology.replace('_', ' ')}).
 
 Extractable text contains:
-- Product attributes, features, or characteristics
-- Benefits, outcomes, or consequences
-- Feelings, emotions, or social implications
-- Values or life goals
-- Causal relationships between any of the above
+{extractable_items if extractable_items else "- Relevant content for analysis"}
 
 Non-extractable text includes:
-- Simple yes/no responses
-- Acknowledgments ("okay", "I see")
-- Questions back to the interviewer
-- Off-topic tangents
-- Very short responses with no substance
+{non_extractable_items if non_extractable_items else "- Simple yes/no, acknowledgments, off-topic"}
 
 Return JSON:
-{
+{{
   "extractable": true or false,
   "reason": "brief explanation"
-}"""
+}}"""
 
 
 def get_extractability_user_prompt(text: str) -> str:
@@ -236,7 +268,4 @@ def parse_extractability_response(response_text: str) -> tuple[bool, str]:
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in extractability response: {e}")
 
-    return (
-        bool(data.get("extractable", True)),
-        str(data.get("reason", ""))
-    )
+    return (bool(data.get("extractable", True)), str(data.get("reason", "")))

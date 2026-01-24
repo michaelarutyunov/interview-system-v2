@@ -141,7 +141,7 @@ class TFIDFCosineSimilarity:
 
         for n in range(self.min_ngram, self.max_ngram + 1):
             for i in range(len(text) - n + 1):
-                ngram = text[i:i+n]
+                ngram = text[i : i + n]
                 tokens.append(ngram)
 
         return tokens
@@ -203,10 +203,7 @@ class TFIDFCosineSimilarity:
             return 0.0
 
         # Calculate dot product
-        dot_product = sum(
-            vec1.get(term, 0) * vec2.get(term, 0)
-            for term in all_terms
-        )
+        dot_product = sum(vec1.get(term, 0) * vec2.get(term, 0) for term in all_terms)
 
         # Calculate magnitudes
         mag1 = math.sqrt(sum(v**2 for v in vec1.values()))
@@ -221,7 +218,9 @@ class TFIDFCosineSimilarity:
         return similarity
 
 
-def create_similarity_calculator(config: Optional[Dict[str, Any]] = None) -> TFIDFCosineSimilarity:
+def create_similarity_calculator(
+    config: Optional[Dict[str, Any]] = None,
+) -> TFIDFCosineSimilarity:
     """Factory function to create TF-IDF cosine similarity calculator."""
     config = config or {}
 

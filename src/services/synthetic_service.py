@@ -195,9 +195,7 @@ class SyntheticService:
 
         return responses
 
-    def _extract_previous_concepts(
-        self, graph_state: Optional[Any]
-    ) -> List[str]:
+    def _extract_previous_concepts(self, graph_state: Optional[Any]) -> List[str]:
         """Extract concept labels from graph state.
 
         Args:

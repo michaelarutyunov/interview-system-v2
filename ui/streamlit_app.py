@@ -16,7 +16,11 @@ import streamlit as st
 from ui.api_client import APIClient
 from ui.components.chat import ChatInterface, initialize_chat_state
 from ui.components.graph import GraphVisualizer, render_graph_stats
-from ui.components.metrics import MetricsPanel, render_turn_diagnostics, render_coverage_details
+from ui.components.metrics import (
+    MetricsPanel,
+    render_turn_diagnostics,
+    render_coverage_details,
+)
 from ui.components.scoring import render_scoring_tab
 from ui.components.controls import (
     SessionControls,
@@ -33,7 +37,8 @@ st.set_page_config(
 )
 
 # Custom CSS
-st.markdown("""
+st.markdown(
+    """
 <style>
     .stMetric {
         background-color: #f0f2f6;
@@ -44,7 +49,9 @@ st.markdown("""
         background-color: #6C5CE7;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 
 def initialize_api_client() -> APIClient:
@@ -78,7 +85,7 @@ def main():
     api_url = st.sidebar.text_input(
         "API URL",
         value=st.session_state.get("api_url", "http://localhost:8000"),
-        help="FastAPI backend URL"
+        help="FastAPI backend URL",
     )
 
     if st.sidebar.button("🔄 Reconnect"):
@@ -96,7 +103,9 @@ def main():
 
 def _render_welcome_screen():
     """Render welcome screen when no session is active."""
-    st.info("👋 Welcome! Create a new session or select an existing one from the sidebar to begin.")
+    st.info(
+        "👋 Welcome! Create a new session or select an existing one from the sidebar to begin."
+    )
 
     st.markdown("""
     ## About This System
@@ -127,7 +136,9 @@ def _render_welcome_screen():
 def _render_interview_screen(api_client: APIClient, current_session):
     """Render the main interview interface."""
     # Create tabs for main content
-    tab1, tab2, tab3, tab4 = st.tabs(["💬 Interview", "🕸️ Knowledge Graph", "📊 Metrics", "🎯 Scoring"])
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["💬 Interview", "🕸️ Knowledge Graph", "📊 Metrics", "🎯 Scoring"]
+    )
 
     # Get current data
     status_data = _get_session_status(api_client, current_session.id)
@@ -178,7 +189,7 @@ def _render_interview_tab(
             st.metric("Turns", status_data.get("turn_number", 0))
         with col2:
             coverage = status_data.get("coverage", 0.0)
-            st.metric("Coverage", f"{coverage*100:.0f}%")
+            st.metric("Coverage", f"{coverage * 100:.0f}%")
 
         # Strategy indicator
         strategy = status_data.get("strategy_selected", "unknown")

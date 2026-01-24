@@ -3,8 +3,13 @@
 import pytest
 
 from src.domain.models import (
-    KGNode, KGEdge, GraphState,
-    Utterance, ExtractedConcept, ExtractedRelationship, ExtractionResult,
+    KGNode,
+    KGEdge,
+    GraphState,
+    Utterance,
+    ExtractedConcept,
+    ExtractedRelationship,
+    ExtractionResult,
 )
 
 
@@ -46,14 +51,20 @@ class TestKGNode:
         """Confidence must be between 0 and 1."""
         with pytest.raises(ValueError):
             KGNode(
-                id="n1", session_id="s1", label="test",
-                node_type="attribute", confidence=1.5
+                id="n1",
+                session_id="s1",
+                label="test",
+                node_type="attribute",
+                confidence=1.5,
             )
 
         with pytest.raises(ValueError):
             KGNode(
-                id="n1", session_id="s1", label="test",
-                node_type="attribute", confidence=-0.1
+                id="n1",
+                session_id="s1",
+                label="test",
+                node_type="attribute",
+                confidence=-0.1,
             )
 
 

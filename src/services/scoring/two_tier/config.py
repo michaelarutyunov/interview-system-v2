@@ -22,6 +22,7 @@ from src.services.scoring.tier2 import (
     EngagementScorer,
     StrategyDiversityScorer,
     NoveltyScorer,
+    SaturationScorer,
 )
 
 logger = structlog.get_logger(__name__)
@@ -42,6 +43,7 @@ TIER2_SCORER_CLASSES = {
     "EngagementScorer": EngagementScorer,
     "StrategyDiversityScorer": StrategyDiversityScorer,
     "NoveltyScorer": NoveltyScorer,
+    "SaturationScorer": SaturationScorer,
 }
 
 
@@ -231,9 +233,7 @@ def create_tier2_scorers(config: Dict[str, Any]) -> List[Tier2Scorer]:
             # Migrate from old weight format to new strategy_weights format
             # For backward compatibility, set default weights
             old_weight = scorer_config.get("weight", 0.15)
-            scorer_config["strategy_weights"] = {
-                "default": old_weight
-            }
+            scorer_config["strategy_weights"] = {"default": old_weight}
             logger.debug(
                 f"Migrated scorer {scorer_config['id']} from old 'weight' format "
                 f"to new 'strategy_weights' format (default={old_weight})"
@@ -245,7 +245,7 @@ def create_tier2_scorers(config: Dict[str, Any]) -> List[Tier2Scorer]:
 
         logger.debug(
             f"Created Tier 2 scorer: {scorer}",
-            strategy_weights=list(scorer.config.get("strategy_weights", {}).keys())
+            strategy_weights=list(scorer.config.get("strategy_weights", {}).keys()),
         )
 
     return scorers
@@ -377,9 +377,7 @@ def create_scoring_engine(
     phase_profiles = config.get("engine", {}).get("phase_profiles", {})
     if phase_profiles:
         engine_config["phase_profiles"] = phase_profiles
-        logger.info(
-            f"Loaded phase_profiles: {list(phase_profiles.keys())}"
-        )
+        logger.info(f"Loaded phase_profiles: {list(phase_profiles.keys())}")
     else:
         logger.warning("No phase_profiles found in engine config")
 

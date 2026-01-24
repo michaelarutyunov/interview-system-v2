@@ -51,11 +51,13 @@ class BenchmarkResult:
 
     def add_error(self, error: Exception):
         """Record an error."""
-        self.errors.append({
-            "timestamp": datetime.now().isoformat(),
-            "error": str(error),
-            "type": type(error).__name__
-        })
+        self.errors.append(
+            {
+                "timestamp": datetime.now().isoformat(),
+                "error": str(error),
+                "type": type(error).__name__,
+            }
+        )
 
     @property
     def count(self) -> int:
@@ -107,9 +109,9 @@ class BenchmarkResult:
 
     def print_summary(self):
         """Print benchmark summary."""
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Benchmark: {self.name}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         if self.errors:
             print(f"\n⚠️  ERRORS: {len(self.errors)}")
@@ -132,7 +134,9 @@ class BenchmarkResult:
             print(f"  p95 < {PRD_LATENCY_P95_MS}ms: {prd_status}")
 
             if not self.passed_prd:
-                print(f"  ⚠️  p95 ({self.p95_ms:.0f}ms) exceeds PRD target by {self.p95_ms - PRD_LATENCY_P95_MS:.0f}ms")
+                print(
+                    f"  ⚠️  p95 ({self.p95_ms:.0f}ms) exceeds PRD target by {self.p95_ms - PRD_LATENCY_P95_MS:.0f}ms"
+                )
         else:
             print("\n⚠️  No latency measurements recorded")
 
@@ -162,39 +166,49 @@ class MockBenchmark:
         mock_session_repo.db = AsyncMock()
         mock_session_repo.db.execute = AsyncMock()
         mock_session_repo.db.commit = AsyncMock()
-        mock_session_repo.get = AsyncMock(return_value=MagicMock(
-            id="bench-session",
-            methodology="means_end_chain",
-            concept_id="test",
-            config={"concept_name": "Test Product"},
-            turn_count=1
-        ))
+        mock_session_repo.get = AsyncMock(
+            return_value=MagicMock(
+                id="bench-session",
+                methodology="means_end_chain",
+                concept_id="test",
+                config={"concept_name": "Test Product"},
+                turn_count=1,
+            )
+        )
         cursor = AsyncMock()
         cursor.fetchall = AsyncMock(return_value=[])
         mock_session_repo.db.execute = AsyncMock(return_value=cursor)
 
         mock_graph_repo = AsyncMock()
-        mock_graph_repo.get_graph_state = AsyncMock(return_value=GraphState(
-            node_count=5, edge_count=3, nodes_by_type={"attribute": 3}
-        ))
+        mock_graph_repo.get_graph_state = AsyncMock(
+            return_value=GraphState(
+                node_count=5, edge_count=3, nodes_by_type={"attribute": 3}
+            )
+        )
         mock_graph_repo.get_nodes_by_session = AsyncMock(return_value=[])
 
         # Create mock services
         extraction_svc = AsyncMock()
-        extraction_svc.extract = AsyncMock(return_value=ExtractionResult(
-            concepts=[ExtractedConcept(text="quality", node_type="attribute")],
-            relationships=[],
-            is_extractable=True
-        ))
+        extraction_svc.extract = AsyncMock(
+            return_value=ExtractionResult(
+                concepts=[ExtractedConcept(text="quality", node_type="attribute")],
+                relationships=[],
+                is_extractable=True,
+            )
+        )
 
         graph_svc = AsyncMock()
         graph_svc.add_extraction_to_graph = AsyncMock(return_value=([], []))
-        graph_svc.get_graph_state = AsyncMock(return_value=GraphState(
-            node_count=5, edge_count=3, nodes_by_type={"attribute": 3}
-        ))
-        graph_svc.get_recent_nodes = AsyncMock(return_value=[
-            KGNode(id="n1", session_id="s1", label="quality", node_type="attribute")
-        ])
+        graph_svc.get_graph_state = AsyncMock(
+            return_value=GraphState(
+                node_count=5, edge_count=3, nodes_by_type={"attribute": 3}
+            )
+        )
+        graph_svc.get_recent_nodes = AsyncMock(
+            return_value=[
+                KGNode(id="n1", session_id="s1", label="quality", node_type="attribute")
+            ]
+        )
 
         question_svc = AsyncMock()
         question_svc.generate_question = AsyncMock(
@@ -229,8 +243,10 @@ class MockBenchmark:
 
                     # Progress indicator
                     if (turn_idx + 1) % 5 == 0:
-                        print(f"   Session {session_idx + 1}/{self.sessions}: "
-                              f"{turn_idx + 1}/{self.runs} turns complete")
+                        print(
+                            f"   Session {session_idx + 1}/{self.sessions}: "
+                            f"{turn_idx + 1}/{self.runs} turns complete"
+                        )
 
                 except Exception as e:
                     self.result.add_error(e)
@@ -259,7 +275,9 @@ class LiveBenchmark:
 
         # Check for API key
         if not self.api_key:
-            print("\n⚠️  No API key provided. Use --api-key or set OPENAI_API_KEY env var")
+            print(
+                "\n⚠️  No API key provided. Use --api-key or set OPENAI_API_KEY env var"
+            )
             print("   Skipping live benchmark.")
             return self.result
 
@@ -299,42 +317,35 @@ def main():
         description="Benchmark interview system performance"
     )
     parser.add_argument(
-        "--runs",
-        type=int,
-        default=10,
-        help="Number of turns per session (default: 10)"
+        "--runs", type=int, default=10, help="Number of turns per session (default: 10)"
     )
     parser.add_argument(
         "--sessions",
         type=int,
         default=1,
-        help="Number of concurrent sessions (default: 1)"
+        help="Number of concurrent sessions (default: 1)",
     )
     parser.add_argument(
-        "--live",
-        action="store_true",
-        help="Run live benchmark with real LLM calls"
+        "--live", action="store_true", help="Run live benchmark with real LLM calls"
     )
     parser.add_argument(
-        "--api-key",
-        type=str,
-        help="OpenAI API key (or set OPENAI_API_KEY env var)"
+        "--api-key", type=str, help="OpenAI API key (or set OPENAI_API_KEY env var)"
     )
 
     args = parser.parse_args()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("📐 Interview System Performance Benchmark")
-    print("="*60)
+    print("=" * 60)
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     # Run benchmarks
     results = asyncio.run(run_benchmarks(args))
 
     # Print all results
-    print("\n\n" + "="*60)
+    print("\n\n" + "=" * 60)
     print("📋 FINAL RESULTS")
-    print("="*60)
+    print("=" * 60)
 
     for result in results:
         result.print_summary()

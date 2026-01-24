@@ -144,7 +144,8 @@ class TurnPipeline:
             turn_number=context.turn_number,
             extracted=extracted,
             graph_state=graph_state,
-            scoring=context.scoring or {
+            scoring=context.scoring
+            or {
                 "coverage": 0.0,
                 "depth": 0.0,
                 "saturation": 0.0,

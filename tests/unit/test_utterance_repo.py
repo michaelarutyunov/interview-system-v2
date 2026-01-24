@@ -32,7 +32,7 @@ def create_test_utterance(
     session_id: str = "test-session-1",
     turn_number: int = 1,
     speaker: str = "user",
-    text: str = "Test utterance"
+    text: str = "Test utterance",
 ) -> Utterance:
     """Helper to create test utterances."""
     if utterance_id is None:
@@ -45,7 +45,7 @@ def create_test_utterance(
         speaker=speaker,
         text=text,
         discourse_markers=[],
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
     )
 
 
@@ -58,7 +58,7 @@ async def test_save_utterance(db_path):
         session_id="session-1",
         turn_number=1,
         speaker="user",
-        text="Hello world"
+        text="Hello world",
     )
 
     saved = await repo.save(utterance)
@@ -79,7 +79,7 @@ async def test_save_system_utterance(db_path):
         session_id="session-1",
         turn_number=1,
         speaker="system",
-        text="How can I help you?"
+        text="How can I help you?",
     )
 
     saved = await repo.save(utterance)
@@ -101,21 +101,21 @@ async def test_get_recent_utterances(db_path):
         session_id=session_id,
         turn_number=1,
         speaker="system",
-        text="Opening question"
+        text="Opening question",
     )
     utterance2 = create_test_utterance(
         utterance_id="utt-2",
         session_id=session_id,
         turn_number=1,
         speaker="user",
-        text="User response"
+        text="User response",
     )
     utterance3 = create_test_utterance(
         utterance_id="utt-3",
         session_id=session_id,
         turn_number=2,
         speaker="system",
-        text="Follow-up question"
+        text="Follow-up question",
     )
 
     await repo.save(utterance1)
@@ -144,7 +144,7 @@ async def test_get_recent_with_limit(db_path):
             session_id=session_id,
             turn_number=i,
             speaker="user",
-            text=f"Utterance {i}"
+            text=f"Utterance {i}",
         )
         await repo.save(utterance)
 
@@ -179,21 +179,21 @@ async def test_get_by_turn(db_path):
         session_id=session_id,
         turn_number=1,
         speaker="system",
-        text="Question 1"
+        text="Question 1",
     )
     user_turn1 = create_test_utterance(
         utterance_id="utt-2",
         session_id=session_id,
         turn_number=1,
         speaker="user",
-        text="Answer 1"
+        text="Answer 1",
     )
     system_turn2 = create_test_utterance(
         utterance_id="utt-3",
         session_id=session_id,
         turn_number=2,
         speaker="system",
-        text="Question 2"
+        text="Question 2",
     )
 
     await repo.save(system_turn1)
@@ -230,14 +230,14 @@ async def test_get_recent_only_for_session(db_path):
         session_id="session-1",
         turn_number=1,
         speaker="user",
-        text="Session 1"
+        text="Session 1",
     )
     utterance2 = create_test_utterance(
         utterance_id="utt-2",
         session_id="session-2",
         turn_number=1,
         speaker="user",
-        text="Session 2"
+        text="Session 2",
     )
 
     await repo.save(utterance1)

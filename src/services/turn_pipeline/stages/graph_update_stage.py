@@ -3,6 +3,7 @@ Stage 4: Update knowledge graph.
 
 ADR-008 Phase 3: Add extracted concepts and relationships to the graph.
 """
+
 from typing import TYPE_CHECKING
 
 import structlog
@@ -46,7 +47,9 @@ class GraphUpdateStage(TurnStage):
             return context
 
         if not context.user_utterance:
-            log.warning("no_user_utterance_for_graph_update", session_id=context.session_id)
+            log.warning(
+                "no_user_utterance_for_graph_update", session_id=context.session_id
+            )
             return context
 
         nodes, edges = await self.graph.add_extraction_to_graph(

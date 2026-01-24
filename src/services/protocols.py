@@ -268,4 +268,5 @@ class ISessionService(Protocol):
 # This is defined here to avoid circular imports
 class SelectionResult:
     """Placeholder for strategy_service.SelectionResult."""
+
     pass

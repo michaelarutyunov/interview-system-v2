@@ -102,8 +102,8 @@ async def test_create_session(client):
         json={
             "methodology": "mec",
             "concept_id": "test-concept",
-            "concept_name": "Test Concept"
-        }
+            "concept_name": "Test Concept",
+        },
     )
 
     assert response.status_code == 201
@@ -130,8 +130,8 @@ async def test_create_session_different_methodology(client):
         json={
             "methodology": "zmet",
             "concept_id": "zmet-concept",
-            "concept_name": "ZMET Concept"
-        }
+            "concept_name": "ZMET Concept",
+        },
     )
 
     assert response.status_code == 201
@@ -148,8 +148,8 @@ async def test_create_session_returns_timestamps(client):
         json={
             "methodology": "mec",
             "concept_id": "timestamp-test",
-            "concept_name": "Timestamp Test"
-        }
+            "concept_name": "Timestamp Test",
+        },
     )
 
     assert response.status_code == 201
@@ -172,8 +172,8 @@ async def test_create_session_generates_unique_id(client):
             json={
                 "methodology": "mec",
                 "concept_id": f"unique-test-{i}",
-                "concept_name": f"Unique Test {i}"
-            }
+                "concept_name": f"Unique Test {i}",
+            },
         )
         assert response.status_code == 201
         session_ids.add(response.json()["id"])
@@ -192,10 +192,7 @@ async def test_create_session_missing_methodology(client):
     """Test POST /sessions with missing methodology returns 422."""
     response = await client.post(
         "/sessions/",
-        json={
-            "concept_id": "test-concept",
-            "concept_name": "Test Concept"
-        }
+        json={"concept_id": "test-concept", "concept_name": "Test Concept"},
     )
 
     assert response.status_code == 422
@@ -205,11 +202,7 @@ async def test_create_session_missing_methodology(client):
 async def test_create_session_missing_concept_id(client):
     """Test POST /sessions with missing concept_id returns 422."""
     response = await client.post(
-        "/sessions/",
-        json={
-            "methodology": "mec",
-            "concept_name": "Test Concept"
-        }
+        "/sessions/", json={"methodology": "mec", "concept_name": "Test Concept"}
     )
 
     assert response.status_code == 422
@@ -219,11 +212,7 @@ async def test_create_session_missing_concept_id(client):
 async def test_create_session_missing_concept_name(client):
     """Test POST /sessions with missing concept_name returns 422."""
     response = await client.post(
-        "/sessions/",
-        json={
-            "methodology": "mec",
-            "concept_id": "test-concept"
-        }
+        "/sessions/", json={"methodology": "mec", "concept_id": "test-concept"}
     )
 
     assert response.status_code == 422
@@ -259,8 +248,8 @@ async def test_get_session(client):
         json={
             "methodology": "mec",
             "concept_id": "get-test-concept",
-            "concept_name": "Get Test Concept"
-        }
+            "concept_name": "Get Test Concept",
+        },
     )
     session_id = create_response.json()["id"]
 
@@ -304,8 +293,8 @@ async def test_get_session_returns_full_state(client):
         json={
             "methodology": "mec",
             "concept_id": "state-test",
-            "concept_name": "State Test Concept"
-        }
+            "concept_name": "State Test Concept",
+        },
     )
     session_id = create_response.json()["id"]
 
@@ -361,8 +350,8 @@ async def test_list_sessions(client):
             json={
                 "methodology": "mec",
                 "concept_id": f"list-concept-{uuid.uuid4()}",
-                "concept_name": f"List Concept {i}"
-            }
+                "concept_name": f"List Concept {i}",
+            },
         )
         created_ids.append(response.json()["id"])
 
@@ -391,8 +380,8 @@ async def test_list_sessions_returns_active_only(fresh_client):
             json={
                 "methodology": "mec",
                 "concept_id": f"active-test-{i}",
-                "concept_name": f"Active Test {i}"
-            }
+                "concept_name": f"Active Test {i}",
+            },
         )
         created_ids.append(response.json()["id"])
 
@@ -423,8 +412,8 @@ async def test_delete_session(client):
         json={
             "methodology": "mec",
             "concept_id": "delete-test-concept",
-            "concept_name": "Delete Test Concept"
-        }
+            "concept_name": "Delete Test Concept",
+        },
     )
     session_id = create_response.json()["id"]
 
@@ -460,8 +449,8 @@ async def test_delete_session_not_idempotent(client):
         json={
             "methodology": "mec",
             "concept_id": "idempotent-test",
-            "concept_name": "Idempotent Test"
-        }
+            "concept_name": "Idempotent Test",
+        },
     )
     session_id = create_response.json()["id"]
 
@@ -483,8 +472,8 @@ async def test_delete_session_returns_no_content(client):
         json={
             "methodology": "mec",
             "concept_id": "no-content-test",
-            "concept_name": "No Content Test"
-        }
+            "concept_name": "No Content Test",
+        },
     )
     session_id = create_response.json()["id"]
 
@@ -510,8 +499,8 @@ async def test_session_lifecycle_flow(fresh_client):
         json={
             "methodology": "mec",
             "concept_id": "flow-test",
-            "concept_name": "Flow Test"
-        }
+            "concept_name": "Flow Test",
+        },
     )
     assert create_response.status_code == 201
     session_data = create_response.json()
@@ -564,8 +553,8 @@ async def test_multiple_sessions_workflow(fresh_client):
             json={
                 "methodology": "mec" if i % 2 == 0 else "zmet",
                 "concept_id": f"multi-test-{i}",
-                "concept_name": f"Multi Test {i}"
-            }
+                "concept_name": f"Multi Test {i}",
+            },
         )
         assert response.status_code == 201
         session_ids.append(response.json()["id"])
@@ -611,8 +600,8 @@ async def test_concurrent_session_creation(fresh_client):
             json={
                 "methodology": "mec",
                 "concept_id": f"concurrent-{idx}",
-                "concept_name": f"Concurrent Test {idx}"
-            }
+                "concept_name": f"Concurrent Test {idx}",
+            },
         )
 
     # Create 10 sessions concurrently
@@ -674,8 +663,8 @@ async def test_session_with_special_characters(client):
         json={
             "methodology": "mec",
             "concept_id": "concept-with-special!@#$%",
-            "concept_name": "Test & 'Concept' with \"quotes\""
-        }
+            "concept_name": "Test & 'Concept' with \"quotes\"",
+        },
     )
 
     assert response.status_code == 201
@@ -692,8 +681,8 @@ async def test_session_with_unicode(client):
         json={
             "methodology": "mec",
             "concept_id": "unicode-test",
-            "concept_name": "Test Concept with Unicode"
-        }
+            "concept_name": "Test Concept with Unicode",
+        },
     )
 
     assert response.status_code == 201
@@ -711,8 +700,8 @@ async def test_session_with_long_strings(client):
         json={
             "methodology": "mec",
             "concept_id": "long-string-test",
-            "concept_name": long_name
-        }
+            "concept_name": long_name,
+        },
     )
 
     assert response.status_code == 201

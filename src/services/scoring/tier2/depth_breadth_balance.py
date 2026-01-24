@@ -43,8 +43,12 @@ class DepthBreadthBalanceScorer(Tier2Scorer):
         # Thresholds for determining needs
         self.low_breadth_threshold = self.params.get("low_breadth_threshold", 0.4)
         self.high_breadth_threshold = self.params.get("high_breadth_threshold", 0.7)
-        self.low_depth_threshold = self.params.get("low_depth_threshold", 2.0)
-        self.high_depth_threshold = self.params.get("high_depth_threshold", 4.0)
+        # NOTE: low_depth_threshold lowered to 0.5 (from 2.0) to match current proxy formula
+        # Current formula (edge_count/node_count * 2) gives 0.15-0.30 for sparse graphs
+        # TODO: Implement actual chain length calculation (BFS from root to leaf nodes)
+        # Blocker: Requires proper edge connectivity (extraction prompt fix should help)
+        self.low_depth_threshold = self.params.get("low_depth_threshold", 0.5)
+        self.high_depth_threshold = self.params.get("high_depth_threshold", 1.5)
 
         logger.info(
             "DepthBreadthBalanceScorer initialized",
@@ -137,7 +141,9 @@ class DepthBreadthBalanceScorer(Tier2Scorer):
             reasoning=reasoning,
         )
 
-        return self.make_output(raw_score=raw_score, signals=signals, reasoning=reasoning)
+        return self.make_output(
+            raw_score=raw_score, signals=signals, reasoning=reasoning
+        )
 
     def _calculate_breadth(self, graph_state: GraphState) -> float:
         """Calculate breadth as percentage of elements mentioned.
@@ -171,7 +177,9 @@ class DepthBreadthBalanceScorer(Tier2Scorer):
 
         return len(elements_seen) / len(elements_total)
 
-    def _calculate_depth(self, graph_state: GraphState, recent_nodes: List[Dict[str, Any]]) -> float:
+    def _calculate_depth(
+        self, graph_state: GraphState, recent_nodes: List[Dict[str, Any]]
+    ) -> float:
         """Calculate depth as average chain length from root to terminal nodes.
 
         Args:

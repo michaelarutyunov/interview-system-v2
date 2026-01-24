@@ -23,6 +23,7 @@ router = APIRouter(prefix="/concepts", tags=["concepts"])
 # Response Models
 class ConceptElement(BaseModel):
     """Single element in a concept configuration."""
+
     id: str = Field(description="Element identifier")
     label: str = Field(description="Display label")
     type: str = Field(description="Element type (attribute, consequence, etc.)")
@@ -31,6 +32,7 @@ class ConceptElement(BaseModel):
 
 class ConceptCompletion(BaseModel):
     """Completion criteria for a concept."""
+
     target_coverage: float = Field(description="Target coverage threshold")
     max_turns: int = Field(description="Maximum turns")
     saturation_threshold: float = Field(description="Saturation threshold")
@@ -38,16 +40,20 @@ class ConceptCompletion(BaseModel):
 
 class ConceptConfig(BaseModel):
     """Concept configuration."""
+
     id: str = Field(description="Concept ID")
     name: str = Field(description="Concept name")
     description: str = Field(default="", description="Description")
     methodology: str = Field(description="Methodology ID")
-    elements: List[ConceptElement] = Field(default_factory=list, description="Concept elements")
+    elements: List[ConceptElement] = Field(
+        default_factory=list, description="Concept elements"
+    )
     completion: ConceptCompletion = Field(description="Completion criteria")
 
 
 class ConceptListItem(BaseModel):
     """Item in concept list."""
+
     id: str
     name: str
     methodology: str

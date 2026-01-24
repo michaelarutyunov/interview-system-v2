@@ -36,8 +36,11 @@ class EngagementScorer(Tier2Scorer):
             self.weight = 0.10
 
         # Momentum thresholds
+        # NOTE: high_momentum_threshold lowered to 70 (from 100) to align with actual observed values
+        # Session analysis shows momentum ranges 35-70; 100 was unreachable
+        # TODO: Revisit after more data collection - may need relative (percentile-based) thresholds
         self.low_momentum_threshold = self.params.get("low_momentum_threshold", 30)
-        self.high_momentum_threshold = self.params.get("high_momentum_threshold", 100)
+        self.high_momentum_threshold = self.params.get("high_momentum_threshold", 70)
 
         # Elaboration markers
         self.elaboration_markers = self.params.get(
@@ -84,7 +87,9 @@ class EngagementScorer(Tier2Scorer):
         if conversation_history:
             # Look at last 5 user responses
             user_responses = [
-                turn for turn in conversation_history[-10:] if turn.get("speaker") == "user"
+                turn
+                for turn in conversation_history[-10:]
+                if turn.get("speaker") == "user"
             ][-5:]
 
             for response in user_responses:
@@ -95,7 +100,9 @@ class EngagementScorer(Tier2Scorer):
                 if momentum < self.low_momentum_threshold:
                     low_momentum_count += 1
 
-        avg_momentum = sum(momentum_scores) / len(momentum_scores) if momentum_scores else 50
+        avg_momentum = (
+            sum(momentum_scores) / len(momentum_scores) if momentum_scores else 50
+        )
 
         # Get strategy complexity
         strategy_type = strategy.get("type_category", "")
@@ -124,7 +131,9 @@ class EngagementScorer(Tier2Scorer):
                 reasoning = f"High engagement (avg momentum: {avg_momentum:.0f}), {strategy_id} appropriate"
             else:
                 raw_score = 1.0
-                reasoning = f"High engagement (avg momentum: {avg_momentum:.0f}), neutral"
+                reasoning = (
+                    f"High engagement (avg momentum: {avg_momentum:.0f}), neutral"
+                )
         else:
             # Medium engagement - neutral
             raw_score = 1.0
@@ -145,7 +154,9 @@ class EngagementScorer(Tier2Scorer):
             reasoning=reasoning,
         )
 
-        return self.make_output(raw_score=raw_score, signals=signals, reasoning=reasoning)
+        return self.make_output(
+            raw_score=raw_score, signals=signals, reasoning=reasoning
+        )
 
     def _calculate_momentum(self, text: str) -> float:
         """Calculate momentum score for a single response.
@@ -160,9 +171,13 @@ class EngagementScorer(Tier2Scorer):
         length_score = len(text.split()) * 5
 
         # Bonus for elaboration markers
-        elaboration_bonus = sum(20 for marker in self.elaboration_markers if marker in text.lower())
+        elaboration_bonus = sum(
+            20 for marker in self.elaboration_markers if marker in text.lower()
+        )
 
         # Bonus for enthusiasm markers
-        enthusiasm_bonus = sum(15 for marker in self.enthusiasm_markers if marker in text.lower())
+        enthusiasm_bonus = sum(
+            15 for marker in self.enthusiasm_markers if marker in text.lower()
+        )
 
         return length_score + elaboration_bonus + enthusiasm_bonus

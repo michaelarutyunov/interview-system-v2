@@ -49,7 +49,9 @@ class ScoringTab:
         all_scoring = api_client.get_all_scoring(current_session.id)
 
         if not all_scoring:
-            st.info("No scoring data available yet. Complete some interview turns first.")
+            st.info(
+                "No scoring data available yet. Complete some interview turns first."
+            )
             return
 
         # Turn selector
@@ -108,7 +110,9 @@ class ScoringTab:
             return
 
         # Sort by final score (descending)
-        sorted_candidates = sorted(candidates, key=lambda c: c["final_score"], reverse=True)
+        sorted_candidates = sorted(
+            candidates, key=lambda c: c["final_score"], reverse=True
+        )
 
         for idx, candidate in enumerate(sorted_candidates):
             # Status indicator
@@ -133,27 +137,39 @@ class ScoringTab:
                     with st.expander("🔍 Tier 1: Hard Constraints (Vetoes)"):
                         for t1 in candidate["tier1_results"]:
                             if t1["is_veto"]:
-                                st.error(f"❌ {t1['scorer_id']}: **VETO** - {t1['reasoning']}")
+                                st.error(
+                                    f"❌ {t1['scorer_id']}: **VETO** - {t1['reasoning']}"
+                                )
                             else:
                                 st.success(f"✓ {t1['scorer_id']}: Pass")
 
                 # Tier 2 scoring breakdown
                 if candidate.get("tier2_results"):
-                    with st.expander(f"📈 Tier 2: Weighted Scoring (Score: {candidate['final_score']:.2f})"):
+                    with st.expander(
+                        f"📈 Tier 2: Weighted Scoring (Score: {candidate['final_score']:.2f})"
+                    ):
                         # Calculate score contribution
-                        total_contribution = sum(t2["contribution"] for t2 in candidate["tier2_results"])
+                        total_contribution = sum(
+                            t2["contribution"] for t2 in candidate["tier2_results"]
+                        )
 
                         # Show each scorer
                         for t2 in candidate["tier2_results"]:
                             # Progress bar for contribution
-                            pct_of_total = (t2["contribution"] / total_contribution * 100) if total_contribution > 0 else 0
+                            pct_of_total = (
+                                (t2["contribution"] / total_contribution * 100)
+                                if total_contribution > 0
+                                else 0
+                            )
 
                             cols = st.columns([3, 2, 1])
                             with cols[0]:
                                 st.write(f"**{t2['scorer_id']}**")
 
                             with cols[1]:
-                                st.caption(f"Raw: {t2['raw_score']:.2f} × {t2['weight']:.2f} = {t2['contribution']:.3f}")
+                                st.caption(
+                                    f"Raw: {t2['raw_score']:.2f} × {t2['weight']:.2f} = {t2['contribution']:.3f}"
+                                )
 
                             with cols[2]:
                                 st.caption(f"{pct_of_total:.0f}%")
@@ -163,9 +179,13 @@ class ScoringTab:
                                 st.caption(t2["reasoning"])
 
                             # Contribution bar
-                            st.progress(t2["contribution"] / 2.0)  # Max contribution is weight × 2.0
+                            st.progress(
+                                t2["contribution"] / 2.0
+                            )  # Max contribution is weight × 2.0
 
-                        st.write(f"**Total Score:** 1.0 (base) + Σ(contributions) = {candidate['final_score']:.2f}")
+                        st.write(
+                            f"**Total Score:** 1.0 (base) + Σ(contributions) = {candidate['final_score']:.2f}"
+                        )
 
                 # Reasoning trace
                 if candidate.get("reasoning"):

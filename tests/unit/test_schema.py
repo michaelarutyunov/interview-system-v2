@@ -8,7 +8,7 @@ import yaml
 from src.domain.models.methodology_schema import (
     NodeTypeSpec,
     EdgeTypeSpec,
-    MethodologySchema
+    MethodologySchema,
 )
 from src.core.schema_loader import load_methodology, _cache
 
@@ -24,33 +24,22 @@ def sample_schema_data():
             {
                 "name": "concept_a",
                 "description": "First concept type",
-                "examples": ["example1", "example2"]
+                "examples": ["example1", "example2"],
             },
             {
                 "name": "concept_b",
                 "description": "Second concept type",
-                "examples": ["example3"]
-            }
+                "examples": ["example3"],
+            },
         ],
         "edge_types": [
-            {
-                "name": "connects_to",
-                "description": "Connection relationship"
-            },
-            {
-                "name": "replaces",
-                "description": "Replacement relationship"
-            }
+            {"name": "connects_to", "description": "Connection relationship"},
+            {"name": "replaces", "description": "Replacement relationship"},
         ],
         "valid_connections": {
-            "connects_to": [
-                ["concept_a", "concept_b"],
-                ["concept_b", "concept_b"]
-            ],
-            "replaces": [
-                ["*", "*"]
-            ]
-        }
+            "connects_to": [["concept_a", "concept_b"], ["concept_b", "concept_b"]],
+            "replaces": [["*", "*"]],
+        },
     }
 
 
@@ -59,7 +48,7 @@ def temp_schema_dir(sample_schema_data):
     """Create a temporary directory with a test schema file."""
     with tempfile.TemporaryDirectory() as tmpdir:
         schema_path = Path(tmpdir) / "test_methodology.yaml"
-        with open(schema_path, 'w') as f:
+        with open(schema_path, "w") as f:
             yaml.dump(sample_schema_data, f)
         yield Path(tmpdir)
 
@@ -67,9 +56,7 @@ def temp_schema_dir(sample_schema_data):
 def test_node_type_spec_creation():
     """NodeTypeSpec can be created with valid data."""
     node_type = NodeTypeSpec(
-        name="attribute",
-        description="A product feature",
-        examples=["texture", "color"]
+        name="attribute", description="A product feature", examples=["texture", "color"]
     )
     assert node_type.name == "attribute"
     assert node_type.description == "A product feature"
@@ -78,10 +65,7 @@ def test_node_type_spec_creation():
 
 def test_edge_type_spec_creation():
     """EdgeTypeSpec can be created with valid data."""
-    edge_type = EdgeTypeSpec(
-        name="leads_to",
-        description="Causal relationship"
-    )
+    edge_type = EdgeTypeSpec(name="leads_to", description="Causal relationship")
     assert edge_type.name == "leads_to"
     assert edge_type.description == "Causal relationship"
 
@@ -182,11 +166,11 @@ def test_get_node_descriptions_limits_examples():
             {
                 "name": "many_examples",
                 "description": "Node with many examples",
-                "examples": ["ex1", "ex2", "ex3", "ex4", "ex5"]
+                "examples": ["ex1", "ex2", "ex3", "ex4", "ex5"],
             }
         ],
         "edge_types": [],
-        "valid_connections": {}
+        "valid_connections": {},
     }
     schema = MethodologySchema(**schema_data)
     descriptions = schema.get_node_descriptions()
@@ -267,7 +251,7 @@ def test_load_means_end_chain_schema():
         "functional_consequence",
         "psychosocial_consequence",
         "instrumental_value",
-        "terminal_value"
+        "terminal_value",
     }
 
     # Verify edge types
@@ -275,11 +259,19 @@ def test_load_means_end_chain_schema():
     assert edge_names == {"leads_to", "revises"}
 
     # Verify some specific connections
-    assert schema.is_valid_connection("leads_to", "attribute", "functional_consequence") is True
-    assert schema.is_valid_connection("leads_to", "instrumental_value", "terminal_value") is True
+    assert (
+        schema.is_valid_connection("leads_to", "attribute", "functional_consequence")
+        is True
+    )
+    assert (
+        schema.is_valid_connection("leads_to", "instrumental_value", "terminal_value")
+        is True
+    )
 
     # Verify invalid skip-level connection is rejected
-    assert schema.is_valid_connection("leads_to", "attribute", "terminal_value") is False
+    assert (
+        schema.is_valid_connection("leads_to", "attribute", "terminal_value") is False
+    )
 
     # Verify wildcard revises connection
     assert schema.is_valid_connection("revises", "attribute", "terminal_value") is True
@@ -299,7 +291,10 @@ def test_means_end_chain_node_descriptions():
 
     # Check that examples are included
     assert "attribute" in descriptions
-    assert "creamy texture" in descriptions["attribute"] or "plant-based" in descriptions["attribute"]
+    assert (
+        "creamy texture" in descriptions["attribute"]
+        or "plant-based" in descriptions["attribute"]
+    )
 
     # Verify description format includes both description and examples
     assert "Concrete product feature" in descriptions["attribute"]
@@ -314,20 +309,62 @@ def test_means_end_chain_valid_connections():
 
     # Test same-level connections
     assert schema.is_valid_connection("leads_to", "attribute", "attribute") is True
-    assert schema.is_valid_connection("leads_to", "functional_consequence", "functional_consequence") is True
+    assert (
+        schema.is_valid_connection(
+            "leads_to", "functional_consequence", "functional_consequence"
+        )
+        is True
+    )
 
     # Test adjacent upward connections
-    assert schema.is_valid_connection("leads_to", "attribute", "functional_consequence") is True
-    assert schema.is_valid_connection("leads_to", "functional_consequence", "psychosocial_consequence") is True
-    assert schema.is_valid_connection("leads_to", "psychosocial_consequence", "instrumental_value") is True
-    assert schema.is_valid_connection("leads_to", "instrumental_value", "terminal_value") is True
+    assert (
+        schema.is_valid_connection("leads_to", "attribute", "functional_consequence")
+        is True
+    )
+    assert (
+        schema.is_valid_connection(
+            "leads_to", "functional_consequence", "psychosocial_consequence"
+        )
+        is True
+    )
+    assert (
+        schema.is_valid_connection(
+            "leads_to", "psychosocial_consequence", "instrumental_value"
+        )
+        is True
+    )
+    assert (
+        schema.is_valid_connection("leads_to", "instrumental_value", "terminal_value")
+        is True
+    )
 
     # Test invalid skip-level connections
-    assert schema.is_valid_connection("leads_to", "attribute", "psychosocial_consequence") is False
-    assert schema.is_valid_connection("leads_to", "attribute", "instrumental_value") is False
-    assert schema.is_valid_connection("leads_to", "attribute", "terminal_value") is False
-    assert schema.is_valid_connection("leads_to", "functional_consequence", "instrumental_value") is False
+    assert (
+        schema.is_valid_connection("leads_to", "attribute", "psychosocial_consequence")
+        is False
+    )
+    assert (
+        schema.is_valid_connection("leads_to", "attribute", "instrumental_value")
+        is False
+    )
+    assert (
+        schema.is_valid_connection("leads_to", "attribute", "terminal_value") is False
+    )
+    assert (
+        schema.is_valid_connection(
+            "leads_to", "functional_consequence", "instrumental_value"
+        )
+        is False
+    )
 
     # Test downward connections are not allowed for leads_to
-    assert schema.is_valid_connection("leads_to", "terminal_value", "instrumental_value") is False
-    assert schema.is_valid_connection("leads_to", "instrumental_value", "psychosocial_consequence") is False
+    assert (
+        schema.is_valid_connection("leads_to", "terminal_value", "instrumental_value")
+        is False
+    )
+    assert (
+        schema.is_valid_connection(
+            "leads_to", "instrumental_value", "psychosocial_consequence"
+        )
+        is False
+    )

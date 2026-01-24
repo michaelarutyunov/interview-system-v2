@@ -24,7 +24,9 @@ async def test_selects_strategy(strategy_service):
         }
     )
 
-    result = await strategy_service.select(graph_state, [{"id": "node-1", "label": "A"}])
+    result = await strategy_service.select(
+        graph_state, [{"id": "node-1", "label": "A"}]
+    )
 
     assert isinstance(result, SelectionResult)
     assert result.selected_strategy["id"] in ["deepen", "broaden", "cover_element"]
@@ -42,7 +44,9 @@ async def test_returns_alternatives(strategy_service):
         }
     )
 
-    result = await strategy_service.select(graph_state, [{"id": "node-1", "label": "A"}])
+    result = await strategy_service.select(
+        graph_state, [{"id": "node-1", "label": "A"}]
+    )
 
     assert hasattr(result, "alternative_strategies")
     assert isinstance(result.alternative_strategies, list)
@@ -51,11 +55,13 @@ async def test_returns_alternatives(strategy_service):
 @pytest.mark.asyncio
 async def test_fallback_when_no_candidates(monkeypatch, strategy_service):
     """StrategyService falls back when no candidates available."""
+
     # Patch _get_possible_focuses to return empty
-    def mock_focuses(self, strategy, graph_state):
+    def mock_focuses(self, strategy, graph_state, recent_nodes=None):
         return []
 
     import src.services.strategy_service
+
     monkeypatch.setattr(
         src.services.strategy_service.StrategyService,
         "_get_possible_focuses",

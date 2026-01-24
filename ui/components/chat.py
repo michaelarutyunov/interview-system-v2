@@ -36,10 +36,9 @@ class ChatInterface:
         if user_input:
             if "chat_history" not in st.session_state:
                 st.session_state.chat_history = []
-            st.session_state.chat_history.append({
-                "role": "user",
-                "content": user_input
-            })
+            st.session_state.chat_history.append(
+                {"role": "user", "content": user_input}
+            )
 
         return user_input if user_input else None
 
@@ -49,10 +48,7 @@ class ChatInterface:
             with st.chat_message("assistant"):
                 st.write(question)
             st.session_state.opening_displayed = True
-            st.session_state.chat_history = [{
-                "role": "assistant",
-                "content": question
-            }]
+            st.session_state.chat_history = [{"role": "assistant", "content": question}]
 
     def _display_chat_history(self):
         """Display the chat history."""
@@ -68,14 +64,13 @@ class ChatInterface:
         if "chat_history" not in st.session_state:
             st.session_state.chat_history = []
 
-        st.session_state.chat_history.append({
-            "role": "assistant",
-            "content": content
-        })
+        st.session_state.chat_history.append({"role": "assistant", "content": content})
 
         # Trim history if needed
         if len(st.session_state.chat_history) > self.max_history:
-            st.session_state.chat_history = st.session_state.chat_history[-self.max_history:]
+            st.session_state.chat_history = st.session_state.chat_history[
+                -self.max_history :
+            ]
 
     def clear_history(self):
         """Clear the chat history."""

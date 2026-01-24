@@ -50,6 +50,7 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 # ============ DEPENDENCY INJECTION ============
 
+
 def get_session_repository() -> SessionRepository:
     """Dependency that provides a SessionRepository instance."""
     return SessionRepository(str(settings.database_path))
@@ -124,6 +125,7 @@ async def get_session_service(
 
 # ============ SESSION CRUD (from Phase 1) ============
 
+
 @router.post(
     "",
     response_model=SessionResponse,
@@ -156,8 +158,8 @@ async def create_session(
             concept_name=concept_name,
             turn_count=0,
             coverage_score=0.0,
-            mode=request.mode  # NEW: Pass mode to state
-        )
+            mode=request.mode,  # NEW: Pass mode to state
+        ),
     )
 
     # Create session with config
@@ -168,7 +170,7 @@ async def create_session(
         session_id=session_id,
         methodology=request.methodology,
         concept_id=request.concept_id,
-        max_turns=max_turns
+        max_turns=max_turns,
     )
 
     return SessionResponse(
@@ -180,7 +182,7 @@ async def create_session(
         turn_count=created_session.state.turn_count or 0,
         created_at=created_session.created_at,
         updated_at=created_session.updated_at,
-        mode=created_session.mode  # NEW: Include mode in response
+        mode=created_session.mode,  # NEW: Include mode in response
     )
 
 
@@ -202,7 +204,7 @@ async def list_sessions(
                 turn_count=s.state.turn_count or 0,
                 created_at=s.created_at,
                 updated_at=s.updated_at,
-                mode=s.mode  # NEW: Include mode in response
+                mode=s.mode,  # NEW: Include mode in response
             )
             for s in sessions
         ],
@@ -222,7 +224,7 @@ async def get_session(
         log.warning("session_not_found", session_id=session_id)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Session {session_id} not found"
+            detail=f"Session {session_id} not found",
         )
 
     return SessionResponse(
@@ -234,7 +236,7 @@ async def get_session(
         turn_count=session.state.turn_count or 0,
         created_at=session.created_at,
         updated_at=session.updated_at,
-        mode=session.mode  # NEW: Include mode in response
+        mode=session.mode,  # NEW: Include mode in response
     )
 
 
@@ -250,7 +252,7 @@ async def delete_session(
         log.warning("session_delete_not_found", session_id=session_id)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Session {session_id} not found"
+            detail=f"Session {session_id} not found",
         )
 
     log.info("session_deleted", session_id=session_id)
@@ -266,10 +268,7 @@ async def get_session_status(
         status_data = await service.get_status(session_id)
         return SessionStatusResponse(**status_data)
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get("/{session_id}/graph", response_model=GraphResponse)
@@ -325,9 +324,7 @@ async def get_turn_scoring(
     scoring_data = await service.get_turn_scoring(session_id, turn_number)
 
     # Convert candidates to schemas
-    candidates = [
-        ScoringCandidateSchema(**c) for c in scoring_data["candidates"]
-    ]
+    candidates = [ScoringCandidateSchema(**c) for c in scoring_data["candidates"]]
 
     return ScoringTurnResponse(
         session_id=scoring_data["session_id"],
@@ -350,20 +347,21 @@ async def get_all_scoring(
 
     results = []
     for scoring_data in scoring_data_list:
-        candidates = [
-            ScoringCandidateSchema(**c) for c in scoring_data["candidates"]
-        ]
-        results.append(ScoringTurnResponse(
-            session_id=scoring_data["session_id"],
-            turn_number=scoring_data["turn_number"],
-            candidates=candidates,
-            winner_strategy_id=scoring_data["winner_strategy_id"],
-        ))
+        candidates = [ScoringCandidateSchema(**c) for c in scoring_data["candidates"]]
+        results.append(
+            ScoringTurnResponse(
+                session_id=scoring_data["session_id"],
+                turn_number=scoring_data["turn_number"],
+                candidates=candidates,
+                winner_strategy_id=scoring_data["winner_strategy_id"],
+            )
+        )
 
     return results
 
 
 # ============ TURN PROCESSING (Phase 2) ============
+
 
 @router.post(
     "/{session_id}/start",
@@ -436,7 +434,8 @@ async def process_turn(
                     ExtractedConceptSchema(**c) for c in result.extracted["concepts"]
                 ],
                 relationships=[
-                    ExtractedRelationshipSchema(**r) for r in result.extracted["relationships"]
+                    ExtractedRelationshipSchema(**r)
+                    for r in result.extracted["relationships"]
                 ],
             ),
             graph_state=GraphStateSchema(
@@ -479,6 +478,7 @@ async def process_turn(
 
 
 # ============ EXPORT (Phase 6) ============
+
 
 async def get_export_service(
     db: aiosqlite.Connection = Depends(get_db),

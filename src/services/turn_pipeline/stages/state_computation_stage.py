@@ -3,6 +3,7 @@ Stage 5: Compute graph state.
 
 ADR-008 Phase 3: Refresh graph state after updates.
 """
+
 from typing import TYPE_CHECKING
 
 import structlog

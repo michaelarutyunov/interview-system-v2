@@ -77,7 +77,7 @@ class ElementExhaustedScorer(Tier1Scorer):
 
         # Count how many times this element appears in recent conversation
         mention_count = 0
-        recent_turns = conversation_history[-self.lookback_window:]
+        recent_turns = conversation_history[-self.lookback_window :]
 
         for turn in recent_turns:
             text = turn.get("text", "").lower()
@@ -147,14 +147,15 @@ class ElementExhaustedScorer(Tier1Scorer):
         element_term = element_id.lower().replace("_", " ")
 
         related_nodes = [
-            n for n in recent_nodes
-            if element_term in n.get("label", "").lower()
+            n for n in recent_nodes if element_term in n.get("label", "").lower()
         ]
 
         # If there are 2+ related nodes, likely has relationships
         return len(related_nodes) >= 2
 
 
-def create_element_exhausted_scorer(config: Optional[Dict[str, Any]] = None) -> ElementExhaustedScorer:
+def create_element_exhausted_scorer(
+    config: Optional[Dict[str, Any]] = None,
+) -> ElementExhaustedScorer:
     """Factory function to create ElementExhaustedScorer."""
     return ElementExhaustedScorer(config=config)

@@ -3,6 +3,7 @@ Stage 2: Save user utterance.
 
 ADR-008 Phase 3: Persist user input to the utterances table.
 """
+
 from typing import TYPE_CHECKING
 
 from datetime import datetime
@@ -52,7 +53,15 @@ class UtteranceSavingStage(TurnStage):
                 INSERT INTO utterances (id, session_id, turn_number, speaker, text, discourse_markers, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (utterance_id, context.session_id, context.turn_number, "user", context.user_input, "[]", now),
+                (
+                    utterance_id,
+                    context.session_id,
+                    context.turn_number,
+                    "user",
+                    context.user_input,
+                    "[]",
+                    now,
+                ),
             )
             await db.commit()
         finally:

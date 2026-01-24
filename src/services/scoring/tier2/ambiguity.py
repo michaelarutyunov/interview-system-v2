@@ -92,7 +92,9 @@ class AmbiguityScorer(Tier2Scorer):
 
         if node_id and recent_nodes:
             # Find the node in recent_nodes
-            target_node = next((n for n in recent_nodes if str(n.get("id")) == str(node_id)), None)
+            target_node = next(
+                (n for n in recent_nodes if str(n.get("id")) == str(node_id)), None
+            )
 
             if target_node:
                 # Get confidence from node properties
@@ -110,7 +112,11 @@ class AmbiguityScorer(Tier2Scorer):
                 hedge_count += sum(1 for word in self.hedge_words if word in text)
 
         # Calculate average confidence
-        avg_confidence = sum(confidence_values) / len(confidence_values) if confidence_values else 0.7
+        avg_confidence = (
+            sum(confidence_values) / len(confidence_values)
+            if confidence_values
+            else 0.7
+        )
 
         # Determine ambiguity level
         if avg_confidence > self.high_clarity_threshold and hedge_count == 0:
@@ -120,7 +126,9 @@ class AmbiguityScorer(Tier2Scorer):
         elif avg_confidence < self.low_clarity_threshold or hedge_count >= 2:
             # Low clarity - strong boost for clarification
             raw_score = 1.5
-            reasoning = f"Low clarity (confidence: {avg_confidence:.2f}, hedges: {hedge_count})"
+            reasoning = (
+                f"Low clarity (confidence: {avg_confidence:.2f}, hedges: {hedge_count})"
+            )
         else:
             # Medium clarity - moderate boost
             raw_score = 1.2
@@ -141,4 +149,6 @@ class AmbiguityScorer(Tier2Scorer):
             reasoning=reasoning,
         )
 
-        return self.make_output(raw_score=raw_score, signals=signals, reasoning=reasoning)
+        return self.make_output(
+            raw_score=raw_score, signals=signals, reasoning=reasoning
+        )

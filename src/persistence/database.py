@@ -139,11 +139,8 @@ async def check_database_health() -> dict:
                 "status": "healthy",
                 "session_count": session_count,
                 "integrity": integrity[0] if integrity else "unknown",
-                "path": str(settings.database_path)
+                "path": str(settings.database_path),
             }
     except Exception as e:
         log.error("database_health_check_failed", error=str(e))
-        return {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+        return {"status": "unhealthy", "error": str(e)}

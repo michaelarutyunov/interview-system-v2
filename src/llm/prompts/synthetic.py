@@ -24,13 +24,13 @@ PERSONAS: Dict[str, Dict[str, Any]] = {
             "reads nutrition labels carefully",
             "values organic and natural ingredients",
             "avoids artificial additives and preservatives",
-            "willing to pay more for health benefits"
+            "willing to pay more for health benefits",
         ],
         "speech_pattern": (
             "Uses health-related terminology (nutrients, ingredients, wellness), "
             "focuses on how products affect their body and long-term health, "
             "mentions specific health concerns or goals"
-        )
+        ),
     },
     "price_sensitive": {
         "name": "Budget-Conscious Shopper",
@@ -39,13 +39,13 @@ PERSONAS: Dict[str, Dict[str, Any]] = {
             "looks for sales and discounts",
             "prioritizes value over premium features",
             "budget-conscious but not cheap",
-            "seeks cost-effective alternatives"
+            "seeks cost-effective alternatives",
         ],
         "speech_pattern": (
             "Mentions price, value, deals, and budget considerations, "
             "compares costs and benefits, talks about getting the most for their money, "
             "references shopping around for better prices"
-        )
+        ),
     },
     "convenience_seeker": {
         "name": "Busy Professional",
@@ -54,13 +54,13 @@ PERSONAS: Dict[str, Dict[str, Any]] = {
             "prioritizes convenience and ease of use",
             "seeks quick and simple solutions",
             "often on-the-go or multi-tasking",
-            "appreciates grab-and-go options"
+            "appreciates grab-and-go options",
         ],
         "speech_pattern": (
             "Focuses on convenience, time-saving, and simplicity, "
             "mentions busy schedule and need for quick solutions, "
             "values products that fit into their fast-paced lifestyle"
-        )
+        ),
     },
     "quality_focused": {
         "name": "Quality Enthusiast",
@@ -69,13 +69,13 @@ PERSONAS: Dict[str, Dict[str, Any]] = {
             "values superior taste and experience",
             "seeks the best products regardless of price",
             "knowledgeable about product characteristics",
-            "enjoys discovering and trying premium options"
+            "enjoys discovering and trying premium options",
         ],
         "speech_pattern": (
             "Uses descriptive language about taste, texture, and quality, "
             "appreciates nuanced differences between products, "
             "values authenticity and craftsmanship, mentions premium aspects"
-        )
+        ),
     },
     "sustainability_minded": {
         "name": "Environmentally Conscious Consumer",
@@ -84,13 +84,13 @@ PERSONAS: Dict[str, Dict[str, Any]] = {
             "values sustainable packaging and sourcing",
             "willing to pay more for eco-friendly options",
             "researches company ethics and practices",
-            "makes choices based on carbon footprint"
+            "makes choices based on carbon footprint",
         ],
         "speech_pattern": (
             "Focuses on sustainability, environmental impact, and ethics, "
             "mentions packaging, sourcing, and company values, "
             "talks about making a difference through consumer choices"
-        )
+        ),
     },
 }
 
@@ -203,7 +203,7 @@ def get_synthetic_user_prompt(
 
         prompt_parts.append(f"- Product: {product_name}")
         prompt_parts.append(f"- turn {turn_number}")
-        prompt_parts.append(f"- {coverage*100:.0f}% coverage")
+        prompt_parts.append(f"- {coverage * 100:.0f}% coverage")
         prompt_parts.append("")
 
     # Add the question
@@ -258,7 +258,4 @@ def get_available_personas() -> Dict[str, str]:
     Returns:
         Dict mapping persona_id to persona_name
     """
-    return {
-        persona_id: config["name"]
-        for persona_id, config in PERSONAS.items()
-    }
+    return {persona_id: config["name"] for persona_id, config in PERSONAS.items()}

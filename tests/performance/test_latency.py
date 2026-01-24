@@ -10,7 +10,11 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 from src.services.session_service import SessionService, TurnResult
-from src.domain.models.extraction import ExtractionResult, ExtractedConcept, ExtractedRelationship
+from src.domain.models.extraction import (
+    ExtractionResult,
+    ExtractedConcept,
+    ExtractedRelationship,
+)
 from src.domain.models.knowledge_graph import GraphState, KGNode
 from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
@@ -36,15 +40,19 @@ def mock_session_repo():
 def mock_graph_repo():
     """Create mock graph repository."""
     repo = AsyncMock(spec=GraphRepository)
-    repo.get_graph_state = AsyncMock(return_value=GraphState(
-        node_count=5,
-        edge_count=3,
-        nodes_by_type={"attribute": 3, "consequence": 2}
-    ))
-    repo.get_nodes_by_session = AsyncMock(return_value=[
-        KGNode(id="n1", session_id="s1", label="quality", node_type="attribute"),
-        KGNode(id="n2", session_id="s1", label="satisfaction", node_type="consequence"),
-    ])
+    repo.get_graph_state = AsyncMock(
+        return_value=GraphState(
+            node_count=5, edge_count=3, nodes_by_type={"attribute": 3, "consequence": 2}
+        )
+    )
+    repo.get_nodes_by_session = AsyncMock(
+        return_value=[
+            KGNode(id="n1", session_id="s1", label="quality", node_type="attribute"),
+            KGNode(
+                id="n2", session_id="s1", label="satisfaction", node_type="consequence"
+            ),
+        ]
+    )
     return repo
 
 
@@ -56,31 +64,37 @@ def mock_services():
     question_service = AsyncMock()
 
     # Configure realistic responses
-    extraction_service.extract = AsyncMock(return_value=ExtractionResult(
-        concepts=[
-            ExtractedConcept(text="quality", node_type="attribute", confidence=0.9),
-            ExtractedConcept(text="satisfaction", node_type="consequence", confidence=0.85),
-        ],
-        relationships=[
-            ExtractedRelationship(
-                source_text="quality",
-                target_text="satisfaction",
-                relationship_type="leads_to",
-                confidence=0.8
-            )
-        ],
-        is_extractable=True
-    ))
+    extraction_service.extract = AsyncMock(
+        return_value=ExtractionResult(
+            concepts=[
+                ExtractedConcept(text="quality", node_type="attribute", confidence=0.9),
+                ExtractedConcept(
+                    text="satisfaction", node_type="consequence", confidence=0.85
+                ),
+            ],
+            relationships=[
+                ExtractedRelationship(
+                    source_text="quality",
+                    target_text="satisfaction",
+                    relationship_type="leads_to",
+                    confidence=0.8,
+                )
+            ],
+            is_extractable=True,
+        )
+    )
 
     graph_service.add_extraction_to_graph = AsyncMock(return_value=([], []))
-    graph_service.get_graph_state = AsyncMock(return_value=GraphState(
-        node_count=5,
-        edge_count=3,
-        nodes_by_type={"attribute": 3, "consequence": 2}
-    ))
-    graph_service.get_recent_nodes = AsyncMock(return_value=[
-        KGNode(id="n1", session_id="s1", label="quality", node_type="attribute")
-    ])
+    graph_service.get_graph_state = AsyncMock(
+        return_value=GraphState(
+            node_count=5, edge_count=3, nodes_by_type={"attribute": 3, "consequence": 2}
+        )
+    )
+    graph_service.get_recent_nodes = AsyncMock(
+        return_value=[
+            KGNode(id="n1", session_id="s1", label="quality", node_type="attribute")
+        ]
+    )
 
     question_service.generate_question = AsyncMock(
         return_value="Can you tell me more about why quality is important to you?"
@@ -90,7 +104,7 @@ def mock_services():
     return {
         "extraction": extraction_service,
         "graph": graph_service,
-        "question": question_service
+        "question": question_service,
     }
 
 
@@ -178,7 +192,7 @@ class TestTurnLatency:
             start = time.perf_counter()
             await session_service.process_turn(
                 session_id="test-session",
-                user_input=f"This is turn {i+1} of my feedback.",
+                user_input=f"This is turn {i + 1} of my feedback.",
             )
             latency_ms = (time.perf_counter() - start) * 1000
             latencies.append(latency_ms)
@@ -199,9 +213,7 @@ class TestTurnLatency:
         print(f"Average: {avg_latency:.0f}ms, Max: {max_latency:.0f}ms")
 
     @pytest.mark.asyncio
-    async def test_graph_query_latency(
-        self, mock_graph_repo, mock_services
-    ):
+    async def test_graph_query_latency(self, mock_graph_repo, mock_services):
         """
         Graph state queries complete quickly.
 
@@ -225,9 +237,7 @@ class TestTurnLatency:
         print(f"\nGraph query latency: {latency_ms:.0f}ms")
 
     @pytest.mark.asyncio
-    async def test_export_latency(
-        self, mock_graph_repo
-    ):
+    async def test_export_latency(self, mock_graph_repo):
         """
         Graph export completes in reasonable time.
 
@@ -242,7 +252,7 @@ class TestTurnLatency:
                     id=f"n{i}",
                     session_id="s1",
                     label=f"concept_{i}",
-                    node_type="attribute"
+                    node_type="attribute",
                 )
                 for i in range(50)
             ]
@@ -291,13 +301,15 @@ class TestThroughput:
         ]
 
         # Setup mocks for all sessions
-        mock_session_repo.get = AsyncMock(return_value=MagicMock(
-            id="test-session",
-            methodology="means_end_chain",
-            concept_id="test-concept",
-            config={"concept_name": "Test Product"},
-            turn_count=1
-        ))
+        mock_session_repo.get = AsyncMock(
+            return_value=MagicMock(
+                id="test-session",
+                methodology="means_end_chain",
+                concept_id="test-concept",
+                config={"concept_name": "Test Product"},
+                turn_count=1,
+            )
+        )
         cursor = AsyncMock()
         cursor.fetchall = AsyncMock(return_value=[])
         mock_session_repo.db.execute = AsyncMock(return_value=cursor)
@@ -425,5 +437,7 @@ class TestLatencyPercentiles:
 
         print("\nLatency percentiles:")
         print(f"  p50 (median): {p50:.0f}ms")
-        print(f"  p95:          {p95:.0f}ms (PRD target: {PRD_LATENCY_P95_TARGET_MS}ms)")
+        print(
+            f"  p95:          {p95:.0f}ms (PRD target: {PRD_LATENCY_P95_TARGET_MS}ms)"
+        )
         print(f"  p99:          {p99:.0f}ms")

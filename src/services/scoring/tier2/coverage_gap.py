@@ -40,7 +40,8 @@ class CoverageGapScorer(Tier2Scorer):
 
         # Gap types to consider
         self.gap_types = self.params.get(
-            "gap_types", ["unmentioned", "no_reaction", "no_comprehension", "unconnected"]
+            "gap_types",
+            ["unmentioned", "no_reaction", "no_comprehension", "unconnected"],
         )
 
         # Boost per gap addressed
@@ -121,9 +122,8 @@ class CoverageGapScorer(Tier2Scorer):
             "strategy_type": strategy_type,
         }
 
-        reasoning = (
-            f"Addresses {gaps_addressed} coverage gap(s)"
-            + (f": {', '.join(gap_details)}" if gap_details else "")
+        reasoning = f"Addresses {gaps_addressed} coverage gap(s)" + (
+            f": {', '.join(gap_details)}" if gap_details else ""
         )
 
         logger.debug(
@@ -133,4 +133,6 @@ class CoverageGapScorer(Tier2Scorer):
             reasoning=reasoning,
         )
 
-        return self.make_output(raw_score=raw_score, signals=signals, reasoning=reasoning)
+        return self.make_output(
+            raw_score=raw_score, signals=signals, reasoning=reasoning
+        )

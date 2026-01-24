@@ -35,9 +35,12 @@ def get_clusters(graph: nx.Graph, turn_number: int) -> Dict[str, int]:
 
     try:
         import community  # python-louvain package
+
         partition = community.best_partition(graph)
         _cluster_cache[turn_number] = partition
-        logger.info(f"Computed {len(set(partition.values()))} clusters for turn {turn_number}")
+        logger.info(
+            f"Computed {len(set(partition.values()))} clusters for turn {turn_number}"
+        )
         return partition
     except ImportError:
         logger.warning("python-louvain not available, using connected components")
@@ -60,10 +63,7 @@ def clear_cluster_cache():
     logger.debug("Cluster cache cleared")
 
 
-def get_cluster_nodes(
-    focus_node: str,
-    clusters: Dict[str, int]
-) -> set:
+def get_cluster_nodes(focus_node: str, clusters: Dict[str, int]) -> set:
     """Get all nodes in the same cluster as focus_node.
 
     Args:
@@ -80,9 +80,7 @@ def get_cluster_nodes(
 
 
 def local_cluster_density(
-    focus_node: str,
-    graph: nx.Graph,
-    clusters: Optional[Dict[str, int]] = None
+    focus_node: str, graph: nx.Graph, clusters: Optional[Dict[str, int]] = None
 ) -> float:
     """Density of the cluster containing focus_node.
 
@@ -113,10 +111,7 @@ def local_cluster_density(
     return 2 * e / (n * (n - 1))
 
 
-def cluster_size(
-    focus_node: str,
-    clusters: Dict[str, int]
-) -> int:
+def cluster_size(focus_node: str, clusters: Dict[str, int]) -> int:
     """Number of nodes in the cluster containing focus_node.
 
     Args:
@@ -129,10 +124,7 @@ def cluster_size(
     return len(get_cluster_nodes(focus_node, clusters))
 
 
-def largest_cluster_ratio(
-    graph: nx.Graph,
-    clusters: Dict[str, int]
-) -> float:
+def largest_cluster_ratio(graph: nx.Graph, clusters: Dict[str, int]) -> float:
     """Size of largest cluster / total nodes.
 
     Args:
@@ -154,10 +146,7 @@ def largest_cluster_ratio(
 
 
 def has_peripheral_candidates(
-    focus_node: str,
-    graph: nx.Graph,
-    clusters: Dict[str, int],
-    max_hops: int = 2
+    focus_node: str, graph: nx.Graph, clusters: Dict[str, int], max_hops: int = 2
 ) -> Tuple[int, float]:
     """Count unvisited nodes within max_hops of focus_node's cluster.
 
@@ -185,7 +174,7 @@ def has_peripheral_candidates(
             neighbor_cluster = clusters.get(neighbor)
             if neighbor_cluster != focus_cluster:
                 # Add relevance score if available
-                relevance = data.get('relevance', 0.5)
+                relevance = data.get("relevance", 0.5)
                 candidates.add((neighbor, relevance))
 
     # Filter by relevance threshold
@@ -201,9 +190,7 @@ def has_peripheral_candidates(
 
 
 def has_opposite_stance_node(
-    focus_node: str,
-    graph: nx.Graph,
-    clusters: Optional[Dict[str, int]] = None
+    focus_node: str, graph: nx.Graph, clusters: Optional[Dict[str, int]] = None
 ) -> bool:
     """Check if any node has opposite stance to focus_node.
 
@@ -219,11 +206,11 @@ def has_opposite_stance_node(
         True if an opposite-stance node exists, False otherwise
     """
     # Get stance from node data
-    if hasattr(graph.nodes[focus_node], 'stance'):
-        focus_stance = graph.nodes[focus_node]['stance']
+    if hasattr(graph.nodes[focus_node], "stance"):
+        focus_stance = graph.nodes[focus_node]["stance"]
     else:
         # Fallback: check in node data dict
-        focus_stance = graph.nodes.get(focus_node, {}).get('stance', 0)
+        focus_stance = graph.nodes.get(focus_node, {}).get("stance", 0)
 
     # Neutral focus has no opposite
     if focus_stance == 0:
@@ -233,7 +220,7 @@ def has_opposite_stance_node(
 
     # Search for opposite stance
     for node, data in graph.nodes(data=True):
-        node_stance = data.get('stance', 0)
+        node_stance = data.get("stance", 0)
         if node_stance == target_stance:
             return True
 
@@ -241,9 +228,7 @@ def has_opposite_stance_node(
 
 
 def median_cluster_degree(
-    focus_node: str,
-    graph: nx.Graph,
-    clusters: Dict[str, int]
+    focus_node: str, graph: nx.Graph, clusters: Dict[str, int]
 ) -> float:
     """Median degree of nodes in focus_node's cluster.
 
@@ -265,15 +250,12 @@ def median_cluster_degree(
 
     n = len(degrees)
     if n % 2 == 0:
-        return (degrees[n//2 - 1] + degrees[n//2]) / 2
+        return (degrees[n // 2 - 1] + degrees[n // 2]) / 2
     else:
-        return degrees[n//2]
+        return degrees[n // 2]
 
 
-def turns_since_last_cluster_jump(
-    conversation_history: list,
-    current_turn: int
-) -> int:
+def turns_since_last_cluster_jump(conversation_history: list, current_turn: int) -> int:
     """Calculate turns since the last cluster jump.
 
     A cluster jump occurs when the strategy switches from one cluster
@@ -289,8 +271,8 @@ def turns_since_last_cluster_jump(
     """
     # Look backwards through history for last bridge strategy
     for i, turn in enumerate(reversed(conversation_history[-10:])):  # Last 10 turns
-        strategy = turn.get('strategy', {})
-        if strategy.get('id') == 'bridge':
+        strategy = turn.get("strategy", {})
+        if strategy.get("id") == "bridge":
             return i
 
     # No bridge found, use conversation length as proxy
@@ -328,7 +310,7 @@ def _local_cluster_density(focus: str, graph_state) -> float:
     """
     # Extract node ID from focus if it's a dict
     if isinstance(focus, dict):
-        node_id = focus.get('id', focus.get('node_id'))
+        node_id = focus.get("id", focus.get("node_id"))
     else:
         node_id = focus
 
@@ -350,7 +332,7 @@ def _has_opposite_stance_node(focus: str, graph_state) -> bool:
     """
     # Extract node ID from focus if it's a dict
     if isinstance(focus, dict):
-        node_id = focus.get('id', focus.get('node_id'))
+        node_id = focus.get("id", focus.get("node_id"))
     else:
         node_id = focus
 
@@ -385,7 +367,7 @@ def _cluster_size(focus: str, graph_state) -> int:
     """
     # Extract node ID from focus if it's a dict
     if isinstance(focus, dict):
-        node_id = focus.get('id', focus.get('node_id'))
+        node_id = focus.get("id", focus.get("node_id"))
     else:
         node_id = focus
 

@@ -26,12 +26,12 @@ class GraphVisualizer:
 
     # Node type colors (MEC methodology)
     NODE_COLORS = {
-        "attribute": "#FF6B6B",           # Red
+        "attribute": "#FF6B6B",  # Red
         "functional_consequence": "#4ECDC4",  # Teal
-        "psychosocial_consequence": "#95E1D3", # Mint
-        "instrumental_value": "#FFE66D",   # Yellow
-        "terminal_value": "#6C5CE7",       # Purple
-        "unknown": "#DFE6E9",              # Gray
+        "psychosocial_consequence": "#95E1D3",  # Mint
+        "instrumental_value": "#FFE66D",  # Yellow
+        "terminal_value": "#6C5CE7",  # Purple
+        "unknown": "#DFE6E9",  # Gray
     }
 
     NODE_SIZE_DEFAULT = 30
@@ -111,7 +111,9 @@ class GraphVisualizer:
         edges = graph_data.get("edges", [])
 
         if not nodes:
-            st.info("📊 No nodes to display yet. Start the interview to extract concepts.")
+            st.info(
+                "📊 No nodes to display yet. Start the interview to extract concepts."
+            )
             return None
 
         # Filter nodes by type
@@ -119,8 +121,10 @@ class GraphVisualizer:
             nodes = [n for n in nodes if n.get("node_type") in controls["node_filter"]]
             node_ids = {n["id"] for n in nodes}
             edges = [
-                e for e in edges
-                if e.get("source_node_id") in node_ids and e.get("target_node_id") in node_ids
+                e
+                for e in edges
+                if e.get("source_node_id") in node_ids
+                and e.get("target_node_id") in node_ids
             ]
 
         # Build NetworkX graph
@@ -133,7 +137,7 @@ class GraphVisualizer:
                 edge["source_node_id"],
                 edge["target_node_id"],
                 edge_type=edge.get("edge_type", "leads_to"),
-                **edge
+                **edge,
             )
 
         # Compute layout
@@ -150,7 +154,7 @@ class GraphVisualizer:
         fig.update_layout(
             title=f"Knowledge Graph ({len(nodes)} nodes, {len(edges)} edges)",
             showlegend=False,
-            hovermode='closest',
+            hovermode="closest",
             margin=dict(b=0, l=0, r=0, t=40),
             height=500,
         )
@@ -178,13 +182,16 @@ class GraphVisualizer:
             edge_x.extend([x0, x1, None])
             edge_y.extend([y0, y1, None])
 
-        fig.add_trace(go.Scatter(
-            x=edge_x, y=edge_y,
-            line=dict(width=self.EDGE_WIDTH_DEFAULT, color='#888'),
-            hoverinfo='none',
-            mode='lines',
-            name='edges',
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=edge_x,
+                y=edge_y,
+                line=dict(width=self.EDGE_WIDTH_DEFAULT, color="#888"),
+                hoverinfo="none",
+                mode="lines",
+                name="edges",
+            )
+        )
 
         # Prepare node traces
         node_x = []
@@ -218,20 +225,23 @@ class GraphVisualizer:
             hover += f"Confidence: {confidence:.2f}"
             hover_texts.append(hover)
 
-        fig.add_trace(go.Scatter(
-            x=node_x, y=node_y,
-            mode='markers+text' if controls["show_labels"] else 'markers',
-            marker=dict(
-                size=node_sizes,
-                color=node_colors,
-                line=dict(width=2, color='white'),
-            ),
-            text=node_text if controls["show_labels"] else None,
-            textposition='middle center',
-            hovertext=hover_texts,
-            hoverinfo='text',
-            name='nodes',
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=node_x,
+                y=node_y,
+                mode="markers+text" if controls["show_labels"] else "markers",
+                marker=dict(
+                    size=node_sizes,
+                    color=node_colors,
+                    line=dict(width=2, color="white"),
+                ),
+                text=node_text if controls["show_labels"] else None,
+                textposition="middle center",
+                hovertext=hover_texts,
+                hoverinfo="text",
+                name="nodes",
+            )
+        )
 
         return fig
 
@@ -261,13 +271,17 @@ class GraphVisualizer:
             edge_y.extend([y0, y1, None])
             edge_z.extend([z0, z1, None])
 
-        fig.add_trace(go.Scatter3d(
-            x=edge_x, y=edge_y, z=edge_z,
-            mode='lines',
-            line=dict(width=self.EDGE_WIDTH_DEFAULT, color='#888'),
-            hoverinfo='none',
-            name='edges',
-        ))
+        fig.add_trace(
+            go.Scatter3d(
+                x=edge_x,
+                y=edge_y,
+                z=edge_z,
+                mode="lines",
+                line=dict(width=self.EDGE_WIDTH_DEFAULT, color="#888"),
+                hoverinfo="none",
+                name="edges",
+            )
+        )
 
         # Node traces
         node_x = []
@@ -295,18 +309,22 @@ class GraphVisualizer:
             hover += f"Confidence: {confidence:.2f}"
             hover_texts.append(hover)
 
-        fig.add_trace(go.Scatter3d(
-            x=node_x, y=node_y, z=node_z,
-            mode='markers',
-            marker=dict(
-                size=node_sizes,
-                color=node_colors,
-                line=dict(width=1, color='white'),
-            ),
-            hovertext=hover_texts,
-            hoverinfo='text',
-            name='nodes',
-        ))
+        fig.add_trace(
+            go.Scatter3d(
+                x=node_x,
+                y=node_y,
+                z=node_z,
+                mode="markers",
+                marker=dict(
+                    size=node_sizes,
+                    color=node_colors,
+                    line=dict(width=1, color="white"),
+                ),
+                hovertext=hover_texts,
+                hoverinfo="text",
+                name="nodes",
+            )
+        )
 
         fig.update_layout(
             scene=dict(

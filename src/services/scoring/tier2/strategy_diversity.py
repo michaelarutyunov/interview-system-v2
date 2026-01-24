@@ -83,7 +83,7 @@ class StrategyDiversityScorer(Tier2Scorer):
 
         # Count recent uses of this strategy
         recent_uses = 0
-        for hist_strategy_id in strategy_history[-self.lookback_window:]:
+        for hist_strategy_id in strategy_history[-self.lookback_window :]:
             if hist_strategy_id == strategy_id:
                 recent_uses += 1
 
@@ -105,7 +105,9 @@ class StrategyDiversityScorer(Tier2Scorer):
             "strategy_id": strategy_id,
             "recent_uses": recent_uses,
             "lookback_window": self.lookback_window,
-            "strategy_history": strategy_history[-self.lookback_window:] if strategy_history else [],
+            "strategy_history": strategy_history[-self.lookback_window :]
+            if strategy_history
+            else [],
         }
 
         logger.debug(
@@ -116,4 +118,6 @@ class StrategyDiversityScorer(Tier2Scorer):
             reasoning=reasoning,
         )
 
-        return self.make_output(raw_score=raw_score, signals=signals, reasoning=reasoning)
+        return self.make_output(
+            raw_score=raw_score, signals=signals, reasoning=reasoning
+        )

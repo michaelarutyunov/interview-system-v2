@@ -1,6 +1,5 @@
 """Tests for question prompts."""
 
-
 from src.llm.prompts.question import (
     get_question_system_prompt,
     get_question_user_prompt,
@@ -95,8 +94,7 @@ class TestOpeningQuestionPrompts:
     def test_user_prompt_includes_description(self):
         """User prompt includes description when provided."""
         prompt = get_opening_question_user_prompt(
-            "Oat Milk",
-            description="Plant-based milk alternative"
+            "Oat Milk", description="Plant-based milk alternative"
         )
         assert "Plant-based" in prompt
 

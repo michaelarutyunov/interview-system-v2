@@ -60,6 +60,7 @@ class ExtractionService:
         self.llm = llm_client or get_llm_client()
         self.skip_extractability_check = skip_extractability_check
         self.min_word_count = min_word_count
+        self.methodology = methodology
         self.schema = load_methodology(methodology)
 
         log.info(
@@ -165,9 +166,20 @@ class ExtractionService:
         # Yes/no response check
         normalized = text.lower().strip()
         yes_no_responses = {
-            "yes", "no", "yeah", "nope", "yep", "nah",
-            "sure", "okay", "ok", "fine", "right",
-            "uh huh", "mm hmm", "mhm",
+            "yes",
+            "no",
+            "yeah",
+            "nope",
+            "yep",
+            "nah",
+            "sure",
+            "okay",
+            "ok",
+            "fine",
+            "right",
+            "uh huh",
+            "mm hmm",
+            "mhm",
         }
         if normalized in yes_no_responses:
             return False, "Yes/no or minimal response"
@@ -318,7 +330,7 @@ class ExtractionService:
 
         # Then LLM check
         try:
-            system_prompt = get_extractability_system_prompt()
+            system_prompt = get_extractability_system_prompt(self.methodology)
             user_prompt = get_extractability_user_prompt(text)
 
             response = await self.llm.complete(

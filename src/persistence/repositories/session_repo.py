@@ -1,4 +1,5 @@
 """Session repository for database operations."""
+
 import json
 from datetime import datetime
 from typing import Optional, Dict, Any
@@ -15,7 +16,9 @@ class SessionRepository:
     def __init__(self, db_path: str):
         self.db_path = db_path
 
-    async def create(self, session: Session, config: Optional[Dict[str, Any]] = None) -> Session:
+    async def create(
+        self, session: Session, config: Optional[Dict[str, Any]] = None
+    ) -> Session:
         """Create a new session."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -24,9 +27,16 @@ class SessionRepository:
                 "INSERT INTO sessions (id, methodology, concept_id, concept_name, status, "
                 "config, turn_count, coverage_score, created_at, updated_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
-                (session.id, session.methodology, session.concept_id,
-                 session.concept_name, session.status, config_json,
-                 session.state.turn_count, session.state.coverage_score)
+                (
+                    session.id,
+                    session.methodology,
+                    session.concept_id,
+                    session.concept_name,
+                    session.status,
+                    config_json,
+                    session.state.turn_count,
+                    session.state.coverage_score,
+                ),
             )
             await db.commit()
 
@@ -58,7 +68,7 @@ class SessionRepository:
                 "UPDATE sessions SET "
                 "turn_count = ?, coverage_score = ?, updated_at = datetime('now') "
                 "WHERE id = ?",
-                (state.turn_count, state.coverage_score, session_id)
+                (state.turn_count, state.coverage_score, session_id),
             )
             await db.commit()
 
@@ -88,7 +98,7 @@ class SessionRepository:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 "SELECT * FROM utterances WHERE session_id = ? ORDER BY turn_number",
-                (session_id,)
+                (session_id,),
             )
             rows = await cursor.fetchall()
             return [self._row_to_utterance(row) for row in rows]
@@ -99,7 +109,7 @@ class SessionRepository:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 "SELECT * FROM scoring_history WHERE session_id = ? ORDER BY turn_number",
-                (session_id,)
+                (session_id,),
             )
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
@@ -109,8 +119,7 @@ class SessionRepository:
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
-                "SELECT config FROM sessions WHERE id = ?",
-                (session_id,)
+                "SELECT config FROM sessions WHERE id = ?", (session_id,)
             )
             row = await cursor.fetchone()
             if row:
@@ -147,7 +156,7 @@ class SessionRepository:
                     strategy_selected,
                     strategy_reasoning,
                     json.dumps(scorer_details or {}),
-                )
+                ),
             )
             await db.commit()
 
@@ -190,7 +199,7 @@ class SessionRepository:
                     json.dumps(tier1_results or []),
                     json.dumps(tier2_results or []),
                     reasoning,
-                )
+                ),
             )
             await db.commit()
 
@@ -267,8 +276,10 @@ class SessionRepository:
             turn_number=row["turn_number"],
             speaker=row["speaker"],
             text=row["text"],
-            discourse_markers=json.loads(row["discourse_markers"]) if row["discourse_markers"] else [],
-            created_at=datetime.fromisoformat(row["created_at"])
+            discourse_markers=json.loads(row["discourse_markers"])
+            if row["discourse_markers"]
+            else [],
+            created_at=datetime.fromisoformat(row["created_at"]),
         )
 
     def _row_to_session(self, row: aiosqlite.Row) -> Session:
@@ -291,6 +302,6 @@ class SessionRepository:
                 concept_name=row["concept_name"],
                 turn_count=row["turn_count"],
                 coverage_score=row["coverage_score"] or 0.0,
-                last_strategy=None  # Not stored in DB, computed on-demand
-            )
+                last_strategy=None,  # Not stored in DB, computed on-demand
+            ),
         )

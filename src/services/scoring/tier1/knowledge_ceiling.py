@@ -48,7 +48,7 @@ class KnowledgeCeilingScorer(Tier1Scorer):
                 "haven't tried",
                 "can't say",
                 "not familiar",
-            ]
+            ],
         )
 
         logger.info(
@@ -111,7 +111,11 @@ class KnowledgeCeilingScorer(Tier1Scorer):
                 if pattern in response_lower:
                     # Check if it's related to the focus topic
                     # Simple heuristic: if pattern appears near topic terms
-                    if any(term.lower() in response_lower for term in topic_terms if len(term) > 3):
+                    if any(
+                        term.lower() in response_lower
+                        for term in topic_terms
+                        if len(term) > 3
+                    ):
                         knowledge_lack_detected = True
                         matched_patterns.append(f"{pattern} (near topic)")
                         break
@@ -173,8 +177,10 @@ class KnowledgeCeilingScorer(Tier1Scorer):
             # Split into meaningful terms (filter out common words)
             words = focus_description.lower().split()
             meaningful_words = [
-                w for w in words
-                if len(w) > 3 and w not in {"deepen", "cover", "explore", "understanding"}
+                w
+                for w in words
+                if len(w) > 3
+                and w not in {"deepen", "cover", "explore", "understanding"}
             ]
             terms.extend(meaningful_words[:5])  # Top 5 words
 
@@ -191,6 +197,8 @@ class KnowledgeCeilingScorer(Tier1Scorer):
         return list(set(terms))  # Remove duplicates
 
 
-def create_knowledge_ceiling_scorer(config: Optional[Dict[str, Any]] = None) -> KnowledgeCeilingScorer:
+def create_knowledge_ceiling_scorer(
+    config: Optional[Dict[str, Any]] = None,
+) -> KnowledgeCeilingScorer:
     """Factory function to create KnowledgeCeilingScorer."""
     return KnowledgeCeilingScorer(config=config)

@@ -80,9 +80,7 @@ class InterviewState(ABC):
 
     @abstractmethod
     def get_focus_candidates(
-        self,
-        graph: GraphState,
-        nodes: Optional[List["KGNode"]] = None
+        self, graph: GraphState, nodes: Optional[List["KGNode"]] = None
     ) -> List[FocusCandidate]:
         """
         Return potential focus items for next question.
@@ -234,7 +232,10 @@ class CoverageState(InterviewState):
         """
         # Extract config values with defaults from interview_config
         from src.core.config import interview_config
-        target_coverage = getattr(config, "target_coverage", interview_config.session.target_coverage)
+
+        target_coverage = getattr(
+            config, "target_coverage", interview_config.session.target_coverage
+        )
         min_turns = getattr(config, "min_turns", interview_config.session.min_turns)
         max_turns = getattr(config, "max_turns", interview_config.session.max_turns)
 
@@ -257,9 +258,7 @@ class CoverageState(InterviewState):
         return False
 
     def get_focus_candidates(
-        self,
-        graph: GraphState,
-        nodes: Optional[List["KGNode"]] = None
+        self, graph: GraphState, nodes: Optional[List["KGNode"]] = None
     ) -> List[FocusCandidate]:
         """
         Return focus candidates based on topic coverage needs.
@@ -287,10 +286,7 @@ class CoverageState(InterviewState):
                 # Uncovered topic - high priority
                 candidates.append(
                     FocusCandidate(
-                        type="topic",
-                        id=topic_id,
-                        priority="high",
-                        reason="uncovered"
+                        type="topic", id=topic_id, priority="high", reason="uncovered"
                     )
                 )
             elif topic.is_incomplete():
@@ -300,7 +296,7 @@ class CoverageState(InterviewState):
                         type="topic",
                         id=topic_id,
                         priority="medium",
-                        reason="incomplete"
+                        reason="incomplete",
                     )
                 )
 
@@ -319,7 +315,7 @@ class CoverageState(InterviewState):
         depth_score: Optional[float] = None,
         saturation: Optional[float] = None,
         node_id: Optional[str] = None,
-        turn_number: Optional[int] = None
+        turn_number: Optional[int] = None,
     ) -> None:
         """
         Update topic state.
@@ -442,6 +438,7 @@ class EmergenceState(InterviewState):
             True if interview should close, False otherwise
         """
         from src.core.config import interview_config
+
         min_turns = getattr(config, "min_turns", interview_config.session.min_turns)
         max_turns = getattr(config, "max_turns", interview_config.session.max_turns)
 
@@ -461,9 +458,7 @@ class EmergenceState(InterviewState):
         return False
 
     def get_focus_candidates(
-        self,
-        graph: GraphState,
-        nodes: Optional[List["KGNode"]] = None
+        self, graph: GraphState, nodes: Optional[List["KGNode"]] = None
     ) -> List[FocusCandidate]:
         """
         Return focus candidates based on graph emergence.
@@ -500,7 +495,7 @@ class EmergenceState(InterviewState):
                         id=node.id,
                         priority="high",
                         reason="novel",
-                        label=node.label
+                        label=node.label,
                     )
                 )
 
@@ -513,7 +508,7 @@ class EmergenceState(InterviewState):
                             type="node",
                             id=node_id,
                             priority="medium",
-                            reason=f"theme:{theme_id}"
+                            reason=f"theme:{theme_id}",
                         )
                     )
 
@@ -521,12 +516,13 @@ class EmergenceState(InterviewState):
 
     # Theme management helpers
 
-    def get_or_create_theme(self, theme_id: str, label: Optional[str] = None) -> ThemeState:
+    def get_or_create_theme(
+        self, theme_id: str, label: Optional[str] = None
+    ) -> ThemeState:
         """Get existing theme or create new one."""
         if theme_id not in self.themes:
             self.themes[theme_id] = ThemeState(
-                theme_id=theme_id,
-                label=label or theme_id
+                theme_id=theme_id, label=label or theme_id
             )
         return self.themes[theme_id]
 
@@ -537,12 +533,7 @@ class EmergenceState(InterviewState):
             theme.is_active = True
             theme.last_active_turn = turn_number
 
-    def add_node_to_theme(
-        self,
-        theme_id: str,
-        node_id: str,
-        turn_number: int
-    ) -> None:
+    def add_node_to_theme(self, theme_id: str, node_id: str, turn_number: int) -> None:
         """Add node to theme."""
         theme = self.get_or_create_theme(theme_id)
         theme.add_node(node_id)
@@ -562,8 +553,7 @@ class EmergenceState(InterviewState):
 
 
 def create_interview_state(
-    mode: InterviewMode,
-    topics: Optional[List[Dict[str, Any]]] = None
+    mode: InterviewMode, topics: Optional[List[Dict[str, Any]]] = None
 ) -> InterviewState:
     """
     Create interview state instance for specified mode.
@@ -588,17 +578,13 @@ def create_interview_state(
             priority = TopicPriority(topic_config.get("priority", "medium"))
 
             topic_states[topic_id] = TopicState(
-                topic_id=topic_id,
-                target_depth=_depth_for_priority(priority)
+                topic_id=topic_id, target_depth=_depth_for_priority(priority)
             )
 
         return CoverageState(topics=topic_states)
 
     else:  # GRAPH_DRIVEN
-        return EmergenceState(
-            themes={},
-            auto_discovery=True
-        )
+        return EmergenceState(themes={}, auto_discovery=True)
 
 
 def _depth_for_priority(priority: TopicPriority) -> float:
@@ -606,6 +592,6 @@ def _depth_for_priority(priority: TopicPriority) -> float:
     mapping = {
         TopicPriority.HIGH: 0.8,
         TopicPriority.MEDIUM: 0.6,
-        TopicPriority.LOW: 0.4
+        TopicPriority.LOW: 0.4,
     }
     return mapping.get(priority, 0.6)

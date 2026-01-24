@@ -113,6 +113,7 @@ class ExportService:
         session = await self.session_repo.get(session_id)
         if not session:
             from src.core.exceptions import SessionNotFoundError
+
             raise SessionNotFoundError(f"Session {session_id} not found")
 
         # Check graph_repo is available
@@ -135,7 +136,9 @@ class ExportService:
                 "concept_id": session.concept_id,
                 "methodology": session.methodology,
                 "status": session.status,
-                "created_at": session.created_at.isoformat() if session.created_at else None,
+                "created_at": session.created_at.isoformat()
+                if session.created_at
+                else None,
                 "completed_at": None,  # Session model doesn't have completed_at
                 "config": {},  # Session model doesn't have config
                 "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -159,7 +162,9 @@ class ExportService:
                         "confidence": n.confidence,
                         "properties": n.properties,
                         "source_utterance_ids": n.source_utterance_ids,
-                        "recorded_at": n.recorded_at.isoformat() if n.recorded_at else None,
+                        "recorded_at": n.recorded_at.isoformat()
+                        if n.recorded_at
+                        else None,
                     }
                     for n in nodes
                 ],
@@ -172,7 +177,9 @@ class ExportService:
                         "confidence": e.confidence,
                         "properties": e.properties,
                         "source_utterance_ids": e.source_utterance_ids,
-                        "recorded_at": e.recorded_at.isoformat() if e.recorded_at else None,
+                        "recorded_at": e.recorded_at.isoformat()
+                        if e.recorded_at
+                        else None,
                     }
                     for e in edges
                 ],
@@ -197,7 +204,7 @@ class ExportService:
         lines.append(f"**Methodology:** {meta['methodology']}")
         lines.append(f"**Status:** {meta['status']}")
         lines.append(f"**Created:** {meta.get('created_at', 'N/A')}")
-        if meta.get('completed_at'):
+        if meta.get("completed_at"):
             lines.append(f"**Completed:** {meta['completed_at']}")
         lines.append("")
 
@@ -238,7 +245,9 @@ class ExportService:
             nodes_by_type[node_type].append(node)
 
         for node_type, type_nodes in sorted(nodes_by_type.items()):
-            lines.append(f"### {node_type.replace('_', ' ').title()} ({len(type_nodes)})")
+            lines.append(
+                f"### {node_type.replace('_', ' ').title()} ({len(type_nodes)})"
+            )
             lines.append("")
             for node in type_nodes:
                 label = node["label"]
@@ -255,12 +264,18 @@ class ExportService:
             node_labels = {n["id"]: n["label"] for n in nodes}
 
             for edge in edges:
-                source_label = node_labels.get(edge["source_node_id"], edge["source_node_id"])
-                target_label = node_labels.get(edge["target_node_id"], edge["target_node_id"])
+                source_label = node_labels.get(
+                    edge["source_node_id"], edge["source_node_id"]
+                )
+                target_label = node_labels.get(
+                    edge["target_node_id"], edge["target_node_id"]
+                )
                 edge_type = edge["edge_type"]
                 confidence = edge["confidence"]
 
-                lines.append(f"- {source_label} → **{edge_type}** → {target_label} (confidence: {confidence:.2f})")
+                lines.append(
+                    f"- {source_label} → **{edge_type}** → {target_label} (confidence: {confidence:.2f})"
+                )
             lines.append("")
 
         # Footer
@@ -280,17 +295,27 @@ class ExportService:
         if nodes:
             writer = csv.DictWriter(
                 output,
-                fieldnames=["id", "label", "node_type", "confidence", "source_utterance_ids"]
+                fieldnames=[
+                    "id",
+                    "label",
+                    "node_type",
+                    "confidence",
+                    "source_utterance_ids",
+                ],
             )
             writer.writeheader()
             for node in nodes:
-                writer.writerow({
-                    "id": node["id"],
-                    "label": node["label"],
-                    "node_type": node["node_type"],
-                    "confidence": node["confidence"],
-                    "source_utterance_ids": json.dumps(node["source_utterance_ids"]),
-                })
+                writer.writerow(
+                    {
+                        "id": node["id"],
+                        "label": node["label"],
+                        "node_type": node["node_type"],
+                        "confidence": node["confidence"],
+                        "source_utterance_ids": json.dumps(
+                            node["source_utterance_ids"]
+                        ),
+                    }
+                )
         output.write("\n\n")
 
         # Edges section
@@ -299,17 +324,25 @@ class ExportService:
         if edges:
             writer = csv.DictWriter(
                 output,
-                fieldnames=["id", "source_node_id", "target_node_id", "edge_type", "confidence"]
+                fieldnames=[
+                    "id",
+                    "source_node_id",
+                    "target_node_id",
+                    "edge_type",
+                    "confidence",
+                ],
             )
             writer.writeheader()
             for edge in edges:
-                writer.writerow({
-                    "id": edge["id"],
-                    "source_node_id": edge["source_node_id"],
-                    "target_node_id": edge["target_node_id"],
-                    "edge_type": edge["edge_type"],
-                    "confidence": edge["confidence"],
-                })
+                writer.writerow(
+                    {
+                        "id": edge["id"],
+                        "source_node_id": edge["source_node_id"],
+                        "target_node_id": edge["target_node_id"],
+                        "edge_type": edge["edge_type"],
+                        "confidence": edge["confidence"],
+                    }
+                )
         output.write("\n\n")
 
         # Utterances section
@@ -318,16 +351,18 @@ class ExportService:
         if utterances:
             writer = csv.DictWriter(
                 output,
-                fieldnames=["id", "turn_number", "speaker", "text", "created_at"]
+                fieldnames=["id", "turn_number", "speaker", "text", "created_at"],
             )
             writer.writeheader()
             for utt in utterances:
-                writer.writerow({
-                    "id": utt["id"],
-                    "turn_number": utt["turn_number"],
-                    "speaker": utt["speaker"],
-                    "text": utt["text"],
-                    "created_at": utt.get("created_at", ""),
-                })
+                writer.writerow(
+                    {
+                        "id": utt["id"],
+                        "turn_number": utt["turn_number"],
+                        "speaker": utt["speaker"],
+                        "text": utt["text"],
+                        "created_at": utt.get("created_at", ""),
+                    }
+                )
 
         return output.getvalue()

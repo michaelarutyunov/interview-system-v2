@@ -1,6 +1,5 @@
 """Tests for synthetic respondent prompts."""
 
-
 from src.llm.prompts.synthetic import (
     get_synthetic_system_prompt,
     get_synthetic_user_prompt,
@@ -45,7 +44,7 @@ class TestUserPrompts:
         """User prompt works with just a question."""
         prompt = get_synthetic_user_prompt(
             question="Why is creamy texture important to you?",
-            persona="health_conscious"
+            persona="health_conscious",
         )
 
         assert "creamy texture" in prompt
@@ -55,8 +54,7 @@ class TestUserPrompts:
     def test_user_prompt_includes_persona_traits(self):
         """User prompt includes persona traits."""
         prompt = get_synthetic_user_prompt(
-            question="What do you think?",
-            persona="price_sensitive"
+            question="What do you think?", persona="price_sensitive"
         )
 
         assert "Budget-Conscious Shopper" in prompt
@@ -67,7 +65,7 @@ class TestUserPrompts:
         prompt = get_synthetic_user_prompt(
             question="Tell me more about that.",
             persona="health_conscious",
-            previous_concepts=["creamy texture", "plant-based", "satisfying"]
+            previous_concepts=["creamy texture", "plant-based", "satisfying"],
         )
 
         assert "creamy texture" in prompt
@@ -82,8 +80,8 @@ class TestUserPrompts:
             interview_context={
                 "product_name": "Oat Milk",
                 "turn_number": 5,
-                "coverage_achieved": 0.6
-            }
+                "coverage_achieved": 0.6,
+            },
         )
 
         assert "Oat Milk" in prompt
@@ -99,8 +97,8 @@ class TestUserPrompts:
             interview_context={
                 "product_name": "Oat Milk",
                 "turn_number": 3,
-                "coverage_achieved": 0.4
-            }
+                "coverage_achieved": 0.4,
+            },
         )
 
         assert "What else matters?" in prompt
@@ -165,7 +163,7 @@ class TestParseSyntheticResponse:
 
     def test_parse_whitespace_cleanup(self):
         """Cleans up extra whitespace."""
-        response = '  Response   with   spaces  '
+        response = "  Response   with   spaces  "
         parsed = parse_synthetic_response(response)
 
         assert parsed == "Response with spaces"

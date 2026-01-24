@@ -21,6 +21,7 @@ from src.domain.models.knowledge_graph import KGNode
 
 # ============ FIXTURES ============
 
+
 @pytest.fixture
 async def test_db():
     """Create and initialize test database."""
@@ -73,6 +74,7 @@ def synthetic_responses():
 
 # ============ TEST CLASS 1: TestSyntheticInterviewFlow ============
 
+
 class TestSyntheticInterviewFlow:
     """Tests for complete synthetic interview flow."""
 
@@ -117,9 +119,9 @@ class TestSyntheticInterviewFlow:
                     "concept_id": "oat-milk",
                     "config": {
                         "concept_name": "Oat Milk",
-                        "concept_description": "Plant-based milk alternative"
-                    }
-                }
+                        "concept_description": "Plant-based milk alternative",
+                    },
+                },
             )
             assert create_response.status_code == 201
             session_id = create_response.json()["id"]
@@ -131,7 +133,7 @@ class TestSyntheticInterviewFlow:
                     "question": "What comes to mind when you think about Oat Milk?",
                     "session_id": session_id,
                     "persona": "health_conscious",
-                }
+                },
             )
             assert synthetic_resp.status_code == 200
             synthetic_answer = synthetic_resp.json()["response"]
@@ -148,8 +150,8 @@ class TestSyntheticInterviewFlow:
                         "product_name": "Oat Milk",
                         "turn_number": 2,
                         "coverage_achieved": 0.3,
-                    }
-                }
+                    },
+                },
             )
             assert synthetic_resp2.status_code == 200
             synthetic_answer2 = synthetic_resp2.json()["response"]
@@ -188,7 +190,7 @@ class TestSyntheticInterviewFlow:
             # Create session
             create_resp = await client.post(
                 "/sessions",
-                json={"concept_id": "test", "config": {"concept_name": "Test"}}
+                json={"concept_id": "test", "config": {"concept_name": "Test"}},
             )
             session_id = create_resp.json()["id"]
 
@@ -206,8 +208,8 @@ class TestSyntheticInterviewFlow:
                             "product_name": "Test",
                             "turn_number": i + 1,
                             "coverage_achieved": i * 0.2,
-                        }
-                    }
+                        },
+                    },
                 )
                 assert synth_resp.status_code == 200
                 all_responses.append(synth_resp.json()["response"])
@@ -255,8 +257,12 @@ class TestSyntheticInterviewFlow:
                 json={
                     "question": "What do you think about Oat Milk?",
                     "session_id": "test-session",
-                    "personas": ["health_conscious", "price_sensitive", "quality_focused"],
-                }
+                    "personas": [
+                        "health_conscious",
+                        "price_sensitive",
+                        "quality_focused",
+                    ],
+                },
             )
 
             assert multi_resp.status_code == 200
@@ -275,13 +281,23 @@ class TestSyntheticInterviewFlow:
             quality_response = responses[2]["response"]
 
             # Health-focused response mentions health
-            assert "health" in health_response.lower() or "natural" in health_response.lower()
+            assert (
+                "health" in health_response.lower()
+                or "natural" in health_response.lower()
+            )
 
             # Price-focused response mentions price/value
-            assert "price" in price_response.lower() or "cost" in price_response.lower() or "sale" in price_response.lower()
+            assert (
+                "price" in price_response.lower()
+                or "cost" in price_response.lower()
+                or "sale" in price_response.lower()
+            )
 
             # Quality-focused response mentions quality
-            assert "quality" in quality_response.lower() or "taste" in quality_response.lower()
+            assert (
+                "quality" in quality_response.lower()
+                or "taste" in quality_response.lower()
+            )
 
     @pytest.mark.asyncio
     async def test_synthetic_interview_sequence(
@@ -316,7 +332,7 @@ class TestSyntheticInterviewFlow:
                     "session_id": "test-session",
                     "persona": "health_conscious",
                     "product_name": "Oat Milk",
-                }
+                },
             )
 
             assert sequence_resp.status_code == 200
@@ -336,6 +352,7 @@ class TestSyntheticInterviewFlow:
 
 
 # ============ TEST CLASS 2: TestSyntheticServiceIntegration ============
+
 
 class TestSyntheticServiceIntegration:
     """Service-level integration tests for synthetic functionality."""
@@ -373,7 +390,7 @@ class TestSyntheticServiceIntegration:
                         "question": "What do you think?",
                         "session_id": f"test-{i}",
                         "persona": "health_conscious",
-                    }
+                    },
                 )
                 assert resp.status_code == 200
                 results.append(resp.json())
@@ -419,7 +436,7 @@ class TestSyntheticServiceIntegration:
                         "question": "What do you think?",
                         "session_id": f"test-{persona}",
                         "persona": persona,
-                    }
+                    },
                 )
 
                 assert resp.status_code == 200
@@ -429,6 +446,7 @@ class TestSyntheticServiceIntegration:
 
 
 # ============ TEST CLASS 3: TestSyntheticAPIErrorHandling ============
+
 
 class TestSyntheticAPIErrorHandling:
     """Tests for synthetic API error handling."""
@@ -443,7 +461,7 @@ class TestSyntheticAPIErrorHandling:
                 "question": "What do you think?",
                 "session_id": "test-session",
                 "persona": "invalid_persona_name",
-            }
+            },
         )
 
         assert resp.status_code == 400
@@ -459,7 +477,7 @@ class TestSyntheticAPIErrorHandling:
             json={
                 "session_id": "test-session",
                 "persona": "health_conscious",
-            }
+            },
         )
 
         assert resp.status_code == 422
@@ -476,7 +494,7 @@ class TestSyntheticAPIErrorHandling:
                 "question": "",
                 "session_id": "test-session",
                 "persona": "health_conscious",
-            }
+            },
         )
 
         # Either validation error (422) or accepted (200) is fine
@@ -485,6 +503,7 @@ class TestSyntheticAPIErrorHandling:
 
 
 # ============ TEST CLASS 4: TestSyntheticWithGraphState ============
+
 
 class TestSyntheticWithGraphState:
     """Tests for synthetic responses with graph state context."""
@@ -503,7 +522,7 @@ class TestSyntheticWithGraphState:
                         label="creamy texture",
                         node_type="attribute",
                         confidence=0.9,
-                        properties={"source_quote": "I love the creamy texture"}
+                        properties={"source_quote": "I love the creamy texture"},
                     ),
                     KGNode(
                         id="node-2",
@@ -511,7 +530,7 @@ class TestSyntheticWithGraphState:
                         label="satisfying",
                         node_type="functional_consequence",
                         confidence=0.8,
-                        properties={"source_quote": "It's satisfying"}
+                        properties={"source_quote": "It's satisfying"},
                     ),
                 ]
 
@@ -556,6 +575,7 @@ class TestSyntheticWithGraphState:
 
 # ============ TEST CLASS 5: TestSyntheticInterviewValidation ============
 
+
 class TestSyntheticInterviewValidation:
     """Tests for interview quality and validation."""
 
@@ -579,7 +599,7 @@ class TestSyntheticInterviewValidation:
             # Create session
             create_resp = await client.post(
                 "/sessions",
-                json={"concept_id": "test", "config": {"concept_name": "Test"}}
+                json={"concept_id": "test", "config": {"concept_name": "Test"}},
             )
             session_id = create_resp.json()["id"]
 
@@ -590,7 +610,7 @@ class TestSyntheticInterviewValidation:
                     "question": "What do you think?",
                     "session_id": session_id,
                     "persona": "health_conscious",
-                }
+                },
             )
 
             assert synth_resp.status_code == 200
@@ -626,7 +646,7 @@ class TestSyntheticInterviewValidation:
             # Create session
             create_resp = await client.post(
                 "/sessions",
-                json={"concept_id": "test", "config": {"concept_name": "Test"}}
+                json={"concept_id": "test", "config": {"concept_name": "Test"}},
             )
             session_id = create_resp.json()["id"]
 
@@ -637,7 +657,7 @@ class TestSyntheticInterviewValidation:
                     "question": "What do you think?",
                     "session_id": session_id,
                     "persona": "health_conscious",
-                }
+                },
             )
 
             assert synth_resp.status_code == 200

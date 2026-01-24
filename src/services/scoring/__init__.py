@@ -7,7 +7,13 @@ Architecture (ADR-006):
 """
 
 # Two-tier engine
-from src.services.scoring.two_tier import TwoTierScoringEngine, Tier1Scorer, Tier1Output, Tier2Scorer, Tier2Output
+from src.services.scoring.two_tier import (
+    TwoTierScoringEngine,
+    Tier1Scorer,
+    Tier1Output,
+    Tier2Scorer,
+    Tier2Output,
+)
 from src.services.scoring.two_tier.config import create_scoring_engine, load_config
 
 # Tier 1 scorers

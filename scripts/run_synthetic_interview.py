@@ -185,7 +185,12 @@ async def run_interview(
                 }
 
                 synthetic_result = await get_synthetic_response(
-                    client, api_url, next_question, session_id, persona, interview_context
+                    client,
+                    api_url,
+                    next_question,
+                    session_id,
+                    persona,
+                    interview_context,
                 )
 
                 synthetic_response = synthetic_result["response"]
@@ -209,7 +214,8 @@ async def run_interview(
                     "question": turn_result.get("next_question"),
                     "response": synthetic_response,
                     "extracted_concepts": [
-                        c["text"] for c in turn_result.get("extracted", {}).get("concepts", [])
+                        c["text"]
+                        for c in turn_result.get("extracted", {}).get("concepts", [])
                     ],
                     "strategy": turn_result.get("strategy_selected"),
                     "coverage": turn_result.get("scoring", {}).get("coverage", 0.0),
@@ -291,8 +297,7 @@ def validate_results(results: Dict[str, Any]) -> bool:
     # Check 4: At least 10 concepts extracted
     checks_total += 1
     total_concepts = sum(
-        len(t.get("extracted_concepts", []))
-        for t in results.get("turns", [])
+        len(t.get("extracted_concepts", [])) for t in results.get("turns", [])
     )
     if total_concepts >= 10:
         print(f"✅ Concepts extracted: {total_concepts} ≥ 10")
@@ -347,12 +352,14 @@ def main():
         help=f"Maximum turns to run (default: {DEFAULT_MAX_TURNS})",
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         type=Path,
         help="Output JSON file for results",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Print detailed output",
     )
@@ -365,13 +372,15 @@ def main():
     print(f"  Concept: {args.concept_id}")
     print(f"  Max turns: {args.max_turns}")
 
-    results = asyncio.run(run_interview(
-        api_url=args.api_url,
-        persona=args.persona,
-        concept_id=args.concept_id,
-        max_turns=args.max_turns,
-        verbose=args.verbose,
-    ))
+    results = asyncio.run(
+        run_interview(
+            api_url=args.api_url,
+            persona=args.persona,
+            concept_id=args.concept_id,
+            max_turns=args.max_turns,
+            verbose=args.verbose,
+        )
+    )
 
     # Output results
     if args.output:

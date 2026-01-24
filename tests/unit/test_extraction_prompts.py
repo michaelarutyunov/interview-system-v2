@@ -74,11 +74,20 @@ class TestExtractabilityPrompts:
 
     def test_extractability_system_prompt(self):
         """Extractability system prompt explains criteria."""
-        prompt = get_extractability_system_prompt()
+        prompt = get_extractability_system_prompt("means_end_chain")
 
         assert "extractable" in prompt.lower()
         assert "yes/no" in prompt.lower()
         assert "JSON" in prompt
+
+    def test_extractability_system_prompt_uses_schema_criteria(self):
+        """Extractability prompt loads methodology-specific criteria from schema."""
+        prompt = get_extractability_system_prompt("means_end_chain")
+
+        # Check for MEC-specific criteria from schema
+        assert "Product attributes" in prompt
+        assert "Benefits, outcomes" in prompt
+        assert "Values or life goals" in prompt
 
     def test_extractability_user_prompt(self):
         """Extractability user prompt includes text."""
@@ -93,13 +102,15 @@ class TestParseExtractionResponse:
 
     def test_parse_valid_json(self):
         """Parses valid JSON response."""
-        response = json.dumps({
-            "concepts": [
-                {"text": "creamy", "node_type": "attribute", "confidence": 0.9}
-            ],
-            "relationships": [],
-            "discourse_markers": ["because"]
-        })
+        response = json.dumps(
+            {
+                "concepts": [
+                    {"text": "creamy", "node_type": "attribute", "confidence": 0.9}
+                ],
+                "relationships": [],
+                "discourse_markers": ["because"],
+            }
+        )
 
         result = parse_extraction_response(response)
 
@@ -109,13 +120,13 @@ class TestParseExtractionResponse:
 
     def test_parse_json_with_code_block(self):
         """Parses JSON wrapped in markdown code block."""
-        response = '''```json
+        response = """```json
 {
   "concepts": [],
   "relationships": [],
   "discourse_markers": []
 }
-```'''
+```"""
 
         result = parse_extraction_response(response)
 
@@ -137,7 +148,7 @@ class TestParseExtractionResponse:
 
     def test_parse_missing_keys_uses_defaults(self):
         """Missing keys default to empty lists."""
-        response = '{}'
+        response = "{}"
 
         result = parse_extraction_response(response)
 

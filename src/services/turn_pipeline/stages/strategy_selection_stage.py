@@ -3,6 +3,7 @@ Stage 6: Select strategy.
 
 ADR-008 Phase 3: Use two-tier scoring to select questioning strategy.
 """
+
 from typing import TYPE_CHECKING
 
 import structlog

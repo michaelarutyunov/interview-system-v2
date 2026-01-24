@@ -23,6 +23,7 @@ from src.llm.client import LLMResponse
 
 # ============ FIXTURES ============
 
+
 @pytest.fixture
 async def test_db():
     """Create and initialize test database."""
@@ -53,16 +54,24 @@ async def client(test_db):
 @pytest.fixture
 def fast_mock_llm_response():
     """Mock LLM response that returns quickly."""
-    return json.dumps({
-        "concepts": [
-            {"text": "test concept", "node_type": "attribute", "confidence": 0.9, "source_quote": "test"}
-        ],
-        "relationships": [],
-        "discourse_markers": []
-    })
+    return json.dumps(
+        {
+            "concepts": [
+                {
+                    "text": "test concept",
+                    "node_type": "attribute",
+                    "confidence": 0.9,
+                    "source_quote": "test",
+                }
+            ],
+            "relationships": [],
+            "discourse_markers": [],
+        }
+    )
 
 
 # ============ TEST CLASS: PERFORMANCE REQUIREMENTS ============
+
 
 class TestPerformanceRequirements:
     """Tests for PRD performance requirements."""
@@ -81,14 +90,16 @@ class TestPerformanceRequirements:
             # Mock fast LLM responses (simulating < 1s LLM time)
             mock_complete.side_effect = [
                 LLMResponse(content="What do you think?", model="test", latency_ms=500),
-                LLMResponse(content=fast_mock_llm_response, model="test", latency_ms=800),
+                LLMResponse(
+                    content=fast_mock_llm_response, model="test", latency_ms=800
+                ),
                 LLMResponse(content="Tell me more.", model="test", latency_ms=500),
             ]
 
             # Create session
             create_resp = await client.post(
                 "/sessions",
-                json={"concept_id": "test", "config": {"concept_name": "Test Product"}}
+                json={"concept_id": "test", "config": {"concept_name": "Test Product"}},
             )
             session_id = create_resp.json()["id"]
 
@@ -99,20 +110,24 @@ class TestPerformanceRequirements:
             assert start_resp.status_code == 200
 
             # Opening should be fast (< 2 seconds)
-            assert opening_latency < 2000, f"Opening question took {opening_latency}ms, expected < 2000ms"
+            assert opening_latency < 2000, (
+                f"Opening question took {opening_latency}ms, expected < 2000ms"
+            )
 
             # Time turn processing
             start_time = time.time()
             turn_resp = await client.post(
                 f"/sessions/{session_id}/turns",
-                json={"text": "I think it's great because of the quality"}
+                json={"text": "I think it's great because of the quality"},
             )
             turn_latency = (time.time() - start_time) * 1000
             assert turn_resp.status_code == 200
 
             # PRD requirement: turn processing < 5 seconds
             # We use 4.5s to allow some margin
-            assert turn_latency < 4500, f"Turn processing took {turn_latency}ms, expected < 5000ms"
+            assert turn_latency < 4500, (
+                f"Turn processing took {turn_latency}ms, expected < 5000ms"
+            )
 
             # Verify latency is reported in response
             turn_data = turn_resp.json()
@@ -135,35 +150,44 @@ class TestPerformanceRequirements:
             """Create and run a session, return timing data."""
             with patch("src.llm.client.AnthropicClient.complete") as mock_complete:
                 mock_complete.side_effect = [
-                    LLMResponse(content=f"Question {session_num}", model="test", latency_ms=100),
-                    LLMResponse(content=fast_mock_llm_response, model="test", latency_ms=150),
-                    LLMResponse(content=f"Follow up {session_num}", model="test", latency_ms=100),
+                    LLMResponse(
+                        content=f"Question {session_num}", model="test", latency_ms=100
+                    ),
+                    LLMResponse(
+                        content=fast_mock_llm_response, model="test", latency_ms=150
+                    ),
+                    LLMResponse(
+                        content=f"Follow up {session_num}", model="test", latency_ms=100
+                    ),
                 ]
 
                 start_time = time.time()
                 create_resp = await client.post(
                     "/sessions",
-                    json={"concept_id": f"test-{session_num}", "config": {"concept_name": f"Test {session_num}"}}
+                    json={
+                        "concept_id": f"test-{session_num}",
+                        "config": {"concept_name": f"Test {session_num}"},
+                    },
                 )
                 session_id = create_resp.json()["id"]
 
                 await client.post(f"/sessions/{session_id}/start")
                 await client.post(
                     f"/sessions/{session_id}/turns",
-                    json={"text": f"Response {session_num}"}
+                    json={"text": f"Response {session_num}"},
                 )
 
                 return {
                     "session_id": session_id,
                     "session_num": session_num,
-                    "latency_ms": (time.time() - start_time) * 1000
+                    "latency_ms": (time.time() - start_time) * 1000,
                 }
 
         # Run sessions concurrently
         start_time = time.time()
-        results = await asyncio.gather(*[
-            create_and_run_session(i) for i in range(NUM_SESSIONS)
-        ])
+        results = await asyncio.gather(
+            *[create_and_run_session(i) for i in range(NUM_SESSIONS)]
+        )
         total_time = time.time() - start_time
 
         # Verify all sessions completed
@@ -176,11 +200,15 @@ class TestPerformanceRequirements:
         # Verify performance didn't degrade
         # Each session should complete in reasonable time
         for result in results:
-            assert result["latency_ms"] < 10000, f"Session {result['session_num']} took too long: {result['latency_ms']}ms"
+            assert result["latency_ms"] < 10000, (
+                f"Session {result['session_num']} took too long: {result['latency_ms']}ms"
+            )
 
         # Concurrent execution should be faster than sequential
         # (roughly: if each takes ~1s, 5 sequential would be ~5s, concurrent should be < 3s)
-        assert total_time < NUM_SESSIONS * 2.0, f"Concurrent execution too slow: {total_time}s"
+        assert total_time < NUM_SESSIONS * 2.0, (
+            f"Concurrent execution too slow: {total_time}s"
+        )
 
     @pytest.mark.asyncio
     async def test_concurrent_turns_same_session(self, client, fast_mock_llm_response):
@@ -195,16 +223,20 @@ class TestPerformanceRequirements:
             mock_complete.side_effect = [
                 LLMResponse(content="Opening", model="test", latency_ms=100),
                 # Multiple turn responses
-                LLMResponse(content=fast_mock_llm_response, model="test", latency_ms=200),
+                LLMResponse(
+                    content=fast_mock_llm_response, model="test", latency_ms=200
+                ),
                 LLMResponse(content="Next 1", model="test", latency_ms=100),
-                LLMResponse(content=fast_mock_llm_response, model="test", latency_ms=200),
+                LLMResponse(
+                    content=fast_mock_llm_response, model="test", latency_ms=200
+                ),
                 LLMResponse(content="Next 2", model="test", latency_ms=100),
             ]
 
             # Create and start session
             create_resp = await client.post(
                 "/sessions",
-                json={"concept_id": "test", "config": {"concept_name": "Test"}}
+                json={"concept_id": "test", "config": {"concept_name": "Test"}},
             )
             session_id = create_resp.json()["id"]
             await client.post(f"/sessions/{session_id}/start")
@@ -213,14 +245,13 @@ class TestPerformanceRequirements:
             # This should either work sequentially or error
             async def process_turn(text: str):
                 return await client.post(
-                    f"/sessions/{session_id}/turns",
-                    json={"text": text}
+                    f"/sessions/{session_id}/turns", json={"text": text}
                 )
 
             results = await asyncio.gather(
                 process_turn("First response"),
                 process_turn("Second response"),
-                return_exceptions=True
+                return_exceptions=True,
             )
 
             # At least one should succeed
@@ -253,7 +284,7 @@ class TestPerformanceRequirements:
             # Create session
             create_resp = await client.post(
                 "/sessions",
-                json={"concept_id": "test", "config": {"concept_name": "Test"}}
+                json={"concept_id": "test", "config": {"concept_name": "Test"}},
             )
             session_id = create_resp.json()["id"]
 
@@ -263,14 +294,14 @@ class TestPerformanceRequirements:
 
             # Turn should fail gracefully
             turn_resp = await client.post(
-                f"/sessions/{session_id}/turns",
-                json={"text": "This will timeout"}
+                f"/sessions/{session_id}/turns", json={"text": "This will timeout"}
             )
             # Should return error, not crash
             assert turn_resp.status_code in [500, 503, 504]
 
 
 # ============ TEST CLASS: STRESS TESTS ============
+
 
 class TestStressScenarios:
     """Stress tests for system limits."""
@@ -286,16 +317,24 @@ class TestStressScenarios:
             # Prepare many responses
             responses = []
             for i in range(10):
-                responses.append(LLMResponse(content="Opening", model="test", latency_ms=50))
-                responses.append(LLMResponse(content=fast_mock_llm_response, model="test", latency_ms=100))
-                responses.append(LLMResponse(content=f"Question {i}", model="test", latency_ms=50))
+                responses.append(
+                    LLMResponse(content="Opening", model="test", latency_ms=50)
+                )
+                responses.append(
+                    LLMResponse(
+                        content=fast_mock_llm_response, model="test", latency_ms=100
+                    )
+                )
+                responses.append(
+                    LLMResponse(content=f"Question {i}", model="test", latency_ms=50)
+                )
 
             mock_complete.side_effect = responses
 
             # Create session
             create_resp = await client.post(
                 "/sessions",
-                json={"concept_id": "test", "config": {"concept_name": "Test"}}
+                json={"concept_id": "test", "config": {"concept_name": "Test"}},
             )
             session_id = create_resp.json()["id"]
             await client.post(f"/sessions/{session_id}/start")
@@ -305,8 +344,7 @@ class TestStressScenarios:
             for i in range(10):
                 start = time.time()
                 turn_resp = await client.post(
-                    f"/sessions/{session_id}/turns",
-                    json={"text": f"Response {i}"}
+                    f"/sessions/{session_id}/turns", json={"text": f"Response {i}"}
                 )
                 latency = (time.time() - start) * 1000
                 timings.append(latency)
@@ -326,17 +364,30 @@ class TestStressScenarios:
         Verifies system can handle complex extractions with many concepts.
         """
         # Create a large extraction result
-        large_extraction = json.dumps({
-            "concepts": [
-                {"text": f"Concept {i}", "node_type": "attribute", "confidence": 0.9, "source_quote": f"Quote {i}"}
-                for i in range(20)
-            ],
-            "relationships": [
-                {"source_text": f"Concept {i}", "target_text": f"Concept {i+1}", "relationship_type": "leads_to", "confidence": 0.8, "source_quote": f"Link {i}"}
-                for i in range(15)
-            ],
-            "discourse_markers": ["because", "since", "therefore"] * 3
-        })
+        large_extraction = json.dumps(
+            {
+                "concepts": [
+                    {
+                        "text": f"Concept {i}",
+                        "node_type": "attribute",
+                        "confidence": 0.9,
+                        "source_quote": f"Quote {i}",
+                    }
+                    for i in range(20)
+                ],
+                "relationships": [
+                    {
+                        "source_text": f"Concept {i}",
+                        "target_text": f"Concept {i + 1}",
+                        "relationship_type": "leads_to",
+                        "confidence": 0.8,
+                        "source_quote": f"Link {i}",
+                    }
+                    for i in range(15)
+                ],
+                "discourse_markers": ["because", "since", "therefore"] * 3,
+            }
+        )
 
         with patch("src.llm.client.AnthropicClient.complete") as mock_complete:
             mock_complete.side_effect = [
@@ -348,7 +399,7 @@ class TestStressScenarios:
             # Create session
             create_resp = await client.post(
                 "/sessions",
-                json={"concept_id": "test", "config": {"concept_name": "Test"}}
+                json={"concept_id": "test", "config": {"concept_name": "Test"}},
             )
             session_id = create_resp.json()["id"]
             await client.post(f"/sessions/{session_id}/start")
@@ -357,7 +408,7 @@ class TestStressScenarios:
             start = time.time()
             turn_resp = await client.post(
                 f"/sessions/{session_id}/turns",
-                json={"text": "Long response with many concepts"}
+                json={"text": "Long response with many concepts"},
             )
             latency = (time.time() - start) * 1000
 
@@ -374,6 +425,7 @@ class TestStressScenarios:
 
 # ============ TEST CLASS: MEMORY AND RESOURCE TESTS ============
 
+
 class TestResourceUsage:
     """Tests for resource usage patterns."""
 
@@ -389,20 +441,21 @@ class TestResourceUsage:
         with patch("src.llm.client.AnthropicClient.complete") as mock_complete:
             mock_complete.side_effect = [
                 LLMResponse(content="Opening", model="test", latency_ms=100),
-                LLMResponse(content=fast_mock_llm_response, model="test", latency_ms=100),
+                LLMResponse(
+                    content=fast_mock_llm_response, model="test", latency_ms=100
+                ),
                 LLMResponse(content="Next", model="test", latency_ms=100),
             ]
 
             # Create session with data
             create_resp = await client.post(
                 "/sessions",
-                json={"concept_id": "test", "config": {"concept_name": "Test"}}
+                json={"concept_id": "test", "config": {"concept_name": "Test"}},
             )
             session_id = create_resp.json()["id"]
             await client.post(f"/sessions/{session_id}/start")
             await client.post(
-                f"/sessions/{session_id}/turns",
-                json={"text": "Test response"}
+                f"/sessions/{session_id}/turns", json={"text": "Test response"}
             )
 
             # Verify session exists
@@ -428,27 +481,27 @@ class TestResourceUsage:
         with patch("src.llm.client.AnthropicClient.complete") as mock_complete:
             mock_complete.side_effect = [
                 LLMResponse(content="Opening", model="test", latency_ms=100),
-                LLMResponse(content=fast_mock_llm_response, model="test", latency_ms=100),
+                LLMResponse(
+                    content=fast_mock_llm_response, model="test", latency_ms=100
+                ),
             ]
 
             # Create session with data
             create_resp = await client.post(
                 "/sessions",
-                json={"concept_id": "test", "config": {"concept_name": "Test"}}
+                json={"concept_id": "test", "config": {"concept_name": "Test"}},
             )
             session_id = create_resp.json()["id"]
             await client.post(f"/sessions/{session_id}/start")
             await client.post(
-                f"/sessions/{session_id}/turns",
-                json={"text": "Test response"}
+                f"/sessions/{session_id}/turns", json={"text": "Test response"}
             )
 
             # Test each export format
             for format_name in ["json", "markdown", "csv"]:
                 start = time.time()
                 export_resp = await client.get(
-                    f"/sessions/{session_id}/export",
-                    params={"format": format_name}
+                    f"/sessions/{session_id}/export", params={"format": format_name}
                 )
                 latency = (time.time() - start) * 1000
 

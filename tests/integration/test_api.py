@@ -50,6 +50,7 @@ async def test_health_endpoint(app_with_test_db):
     # Initialize database first
     from src.persistence.database import init_database
     from src.core.config import settings
+
     await init_database(settings.database_path)
 
     transport = ASGITransport(app=app_with_test_db)
@@ -79,6 +80,7 @@ async def test_readiness_endpoint(app_with_test_db):
     """Readiness probe checks database."""
     from src.persistence.database import init_database
     from src.core.config import settings
+
     await init_database(settings.database_path)
 
     transport = ASGITransport(app=app_with_test_db)

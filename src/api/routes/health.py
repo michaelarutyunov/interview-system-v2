@@ -31,9 +31,7 @@ async def health_check():
         "status": overall_status,
         "version": "0.1.0",
         "debug": settings.debug,
-        "components": {
-            "database": db_health
-        }
+        "components": {"database": db_health},
     }
 
 
@@ -58,6 +56,7 @@ async def readiness():
 
     if db_health["status"] != "healthy":
         from fastapi import HTTPException
+
         raise HTTPException(status_code=503, detail="Database not ready")
 
     return {"status": "ready"}

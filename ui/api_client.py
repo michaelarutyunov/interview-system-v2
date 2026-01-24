@@ -23,6 +23,7 @@ import httpx
 @dataclass
 class SessionInfo:
     """Information about an interview session."""
+
     id: str
     concept_id: str
     status: str
@@ -197,11 +198,17 @@ class APIClient:
         """
         try:
             with httpx.Client(timeout=self.timeout) as client:
-                response = client.get(f"{self.base_url}/sessions/{session_id}/scoring/{turn_number}")
+                response = client.get(
+                    f"{self.base_url}/sessions/{session_id}/scoring/{turn_number}"
+                )
                 response.raise_for_status()
                 return response.json()
         except httpx.HTTPStatusError:
-            return {"session_id": session_id, "turn_number": turn_number, "candidates": []}
+            return {
+                "session_id": session_id,
+                "turn_number": turn_number,
+                "candidates": [],
+            }
 
     def get_all_scoring(self, session_id: str) -> List[Dict[str, Any]]:
         """Get all scoring data for all turns in a session (synchronous).
@@ -298,7 +305,9 @@ class APIClient:
         """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(f"{self.base_url}/sessions/{session_id}/status")
+                response = await client.get(
+                    f"{self.base_url}/sessions/{session_id}/status"
+                )
                 response.raise_for_status()
                 return response.json()
         except httpx.HTTPStatusError:
@@ -323,7 +332,9 @@ class APIClient:
         """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(f"{self.base_url}/sessions/{session_id}/graph")
+                response = await client.get(
+                    f"{self.base_url}/sessions/{session_id}/graph"
+                )
                 response.raise_for_status()
                 return response.json()
         except httpx.HTTPStatusError:
@@ -360,7 +371,9 @@ class APIClient:
             data = response.json()
             return data.get("opening_question", "")
 
-    async def get_turn_scoring_async(self, session_id: str, turn_number: int) -> Dict[str, Any]:
+    async def get_turn_scoring_async(
+        self, session_id: str, turn_number: int
+    ) -> Dict[str, Any]:
         """Get scoring candidates for a specific turn (asynchronous).
 
         Args:
@@ -372,11 +385,17 @@ class APIClient:
         """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(f"{self.base_url}/sessions/{session_id}/scoring/{turn_number}")
+                response = await client.get(
+                    f"{self.base_url}/sessions/{session_id}/scoring/{turn_number}"
+                )
                 response.raise_for_status()
                 return response.json()
         except httpx.HTTPStatusError:
-            return {"session_id": session_id, "turn_number": turn_number, "candidates": []}
+            return {
+                "session_id": session_id,
+                "turn_number": turn_number,
+                "candidates": [],
+            }
 
     async def get_all_scoring_async(self, session_id: str) -> List[Dict[str, Any]]:
         """Get all scoring data for all turns in a session (asynchronous).
@@ -389,7 +408,9 @@ class APIClient:
         """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(f"{self.base_url}/sessions/{session_id}/scoring")
+                response = await client.get(
+                    f"{self.base_url}/sessions/{session_id}/scoring"
+                )
                 response.raise_for_status()
                 return response.json()
         except httpx.HTTPStatusError:

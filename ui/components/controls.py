@@ -103,7 +103,9 @@ class SessionControls:
                 )
 
                 # Start the session to get opening question
-                opening_question = st.session_state.api_client.start_session(session_info.id)
+                opening_question = st.session_state.api_client.start_session(
+                    session_info.id
+                )
 
                 # Store in session state
                 st.session_state.current_session = session_info
@@ -113,6 +115,7 @@ class SessionControls:
                 # Add opening question to chat
                 if opening_question:
                     from ui.components.chat import ChatInterface
+
                     chat = ChatInterface(st.session_state.api_client)
                     chat.add_assistant_message(opening_question)
                     st.session_state.opening_displayed = True
@@ -154,8 +157,7 @@ class SessionControls:
 
         # Session selection
         session_options = {
-            f"{s['id'][:8]} ({s.get('status', 'unknown')})": s
-            for s in sessions
+            f"{s['id'][:8]} ({s.get('status', 'unknown')})": s for s in sessions
         }
 
         selected = st.selectbox(
@@ -179,11 +181,11 @@ class SessionControls:
 
             with col2:
                 if st.button("🗑️ Delete", use_container_width=True):
-                    self._delete_session(session['id'])
+                    self._delete_session(session["id"])
 
             # Set as current if loaded
             current = st.session_state.get("current_session")
-            if current and current.id == session['id']:
+            if current and current.id == session["id"]:
                 return current
 
         return None
@@ -204,7 +206,7 @@ class SessionControls:
 
     def _load_session(self, session: Dict[str, Any]):
         """Load an existing session."""
-        session_id = session['id']
+        session_id = session["id"]
 
         with st.spinner(f"Loading session {session_id[:8]}..."):
             try:
@@ -241,7 +243,9 @@ class SessionControls:
         with st.spinner("Deleting session..."):
             try:
                 client = st.session_state.api_client._get_client()
-                client.delete(f"{st.session_state.api_client.base_url}/sessions/{session_id}")
+                client.delete(
+                    f"{st.session_state.api_client.base_url}/sessions/{session_id}"
+                )
 
                 # Clear from state if it was current
                 current = st.session_state.get("current_session")
@@ -294,6 +298,7 @@ class SessionControls:
         with st.spinner("Exporting..."):
             try:
                 import httpx
+
                 with httpx.Client(timeout=30.0) as client:
                     # Call export endpoint
                     params = {"format": format.lower()}

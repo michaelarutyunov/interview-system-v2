@@ -3,6 +3,7 @@ Stage 9: Save system response.
 
 ADR-008 Phase 3: Persist system utterance to the database.
 """
+
 from typing import TYPE_CHECKING
 
 from datetime import datetime
@@ -52,7 +53,15 @@ class ResponseSavingStage(TurnStage):
                 INSERT INTO utterances (id, session_id, turn_number, speaker, text, discourse_markers, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (utterance_id, context.session_id, context.turn_number, "system", context.next_question, "[]", now),
+                (
+                    utterance_id,
+                    context.session_id,
+                    context.turn_number,
+                    "system",
+                    context.next_question,
+                    "[]",
+                    now,
+                ),
             )
             await db.commit()
         finally:

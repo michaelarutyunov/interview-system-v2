@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
     log.info(
         "application_starting",
         debug=settings.debug,
-        database_path=str(settings.database_path)
+        database_path=str(settings.database_path),
     )
 
     # Initialize database
@@ -81,15 +81,12 @@ app.include_router(concepts_router)
 @app.get("/")
 async def root():
     """Root endpoint with basic info."""
-    return {
-        "name": "Interview System v2",
-        "version": "0.1.0",
-        "status": "running"
-    }
+    return {"name": "Interview System v2", "version": "0.1.0", "status": "running"}
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "src.main:app",
         host=settings.host,

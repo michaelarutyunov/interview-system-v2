@@ -3,6 +3,7 @@ Stage 7: Determine continuation.
 
 ADR-008 Phase 3: Decide if interview should continue or end.
 """
+
 from typing import TYPE_CHECKING
 
 import structlog
@@ -58,9 +59,13 @@ class ContinuationStage(TurnStage):
                 if "node_id" in context.focus and context.recent_nodes:
                     # Find the node in recent_nodes
                     focus_concept = next(
-                        (n.label for n in context.recent_nodes if str(n.id) == context.focus["node_id"]),
+                        (
+                            n.label
+                            for n in context.recent_nodes
+                            if str(n.id) == context.focus["node_id"]
+                        ),
                         # Fallback to description if node not found
-                        context.focus.get("focus_description", "the topic")
+                        context.focus.get("focus_description", "the topic"),
                     )
                 else:
                     # Use focus description as fallback

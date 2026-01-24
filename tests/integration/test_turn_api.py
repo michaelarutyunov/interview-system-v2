@@ -58,8 +58,12 @@ class TestProcessTurnEndpoint:
     async def test_process_turn_returns_200(self, client, session_id):
         """Returns 200 with turn result."""
         # Mock LLM calls
-        with patch("src.services.extraction_service.ExtractionService.extract") as mock_extract:
-            with patch("src.services.question_service.QuestionService.generate_question") as mock_question:
+        with patch(
+            "src.services.extraction_service.ExtractionService.extract"
+        ) as mock_extract:
+            with patch(
+                "src.services.question_service.QuestionService.generate_question"
+            ) as mock_question:
                 mock_extract.return_value = AsyncMock(
                     concepts=[],
                     relationships=[],
@@ -107,7 +111,9 @@ class TestStartSessionEndpoint:
     @pytest.mark.asyncio
     async def test_start_session_returns_question(self, client, session_id):
         """Returns opening question."""
-        with patch("src.services.question_service.QuestionService.generate_opening_question") as mock:
+        with patch(
+            "src.services.question_service.QuestionService.generate_opening_question"
+        ) as mock:
             mock.return_value = "What do you think about Test Product?"
 
             response = await client.post(f"/sessions/{session_id}/start")

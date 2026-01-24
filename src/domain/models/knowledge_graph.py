@@ -13,6 +13,7 @@ class NodeType(str, Enum):
     The authoritative source of truth is config/methodologies/means_end_chain.yaml.
     Use src.core.schema_loader.load_methodology() to get valid types at runtime.
     """
+
     ATTRIBUTE = "attribute"
     FUNCTIONAL_CONSEQUENCE = "functional_consequence"
     PSYCHOSOCIAL_CONSEQUENCE = "psychosocial_consequence"
@@ -27,6 +28,7 @@ class EdgeType(str, Enum):
     The authoritative source of truth is config/methodologies/means_end_chain.yaml.
     Use src.core.schema_loader.load_methodology() to get valid types at runtime.
     """
+
     LEADS_TO = "leads_to"
     REVISES = "revises"
 
@@ -36,6 +38,7 @@ class KGNode(BaseModel):
 
     Simplified from v1: Single timestamp instead of bi-temporal versioning.
     """
+
     id: str
     session_id: str
     label: str
@@ -44,14 +47,19 @@ class KGNode(BaseModel):
     properties: Dict[str, Any] = Field(default_factory=dict)
     source_utterance_ids: List[str] = Field(default_factory=list)
     recorded_at: datetime = Field(default_factory=datetime.utcnow)
-    superseded_by: Optional[str] = None  # Node ID that supersedes this one (for REVISES)
-    stance: int = Field(default=0, ge=-1, le=1)  # Stance: -1 (negative), 0 (neutral), +1 (positive)
+    superseded_by: Optional[str] = (
+        None  # Node ID that supersedes this one (for REVISES)
+    )
+    stance: int = Field(
+        default=0, ge=-1, le=1
+    )  # Stance: -1 (negative), 0 (neutral), +1 (positive)
 
     model_config = {"from_attributes": True}
 
 
 class KGEdge(BaseModel):
     """A relationship in the knowledge graph."""
+
     id: str
     session_id: str
     source_node_id: str
@@ -67,17 +75,20 @@ class KGEdge(BaseModel):
 
 class GraphState(BaseModel):
     """Current state of the knowledge graph for a session."""
+
     node_count: int = 0
     edge_count: int = 0
     nodes_by_type: Dict[str, int] = Field(default_factory=dict)
     edges_by_type: Dict[str, int] = Field(default_factory=dict)
     max_depth: int = 0  # Longest chain from attribute to value
     orphan_count: int = 0  # Nodes with no edges
-    properties: Dict[str, Any] = Field(default_factory=dict)  # Additional state properties
+    properties: Dict[str, Any] = Field(
+        default_factory=dict
+    )  # Additional state properties
 
     def get_phase(self) -> str:
         """Get current interview phase."""
-        return self.properties.get('phase', 'exploratory')
+        return self.properties.get("phase", "exploratory")
 
     def set_phase(self, phase: str) -> None:
         """Transition to a new phase.
@@ -85,4 +96,4 @@ class GraphState(BaseModel):
         Args:
             phase: New phase ('exploratory', 'focused', or 'closing')
         """
-        self.properties['phase'] = phase
+        self.properties["phase"] = phase

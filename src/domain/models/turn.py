@@ -23,6 +23,7 @@ class TurnContext(BaseModel):
     Encapsulates all data needed to process a single interview turn,
     replacing untyped dict passing between services.
     """
+
     session_id: str
     turn_number: int
     user_input: str
@@ -47,17 +48,24 @@ class Focus(BaseModel):
     Replaces Dict[str, Any] focus objects with properly typed model.
     Defines what the next question should focus on.
     """
+
     focus_type: Literal[
         "depth_exploration",
         "breadth_exploration",
         "coverage_gap",
         "closing",
-        "reflection"
+        "reflection",
     ]
-    node_id: Optional[str] = Field(None, description="Node ID if focusing on a specific node")
+    node_id: Optional[str] = Field(
+        None, description="Node ID if focusing on a specific node"
+    )
     element_id: Optional[str] = Field(None, description="Element ID for coverage gaps")
-    focus_description: str = Field(..., description="Human-readable description of the focus")
-    confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Confidence score for this focus")
+    focus_description: str = Field(
+        ..., description="Human-readable description of the focus"
+    )
+    confidence: float = Field(
+        default=1.0, ge=0.0, le=1.0, description="Confidence score for this focus"
+    )
 
     def to_dict(self) -> dict:
         """Convert to dict for backward compatibility."""
@@ -91,10 +99,13 @@ class TurnResult(BaseModel):
     Encapsulates all output from processing a single turn,
     providing structured return type for the service layer.
     """
+
     turn_number: int
     extracted: ExtractionResult
     graph_state: GraphState
-    selection: Optional["SelectionResult"] = Field(None, description="Strategy selection result")
+    selection: Optional["SelectionResult"] = Field(
+        None, description="Strategy selection result"
+    )
     next_question: str
     should_continue: bool
     latency_ms: int = 0
@@ -132,7 +143,9 @@ class TurnResult(BaseModel):
                 "edge_count": self.graph_state.edge_count,
                 "depth_achieved": self.graph_state.nodes_by_type,
             },
-            "strategy_selected": self.selection.selected_strategy["id"] if self.selection else "unknown",
+            "strategy_selected": self.selection.selected_strategy["id"]
+            if self.selection
+            else "unknown",
             "next_question": self.next_question,
             "should_continue": self.should_continue,
             "latency_ms": self.latency_ms,
@@ -146,6 +159,7 @@ class SelectionResult(BaseModel):
 
     Imported from strategy_service.SelectionResult for type annotations.
     """
+
     selected_strategy: dict
     selected_focus: dict
     final_score: float

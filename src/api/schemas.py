@@ -13,19 +13,22 @@ from src.domain.models.interview_state import InterviewMode
 
 # ============ SESSION SCHEMAS (from Phase 1) ============
 
+
 class SessionCreate(BaseModel):
     """Request to create a new session."""
+
     methodology: str = Field(default="means_end_chain")
     concept_id: str
     config: Dict[str, Any] = Field(default_factory=dict)
     mode: InterviewMode = Field(
         default=InterviewMode.COVERAGE_DRIVEN,
-        description="Interview execution mode: coverage_driven (systematic) or graph_driven (exploratory)"
+        description="Interview execution mode: coverage_driven (systematic) or graph_driven (exploratory)",
     )
 
 
 class SessionResponse(BaseModel):
     """Session details response."""
+
     id: str
     methodology: str
     concept_id: str
@@ -39,24 +42,25 @@ class SessionResponse(BaseModel):
 
 class SessionListResponse(BaseModel):
     """List of sessions response."""
+
     sessions: List[SessionResponse]
     total: int
 
 
 # ============ TURN SCHEMAS (Phase 2) ============
 
+
 class TurnRequest(BaseModel):
     """Request to process a turn."""
+
     text: str = Field(
-        ...,
-        min_length=1,
-        max_length=5000,
-        description="User's response text"
+        ..., min_length=1, max_length=5000, description="User's response text"
     )
 
 
 class ExtractedConceptSchema(BaseModel):
     """Extracted concept in response."""
+
     text: str
     type: str
     confidence: float
@@ -64,6 +68,7 @@ class ExtractedConceptSchema(BaseModel):
 
 class ExtractedRelationshipSchema(BaseModel):
     """Extracted relationship in response."""
+
     source: str
     target: str
     type: str
@@ -71,12 +76,14 @@ class ExtractedRelationshipSchema(BaseModel):
 
 class ExtractionSchema(BaseModel):
     """Extraction results in turn response."""
+
     concepts: List[ExtractedConceptSchema] = Field(default_factory=list)
     relationships: List[ExtractedRelationshipSchema] = Field(default_factory=list)
 
 
 class GraphStateSchema(BaseModel):
     """Graph state in turn response."""
+
     node_count: int
     edge_count: int
     depth_achieved: Dict[str, int] = Field(default_factory=dict)
@@ -84,6 +91,7 @@ class GraphStateSchema(BaseModel):
 
 class ScoringSchema(BaseModel):
     """Scoring results in turn response (Phase 3)."""
+
     coverage: float = 0.0
     depth: float = 0.0
     saturation: float = 0.0
@@ -94,6 +102,7 @@ class TurnResponse(BaseModel):
 
     Matches PRD Section 8.6.
     """
+
     turn_number: int
     extracted: ExtractionSchema
     graph_state: GraphStateSchema
@@ -109,61 +118,69 @@ class TurnResponse(BaseModel):
                 "turn_number": 3,
                 "extracted": {
                     "concepts": [
-                        {"text": "creamy texture", "type": "attribute", "confidence": 0.9}
+                        {
+                            "text": "creamy texture",
+                            "type": "attribute",
+                            "confidence": 0.9,
+                        }
                     ],
                     "relationships": [
-                        {"source": "creamy texture", "target": "satisfying", "type": "leads_to"}
-                    ]
+                        {
+                            "source": "creamy texture",
+                            "target": "satisfying",
+                            "type": "leads_to",
+                        }
+                    ],
                 },
                 "graph_state": {
                     "node_count": 5,
                     "edge_count": 3,
-                    "depth_achieved": {"attribute": 3, "functional_consequence": 2}
+                    "depth_achieved": {"attribute": 3, "functional_consequence": 2},
                 },
-                "scoring": {
-                    "coverage": 0.25,
-                    "depth": 0.15,
-                    "saturation": 0.0
-                },
+                "scoring": {"coverage": 0.25, "depth": 0.15, "saturation": 0.0},
                 "strategy_selected": "deepen",
                 "next_question": "You mentioned the creamy texture feels satisfying. Why is that feeling important to you?",
                 "should_continue": True,
-                "latency_ms": 1250
+                "latency_ms": 1250,
             }
         }
 
 
 class StartSessionResponse(BaseModel):
     """Response from starting a session."""
+
     session_id: str
     opening_question: str
 
 
 class ErrorResponse(BaseModel):
     """Error response schema."""
+
     detail: str
     error_type: Optional[str] = None
 
 
 # ============ SYNTHETIC SCHEMAS (Phase 4) ============
 
+
 class SyntheticRespondRequest(BaseModel):
     """Request to generate a synthetic response."""
+
     question: str = Field(..., description="The interviewer's question")
     session_id: str = Field(..., description="Session identifier")
     persona: str = Field(default="health_conscious", description="Persona ID")
     interview_context: Optional[Dict[str, Any]] = Field(
         default=None,
-        description="Optional interview context with product_name, turn_number, coverage_achieved"
+        description="Optional interview context with product_name, turn_number, coverage_achieved",
     )
     use_deflection: Optional[bool] = Field(
-        default=None,
-        description="Override deflection behavior (None = use chance)"
+        default=None, description="Override deflection behavior (None = use chance)"
     )
 
 
 class SyntheticRespondResponse(BaseModel):
     """Response from synthetic generation."""
+
     response: str = Field(..., description="Generated synthetic response")
     persona: str = Field(..., description="Persona ID used")
     persona_name: str = Field(..., description="Human-readable persona name")
@@ -175,30 +192,34 @@ class SyntheticRespondResponse(BaseModel):
 
 class SyntheticMultiRequest(BaseModel):
     """Request to generate multiple synthetic responses."""
+
     question: str = Field(..., description="The interviewer's question")
     session_id: str = Field(..., description="Session identifier")
     personas: Optional[List[str]] = Field(
-        default=None,
-        description="List of persona IDs (None = all available)"
+        default=None, description="List of persona IDs (None = all available)"
     )
     interview_context: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Optional interview context"
+        default=None, description="Optional interview context"
     )
 
 
 class SyntheticSequenceRequest(BaseModel):
     """Request to generate interview sequence."""
+
     questions: List[str] = Field(..., description="List of interview questions")
     session_id: str = Field(..., description="Session identifier")
     persona: str = Field(default="health_conscious", description="Persona ID")
-    product_name: str = Field(default="the product", description="Product name for context")
+    product_name: str = Field(
+        default="the product", description="Product name for context"
+    )
 
 
 # ============ STATUS AND GRAPH SCHEMAS ============
 
+
 class NodeSchema(BaseModel):
     """Knowledge graph node."""
+
     id: str
     label: str
     node_type: str
@@ -208,6 +229,7 @@ class NodeSchema(BaseModel):
 
 class EdgeSchema(BaseModel):
     """Knowledge graph edge."""
+
     id: str
     source_id: str
     target_id: str
@@ -218,6 +240,7 @@ class EdgeSchema(BaseModel):
 
 class GraphResponse(BaseModel):
     """Knowledge graph response."""
+
     nodes: List[NodeSchema] = Field(default_factory=list)
     edges: List[EdgeSchema] = Field(default_factory=list)
     node_count: int = 0
@@ -226,6 +249,7 @@ class GraphResponse(BaseModel):
 
 class SessionStatusResponse(BaseModel):
     """Session status response."""
+
     turn_number: int
     max_turns: int
     coverage: float = 0.0
@@ -238,8 +262,10 @@ class SessionStatusResponse(BaseModel):
 
 # ============ SCORING CANDIDATES SCHEMAS ============
 
+
 class Tier1ResultSchema(BaseModel):
     """Tier 1 scorer result."""
+
     scorer_id: str
     is_veto: bool
     reasoning: str
@@ -248,6 +274,7 @@ class Tier1ResultSchema(BaseModel):
 
 class Tier2ResultSchema(BaseModel):
     """Tier 2 scorer result."""
+
     scorer_id: str
     raw_score: float
     weight: float
@@ -258,6 +285,7 @@ class Tier2ResultSchema(BaseModel):
 
 class ScoringCandidateSchema(BaseModel):
     """A scoring candidate (strategy + focus)."""
+
     id: str
     strategy_id: str
     strategy_name: str
@@ -273,6 +301,7 @@ class ScoringCandidateSchema(BaseModel):
 
 class ScoringTurnResponse(BaseModel):
     """Scoring candidates for a specific turn."""
+
     session_id: str
     turn_number: int
     candidates: List[ScoringCandidateSchema]

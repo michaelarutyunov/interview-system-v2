@@ -36,11 +36,12 @@ def sample_graph_state():
 def sample_nodes():
     """Create sample recent nodes."""
     return [
+        KGNode(id="n1", session_id="s1", label="creamy texture", node_type="attribute"),
         KGNode(
-            id="n1", session_id="s1", label="creamy texture", node_type="attribute"
-        ),
-        KGNode(
-            id="n2", session_id="s1", label="satisfying", node_type="functional_consequence"
+            id="n2",
+            session_id="s1",
+            label="satisfying",
+            node_type="functional_consequence",
         ),
     ]
 
@@ -78,7 +79,9 @@ class TestGenerateQuestion:
         assert "Deepen" in call_args.kwargs["system"]
 
     @pytest.mark.asyncio
-    async def test_includes_context(self, service, mock_llm, sample_graph_state, sample_nodes):
+    async def test_includes_context(
+        self, service, mock_llm, sample_graph_state, sample_nodes
+    ):
         """Includes graph context in prompt."""
         mock_llm.complete.return_value = LLMResponse(
             content="Follow-up question?",
@@ -181,7 +184,9 @@ class TestGenerateOpeningQuestion:
 class TestSelectFocusConcept:
     """Tests for select_focus_concept."""
 
-    def test_returns_most_recent_for_deepen(self, service, sample_nodes, sample_graph_state):
+    def test_returns_most_recent_for_deepen(
+        self, service, sample_nodes, sample_graph_state
+    ):
         """Returns most recent node for deepen strategy."""
         focus = service.select_focus_concept(
             recent_nodes=sample_nodes,

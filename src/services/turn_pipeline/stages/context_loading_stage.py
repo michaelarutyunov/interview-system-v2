@@ -3,6 +3,7 @@ Stage 1: Load session context.
 
 ADR-008 Phase 3: Load session metadata, graph state, and recent utterances.
 """
+
 from typing import TYPE_CHECKING
 
 import aiosqlite
@@ -62,8 +63,7 @@ class ContextLoadingStage(TurnStage):
         async with aiosqlite.connect(str(self.session_repo.db_path)) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
-                "SELECT config FROM sessions WHERE id = ?",
-                (context.session_id,)
+                "SELECT config FROM sessions WHERE id = ?", (context.session_id,)
             )
             row = await cursor.fetchone()
             if row:
@@ -71,7 +71,9 @@ class ContextLoadingStage(TurnStage):
                 max_turns = config.get("max_turns", 20)
 
         # Get recent utterances
-        recent_utterances = await self._get_recent_utterances(context.session_id, limit=10)
+        recent_utterances = await self._get_recent_utterances(
+            context.session_id, limit=10
+        )
 
         # Get graph state
         graph_state = await self.graph.get_graph_state(context.session_id)
@@ -100,9 +102,7 @@ class ContextLoadingStage(TurnStage):
 
         return context
 
-    async def _get_recent_utterances(
-        self, session_id: str, limit: int = 10
-    ) -> list:
+    async def _get_recent_utterances(self, session_id: str, limit: int = 10) -> list:
         """
         Get recent utterances for context.
 

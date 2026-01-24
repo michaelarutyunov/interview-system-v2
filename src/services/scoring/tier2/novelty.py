@@ -81,7 +81,7 @@ class NoveltyScorer(Tier2Scorer):
 
         # Check recent nodes for mentions
         if node_id and recent_nodes:
-            for node in recent_nodes[-self.lookback_window:]:
+            for node in recent_nodes[-self.lookback_window :]:
                 if str(node.get("id")) == str(node_id):
                     mention_count += 1
 
@@ -89,7 +89,7 @@ class NoveltyScorer(Tier2Scorer):
         if focus_description and conversation_history:
             # Extract key terms from focus description
             key_terms = focus_description.lower().split()[:3]  # First 3 words
-            for turn in conversation_history[-self.lookback_window:]:
+            for turn in conversation_history[-self.lookback_window :]:
                 text = turn.get("text", "").lower()
                 if any(term in text for term in key_terms if len(term) > 3):
                     mention_count += 1
@@ -100,10 +100,14 @@ class NoveltyScorer(Tier2Scorer):
             reasoning = f"Focus is fresh (mentioned {mention_count} times recently)"
         elif mention_count < self.overdiscussed_threshold:
             raw_score = 1.0
-            reasoning = f"Focus moderately discussed (mentioned {mention_count} times recently)"
+            reasoning = (
+                f"Focus moderately discussed (mentioned {mention_count} times recently)"
+            )
         else:
             raw_score = self.overdiscussed_penalty
-            reasoning = f"Focus overdiscussed (mentioned {mention_count} times recently)"
+            reasoning = (
+                f"Focus overdiscussed (mentioned {mention_count} times recently)"
+            )
 
         signals = {
             "mention_count": mention_count,
@@ -120,4 +124,6 @@ class NoveltyScorer(Tier2Scorer):
             reasoning=reasoning,
         )
 
-        return self.make_output(raw_score=raw_score, signals=signals, reasoning=reasoning)
+        return self.make_output(
+            raw_score=raw_score, signals=signals, reasoning=reasoning
+        )

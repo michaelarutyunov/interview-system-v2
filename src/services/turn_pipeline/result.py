@@ -14,6 +14,7 @@ class TurnResult:
 
     Matches PRD Section 8.6 response structure.
     """
+
     turn_number: int
     extracted: dict  # concepts, relationships
     graph_state: dict  # node_count, edge_count, depth_achieved

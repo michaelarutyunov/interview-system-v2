@@ -31,6 +31,7 @@ LLMClientType = Literal["main", "light"]
 @dataclass
 class LLMResponse:
     """Standardized LLM response."""
+
     content: str
     model: str
     usage: Dict[str, int] = field(default_factory=dict)
@@ -249,9 +250,7 @@ def get_llm_client(client_type: LLMClientType = "main") -> LLMClient:
     if provider == "anthropic":
         return AnthropicClient(client_type=client_type)
     else:
-        raise ValueError(
-            f"Unknown LLM provider for {client_type}: {provider}"
-        )
+        raise ValueError(f"Unknown LLM provider for {client_type}: {provider}")
 
 
 def get_main_llm_client() -> LLMClient:

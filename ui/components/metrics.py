@@ -90,15 +90,20 @@ class MetricsPanel:
 
         st.metric(
             label="Coverage",
-            value=f"{coverage*100:.1f}%",
-            delta=f"Target: {target*100:.0f}%",
+            value=f"{coverage * 100:.1f}%",
+            delta=f"Target: {target * 100:.0f}%",
             delta_color=delta_color,
         )
 
         # Visual coverage bar (10 segments)
         filled = int(coverage * 10)
-        bar = "".join([self.coverage_emoji[1]] * filled + [self.coverage_emoji[0]] * (10 - filled))
-        st.markdown(f"<p style='font-size: 24px; letter-spacing: 2px;'>{bar}</p>", unsafe_allow_html=True)
+        bar = "".join(
+            [self.coverage_emoji[1]] * filled + [self.coverage_emoji[0]] * (10 - filled)
+        )
+        st.markdown(
+            f"<p style='font-size: 24px; letter-spacing: 2px;'>{bar}</p>",
+            unsafe_allow_html=True,
+        )
 
     def _render_status(self, status_data: Dict[str, Any]):
         """Render session status."""
@@ -149,25 +154,27 @@ class MetricsPanel:
 
     def _render_gauge(self, name: str, value: float):
         """Render a gauge chart for a score."""
-        fig = go.Figure(go.Indicator(
-            mode = "gauge+number",
-            value = value,
-            domain = {'x': [0, 1], 'y': [0, 1]},
-            title = {'text': name},
-            gauge = {
-                'axis': {'range': [0, 1]},
-                'bar': {'color': "darkblue"},
-                'steps': [
-                    {'range': [0, 0.5], 'color': "lightgray"},
-                    {'range': [0.5, 0.8], 'color': "gray"},
-                ],
-                'threshold': {
-                    'line': {'color': "red", 'width': 4},
-                    'thickness': 0.75,
-                    'value': 0.9
-                }
-            }
-        ))
+        fig = go.Figure(
+            go.Indicator(
+                mode="gauge+number",
+                value=value,
+                domain={"x": [0, 1], "y": [0, 1]},
+                title={"text": name},
+                gauge={
+                    "axis": {"range": [0, 1]},
+                    "bar": {"color": "darkblue"},
+                    "steps": [
+                        {"range": [0, 0.5], "color": "lightgray"},
+                        {"range": [0.5, 0.8], "color": "gray"},
+                    ],
+                    "threshold": {
+                        "line": {"color": "red", "width": 4},
+                        "thickness": 0.75,
+                        "value": 0.9,
+                    },
+                },
+            )
+        )
 
         fig.update_layout(
             height=200,
@@ -219,13 +226,15 @@ class MetricsPanel:
 
             if node_types:
                 st.write("**Node Types:**")
-                fig = go.Figure(data=[
-                    go.Pie(
-                        labels=list(node_types.keys()),
-                        values=list(node_types.values()),
-                        hole=0.3,
-                    )
-                ])
+                fig = go.Figure(
+                    data=[
+                        go.Pie(
+                            labels=list(node_types.keys()),
+                            values=list(node_types.values()),
+                            hole=0.3,
+                        )
+                    ]
+                )
                 fig.update_layout(
                     height=250,
                     margin=dict(l=10, r=10, t=10, b=10),
@@ -260,7 +269,9 @@ def render_turn_diagnostics(turn_result: Dict[str, Any]):
         if concepts:
             st.write("**Extracted Concepts:**")
             for concept in concepts[:5]:  # Show first 5
-                st.write(f"- {concept.get('text', 'N/A')} ({concept.get('node_type', 'N/A')})")
+                st.write(
+                    f"- {concept.get('text', 'N/A')} ({concept.get('node_type', 'N/A')})"
+                )
 
             if len(concepts) > 5:
                 st.caption(f"... and {len(concepts) - 5} more")

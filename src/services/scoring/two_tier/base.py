@@ -24,10 +24,13 @@ class Tier1Output(BaseModel):
 
     Contains veto decision and provenance for debugging.
     """
+
     scorer_id: str = Field(description="Unique identifier for the scorer")
     is_veto: bool = Field(description="Whether this candidate is vetoed")
     reasoning: str = Field(description="Human-readable explanation")
-    signals: Dict[str, Any] = Field(default_factory=dict, description="State signals used")
+    signals: Dict[str, Any] = Field(
+        default_factory=dict, description="State signals used"
+    )
 
     model_config = {"from_attributes": True}
 
@@ -96,11 +99,20 @@ class Tier2Output(BaseModel):
 
     Contains score and provenance for debugging.
     """
+
     scorer_id: str = Field(description="Unique identifier for the scorer")
-    raw_score: float = Field(default=1.0, ge=0.0, le=2.0, description="Score 0-2 where 1.0=neutral")
-    weight: float = Field(default=0.15, ge=0.0, le=1.0, description="Weight in additive combination")
-    contribution: float = Field(description="Contribution to final score (weight × raw_score)")
-    signals: Dict[str, Any] = Field(default_factory=dict, description="State signals used")
+    raw_score: float = Field(
+        default=1.0, ge=0.0, le=2.0, description="Score 0-2 where 1.0=neutral"
+    )
+    weight: float = Field(
+        default=0.15, ge=0.0, le=1.0, description="Weight in additive combination"
+    )
+    contribution: float = Field(
+        description="Contribution to final score (weight × raw_score)"
+    )
+    signals: Dict[str, Any] = Field(
+        default_factory=dict, description="State signals used"
+    )
     reasoning: str = Field(description="Human-readable explanation")
 
     model_config = {"from_attributes": True}

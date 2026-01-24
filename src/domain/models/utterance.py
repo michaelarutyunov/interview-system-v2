@@ -8,6 +8,7 @@ from enum import Enum
 
 class Speaker(str, Enum):
     """Who produced the utterance."""
+
     USER = "user"
     SYSTEM = "system"
 
@@ -17,6 +18,7 @@ class Utterance(BaseModel):
 
     Stored in utterances table, used for provenance tracking.
     """
+
     id: str
     session_id: str
     turn_number: int

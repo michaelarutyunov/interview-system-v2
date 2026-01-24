@@ -52,6 +52,7 @@ class TestExportService:
         assert result is not None
         # Verify valid JSON
         import json
+
         data = json.loads(result)
         assert data["metadata"]["session_id"] == "test-session"
         assert len(data["graph"]["nodes"]) == 1

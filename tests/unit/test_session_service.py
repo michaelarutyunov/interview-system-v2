@@ -28,11 +28,13 @@ def mock_graph_repo():
 def mock_extraction_service():
     """Create mock extraction service."""
     service = AsyncMock()
-    service.extract = AsyncMock(return_value=ExtractionResult(
-        concepts=[ExtractedConcept(text="test", node_type="attribute")],
-        relationships=[],
-        is_extractable=True,
-    ))
+    service.extract = AsyncMock(
+        return_value=ExtractionResult(
+            concepts=[ExtractedConcept(text="test", node_type="attribute")],
+            relationships=[],
+            is_extractable=True,
+        )
+    )
     return service
 
 
@@ -41,12 +43,16 @@ def mock_graph_service():
     """Create mock graph service."""
     service = AsyncMock()
     service.add_extraction_to_graph = AsyncMock(return_value=([], []))
-    service.get_graph_state = AsyncMock(return_value=GraphState(
-        node_count=1, edge_count=0, nodes_by_type={"attribute": 1}
-    ))
-    service.get_recent_nodes = AsyncMock(return_value=[
-        KGNode(id="n1", session_id="s1", label="test", node_type="attribute")
-    ])
+    service.get_graph_state = AsyncMock(
+        return_value=GraphState(
+            node_count=1, edge_count=0, nodes_by_type={"attribute": 1}
+        )
+    )
+    service.get_recent_nodes = AsyncMock(
+        return_value=[
+            KGNode(id="n1", session_id="s1", label="test", node_type="attribute")
+        ]
+    )
     return service
 
 
@@ -94,9 +100,7 @@ class TestProcessTurn:
     """Tests for process_turn."""
 
     @pytest.mark.asyncio
-    async def test_returns_turn_result(
-        self, service, mock_session_repo, mock_session
-    ):
+    async def test_returns_turn_result(self, service, mock_session_repo, mock_session):
         """process_turn returns TurnResult."""
         mock_session_repo.get = AsyncMock(return_value=mock_session)
 
@@ -161,9 +165,7 @@ class TestProcessTurn:
         assert result.next_question == "Why is that important?"
 
     @pytest.mark.asyncio
-    async def test_ends_at_max_turns(
-        self, service, mock_session_repo, mock_session
-    ):
+    async def test_ends_at_max_turns(self, service, mock_session_repo, mock_session):
         """Ends session at max turns."""
         mock_session.turn_count = 20  # At max
         mock_session_repo.get = AsyncMock(return_value=mock_session)

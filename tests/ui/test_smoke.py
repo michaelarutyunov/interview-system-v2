@@ -110,7 +110,7 @@ class TestSessionInfo:
             concept_id="oat_milk_v1",
             status="active",
             opening_question="What do you think?",
-            created_at="2025-01-21T10:00:00Z"
+            created_at="2025-01-21T10:00:00Z",
         )
         assert info.id == "test-123"
         assert info.concept_id == "oat_milk_v1"
@@ -131,6 +131,7 @@ class TestChatInterface:
     def test_initialize_chat_state(self):
         """initialize_chat_state sets defaults."""
         import streamlit as st
+
         if not hasattr(st, "session_state"):
             st.session_state = MagicMock()
 
@@ -200,6 +201,7 @@ class TestMetricsPanel:
     def test_render_accepts_status_data(self):
         """render accepts status data dict without error."""
         import streamlit as st
+
         if not hasattr(st, "session_state"):
             st.session_state = MagicMock()
 
@@ -238,6 +240,7 @@ class TestSessionStateInitialization:
     def test_initialize_session_state_sets_defaults(self):
         """initialize_session_state() sets default values."""
         import streamlit as st
+
         if not hasattr(st, "session_state"):
             st.session_state = MagicMock()
 

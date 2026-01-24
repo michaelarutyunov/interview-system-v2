@@ -92,7 +92,13 @@ class GraphRepository:
         )
         await self.db.commit()
 
-        log.info("node_created", node_id=node_id, label=label, node_type=node_type, stance=stance)
+        log.info(
+            "node_created",
+            node_id=node_id,
+            label=label,
+            node_type=node_type,
+            stance=stance,
+        )
 
         node = await self.get_node(node_id)
         assert node is not None, "Node should exist just after creation"
@@ -139,9 +145,7 @@ class GraphRepository:
 
         return [self._row_to_node(row) for row in rows]
 
-    async def find_node_by_label(
-        self, session_id: str, label: str
-    ) -> Optional[KGNode]:
+    async def find_node_by_label(self, session_id: str, label: str) -> Optional[KGNode]:
         """
         Find a node by exact label match (case-insensitive).
 
@@ -489,6 +493,22 @@ class GraphRepository:
         # Full graph traversal would be expensive; use node type as proxy
         max_depth = len([t for t in nodes_by_type if nodes_by_type.get(t, 0) > 0])
 
+        # Coverage state: track which elements have been mentioned
+        # Get all unique node labels as elements_seen (can be enhanced to load concept config elements)
+        cursor = await self.db.execute(
+            "SELECT DISTINCT label FROM kg_nodes WHERE session_id = ? AND superseded_by IS NULL",
+            (session_id,),
+        )
+        elements_seen = [row[0] for row in await cursor.fetchall()]
+
+        # Build coverage_state in properties
+        # Note: elements_total should be loaded from concept config (config/concepts/{concept_id}.yaml)
+        # For now, leave empty - CoverageGapScorer will use fallback (node type diversity)
+        coverage_state = {
+            "elements_seen": elements_seen,
+            "elements_total": [],  # TODO: Load from concept config
+        }
+
         return GraphState(
             node_count=node_count,
             edge_count=edge_count,
@@ -496,6 +516,7 @@ class GraphRepository:
             edges_by_type=edges_by_type,
             orphan_count=orphan_count,
             max_depth=max_depth,
+            properties={"coverage_state": coverage_state},
         )
 
     # ==================== HELPERS ====================
@@ -509,10 +530,14 @@ class GraphRepository:
             node_type=row["node_type"],
             confidence=row["confidence"],
             properties=json.loads(row["properties"]) if row["properties"] else {},
-            source_utterance_ids=json.loads(row["source_utterance_ids"]) if row["source_utterance_ids"] else [],
+            source_utterance_ids=json.loads(row["source_utterance_ids"])
+            if row["source_utterance_ids"]
+            else [],
             recorded_at=datetime.fromisoformat(row["recorded_at"]),
             superseded_by=row["superseded_by"],
-            stance=row["stance"] if "stance" in row.keys() else 0,  # Default to 0 for existing nodes
+            stance=row["stance"]
+            if "stance" in row.keys()
+            else 0,  # Default to 0 for existing nodes
         )
 
     def _row_to_edge(self, row: aiosqlite.Row) -> KGEdge:
@@ -525,6 +550,8 @@ class GraphRepository:
             edge_type=row["edge_type"],
             confidence=row["confidence"],
             properties=json.loads(row["properties"]) if row["properties"] else {},
-            source_utterance_ids=json.loads(row["source_utterance_ids"]) if row["source_utterance_ids"] else [],
+            source_utterance_ids=json.loads(row["source_utterance_ids"])
+            if row["source_utterance_ids"]
+            else [],
             recorded_at=datetime.fromisoformat(row["recorded_at"]),
         )

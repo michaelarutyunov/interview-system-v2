@@ -1,4 +1,5 @@
 """Utterance repository for database operations."""
+
 import json
 from datetime import datetime
 from typing import List
@@ -42,14 +43,13 @@ class UtteranceRepository:
                     utterance.text,
                     discourse_markers_json,
                     utterance.created_at.isoformat(),
-                )
+                ),
             )
             await db.commit()
 
             # Fetch the saved utterance to get the exact database state
             cursor = await db.execute(
-                "SELECT * FROM utterances WHERE id = ?",
-                (utterance.id,)
+                "SELECT * FROM utterances WHERE id = ?", (utterance.id,)
             )
             row = await cursor.fetchone()
             if not row:
@@ -73,7 +73,7 @@ class UtteranceRepository:
                    WHERE session_id = ?
                    ORDER BY turn_number ASC, created_at ASC
                    LIMIT ?""",
-                (session_id, limit)
+                (session_id, limit),
             )
             rows = await cursor.fetchall()
             return [self._row_to_utterance(row) for row in rows]
@@ -94,7 +94,7 @@ class UtteranceRepository:
                 """SELECT * FROM utterances
                    WHERE session_id = ? AND turn_number = ?
                    ORDER BY created_at ASC""",
-                (session_id, turn_number)
+                (session_id, turn_number),
             )
             rows = await cursor.fetchall()
             return [self._row_to_utterance(row) for row in rows]
@@ -114,6 +114,8 @@ class UtteranceRepository:
             turn_number=row["turn_number"],
             speaker=row["speaker"],
             text=row["text"],
-            discourse_markers=json.loads(row["discourse_markers"]) if row["discourse_markers"] else [],
-            created_at=datetime.fromisoformat(row["created_at"])
+            discourse_markers=json.loads(row["discourse_markers"])
+            if row["discourse_markers"]
+            else [],
+            created_at=datetime.fromisoformat(row["created_at"]),
         )

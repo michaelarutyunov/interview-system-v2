@@ -4,7 +4,11 @@ import pytest
 import tempfile
 from pathlib import Path
 
-from src.persistence.database import init_database, get_db_connection, check_database_health
+from src.persistence.database import (
+    init_database,
+    get_db_connection,
+    check_database_health,
+)
 
 
 @pytest.mark.asyncio
@@ -28,6 +32,7 @@ async def test_init_database_creates_tables():
         await init_database(db_path)
 
         import aiosqlite
+
         async with aiosqlite.connect(db_path) as db:
             cursor = await db.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
@@ -51,6 +56,7 @@ async def test_get_db_connection():
 
         # Temporarily override settings
         from src.core import config
+
         original_path = config.settings.database_path
         config.settings.database_path = db_path
 
@@ -75,6 +81,7 @@ async def test_check_database_health():
         await init_database(db_path)
 
         from src.core import config
+
         original_path = config.settings.database_path
         config.settings.database_path = db_path
 
@@ -96,6 +103,7 @@ async def test_foreign_keys_enforced():
         await init_database(db_path)
 
         import aiosqlite
+
         async with aiosqlite.connect(db_path) as db:
             await db.execute("PRAGMA foreign_keys = ON")
 

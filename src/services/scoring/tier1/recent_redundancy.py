@@ -42,11 +42,13 @@ class RecentRedundancyScorer(Tier1Scorer):
         self.lookback_window = self.params.get("lookback_window", 6)
 
         # Create similarity calculator
-        self.similarity = create_similarity_calculator({
-            "similarity_threshold": self.similarity_threshold,
-            "min_ngram": 2,  # Word pairs
-            "max_ngram": 3,  # Word triples
-        })
+        self.similarity = create_similarity_calculator(
+            {
+                "similarity_threshold": self.similarity_threshold,
+                "min_ngram": 2,  # Word pairs
+                "max_ngram": 3,  # Word triples
+            }
+        )
 
         logger.info(
             "RecentRedundancyScorer initialized",
@@ -139,7 +141,9 @@ class RecentRedundancyScorer(Tier1Scorer):
             },
         )
 
-    def _extract_recent_questions(self, conversation_history: List[Dict[str, str]]) -> List[str]:
+    def _extract_recent_questions(
+        self, conversation_history: List[Dict[str, str]]
+    ) -> List[str]:
         """
         Extract recent system questions from conversation history.
 
@@ -153,7 +157,8 @@ class RecentRedundancyScorer(Tier1Scorer):
 
         # Get last N system utterances
         system_turns = [
-            turn for turn in conversation_history[-self.lookback_window:]
+            turn
+            for turn in conversation_history[-self.lookback_window :]
             if turn.get("speaker") == "system"
         ]
 
@@ -165,6 +170,8 @@ class RecentRedundancyScorer(Tier1Scorer):
         return recent_questions
 
 
-def create_recent_redundancy_scorer(config: Optional[Dict[str, Any]] = None) -> RecentRedundancyScorer:
+def create_recent_redundancy_scorer(
+    config: Optional[Dict[str, Any]] = None,
+) -> RecentRedundancyScorer:
     """Factory function to create RecentRedundancyScorer."""
     return RecentRedundancyScorer(config=config)

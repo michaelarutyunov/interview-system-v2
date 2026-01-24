@@ -59,3 +59,54 @@ valid_connections:
   revises:
     # Any node can revise any node (contradictions are unconstrained)
     - ["*", "*"]
+
+# Methodology-specific extraction guidelines
+extraction_guidelines:
+  - "For Means-End Chain interviews, extract BOTH explicit AND implicit relationships"
+  - "Explicit: Look for causal markers like 'because', 'so', 'that's why', 'leads to'"
+  - "Implicit (MEC chains): When multiple concepts are mentioned in the same response, connect them if they form a logical means-end chain"
+  - "Contextual: If the interviewer asks 'why does X matter' and the response describes Y, create X→Y relationship"
+  - "For Means-End Chain interviews, create edges between concepts that represent the chain of reasoning, even when no explicit connector is used"
+  - "attribute → functional_consequence (features → outcomes)"
+  - "functional_consequence → psychosocial_consequence (outcomes → feelings)"
+  - "psychosocial_consequence → instrumental_value (feelings → goals)"
+  - "instrumental_value → terminal_value (goals → life values)"
+  - "Target 2-3x more edges than nodes for a well-structured MEC graph"
+  - "Prefer creating relationships over leaving concepts disconnected"
+
+# Methodology-specific relationship extraction examples
+relationship_examples:
+  explicit_causal:
+    description: "Discourse markers explicitly state the connection"
+    example: "I like froth because it makes coffee less bitter"
+    extraction: "froth → makes coffee taste less bitter"
+
+  implicit_same_response:
+    description: "Multiple concepts in one response form logical consequence chain"
+    example: "Froth makes coffee taste less bitter and gives a nice sensation in the mouth"
+    extraction: "makes coffee taste less bitter → nice sensation in the mouth"
+
+  implicit_conversational:
+    description: "Question establishes antecedent, response provides consequence"
+    example: "Interviewer: 'Why does the nice sensation matter?' Respondent: 'It feels like a good start of the day'"
+    extraction: "nice sensation in the mouth → good start of the day"
+
+  value_progression:
+    description: "Parallel goals forming a chain toward terminal value"
+    example: "I can be my best and set a good example to my kids"
+    extraction: "be my best → set a good example to my kids"
+
+# Methodology-specific extractability criteria
+extractability_criteria:
+  extractable_contains:
+    - "Product attributes, features, or characteristics"
+    - "Benefits, outcomes, or consequences"
+    - "Feelings, emotions, or social implications"
+    - "Values or life goals"
+    - "Causal relationships between any of the above"
+  non_extractable_contains:
+    - "Simple yes/no responses"
+    - "Acknowledgments ('okay', 'I see')"
+    - "Questions back to the interviewer"
+    - "Off-topic tangents"
+    - "Very short responses with no substance"

@@ -52,7 +52,10 @@ class TestSyntheticService:
             persona="health_conscious",
         )
 
-        assert result["response"] == "I really like the creamy texture because it feels satisfying."
+        assert (
+            result["response"]
+            == "I really like the creamy texture because it feels satisfying."
+        )
         assert result["persona"] == "health_conscious"
         assert "Health-Conscious" in result["persona_name"]
         assert result["question"] == "Why is creamy texture important to you?"

@@ -3,6 +3,7 @@ Stage 10: Persist scoring data and update session state.
 
 ADR-008 Phase 3: Save scoring results and update turn count.
 """
+
 from typing import TYPE_CHECKING
 
 import uuid
@@ -46,12 +47,8 @@ class ScoringPersistenceStage(TurnStage):
         Returns:
             Modified context with scoring populated
         """
-        # Build scoring dict
-        scoring = {
-            "coverage": 0.0,  # Phase 3: computed by CoverageScorer
-            "depth": 0.0,  # Phase 3: computed by DepthScorer
-            "saturation": 0.0,  # Phase 3: computed by SaturationScorer
-        }
+        # Build scoring dict from tier2 results
+        scoring = await self._extract_legacy_scores(context.selection_result)
 
         await self._save_scoring(
             session_id=context.session_id,
@@ -64,7 +61,7 @@ class ScoringPersistenceStage(TurnStage):
         context.scoring = scoring
 
         # Update session turn count
-        await self._update_turn_count(context)
+        await self._update_turn_count(context, scoring)
 
         log.info(
             "scoring_persisted",
@@ -116,7 +113,9 @@ class ScoringPersistenceStage(TurnStage):
             }
             # Extract last reasoning entry
             if selection_result.scoring_result.reasoning_trace:
-                reasoning_trace_last = selection_result.scoring_result.reasoning_trace[-1]
+                reasoning_trace_last = selection_result.scoring_result.reasoning_trace[
+                    -1
+                ]
 
         async with aiosqlite.connect(str(self.session_repo.db_path)) as db:
             # Save winner to scoring_history (legacy)
@@ -124,8 +123,9 @@ class ScoringPersistenceStage(TurnStage):
                 """INSERT INTO scoring_history (
                     id, session_id, turn_number,
                     coverage_score, depth_score, saturation_score,
+                    novelty_score, richness_score,
                     strategy_selected, strategy_reasoning, scorer_details
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     scoring_id,
                     session_id,
@@ -133,10 +133,12 @@ class ScoringPersistenceStage(TurnStage):
                     scoring.get("coverage", 0.0),
                     scoring.get("depth", 0.0),
                     scoring.get("saturation", 0.0),
+                    scoring.get("novelty"),
+                    scoring.get("richness"),
                     strategy,
                     reasoning_trace_last,
                     json.dumps(scorer_details),
-                )
+                ),
             )
 
             # Save ALL candidates to scoring_candidates table
@@ -212,7 +214,11 @@ class ScoringPersistenceStage(TurnStage):
             ]
 
         # Build reasoning trace
-        reasoning = " | ".join(scoring_result.reasoning_trace) if scoring_result and scoring_result.reasoning_trace else None
+        reasoning = (
+            " | ".join(scoring_result.reasoning_trace)
+            if scoring_result and scoring_result.reasoning_trace
+            else None
+        )
 
         await db.execute(
             """INSERT INTO scoring_candidates (
@@ -235,10 +241,10 @@ class ScoringPersistenceStage(TurnStage):
                 json.dumps(tier1_results),
                 json.dumps(tier2_results),
                 reasoning,
-            )
+            ),
         )
 
-    async def _update_turn_count(self, context: "PipelineContext"):
+    async def _update_turn_count(self, context: "PipelineContext", scoring: dict):
         """Update session turn count."""
         from src.domain.models.session import SessionState
 
@@ -247,6 +253,42 @@ class ScoringPersistenceStage(TurnStage):
             concept_id=context.concept_id,
             concept_name=context.concept_name,
             turn_count=context.turn_number + 1,
-            coverage_score=0.0,  # Will be computed on-demand
+            coverage_score=scoring.get("coverage", 0.0),
         )
         await self.session_repo.update_state(context.session_id, updated_state)
+
+    async def _extract_legacy_scores(self, selection_result) -> dict:
+        """Extract legacy scoring metrics from tier2 results."""
+        coverage_score = 0.0
+        depth_score = 0.0
+        saturation_score = 0.0
+        novelty_score = None
+        richness_score = None
+
+        if selection_result and selection_result.scoring_result:
+            for result in selection_result.scoring_result.tier2_outputs:
+                scorer_id = result.scorer_id
+                signals = result.signals
+
+                if scorer_id == "DepthBreadthBalanceScorer":
+                    coverage_score = signals.get("breadth_pct", 0.0)
+                    depth_avg = signals.get("depth_avg", 0.0)
+                    depth_score = min(1.0, depth_avg / 5.0) if depth_avg else 0.0
+
+                elif scorer_id == "NoveltyScorer":
+                    novelty_score = result.raw_score
+
+                elif scorer_id == "EngagementScorer":
+                    momentum = signals.get("avg_momentum", 50)
+                    richness_score = min(1.0, momentum / 150.0)
+
+                elif scorer_id == "SaturationScorer":
+                    saturation_score = result.raw_score
+
+        return {
+            "coverage": coverage_score,
+            "depth": depth_score,
+            "saturation": saturation_score,
+            "novelty": novelty_score,
+            "richness": richness_score,
+        }

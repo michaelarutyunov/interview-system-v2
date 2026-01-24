@@ -64,16 +64,26 @@ class TestAddExtractionToGraph:
         mock_repo.find_edge.return_value = None  # No duplicate edges
 
         node1 = KGNode(
-            id="n1", session_id="s1", label="creamy texture",
-            node_type="attribute", source_utterance_ids=["u1"]
+            id="n1",
+            session_id="s1",
+            label="creamy texture",
+            node_type="attribute",
+            source_utterance_ids=["u1"],
         )
         node2 = KGNode(
-            id="n2", session_id="s1", label="satisfying",
-            node_type="functional_consequence", source_utterance_ids=["u1"]
+            id="n2",
+            session_id="s1",
+            label="satisfying",
+            node_type="functional_consequence",
+            source_utterance_ids=["u1"],
         )
         edge = KGEdge(
-            id="e1", session_id="s1", source_node_id="n1",
-            target_node_id="n2", edge_type="leads_to", source_utterance_ids=["u1"]
+            id="e1",
+            session_id="s1",
+            source_node_id="n1",
+            target_node_id="n2",
+            edge_type="leads_to",
+            source_utterance_ids=["u1"],
         )
 
         mock_repo.create_node.side_effect = [node1, node2]
@@ -95,8 +105,11 @@ class TestAddExtractionToGraph:
         """Deduplicates nodes by label."""
         # Setup: first concept already exists
         existing_node = KGNode(
-            id="existing", session_id="s1", label="creamy texture",
-            node_type="attribute", source_utterance_ids=["old-u"]
+            id="existing",
+            session_id="s1",
+            label="creamy texture",
+            node_type="attribute",
+            source_utterance_ids=["old-u"],
         )
         mock_repo.find_node_by_label.side_effect = [
             existing_node,  # First concept exists
@@ -104,13 +117,20 @@ class TestAddExtractionToGraph:
         ]
         mock_repo.add_source_utterance.return_value = existing_node
         mock_repo.create_node.return_value = KGNode(
-            id="new", session_id="s1", label="satisfying",
-            node_type="functional_consequence", source_utterance_ids=["u1"]
+            id="new",
+            session_id="s1",
+            label="satisfying",
+            node_type="functional_consequence",
+            source_utterance_ids=["u1"],
         )
         mock_repo.find_edge.return_value = None
         mock_repo.create_edge.return_value = KGEdge(
-            id="e1", session_id="s1", source_node_id="existing",
-            target_node_id="new", edge_type="leads_to", source_utterance_ids=["u1"]
+            id="e1",
+            session_id="s1",
+            source_node_id="existing",
+            target_node_id="new",
+            edge_type="leads_to",
+            source_utterance_ids=["u1"],
         )
 
         nodes, edges = await service.add_extraction_to_graph(
@@ -179,12 +199,19 @@ class TestHandleContradiction:
     async def test_creates_revises_edge(self, service, mock_repo):
         """Creates REVISES edge for contradiction."""
         new_node = KGNode(
-            id="new", session_id="s1", label="new belief",
-            node_type="attribute", source_utterance_ids=["u1"]
+            id="new",
+            session_id="s1",
+            label="new belief",
+            node_type="attribute",
+            source_utterance_ids=["u1"],
         )
         edge = KGEdge(
-            id="e1", session_id="s1", source_node_id="new",
-            target_node_id="old", edge_type="revises", source_utterance_ids=["u1"]
+            id="e1",
+            session_id="s1",
+            source_node_id="new",
+            target_node_id="old",
+            edge_type="revises",
+            source_utterance_ids=["u1"],
         )
 
         mock_repo.create_node.return_value = new_node

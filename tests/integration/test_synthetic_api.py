@@ -27,7 +27,9 @@ class TestSyntheticRespondEndpoint:
             mock_get_client.return_value = mock_client
 
             transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
+            async with AsyncClient(
+                transport=transport, base_url="http://test"
+            ) as client:
                 response = await client.post(
                     "/synthetic/respond",
                     json={
@@ -39,7 +41,10 @@ class TestSyntheticRespondEndpoint:
 
             assert response.status_code == 200
             data = response.json()
-            assert data["response"] == "I really like the creamy texture because it feels satisfying."
+            assert (
+                data["response"]
+                == "I really like the creamy texture because it feels satisfying."
+            )
             assert data["persona"] == "health_conscious"
             assert "Health-Conscious" in data["persona_name"]
             assert data["latency_ms"] == 150.0
@@ -77,7 +82,9 @@ class TestSyntheticRespondEndpoint:
             mock_get_client.return_value = mock_client
 
             transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
+            async with AsyncClient(
+                transport=transport, base_url="http://test"
+            ) as client:
                 response = await client.post(
                     "/synthetic/respond",
                     json={
@@ -113,7 +120,9 @@ class TestMultiSyntheticEndpoint:
             mock_get_client.return_value = mock_client
 
             transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
+            async with AsyncClient(
+                transport=transport, base_url="http://test"
+            ) as client:
                 response = await client.post(
                     "/synthetic/respond/multi",
                     json={
@@ -150,7 +159,9 @@ class TestInterviewSequenceEndpoint:
             mock_get_client.return_value = mock_client
 
             transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
+            async with AsyncClient(
+                transport=transport, base_url="http://test"
+            ) as client:
                 response = await client.post(
                     "/synthetic/respond/sequence",
                     json={

@@ -1,4 +1,5 @@
 """Session domain models."""
+
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -8,6 +9,7 @@ from src.domain.models.interview_state import InterviewMode
 
 class SessionState(BaseModel):
     """Current state of an interview session."""
+
     methodology: str  # e.g., "mec" (Means-End Chain), "zmet" (Zmet)
     concept_id: str
     concept_name: str
@@ -19,6 +21,7 @@ class SessionState(BaseModel):
 
 class Session(BaseModel):
     """Interview session."""
+
     id: str
     methodology: str
     concept_id: str

@@ -55,7 +55,14 @@ class LoggingChecker(ast.NodeVisitor):
 
         # Check if logging methods are used
         if isinstance(node.func, ast.Attribute):
-            if node.func.attr in ("debug", "info", "warning", "error", "critical", "exception"):
+            if node.func.attr in (
+                "debug",
+                "info",
+                "warning",
+                "error",
+                "critical",
+                "exception",
+            ):
                 self.uses_logging = True
 
         self.generic_visit(node)

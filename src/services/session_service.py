@@ -26,7 +26,11 @@ from src.services.strategy_service import StrategyService
 from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
 from src.persistence.repositories.utterance_repo import UtteranceRepository
-from src.services.turn_pipeline import TurnPipeline, PipelineContext, TurnResult as PipelineTurnResult
+from src.services.turn_pipeline import (
+    TurnPipeline,
+    PipelineContext,
+    TurnResult as PipelineTurnResult,
+)
 from src.services.turn_pipeline.stages import (
     ContextLoadingStage,
     UtteranceSavingStage,
@@ -54,6 +58,7 @@ class SessionContext:
 
     Loaded at turn start, used throughout pipeline.
     """
+
     session_id: str
     methodology: str
     concept_id: str
@@ -115,8 +120,14 @@ class SessionService:
         self.utterance_repo = utterance_repo
 
         # Load from centralized interview config (Phase 4: ADR-008)
-        self.max_turns = max_turns if max_turns is not None else interview_config.session.max_turns
-        self.target_coverage = target_coverage if target_coverage is not None else interview_config.session.target_coverage
+        self.max_turns = (
+            max_turns if max_turns is not None else interview_config.session.max_turns
+        )
+        self.target_coverage = (
+            target_coverage
+            if target_coverage is not None
+            else interview_config.session.target_coverage
+        )
 
         # Build pipeline with all stages
         self.pipeline = self._build_pipeline()
@@ -271,7 +282,10 @@ class SessionService:
             depth_score=scoring.get("depth", 0.0),
             saturation_score=scoring.get("saturation", 0.0),
             strategy_selected=strategy,
-            strategy_reasoning=selection_result.scoring_result.reasoning_trace[-1] if selection_result.scoring_result and selection_result.scoring_result.reasoning_trace else None,
+            strategy_reasoning=selection_result.scoring_result.reasoning_trace[-1]
+            if selection_result.scoring_result
+            and selection_result.scoring_result.reasoning_trace
+            else None,
             scorer_details=scorer_details,
         )
 
@@ -308,7 +322,9 @@ class SessionService:
         turn_number: int,
         strategy_id: str,
         strategy_name: str,
-        focus: Union["Focus", Dict[str, Any]],  # Accept both typed Focus and dict for compatibility
+        focus: Union[
+            "Focus", Dict[str, Any]
+        ],  # Accept both typed Focus and dict for compatibility
         final_score: float,
         is_selected: bool,
         scoring_result: Any,
@@ -321,9 +337,9 @@ class SessionService:
         # Convert Focus to dict if needed
         if isinstance(focus, dict):
             focus_dict: Dict[str, Any] = focus
-        elif hasattr(focus, 'to_dict'):
+        elif hasattr(focus, "to_dict"):
             focus_dict: Dict[str, Any] = focus.to_dict()
-        elif hasattr(focus, 'model_dump'):  # Pydantic v2
+        elif hasattr(focus, "model_dump"):  # Pydantic v2
             focus_dict: Dict[str, Any] = focus.model_dump()
         else:
             focus_dict: Dict[str, Any] = focus  # type: ignore[assignment]
@@ -355,7 +371,11 @@ class SessionService:
             ]
 
         # Build reasoning trace
-        reasoning = " | ".join(scoring_result.reasoning_trace) if scoring_result and scoring_result.reasoning_trace else None
+        reasoning = (
+            " | ".join(scoring_result.reasoning_trace)
+            if scoring_result and scoring_result.reasoning_trace
+            else None
+        )
 
         await self.session_repo.save_scoring_candidate(
             candidate_id=candidate_id,
@@ -364,7 +384,9 @@ class SessionService:
             strategy_id=strategy_id,
             strategy_name=strategy_name,
             focus_type=focus_dict.get("focus_type", ""),
-            focus_description=focus_dict.get("focus_description", "")[:500],  # Limit length
+            focus_description=focus_dict.get("focus_description", "")[
+                :500
+            ],  # Limit length
             final_score=final_score,
             is_selected=is_selected,
             vetoed_by=scoring_result.vetoed_by if scoring_result else None,
@@ -431,8 +453,7 @@ class SessionService:
 
         # Get recent utterances (use config limit)
         recent_utterances = await self._get_recent_utterances(
-            session_id,
-            limit=interview_config.session_service.context_utterance_limit
+            session_id, limit=interview_config.session_service.context_utterance_limit
         )
 
         # Get graph state
@@ -440,8 +461,7 @@ class SessionService:
 
         # Get recent nodes (use config limit)
         recent_nodes = await self.graph.get_recent_nodes(
-            session_id,
-            limit=interview_config.session_service.context_node_limit
+            session_id, limit=interview_config.session_service.context_node_limit
         )
 
         return SessionContext(
@@ -483,7 +503,7 @@ class SessionService:
             speaker=speaker,
             text=text,
             discourse_markers=[],
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
 
         return await self.utterance_repo.save(utterance)
@@ -503,10 +523,7 @@ class SessionService:
         """
         utterances = await self.utterance_repo.get_recent(session_id, limit=limit)
 
-        return [
-            {"speaker": u.speaker, "text": u.text}
-            for u in utterances
-        ]
+        return [{"speaker": u.speaker, "text": u.text} for u in utterances]
 
     def _format_context_for_extraction(self, context: SessionContext) -> str:
         """
@@ -580,7 +597,12 @@ class SessionService:
         """
         # Max turns reached
         if turn_number >= max_turns:
-            log.info("session_ending", reason="max_turns", turn_number=turn_number, max_turns=max_turns)
+            log.info(
+                "session_ending",
+                reason="max_turns",
+                turn_number=turn_number,
+                max_turns=max_turns,
+            )
             return False
 
         # Strategy is close
@@ -610,7 +632,9 @@ class SessionService:
         # Get session config to read max_turns and target_coverage
         config = await self.session_repo.get_config(session_id)
         max_turns = config.get("max_turns", interview_config.session.max_turns)
-        target_coverage = config.get("target_coverage", interview_config.session.target_coverage)
+        target_coverage = config.get(
+            "target_coverage", interview_config.session.target_coverage
+        )
 
         # Calculate coverage from concept_elements
         coverage_stats = await self.session_repo.get_coverage_stats(session_id)
@@ -670,8 +694,12 @@ class SessionService:
                 "final_score": row["final_score"],
                 "is_selected": bool(row["is_selected"]),
                 "vetoed_by": row["vetoed_by"],
-                "tier1_results": json.loads(row["tier1_results"]) if row["tier1_results"] else [],
-                "tier2_results": json.loads(row["tier2_results"]) if row["tier2_results"] else [],
+                "tier1_results": json.loads(row["tier1_results"])
+                if row["tier1_results"]
+                else [],
+                "tier2_results": json.loads(row["tier2_results"])
+                if row["tier2_results"]
+                else [],
                 "reasoning": row["reasoning"],
             }
             candidates.append(candidate)
@@ -696,7 +724,9 @@ class SessionService:
         Returns:
             List of turn scoring dicts
         """
-        turn_numbers = await self.session_repo.get_all_turn_numbers_with_scoring(session_id)
+        turn_numbers = await self.session_repo.get_all_turn_numbers_with_scoring(
+            session_id
+        )
 
         results = []
         for turn_num in turn_numbers:
