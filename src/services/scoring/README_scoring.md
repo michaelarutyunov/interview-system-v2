@@ -432,6 +432,125 @@ tier2_scorers:
 
 ---
 
+## LLM Qualitative Signal Extraction (Layer 3)
+
+Layer 3 of the signal architecture uses LLM semantic understanding to extract
+qualitative signals that complement rule-based heuristics. This provides deeper
+insight into respondent engagement, reasoning quality, and knowledge state.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Three-Layer Signal Architecture               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Layer 1: Database Aggregations (GraphRepository)                │
+│    → Node counts, edge patterns, cluster metrics                 │
+│    → SQL-based, fast                                             │
+│                                                                  │
+│  Layer 2: Rule-based Helpers (signal_helpers.py)                 │
+│    → get_recent_user_responses(), find_node_by_id()              │
+│    → Pure functions, no LLM                                      │
+│                                                                  │
+│  Layer 3: LLM Semantic Extraction (llm_signals.py) ★ NEW ★       │
+│    → QualitativeSignalExtractor with 6 signal types              │
+│    → Nuanced understanding beyond pattern matching               │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Qualitative Signal Types
+
+| Signal | Description | Use Case |
+|--------|-------------|----------|
+| `UncertaintySignal` | Distinguishes productive vs terminal uncertainty | KnowledgeCeilingScorer nuance |
+| `ReasoningSignal` | Causal, counterfactual, metacognitive detection | EngagementScorer enhancement |
+| `EmotionalSignal` | Engagement intensity and trajectory | Phase transitions |
+| `ContradictionSignal` | Stance shifts and inconsistencies | Depth strategy adjustment |
+| `KnowledgeCeilingSignal` | Terminal vs exploratory "don't know" | Selective deepen veto |
+| `ConceptDepthSignal` | Abstraction level measurement | Deepen vs broaden selection |
+
+### Integration Pattern
+
+Scorers can opt-in to use LLM signals:
+
+```python
+class MyScorer(Tier1Scorer):
+    def __init__(self, config):
+        super().__init__(config)
+        self.use_llm_signals = self.params.get("use_llm_signals", False)
+
+    async def evaluate(self, strategy, focus, graph_state, ...):
+        # Check for LLM signals in graph_state.properties
+        if self.use_llm_signals:
+            qualitative_signals = graph_state.properties.get("qualitative_signals")
+            if qualitative_signals:
+                # Use LLM signal for enhanced decision
+                kc_signal = qualitative_signals.get("knowledge_ceiling")
+                if kc_signal and kc_signal.get("is_terminal"):
+                    return Tier1Output(is_veto=True, ...)
+
+        # Fall back to rule-based logic
+        return self._evaluate_rule_based(...)
+```
+
+### Enabling LLM Signals
+
+1. **Configure StrategyService** to extract signals (future enhancement):
+
+```python
+# In StrategyService.__init__
+from src.services.scoring.llm_signals import QualitativeSignalExtractor
+
+self.signal_extractor = QualitativeSignalExtractor() if config.get(
+    "use_llm_signals", False
+) else None
+
+# In StrategyService.select (before scoring loop)
+if self.signal_extractor:
+    signals = await self.signal_extractor.extract(
+        conversation_history=conversation_history,
+        turn_number=graph_state.turn_count,
+    )
+    # Store in graph_state for scorers to access
+    graph_state.properties["qualitative_signals"] = signals.to_dict()
+```
+
+2. **Enable in scorer config** (`config/scoring.yaml`):
+
+```yaml
+tier1_scorers:
+  - id: knowledge_ceiling
+    class: KnowledgeCeilingScorer
+    enabled: true
+    params:
+      use_llm_signals: true  # Enable LLM enhancement
+      # ... other params
+```
+
+### Cost Considerations
+
+- **LLM Model**: Uses light client (Haiku/GPT-4o-mini) for cost efficiency
+- **Frequency**: Extract once per turn, consume across all scorers
+- **Tokens**: ~1500 max output, ~1000 input (recent 10 turns)
+- **Fallback**: Graceful degradation to rule-based if LLM fails
+
+### Example: KnowledgeCeilingScorer Enhancement
+
+The `KnowledgeCeilingScorer` demonstrates LLM integration:
+
+```python
+# Without LLM: Veto any "don't know" response
+"I don't know about oat milk" → VETO deepen
+
+# With LLM: Nuanced detection
+"I don't know about oat milk, but I'm curious about..." → ALLOW deepen (exploratory)
+"I don't know and I don't really care about milk" → VETO deepen (terminal)
+```
+
+---
+
 ## Current Implementation Issues
 
 > ⚠️ **Known Issues** (as of 2025-01-24)
@@ -453,6 +572,25 @@ tier2_scorers:
 
 4. **Phase Profile Dead Code**
    - YAML sets multipliers for `bridge`, `contrast`, `ease`, `synthesis`
+   - These are never applied because those strategies are never candidates
+
+5. **LLM Signal Integration Incomplete** (as of 2025-01-24)
+   - `QualitativeSignalExtractor` implemented and tested
+   - `KnowledgeCeilingScorer` enhanced with opt-in LLM support
+   - **Missing**: StrategyService integration to extract signals before scoring
+   - **Missing**: Config flag to enable LLM signals globally
+   - **Current**: Scorers can use signals but no pipeline step extracts them
+
+**Integration TODO:**
+```python
+# In StrategyService.select() before scoring loop:
+if self.signal_extractor:
+    signals = await self.signal_extractor.extract(
+        conversation_history=conversation_history,
+        turn_number=graph_state.turn_count,
+    )
+    graph_state.properties["qualitative_signals"] = signals.to_dict()
+```
    - These are never applied because those strategies are never candidates
 
 **Ideal State:**
