@@ -2,6 +2,11 @@
 
 Vetoes strategies when respondent explicitly indicates lack of knowledge
 about the focus topic (e.g., "I don't know", "never heard of it").
+
+Enhanced with optional LLM signal integration for more nuanced detection:
+- Distinguishes between terminal and exploratory "I don't know"
+- Detects curiosity despite knowledge gaps
+- Identifies redirection opportunities
 """
 
 from typing import Any, Dict, List, Optional
@@ -51,9 +56,13 @@ class KnowledgeCeilingScorer(Tier1Scorer):
             ],
         )
 
+        # Enable LLM signal integration if available
+        self.use_llm_signals = self.params.get("use_llm_signals", False)
+
         logger.info(
             "KnowledgeCeilingScorer initialized",
             patterns_count=len(self.negative_patterns),
+            use_llm_signals=self.use_llm_signals,
         )
 
     async def evaluate(
@@ -70,8 +79,126 @@ class KnowledgeCeilingScorer(Tier1Scorer):
         Args:
             strategy: Strategy being evaluated
             focus: Focus target
-            graph_state: Current graph state
+            graph_state: Current graph state (may contain LLM signals)
             recent_nodes: Recent nodes from graph
+            conversation_history: Recent conversation for analysis
+
+        Returns:
+            Tier1Output with veto decision
+        """
+        # Check for LLM-enhanced signals first (if enabled)
+        if self.use_llm_signals:
+            llm_result = self._evaluate_with_llm_signals(
+                strategy, focus, graph_state
+            )
+            if llm_result is not None:
+                return llm_result
+
+        # Fall back to rule-based pattern matching
+        return await self._evaluate_rule_based(
+            strategy, focus, graph_state, conversation_history
+        )
+
+    def _evaluate_with_llm_signals(
+        self,
+        strategy: Dict[str, Any],
+        focus: Dict[str, Any],
+        graph_state: GraphState,
+    ) -> Optional[Tier1Output]:
+        """
+        Evaluate using LLM-extracted qualitative signals.
+
+        Checks graph_state.properties for 'qualitative_signals' key containing
+        QualitativeSignalSet. Uses knowledge_ceiling signal if available.
+
+        Args:
+            strategy: Strategy being evaluated
+            focus: Focus target
+            graph_state: Current graph state
+
+        Returns:
+            Tier1Output if LLM signals available and decisive, None otherwise
+        """
+        # Get LLM signals from graph_state.properties
+        qualitative_signals = graph_state.properties.get("qualitative_signals")
+
+        if not qualitative_signals:
+            logger.debug("No LLM qualitative signals available in graph_state")
+            return None
+
+        # Extract knowledge ceiling signal
+        kc_signal = qualitative_signals.get("knowledge_ceiling")
+        if not kc_signal:
+            logger.debug("No knowledge_ceiling signal in LLM qualitative signals")
+            return None
+
+        # Use LLM signal for nuanced decision
+        if kc_signal.get("is_terminal", False):
+            # Terminal knowledge ceiling - veto depth strategies
+            strategy_type = strategy.get("type_category", "")
+            if strategy_type == "depth" or strategy.get("id") == "deepen":
+                logger.info(
+                    "LLM signal: Terminal knowledge ceiling detected - vetoing deepen",
+                    response_type=kc_signal.get("response_type"),
+                    has_curiosity=kc_signal.get("has_curiosity"),
+                )
+                return Tier1Output(
+                    scorer_id=self.scorer_id,
+                    is_veto=True,
+                    reasoning=f"LLM detected terminal knowledge ceiling ({kc_signal.get('response_type')}): {kc_signal.get('reasoning', '')}",
+                    signals={
+                        "llm_enhanced": True,
+                        "response_type": kc_signal.get("response_type"),
+                        "has_curiosity": kc_signal.get("has_curiosity"),
+                        "redirection_available": kc_signal.get("redirection_available"),
+                        "confidence": kc_signal.get("confidence"),
+                    },
+                )
+            else:
+                # Allow breadth/coverage strategies even with terminal ceiling
+                logger.debug(
+                    "LLM signal: Terminal knowledge ceiling but allowing non-depth strategy",
+                    strategy_id=strategy.get("id"),
+                )
+                return Tier1Output(
+                    scorer_id=self.scorer_id,
+                    is_veto=False,
+                    reasoning=f"LLM detected terminal knowledge ceiling but {strategy.get('id')} may still be productive",
+                    signals={"llm_enhanced": True, "allowed_strategies": "breadth/coverage"},
+                )
+        else:
+            # Non-terminal - no veto based on knowledge ceiling
+            logger.debug(
+                "LLM signal: No terminal knowledge ceiling",
+                response_type=kc_signal.get("response_type"),
+                has_curiosity=kc_signal.get("has_curiosity"),
+            )
+            return Tier1Output(
+                scorer_id=self.scorer_id,
+                is_veto=False,
+                reasoning=f"LLM detected {kc_signal.get('response_type')} response with curiosity: {kc_signal.get('reasoning', '')}",
+                signals={
+                    "llm_enhanced": True,
+                    "response_type": kc_signal.get("response_type"),
+                    "has_curiosity": kc_signal.get("has_curiosity"),
+                    "confidence": kc_signal.get("confidence"),
+                },
+            )
+
+    async def _evaluate_rule_based(
+        self,
+        strategy: Dict[str, Any],
+        focus: Dict[str, Any],
+        graph_state: GraphState,
+        conversation_history: List[Dict[str, str]],
+    ) -> Tier1Output:
+        """
+        Evaluate using rule-based pattern matching (original implementation).
+
+        Args:
+            strategy: Strategy being evaluated
+            focus: Focus target
+            graph_state: Current graph state
             conversation_history: Recent conversation for analysis
 
         Returns:
@@ -91,7 +218,7 @@ class KnowledgeCeilingScorer(Tier1Scorer):
                 scorer_id=self.scorer_id,
                 is_veto=False,
                 reasoning="No specific focus topic to check knowledge ceiling",
-                signals={"topic_terms": topic_terms},
+                signals={"topic_terms": topic_terms, "llm_enhanced": False},
             )
 
         # Check recent conversation for knowledge lack signals
@@ -139,6 +266,7 @@ class KnowledgeCeilingScorer(Tier1Scorer):
                     "topic_terms": topic_terms,
                     "element_id": element_id,
                     "node_id": node_id,
+                    "llm_enhanced": False,
                 },
             )
 
@@ -150,6 +278,7 @@ class KnowledgeCeilingScorer(Tier1Scorer):
             signals={
                 "topic_terms": topic_terms,
                 "checked_responses_count": len(recent_user_responses),
+                "llm_enhanced": False,
             },
         )
 

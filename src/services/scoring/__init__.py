@@ -4,6 +4,7 @@ Architecture (ADR-006):
 - Tier 1: Hard constraint vetoes (tier1/)
 - Tier 2: Weighted additive scoring (tier2/)
 - Two-tier orchestration (two_tier/)
+- LLM qualitative signal extraction (llm_signals.py)
 """
 
 # Two-tier engine
@@ -40,6 +41,9 @@ from src.services.scoring.graph_utils import (
     median_cluster_degree,
 )
 
+# LLM qualitative signal extraction (Phase 2)
+from src.services.scoring.llm_signals import QualitativeSignalExtractor
+
 __all__ = [
     # Engine
     "TwoTierScoringEngine",
@@ -69,4 +73,6 @@ __all__ = [
     "has_peripheral_candidates",
     "has_opposite_stance_node",
     "median_cluster_degree",
+    # LLM qualitative signals
+    "QualitativeSignalExtractor",
 ]
