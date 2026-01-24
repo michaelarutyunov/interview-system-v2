@@ -8,7 +8,9 @@ No business logic - that belongs in GraphService.
 """
 
 import json
+import yaml
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 from uuid import uuid4
 
@@ -502,10 +504,11 @@ class GraphRepository:
         elements_seen = [row[0] for row in await cursor.fetchall()]
 
         # Build coverage_state in properties
-        # Bead: xbc - Load elements_total from concept config
+        # Load elements_total from concept config
+        elements_total = await self._load_concept_elements(session_id)
         coverage_state = {
             "elements_seen": elements_seen,
-            "elements_total": [],  # Load from config/concepts/{concept_id}.yaml
+            "elements_total": elements_total,
         }
 
         return GraphState(
@@ -554,3 +557,63 @@ class GraphRepository:
             else [],
             recorded_at=datetime.fromisoformat(row["recorded_at"]),
         )
+
+    async def _load_concept_elements(self, session_id: str) -> List[str]:
+        """
+        Load element IDs from concept config for a session.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            List of element IDs from the concept config, or empty list if not found
+        """
+        # Get concept_id from sessions table
+        cursor = await self.db.execute(
+            "SELECT concept_id FROM sessions WHERE id = ?",
+            (session_id,),
+        )
+        row = await cursor.fetchone()
+        if not row:
+            log.warning("session_not_found_for_concept_elements", session_id=session_id)
+            return []
+
+        concept_id = row[0]
+        if not concept_id:
+            log.warning("no_concept_id_for_session", session_id=session_id)
+            return []
+
+        # Load concept config from config/concepts/{concept_id}.yaml
+        config_dir = Path(__file__).parent.parent.parent / "config" / "concepts"
+        concept_path = config_dir / f"{concept_id}.yaml"
+
+        if not concept_path.exists():
+            log.warning(
+                "concept_config_not_found",
+                concept_id=concept_id,
+                path=str(concept_path),
+            )
+            return []
+
+        try:
+            with open(concept_path) as f:
+                concept_data = yaml.safe_load(f)
+
+            # Extract element IDs from the elements list
+            elements = concept_data.get("elements", [])
+            element_ids = [e.get("id") for e in elements if e.get("id")]
+
+            log.debug(
+                "concept_elements_loaded",
+                concept_id=concept_id,
+                element_count=len(element_ids),
+            )
+            return element_ids
+
+        except Exception as e:
+            log.error(
+                "concept_config_load_error",
+                concept_id=concept_id,
+                error=str(e),
+            )
+            return []

@@ -93,7 +93,7 @@ STRATEGIES = [
         "type_category": "closing",
         "priority_base": 0.5,  # Lower base - only use when appropriate
         "enabled": True,
-        "min_turns": 8,  # Minimum turns before closing is applicable
+        # Phase system controls timing via phase multipliers (no min_turns needed)
     },
     {
         "id": "reflection",
@@ -466,20 +466,17 @@ class StrategyService:
 
         # Closing strategy: single closing focus
         elif strategy_id == "closing":
-            turn_count = graph_state.properties.get("turn_count", 0)
-            min_turns = strategy.get("min_turns", 8)
-
-            # Only applicable if minimum turns reached
-            if turn_count >= min_turns:
-                focuses.append(
-                    Focus(
-                        focus_type="closing",
-                        node_id=None,
-                        element_id=None,
-                        focus_description="Closing interview - thank you for sharing",
-                        confidence=1.0,
-                    )
+            # Phase system controls when closing is available via phase multipliers
+            # No min_turns gate needed - phase profiles handle timing
+            focuses.append(
+                Focus(
+                    focus_type="closing",
+                    node_id=None,
+                    element_id=None,
+                    focus_description="Closing interview - thank you for sharing",
+                    confidence=1.0,
                 )
+            )
 
         # Reflection strategy: single meta-question focus
         elif strategy_id == "reflection":
@@ -508,22 +505,20 @@ class StrategyService:
         # Try closing strategy first
         closing_strategy = self.strategies.get("closing")
         if closing_strategy:
-            turn_count = graph_state.properties.get("turn_count", 0)
-            min_turns = closing_strategy.get("min_turns", 8)
-
-            if turn_count >= min_turns:
-                closing_focus = Focus(
-                    focus_type="closing",
-                    node_id=None,
-                    element_id=None,
-                    focus_description="Closing interview",
-                )
-                return SelectionResult(
-                    selected_strategy=closing_strategy,
-                    selected_focus=closing_focus,
-                    final_score=0.0,
-                    scoring_result=None,
-                )
+            # Phase system controls when closing is available via phase multipliers
+            # No min_turns gate needed - phase profiles handle timing
+            closing_focus = Focus(
+                focus_type="closing",
+                node_id=None,
+                element_id=None,
+                focus_description="Closing interview",
+            )
+            return SelectionResult(
+                selected_strategy=closing_strategy,
+                selected_focus=closing_focus,
+                final_score=0.0,
+                scoring_result=None,
+            )
 
         # Otherwise use reflection strategy
         reflection_strategy = self.strategies.get("reflection")
