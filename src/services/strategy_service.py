@@ -172,12 +172,8 @@ class StrategyService:
             self._exploratory_n_turns = config.get(
                 "exploratory_min_turns", self._exploratory_n_turns
             )
-            self._focused_n_turns = config.get(
-                "focused_n_turns", self._focused_n_turns
-            )
-            self._closing_n_turns = config.get(
-                "closing_n_turns", self._closing_n_turns
-            )
+            self._focused_n_turns = config.get("focused_n_turns", self._focused_n_turns)
+            self._closing_n_turns = config.get("closing_n_turns", self._closing_n_turns)
             # Recalculate boundaries if overridden
             self._exploratory_end = self._exploratory_n_turns
             self._focused_end = self._exploratory_end + self._focused_n_turns
@@ -636,6 +632,167 @@ class StrategyService:
             final_score=0.0,
             scoring_result=None,
         )
+
+    async def extract_and_store_sentiment(
+        self,
+        graph_state: GraphState,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+    ) -> Optional[float]:
+        """
+        Extract sentiment from qualitative signals and store in graph_state.
+
+        This method should be called after qualitative signal extraction to
+        compute turn-level sentiment from emotional_signal.intensity and store
+        it in graph_state.properties["turn_sentiments"] for historical access.
+
+        Per bead sxj: Add sentiment to conversation turns using existing signals.
+
+        Args:
+            graph_state: Current graph state (will be modified to store sentiment)
+            conversation_history: Recent conversation turns (for fallback extraction)
+
+        Returns:
+            Sentiment value from -1.0 (high_negative) to +1.0 (high_positive),
+            or None if no sentiment could be extracted
+        """
+        from src.services.scoring.signal_helpers import add_sentiment_to_turn
+
+        turn_number = graph_state.properties.get("turn_count", 1)
+
+        # Try to get sentiment from LLM-extracted emotional_signal
+        qualitative_signals = graph_state.properties.get("qualitative_signals")
+        if qualitative_signals:
+            emotional_signal = qualitative_signals.get("emotional")
+            if emotional_signal:
+                # Convert emotional signal dict to proper format if needed
+                # LLM extraction returns a dict with __dict__ format
+                if isinstance(emotional_signal, dict):
+                    # Check if it's already unpacked from __dict__
+                    if "intensity" in emotional_signal:
+                        sentiment = add_sentiment_to_turn(
+                            graph_state, turn_number, emotional_signal
+                        )
+                        logger.debug(
+                            "sentiment_extracted_from_llm_signals",
+                            turn_number=turn_number,
+                            sentiment=sentiment,
+                        )
+                        return sentiment
+
+        # Fallback: Simple rule-based sentiment extraction
+        # This provides basic sentiment tracking even without LLM signals
+        sentiment = self._extract_sentiment_fallback(conversation_history or [])
+        if sentiment is not None:
+            # Store fallback sentiment
+            if "turn_sentiments" not in graph_state.properties:
+                graph_state.properties["turn_sentiments"] = {}
+            graph_state.properties["turn_sentiments"][str(turn_number)] = sentiment
+            logger.debug(
+                "sentiment_extracted_fallback",
+                turn_number=turn_number,
+                sentiment=sentiment,
+            )
+            return sentiment
+
+        return None
+
+    def _extract_sentiment_fallback(
+        self, conversation_history: List[Dict[str, str]]
+    ) -> Optional[float]:
+        """
+        Simple rule-based sentiment extraction as fallback.
+
+        Analyzes the most recent user response for positive/negative sentiment
+        indicators when LLM signals are not available.
+
+        Args:
+            conversation_history: List of conversation turn dicts
+
+        Returns:
+            Sentiment value from -1.0 to +1.0, or None if no clear sentiment
+        """
+        # Get the most recent user response
+        user_text = None
+        for turn in reversed(conversation_history):
+            if turn.get("speaker") == "user":
+                user_text = turn.get("text", "")
+                break
+
+        if not user_text:
+            return None
+
+        # Simple sentiment word lists
+        positive_words = [
+            "love",
+            "like",
+            "great",
+            "good",
+            "excellent",
+            "amazing",
+            "wonderful",
+            "enjoy",
+            "prefer",
+            "excited",
+            "happy",
+            "pleased",
+            "fantastic",
+            "awesome",
+            "yes",
+            "definitely",
+            "absolutely",
+            "certainly",
+        ]
+        negative_words = [
+            "hate",
+            "dislike",
+            "bad",
+            "terrible",
+            "awful",
+            "horrible",
+            "worst",
+            "disappointed",
+            "sad",
+            "angry",
+            "frustrated",
+            "annoyed",
+            "upset",
+            "no",
+            "don't",
+            "can't",
+            "won't",
+            "not",
+            "never",
+            "hard",
+            "difficult",
+        ]
+
+        text_lower = user_text.lower()
+
+        # Count sentiment indicators
+        positive_count = sum(1 for word in positive_words if word in text_lower)
+        negative_count = sum(1 for word in negative_words if word in text_lower)
+
+        # Check for intensifiers
+        intensifiers = ["very", "really", "extremely", "absolutely", "totally"]
+        has_intensifier = any(intensifier in text_lower for intensifier in intensifiers)
+
+        # Calculate sentiment
+        if positive_count == 0 and negative_count == 0:
+            return None  # No clear sentiment
+
+        if positive_count > negative_count:
+            base_sentiment = 0.5
+            if has_intensifier or positive_count >= 2:
+                return 1.0
+            return base_sentiment
+        elif negative_count > positive_count:
+            base_sentiment = -0.5
+            if has_intensifier or negative_count >= 2:
+                return -1.0
+            return base_sentiment
+        else:
+            # Mixed or balanced - slightly positive or neutral
+            return 0.1
 
     def __repr__(self) -> str:
         return (

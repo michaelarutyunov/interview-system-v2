@@ -201,6 +201,71 @@ def get_sentiment_from_signals(emotional_signal: Optional[Dict]) -> Optional[flo
     return INTENSITY_TO_SENTIMENT.get(intensity)
 
 
+def add_sentiment_to_turn(
+    graph_state,
+    turn_number: int,
+    emotional_signal: Optional[Dict] = None,
+) -> Optional[float]:
+    """Compute and store sentiment for a conversation turn.
+
+    Extracts sentiment from emotional_signal intensity and stores it
+    in graph_state.properties["turn_sentiments"] for use by scorers.
+
+    Args:
+        graph_state: GraphState object (will be modified in-place)
+        turn_number: Current turn number
+        emotional_signal: Dict from QualitativeSignalExtractor containing
+            emotional signal data with 'intensity' field
+
+    Returns:
+        Sentiment value from -1.0 (high_negative) to +1.0 (high_positive),
+        or None if emotional_signal is not available or intensity not recognized
+
+    Example:
+        >>> # After qualitative signal extraction
+        >>> signals = await signal_extractor.extract(...)
+        >>> sentiment = add_sentiment_to_turn(graph_state, turn_number=5, signals.get("emotional"))
+        >>> # sentiment = 0.5 for moderate_positive
+    """
+    if not emotional_signal:
+        return None
+
+    sentiment = get_sentiment_from_signals(emotional_signal)
+
+    # Store in graph_state for historical access
+    if "turn_sentiments" not in graph_state.properties:
+        graph_state.properties["turn_sentiments"] = {}
+
+    graph_state.properties["turn_sentiments"][str(turn_number)] = sentiment
+
+    return sentiment
+
+
+def load_sentiments_for_utterances(
+    utterances: List[Dict], turn_sentiments: Dict[str, float]
+) -> List[Dict]:
+    """Attach sentiment values to utterances from stored turn sentiments.
+
+    Args:
+        utterances: List of utterance dicts with 'turn_number' field
+        turn_sentiments: Dict mapping turn_number (str) to sentiment (float)
+
+    Returns:
+        Modified utterances list with 'sentiment' field populated
+
+    Example:
+        >>> utterances = [{"speaker": "user", "text": "Hello", "turn_number": 1}]
+        >>> sentiments = {"1": 0.5}
+        >>> load_sentiments_for_utterances(utterances, sentiments)
+        >>> [{"speaker": "user", "text": "Hello", "turn_number": 1, "sentiment": 0.5}]
+    """
+    for utterance in utterances:
+        turn_num = utterance.get("turn_number")
+        if turn_num is not None:
+            utterance["sentiment"] = turn_sentiments.get(str(turn_num))
+    return utterances
+
+
 __all__ = [
     "get_recent_user_responses",
     "find_node_by_id",
@@ -209,4 +274,6 @@ __all__ = [
     "get_coverage_state",
     "count_pattern_occurrences",
     "get_sentiment_from_signals",
+    "add_sentiment_to_turn",
+    "load_sentiments_for_utterances",
 ]

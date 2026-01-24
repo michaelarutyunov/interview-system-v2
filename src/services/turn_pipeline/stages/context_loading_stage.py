@@ -75,6 +75,20 @@ class ContextLoadingStage(TurnStage):
             context.session_id, limit=10
         )
 
+        # Attach sentiment from stored turn_sentiments (if available)
+        # This loads previously computed sentiment values for each utterance
+        # Per bead sxj: Add sentiment to conversation turns using existing signals
+        if context.graph_state and context.graph_state.properties:
+            turn_sentiments = context.graph_state.properties.get("turn_sentiments", {})
+            if turn_sentiments:
+                from src.services.scoring.signal_helpers import (
+                    load_sentiments_for_utterances,
+                )
+
+                recent_utterances = load_sentiments_for_utterances(
+                    recent_utterances, turn_sentiments
+                )
+
         # Get recent nodes (used by DifficultySelectionStage)
         recent_nodes = await self.graph.get_recent_nodes(context.session_id, limit=5)
 
@@ -108,7 +122,7 @@ class ContextLoadingStage(TurnStage):
             limit: Max utterances to return
 
         Returns:
-            List of {"speaker": str, "text": str} dicts
+            List of {"speaker": str, "text": str, "sentiment": float|None} dicts
         """
         from src.persistence.database import get_db_connection
 
@@ -116,7 +130,7 @@ class ContextLoadingStage(TurnStage):
         try:
             cursor = await db.execute(
                 """
-                SELECT speaker, text FROM utterances
+                SELECT speaker, text, turn_number FROM utterances
                 WHERE session_id = ?
                 ORDER BY turn_number DESC, created_at DESC
                 LIMIT ?
@@ -128,4 +142,17 @@ class ContextLoadingStage(TurnStage):
             await db.close()
 
         # Reverse to get chronological order
-        return list(reversed([{"speaker": row[0], "text": row[1]} for row in rows]))
+        # Note: sentiment will be added from graph_state turn_sentiments if available
+        return list(
+            reversed(
+                [
+                    {
+                        "speaker": row[0],
+                        "text": row[1],
+                        "turn_number": row[2],
+                        "sentiment": None,
+                    }
+                    for row in rows
+                ]
+            )
+        )
