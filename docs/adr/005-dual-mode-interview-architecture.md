@@ -1,9 +1,23 @@
 # ADR-005: Adopt Dual-Mode Interview Architecture
 
 ## Status
-Proposed
+**Deprecated** (2025-01-24)
 
-## Context
+## Deprecation Notice
+
+This ADR has been deprecated in favor of the current single-mode approach with YAML-driven phasing:
+
+- **Phasing** (exploratory → focused → closing) already provides temporal strategy modulation
+- **Single mode** (coverage_driven) with configurable phase multipliers is sufficient for current use cases
+- The dual-mode architecture (coverage_driven vs graph_driven) would add ~15% codebase complexity for a use case (graph-driven emergent discovery) that is not currently needed
+
+**Decision:** The system will continue with a single `coverage_driven` mode supported by phase-based strategy modulation. Future work may revisit dual-mode if graph-driven exploratory research becomes a priority.
+
+---
+
+## Original Context (Archived)
+
+**Problem Statement (Archived):**
 
 ### The Problem: Architectural Contradiction
 

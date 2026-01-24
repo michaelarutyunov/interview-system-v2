@@ -11,6 +11,16 @@ from typing import Dict, List, Optional
 import re
 
 
+# Mapping from EmotionalSignal intensity to numeric sentiment scale
+INTENSITY_TO_SENTIMENT = {
+    "high_positive": 1.0,
+    "moderate_positive": 0.5,
+    "neutral": 0.0,
+    "moderate_negative": -0.5,
+    "high_negative": -1.0,
+}
+
+
 def get_recent_user_responses(
     history: List[Dict], count: int = 5, lookback: int = 10
 ) -> List[str]:
@@ -160,6 +170,37 @@ def count_pattern_occurrences(text: str, patterns: List[str]) -> int:
     return count
 
 
+def get_sentiment_from_signals(emotional_signal: Optional[Dict]) -> Optional[float]:
+    """Convert EmotionalSignal intensity to numeric sentiment value.
+
+    Converts the categorical intensity from LLM-extracted EmotionalSignal
+    to a numeric sentiment scale (-1.0 to +1.0). This provides turn-level sentiment
+    metadata without requiring additional LLM calls.
+
+    Args:
+        emotional_signal: Dict from QualitativeSignalExtractor containing
+            emotional signal data with 'intensity' field
+
+    Returns:
+        Sentiment value from -1.0 (high_negative) to +1.0 (high_positive),
+        or None if emotional_signal is not available or intensity not recognized
+
+    Example:
+        >>> signal = {"intensity": "moderate_positive", "confidence": 0.8}
+        >>> get_sentiment_from_signals(signal)
+        0.5
+
+        >>> signal = {"intensity": "neutral"}
+        >>> get_sentiment_from_signals(signal)
+        0.0
+    """
+    if not emotional_signal:
+        return None
+
+    intensity = emotional_signal.get("intensity", "")
+    return INTENSITY_TO_SENTIMENT.get(intensity)
+
+
 __all__ = [
     "get_recent_user_responses",
     "find_node_by_id",
@@ -167,4 +208,5 @@ __all__ = [
     "get_focus_target",
     "get_coverage_state",
     "count_pattern_occurrences",
+    "get_sentiment_from_signals",
 ]
