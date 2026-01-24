@@ -389,3 +389,124 @@ def _largest_cluster_ratio(graph_state) -> float:
     """
     clusters = get_clusters(graph_state.graph, -1)
     return largest_cluster_ratio(graph_state.graph, clusters)
+
+
+def get_simple_local_density(
+    focus_node_id: str, graph_state, recent_nodes: list
+) -> float:
+    """Get local cluster density approximation without NetworkX graph.
+
+    This is a simplified version that works with the data available
+    in graph_state and recent_nodes, without requiring the full NetworkX graph.
+
+    Args:
+        focus_node_id: Node ID to calculate density for
+        graph_state: GraphState with node/edge counts
+        recent_nodes: List of recent node dicts with connected_to info
+
+    Returns:
+        Density value between 0.0 and 1.0
+    """
+    if not focus_node_id or not recent_nodes:
+        return 0.0
+
+    # Find the focus node in recent_nodes
+    focus_node = None
+    for node in recent_nodes:
+        if node.get("id") == focus_node_id or node.get("node_id") == focus_node_id:
+            focus_node = node
+            break
+
+    if not focus_node:
+        return 0.0
+
+    # Count connections (using connected_to if available)
+    connections = focus_node.get("connected_to", [])
+    if not connections and "edges" in focus_node:
+        connections = [e.get("target") for e in focus_node.get("edges", [])]
+
+    cluster_size = len(connections) + 1  # +1 for the node itself
+    if cluster_size < 2:
+        return 0.0
+
+    # Density approximation: edge_count / (n * (n-1))
+    # Use graph_state.edge_count as a proxy for cluster edges
+    max_edges = cluster_size * (cluster_size - 1)
+    actual_edges = min(
+        cluster_size,
+        graph_state.edge_count // max(1, graph_state.node_count // cluster_size),
+    )
+
+    if max_edges > 0:
+        return min(1.0, actual_edges / max_edges)
+    return 0.0
+
+
+def has_opposite_stance_simple(focus_node_id: str, recent_nodes: list) -> bool:
+    """Check if there's a node with opposite stance without NetworkX graph.
+
+    Args:
+        focus_node_id: Node ID to check against
+        recent_nodes: List of recent node dicts with stance field
+
+    Returns:
+        True if a node with opposite stance exists
+    """
+    if not focus_node_id or not recent_nodes:
+        return False
+
+    # Get stance of focus node
+    focus_stance = None
+    for node in recent_nodes:
+        if node.get("id") == focus_node_id or node.get("node_id") == focus_node_id:
+            focus_stance = node.get("stance")
+            break
+
+    if focus_stance is None or focus_stance == 0:
+        return False
+
+    # Check for opposite stance
+    for node in recent_nodes:
+        node_stance = node.get("stance")
+        if node_stance and node_stance == -focus_stance:
+            return True
+
+    return False
+
+
+def count_peripheral_nodes_simple(
+    focus_node_id: str, graph_state, recent_nodes: list
+) -> int:
+    """Count peripheral nodes without NetworkX graph.
+
+    Peripheral nodes are those with lower connectivity (fewer edges).
+    This is a simplified approximation.
+
+    Args:
+        focus_node_id: Focus node ID
+        graph_state: GraphState with counts
+        recent_nodes: List of recent node dicts
+
+    Returns:
+        Count of peripheral nodes
+    """
+    if not recent_nodes:
+        return 0
+
+    # Calculate average degree
+    degrees = []
+    for node in recent_nodes:
+        connections = node.get("connected_to", [])
+        if not connections and "edges" in node:
+            connections = [e.get("target") for e in node.get("edges", [])]
+        degrees.append(len(connections))
+
+    if not degrees:
+        return 0
+
+    avg_degree = sum(degrees) / len(degrees)
+
+    # Count nodes with degree less than average (peripheral)
+    peripheral_count = sum(1 for d in degrees if d < avg_degree and d > 0)
+
+    return peripheral_count
