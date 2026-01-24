@@ -97,3 +97,18 @@ class GraphState(BaseModel):
             phase: New phase ('exploratory', 'focused', or 'closing')
         """
         self.properties["phase"] = phase
+
+    def add_strategy_used(self, strategy_id: str) -> None:
+        """Record a strategy selection in history for diversity tracking.
+
+        This maintains a list of recently used strategies so the
+        StrategyDiversityScorer can penalize repetitive questioning
+        patterns and encourage interview variety.
+
+        Args:
+            strategy_id: The strategy that was selected
+                (e.g., 'broaden', 'deepen', 'cover_element', 'close')
+        """
+        if "strategy_history" not in self.properties:
+            self.properties["strategy_history"] = []
+        self.properties["strategy_history"].append(strategy_id)

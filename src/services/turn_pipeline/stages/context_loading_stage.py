@@ -75,11 +75,10 @@ class ContextLoadingStage(TurnStage):
             context.session_id, limit=10
         )
 
-        # Get graph state
-        graph_state = await self.graph.get_graph_state(context.session_id)
-
-        # Get recent nodes
+        # Get recent nodes (used by DifficultySelectionStage)
         recent_nodes = await self.graph.get_recent_nodes(context.session_id, limit=5)
+
+        # Note: Graph state will be loaded in StateComputationStage after graph updates
 
         # Update context
         context.methodology = session.methodology
@@ -89,7 +88,6 @@ class ContextLoadingStage(TurnStage):
         context.mode = session.mode.value
         context.max_turns = max_turns
         context.recent_utterances = recent_utterances
-        context.graph_state = graph_state
         context.recent_nodes = recent_nodes
 
         log.info(
@@ -97,7 +95,6 @@ class ContextLoadingStage(TurnStage):
             session_id=context.session_id,
             turn_number=context.turn_number,
             mode=context.mode,
-            graph_nodes=graph_state.node_count if graph_state else 0,
         )
 
         return context

@@ -59,6 +59,10 @@ class StrategySelectionStage(TurnStage):
             selection_result = None
             focus = None
 
+        # Track strategy history for StrategyDiversityScorer
+        # This enables the system to penalize repetitive questioning patterns
+        context.graph_state.add_strategy_used(strategy)
+
         context.strategy = strategy
         context.selection_result = selection_result
         context.focus = focus

@@ -13,7 +13,8 @@
 session:
   # Calculated from phases (exploratory + focused + closing)
   # Can be overridden via API: config={"max_turns": custom_value}
-  max_turns: 22
+  # Default sum: exploratory.n_turns + focused.n_turns + closing.n_turns = 4 + 6 + 1 = 11
+  # Note: Omitting max_turns here triggers auto-calculation from phases
   # Coverage ratio threshold for interview completion
   # Used by: src/domain/models/interview_state.py:251
   target_coverage: 0.80
@@ -34,11 +35,11 @@ session:
 # Phases control which strategies are boosted via phase_profiles in config/scoring.yaml
 phases:
   exploratory:
-    n_turns: 8  # Turns 1-8: Focus on breadth exploration
+    n_turns: 4  # Focus on breadth exploration
   focused:
-    n_turns: 12  # Turns 9-20: Balance depth and coverage
+    n_turns: 6  # Balance depth and coverage
   closing:
-    n_turns: 2  # Turns 21-22: Wrap up (extendable via session.max_turns)
+    n_turns: 1  # Wrap up (extendable via session.max_turns)
 
 # ============================================================================
 # Strategy Service Configuration

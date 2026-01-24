@@ -19,6 +19,34 @@ import structlog
 log = structlog.get_logger(__name__)
 
 
+def _calculate_phase(turn_number: int) -> str:
+    """
+    Calculate interview phase based on turn number (deterministic).
+
+    Phase transition rules:
+    - exploratory: turns 0 to exploratory.n_turns (exclusive)
+    - focused: turns exploratory.n_turns to exploratory+focused.n_turns (exclusive)
+    - closing: turns exploratory+focused.n_turns onwards
+
+    Args:
+        turn_number: Current turn number (0-indexed)
+
+    Returns:
+        Phase string: 'exploratory', 'focused', or 'closing'
+    """
+    from src.core.config import interview_config
+
+    exploratory_end = interview_config.phases.exploratory.n_turns
+    focused_end = exploratory_end + interview_config.phases.focused.n_turns
+
+    if turn_number < exploratory_end:
+        return "exploratory"
+    elif turn_number < focused_end:
+        return "focused"
+    else:
+        return "closing"
+
+
 class ExportService:
     """
     Service for exporting session data to various formats.
@@ -149,6 +177,7 @@ class ExportService:
                     "turn_number": u.turn_number,
                     "speaker": u.speaker,
                     "text": u.text,
+                    "phase": _calculate_phase(u.turn_number),
                     "created_at": u.created_at.isoformat() if u.created_at else None,
                 }
                 for u in utterances
@@ -351,7 +380,7 @@ class ExportService:
         if utterances:
             writer = csv.DictWriter(
                 output,
-                fieldnames=["id", "turn_number", "speaker", "text", "created_at"],
+                fieldnames=["id", "turn_number", "speaker", "text", "phase", "created_at"],
             )
             writer.writeheader()
             for utt in utterances:
@@ -361,6 +390,7 @@ class ExportService:
                         "turn_number": utt["turn_number"],
                         "speaker": utt["speaker"],
                         "text": utt["text"],
+                        "phase": utt.get("phase", ""),
                         "created_at": utt.get("created_at", ""),
                     }
                 )

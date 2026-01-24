@@ -258,6 +258,7 @@ class SessionStatusResponse(BaseModel):
     should_continue: bool
     strategy_selected: str = "unknown"
     strategy_reasoning: Optional[str] = None
+    phase: str = "unknown"  # Interview phase: exploratory, focused, or closing
 
 
 # ============ SCORING CANDIDATES SCHEMAS ============

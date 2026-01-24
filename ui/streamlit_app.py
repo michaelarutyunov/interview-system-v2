@@ -193,7 +193,8 @@ def _render_interview_tab(
 
         # Strategy indicator
         strategy = status_data.get("strategy_selected", "unknown")
-        st.info(f"Strategy: {strategy.upper()}")
+        phase = status_data.get("phase", "unknown")
+        st.info(f"Phase: {phase.upper()} | Strategy: {strategy.upper()}")
 
         # Show last turn diagnostics
         if "last_turn_result" in st.session_state:

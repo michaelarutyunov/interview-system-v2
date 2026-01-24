@@ -647,8 +647,19 @@ class SessionService:
         strategy = strategy_data["strategy"]
         reasoning = strategy_data["reasoning"]
 
+        # Calculate phase based on turn count (deterministic from config)
+        turn_count = session.state.turn_count or 0
+        exploratory_end = interview_config.phases.exploratory.n_turns
+        focused_end = exploratory_end + interview_config.phases.focused.n_turns
+        if turn_count < exploratory_end:
+            phase = "exploratory"
+        elif turn_count < focused_end:
+            phase = "focused"
+        else:
+            phase = "closing"
+
         return {
-            "turn_number": session.state.turn_count or 0,
+            "turn_number": turn_count,
             "max_turns": max_turns,
             "coverage": coverage,
             "target_coverage": target_coverage,
@@ -656,6 +667,7 @@ class SessionService:
             "should_continue": session.status == "active",
             "strategy_selected": strategy,
             "strategy_reasoning": reasoning,
+            "phase": phase,
         }
 
     async def get_turn_scoring(self, session_id: str, turn_number: int) -> dict:

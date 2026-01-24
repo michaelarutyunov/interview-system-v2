@@ -78,28 +78,18 @@ class SessionControls:
             label_visibility="collapsed",
         )
 
-        # Max turns selection (for debugging/shorter interviews)
-        max_turns = st.slider(
-            "Max Turns",
-            min_value=3,
-            max_value=30,
-            value=20,
-            step=1,
-            help="Maximum number of interview turns (lower for shorter interviews)",
-        )
-
         # Create button
         if st.button("🚀 Start Interview", type="primary", use_container_width=True):
-            self._create_session(concept_id, methodology, max_turns)
+            self._create_session(concept_id, methodology)
 
-    def _create_session(self, concept_id: str, methodology: str, max_turns: int = 20):
+    def _create_session(self, concept_id: str, methodology: str):
         """Create a new session."""
         with st.spinner("Creating session..."):
             try:
                 session_info = st.session_state.api_client.create_session(
                     concept_id=concept_id,
                     methodology=methodology,
-                    config={"max_turns": max_turns},
+                    config={},  # Use default max_turns from config/interview_config.yaml
                 )
 
                 # Start the session to get opening question

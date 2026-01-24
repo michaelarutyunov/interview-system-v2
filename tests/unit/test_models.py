@@ -186,3 +186,51 @@ class TestGraphState:
 
         assert state.node_count == 5
         assert state.nodes_by_type["attribute"] == 2
+
+    def test_phase_getset(self):
+        """Phase can be set and retrieved."""
+        state = GraphState()
+
+        # Default phase is exploratory
+        assert state.get_phase() == "exploratory"
+
+        # Set to focused
+        state.set_phase("focused")
+        assert state.get_phase() == "focused"
+
+        # Set to closing
+        state.set_phase("closing")
+        assert state.get_phase() == "closing"
+
+    def test_add_strategy_used_initializes_history(self):
+        """First call to add_strategy_used initializes history list."""
+        state = GraphState()
+
+        state.add_strategy_used("broaden")
+
+        assert "strategy_history" in state.properties
+        assert state.properties["strategy_history"] == ["broaden"]
+
+    def test_add_strategy_used_appends_to_history(self):
+        """Subsequent calls append to existing history."""
+        state = GraphState()
+
+        state.add_strategy_used("broaden")
+        state.add_strategy_used("deepen")
+        state.add_strategy_used("broaden")
+
+        assert state.properties["strategy_history"] == ["broaden", "deepen", "broaden"]
+
+    def test_strategy_history_persists_across_operations(self):
+        """Strategy history persists through other state operations."""
+        state = GraphState()
+
+        # Add some strategies
+        state.add_strategy_used("broaden")
+        state.add_strategy_used("deepen")
+
+        # Change phase (other operation)
+        state.set_phase("focused")
+
+        # History should still be there
+        assert state.properties["strategy_history"] == ["broaden", "deepen"]
