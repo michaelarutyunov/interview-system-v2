@@ -139,15 +139,13 @@ class StrategyService:
             interview_config.strategy_service.alternatives_min_score
         )
 
-        # Phase configuration from centralized config
-        self._exploratory_min_turns = interview_config.phases.exploratory.max_turns
-        self._focused_coverage_threshold = (
-            interview_config.phases.focused.coverage_threshold or 0.6
-        )
-        self._closing_min_turns = interview_config.phases.closing.min_turns
-        self._closing_coverage_threshold = (
-            interview_config.phases.closing.coverage_threshold or 0.95
-        )
+        # Phase configuration from centralized config (deterministic n_turns model)
+        self._exploratory_n_turns = interview_config.phases.exploratory.n_turns or 8
+        self._focused_n_turns = interview_config.phases.focused.n_turns or 12
+        self._closing_n_turns = interview_config.phases.closing.n_turns or 2
+        # Calculate phase boundaries
+        self._exploratory_end = self._exploratory_n_turns
+        self._focused_end = self._exploratory_end + self._focused_n_turns
 
         # Allow override via config parameter for backward compatibility
         if config:
@@ -157,18 +155,18 @@ class StrategyService:
             self._alternatives_min_score = config.get(
                 "alternatives_min_score", self._alternatives_min_score
             )
-            self._exploratory_min_turns = config.get(
-                "exploratory_min_turns", self._exploratory_min_turns
+            self._exploratory_n_turns = config.get(
+                "exploratory_min_turns", self._exploratory_n_turns
             )
-            self._focused_coverage_threshold = config.get(
-                "focused_coverage_threshold", self._focused_coverage_threshold
+            self._focused_n_turns = config.get(
+                "focused_n_turns", self._focused_n_turns
             )
-            self._closing_min_turns = config.get(
-                "closing_min_turns", self._closing_min_turns
+            self._closing_n_turns = config.get(
+                "closing_n_turns", self._closing_n_turns
             )
-            self._closing_coverage_threshold = config.get(
-                "closing_coverage_threshold", self._closing_coverage_threshold
-            )
+            # Recalculate boundaries if overridden
+            self._exploratory_end = self._exploratory_n_turns
+            self._focused_end = self._exploratory_end + self._focused_n_turns
 
         logger.info(
             "StrategyService initialized (two-tier)",
@@ -347,13 +345,17 @@ class StrategyService:
 
     def _determine_phase(self, graph_state: GraphState) -> str:
         """
-        Determine interview phase based on state.
+        Determine interview phase based on turn count (deterministic).
 
-        Phase transition rules:
-        - exploratory: turn_count < exploratory_min_turns (default 8)
-        - focused: coverage_ratio > focused_coverage_threshold (default 0.6)
-        - closing: coverage_ratio > closing_coverage_threshold (default 0.95)
-                  OR turn_count > closing_min_turns (default 20)
+        Phase transition rules (based solely on turn count):
+        - exploratory: turns 1 to _exploratory_end (exclusive)
+        - focused: turns _exploratory_end to _focused_end (exclusive)
+        - closing: turns _focused_end onwards (until session.max_turns)
+
+        Example with defaults (8, 12, 2):
+        - exploratory: turns 1-7
+        - focused: turns 8-19
+        - closing: turns 20-21
 
         Args:
             graph_state: Current graph state
@@ -362,44 +364,14 @@ class StrategyService:
             Phase string: 'exploratory', 'focused', or 'closing'
         """
         turn_count = graph_state.properties.get("turn_count", 0)
-        coverage_ratio = self._get_coverage_ratio(graph_state)
 
-        # Check closing conditions first (highest priority)
-        if (
-            coverage_ratio > self._closing_coverage_threshold
-            or turn_count > self._closing_min_turns
-        ):
-            return "closing"
-
-        # Check exploratory conditions
-        if turn_count < self._exploratory_min_turns:
+        # Phases are 0-indexed (turn 0 = first turn)
+        if turn_count < self._exploratory_end:
             return "exploratory"
-
-        # Check focused conditions
-        if coverage_ratio > self._focused_coverage_threshold:
+        elif turn_count < self._focused_end:
             return "focused"
-
-        # Default to exploratory
-        return "exploratory"
-
-    def _get_coverage_ratio(self, graph_state: GraphState) -> float:
-        """
-        Calculate coverage ratio from graph state.
-
-        Args:
-            graph_state: Current graph state
-
-        Returns:
-            Coverage ratio between 0.0 and 1.0
-        """
-        coverage_state = graph_state.properties.get("coverage_state", {})
-        elements_seen = set(coverage_state.get("elements_seen", []))
-        elements_total = coverage_state.get("elements_total", [])
-
-        if not elements_total:
-            return 0.0
-
-        return len(elements_seen) / len(elements_total)
+        else:
+            return "closing"
 
     def _get_possible_focuses(
         self,

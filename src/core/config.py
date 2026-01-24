@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ValidationInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -148,23 +148,16 @@ class Settings(BaseSettings):
 
 
 class PhaseConfig(BaseModel):
-    """Configuration for a single interview phase."""
+    """Configuration for a single interview phase.
 
-    min_turns: int = Field(default=0, ge=0, description="Starting turn for this phase")
-    max_turns: Optional[int] = Field(
-        default=None, ge=0, description="Last turn for this phase (exclusive)"
-    )
-    coverage_threshold: Optional[float] = Field(
+    Simplified deterministic model: each phase has a fixed number of turns.
+    Phase transitions are based solely on turn count.
+    """
+
+    n_turns: Optional[int] = Field(
         default=None,
-        ge=0.0,
-        le=1.0,
-        description="Coverage threshold to enter/exit phase",
-    )
-    max_coverage: Optional[float] = Field(
-        default=None,
-        ge=0.0,
-        le=1.0,
-        description="Coverage below which we stay in phase",
+        ge=0,
+        description="Number of turns for this phase (null = indefinite)",
     )
 
 
@@ -179,20 +172,6 @@ class SessionConfig(BaseModel):
     )
     min_turns: int = Field(
         default=5, ge=1, le=20, description="Minimum turns before early termination"
-    )
-
-
-class StrategyPhasesConfig(BaseModel):
-    """Strategy applicability by phase."""
-
-    exploratory: list[str] = Field(
-        default_factory=list, description="Strategies available in exploratory phase"
-    )
-    focused: list[str] = Field(
-        default_factory=list, description="Strategies available in focused phase"
-    )
-    closing: list[str] = Field(
-        default_factory=list, description="Strategies available in closing phase"
     )
 
 
@@ -221,34 +200,6 @@ class SessionServiceConfig(BaseModel):
     )
 
 
-class GraphServiceConfig(BaseModel):
-    """Graph service configuration."""
-
-    recent_nodes_limit: int = Field(
-        default=5, ge=1, le=20, description="Default lookback window for recent nodes"
-    )
-    min_confidence_threshold: float = Field(
-        default=0.5,
-        ge=0.0,
-        le=1.0,
-        description="Minimum confidence for concept extraction",
-    )
-
-
-class CoverageConfig(BaseModel):
-    """Coverage calculation configuration."""
-
-    include_elements: list[str] = Field(
-        default_factory=lambda: ["stimulus_elements", "extracted_concepts"]
-    )
-    min_elements_threshold: int = Field(
-        default=3,
-        ge=1,
-        le=20,
-        description="Minimum elements before coverage is meaningful",
-    )
-
-
 class PhasesConfig(BaseModel):
     """All phase configurations."""
 
@@ -267,20 +218,33 @@ class InterviewConfig(BaseModel):
 
     session: SessionConfig = Field(default_factory=SessionConfig)
     phases: PhasesConfig = Field(default_factory=PhasesConfig)
-    strategy_phases: StrategyPhasesConfig = Field(default_factory=StrategyPhasesConfig)
     strategy_service: StrategyServiceConfig = Field(
         default_factory=StrategyServiceConfig
     )
     session_service: SessionServiceConfig = Field(default_factory=SessionServiceConfig)
-    graph_service: GraphServiceConfig = Field(default_factory=GraphServiceConfig)
-    coverage: CoverageConfig = Field(default_factory=CoverageConfig)
 
-    @field_validator("strategy_phases")
+    @field_validator("session")
     @classmethod
-    def validate_strategy_phases(cls, v: StrategyPhasesConfig) -> StrategyPhasesConfig:
-        """Validate that strategy phases lists are not empty."""
-        if not v.exploratory and not v.focused and not v.closing:
-            raise ValueError("At least one phase must have strategies defined")
+    def sync_max_turns_with_phases(
+        cls, v: SessionConfig, info: ValidationInfo
+    ) -> SessionConfig:
+        """
+        Calculate max_turns from phase n_turns if using default.
+
+        If max_turns is the default value (20), calculate it as the sum of
+        all phase n_turns. This ensures phase configuration changes are
+        automatically reflected in max_turns.
+
+        Note: UI/API can still override via request.config={"max_turns": custom}
+        """
+        phases = info.data.get("phases")
+        if isinstance(phases, PhasesConfig) and v.max_turns == 20:  # Only if using default
+            phase_sum = 0
+            for phase in [phases.exploratory, phases.focused, phases.closing]:
+                if phase and phase.n_turns:
+                    phase_sum += phase.n_turns
+            if phase_sum > 0:
+                v.max_turns = phase_sum
         return v
 
 

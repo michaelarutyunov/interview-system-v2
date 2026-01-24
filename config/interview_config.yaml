@@ -6,89 +6,63 @@
 # ============================================================================
 # Interview Session Configuration
 # ============================================================================
+# Used by:
+# - src/domain/models/interview_state.py:247 (termination check)
+# - ui/components/metrics.py:67 (progress display)
+# - ui/components/controls.py:82 (slider default)
 session:
-  max_turns: 20  # Maximum turns before forcing close
-  target_coverage: 0.80  # Target coverage ratio (0.0-1.0)
-  min_turns: 5  # Minimum turns before early termination
+  # Calculated from phases (exploratory + focused + closing)
+  # Can be overridden via API: config={"max_turns": custom_value}
+  max_turns: 22
+  # Coverage ratio threshold for interview completion
+  # Used by: src/domain/models/interview_state.py:251
+  target_coverage: 0.80
+  # Minimum turns before allowing early termination
+  # Used by: src/domain/models/interview_state.py:243
+  min_turns: 5
 
 # ============================================================================
-# Phase Determination Thresholds
+# Phase Configuration (deterministic turn-based)
 # ============================================================================
-# Phases control which strategies are applicable and their scoring weights
+# Used by: src/services/strategy_service.py:_determine_phase()
+#
+# Phase transition rules:
+# - exploratory: turns 1 to n_turns (exclusive)
+# - focused: turns (exploratory.n_turns + 1) to (exploratory + focused.n_turns)
+# - closing: after focused phase, until session.max_turns
+#
+# Phases control which strategies are boosted via phase_profiles in config/scoring.yaml
 phases:
-  # Exploratory phase: Early interview, focus on breadth
   exploratory:
-    min_turns: 0  # Starting turn for this phase
-    max_turns: 8  # Last turn for this phase (exclusive)
-    max_coverage: 0.60  # Coverage below which we stay in exploratory
-
-  # Focused phase: Mid-interview, balance depth and coverage
+    n_turns: 8  # Turns 1-8: Focus on breadth exploration
   focused:
-    min_turns: 8  # Starting turn for this phase
-    coverage_threshold: 0.60  # Coverage threshold to enter focused phase
-    max_coverage: 0.95  # Coverage below which we stay in focused
-
-  # Closing phase: Late interview, prepare to wrap up
+    n_turns: 12  # Turns 9-20: Balance depth and coverage
   closing:
-    min_turns: 20  # Minimum turns before entering closing phase
-    coverage_threshold: 0.95  # Coverage threshold to trigger closing
-    max_turns: null  # No max turn limit (uses session.max_turns instead)
-
-# ============================================================================
-# Strategy Applicability by Phase
-# ============================================================================
-# Defines which strategies are available in each phase
-strategy_phases:
-  exploratory:
-    - deepen  # Deepen understanding of current topics
-    - broaden  # Explore new areas
-    - reflection  # Meta-questions about the process
-
-  focused:
-    - deepen  # Deepen understanding of current topics
-    - broaden  # Explore new areas
-    - cover_element  # Cover specific stimulus elements
-
-  closing:
-    - closing  # Begin to wrap up the interview
-    - reflection  # Final reflection questions
+    n_turns: 2  # Turns 21-22: Wrap up (extendable via session.max_turns)
 
 # ============================================================================
 # Strategy Service Configuration
 # ============================================================================
+# Used by: src/services/strategy_service.py (lines 320-325)
+#
+# Controls alternative strategy tracking for transparency/debugging:
+# - alternatives_count: Number of runner-up strategies to return
+# - alternatives_min_score: Minimum score threshold (filters low-scoring candidates)
 strategy_service:
-  # Number of alternative strategies to track
-  alternatives_count: 3
-  # Minimum score for alternatives to be included
-  alternatives_min_score: 0.3
+  alternatives_count: 3  # Track top 3 non-selected strategies
+  alternatives_min_score: 0.3  # Filter out alternatives below this score
 
 # ============================================================================
 # Session Service Configuration
 # ============================================================================
+# Used by: src/services/session_service.py
+# - context_utterance_limit: Line 456 (get_conversation_context)
+# - context_node_limit: Line 464 (get_recent_nodes)
+# - extraction_context_limit: Line 542 (_extract_from_text)
 session_service:
-  # Number of recent utterances to include in context
+  # Number of recent utterances to include in LLM context
   context_utterance_limit: 10
-  # Number of recent nodes to include in context
+  # Number of recent graph nodes to include in context
   context_node_limit: 5
   # Number of recent utterances to include in extraction context
   extraction_context_limit: 5
-
-# ============================================================================
-# Graph Service Configuration
-# ============================================================================
-graph_service:
-  # Default lookback window for recent nodes
-  recent_nodes_limit: 5
-  # Minimum confidence threshold for concept extraction
-  min_confidence_threshold: 0.5
-
-# ============================================================================
-# Coverage Calculation Configuration
-# ============================================================================
-coverage:
-  # Elements to include in coverage calculation
-  include_elements:
-    - stimulus_elements  # Elements from the original stimulus
-    - extracted_concepts  # Concepts extracted from responses
-  # Minimum elements required before coverage is meaningful
-  min_elements_threshold: 3
