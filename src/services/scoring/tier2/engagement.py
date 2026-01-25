@@ -36,11 +36,24 @@ class EngagementScorer(Tier2Scorer):
             self.weight = 0.10
 
         # Momentum thresholds
-        # NOTE: high_momentum_threshold lowered to 70 (from 100) to align with actual observed values
-        # Session analysis shows momentum ranges 35-70; 100 was unreachable
-        # Bead: 5rt - Revisit after more data collection (may need percentile-based thresholds)
+        # Per bead 5rt (P3): Revisit after more data collection
+        # Current values based on limited observation (35-70 range)
+        # TODO: Analyze full dataset to set percentile-based thresholds
+        # Recommended analysis when data available:
+        # 1. Collect momentum scores from 100+ turns across multiple sessions
+        # 2. Calculate percentiles: p25, p50 (median), p75, p90
+        # 3. Set low_momentum_threshold = p25, high_momentum_threshold = p75
+        # 4. Consider dynamic thresholds based on session phase
         self.low_momentum_threshold = self.params.get("low_momentum_threshold", 30)
         self.high_momentum_threshold = self.params.get("high_momentum_threshold", 70)
+
+        # Alternative: percentile-based threshold configuration
+        # When more data is available, can switch to this approach:
+        # self.percentile_thresholds = self.params.get("percentile_thresholds", {
+        #     "low_percentile": 25,   # p25 for low threshold
+        #     "high_percentile": 75,  # p75 for high threshold
+        #     "min_samples": 50,     # Minimum samples before using percentiles
+        # })
 
         # Elaboration markers
         self.elaboration_markers = self.params.get(
@@ -58,6 +71,7 @@ class EngagementScorer(Tier2Scorer):
             "EngagementScorer initialized",
             weight=self.weight,
             low_threshold=self.low_momentum_threshold,
+            high_threshold=self.high_momentum_threshold,
         )
 
     async def score(
