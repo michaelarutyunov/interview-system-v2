@@ -5,6 +5,7 @@ These scorers perform boolean veto checks before Tier 2 scoring:
 - ElementExhaustedScorer: Checks for overmentioned elements
 - RecentRedundancyScorer: Checks for question similarity
 - ConsecutiveExhaustionScorer: Checks for consecutive exhaustion responses
+- QuestionRepetitionScorer: Checks for repetitive "what else" question patterns
 """
 
 from src.services.scoring.tier1.knowledge_ceiling import KnowledgeCeilingScorer
@@ -13,10 +14,14 @@ from src.services.scoring.tier1.recent_redundancy import RecentRedundancyScorer
 from src.services.scoring.tier1.consecutive_exhaustion import (
     ConsecutiveExhaustionScorer,
 )
+from src.services.scoring.tier1.question_repetition import (
+    QuestionRepetitionScorer,
+)
 
 __all__ = [
     "KnowledgeCeilingScorer",
     "ElementExhaustedScorer",
     "RecentRedundancyScorer",
     "ConsecutiveExhaustionScorer",
+    "QuestionRepetitionScorer",
 ]

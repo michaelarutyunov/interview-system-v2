@@ -63,6 +63,24 @@ scoring:
         lookback_window: 6
         method: "tfidf_cosine"  # jaccard, cosine, or embeddings
 
+    - id: question_repetition
+      class: QuestionRepetitionScorer
+      enabled: true
+      params:
+        threshold: 3  # Number of repetitive "what else" patterns before veto
+        repetition_patterns:
+          - "what else"
+          - "what other"
+          - "what else about"
+          - "anything else"
+          - "what else can"
+          - "what else do"
+          - "what else would"
+          - "what else matters"
+          - "what else contributes"
+          - "what else stands"
+          - "what else is"
+
   # Tier 2 scorers (weighted additive)
   tier2_scorers:
     - id: coverage_gap
