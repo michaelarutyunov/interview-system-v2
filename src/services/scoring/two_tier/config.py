@@ -14,6 +14,7 @@ from src.services.scoring.tier1 import (
     KnowledgeCeilingScorer,
     ElementExhaustedScorer,
     RecentRedundancyScorer,
+    ConsecutiveExhaustionScorer,
 )
 from src.services.scoring.tier2 import (
     CoverageGapScorer,
@@ -33,6 +34,7 @@ TIER1_SCORER_CLASSES = {
     "KnowledgeCeilingScorer": KnowledgeCeilingScorer,
     "ElementExhaustedScorer": ElementExhaustedScorer,
     "RecentRedundancyScorer": RecentRedundancyScorer,
+    "ConsecutiveExhaustionScorer": ConsecutiveExhaustionScorer,
 }
 
 # Tier 2 scorer class mapping

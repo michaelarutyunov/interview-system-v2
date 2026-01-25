@@ -30,6 +30,31 @@ scoring:
         max_mentions: 5
         lookback_window: 10
 
+    - id: consecutive_exhaustion
+      class: ConsecutiveExhaustionScorer
+      enabled: true
+      params:
+        threshold: 3  # Number of consecutive exhaustion responses before veto
+        negative_patterns:
+          - "nothing"
+          - "nothing else"
+          - "nothing really"
+          - "nothing more"
+          - "nothing much"
+          - "nothing comes to mind"
+          - "don't know"
+          - "do not know"
+          - "can't think"
+          - "cannot think"
+          - "can't think of anything"
+          - "that's it"
+          - "that is it"
+          - "that's all"
+          - "that is all"
+          - "no, that's"
+          - "no, nothing"
+          - "nothing else i"
+
     - id: recent_redundancy
       class: RecentRedundancyScorer
       enabled: true

@@ -21,6 +21,9 @@ from src.services.scoring.two_tier.config import create_scoring_engine, load_con
 from src.services.scoring.tier1.knowledge_ceiling import KnowledgeCeilingScorer
 from src.services.scoring.tier1.element_exhausted import ElementExhaustedScorer
 from src.services.scoring.tier1.recent_redundancy import RecentRedundancyScorer
+from src.services.scoring.tier1.consecutive_exhaustion import (
+    ConsecutiveExhaustionScorer,
+)
 
 # Tier 2 scorers
 from src.services.scoring.tier2.coverage_gap import CoverageGapScorer
@@ -58,6 +61,7 @@ __all__ = [
     "KnowledgeCeilingScorer",
     "ElementExhaustedScorer",
     "RecentRedundancyScorer",
+    "ConsecutiveExhaustionScorer",
     # Tier 2 scorers
     "CoverageGapScorer",
     "AmbiguityScorer",
