@@ -380,7 +380,14 @@ class ExportService:
         if utterances:
             writer = csv.DictWriter(
                 output,
-                fieldnames=["id", "turn_number", "speaker", "text", "phase", "created_at"],
+                fieldnames=[
+                    "id",
+                    "turn_number",
+                    "speaker",
+                    "text",
+                    "phase",
+                    "created_at",
+                ],
             )
             writer.writeheader()
             for utt in utterances:

@@ -1,0 +1,160 @@
+name: jobs_to_be_done
+version: "1.0"
+description: "Framework for understanding customer motivation and needs through job statements"
+
+node_types:
+  - name: job_statement
+    description: "Core functional or emotional job a customer is trying to accomplish"
+    examples:
+      - "get my daily caffeine fix"
+      - "feel productive in the morning"
+      - "socialize with colleagues"
+
+  - name: job_context
+    description: "Situation or circumstances when the job arises"
+    examples:
+      - "when I'm rushing to work"
+      - "when I'm working from home"
+      - "when meeting clients"
+
+  - name: job_trigger
+    description: "Event or stimulus that initiates the job"
+    examples:
+      - "feeling tired in the morning"
+      - "anticipating a long meeting"
+      - "hosting a gathering"
+
+  - name: pain_point
+    description: "Obstacle or frustration in getting the job done"
+    examples:
+      - "coffee is too bitter"
+      - "takes too long to prepare"
+      - "upsets my stomach"
+
+  - name: gain_point
+    description: "Desired outcome or benefit that makes the job worthwhile"
+    examples:
+      - "smooth, enjoyable taste"
+      - "quick and convenient"
+      - "feeling energized without jitters"
+
+  - name: solution_approach
+    description: "Current or potential method for accomplishing the job"
+    examples:
+      - "using oat milk in coffee"
+      - "buying coffee at a cafe"
+      - "meal prepping"
+
+  - name: emotional_job
+    description: "Emotional state or identity the customer seeks to achieve"
+    examples:
+      - "feel healthy and conscientious"
+      - "project a professional image"
+      - "treat myself with care"
+
+  - name: social_job
+    description: "Social impression or relationship the customer wants to influence"
+    examples:
+      - "fit in with health-conscious peers"
+      - "signal environmental values"
+      - "avoid social awkwardness"
+
+edge_types:
+  - name: occurs_in
+    description: "Temporal or situational relationship between job and context"
+
+  - name: triggered_by
+    description: "Causal relationship where a stimulus initiates the job"
+
+  - name: addresses
+    description: "Solution approach resolves a pain point or enables a gain point"
+
+  - name: conflicts_with
+    description: "Pain point that prevents the job from being done well"
+
+  - name: enables
+    description: "Gain point that makes the job more achievable or satisfying"
+
+  - name: supports
+    description: "Functional job that supports an emotional or social job"
+
+  - name: revises
+    description: "Contradiction - newer belief or approach supersedes older one"
+
+valid_connections:
+  occurs_in:
+    - [job_statement, job_context]
+    - [emotional_job, job_context]
+    - [social_job, job_context]
+
+  triggered_by:
+    - [job_statement, job_trigger]
+    - [emotional_job, job_trigger]
+    - [social_job, job_trigger]
+
+  addresses:
+    - [solution_approach, pain_point]
+    - [solution_approach, gain_point]
+    - [job_statement, emotional_job]
+    - [job_statement, social_job]
+
+  conflicts_with:
+    - [solution_approach, pain_point]
+    - [pain_point, job_statement]
+
+  enables:
+    - [solution_approach, gain_point]
+    - [gain_point, job_statement]
+
+  supports:
+    - [job_statement, emotional_job]
+    - [job_statement, social_job]
+
+  revises:
+    - ["*", "*"]
+
+extraction_guidelines:
+  - "Listen for phrases indicating what the user is trying to accomplish ('I need to...', 'I want to...', 'The goal is...')"
+  - "Identify the circumstances when the job becomes important ('when...', 'especially when...', 'in situations like...')"
+  - "Extract pain points directly expressed ('frustrating that...', 'hate it when...', 'problem is...')"
+  - "Extract gain points as positive outcomes ('love that...', 'great because...', 'important that...')"
+  - "Distinguish between functional, emotional, and social jobs - often all three coexist"
+  - "Map the current solution approach even if not explicitly stated"
+  - "Connect jobs to their underlying emotional and social drivers"
+  - "Look for trade-offs users make between competing jobs"
+
+relationship_examples:
+  explicit_job_statement:
+    description: "Direct statement of what needs to be accomplished"
+    example: "I need something that wakes me up but doesn't make me jittery"
+    extraction: "job_statement('wake up without jitters') → addresses → pain_point('caffeine jitters')"
+
+  implicit_context:
+    description: "Context revealed through situation description"
+    example: "When I have 8am meetings, I can't wait in line at the cafe"
+    extraction: "job_statement('get morning coffee') → occurs_in → job_context('early morning meetings')"
+
+  pain_trigger_chain:
+    description: "Trigger reveals the pain point and the job together"
+    example: "Dairy makes me feel bloated, especially before presentations"
+    extraction: "job_trigger('before presentations') → triggered_by → job_statement('feel comfortable') conflicts_with pain_point('dairy bloating')"
+
+  functional_supports_emotional:
+    description: "Functional choice enables emotional outcome"
+    example: "I choose oat milk because it aligns with my values"
+    extraction: "solution_approach('oat milk') → supports → emotional_job('feel environmentally responsible')"
+
+extractability_criteria:
+  extractable_contains:
+    - "Goals or objectives the user wants to achieve"
+    - "Frustrations, pain points, or obstacles"
+    - "Positive outcomes or benefits they value"
+    - "Situational context (when, where, with whom)"
+    - "Current solutions or workarounds"
+    - "Emotions or social considerations related to choices"
+  non_extractable_contains:
+    - "Simple yes/no responses"
+    - "Acknowledgments ('okay', 'I see', 'right')"
+    - "Questions back to the interviewer"
+    - "Purely factual product descriptions without user context"
+    - "Irrelevant tangents"

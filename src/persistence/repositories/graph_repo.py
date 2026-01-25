@@ -11,13 +11,21 @@ import json
 import yaml
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from uuid import uuid4
 
 import aiosqlite
 import structlog
 
-from src.domain.models.knowledge_graph import KGNode, KGEdge, GraphState
+from src.domain.models.knowledge_graph import (
+    KGNode,
+    KGEdge,
+    GraphState,
+    CoverageState,
+    ElementCoverage,
+)
+from src.domain.models.concept import Concept
+from src.services.depth_calculator import DepthCalculator
 
 log = structlog.get_logger(__name__)
 
@@ -495,21 +503,8 @@ class GraphRepository:
         # Full graph traversal would be expensive; use node type as proxy
         max_depth = len([t for t in nodes_by_type if nodes_by_type.get(t, 0) > 0])
 
-        # Coverage state: track which elements have been mentioned
-        # Get all unique node labels as elements_seen (can be enhanced to load concept config elements)
-        cursor = await self.db.execute(
-            "SELECT DISTINCT label FROM kg_nodes WHERE session_id = ? AND superseded_by IS NULL",
-            (session_id,),
-        )
-        elements_seen = [row[0] for row in await cursor.fetchall()]
-
-        # Build coverage_state in properties
-        # Load elements_total from concept config
-        elements_total = await self._load_concept_elements(session_id)
-        coverage_state = {
-            "elements_seen": elements_seen,
-            "elements_total": elements_total,
-        }
+        # Build enhanced coverage state with depth tracking
+        coverage_state = await self._build_coverage_state(session_id)
 
         return GraphState(
             node_count=node_count,
@@ -518,8 +513,142 @@ class GraphRepository:
             edges_by_type=edges_by_type,
             orphan_count=orphan_count,
             max_depth=max_depth,
-            properties={"coverage_state": coverage_state},
+            coverage_state=coverage_state,
         )
+
+    async def _build_coverage_state(self, session_id: str) -> Optional[CoverageState]:
+        """
+        Build enhanced coverage state with depth tracking via chain validation.
+
+        Phase 4 implementation: Uses DepthCalculator to compute element depth
+        based on connected chains of linked nodes.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            CoverageState with element-level depth tracking, or None if concept not found
+        """
+        # Get all nodes for the session
+        nodes = await self.get_nodes_by_session(session_id)
+        edges = await self.get_edges_by_session(session_id)
+
+        # Load concept elements
+        elements_data = await self._load_concept_elements(session_id)
+        element_ids = elements_data.get("element_ids", [])
+        elements_by_id = elements_data.get("elements_by_id", {})
+
+        if not element_ids:
+            log.debug("no_elements_found_for_coverage", session_id=session_id)
+            return None
+
+        # Match nodes to elements using fuzzy matching
+        element_node_mapping = self._map_nodes_to_elements(nodes, elements_by_id)
+
+        # Initialize depth calculator with MEC ladder
+        depth_calculator = DepthCalculator()
+
+        # Calculate depth for all elements
+        element_depths = depth_calculator.calculate_all_elements(
+            element_node_mapping, edges
+        )
+
+        # Build element coverage dict
+        elements_dict = {}
+        for elem_id in element_ids:
+            if elem_id in element_depths:
+                elements_dict[elem_id] = ElementCoverage(**element_depths[elem_id])
+            else:
+                # Element not covered at all
+                elements_dict[elem_id] = ElementCoverage(
+                    covered=False, linked_node_ids=[], types_found=[], depth_score=0.0
+                )
+
+        # Calculate summary metrics
+        elements_covered = sum(1 for e in elements_dict.values() if e.covered)
+        overall_depth = depth_calculator.get_overall_depth(element_depths)
+
+        coverage_state = CoverageState(
+            elements=elements_dict,
+            elements_covered=elements_covered,
+            elements_total=len(element_ids),
+            overall_depth=overall_depth,
+        )
+
+        log.debug(
+            "coverage_state_built",
+            session_id=session_id,
+            elements_covered=elements_covered,
+            elements_total=len(element_ids),
+            overall_depth=overall_depth,
+        )
+
+        return coverage_state
+
+    def _map_nodes_to_elements(
+        self, nodes: List[KGNode], elements_by_id: Dict[Any, Dict[str, Any]]
+    ) -> Dict[int, List[KGNode]]:
+        """
+        Map nodes to elements using fuzzy substring matching on labels and aliases.
+
+        This is a fallback when LLM-based element linking is not available.
+        A single node can be linked to multiple elements.
+
+        Args:
+            nodes: List of KGNode objects
+            elements_by_id: Dict mapping element_id -> {label, aliases}
+
+        Returns:
+            Dict mapping element_id (int) -> list of linked nodes
+        """
+        # Normalize all element IDs to integers for the mapping
+        int_element_ids = []
+        for elem_id in elements_by_id.keys():
+            if isinstance(elem_id, int):
+                int_element_ids.append(elem_id)
+            elif isinstance(elem_id, str) and elem_id.isdigit():
+                int_element_ids.append(int(elem_id))
+            else:
+                # Non-numeric string IDs - skip for v2 format
+                continue
+
+        mapping = {elem_id: [] for elem_id in int_element_ids}
+
+        for node in nodes:
+            node_label_lower = node.label.lower()
+
+            for elem_id, elem_data in elements_by_id.items():
+                # Normalize to integer key
+                if isinstance(elem_id, int):
+                    key = elem_id
+                elif isinstance(elem_id, str) and elem_id.isdigit():
+                    key = int(elem_id)
+                else:
+                    # Skip non-integer element IDs (v1 format)
+                    continue
+
+                # Get search terms: label + aliases
+                elem_label = elem_data.get("label", "").lower()
+                aliases = [a.lower() for a in elem_data.get("aliases", [])]
+
+                # Label is treated as an implicit alias (substring match)
+                search_terms = [elem_label] + aliases
+
+                # Check if any search term appears in the node label
+                if any(term in node_label_lower for term in search_terms if term):
+                    mapping[key].append(node)
+
+                    log.debug(
+                        "matched_node_to_element",
+                        node_label=node.label,
+                        element_id=key,
+                        matched_term=next(
+                            (t for t in search_terms if t and t in node_label_lower),
+                            None,
+                        ),
+                    )
+
+        return mapping
 
     # ==================== HELPERS ====================
 
@@ -558,15 +687,21 @@ class GraphRepository:
             recorded_at=datetime.fromisoformat(row["recorded_at"]),
         )
 
-    async def _load_concept_elements(self, session_id: str) -> List[str]:
+    async def _load_concept_elements(self, session_id: str) -> dict:
         """
-        Load element IDs from concept config for a session.
+        Load element data (IDs, labels, aliases) from concept config for a session.
+
+        Validates the concept YAML against the Pydantic Concept model for type safety.
+        Element IDs are integers in the enhanced concept format.
 
         Args:
             session_id: Session ID
 
         Returns:
-            List of element IDs from the concept config, or empty list if not found
+            Dictionary with:
+            - element_ids: List of element IDs (integers in v2 format)
+            - elements_by_id: Dict mapping element_id -> {label, aliases}
+            Returns empty dict if not found
         """
         # Get concept_id from sessions table
         cursor = await self.db.execute(
@@ -576,15 +711,17 @@ class GraphRepository:
         row = await cursor.fetchone()
         if not row:
             log.warning("session_not_found_for_concept_elements", session_id=session_id)
-            return []
+            return {"element_ids": [], "elements_by_id": {}}
 
         concept_id = row[0]
         if not concept_id:
             log.warning("no_concept_id_for_session", session_id=session_id)
-            return []
+            return {"element_ids": [], "elements_by_id": {}}
 
         # Load concept config from config/concepts/{concept_id}.yaml
-        config_dir = Path(__file__).parent.parent.parent / "config" / "concepts"
+        # Path from graph_repo.py: src/persistence/repositories/graph_repo.py
+        # We need to go up 4 levels to reach project root, then into config/concepts
+        config_dir = Path(__file__).parent.parent.parent.parent / "config" / "concepts"
         concept_path = config_dir / f"{concept_id}.yaml"
 
         if not concept_path.exists():
@@ -593,22 +730,49 @@ class GraphRepository:
                 concept_id=concept_id,
                 path=str(concept_path),
             )
-            return []
+            return {"element_ids": [], "elements_by_id": {}}
 
         try:
             with open(concept_path) as f:
                 concept_data = yaml.safe_load(f)
 
-            # Extract element IDs from the elements list
-            elements = concept_data.get("elements", [])
-            element_ids = [e.get("id") for e in elements if e.get("id")]
+            # Validate against Pydantic model for type safety
+            try:
+                concept = Concept(**concept_data)
+            except Exception as validation_error:
+                log.error(
+                    "concept_config_validation_error",
+                    concept_id=concept_id,
+                    error=str(validation_error),
+                )
+                # Fall back to raw parsing for backward compatibility
+                elements = concept_data.get("elements", [])
+            else:
+                # Use validated concept data
+                elements = [el.model_dump() for el in concept.elements]
+
+            # Extract element data from the elements list
+            element_ids = []
+            elements_by_id = {}
+
+            for e in elements:
+                elem_id = e.get("id")
+                if elem_id is not None:
+                    element_ids.append(elem_id)
+                    elements_by_id[elem_id] = {
+                        "label": e.get("label", ""),
+                        "aliases": e.get("aliases", []),
+                    }
 
             log.debug(
                 "concept_elements_loaded",
                 concept_id=concept_id,
                 element_count=len(element_ids),
             )
-            return element_ids
+            return {
+                "element_ids": element_ids,
+                "elements_by_id": elements_by_id,
+            }
 
         except Exception as e:
             log.error(
@@ -616,4 +780,56 @@ class GraphRepository:
                 concept_id=concept_id,
                 error=str(e),
             )
-            return []
+            return {"element_ids": [], "elements_by_id": {}}
+
+    def _match_labels_to_elements(
+        self, node_labels: List[str], elements_data: dict
+    ) -> List[Any]:
+        """
+        Match node labels to element IDs using fuzzy substring matching.
+
+        This is a fallback when LLM-based element linking is not available.
+        Matches node labels against element labels and aliases using substring matching.
+
+        Args:
+            node_labels: List of node labels (free-form text)
+            elements_data: Dict from _load_concept_elements with element_ids and elements_by_id
+
+        Returns:
+            List of element IDs (strings or ints) that have at least one matching node label
+        """
+        elements_matched = set()
+        elements_by_id = elements_data.get("elements_by_id", {})
+
+        for label in node_labels:
+            label_lower = label.lower()
+            for elem_id, elem_data in elements_by_id.items():
+                # Check label match (substring)
+                elem_label = elem_data.get("label", "").lower()
+                aliases = [a.lower() for a in elem_data.get("aliases", [])]
+
+                # Label is treated as an implicit alias (substring match)
+                search_terms = [elem_label] + aliases
+
+                # Check if any search term appears in the node label
+                if any(term in label_lower for term in search_terms if term):
+                    # Keep the original element_id type (string or int) for proper comparison
+                    elements_matched.add(elem_id)
+                    log.debug(
+                        "matched_label_to_element",
+                        node_label=label,
+                        element_id=elem_id,
+                        matched_term=next(
+                            (t for t in search_terms if t and t in label_lower), None
+                        ),
+                    )
+
+        # Convert to list while preserving types
+        matched_ids = list(elements_matched)
+
+        log.debug(
+            "element_matching_complete",
+            node_labels_count=len(node_labels),
+            elements_matched=len(matched_ids),
+        )
+        return matched_ids

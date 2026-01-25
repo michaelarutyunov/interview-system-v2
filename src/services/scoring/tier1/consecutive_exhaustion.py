@@ -132,7 +132,9 @@ class ConsecutiveExhaustionScorer(Tier1Scorer):
                     consecutive_count=consecutive_count,
                     threshold=self.threshold,
                     vetoed_strategy=strategy_id,
-                    last_response=latest_user_response[:50] if latest_user_response else "",  # type: ignore[optional]
+                    last_response=latest_user_response[:50]
+                    if latest_user_response
+                    else "",  # type: ignore[optional]
                 )
 
                 return Tier1Output(
@@ -142,7 +144,9 @@ class ConsecutiveExhaustionScorer(Tier1Scorer):
                     signals={
                         "consecutive_count": consecutive_count,
                         "threshold": self.threshold,
-                        "last_response": latest_user_response[:100] if latest_user_response else "",  # type: ignore[optional]
+                        "last_response": latest_user_response[:100]
+                        if latest_user_response
+                        else "",  # type: ignore[optional]
                         "strategy_type": strategy_id,
                         "recommended_strategies": list(self.ALLOWED_STRATEGIES),
                     },
@@ -162,7 +166,9 @@ class ConsecutiveExhaustionScorer(Tier1Scorer):
                     signals={
                         "consecutive_count": consecutive_count,
                         "threshold": self.threshold,
-                        "last_response": latest_user_response[:100] if latest_user_response else "",  # type: ignore[optional]
+                        "last_response": latest_user_response[:100]
+                        if latest_user_response
+                        else "",  # type: ignore[optional]
                         "strategy_type": strategy_id,
                         "allow_reason": "strategy shifts mode",
                     },

@@ -1,0 +1,174 @@
+name: repertory_grid
+version: "1.0"
+description: "Personal construct psychology framework for understanding how people categorize and evaluate differences"
+
+node_types:
+  - name: element
+    description: "Specific item, brand, product, or variant being compared"
+    examples:
+      - "oat milk"
+      - "dairy milk"
+      - "almond milk"
+
+  - name: construct_pole
+    description: "One end of a bipolar construct used to evaluate elements"
+    examples:
+      - "creamy"
+      - "sustainable"
+      - "neutral taste"
+
+  - name: opposite_pole
+    description: "The contrasting end of a bipolar construct"
+    examples:
+      - "watery"
+      - "environmentally harmful"
+      - "strong flavor"
+
+  - name: construct
+    description: "Bipolar dimension used for evaluation (combines both poles)"
+    examples:
+      - "creamy vs watery"
+      - "sustainable vs harmful"
+      - "neutral vs strong flavor"
+
+  - name: rating
+    description: "Numerical score assigned to an element on a construct"
+    examples:
+      - "oat milk is 8/10 on creamy"
+      - "dairy milk is 3/10 on sustainable"
+
+  - name: similarity
+    description: "Shared characteristics between elements"
+    examples:
+      - "both oat and almond are plant-based"
+      - "dairy and oat both froth well"
+
+  - name: difference
+    description: "Distinguishing characteristics between elements"
+    examples:
+      - "oat is creamier than almond"
+      - "dairy has more protein than oat"
+
+  - name: ideal_element
+    description: "Hypothetical perfect product combining desired qualities"
+    examples:
+      - "something as creamy as dairy but sustainable like oat"
+      - "neutral taste but with nutritional value"
+
+  - name: laddered_construct
+    description: "Higher-level abstraction or value underlying a surface construct"
+    examples:
+      - "creamy → feels indulgent → self-care"
+      - "sustainable → responsible → good person"
+
+edge_types:
+  - name: evaluated_by
+    description: "Element is assessed using a construct"
+
+  - name: opposite_of
+    description: "The two poles of a construct"
+
+  - name: rated_on
+    description: "Rating applies a construct to an element"
+
+  - name: similar_on
+    description: "Elements share a characteristic"
+
+  - name: differs_on
+    description: "Elements are distinguished by a construct"
+
+  - name: implies
+    description: "Construct implies or leads to another construct (laddering)"
+
+  - name: closer_to_ideal
+    description: "Element better matches ideal specification"
+
+  - name: defines
+    description: "Construct helps define what is ideal"
+
+valid_connections:
+  evaluated_by:
+    - [element, construct]
+    - [element, construct_pole]
+
+  opposite_of:
+    - [construct_pole, construct_pole]
+    - [construct_pole, opposite_pole]
+
+  rated_on:
+    - [element, rating]
+
+  similar_on:
+    - [element, construct]
+    - [element, construct_pole]
+
+  differs_on:
+    - [element, construct]
+    - [element, construct_pole]
+
+  implies:
+    - [construct, construct]
+    - [construct_pole, construct_pole]
+    - [construct, laddered_construct]
+
+  closer_to_ideal:
+    - [element, ideal_element]
+
+  defines:
+    - [construct, ideal_element]
+    - [construct_pole, ideal_element]
+
+extraction_guidelines:
+  - "Use triadic elicitation: 'In what way are two of these similar but different from the third?'"
+  - "Always capture both poles of each construct (bipolar nature is essential)"
+  - "Extract ratings or preferences when explicitly stated"
+  - "Look for laddering: 'Why does X matter?' → reveals higher-level constructs"
+  - "Identify the 'ideal' product description"
+  - "Notice which elements are grouped as similar"
+  - "Pay attention to the language used - personal constructs reveal the person's meaning system"
+  - "Constructs can be functional (creamy), emotional (comforting), or value-based (responsible)"
+
+relationship_examples:
+  triadic_elicitation:
+    description: "Comparing three items to elicit constructs"
+    example: "Interviewer: 'How are oat and almond similar but different from dairy?' Response: 'Oat and almond are plant-based, but dairy comes from animals'"
+    extraction: |
+      element('oat milk') → similar_on → construct_pole('plant-based')
+      element('almond milk') → similar_on → construct_pole('plant-based')
+      element('dairy milk') → differs_on → construct_pole('plant-based')
+      construct_pole('plant-based') → opposite_of → construct_pole('animal-based')
+
+  bipolar_construct:
+    description: "Both poles of a construct"
+    example: "I like things that are creamy, not watery"
+    extraction: "construct_pole('creamy') → opposite_of → construct_pole('watery')"
+
+  laddering:
+    description: "Higher-level construct revealed"
+    example: "Creaminess matters because it feels indulgent, and that's how I practice self-care"
+    extraction: |
+      construct_pole('creamy') → implies → construct_pole('indulgent')
+      construct_pole('indulgent') → implies → construct_pole('self-care')
+
+  ideal_specification:
+    description: "Description of perfect product"
+    example: "Ideally, something that froths like dairy but has the sustainability of oat"
+    extraction: |
+      ideal_element('perfect milk') ← closer_to_ideal ← element('oat milk')
+      construct_pole('froths well') → defines → ideal_element('perfect milk')
+      construct_pole('sustainable') → defines → ideal_element('perfect milk')
+
+extractability_criteria:
+  extractable_contains:
+    - "Comparisons between products ('better than...', 'not as... as...')"
+    - "Bipolar descriptions ('creamy vs watery', 'strong vs mild')"
+    - "Similarity statements ('both are...', 'they share...')"
+    - "Difference statements ('unlike...', 'different from...')"
+    - "Preferences and rankings"
+    - "Ideal or hypothetical descriptions"
+    - "'Why' explanations revealing deeper values"
+  non_extractable_contains:
+    - "Descriptions of a single item without comparison"
+    - "Factual specifications without personal meaning"
+    - "Simple agreement or acknowledgment"
+    - "Questions back to the interviewer"

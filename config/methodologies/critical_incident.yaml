@@ -1,0 +1,164 @@
+name: critical_incident
+version: "1.0"
+description: "Framework for understanding behavior through analysis of specific memorable experiences"
+
+node_types:
+  - name: incident
+    description: "Specific, memorable event or experience related to the product/category"
+    examples:
+      - "the time the barista made my coffee perfectly"
+      - "when I tried oat milk for the first time"
+      - "the day my coffee maker broke"
+
+  - name: situation
+    description: "Contextual circumstances surrounding the incident"
+    examples:
+      - "rushing to catch a flight"
+      - "hosting a dinner party"
+      - "studying late for exams"
+
+  - name: action
+    description: "What the person did during the incident"
+    examples:
+      - "asked for oat milk instead"
+      - "went to a different cafe"
+      - "made it myself at home"
+
+  - name: outcome
+    description: "Result or consequence of the action taken"
+    examples:
+      - "coffee tasted amazing"
+      - "avoided the usual stomach upset"
+      - "felt proud of my choice"
+
+  - name: emotion
+    description: "Emotional response during or after the incident"
+    examples:
+      - "surprised and delighted"
+      - "relieved and grateful"
+      - "frustrated and disappointed"
+
+  - name: attribution
+    description: "What the person believes caused the outcome"
+    examples:
+      - "because of the creamy texture"
+      - "due to the barista's skill"
+      - "because oat milk is more sustainable"
+
+  - name: learning
+    description: "Insight or takeaway from the incident"
+    examples:
+      - "oat milk froths better than I expected"
+      - "I should always specify the brand"
+      - "cafes vary in quality"
+
+  - name: behavior_change
+    description: "How the incident influenced future behavior"
+    examples:
+      - "now I always ask for oat milk"
+      - "started buying oat milk for home"
+      - "recommend it to friends"
+
+edge_types:
+  - name: occurred_in
+    description: "Incident took place within a specific situation"
+
+  - name: involved
+    description: "Action taken during the incident"
+
+  - name: resulted_in
+    description: "Outcome produced by an action"
+
+  - name: elicited
+    description: "Emotional response triggered by outcome"
+
+  - name: attributed_to
+    description: "Perceived cause of an outcome"
+
+  - name: led_to_learning
+    description: "Insight gained from the incident"
+
+  - name: influenced
+    description: "Incident caused a change in future behavior"
+
+  - name: similar_to
+    description: "Incident shares characteristics with another incident"
+
+  - name: contrasts_with
+    description: "Incident differs meaningfully from another incident"
+
+valid_connections:
+  occurred_in:
+    - [incident, situation]
+
+  involved:
+    - [incident, action]
+
+  resulted_in:
+    - [action, outcome]
+
+  elicited:
+    - [outcome, emotion]
+
+  attributed_to:
+    - [outcome, attribution]
+    - [emotion, attribution]
+
+  led_to_learning:
+    - [incident, learning]
+    - [outcome, learning]
+
+  influenced:
+    - [incident, behavior_change]
+    - [learning, behavior_change]
+
+  similar_to:
+    - [incident, incident]
+
+  contrasts_with:
+    - [incident, incident]
+
+extraction_guidelines:
+  - "Ask for specific stories: 'Tell me about a time when...' or 'Recall a recent experience where...'"
+  - "Focus on concrete incidents rather than general preferences"
+  - "Extract the sequence: situation → action → outcome → emotion"
+  - "Capture attributions - what the person believes caused the result"
+  - "Identify learnings that changed their understanding"
+  - "Note behavior changes that resulted from the incident"
+  - "Look for patterns across multiple incidents"
+  - "Distinguish between the factual event and the person's interpretation"
+
+relationship_examples:
+  complete_incident:
+    description: "Full critical incident narrative"
+    example: "Last week I was late for work and grabbed coffee at the airport. The oat milk latte was perfect - no bitter aftertaste. I felt relieved and actually enjoyed the rush"
+    extraction: |
+      incident('airport coffee') → occurred_in → situation('late for work')
+      incident('airport coffee') → involved → action('ordered oat milk latte')
+      action('ordered oat milk latte') → resulted_in → outcome('no bitter aftertaste')
+      outcome('no bitter aftertaste') → elicited → emotion('relieved, enjoyed')
+      outcome('no bitter aftertaste') → attributed_to → attribution('oat milk neutral taste')
+
+  attribution_chain:
+    description: "Person explains why something happened"
+    example: "It worked because oat milk doesn't curdle like almond milk does"
+    extraction: "outcome('smooth coffee') → attributed_to → attribution('oat milk stability vs almond milk')"
+
+  behavior_change:
+    description: "Incident leads to new behavior"
+    example: "Since that day, I've stopped buying dairy milk entirely"
+    extraction: "incident('positive oat milk experience') → influenced → behavior_change('stopped buying dairy')"
+
+extractability_criteria:
+  extractable_contains:
+    - "Specific stories or anecdotes ('the time when...', 'last week...')"
+    - "Sequences of events or actions"
+    - "Clear outcomes (positive or negative)"
+    - "Emotional reactions to experiences"
+    - "Explanations or causal attributions"
+    - "Changes in behavior or decisions"
+  non_extractable_contains:
+    - "General opinions without specific examples"
+    - "Hypothetical scenarios ('I would probably...')"
+    - "Second-hand stories ('my friend said...')"
+    - "Factual product descriptions without personal experience"

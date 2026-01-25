@@ -238,7 +238,9 @@ class InterviewConfig(BaseModel):
         Note: UI/API can still override via request.config={"max_turns": custom}
         """
         phases = info.data.get("phases")
-        if isinstance(phases, PhasesConfig) and v.max_turns == 20:  # Only if using default
+        if (
+            isinstance(phases, PhasesConfig) and v.max_turns == 20
+        ):  # Only if using default
             phase_sum = 0
             for phase in [phases.exploratory, phases.focused, phases.closing]:
                 if phase and phase.n_turns:

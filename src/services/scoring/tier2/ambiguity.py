@@ -96,9 +96,7 @@ class AmbiguityScorer(Tier2Scorer):
         """
         # Check for LLM-enhanced signals first (if enabled)
         if self.use_llm_signals:
-            llm_result = self._score_with_llm_signals(
-                strategy, focus, graph_state
-            )
+            llm_result = self._score_with_llm_signals(strategy, focus, graph_state)
             if llm_result is not None:
                 return llm_result
 

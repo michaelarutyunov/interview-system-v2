@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 
 import aiosqlite
+import yaml
 
 from src.persistence.database import init_database
 from src.persistence.repositories.graph_repo import GraphRepository
@@ -201,3 +202,252 @@ class TestGraphState:
         state = await repo.get_graph_state(session_id)
 
         assert state.orphan_count == 1
+
+
+class TestConceptElementMatching:
+    """Tests for concept element loading and fuzzy matching."""
+
+    @pytest.mark.asyncio
+    async def test_match_labels_to_elements_exact_match(self, repo):
+        """_match_labels_to_elements matches exact label."""
+        elements_data = {
+            "element_ids": [1, 2, 3],
+            "elements_by_id": {
+                1: {"label": "Creamy texture", "aliases": ["silky", "smooth"]},
+                2: {"label": "Plant-based", "aliases": ["vegan"]},
+                3: {"label": "Sustainability", "aliases": ["eco-friendly"]},
+            },
+        }
+
+        node_labels = ["Creamy texture", "vegan options"]
+        matched = repo._match_labels_to_elements(node_labels, elements_data)
+
+        # Should match element 1 (exact label) and element 2 (alias)
+        assert 1 in matched
+        assert 2 in matched
+        assert 3 not in matched
+
+    @pytest.mark.asyncio
+    async def test_match_labels_to_elements_substring_match(self, repo):
+        """_match_labels_to_elements matches substrings in aliases."""
+        elements_data = {
+            "element_ids": [1, 2],
+            "elements_by_id": {
+                1: {"label": "Creamy texture", "aliases": ["silky", "smooth", "foam"]},
+                2: {"label": "Plant-based", "aliases": ["dairy-free", "vegan"]},
+            },
+        }
+
+        node_labels = ["I love the silky foam", "It's dairy-free"]
+        matched = repo._match_labels_to_elements(node_labels, elements_data)
+
+        # "silky foam" should match element 1 (contains "silky" and "foam")
+        # "dairy-free" should match element 2 (contains "dairy-free")
+        assert 1 in matched
+        assert 2 in matched
+
+    @pytest.mark.asyncio
+    async def test_match_labels_to_elements_case_insensitive(self, repo):
+        """_match_labels_to_elements is case-insensitive."""
+        elements_data = {
+            "element_ids": [1],
+            "elements_by_id": {
+                1: {"label": "Creamy Texture", "aliases": ["Silky", "SMOOTH"]},
+            },
+        }
+
+        node_labels = ["creamy texture", "SILKY foam"]
+        matched = repo._match_labels_to_elements(node_labels, elements_data)
+
+        assert 1 in matched
+
+    @pytest.mark.asyncio
+    async def test_match_labels_to_elements_no_match(self, repo):
+        """_match_labels_to_elements returns empty list when no matches."""
+        elements_data = {
+            "element_ids": [1, 2],
+            "elements_by_id": {
+                1: {"label": "Creamy texture", "aliases": ["silky", "smooth"]},
+                2: {"label": "Plant-based", "aliases": ["vegan"]},
+            },
+        }
+
+        node_labels = ["bitter taste", "expensive price"]
+        matched = repo._match_labels_to_elements(node_labels, elements_data)
+
+        assert len(matched) == 0
+
+    @pytest.mark.asyncio
+    async def test_match_labels_to_elements_word_boundaries(self, repo):
+        """_match_labels_to_elements handles word boundaries correctly."""
+        elements_data = {
+            "element_ids": [1, 2],
+            "elements_by_id": {
+                1: {"label": "Foam", "aliases": ["foam"]},
+                2: {"label": "Milk", "aliases": ["milk"]},
+            },
+        }
+
+        # "foam" should match element 1
+        # "soy milk" should match element 2 (contains "milk")
+        node_labels = ["love the foam", "soy milk alternative"]
+        matched = repo._match_labels_to_elements(node_labels, elements_data)
+
+        assert 1 in matched
+        assert 2 in matched
+
+    @pytest.mark.asyncio
+    async def test_match_labels_to_elements_empty_aliases(self, repo):
+        """_match_labels_to_elements works with empty alias list."""
+        elements_data = {
+            "element_ids": [1],
+            "elements_by_id": {
+                1: {"label": "Creamy texture", "aliases": []},
+            },
+        }
+
+        node_labels = ["The creamy texture is great"]
+        matched = repo._match_labels_to_elements(node_labels, elements_data)
+
+        # Should still match via label
+        assert 1 in matched
+
+
+class TestStringElementIDs:
+    """Tests for string element IDs (legacy format)."""
+
+    @pytest.fixture
+    async def session_with_string_ids(self, db_connection, tmp_path):
+        """Create a test session with string element IDs."""
+        session_id = "test-session-string-ids"
+        concept_id = "test_concept_strings"
+
+        await db_connection.execute(
+            """
+            INSERT INTO sessions (id, methodology, concept_id, concept_name, status, config)
+            VALUES (?, 'means_end_chain', ?, 'Test String IDs', 'active', '{}')
+            """,
+            (session_id, concept_id),
+        )
+        await db_connection.commit()
+
+        config_dir = tmp_path / "config" / "concepts"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        concept_path = config_dir / f"{concept_id}.yaml"
+
+        concept_data = {
+            "id": concept_id,
+            "name": "Test String IDs",
+            "methodology": "means_end_chain",
+            "elements": [
+                {
+                    "id": "creamy_texture",
+                    "label": "Creamy texture",
+                    "aliases": ["silky", "smooth", "foam"],
+                },
+                {
+                    "id": "plant_based",
+                    "label": "Plant-based",
+                    "aliases": ["vegan", "dairy-free"],
+                },
+            ],
+        }
+
+        with open(concept_path, "w") as f:
+            yaml.dump(concept_data, f)
+
+        return session_id
+
+    @pytest.mark.asyncio
+    async def test_match_labels_to_elements_string_ids(self, repo):
+        """_match_labels_to_elements preserves string element IDs."""
+        elements_data = {
+            "element_ids": ["creamy_texture", "plant_based"],
+            "elements_by_id": {
+                "creamy_texture": {
+                    "label": "Creamy texture",
+                    "aliases": ["silky", "foam"],
+                },
+                "plant_based": {"label": "Plant-based", "aliases": ["vegan"]},
+            },
+        }
+
+        node_labels = ["silky foam", "vegan options"]
+        matched = repo._match_labels_to_elements(node_labels, elements_data)
+
+        # Should return string IDs
+        assert "creamy_texture" in matched
+        assert "plant_based" in matched
+
+    @pytest.mark.asyncio
+    async def test_coverage_state_with_oat_milk_concept(self, repo, db_connection):
+        """get_graph_state works with actual oat_milk_v2 concept."""
+        session_id = "test-session-oatmilk"
+
+        # Use the actual oat_milk_v2 concept
+        await db_connection.execute(
+            """
+            INSERT INTO sessions (id, methodology, concept_id, concept_name, status, config)
+            VALUES (?, 'means_end_chain', ?, 'Oat Milk v2', 'active', '{}')
+            """,
+            (session_id, "oat_milk_v2"),
+        )
+        await db_connection.commit()
+
+        # Create nodes that should match to elements via fuzzy matching
+        await repo.create_node(session_id, "I love the silky foam", "attribute")
+        await repo.create_node(session_id, "It's dairy-free and vegan", "attribute")
+        await repo.create_node(session_id, "Good for the planet", "attribute")
+
+        state = await repo.get_graph_state(session_id)
+        coverage_state = state.coverage_state
+
+        # Check that coverage state was built
+        assert coverage_state is not None
+        assert coverage_state.elements_total == 6
+
+        # Check that elements are properly matched
+        # Element 1 (Creamy texture) should be matched via "silky" or "foam"
+        # Element 2 (Plant-based / dairy-free) should be matched via "dairy-free" or "vegan"
+        # Element 3 (Environmentally sustainable) should be matched via "planet"
+        assert coverage_state.elements[1].covered is True
+        assert coverage_state.elements[2].covered is True
+        assert coverage_state.elements[3].covered is True
+
+        # Check coverage count
+        assert coverage_state.elements_covered >= 3  # At least 3 elements covered
+
+    @pytest.mark.asyncio
+    async def test_coverage_state_partial_with_oat_milk(self, repo, db_connection):
+        """get_graph_state correctly tracks partial coverage with oat_milk."""
+        session_id = "test-session-oatmilk-partial"
+
+        await db_connection.execute(
+            """
+            INSERT INTO sessions (id, methodology, concept_id, concept_name, status, config)
+            VALUES (?, 'means_end_chain', ?, 'Oat Milk v2', 'active', '{}')
+            """,
+            (session_id, "oat_milk_v2"),
+        )
+        await db_connection.commit()
+
+        # Create node that only matches element 1
+        await repo.create_node(session_id, "Very silky texture", "attribute")
+
+        state = await repo.get_graph_state(session_id)
+        coverage_state = state.coverage_state
+
+        # Check that coverage state was built
+        assert coverage_state is not None
+        assert coverage_state.elements_total == 6
+
+        # Only element 1 should be matched (contains "silky")
+        assert coverage_state.elements[1].covered is True
+        assert coverage_state.elements[2].covered is False
+        assert coverage_state.elements[3].covered is False
+        assert coverage_state.elements[4].covered is False
+        assert coverage_state.elements[5].covered is False
+        assert coverage_state.elements[6].covered is False
+
+        # Only 1 element covered
+        assert coverage_state.elements_covered == 1

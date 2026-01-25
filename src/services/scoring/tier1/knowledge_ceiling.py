@@ -88,9 +88,7 @@ class KnowledgeCeilingScorer(Tier1Scorer):
         """
         # Check for LLM-enhanced signals first (if enabled)
         if self.use_llm_signals:
-            llm_result = self._evaluate_with_llm_signals(
-                strategy, focus, graph_state
-            )
+            llm_result = self._evaluate_with_llm_signals(strategy, focus, graph_state)
             if llm_result is not None:
                 return llm_result
 
@@ -164,7 +162,10 @@ class KnowledgeCeilingScorer(Tier1Scorer):
                     scorer_id=self.scorer_id,
                     is_veto=False,
                     reasoning=f"LLM detected terminal knowledge ceiling but {strategy.get('id')} may still be productive",
-                    signals={"llm_enhanced": True, "allowed_strategies": "breadth/coverage"},
+                    signals={
+                        "llm_enhanced": True,
+                        "allowed_strategies": "breadth/coverage",
+                    },
                 )
         else:
             # Non-terminal - no veto based on knowledge ceiling

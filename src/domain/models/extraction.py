@@ -18,6 +18,10 @@ class ExtractedConcept(BaseModel):
     stance: int = Field(
         default=0, ge=-1, le=1
     )  # Stance: -1 (negative), 0 (neutral), +1 (positive)
+    linked_elements: List[int] = Field(
+        default_factory=list,
+        description="List of element IDs this concept relates to",
+    )
 
 
 class ExtractedRelationship(BaseModel):

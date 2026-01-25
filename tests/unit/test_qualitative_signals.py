@@ -41,11 +41,20 @@ class TestQualitativeSignalExtractor:
         """Create sample conversation history."""
         return [
             {"speaker": "moderator", "text": "Tell me about why you drink coffee."},
-            {"speaker": "user", "text": "I drink coffee because it helps me focus at work."},
+            {
+                "speaker": "user",
+                "text": "I drink coffee because it helps me focus at work.",
+            },
             {"speaker": "moderator", "text": "What else do you notice about coffee?"},
-            {"speaker": "user", "text": "I think the taste is really important. I love rich, bold flavors."},
+            {
+                "speaker": "user",
+                "text": "I think the taste is really important. I love rich, bold flavors.",
+            },
             {"speaker": "moderator", "text": "Does the caffeine matter?"},
-            {"speaker": "user", "text": "Maybe a little bit, but mostly it's about the ritual and taste."},
+            {
+                "speaker": "user",
+                "text": "Maybe a little bit, but mostly it's about the ritual and taste.",
+            },
         ]
 
     @pytest.fixture
@@ -101,7 +110,11 @@ class TestQualitativeSignalExtractor:
 
     @pytest.mark.asyncio
     async def test_extract_success(
-        self, extractor, mock_llm_client, sample_conversation_history, sample_llm_response
+        self,
+        extractor,
+        mock_llm_client,
+        sample_conversation_history,
+        sample_llm_response,
     ):
         """Test successful signal extraction."""
         import json
@@ -129,7 +142,10 @@ class TestQualitativeSignalExtractor:
         assert signals.concept_depth is not None
 
         # Verify specific signal values
-        assert signals.uncertainty.uncertainty_type == UncertaintyType.CONFIDENCE_QUALIFICATION
+        assert (
+            signals.uncertainty.uncertainty_type
+            == UncertaintyType.CONFIDENCE_QUALIFICATION
+        )
         assert signals.reasoning.reasoning_quality == ReasoningQuality.CAUSAL
         assert signals.emotional.intensity == EmotionalIntensity.MODERATE_POSITIVE
         assert signals.contradiction.has_contradiction is False
@@ -234,19 +250,23 @@ class TestQualitativeSignalExtractor:
 
     @pytest.mark.asyncio
     async def test_extract_json_in_markdown(
-        self, extractor, mock_llm_client, sample_conversation_history, sample_llm_response
+        self,
+        extractor,
+        mock_llm_client,
+        sample_conversation_history,
+        sample_llm_response,
     ):
         """Test parsing JSON wrapped in markdown code blocks."""
         import json
 
         # Response wrapped in markdown
-        markdown_response = f'''Here's my analysis:
+        markdown_response = f"""Here's my analysis:
 
 ```json
 {json.dumps(sample_llm_response)}
 ```
 
-Let me know if you need more details.'''
+Let me know if you need more details."""
 
         mock_llm_client.complete.return_value = LLMResponse(
             content=markdown_response,
@@ -261,7 +281,10 @@ Let me know if you need more details.'''
 
         # Should successfully extract from markdown
         assert signals.uncertainty is not None
-        assert signals.uncertainty.uncertainty_type == UncertaintyType.CONFIDENCE_QUALIFICATION
+        assert (
+            signals.uncertainty.uncertainty_type
+            == UncertaintyType.CONFIDENCE_QUALIFICATION
+        )
 
     @pytest.mark.asyncio
     async def test_extract_with_enabled_signals_filter(

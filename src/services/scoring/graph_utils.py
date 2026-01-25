@@ -50,11 +50,12 @@ def get_clusters(graph: nx.Graph, turn_number: int) -> Dict[str, int]:
         Dictionary mapping node_id to cluster_id
     """
     import warnings
+
     warnings.warn(
         "get_clusters() is deprecated and not used in production. "
         "Use get_simple_local_density() or other simple helpers instead.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     if turn_number in _cluster_cache:
         logger.debug(f"Using cached clusters for turn {turn_number}")
@@ -127,11 +128,12 @@ def local_cluster_density(
         Returns 0.0 for single-node clusters
     """
     import warnings
+
     warnings.warn(
         "local_cluster_density() is deprecated and not used in production. "
         "Use get_simple_local_density() instead.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     if clusters is None:
         clusters = get_clusters(graph, -1)
@@ -163,10 +165,11 @@ def cluster_size(focus_node: str, clusters: Dict[str, int]) -> int:
         Number of nodes in the cluster
     """
     import warnings
+
     warnings.warn(
         "cluster_size() is deprecated and not used in production.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return len(get_cluster_nodes(focus_node, clusters))
 
@@ -185,10 +188,11 @@ def largest_cluster_ratio(graph: nx.Graph, clusters: Dict[str, int]) -> float:
         Ratio of largest cluster size to total nodes (0-1)
     """
     import warnings
+
     warnings.warn(
         "largest_cluster_ratio() is deprecated and not used in production.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     if not clusters:
         return 1.0
@@ -225,11 +229,12 @@ def has_peripheral_candidates(
         - max_relevance: Highest relevance score among candidates
     """
     import warnings
+
     warnings.warn(
         "has_peripheral_candidates() is deprecated and not used in production. "
         "Use count_peripheral_nodes_simple() instead.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     focus_cluster = clusters.get(focus_node)
     cluster_nodes = get_cluster_nodes(focus_node, clusters)
@@ -277,11 +282,12 @@ def has_opposite_stance_node(
         True if an opposite-stance node exists, False otherwise
     """
     import warnings
+
     warnings.warn(
         "has_opposite_stance_node() is deprecated and not used in production. "
         "Use has_opposite_stance_simple() instead.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     # Get stance from node data
     if hasattr(graph.nodes[focus_node], "stance"):
@@ -322,10 +328,11 @@ def median_cluster_degree(
         Median degree of nodes in the cluster (float for precision)
     """
     import warnings
+
     warnings.warn(
         "median_cluster_degree() is deprecated and not used in production.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     nodes = get_cluster_nodes(focus_node, clusters)
 
@@ -382,10 +389,11 @@ def median_degree_inside(focus_node: str, graph: nx.Graph) -> float:
         Median degree of nodes in the cluster
     """
     import warnings
+
     warnings.warn(
         "median_degree_inside() is deprecated and not used in production.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     # Need clusters for this - compute on demand
     clusters = get_clusters(graph, -1)
@@ -409,10 +417,11 @@ def _local_cluster_density(focus: str, graph_state) -> float:
         Cluster density value
     """
     import warnings
+
     warnings.warn(
         "_local_cluster_density() is deprecated. Use get_simple_local_density() instead.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     # Extract node ID from focus if it's a dict
     if isinstance(focus, dict):
@@ -441,10 +450,11 @@ def _has_opposite_stance_node(focus: str, graph_state) -> bool:
         True if opposite stance node exists
     """
     import warnings
+
     warnings.warn(
         "_has_opposite_stance_node() is deprecated. Use has_opposite_stance_simple() instead.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     # Extract node ID from focus if it's a dict
     if isinstance(focus, dict):
@@ -472,10 +482,11 @@ def _median_degree_inside(focus: str, graph_state) -> float:
         Median degree in focus cluster
     """
     import warnings
+
     warnings.warn(
         "_median_degree_inside() is deprecated and not used in production.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return median_degree_inside(focus, graph_state)
 
@@ -494,10 +505,11 @@ def _cluster_size(focus: str, graph_state) -> int:
         Number of nodes in focus cluster
     """
     import warnings
+
     warnings.warn(
         "_cluster_size() is deprecated and not used in production.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     # Extract node ID from focus if it's a dict
     if isinstance(focus, dict):
@@ -525,10 +537,11 @@ def _largest_cluster_ratio(graph_state) -> float:
         Ratio of largest cluster to total nodes
     """
     import warnings
+
     warnings.warn(
         "_largest_cluster_ratio() is deprecated and not used in production.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     clusters = get_clusters(graph_state.graph, -1)
     return largest_cluster_ratio(graph_state.graph, clusters)

@@ -24,6 +24,7 @@ from src.llm.prompts.extraction import (
     parse_extraction_response,
     parse_extractability_response,
 )
+from src.core.concept_loader import load_concept, get_element_alias_map
 from src.domain.models.extraction import (
     ExtractedConcept,
     ExtractedRelationship,
@@ -47,6 +48,7 @@ class ExtractionService:
         skip_extractability_check: bool = False,
         min_word_count: int = 3,
         methodology: str = "means_end_chain",
+        concept_id: Optional[str] = None,
     ):
         """
         Initialize extraction service.
@@ -56,12 +58,33 @@ class ExtractionService:
             skip_extractability_check: Skip fast pre-filter (for testing)
             min_word_count: Minimum words for extractability
             methodology: Methodology schema name (e.g., "means_end_chain")
+            concept_id: Optional concept ID for element linking
         """
         self.llm = llm_client or get_llm_client()
         self.skip_extractability_check = skip_extractability_check
         self.min_word_count = min_word_count
         self.methodology = methodology
         self.schema = load_methodology(methodology)
+        self.concept_id = concept_id
+
+        # Load concept for element linking if provided
+        self.concept = None
+        self.element_alias_map = {}
+        if concept_id:
+            try:
+                self.concept = load_concept(concept_id)
+                self.element_alias_map = get_element_alias_map(self.concept)
+                log.info(
+                    "extraction_service_concept_loaded",
+                    concept_id=concept_id,
+                    element_count=len(self.concept.elements),
+                )
+            except Exception as e:
+                log.warning(
+                    "concept_load_failed",
+                    concept_id=concept_id,
+                    error=str(e),
+                )
 
         log.info(
             "extraction_service_initialized",
@@ -204,7 +227,10 @@ class ExtractionService:
         Raises:
             ValueError: If LLM response is invalid
         """
-        system_prompt = get_extraction_system_prompt()
+        system_prompt = get_extraction_system_prompt(
+            methodology=self.methodology,
+            concept_id=self.concept_id,
+        )
         user_prompt = get_extraction_user_prompt(text, context)
 
         response = await self.llm.complete(
@@ -229,6 +255,29 @@ class ExtractionService:
         concepts = []
         for raw in raw_concepts:
             try:
+                # Get linked_elements from LLM (fallback to empty list)
+                linked_elements = raw.get("linked_elements", [])
+                if not isinstance(linked_elements, list):
+                    linked_elements = []
+
+                # Fallback: if LLM didn't link, use alias matching
+                if not linked_elements and self.element_alias_map:
+                    text_lower = raw.get("text", "").lower()
+                    matched_elements = set()
+
+                    # Check each alias for substring match
+                    for alias, element_id in self.element_alias_map.items():
+                        if alias in text_lower or text_lower in alias:
+                            matched_elements.add(element_id)
+
+                    linked_elements = list(matched_elements)
+                    if linked_elements:
+                        log.debug(
+                            "concept_linked_via_alias_fallback",
+                            text=raw.get("text", ""),
+                            linked_elements=linked_elements,
+                        )
+
                 concept = ExtractedConcept(
                     text=raw.get("text", ""),
                     node_type=raw.get("node_type", "attribute"),
@@ -236,6 +285,7 @@ class ExtractionService:
                     source_quote=raw.get("source_quote", ""),
                     properties=raw.get("properties", {}),
                     stance=int(raw.get("stance", 0)),  # Default to neutral (0)
+                    linked_elements=linked_elements,
                 )
 
                 # Schema validation: check node type is valid

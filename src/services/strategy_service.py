@@ -314,7 +314,9 @@ class StrategyService:
             if total_concepts > 0:
                 # Count how many concepts are new (not in recent nodes)
                 new_concept_count = 0
-                recent_node_labels = {n.label.lower() for n in recent_nodes}
+                recent_node_labels = {
+                    n.get("label", "").lower() for n in recent_nodes if n.get("label")
+                }
 
                 for concept in current_extraction.concepts:
                     if concept.text.lower() not in recent_node_labels:
@@ -569,24 +571,68 @@ class StrategyService:
                 )
             )
 
-        # Coverage strategy: one focus per uncovered element
+        # Coverage strategy: one focus per uncovered or shallow element
         elif strategy_id == "cover_element":
-            coverage_state = graph_state.properties.get("coverage_state", {})
-            elements_seen = set(coverage_state.get("elements_seen", []))
-            elements_total = coverage_state.get("elements_total", [])
+            coverage_state = graph_state.coverage_state
 
-            uncovered = [e for e in elements_total if e not in elements_seen]
+            if coverage_state:
+                # Phase 5: Use new coverage_state structure with depth tracking
+                elements = coverage_state.elements or {}
 
-            for element in uncovered:
-                focuses.append(
-                    Focus(
-                        focus_type="coverage_gap",
-                        node_id=None,
-                        element_id=element,
-                        focus_description=f"Cover: {element}",
-                        confidence=1.0,
+                # Priority 1: Uncovered elements (high priority)
+                uncovered = [
+                    elem_id for elem_id, data in elements.items() if not data.covered
+                ]
+
+                # Priority 2: Shallow elements (depth < 0.5, medium priority)
+                shallow = [
+                    elem_id
+                    for elem_id, data in elements.items()
+                    if data.covered and data.depth_score < 0.5
+                ]
+
+                # Sort uncovered by element ID (deterministic ordering)
+                for element in sorted(uncovered):
+                    focuses.append(
+                        Focus(
+                            focus_type="coverage_gap",
+                            node_id=None,
+                            element_id=element,
+                            focus_description=f"Cover: {element}",
+                            confidence=1.0,
+                        )
                     )
-                )
+
+                # Sort shallow by depth score (lowest first = most shallow)
+                shallow_sorted = sorted(shallow, key=lambda e: elements[e].depth_score)
+                for element in shallow_sorted:
+                    focuses.append(
+                        Focus(
+                            focus_type="deepen_coverage",
+                            node_id=None,
+                            element_id=element,
+                            focus_description=f"Deepen: {element} (depth={elements[element].depth_score:.2f})",
+                            confidence=0.9,
+                        )
+                    )
+            else:
+                # Fallback to old coverage_state structure (pre-Phase 4)
+                coverage_state_old = graph_state.properties.get("coverage_state", {})
+                elements_seen = set(coverage_state_old.get("elements_seen", []))
+                elements_total = coverage_state_old.get("elements_total", [])
+
+                uncovered = [e for e in elements_total if e not in elements_seen]
+
+                for element in uncovered:
+                    focuses.append(
+                        Focus(
+                            focus_type="coverage_gap",
+                            node_id=None,
+                            element_id=element,
+                            focus_description=f"Cover: {element}",
+                            confidence=1.0,
+                        )
+                    )
 
         # Closing strategy: single closing focus
         elif strategy_id == "closing":

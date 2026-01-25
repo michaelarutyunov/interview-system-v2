@@ -38,6 +38,30 @@ class ExtractionStage(TurnStage):
         Returns:
             Modified context with extraction result
         """
+        # Update extraction service with concept_id from session context
+        # This allows element linking to work with the correct concept
+        if hasattr(context, "concept_id") and context.concept_id:
+            self.extraction.concept_id = context.concept_id
+            # Reload concept for element linking
+            try:
+                from src.core.concept_loader import load_concept, get_element_alias_map
+
+                self.extraction.concept = load_concept(context.concept_id)
+                self.extraction.element_alias_map = get_element_alias_map(
+                    self.extraction.concept
+                )
+                log.debug(
+                    "extraction_concept_loaded",
+                    concept_id=context.concept_id,
+                    element_count=len(self.extraction.concept.elements),
+                )
+            except Exception as e:
+                log.warning(
+                    "concept_load_failed",
+                    concept_id=context.concept_id,
+                    error=str(e),
+                )
+
         extraction = await self.extraction.extract(
             text=context.user_input,
             context=self._format_context_for_extraction(context),

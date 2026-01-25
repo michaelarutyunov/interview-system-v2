@@ -63,6 +63,10 @@ class CoverageGapScorer(Tier2Scorer):
     ) -> Tier2Output:
         """Score based on coverage gaps addressed by this focus.
 
+        Phase 5 enhancement: Depth-aware scoring.
+        - Uncovered element → +2 priority (high)
+        - Covered but shallow (depth < 0.5) → +1 priority (medium)
+
         Args:
             strategy: Strategy being evaluated
             focus: Focus target (may contain element_id)
@@ -73,11 +77,6 @@ class CoverageGapScorer(Tier2Scorer):
         Returns:
             Tier2Output with score based on gaps addressed
         """
-        # Extract coverage state from graph_state properties
-        coverage_state = graph_state.properties.get("coverage_state", {})
-        elements_seen = set(coverage_state.get("elements_seen", []))
-        elements_total = set(coverage_state.get("elements_total", []))
-
         # Get element_id from focus if available
         element_id = focus.get("element_id")
 
@@ -85,16 +84,35 @@ class CoverageGapScorer(Tier2Scorer):
         gaps_addressed = 0
         gap_details = []
 
-        if element_id and element_id in elements_total:
-            # Check if this element is unmentioned
-            if element_id not in elements_seen:
-                gaps_addressed += 1
-                gap_details.append(f"unmentioned:{element_id}")
+        # Try new coverage_state structure first (Phase 4+)
+        if graph_state.coverage_state:
+            coverage_state = graph_state.coverage_state
+            elements = coverage_state.elements or {}
 
-            # Check for other gap types based on graph analysis
-            # no_reaction: element in graph but no outgoing edges
-            # no_comprehension: low confidence nodes related to element
-            # unconnected: isolated component in graph
+            if element_id is not None and element_id in elements:
+                element_coverage = elements[element_id]
+
+                # Check if element is uncovered (high priority)
+                if not element_coverage.covered:
+                    gaps_addressed += 2
+                    gap_details.append(f"uncovered:{element_id}")
+                # Check if element is shallow (medium priority)
+                elif element_coverage.depth_score < 0.5:
+                    gaps_addressed += 1
+                    gap_details.append(
+                        f"shallow:{element_id}(depth={element_coverage.depth_score:.2f})"
+                    )
+        else:
+            # Fallback to old coverage_state structure (pre-Phase 4)
+            coverage_state = graph_state.properties.get("coverage_state", {})
+            elements_seen = set(coverage_state.get("elements_seen", []))
+            elements_total = set(coverage_state.get("elements_total", []))
+
+            if element_id and element_id in elements_total:
+                # Check if this element is unmentioned
+                if element_id not in elements_seen:
+                    gaps_addressed += 1
+                    gap_details.append(f"unmentioned:{element_id}")
 
         # Also check strategy type - coverage strategy gets automatic boost
         strategy_type = strategy.get("type_category", "")

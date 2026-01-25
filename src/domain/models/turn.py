@@ -53,6 +53,7 @@ class Focus(BaseModel):
         "depth_exploration",
         "breadth_exploration",
         "coverage_gap",
+        "deepen_coverage",  # For shallow elements that need laddering
         "closing",
         "reflection",
         "lateral_bridge",
@@ -63,7 +64,9 @@ class Focus(BaseModel):
     node_id: Optional[str] = Field(
         None, description="Node ID if focusing on a specific node"
     )
-    element_id: Optional[str] = Field(None, description="Element ID for coverage gaps")
+    element_id: Optional[str | int] = Field(
+        None, description="Element ID for coverage gaps (int in v2, str in v1)"
+    )
     focus_description: str = Field(
         ..., description="Human-readable description of the focus"
     )

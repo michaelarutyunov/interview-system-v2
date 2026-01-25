@@ -147,12 +147,22 @@ class DepthBreadthBalanceScorer(Tier2Scorer):
     def _calculate_breadth(self, graph_state: GraphState) -> float:
         """Calculate breadth as percentage of elements mentioned.
 
+        Phase 5 enhancement: Uses new coverage_state structure when available.
+
         Args:
             graph_state: Current graph state
 
         Returns:
             Breadth percentage (0.0-1.0)
         """
+        # Try new coverage_state structure first (Phase 4+)
+        if graph_state.coverage_state:
+            coverage_state = graph_state.coverage_state
+            if coverage_state.elements_total > 0:
+                return coverage_state.elements_covered / coverage_state.elements_total
+            return 0.0
+
+        # Fallback to old structure (pre-Phase 4)
         coverage_state = graph_state.properties.get("coverage_state", {})
         elements_seen = coverage_state.get("elements_seen", [])
 

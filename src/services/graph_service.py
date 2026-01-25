@@ -147,13 +147,18 @@ class GraphService:
             # Add this utterance to provenance
             return await self.repo.add_source_utterance(existing.id, utterance_id)
 
+        # Prepare node properties with linked_elements
+        node_properties = dict(concept.properties)
+        if concept.linked_elements:
+            node_properties["linked_elements"] = concept.linked_elements
+
         # Create new node
         return await self.repo.create_node(
             session_id=session_id,
             label=concept.text,
             node_type=concept.node_type,
             confidence=concept.confidence,
-            properties=concept.properties,
+            properties=node_properties,
             source_utterance_ids=[utterance_id],
             stance=concept.stance,
         )

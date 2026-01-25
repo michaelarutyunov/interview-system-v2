@@ -4,7 +4,9 @@ import pytest
 from unittest.mock import Mock
 
 from src.domain.models.knowledge_graph import GraphState
-from src.services.scoring.tier1.consecutive_exhaustion import ConsecutiveExhaustionScorer
+from src.services.scoring.tier1.consecutive_exhaustion import (
+    ConsecutiveExhaustionScorer,
+)
 
 
 @pytest.fixture
@@ -14,7 +16,7 @@ def scorer():
         "enabled": True,
         "params": {
             "threshold": 3,
-        }
+        },
     }
     return ConsecutiveExhaustionScorer(config=config)
 
@@ -227,7 +229,9 @@ def test_various_exhaustion_patterns(scorer):
     ]
 
     for pattern in patterns:
-        assert scorer._is_exhaustion_response(pattern), f"Pattern '{pattern}' should be detected as exhaustion"
+        assert scorer._is_exhaustion_response(pattern), (
+            f"Pattern '{pattern}' should be detected as exhaustion"
+        )
 
     # Test non-exhaustion responses
     non_exhaustion = [
@@ -238,7 +242,9 @@ def test_various_exhaustion_patterns(scorer):
     ]
 
     for response in non_exhaustion:
-        assert not scorer._is_exhaustion_response(response), f"Response '{response}' should not be detected as exhaustion"
+        assert not scorer._is_exhaustion_response(response), (
+            f"Response '{response}' should not be detected as exhaustion"
+        )
 
 
 def test_calculate_consecutive_exhaustion(scorer):
@@ -275,7 +281,7 @@ async def test_custom_threshold(scorer, mock_graph_state):
         "enabled": True,
         "params": {
             "threshold": 2,
-        }
+        },
     }
     scorer_custom = ConsecutiveExhaustionScorer(config=config)
 

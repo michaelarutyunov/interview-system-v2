@@ -14,17 +14,22 @@ Architecture:
 - Prompts are methodology-agnostic and schema-driven
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from src.core.schema_loader import load_methodology
+from src.core.concept_loader import load_concept
 
 
-def get_extraction_system_prompt(methodology: str = "means_end_chain") -> str:
+def get_extraction_system_prompt(
+    methodology: str = "means_end_chain",
+    concept_id: Optional[str] = None,
+) -> str:
     """
     Get system prompt for concept/relationship extraction.
 
     Args:
         methodology: Methodology schema name (e.g., "means_end_chain")
+        concept_id: Optional concept ID to include elements for element linking
 
     Returns:
         System prompt string for LLM
@@ -33,6 +38,39 @@ def get_extraction_system_prompt(methodology: str = "means_end_chain") -> str:
     schema = load_methodology(methodology)
     node_descriptions = schema.get_node_descriptions()
     edge_descriptions = schema.get_edge_descriptions()
+
+    # Load concept elements for element linking
+    elements_section = ""
+    if concept_id:
+        try:
+            concept = load_concept(concept_id)
+            elements_list = []
+            for element in concept.elements:
+                aliases_str = ", ".join([element.label] + element.aliases)
+                elements_list.append(
+                    f"  - Element {element.id}: {element.label} (aliases: {aliases_str})"
+                )
+
+            elements_section = f"""
+## Concept Elements ({concept.name}):
+The following are predefined semantic elements for this research topic.
+For each extracted concept, identify which element(s) it relates to by element ID.
+{chr(10).join(elements_list)}
+
+Important:
+- A concept can relate to multiple elements (e.g., "creamy foam" relates to elements 1 and 4)
+- Only link to elements when there is a clear semantic relationship
+- If no clear relationship exists, return an empty array for linked_elements
+"""
+        except Exception as e:
+            import structlog
+
+            log = structlog.get_logger(__name__)
+            log.warning(
+                "concept_load_failed_for_extraction",
+                concept_id=concept_id,
+                error=str(e),
+            )
 
     node_types_str = "\n".join(
         f"  - {name}: {desc}" for name, desc in node_descriptions.items()
@@ -58,7 +96,7 @@ def get_extraction_system_prompt(methodology: str = "means_end_chain") -> str:
         examples_str = ""
         for name, example_spec in methodology_examples.items():
             examples_str += f"""
-**{name.replace('_', ' ').title()}:**
+**{name.replace("_", " ").title()}:**
 {example_spec.description}
 Example: {example_spec.example}
 Extract: {example_spec.extraction}
@@ -72,7 +110,7 @@ Extract: {example_spec.extraction}
 
 Your task is to identify concepts and relationships from the respondent's text that reveal their mental model about the product being discussed.
 
-## Valid Node Types ({methodology.replace('_', ' ').title()}):
+## Valid Node Types ({methodology.replace("_", " ").title()}):
 {node_types_str}
 
 ## Valid Edge Types:
@@ -88,7 +126,7 @@ Examples:
 - "I love how creamy it is" → stance: +1
 - "It mixes well" → stance: 0
 - "I hate the aftertaste" → stance: -1
-
+{elements_section}
 ## Universal Extraction Principles:
 1. Only extract concepts EXPLICITLY mentioned or clearly implied
 2. Use the respondent's own language for concept labels
@@ -106,7 +144,8 @@ Return valid JSON with this structure:
       "node_type": "one of the valid node types",
       "confidence": 0.0-1.0,
       "stance": -1, 0, or 1,
-      "source_quote": "verbatim text that supports this"
+      "source_quote": "verbatim text that supports this",
+      "linked_elements": [1, 2]  // Array of element IDs this concept relates to (empty array if none)
     }}
   ],
   "relationships": [
@@ -161,9 +200,11 @@ def get_extractability_system_prompt(methodology: str = "means_end_chain") -> st
     criteria = schema.get_extractability_criteria()
 
     extractable_items = "\n".join(f"- {item}" for item in criteria.extractable_contains)
-    non_extractable_items = "\n".join(f"- {item}" for item in criteria.non_extractable_contains)
+    non_extractable_items = "\n".join(
+        f"- {item}" for item in criteria.non_extractable_contains
+    )
 
-    return f"""You are assessing whether text contains extractable knowledge for a qualitative research interview ({methodology.replace('_', ' ')}).
+    return f"""You are assessing whether text contains extractable knowledge for a qualitative research interview ({methodology.replace("_", " ")}).
 
 Extractable text contains:
 {extractable_items if extractable_items else "- Relevant content for analysis"}

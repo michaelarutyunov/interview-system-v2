@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 
@@ -46,7 +46,7 @@ class KGNode(BaseModel):
     confidence: float = Field(default=0.8, ge=0.0, le=1.0)
     properties: Dict[str, Any] = Field(default_factory=dict)
     source_utterance_ids: List[str] = Field(default_factory=list)
-    recorded_at: datetime = Field(default_factory=datetime.utcnow)
+    recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     superseded_by: Optional[str] = (
         None  # Node ID that supersedes this one (for REVISES)
     )
@@ -68,9 +68,27 @@ class KGEdge(BaseModel):
     confidence: float = Field(default=0.8, ge=0.0, le=1.0)
     properties: Dict[str, Any] = Field(default_factory=dict)
     source_utterance_ids: List[str] = Field(default_factory=list)
-    recorded_at: datetime = Field(default_factory=datetime.utcnow)
+    recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"from_attributes": True}
+
+
+class ElementCoverage(BaseModel):
+    """Coverage state for a single element."""
+
+    covered: bool = False  # Any linked node = covered
+    linked_node_ids: List[str] = Field(default_factory=list)
+    types_found: List[str] = Field(default_factory=list)
+    depth_score: float = 0.0  # Chain validation: longest connected path / ladder length
+
+
+class CoverageState(BaseModel):
+    """Coverage state for concept elements."""
+
+    elements: Dict[int, ElementCoverage] = Field(default_factory=dict)
+    elements_covered: int = 0  # How many elements have any linked nodes
+    elements_total: int = 0  # Total elements in concept
+    overall_depth: float = 0.0  # Average depth_score across all elements
 
 
 class GraphState(BaseModel):
@@ -85,6 +103,7 @@ class GraphState(BaseModel):
     properties: Dict[str, Any] = Field(
         default_factory=dict
     )  # Additional state properties
+    coverage_state: Optional[CoverageState] = Field(default=None)  # Element coverage
 
     def get_phase(self) -> str:
         """Get current interview phase."""

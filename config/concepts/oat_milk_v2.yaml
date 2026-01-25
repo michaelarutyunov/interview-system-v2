@@ -1,0 +1,37 @@
+id: oat_milk_v2
+name: "Oat Milk"
+methodology: means_end_chain
+
+# Research brief context - provides LLM context about the research focus
+context:
+  topic: "Oat milk consumption and preference drivers"
+  insight: "When choosing plant-based milk, consumers weigh sensory experience against values like sustainability and health"
+  promise: "A plant-based milk that delivers café-quality texture without compromising on environmental or nutritional values"
+  rtb: "Made with specially processed oats for creamy consistency that froths like dairy"
+
+# Elements define WHAT to explore - methodology-agnostic (no type field)
+# The system will link extracted nodes to these elements via LLM or alias matching
+elements:
+  - id: 1
+    label: "Creamy texture"
+    aliases: ["silky", "smooth", "foam", "froth", "mouthfeel", "creamy", "texture"]
+
+  - id: 2
+    label: "Plant-based / dairy-free"
+    aliases: ["dairy-free", "no dairy", "vegan", "lactose-free", "non-dairy", "plant", "milk alternative"]
+
+  - id: 3
+    label: "Environmentally sustainable"
+    aliases: ["eco-friendly", "planet", "environment", "carbon", "green", "sustainability"]
+
+  - id: 4
+    label: "Froths well for coffee"
+    aliases: ["foam", "froth", "coffee", "latte", "cappuccino", "steamed"]
+
+  - id: 5
+    label: "Neutral/mild taste"
+    aliases: ["mild", "neutral", "bland", "taste", "flavor", "not sweet"]
+
+  - id: 6
+    label: "Nutritional profile"
+    aliases: ["nutrition", "healthy", "vitamins", "protein", "fortified", "health"]

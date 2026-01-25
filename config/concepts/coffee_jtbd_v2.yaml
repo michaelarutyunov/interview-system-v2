@@ -1,0 +1,45 @@
+id: coffee_jtbd_v2
+name: "Coffee Jobs to be Done"
+methodology: jobs_to_be_done
+
+# Research brief context - provides LLM context about the research focus
+context:
+  topic: "Coffee consumption in the morning"
+  insight: "When I'm starting my day and short on time, I want a coffee that genuinely satisfies me, so I can feel mentally ready without slowing myself down."
+  promise: "This instant coffee is designed to deliver café-like depth and aroma in seconds, with no equipment or clean-up."
+  rtb: "Unlike most instant coffees that trade taste for speed, this one is engineered for flavour first — even when time is tight."
+
+# Elements define WHAT to explore - methodology-agnostic (no type field)
+# The system will link extracted nodes to these elements via LLM or alias matching
+elements:
+  - id: 1
+    label: "Instant coffee"
+    aliases: ["instant", "coffee", "brew", "nescafe", "instant coffee"]
+
+  - id: 2
+    label: "Rush, short on time"
+    aliases: ["rush", "short on time", "busy", "no time", "morning rush", "time", "quick"]
+
+  - id: 3
+    label: "Coffee aroma"
+    aliases: ["aroma", "smell", "scent", "fragrance", "nose"]
+
+  - id: 4
+    label: "Equipment"
+    aliases: ["equipment", "machine", "brewer", "french press", "espresso machine", "gear"]
+
+  - id: 5
+    label: "Clean-up"
+    aliases: ["clean-up", "cleanup", "washing", "dishes", "cleaning", "mess"]
+
+  - id: 6
+    label: "Mental readiness"
+    aliases: ["mental readiness", "ready", "focus", "alert", "awake", "morning brain", "wake up"]
+
+  - id: 7
+    label: "Satisfaction"
+    aliases: ["satisfaction", "satisfied", "enjoy", "happy", "good", "pleased"]
+
+  - id: 8
+    label: "Purchase or buying intention"
+    aliases: ["buy", "purchase", "intention", "switch", "try", "money", "cost"]
