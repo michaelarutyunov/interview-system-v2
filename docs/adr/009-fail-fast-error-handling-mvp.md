@@ -1,6 +1,6 @@
 # ADR 009: Fail-Fast Error Handling for MVP
 
-**Date**: 2026-01-23
+**Date**: 2025-01-23
 **Status**: Accepted
 **Decision Makers**: Development Team
 **Context**: Single interview MVP implementation

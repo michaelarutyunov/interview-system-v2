@@ -47,6 +47,8 @@ Accepted | Proposed | Deprecated | Superseded by [ADR-YYY]
 | [002](002-streamlit-framework-choice.md) | Streamlit Framework Choice for Demo UI | Accepted | 2025-01-21 |
 | [003](003-adopt-phase3-adaptive-strategy.md) | Adopt Phase 3 Adaptive Strategy | Accepted | 2025-01-21 |
 | [004](004-two-tier-scoring-system.md) | Two-Tier Scoring System | Accepted | 2025-01-22 |
-| [005](005-dual-mode-interview-architecture.md) | Dual-Mode Interview Architecture | Accepted | 2025-01-22 |
+| [005](005-dual-mode-interview-architecture.md) | Dual-Mode Interview Architecture | **Deprecated** | 2025-01-22 |
 | [006](006-scoring-architecture.md) | Enhanced Scoring Architecture | Accepted | 2025-01-22 |
-| [007](007-yaml-based-methodology-schema.md) | YAML-Based Methodology Schema Externalization | Accepted | 2026-01-23 |
+| [007](007-yaml-based-methodology-schema.md) | YAML-Based Methodology Schema Externalization | Accepted | 2025-01-23 |
+| [008](008-internal-api-boundaries-pipeline-pattern.md) | Internal API Boundaries & Pipeline Pattern | Accepted | 2025-01-23 |
+| [009](009-fail-fast-error-handling-mvp.md) | Fail-Fast Error Handling for MVP | Accepted | 2025-01-23 |

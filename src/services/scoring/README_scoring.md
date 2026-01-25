@@ -68,24 +68,42 @@ strategies:
     type_category: "depth"
     enabled: true
     prompt_hint: "Explore deeper into why this is important."
+    priority_base: 1.0
 
   - id: broaden
     name: "Explore Breadth"
     type_category: "breadth"
     enabled: true
     prompt_hint: "Expand to related areas or perspectives."
+    priority_base: 1.0
 
   - id: bridge
     name: "Lateral Bridge to Peripheral"
     type_category: "peripheral"
     enabled: true
     prompt_hint: "Link to what was just said, then shift to related area."
+    priority_base: 0.8
 
   - id: synthesis
     name: "Summarise & Invite Extension"
     type_category: "transition"
     enabled: true
     prompt_hint: "Summarise what you've heard and invite correction."
+    priority_base: 0.7
+
+  - id: contrast
+    name: "Counter-Example Exploration"
+    type_category: "depth"
+    enabled: true
+    prompt_hint: "Consider the opposite case or a different perspective."
+    priority_base: 0.8
+
+  - id: ease
+    name: "Simplify Question"
+    type_category: "rapport"
+    enabled: true
+    prompt_hint: "Simplify the question and make it more conversational."
+    priority_base: 0.5
 ```
 
 ### Focus Generation
@@ -96,18 +114,29 @@ For each strategy, the system generates 1+ focus targets:
 |----------|------------------|----------------|
 | `deepen` | Most recent node | `[(focus_type="depth", node_id="node_123")]` |
 | `broaden` | Open exploration | `[(focus_type="breadth", node_id=None)]` |
-| `bridge` | Peripheral node (low degree) | `[(focus_type="peripheral", node_id="node_45")]` |
-| `synthesis` | Recent 2-3 nodes | `[(focus_type="summary", nodes=[...])]` |
+| `bridge` | Peripheral node (low degree) | `[(focus_type="lateral_bridge", node_id="node_45")]` |
+| `synthesis` | Recent 2-3 nodes | `[(focus_type="synthesis", nodes=[...])]` |
 | `cover_element` | Uncovered elements | `[(element="taste"), (element="texture")]` |
+| `contrast` | Opposite stance node | `[(focus_type="counter_example", node_id="node_78")]` |
 
 **Focus Schema:**
 ```python
 Focus(
-    focus_type: str,           # Type of focus (depth, breadth, coverage, etc.)
-    node_id: Optional[str],    # Target node (if applicable)
-    element_id: Optional[str], # Target element (for coverage)
-    focus_description: str,    # Human-readable description
-    confidence: float,         # Confidence in this focus [0-1]
+    focus_type: Literal[
+        "depth_exploration",
+        "breadth_exploration",
+        "coverage_gap",
+        "closing",
+        "reflection",
+        "lateral_bridge",      # NEW: For bridge strategy
+        "counter_example",     # NEW: For contrast strategy
+        "rapport_repair",      # NEW: For ease strategy
+        "synthesis",           # NEW: For synthesis strategy
+    ],
+    node_id: Optional[str],
+    element_id: Optional[str],
+    focus_description: str,
+    confidence: float,
 )
 ```
 
@@ -123,9 +152,10 @@ Example:
     deepen + [recent_node] → 1 candidate
     broaden + [open] → 1 candidate
     cover_element + [taste, texture, packaging] → 3 candidates
+    bridge + [peripheral_node] → 1 candidate
     synthesis + [recent_nodes] → 1 candidate
 
-Total: 6 candidates to score
+Total: 7 candidates to score
 ```
 
 ---
@@ -175,29 +205,6 @@ This means:
 - `(broaden, open)` → **VETOED**
 - `(synthesis, open)` → **PASSES**
 
-### How RecentRedundancyScorer Works
-
-A common point of confusion: **it evaluates the focus_description, not a generated question.**
-
-```
-Timeline:
-1. Focus generation creates: focus = {focus_description: "Explore new aspects about oat milk"}
-2. RecentRedundancyScorer compares this to recent ACTUAL questions
-3. If too similar → veto this candidate
-4. If distinct → allow candidate to proceed to scoring
-5. Later: LLM generates actual question based on selected focus
-```
-
-**Example:**
-
-| focus_description | Compared to (actual recent questions) | Similarity | Result |
-|-------------------|--------------------------------------|------------|--------|
-| "Explore new aspects about oat milk" | "What else do you notice about oat milk?" | 0.92 | **VETO** |
-| "Deepen: why coffee helps you focus" | "What else do you notice about oat milk?" | 0.15 | Pass |
-| "Tell me more about the taste" | "What does oat milk taste like?" | 0.88 | **VETO** |
-
-The scorer prevents selecting a focus that would result in asking essentially the same thing again, even if worded differently.
-
 ---
 
 ## Tier 2: Weighted Additive Scoring
@@ -220,14 +227,50 @@ final_score = scorer_sum × phase_multiplier
 
 **Existing Scorers:**
 
-| Scorer | Dimension | Weight |
-|--------|-----------|--------|
-| `CoverageGapScorer` | Uncovered elements | 0.20 |
-| `AmbiguityScorer` | Response clarity | 0.15 |
-| `DepthBreadthBalanceScorer` | Depth vs breadth balance | 0.20 |
-| `EngagementScorer` | User momentum | 0.15 |
-| `StrategyDiversityScorer` | Strategy variety | 0.15 |
-| `NoveltyScorer` | Information freshness | 0.15 |
+| Scorer | Dimension | Weight | Description |
+|--------|-----------|--------|-------------|
+| `CoverageGapScorer` | Uncovered elements | 0.20 | Boosts strategies covering unexplored elements |
+| `AmbiguityScorer` | Response clarity | 0.15 | Boosts clarify strategy when responses are vague |
+| `DepthBreadthBalanceScorer` | Depth vs breadth balance | 0.20 | Maintains exploration/exploitation balance |
+| `EngagementScorer` | User momentum | 0.10 | Adapts strategy complexity to engagement level |
+| `StrategyDiversityScorer` | Strategy variety | 0.15 | Penalizes repetitive strategy use |
+| `NoveltyScorer` | Information freshness | 0.15 | Boosts strategies targeting newer nodes |
+| `ClusterSaturationScorer` | Topic saturation | 0.15 | **NEW** Boosts synthesis when topics are saturated |
+| `ContrastOpportunityScorer` | Opposite stance detection | 0.12 | **NEW** Boosts contrast when opposite stances exist |
+| `PeripheralReadinessScorer` | Peripheral node availability | 0.12 | **NEW** Boosts bridge when peripheral nodes exist |
+
+### Tier 2 Scorer Details
+
+#### ClusterSaturationScorer (P1)
+**Purpose:** Boosts synthesis strategy based on topic saturation level.
+
+**Scoring Logic:**
+- Uses Chao1 estimator to predict species richness
+- `synthesis` + `saturation > 0.7` → score = 1.5 (strong boost)
+- `synthesis` + `saturation > 0.4` → score = 1.2 (moderate boost)
+- Otherwise → score = 1.0 (neutral)
+
+**Signals:** `saturation_pct`, `predicted_species`, `is_saturated`
+
+#### ContrastOpportunityScorer (P1)
+**Purpose:** Boosts contrast strategy when opposite stance nodes exist.
+
+**Scoring Logic:**
+- `contrast` + `has_opposite` + `density > 0.6` → score = 1.5
+- `contrast` + `has_opposite` → score = 1.2
+- Otherwise → score = 1.0
+
+**Signals:** `has_opposite_stance`, `local_cluster_density`, `opportunity_checked`
+
+#### PeripheralReadinessScorer (P1)
+**Purpose:** Boosts bridge strategy when peripheral nodes are available.
+
+**Scoring Logic:**
+- `bridge` + `peripheral_count >= 3` + `density > 0.5` → score = 1.5
+- `bridge` + `peripheral_count >= 2` → score = 1.2
+- Otherwise → score = 1.0
+
+**Signals:** `peripheral_count`, `local_cluster_density`, `peripheral_checked`
 
 ---
 
@@ -241,16 +284,18 @@ phase_profiles:
   exploratory:
     broaden: 1.2    # Boost breadth exploration
     deepen: 0.8     # Reduce deep diving
+    bridge: 0.7     # Some bridging allowed
     closing: 0.0    # Disable closing
 
   focused:
     deepen: 1.3     # Boost deep exploration
     contrast: 1.2   # Introduce counter-examples
+    bridge: 1.0     # Allow bridging
     closing: 0.5    # Allow some closing
 
   closing:
     closing: 1.5    # Strongly boost closing
-    synthesis: 1.2  # Summarize findings
+    synthesis: 1.3  # Summarize findings
     broaden: 0.2    # Suppress breadth
 ```
 
@@ -299,9 +344,10 @@ def _determine_phase(turn_count: int) -> str:
 **Generated Candidates:**
 1. `(deepen, node_coffee)` - deepen on most recent node
 2. `(broaden, open)` - explore new aspects
-3. `(cover_element, taste)` - cover taste element
-4. `(cover_element, texture)` - cover texture element
-5. `(synthesis, recent_nodes)` - summarize and extend
+3. `(bridge, peripheral_node)` - bridge to peripheral topic
+4. `(cover_element, taste)` - cover taste element
+5. `(cover_element, texture)` - cover texture element
+6. `(synthesis, recent_nodes)` - summarize and extend
 
 ---
 
@@ -317,21 +363,24 @@ RecentRedundancyScorer → is_veto=False
 
 **Tier 2:**
 ```
-CoverageGapScorer    → raw=1.2, weight=0.20 → contrib=0.24
-AmbiguityScorer      → raw=1.0, weight=0.15 → contrib=0.15
-DepthBreadthBalance  → raw=0.6, weight=0.20 → contrib=0.12  (low breadth)
-EngagementScorer     → raw=1.2, weight=0.15 → contrib=0.18
-StrategyDiversityScorer → raw=0.4, weight=0.15 → contrib=0.06  (broaden overused)
-NoveltyScorer        → raw=1.0, weight=0.15 → contrib=0.15
+CoverageGapScorer        → raw=1.2, weight=0.20 → contrib=0.24
+AmbiguityScorer          → raw=1.0, weight=0.15 → contrib=0.15
+DepthBreadthBalance      → raw=0.6, weight=0.20 → contrib=0.12  (low breadth)
+EngagementScorer         → raw=1.2, weight=0.10 → contrib=0.12
+StrategyDiversityScorer  → raw=0.4, weight=0.15 → contrib=0.06  (broaden overused)
+NoveltyScorer            → raw=1.0, weight=0.15 → contrib=0.15
+ClusterSaturationScorer  → raw=1.0, weight=0.15 → contrib=0.15  (low saturation)
+ContrastOpportunityScorer → raw=1.0, weight=0.12 → contrib=0.12  (no contrast)
+PeripheralReadinessScorer → raw=1.0, weight=0.12 → contrib=0.12  (bridge not checked)
 
-scorer_sum = 0.90
+scorer_sum = 1.19
 ```
 
 **Phase Multiplier:**
 ```
 phase_multiplier = phase_profiles["exploratory"]["broaden"] = 1.2
 
-final_score = 0.90 × 1.2 = 1.08
+final_score = 1.19 × 1.2 = 1.43
 ```
 
 ---
@@ -341,12 +390,13 @@ final_score = 0.90 × 1.2 = 1.08
 | Strategy | Focus | Tier 1 | scorer_sum | phase_mult | final_score |
 |----------|-------|--------|------------|------------|-------------|
 | deepen | node_coffee | Pass | 0.85 | 0.8 | 0.68 |
-| broaden | open | Pass | 0.90 | 1.2 | **1.08** ← Selected |
+| broaden | open | Pass | 1.19 | 1.2 | **1.43** ← Selected |
+| bridge | peripheral_node | Pass | 0.95 | 0.7 | 0.67 |
 | cover_element | taste | Pass | 1.10 | 1.1 | 1.21 |
 | cover_element | texture | Pass | 1.10 | 1.1 | 1.21 |
 | synthesis | recent_nodes | Pass | 0.95 | 0.3 | 0.29 |
 
-**Winner:** `cover_element` + `taste` (highest final_score)
+**Winner:** `broaden` + `open` (highest final_score)
 
 ---
 
@@ -362,6 +412,192 @@ final_score = 0.90 × 1.2 = 1.08
 │ - history       │     │ Weighted sum    │     │                  │
 └─────────────────┘     └─────────────────┘     └──────────────────┘
 ```
+
+---
+
+## LLM Qualitative Signal Extraction
+
+The system uses LLM semantic understanding to extract qualitative signals that complement rule-based heuristics. This provides deeper insight into respondent engagement, reasoning quality, and knowledge state.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Three-Layer Signal Architecture               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Layer 1: Database Aggregations (GraphRepository)                │
+│    → Node counts, edge patterns, cluster metrics                 │
+│    → SQL-based, fast                                             │
+│                                                                  │
+│  Layer 2: Rule-based Helpers (signal_helpers.py)                 │
+│    → get_recent_user_responses(), find_node_by_id()              │
+│    → Pure functions, no LLM                                      │
+│                                                                  │
+│  Layer 3: LLM Semantic Extraction (llm_signals.py) ✓ IMPLEMENTED │
+│    → QualitativeSignalExtractor with 6 signal types              │
+│    → Nuanced understanding beyond pattern matching               │
+│    → Integrated into StrategyService.select() pipeline           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Qualitative Signal Types
+
+| Signal | Description | Use Case |
+|--------|-------------|----------|
+| `UncertaintySignal` | Distinguishes productive vs terminal uncertainty | KnowledgeCeilingScorer nuance |
+| `ReasoningSignal` | Causal, counterfactual, metacognitive detection | EngagementScorer enhancement |
+| `EmotionalSignal` | Engagement intensity and trajectory | Sentiment tracking, phase transitions |
+| `ContradictionSignal` | Stance shifts and inconsistencies | Depth strategy adjustment |
+| `KnowledgeCeilingSignal` | Terminal vs exploratory "don't know" | Selective deepen veto |
+| `ConceptDepthSignal` | Abstraction level measurement | Deepen vs broaden selection |
+
+### Sentiment Tracking
+
+Sentiment values are extracted from `EmotionalSignal` intensity and stored in `graph_state.properties["turn_sentiments"]`:
+
+```python
+INTENSITY_TO_SENTIMENT = {
+    "high_positive": 1.0,
+    "moderate_positive": 0.5,
+    "neutral": 0.0,
+    "moderate_negative": -0.5,
+    "high_negative": -1.0,
+}
+```
+
+**Usage:**
+- Sentiment is attached to conversation turns in `ContextLoadingStage`
+- Available in conversation history for downstream scorers
+- Used for engagement trajectory analysis
+
+### Integration Pattern
+
+Scorers can opt-in to use LLM signals:
+
+```python
+class AmbiguityScorer(Tier2Scorer):
+    def __init__(self, config):
+        super().__init__(config)
+        self.use_llm_signals = self.params.get("use_llm_signals", True)
+
+    async def score(self, strategy, focus, graph_state, ...):
+        # Check for LLM signals in graph_state.properties
+        if self.use_llm_signals:
+            qualitative_signals = graph_state.properties.get("qualitative_signals")
+            if qualitative_signals:
+                # Use LLM signal for enhanced scoring
+                reasoning_signal = qualitative_signals.get("reasoning")
+                if reasoning_signal and reasoning_signal.get("reasoning_quality") == "causal":
+                    # Boost score for causal reasoning
+                    raw_score = 1.3
+                    return self.make_output(raw_score=raw_score, ...)
+
+        # Fall back to rule-based logic
+        return self._score_rule_based(...)
+```
+
+### Enabling LLM Signals
+
+LLM signals are automatically extracted by `StrategyService` during candidate scoring. To enable in individual scorers, set `use_llm_signals: true` in scorer config:
+
+```yaml
+# config/scoring.yaml
+tier2_scorers:
+  - id: ambiguity
+    class: AmbiguityScorer
+    enabled: true
+    weight: 0.15
+    params:
+      use_llm_signals: true  # Enable LLM enhancement
+      # ... other params
+```
+
+### Cost Considerations
+
+- **LLM Model**: Uses light client (Haiku) for cost efficiency
+- **Frequency**: Extract once per turn, shared across all scorers
+- **Tokens**: ~1500 max output, ~1000 input (recent 10 turns)
+- **Fallback**: Graceful degradation to rule-based if LLM fails
+
+---
+
+## Depth Measurement: MEC Chain Calculation
+
+The system uses actual BFS traversal for depth measurement instead of edge density heuristics.
+
+### Chain Depth Calculation
+
+```python
+def calculate_mec_chain_depth(edges: list, nodes: list, methodology: str) -> dict:
+    """
+    Performs BFS traversal from root nodes (attributes) to leaf nodes
+    (terminal_values) to measure actual chain lengths.
+
+    Returns:
+        {
+            "max_chain_length": 3.0,      # Longest root-to-leaf path
+            "avg_chain_length": 2.1,      # Average of all root-to-leaf paths
+            "chain_count": 15,            # Number of distinct chains
+            "complete_chains": 12,        # Chains reaching terminal values
+        }
+    """
+```
+
+### Usage in DepthBreadthBalanceScorer
+
+```python
+def _calculate_depth(self, graph_state: GraphState, recent_nodes: List) -> float:
+    # Try to use pre-computed chain depth from graph_state
+    chain_depth = graph_state.properties.get("chain_depth")
+    if chain_depth and isinstance(chain_depth, dict):
+        avg_chain_length = chain_depth.get("avg_chain_length")
+        if avg_chain_length is not None:
+            return avg_chain_length
+
+    # Fallback to edge density heuristic
+    return self._estimate_depth_from_edges(graph_state)
+```
+
+### MEC Node Type Hierarchy
+
+```
+attribute → functional_consequence → psychosocial_consequence
+         → instrumental_value → terminal_value
+```
+
+---
+
+## Graph Utilities
+
+### Simple Helper Functions (Preferred)
+
+These functions work without full NetworkX graph reconstruction:
+
+| Function | Purpose | Used By |
+|----------|---------|---------|
+| `get_simple_local_density()` | Cluster density approximation | ClusterSaturationScorer, PeripheralReadinessScorer |
+| `has_opposite_stance_simple()` | Opposite stance detection | ContrastOpportunityScorer |
+| `count_peripheral_nodes_simple()` | Peripheral node counting | PeripheralReadinessScorer |
+| `calculate_mec_chain_depth()` | MEC depth via BFS | DepthBreadthBalanceScorer |
+
+### Deprecated NetworkX Functions
+
+> **DEPRECATED** (as of 2025-01-25): The following NetworkX-based functions are NOT currently used by any Tier-2 scorers. They were part of an earlier design phase but the implementation took a different path using simple heuristic functions.
+
+Deprecated functions:
+- `get_clusters()`
+- `local_cluster_density()`
+- `has_opposite_stance_node()`
+- `cluster_size()`
+- `median_cluster_degree()`
+- `has_peripheral_candidates()`
+- `largest_cluster_ratio()`
+- `median_degree_inside()`
+- Compatibility wrappers (`_` prefixed)
+
+These functions are retained for potential future use but emit deprecation warnings if called.
 
 ---
 
@@ -432,175 +668,6 @@ tier2_scorers:
 
 ---
 
-## LLM Qualitative Signal Extraction (Layer 3)
-
-Layer 3 of the signal architecture uses LLM semantic understanding to extract
-qualitative signals that complement rule-based heuristics. This provides deeper
-insight into respondent engagement, reasoning quality, and knowledge state.
-
-### Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Three-Layer Signal Architecture               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  Layer 1: Database Aggregations (GraphRepository)                │
-│    → Node counts, edge patterns, cluster metrics                 │
-│    → SQL-based, fast                                             │
-│                                                                  │
-│  Layer 2: Rule-based Helpers (signal_helpers.py)                 │
-│    → get_recent_user_responses(), find_node_by_id()              │
-│    → Pure functions, no LLM                                      │
-│                                                                  │
-│  Layer 3: LLM Semantic Extraction (llm_signals.py) ★ NEW ★       │
-│    → QualitativeSignalExtractor with 6 signal types              │
-│    → Nuanced understanding beyond pattern matching               │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Qualitative Signal Types
-
-| Signal | Description | Use Case |
-|--------|-------------|----------|
-| `UncertaintySignal` | Distinguishes productive vs terminal uncertainty | KnowledgeCeilingScorer nuance |
-| `ReasoningSignal` | Causal, counterfactual, metacognitive detection | EngagementScorer enhancement |
-| `EmotionalSignal` | Engagement intensity and trajectory | Phase transitions |
-| `ContradictionSignal` | Stance shifts and inconsistencies | Depth strategy adjustment |
-| `KnowledgeCeilingSignal` | Terminal vs exploratory "don't know" | Selective deepen veto |
-| `ConceptDepthSignal` | Abstraction level measurement | Deepen vs broaden selection |
-
-### Integration Pattern
-
-Scorers can opt-in to use LLM signals:
-
-```python
-class MyScorer(Tier1Scorer):
-    def __init__(self, config):
-        super().__init__(config)
-        self.use_llm_signals = self.params.get("use_llm_signals", False)
-
-    async def evaluate(self, strategy, focus, graph_state, ...):
-        # Check for LLM signals in graph_state.properties
-        if self.use_llm_signals:
-            qualitative_signals = graph_state.properties.get("qualitative_signals")
-            if qualitative_signals:
-                # Use LLM signal for enhanced decision
-                kc_signal = qualitative_signals.get("knowledge_ceiling")
-                if kc_signal and kc_signal.get("is_terminal"):
-                    return Tier1Output(is_veto=True, ...)
-
-        # Fall back to rule-based logic
-        return self._evaluate_rule_based(...)
-```
-
-### Enabling LLM Signals
-
-1. **Configure StrategyService** to extract signals (future enhancement):
-
-```python
-# In StrategyService.__init__
-from src.services.scoring.llm_signals import QualitativeSignalExtractor
-
-self.signal_extractor = QualitativeSignalExtractor() if config.get(
-    "use_llm_signals", False
-) else None
-
-# In StrategyService.select (before scoring loop)
-if self.signal_extractor:
-    signals = await self.signal_extractor.extract(
-        conversation_history=conversation_history,
-        turn_number=graph_state.turn_count,
-    )
-    # Store in graph_state for scorers to access
-    graph_state.properties["qualitative_signals"] = signals.to_dict()
-```
-
-2. **Enable in scorer config** (`config/scoring.yaml`):
-
-```yaml
-tier1_scorers:
-  - id: knowledge_ceiling
-    class: KnowledgeCeilingScorer
-    enabled: true
-    params:
-      use_llm_signals: true  # Enable LLM enhancement
-      # ... other params
-```
-
-### Cost Considerations
-
-- **LLM Model**: Uses light client (Haiku/GPT-4o-mini) for cost efficiency
-- **Frequency**: Extract once per turn, consume across all scorers
-- **Tokens**: ~1500 max output, ~1000 input (recent 10 turns)
-- **Fallback**: Graceful degradation to rule-based if LLM fails
-
-### Example: KnowledgeCeilingScorer Enhancement
-
-The `KnowledgeCeilingScorer` demonstrates LLM integration:
-
-```python
-# Without LLM: Veto any "don't know" response
-"I don't know about oat milk" → VETO deepen
-
-# With LLM: Nuanced detection
-"I don't know about oat milk, but I'm curious about..." → ALLOW deepen (exploratory)
-"I don't know and I don't really care about milk" → VETO deepen (terminal)
-```
-
----
-
-## Current Implementation Issues
-
-> ⚠️ **Known Issues** (as of 2025-01-24)
-
-1. **Strategies Not Loaded from YAML**
-   - YAML defines 9 strategies, but only 5 are used in code
-   - `bridge`, `contrast`, `ease`, `synthesis` are configured but never evaluated
-   - Must update both `config/scoring.yaml` AND `strategy_service.py` to add strategies
-
-2. **Focus Generation Hardcoded**
-   - `_get_possible_focuses()` is a big if-elif chain
-   - Not configurable via YAML
-   - No focus logic for the 4 unused strategies
-
-3. **Redundant min_turns Gate**
-   - `closing` strategy has `min_turns=8` check
-   - But phase system already controls when closing is available
-   - Creates inconsistency (phase says turn 10, min_turns says turn 8)
-
-4. **Phase Profile Dead Code**
-   - YAML sets multipliers for `bridge`, `contrast`, `ease`, `synthesis`
-   - These are never applied because those strategies are never candidates
-
-5. **LLM Signal Integration Incomplete** (as of 2025-01-24)
-   - `QualitativeSignalExtractor` implemented and tested
-   - `KnowledgeCeilingScorer` enhanced with opt-in LLM support
-   - **Missing**: StrategyService integration to extract signals before scoring
-   - **Missing**: Config flag to enable LLM signals globally
-   - **Current**: Scorers can use signals but no pipeline step extracts them
-
-**Integration TODO:**
-```python
-# In StrategyService.select() before scoring loop:
-if self.signal_extractor:
-    signals = await self.signal_extractor.extract(
-        conversation_history=conversation_history,
-        turn_number=graph_state.turn_count,
-    )
-    graph_state.properties["qualitative_signals"] = signals.to_dict()
-```
-   - These are never applied because those strategies are never candidates
-
-**Ideal State:**
-- Strategies loaded from YAML only
-- Focus generation declarative (config-driven) or extensible
-- Phase system as single source for strategy availability
-- Adding strategy = YAML entry only (for simple cases)
-
----
-
 ## Key Design Principles
 
 1. **Tier 1 = Safety:** When in doubt, veto. Better to be conservative.
@@ -609,3 +676,5 @@ if self.signal_extractor:
 4. **Phases = Strategy Modulation:** Phase multipliers adapt behavior per interview stage
 5. **Debuggability:** Every score includes reasoning and signals for inspection
 6. **Conditional Vetoes:** Tier 1 scorers can veto selectively based on strategy_id
+7. **Simple Over Complex:** Prefer heuristic helpers over full graph reconstruction when possible
+8. **LLM Enhancement:** Qualitative signals provide nuance but don't replace rule-based logic
