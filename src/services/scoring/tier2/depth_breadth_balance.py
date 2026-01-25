@@ -181,19 +181,34 @@ class DepthBreadthBalanceScorer(Tier2Scorer):
     ) -> float:
         """Calculate depth as average chain length from root to terminal nodes.
 
+        Per bead tud (P3): Uses actual BFS chain traversal from root (attribute)
+        nodes to leaf (terminal_value) nodes when available. Falls back to edge
+        density heuristic when chain depth hasn't been computed.
+
         Args:
-            graph_state: Current graph state
-            recent_nodes: Recent nodes for analysis
+            graph_state: Current graph state (should contain chain_depth in properties)
+            recent_nodes: Recent nodes for analysis (not directly used)
 
         Returns:
             Average depth (float)
         """
-        # Bead: tud - For now, use edge ratio as proxy for depth
+        # Try to use pre-computed chain depth from graph_state
+        # This is computed elsewhere (e.g., StateComputationStage) and stored
+        chain_depth = graph_state.properties.get("chain_depth")
+        if chain_depth and isinstance(chain_depth, dict):
+            avg_chain_length = chain_depth.get("avg_chain_length")
+            if avg_chain_length is not None:
+                logger.debug(
+                    "depth_using_chain_metrics",
+                    avg_chain_length=avg_chain_length,
+                    max_chain_length=chain_depth.get("max_chain_length"),
+                )
+                return avg_chain_length
+
+        # Fallback: edge ratio as proxy for depth
+        # Note: This heuristic is less accurate than actual chain traversal
         node_count = graph_state.node_count
 
-        # Heuristic: more nodes = potentially deeper exploration
-        # But we want average chain length, not just node count
-        # Use a simple heuristic for now
         if node_count == 0:
             return 0.0
 
