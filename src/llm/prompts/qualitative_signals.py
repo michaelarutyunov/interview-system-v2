@@ -126,13 +126,13 @@ Return NULL for any signal that cannot be reliably assessed from the provided co
 
 
 def get_qualitative_signals_user_prompt(
-    conversation_history: List[Dict[str, str]],
+    conversation_history: List[Dict[str, Any]],
     turn_count: int,
 ) -> str:
     """Get user prompt for qualitative signal extraction.
 
     Args:
-        conversation_history: Recent conversation turns
+        conversation_history: Recent conversation turns (may include extraction metadata)
         turn_count: Current turn number (for context)
 
     Returns:
@@ -162,16 +162,16 @@ Return ONLY a valid JSON object. Do not include any explanatory text outside the
 
 
 def _format_conversation_for_analysis(
-    history: List[Dict[str, str]], max_turns: int = 10
+    history: List[Dict[str, Any]], max_turns: int = 10
 ) -> str:
     """Format conversation history for LLM analysis.
 
     Args:
-        history: Conversation history
+        history: Conversation history (may include extraction metadata)
         max_turns: Maximum number of recent turns to include
 
     Returns:
-        Formatted conversation string
+        Formatted conversation string with optional extraction annotations
     """
     recent_history = history[-max_turns:] if len(history) > max_turns else history
 
@@ -183,6 +183,21 @@ def _format_conversation_for_analysis(
 
         # Format: [Turn N] Speaker: text
         lines.append(f"[Turn {i}] {role}: {text}")
+
+        # If extraction metadata available, include summary
+        extraction = turn.get("extraction")
+        if extraction and speaker == "user":
+            concepts_count = len(extraction.get("concepts", []))
+            avg_conf = extraction.get("avg_confidence", 0)
+            extractable = extraction.get("is_extractable", True)
+
+            if not extractable:
+                lines.append("  [Extraction: Low elaboration - minimal extraction]")
+            elif concepts_count > 0:
+                lines.append(
+                    f"  [Extraction: {concepts_count} concept(s), "
+                    f"avg confidence: {avg_conf:.2f}]"
+                )
 
     return "\n".join(lines)
 

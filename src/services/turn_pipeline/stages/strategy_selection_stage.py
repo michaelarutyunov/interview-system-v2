@@ -49,6 +49,8 @@ class StrategySelectionStage(TurnStage):
                 recent_nodes=[n.dict() for n in context.recent_nodes],
                 conversation_history=context.recent_utterances,
                 mode=context.mode,
+                current_user_input=context.user_input,
+                current_extraction=context.extraction,
             )
             strategy = selection.selected_strategy["id"]
             focus = selection.selected_focus

@@ -83,9 +83,15 @@ def get_strategy_service(
 
     Uses the TwoTierScoringEngine for strategy selection.
     """
+    from src.services.scoring.llm_signals import QualitativeSignalExtractor
+
+    # Create signal extractor for enhanced scoring
+    signal_extractor = QualitativeSignalExtractor()
+
     service = StrategyService(
         scoring_engine=scoring_engine,
         config={},  # Use default config
+        signal_extractor=signal_extractor,
     )
     log.info("strategy_service_created")
     return service

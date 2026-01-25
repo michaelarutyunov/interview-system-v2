@@ -16,7 +16,9 @@ import structlog
 from src.core.config import interview_config
 from src.domain.models.knowledge_graph import GraphState
 from src.domain.models.turn import Focus
+from src.domain.models.extraction import ExtractionResult
 from src.services.scoring.two_tier import TwoTierScoringEngine, ScoringResult
+from src.services.scoring.llm_signals import QualitativeSignalExtractor
 
 
 logger = structlog.get_logger(__name__)
@@ -121,6 +123,7 @@ class StrategyService:
         self,
         scoring_engine: TwoTierScoringEngine,
         config: Optional[Dict[str, Any]] = None,
+        signal_extractor: Optional[QualitativeSignalExtractor] = None,
     ):
         """
         Initialize strategy selector.
@@ -128,9 +131,11 @@ class StrategyService:
         Args:
             scoring_engine: Configured TwoTierScoringEngine with all scorers
             config: Selector configuration (deprecated - use interview_config.yaml)
+            signal_extractor: Optional qualitative signal extractor for enhanced scoring
         """
         self.scoring_engine = scoring_engine
         self.config: Dict[str, Any] = config or {}
+        self.signal_extractor = signal_extractor
 
         # Load strategies from scoring.yaml config (bead ztd)
         # Strategies are now defined in config/scoring.yaml instead of hardcoded
@@ -190,6 +195,8 @@ class StrategyService:
         recent_nodes: List[Dict[str, Any]],
         conversation_history: Optional[List[Dict[str, str]]] = None,
         mode: str = "coverage_driven",  # NEW: Interview mode
+        current_user_input: Optional[str] = None,
+        current_extraction: Optional[ExtractionResult] = None,
     ) -> SelectionResult:
         """
         Select the best strategy for the current state.
@@ -207,6 +214,8 @@ class StrategyService:
             recent_nodes: List of recent nodes from last N turns
             conversation_history: Recent conversation turns (for Tier 1 scorers)
             mode: Interview mode (coverage_driven or graph_driven) - NEW
+            current_user_input: Current turn's user input (for qual signals)
+            current_extraction: Current turn's extraction result (for qual signals)
 
         Returns:
             SelectionResult with selected strategy, focus, and alternatives
@@ -231,6 +240,70 @@ class StrategyService:
             phase=phase,
             turn_count=graph_state.properties.get("turn_count", 0),
         )
+
+        # Extract qualitative signals (with current turn context)
+        if self.signal_extractor:
+            # Build enhanced conversation history including current turn
+            enhanced_history = list(conversation_history)
+
+            if current_user_input:
+                current_turn_entry = {
+                    "speaker": "user",
+                    "text": current_user_input,
+                }
+
+                # Add extraction metadata if available
+                if current_extraction:
+                    current_turn_entry["extraction"] = {
+                        "concepts": [
+                            c.model_dump() for c in current_extraction.concepts
+                        ],
+                        "relationships": [
+                            r.model_dump() for r in current_extraction.relationships
+                        ],
+                        "is_extractable": current_extraction.is_extractable,
+                        "avg_confidence": (
+                            sum(c.confidence for c in current_extraction.concepts)
+                            / len(current_extraction.concepts)
+                            if current_extraction.concepts
+                            else 0.0
+                        ),
+                    }
+
+                enhanced_history.append(current_turn_entry)
+
+            # Extract signals
+            try:
+                signals = await self.signal_extractor.extract(
+                    conversation_history=enhanced_history,
+                    turn_number=graph_state.properties.get("turn_count", 1),
+                )
+                # Store in graph_state for scorers to access
+                graph_state.properties["qualitative_signals"] = signals.to_dict()
+
+                logger.info(
+                    "qualitative_signals_extracted",
+                    turn_number=graph_state.properties.get("turn_count", 1),
+                    signals_count=sum(
+                        1
+                        for s in [
+                            signals.uncertainty,
+                            signals.reasoning,
+                            signals.emotional,
+                            signals.contradiction,
+                            signals.knowledge_ceiling,
+                            signals.concept_depth,
+                        ]
+                        if s is not None
+                    ),
+                )
+            except Exception as e:
+                logger.warning(
+                    "qualitative_signal_extraction_failed",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                # Continue without signals (graceful degradation)
 
         # Score all (strategy, focus) combinations
         candidates: List[StrategyCandidate] = []
