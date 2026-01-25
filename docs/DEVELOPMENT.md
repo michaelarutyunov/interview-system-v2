@@ -781,6 +781,58 @@ class TurnContext:
 - `docs/raw_ideas/pipeline_architecture_visualization.md` - Before/after comparison with examples
 - `docs/adr/008-internal-api-boundaries-pipeline-pattern.md` - Full ADR
 
+### Concept-Driven Coverage (ADR-008)
+
+The system uses a two-layer architecture for interview guidance:
+
+```
+CONCEPT (WHAT to explore)          METHODOLOGY (HOW to explore)
+┌─────────────────────────┐        ┌─────────────────────────┐
+│ ELEMENTS                │        │ NODE TYPES (ladder)     │
+│ ├─ creamy_texture       │        │ ├─ attribute            │
+│ ├─ plant_based          │   ×    │ ├─ functional_conseq    │
+│ └─ sustainable          │        │ ├─ psychosocial_conseq  │
+│    (semantic targets)   │        │ └─ value                │
+└─────────────────────────┘        └─────────────────────────┘
+           │                                  │
+           └──────────────┬───────────────────┘
+                          ▼
+              NODES (Extracted Knowledge)
+    ┌─────────────────────────────────────────────┐
+    │ "silky foam"     → linked to: creamy_texture │
+    │ (type: attribute)                            │
+    │                                              │
+    │ "feels indulgent" → linked to: creamy_texture│
+    │ (type: psychosocial_consequence)             │
+    └─────────────────────────────────────────────┘
+```
+
+**Key Components:**
+- `src/core/concept_loader.py` - Load concept definitions with caching
+- `src/domain/models/concept.py` - Concept, ConceptElement, CoverageState models
+- `src/services/depth_calculator.py` - Chain validation for depth tracking
+
+**Coverage State:**
+```python
+coverage_state = {
+    "elements": {
+        1: {  # "Creamy texture"
+            "covered": True,
+            "linked_node_ids": ["node_123"],
+            "types_found": ["attribute"],
+            "depth_score": 0.5,  # Chain validation
+        },
+    },
+    "elements_covered": 1,
+    "elements_total": 6,
+    "overall_depth": 0.25,
+}
+```
+
+**For more details:**
+- `docs/concept_system.md` - Complete concept system documentation
+- `docs/adr/008-concept-element-coverage-system.md` - Full ADR
+
 ### Directory Structure
 
 ```
@@ -789,8 +841,14 @@ src/
 │   ├── routes/            # Route handlers
 │   └── schemas.py         # Request/response models
 ├── core/                  # Configuration, logging
+│   ├── concept_loader.py  # Load concept definitions (ADR-008)
+│   └── schema_loader.py   # Load methodology schemas
 ├── domain/                # Business entities
-│   └── models/            # Pydantic models (TurnContext, TurnResult, etc.)
+│   └── models/            # Pydantic models
+│       ├── concept.py     # Concept, ConceptElement, CoverageState (ADR-008)
+│       ├── knowledge_graph.py  # KGNode, KGEdge, GraphState
+│       ├── extraction.py  # ExtractionResult, ExtractedConcept
+│       └── turn.py        # TurnContext, TurnResult, Focus
 ├── llm/                   # LLM integration
 │   ├── client.py
 │   └── prompts/
@@ -799,6 +857,7 @@ src/
 │   ├── migrations/
 │   └── repositories/      # Session, Graph, Utterance repositories
 └── services/              # Business logic
+    ├── depth_calculator.py  # Chain validation for depth (ADR-008)
     ├── scoring/           # Two-tier scoring system
     │   ├── tier1/         # Filter stages
     │   └── tier2/         # Scoring modules
@@ -829,10 +888,10 @@ src/
 
 3. **Run tests:**
    ```bash
-   pytest
-   black --check src/ tests/
-   isort --check-only src/ tests/
-   mypy src/
+   uv run pytest
+   ruff check src/ tests/
+   ruff format --check src/ tests/
+   uv run pyright src/
    ```
 
 4. **Commit changes:**

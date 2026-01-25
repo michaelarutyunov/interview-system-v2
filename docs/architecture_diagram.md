@@ -31,6 +31,7 @@ graph TD
         QUESTION_SVC["services/question_service.py<br/>QuestionService"]:::service
         STRATEGY_SVC["services/strategy_service.py<br/>StrategyService"]:::service
         EXPORT_SVC["services/export_service.py<br/>ExportService"]:::service
+        DEPTH_CALC["services/depth_calculator.py<br/>DepthCalculator"]:::service
     end
 
     subgraph PIPELINE["Pipeline Layer (ADR-008)"]
@@ -86,7 +87,9 @@ graph TD
         DOMAIN_EXTRACTION["domain/models/extraction.py<br/>ExtractionResult"]:::domain
         DOMAIN_UTTERANCE["domain/models/utterance.py<br/>Utterance"]:::domain
         DOMAIN_INTERVIEW["domain/models/interview_state.py<br/>InterviewMode, Phase"]:::domain
+        DOMAIN_CONCEPT["domain/models/concept.py<br/>Concept, ConceptElement, CoverageState"]:::domain
         DOMAIN_METHODS["core/schema_loader.py<br/>MethodologySchema"]:::domain
+        DOMAIN_CONCEPT_LOADER["core/concept_loader.py<br/>load_concept()"]:::domain
     end
 
     subgraph LLM["LLM Layer"]
@@ -99,6 +102,7 @@ graph TD
         CONFIG_INTERVIEW["config/interview_config.yaml<br/>Interview Config"]:::domain
         CONFIG_SCORING["config/scoring.yaml<br/>Scoring Config"]:::domain
         CONFIG_METHODS["config/methodologies/<br/>*.yaml"]:::domain
+        CONFIG_CONCEPTS["config/concepts/<br/>*.yaml"]:::domain
     end
 
     API_ROUTES -->|POST /sessions/id/turns| SESSION_SVC

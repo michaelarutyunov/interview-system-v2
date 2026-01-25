@@ -278,10 +278,29 @@ Processes a respondent turn (answer). Extracts concepts, updates the knowledge g
   "graph_state": {
     "node_count": 8,
     "edge_count": 5,
-    "depth_achieved": {
+    "nodes_by_type": {
       "attribute": 4,
       "functional_consequence": 3,
       "psychosocial_consequence": 1
+    },
+    "coverage_state": {
+      "elements": {
+        "1": {
+          "covered": true,
+          "linked_node_ids": ["node-123", "node-456"],
+          "types_found": ["attribute", "psychosocial_consequence"],
+          "depth_score": 0.5
+        },
+        "2": {
+          "covered": false,
+          "linked_node_ids": [],
+          "types_found": [],
+          "depth_score": 0.0
+        }
+      },
+      "elements_covered": 1,
+      "elements_total": 6,
+      "overall_depth": 0.25
     }
   },
   "scoring": {
@@ -299,20 +318,50 @@ Processes a respondent turn (answer). Extracts concepts, updates the knowledge g
 **Response Fields:**
 - `turn_number` (integer): Current turn number
 - `extracted` (object): Extraction results
-  - `concepts` (array): Extracted concepts with text, type, and confidence
+  - `concepts` (array): Extracted concepts with text, type, confidence, and linked_elements
   - `relationships` (array): Extracted relationships between concepts
 - `graph_state` (object): Current knowledge graph state
   - `node_count` (integer): Total nodes in graph
   - `edge_count` (integer): Total edges in graph
-  - `depth_achieved` (object): Depth achieved by concept type
+  - `nodes_by_type` (object): Node count by type
+  - `coverage_state` (object): Per-element coverage tracking (see below)
 - `scoring` (object): Multi-dimensional scoring
   - `coverage` (float): Coverage score (0-1)
   - `depth` (float): Depth score (0-1)
   - `saturation` (float): Saturation score (0-1)
-- `strategy_selected` (string): Questioning strategy used (broaden, deepen, bridge, pivot)
+- `strategy_selected` (string): Questioning strategy used (broaden, deepen, bridge, pivot, cover_element)
 - `next_question` (string): Next question to ask respondent
 - `should_continue` (boolean): Whether interview should continue
 - `latency_ms` (integer): Processing time in milliseconds
+
+**Coverage State Structure:**
+The `coverage_state` field provides detailed element-level coverage tracking:
+
+```json
+{
+  "elements": {
+    "1": {
+      "covered": true,
+      "linked_node_ids": ["node-123", "node-456"],
+      "types_found": ["attribute", "psychosocial_consequence"],
+      "depth_score": 0.5
+    }
+  },
+  "elements_covered": 1,
+  "elements_total": 6,
+  "overall_depth": 0.25
+}
+```
+
+Fields:
+- `elements` (object): Map of element_id → coverage data
+  - `covered` (boolean): Whether any nodes are linked to this element
+  - `linked_node_ids` (array): IDs of nodes linked to this element
+  - `types_found` (array): Node types discovered for this element
+  - `depth_score` (float): Chain validation depth (0-1)
+- `elements_covered` (integer): Count of elements with at least one linked node
+- `elements_total` (integer): Total number of elements in concept
+- `overall_depth` (float): Average depth score across all elements
 
 **Error Responses:**
 - `400 Bad Request` - Session already completed
