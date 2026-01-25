@@ -16,6 +16,7 @@ scoring:
       enabled: true
       params:
         min_confidence: 0.5
+        use_llm_signals: true
         negative_patterns:
           - "don't know"
           - "not sure"
@@ -82,11 +83,12 @@ scoring:
           - "what else is"
 
   # Tier 2 scorers (weighted additive)
+  # Weights rebalanced to sum to 1.0 (was 1.45, causing score inflation)
   tier2_scorers:
     - id: coverage_gap
       class: CoverageGapScorer
       enabled: true
-      weight: 0.20
+      weight: 0.14
       params:
         gap_types:
           - "unmentioned"
@@ -98,7 +100,7 @@ scoring:
     - id: ambiguity
       class: AmbiguityScorer
       enabled: true
-      weight: 0.15
+      weight: 0.10
       params:
         high_clarity_threshold: 0.8
         low_clarity_threshold: 0.5
@@ -112,11 +114,12 @@ scoring:
           - "i guess"
           - "probably"
           - "not sure"
+        use_llm_signals: true
 
     - id: depth_breadth_balance
       class: DepthBreadthBalanceScorer
       enabled: true
-      weight: 0.20
+      weight: 0.14
       params:
         target_ratio: 0.5  # 0.5 = balanced, 0.7 = depth-favoring
         low_breadth_threshold: 0.4
@@ -127,7 +130,7 @@ scoring:
     - id: engagement
       class: EngagementScorer
       enabled: true
-      weight: 0.15
+      weight: 0.10
       params:
         low_momentum_threshold: 30
         high_momentum_threshold: 100
@@ -149,7 +152,7 @@ scoring:
     - id: strategy_diversity
       class: StrategyDiversityScorer
       enabled: true
-      weight: 0.15
+      weight: 0.10
       params:
         lookback_window: 5
         moderate_use_threshold: 2
@@ -160,7 +163,7 @@ scoring:
     - id: novelty
       class: NoveltyScorer
       enabled: true
-      weight: 0.15
+      weight: 0.10
       params:
         lookback_window: 8
         fresh_threshold: 1
@@ -171,7 +174,7 @@ scoring:
     - id: saturation
       class: SaturationScorer
       enabled: true
-      weight: 0.15
+      weight: 0.10
       params:
         chao1_threshold: 0.90
         new_info_threshold: 0.05
@@ -179,13 +182,10 @@ scoring:
         saturated_penalty: 0.7
         breadth_boost: 1.5
 
-    # P1 strategy-specific boosters (beads ekm, 8xa, smg)
-    # NOTE: Total tier2 weight now exceeds 1.0 - needs rebalancing
-
     - id: cluster_saturation
       class: ClusterSaturationScorer
       enabled: true
-      weight: 0.10
+      weight: 0.07
       params:
         high_saturation_threshold: 0.7
         moderate_saturation_threshold: 0.4
@@ -193,14 +193,14 @@ scoring:
     - id: contrast_opportunity
       class: ContrastOpportunityScorer
       enabled: true
-      weight: 0.10
+      weight: 0.07
       params:
         high_density_threshold: 0.6
 
     - id: peripheral_readiness
       class: PeripheralReadinessScorer
       enabled: true
-      weight: 0.10
+      weight: 0.08
       params:
         high_density_threshold: 0.7
         moderate_density_threshold: 0.5

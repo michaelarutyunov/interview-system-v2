@@ -305,6 +305,47 @@ class StrategyService:
                 )
                 # Continue without signals (graceful degradation)
 
+        # Compute and update saturation tracking properties
+        # These are used by SaturationScorer to detect topic exhaustion
+        if current_extraction:
+            # Calculate new_info_rate: proportion of NEW concepts this turn
+            # A "new" concept is one not seen before (first mention)
+            total_concepts = len(current_extraction.concepts)
+            if total_concepts > 0:
+                # Count how many concepts are new (not in recent nodes)
+                new_concept_count = 0
+                recent_node_labels = {n.label.lower() for n in recent_nodes}
+
+                for concept in current_extraction.concepts:
+                    if concept.text.lower() not in recent_node_labels:
+                        new_concept_count += 1
+
+                new_info_rate = new_concept_count / total_concepts
+            else:
+                new_info_rate = 1.0  # No concepts = high opportunity for new info
+
+            # Track consecutive low-info turns
+            # Low info = fewer than 20% new concepts
+            low_info_threshold = 0.2
+            previous_consecutive = graph_state.properties.get(
+                "consecutive_low_info_turns", 0
+            )
+
+            if new_info_rate < low_info_threshold:
+                consecutive_low_info = previous_consecutive + 1
+            else:
+                consecutive_low_info = 0  # Reset on good turn
+
+            graph_state.properties["new_info_rate"] = new_info_rate
+            graph_state.properties["consecutive_low_info_turns"] = consecutive_low_info
+
+            logger.debug(
+                "saturation_metrics_computed",
+                new_info_rate=f"{new_info_rate:.2f}",
+                consecutive_low_info=consecutive_low_info,
+                total_concepts=total_concepts,
+            )
+
         # Score all (strategy, focus) combinations
         candidates: List[StrategyCandidate] = []
 
