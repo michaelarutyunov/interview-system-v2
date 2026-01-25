@@ -55,6 +55,10 @@ class Focus(BaseModel):
         "coverage_gap",
         "closing",
         "reflection",
+        "lateral_bridge",
+        "counter_example",
+        "rapport_repair",
+        "synthesis",
     ]
     node_id: Optional[str] = Field(
         None, description="Node ID if focusing on a specific node"

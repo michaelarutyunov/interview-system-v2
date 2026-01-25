@@ -36,8 +36,8 @@ def _calculate_phase(turn_number: int) -> str:
     """
     from src.core.config import interview_config
 
-    exploratory_end = interview_config.phases.exploratory.n_turns
-    focused_end = exploratory_end + interview_config.phases.focused.n_turns
+    exploratory_end = interview_config.phases.exploratory.n_turns or 10
+    focused_end = exploratory_end + (interview_config.phases.focused.n_turns or 10)
 
     if turn_number < exploratory_end:
         return "exploratory"

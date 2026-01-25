@@ -87,7 +87,7 @@ class QualitativeSignalExtractor:
 
         log.info(
             "qualitative_signal_extractor_initialized",
-            llm_model=self.llm.model if hasattr(self.llm, "model") else "unknown",
+            llm_model=self.llm.model if hasattr(self.llm, "model") else "unknown",  # type: ignore[attr-defined]
             enabled_signals=enabled_signals,
         )
 

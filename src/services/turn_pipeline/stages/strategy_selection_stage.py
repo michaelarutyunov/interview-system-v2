@@ -63,7 +63,8 @@ class StrategySelectionStage(TurnStage):
 
         # Track strategy history for StrategyDiversityScorer
         # This enables the system to penalize repetitive questioning patterns
-        context.graph_state.add_strategy_used(strategy)
+        if context.graph_state:
+            context.graph_state.add_strategy_used(strategy)
 
         context.strategy = strategy
         context.selection_result = selection_result

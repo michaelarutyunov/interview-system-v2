@@ -649,8 +649,8 @@ class SessionService:
 
         # Calculate phase based on turn count (deterministic from config)
         turn_count = session.state.turn_count or 0
-        exploratory_end = interview_config.phases.exploratory.n_turns
-        focused_end = exploratory_end + interview_config.phases.focused.n_turns
+        exploratory_end = interview_config.phases.exploratory.n_turns or 10
+        focused_end = exploratory_end + (interview_config.phases.focused.n_turns or 10)
         if turn_count < exploratory_end:
             phase = "exploratory"
         elif turn_count < focused_end:

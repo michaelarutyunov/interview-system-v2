@@ -84,13 +84,13 @@ class ContrastOpportunityScorer(Tier2Scorer):
 
         # Check for opposite stance node (using simple helper)
         has_opposite = has_opposite_stance_simple(
-            focus_node_id=focus.get("node_id") if focus else None,
+            focus_node_id=(focus.get("node_id") or "") if focus else "",
             recent_nodes=recent_nodes,
         )
 
         # Get cluster density around the focus node (using simple helper)
         density = get_simple_local_density(
-            focus_node_id=focus.get("node_id") if focus else None,
+            focus_node_id=(focus.get("node_id") or "") if focus else "",
             graph_state=graph_state,
             recent_nodes=recent_nodes,
         )

@@ -91,14 +91,14 @@ class PeripheralReadinessScorer(Tier2Scorer):
 
         # Get cluster density around the focus node (using simple helper)
         density = get_simple_local_density(
-            focus_node_id=focus.get("node_id") if focus else None,
+            focus_node_id=(focus.get("node_id") or "") if focus else "",
             graph_state=graph_state,
             recent_nodes=recent_nodes,
         )
 
         # Count peripheral nodes (using simple helper)
         peripheral_count = count_peripheral_nodes_simple(
-            focus_node_id=focus.get("node_id") if focus else None,
+            focus_node_id=(focus.get("node_id") or "") if focus else "",
             graph_state=graph_state,
             recent_nodes=recent_nodes,
         )

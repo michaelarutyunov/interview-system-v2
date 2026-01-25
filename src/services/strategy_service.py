@@ -254,7 +254,7 @@ class StrategyService:
 
                 # Add extraction metadata if available
                 if current_extraction:
-                    current_turn_entry["extraction"] = {
+                    current_turn_entry["extraction"] = {  # type: ignore[assignment]
                         "concepts": [
                             c.model_dump() for c in current_extraction.concepts
                         ],

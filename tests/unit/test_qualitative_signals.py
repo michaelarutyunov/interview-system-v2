@@ -417,7 +417,6 @@ class TestQualitativeSignalSet:
     def test_to_dict(self):
         """Test converting signal set to dictionary."""
         from src.domain.models.qualitative_signals import (
-            QualitativeSignalSet,
             UncertaintySignal,
             UncertaintyType,
         )
