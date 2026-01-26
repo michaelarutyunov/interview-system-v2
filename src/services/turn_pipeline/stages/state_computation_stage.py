@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from ..base import TurnStage
+from src.services.scoring.graph_utils import calculate_mec_chain_depth
 
 
 if TYPE_CHECKING:
@@ -52,6 +53,38 @@ class StateComputationStage(TurnStage):
             # Set strategy_history for StrategyDiversityScorer
             # This is loaded from DB in context_loading_stage and copied here
             graph_state.properties["strategy_history"] = context.strategy_history
+
+            # P0 Fix: Compute chain depth metrics for MEC methodologies
+            # This provides actual chain length analysis vs edge/node ratio heuristic
+            if hasattr(context, "methodology") and context.methodology == "means_end_chain":
+                # Fetch nodes and edges for chain depth calculation
+                nodes_raw = await self.graph.get_nodes_by_session(context.session_id)
+                edges_raw = await self.graph.get_edges_by_session(context.session_id)
+
+                # Convert to dict format expected by calculate_mec_chain_depth
+                nodes_dicts = [
+                    {"id": n.id, "node_type": n.node_type} for n in nodes_raw
+                ]
+                edges_dicts = [
+                    {"source_node_id": e.source_node_id, "target_node_id": e.target_node_id}
+                    for e in edges_raw
+                ]
+
+                chain_depth = calculate_mec_chain_depth(
+                    edges=edges_dicts,
+                    nodes=nodes_dicts,
+                    methodology=context.methodology,
+                )
+
+                graph_state.properties["chain_depth"] = chain_depth
+
+                log.debug(
+                    "chain_depth_computed",
+                    session_id=context.session_id,
+                    max_chain_length=chain_depth.get("max_chain_length", 0),
+                    avg_chain_length=chain_depth.get("avg_chain_length", 0),
+                    chain_count=chain_depth.get("chain_count", 0),
+                )
 
         context.graph_state = graph_state
         context.recent_nodes = recent_nodes

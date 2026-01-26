@@ -89,6 +89,7 @@ class CoverageState(BaseModel):
     elements_covered: int = 0  # How many elements have any linked nodes
     elements_total: int = 0  # Total elements in concept
     overall_depth: float = 0.0  # Average depth_score across all elements
+    max_depth: float = 0.0  # P0 Fix: Maximum depth_score (monotonically increasing)
 
 
 class GraphState(BaseModel):

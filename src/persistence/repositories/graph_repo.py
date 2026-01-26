@@ -529,6 +529,12 @@ class GraphRepository:
         Returns:
             CoverageState with element-level depth tracking, or None if concept not found
         """
+        # P0 Fix: Add diagnostic logging to trace coverage state building
+        log.info(
+            "coverage_state_building_started",
+            session_id=session_id,
+        )
+
         # Get all nodes for the session
         nodes = await self.get_nodes_by_session(session_id)
         edges = await self.get_edges_by_session(session_id)
@@ -538,8 +544,20 @@ class GraphRepository:
         element_ids = elements_data.get("element_ids", [])
         elements_by_id = elements_data.get("elements_by_id", {})
 
+        # P0 Fix: Log element loading results for diagnostics
+        log.info(
+            "coverage_state_elements_loaded",
+            session_id=session_id,
+            element_count=len(element_ids),
+            has_elements_by_id=bool(elements_by_id),
+        )
+
         if not element_ids:
-            log.debug("no_elements_found_for_coverage", session_id=session_id)
+            log.warning(
+                "coverage_state_failed_no_elements",
+                session_id=session_id,
+                message="No elements found - coverage_state will be NULL",
+            )
             return None
 
         # Match nodes to elements using fuzzy matching
@@ -567,20 +585,27 @@ class GraphRepository:
         # Calculate summary metrics
         elements_covered = sum(1 for e in elements_dict.values() if e.covered)
         overall_depth = depth_calculator.get_overall_depth(element_depths)
+        max_depth = depth_calculator.get_max_depth(element_depths)  # P0 Fix
 
         coverage_state = CoverageState(
             elements=elements_dict,
             elements_covered=elements_covered,
             elements_total=len(element_ids),
             overall_depth=overall_depth,
+            max_depth=max_depth,  # P0 Fix: Track maximum depth (monotonic metric)
         )
 
-        log.debug(
-            "coverage_state_built",
+        # P0 Fix: Upgrade to info level for diagnostic visibility
+        log.info(
+            "coverage_state_built_successfully",
             session_id=session_id,
             elements_covered=elements_covered,
             elements_total=len(element_ids),
             overall_depth=overall_depth,
+            max_depth=max_depth,  # P0 Fix: Include max_depth in diagnostics
+            coverage_percent=round((elements_covered / len(element_ids)) * 100, 1)
+            if element_ids
+            else 0,
         )
 
         return coverage_state
@@ -750,6 +775,15 @@ class GraphRepository:
         # We need to go up 4 levels to reach project root, then into config/concepts
         config_dir = Path(__file__).parent.parent.parent.parent / "config" / "concepts"
         concept_path = config_dir / f"{concept_id}.yaml"
+
+        # P0 Fix: Log file path and existence for diagnostic tracing
+        log.info(
+            "concept_elements_loading",
+            concept_id=concept_id,
+            file_path=str(concept_path),
+            file_exists=concept_path.exists(),
+            config_dir_exists=config_dir.exists(),
+        )
 
         if not concept_path.exists():
             log.warning(

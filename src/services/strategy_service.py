@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Union
 import structlog
 
 from src.core.config import interview_config
+from src.core.concept_loader import load_concept
 from src.domain.models.knowledge_graph import GraphState
 from src.domain.models.turn import Focus
 from src.domain.models.extraction import ExtractionResult
@@ -616,13 +617,41 @@ class StrategyService:
                         )
                     )
             else:
-                # Fallback to old coverage_state structure (pre-Phase 4)
+                # P0 Fix: Enhanced fallback when coverage_state is NULL
+                # Try old coverage_state structure first (backward compatibility)
                 coverage_state_old = graph_state.properties.get("coverage_state", {})
                 elements_seen = set(coverage_state_old.get("elements_seen", []))
                 elements_total = coverage_state_old.get("elements_total", [])
 
                 uncovered = [e for e in elements_total if e not in elements_seen]
 
+                # If old format also fails, try loading concept directly
+                if not uncovered:
+                    logger.warning(
+                        "coverage_state_missing_using_concept_fallback",
+                        message="coverage_state is NULL, attempting to load from concept config",
+                    )
+
+                    concept_id = graph_state.properties.get("concept_id")
+                    if concept_id:
+                        try:
+                            concept = load_concept(concept_id)
+                            # Generate focuses for all elements (no coverage tracking)
+                            for element in concept.elements:
+                                uncovered.append(element.id)
+                                logger.debug(
+                                    "coverage_fallback_element_added",
+                                    element_id=element.id,
+                                    element_label=element.label,
+                                )
+                        except Exception as e:
+                            logger.error(
+                                "coverage_fallback_concept_load_failed",
+                                concept_id=concept_id,
+                                error=str(e),
+                            )
+
+                # Generate focuses for uncovered elements
                 for element in uncovered:
                     focuses.append(
                         Focus(

@@ -38,6 +38,33 @@ class ExtractionStage(TurnStage):
         Returns:
             Modified context with extraction result
         """
+        # Update extraction service with methodology from session context
+        # This fixes P0 Issue 3: Methodology Mismatch
+        if hasattr(context, "methodology") and context.methodology:
+            if context.methodology != self.extraction.methodology:
+                log.info(
+                    "extraction_methodology_updated",
+                    old_methodology=self.extraction.methodology,
+                    new_methodology=context.methodology,
+                )
+                self.extraction.methodology = context.methodology
+                # Reload methodology schema
+                try:
+                    from src.core.schema_loader import load_methodology
+
+                    self.extraction.schema = load_methodology(context.methodology)
+                    log.debug(
+                        "extraction_schema_reloaded",
+                        methodology=context.methodology,
+                        node_types=len(self.extraction.schema.node_types),
+                    )
+                except Exception as e:
+                    log.error(
+                        "methodology_schema_load_failed",
+                        methodology=context.methodology,
+                        error=str(e),
+                    )
+
         # Update extraction service with concept_id from session context
         # This allows element linking to work with the correct concept
         if hasattr(context, "concept_id") and context.concept_id:
@@ -82,6 +109,9 @@ class ExtractionStage(TurnStage):
         """
         Format context for extraction prompt.
 
+        P0 Fix: Enhanced to highlight interviewer's most recent question
+        for conversational implicit relationship extraction.
+
         Args:
             context: Turn context
 
@@ -92,8 +122,23 @@ class ExtractionStage(TurnStage):
             return ""
 
         lines = []
-        for utt in context.recent_utterances[-5:]:
+
+        # Include last 5 turns for full context
+        recent = context.recent_utterances[-5:]
+        for utt in recent:
             speaker = "Respondent" if utt["speaker"] == "user" else "Interviewer"
             lines.append(f"{speaker}: {utt['text']}")
+
+        # Highlight the most recent interviewer question if present
+        # This helps LLM create implicit Q→A relationships (laddering)
+        if len(recent) >= 1 and recent[-1]["speaker"] == "system":
+            interviewer_question = recent[-1]["text"]
+            lines.append("")
+            lines.append(
+                f"[Most recent question] Interviewer: {interviewer_question}"
+            )
+            lines.append(
+                "[Task] Extract concepts from the Respondent's answer AND create a relationship from the question's topic to the answer concept."
+            )
 
         return "\n".join(lines)

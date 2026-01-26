@@ -134,6 +134,24 @@ Examples:
 4. Assign confidence based on how explicit the concept/relationship is
 5. Include the verbatim quote that supports each extraction
 6. Determine stance based on sentiment and emotional content
+
+## Conversational Implicit Relationships (CRITICAL for laddering interviews):
+When the interviewer asks a question and the respondent answers:
+- **Identify the topic in the interviewer's question** (e.g., "Why does X matter?")
+- **Extract the concept from the respondent's answer** (e.g., "Because it Y")
+- **Create a relationship from question topic → answer concept** (X leads_to Y)
+- Even if no explicit causal markers are present, the Q&A structure implies causality
+- Use the methodology's appropriate relationship type (usually "leads_to")
+- Set confidence slightly lower (0.7-0.8) since it's implicit, not explicit
+
+Examples:
+- Interviewer: "Why does that nice sensation matter?"
+  Respondent: "It feels like a good start of the day"
+  → Extract relationship: "nice sensation" leads_to "good start of the day"
+
+- Interviewer: "What does having that uninterrupted time do for you?"
+  Respondent: "It helps me feel accomplished"
+  → Extract relationship: "uninterrupted time" leads_to "feel accomplished"
 {methodology_section}
 ## Output Format:
 Return valid JSON with this structure:

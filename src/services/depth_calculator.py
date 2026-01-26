@@ -265,3 +265,35 @@ class DepthCalculator:
 
         total_depth = sum(data["depth_score"] for data in element_depths.values())
         return total_depth / len(element_depths)
+
+    def get_max_depth(self, element_depths: Dict[int, Dict[str, Any]]) -> float:
+        """
+        Calculate maximum depth across all elements (P0 Fix).
+
+        Max depth = highest depth_score among all elements.
+        This metric is monotonically increasing - once a deep chain
+        is achieved, it persists even if new shallow nodes are added.
+
+        Use this metric to track deepening progress, as average depth
+        can regress when new shallow nodes dilute the average.
+
+        Args:
+            element_depths: Dict from calculate_all_elements()
+
+        Returns:
+            Maximum depth score (0.0 to 1.0)
+        """
+        if not element_depths:
+            return 0.0
+
+        max_depth = max(
+            (data["depth_score"] for data in element_depths.values()), default=0.0
+        )
+
+        log.debug(
+            "max_depth_calculated",
+            max_depth=max_depth,
+            element_count=len(element_depths),
+        )
+
+        return max_depth

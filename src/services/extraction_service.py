@@ -47,7 +47,7 @@ class ExtractionService:
         llm_client: Optional[LLMClient] = None,
         skip_extractability_check: bool = False,
         min_word_count: int = 3,
-        methodology: str = "means_end_chain",
+        methodology: Optional[str] = None,
         concept_id: Optional[str] = None,
     ):
         """
@@ -57,12 +57,25 @@ class ExtractionService:
             llm_client: LLM client instance (creates default if None)
             skip_extractability_check: Skip fast pre-filter (for testing)
             min_word_count: Minimum words for extractability
-            methodology: Methodology schema name (e.g., "means_end_chain")
+            methodology: Methodology schema name (e.g., "means_end_chain", "jobs_to_be_done")
+                       DEPRECATED: Will be set dynamically from session context
             concept_id: Optional concept ID for element linking
         """
         self.llm = llm_client or get_extraction_llm_client()
         self.skip_extractability_check = skip_extractability_check
         self.min_word_count = min_word_count
+
+        # P0 Fix: Methodology mismatch - remove hardcoded default
+        # Methodology will be updated from session context in ExtractionStage
+        if methodology is None:
+            # Temporary fallback for backward compatibility
+            # ExtractionStage will update this before first use
+            log.warning(
+                "extraction_service_no_methodology",
+                message="No methodology provided - will be set from session context",
+            )
+            methodology = "means_end_chain"  # Temporary default for initialization
+
         self.methodology = methodology
         self.schema = load_methodology(methodology)
         self.concept_id = concept_id
