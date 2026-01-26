@@ -43,7 +43,7 @@ class SyntheticService:
             deflection_chance: Probability of using deflection prompts (0.0-1.0)
         """
         if llm_client is None:
-            llm_client = get_llm_client()
+            llm_client = get_llm_client("generation")
         self.llm_client = llm_client
         self.deflection_chance = deflection_chance
 
@@ -231,6 +231,6 @@ def get_synthetic_service(
         SyntheticService instance
     """
     if llm_client is None:
-        llm_client = get_llm_client()
+        llm_client = get_llm_client("generation")
 
     return SyntheticService(llm_client=llm_client)
