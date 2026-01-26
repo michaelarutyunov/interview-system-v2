@@ -112,7 +112,8 @@ class ContextLoadingStage(TurnStage):
         context.methodology = session.methodology
         context.concept_id = session.concept_id
         context.concept_name = session.concept_name
-        context.turn_number = session.state.turn_count or 1
+        # turn_count is completed turns, so current turn is turn_count + 1
+        context.turn_number = (session.state.turn_count or 0) + 1
         context.mode = session.mode.value
         context.max_turns = max_turns
         context.recent_utterances = recent_utterances

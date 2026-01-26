@@ -46,7 +46,7 @@ class StrategySelectionStage(TurnStage):
         if self.strategy:
             selection = await self.strategy.select(
                 graph_state=context.graph_state,
-                recent_nodes=[n.dict() for n in context.recent_nodes],
+                recent_nodes=[n.model_dump() for n in context.recent_nodes],
                 conversation_history=context.recent_utterances,
                 mode=context.mode,
                 current_user_input=context.user_input,

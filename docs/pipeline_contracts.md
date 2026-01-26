@@ -140,6 +140,8 @@ class PipelineContext:
 | **Writes** | `strategy`, `selection_result`, `focus` |
 | **Side Effects** | None (pure computation) |
 
+**Implementation Note**: Uses `.model_dump()` for Pydantic v2 compatibility when passing node data to strategy selector.
+
 ### Stage 7: ContinuationStage
 
 **File**: `src/services/turn_pipeline/stages/continuation_stage.py`

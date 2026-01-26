@@ -132,11 +132,16 @@ class GraphVisualizer:
             G.add_node(node["id"], **node)
 
         for edge in edges:
+            # Exclude structural keys from edge attributes
+            edge_attrs = {
+                k: v for k, v in edge.items()
+                if k not in ("source_id", "target_id", "edge_type", "id")
+            }
             G.add_edge(
                 edge["source_id"],
                 edge["target_id"],
                 edge_type=edge.get("edge_type", "leads_to"),
-                **edge,
+                **edge_attrs,
             )
 
         # Compute layout

@@ -22,7 +22,7 @@ The turn pipeline has several critical data flow paths that are essential to und
 ```mermaid
 graph LR
     A[Session.state.turn_count] -->|load| B[ContextLoadingStage]
-    B --> C[context.turn_number]
+    B -->|current = turn_count + 1| C[context.turn_number]
     C -->|pass through| D[UtteranceSavingStage]
     D --> E[ExtractionStage]
     E --> F[GraphUpdateStage]
@@ -44,10 +44,25 @@ graph LR
 
 ### Key Points
 
+- **`turn_count`** (stored in database) = number of *completed* turns
+- **`turn_number`** (in context) = current turn being processed = `turn_count + 1`
 - Turn count is **loaded** from database in ContextLoadingStage
 - Turn count is **refreshed** from graph state in StateComputationStage
 - Turn count is **checked** against max_turns in ContinuationStage
 - Turn count is **incremented** and saved back in ScoringPersistenceStage
+
+### Implementation Note
+
+In `ContextLoadingStage`, the turn number is calculated as:
+```python
+# turn_count is completed turns, so current turn is turn_count + 1
+context.turn_number = (session.state.turn_count or 0) + 1
+```
+
+This ensures that:
+- Turn 1 starts with `turn_count = 0` (no completed turns yet)
+- After turn 1 completes, `turn_count = 1`
+- Turn 2 starts with `turn_number = 2`
 
 ## Path 2: Strategy Selection Two-Tier Scoring
 
