@@ -376,12 +376,13 @@ def create_scoring_engine(
     engine_config = config.get("engine", {})
 
     # Add phase_profiles to engine_config if present
-    phase_profiles = config.get("engine", {}).get("phase_profiles", {})
+    # NOTE: phase_profiles is at root level in scoring.yaml, not under engine
+    phase_profiles = config.get("phase_profiles", {})
     if phase_profiles:
         engine_config["phase_profiles"] = phase_profiles
         logger.info(f"Loaded phase_profiles: {list(phase_profiles.keys())}")
     else:
-        logger.warning("No phase_profiles found in engine config")
+        logger.warning("No phase_profiles found in config (expected at root level)")
 
     # Create engine
     engine = TwoTierScoringEngine(

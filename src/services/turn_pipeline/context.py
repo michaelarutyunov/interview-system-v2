@@ -32,6 +32,7 @@ class PipelineContext:
     mode: str = "coverage_driven"  # Interview mode from session
     max_turns: int = 20
     recent_utterances: List[Dict[str, str]] = field(default_factory=list)
+    strategy_history: List[str] = field(default_factory=list)  # Recent strategies for diversity
 
     # Graph state (loaded in ContextLoadingStage, updated in GraphUpdateStage)
     graph_state: Optional[GraphState] = None

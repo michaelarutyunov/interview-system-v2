@@ -45,6 +45,14 @@ class StateComputationStage(TurnStage):
         graph_state = await self.graph.get_graph_state(context.session_id)
         recent_nodes = await self.graph.get_recent_nodes(context.session_id, limit=5)
 
+        # Set turn_count in graph_state.properties for strategy service phase detection
+        # This is critical - StrategyService._determine_phase() reads from this property
+        if graph_state:
+            graph_state.properties["turn_count"] = context.turn_number
+            # Set strategy_history for StrategyDiversityScorer
+            # This is loaded from DB in context_loading_stage and copied here
+            graph_state.properties["strategy_history"] = context.strategy_history
+
         context.graph_state = graph_state
         context.recent_nodes = recent_nodes
 

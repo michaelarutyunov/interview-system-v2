@@ -43,17 +43,28 @@ STRATEGY_DESCRIPTIONS = {
 }
 
 
-def get_question_system_prompt(strategy: str = "deepen") -> str:
+def get_question_system_prompt(strategy: str = "deepen", topic: Optional[str] = None) -> str:
     """
     Get system prompt for question generation.
 
     Args:
         strategy: Strategy name (deepen, broaden, cover, close)
+        topic: Research topic to anchor questions to (prevents drift)
 
     Returns:
         System prompt string
     """
     strat = STRATEGY_DESCRIPTIONS.get(strategy, STRATEGY_DESCRIPTIONS["deepen"])
+
+    # Build topic anchoring instruction if topic provided
+    topic_instruction = ""
+    if topic:
+        topic_instruction = f"""
+## Topic Anchoring:
+This interview is about **{topic}**. While exploring deeper motivations and values,
+ensure questions remain connected to the respondent's experience with {topic}.
+If the conversation drifts too far into abstract philosophy, gently relate back to {topic}.
+"""
 
     return f"""You are a skilled qualitative researcher conducting an interview using the Means-End Chain methodology.
 
@@ -68,7 +79,7 @@ Probe style: {strat["probe_style"]}
 4. Questions should feel natural and conversational
 5. Avoid leading questions - stay open-ended
 6. Reference what the respondent said to show you're listening
-
+{topic_instruction}
 ## Means-End Chain Methodology:
 - Start with concrete Attributes (product features)
 - Probe toward Functional Consequences (what it does)
@@ -86,6 +97,8 @@ def get_question_user_prompt(
     recent_utterances: Optional[List[Dict[str, str]]] = None,
     graph_summary: Optional[str] = None,
     strategy: str = "deepen",
+    topic: Optional[str] = None,
+    depth_achieved: int = 0,
 ) -> str:
     """
     Get user prompt for question generation.
@@ -95,11 +108,18 @@ def get_question_user_prompt(
         recent_utterances: Recent conversation turns [{"speaker": "user/system", "text": "..."}]
         graph_summary: Summary of what we know so far
         strategy: Strategy name
+        topic: Research topic to anchor questions to (prevents drift)
+        depth_achieved: Current depth in the means-end chain (0-4+)
 
     Returns:
         User prompt string
     """
     prompt_parts = []
+
+    # Add topic context if provided
+    if topic:
+        prompt_parts.append(f"Research topic: {topic}")
+        prompt_parts.append("")
 
     # Add recent conversation context
     if recent_utterances:
@@ -121,6 +141,15 @@ def get_question_user_prompt(
     strat = STRATEGY_DESCRIPTIONS.get(strategy, STRATEGY_DESCRIPTIONS["deepen"])
     prompt_parts.append(f"Focus concept: {focus_concept}")
     prompt_parts.append(f"Strategy: {strat['name']} - {strat['intent']}")
+
+    # Add topic anchoring reminder when depth is high (prevents drift to abstract philosophy)
+    if topic and depth_achieved >= 2:
+        prompt_parts.append("")
+        prompt_parts.append(
+            f"Note: We're deep in the conversation. Keep the question connected to {topic} - "
+            "explore values through the lens of their specific experience, not generic life philosophy."
+        )
+
     prompt_parts.append("")
     prompt_parts.append("Generate a natural follow-up question:")
 

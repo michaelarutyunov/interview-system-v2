@@ -54,6 +54,7 @@ class QuestionGenerationStage(TurnStage):
                 graph_state=context.graph_state,
                 recent_nodes=context.recent_nodes,
                 strategy=context.strategy,
+                topic=context.concept_name,  # Anchor questions to research topic
             )
         else:
             next_question = "Thank you for sharing your thoughts with me today. This has been very helpful."

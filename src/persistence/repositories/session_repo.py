@@ -296,6 +296,32 @@ class SessionRepository:
                 "reasoning": row[1] if row and len(row) > 1 else None,
             }
 
+    async def get_recent_strategies(self, session_id: str, limit: int = 5) -> list[str]:
+        """Get recent strategy selections for diversity tracking.
+
+        Returns the last N strategies selected for this session in chronological order.
+        Used by StrategyDiversityScorer to penalize repetitive questioning patterns.
+
+        Args:
+            session_id: Session ID
+            limit: Maximum number of strategies to return (default 5)
+
+        Returns:
+            List of strategy IDs in chronological order (oldest first)
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                """SELECT strategy_selected
+                   FROM scoring_history
+                   WHERE session_id = ?
+                   ORDER BY turn_number DESC
+                   LIMIT ?""",
+                (session_id, limit),
+            )
+            rows = await cursor.fetchall()
+            # Reverse to get chronological order (oldest first)
+            return list(reversed([row[0] for row in rows]))
+
     async def save_qualitative_signals(
         self,
         signal_id: str,

@@ -92,6 +92,12 @@ class ContextLoadingStage(TurnStage):
         # Get recent nodes (used by DifficultySelectionStage)
         recent_nodes = await self.graph.get_recent_nodes(context.session_id, limit=5)
 
+        # Get recent strategy history for StrategyDiversityScorer
+        # This is persisted in scoring_history and loaded here for turn continuity
+        strategy_history = await self.session_repo.get_recent_strategies(
+            context.session_id, limit=5
+        )
+
         # Note: Graph state will be loaded in StateComputationStage after graph updates
 
         # Update context
@@ -103,6 +109,7 @@ class ContextLoadingStage(TurnStage):
         context.max_turns = max_turns
         context.recent_utterances = recent_utterances
         context.recent_nodes = recent_nodes
+        context.strategy_history = strategy_history
 
         log.info(
             "context_loaded",

@@ -589,9 +589,12 @@ class GraphRepository:
         self, nodes: List[KGNode], elements_by_id: Dict[Any, Dict[str, Any]]
     ) -> Dict[int, List[KGNode]]:
         """
-        Map nodes to elements using fuzzy substring matching on labels and aliases.
+        Map nodes to elements using explicit linked_elements first, then fuzzy matching.
 
-        This is a fallback when LLM-based element linking is not available.
+        Priority order:
+        1. Use node.properties["linked_elements"] if set (from LLM extraction)
+        2. Fall back to fuzzy substring matching on labels and aliases
+
         A single node can be linked to multiple elements.
 
         Args:
@@ -615,6 +618,30 @@ class GraphRepository:
         mapping = {elem_id: [] for elem_id in int_element_ids}
 
         for node in nodes:
+            # PRIORITY 1: Use explicit linked_elements from extraction if available
+            linked_elements = node.properties.get("linked_elements", [])
+            if linked_elements:
+                for elem_id in linked_elements:
+                    # Normalize to int
+                    if isinstance(elem_id, int):
+                        key = elem_id
+                    elif isinstance(elem_id, str) and elem_id.isdigit():
+                        key = int(elem_id)
+                    else:
+                        continue
+
+                    if key in mapping:
+                        mapping[key].append(node)
+                        log.debug(
+                            "linked_node_to_element_explicit",
+                            node_label=node.label,
+                            element_id=key,
+                            source="linked_elements",
+                        )
+                # If node has explicit links, skip fuzzy matching for this node
+                continue
+
+            # PRIORITY 2: Fall back to fuzzy substring matching
             node_label_lower = node.label.lower()
 
             for elem_id, elem_data in elements_by_id.items():
@@ -639,7 +666,7 @@ class GraphRepository:
                     mapping[key].append(node)
 
                     log.debug(
-                        "matched_node_to_element",
+                        "matched_node_to_element_fuzzy",
                         node_label=node.label,
                         element_id=key,
                         matched_term=next(

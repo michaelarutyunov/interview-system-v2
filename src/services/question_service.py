@@ -60,6 +60,7 @@ class QuestionService:
         graph_state: Optional[GraphState] = None,
         recent_nodes: Optional[List[KGNode]] = None,
         strategy: Optional[str] = None,
+        topic: Optional[str] = None,
     ) -> str:
         """
         Generate a follow-up question.
@@ -70,6 +71,7 @@ class QuestionService:
             graph_state: Current graph state for context
             recent_nodes: Recently added nodes
             strategy: Strategy to use (defaults to default_strategy)
+            topic: Research topic to anchor questions to (prevents drift)
 
         Returns:
             Generated question string
@@ -83,25 +85,30 @@ class QuestionService:
             "generating_question",
             focus=focus_concept,
             strategy=strategy,
+            topic=topic,
         )
 
         # Build graph summary if we have state
         graph_summary = None
+        depth_achieved = 0
         if graph_state and recent_nodes:
             recent_concepts = [n.label for n in recent_nodes[:3]]
+            depth_achieved = graph_state.max_depth
             graph_summary = get_graph_summary(
                 nodes_by_type=graph_state.nodes_by_type,
                 recent_concepts=recent_concepts,
-                depth_achieved=graph_state.max_depth,
+                depth_achieved=depth_achieved,
             )
 
-        # Get prompts
-        system_prompt = get_question_system_prompt(strategy)
+        # Get prompts - include topic anchoring
+        system_prompt = get_question_system_prompt(strategy, topic=topic)
         user_prompt = get_question_user_prompt(
             focus_concept=focus_concept,
             recent_utterances=recent_utterances,
             graph_summary=graph_summary,
             strategy=strategy,
+            topic=topic,
+            depth_achieved=depth_achieved,
         )
 
         try:
