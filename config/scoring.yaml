@@ -10,6 +10,7 @@
 
 scoring:
   # Tier 1 scorers (hard constraints)
+  # Process-management strategies (closing, ease, reflection, clarify) are exempt from all vetoes
   tier1_scorers:
     - id: knowledge_ceiling
       class: KnowledgeCeilingScorer
@@ -23,6 +24,14 @@ scoring:
           - "never heard"
           - "no idea"
           - "unfamiliar"
+        # Consecutive terminal response tracking (consolidated from ConsecutiveExhaustionScorer)
+        consecutive_terminal_threshold: 3  # Number of consecutive terminal responses before veto
+        # Strategies that manage interview process (never vetoed)
+        exempt_strategies:
+          - closing
+          - ease
+          - reflection
+          - clarify
 
     - id: element_exhausted
       class: ElementExhaustedScorer
@@ -30,31 +39,12 @@ scoring:
       params:
         max_mentions: 5
         lookback_window: 10
-
-    - id: consecutive_exhaustion
-      class: ConsecutiveExhaustionScorer
-      enabled: true
-      params:
-        threshold: 3  # Number of consecutive exhaustion responses before veto
-        negative_patterns:
-          - "nothing"
-          - "nothing else"
-          - "nothing really"
-          - "nothing more"
-          - "nothing much"
-          - "nothing comes to mind"
-          - "don't know"
-          - "do not know"
-          - "can't think"
-          - "cannot think"
-          - "can't think of anything"
-          - "that's it"
-          - "that is it"
-          - "that's all"
-          - "that is all"
-          - "no, that's"
-          - "no, nothing"
-          - "nothing else i"
+        # Strategies that manage interview process (never vetoed)
+        exempt_strategies:
+          - closing
+          - ease
+          - reflection
+          - clarify
 
     - id: recent_redundancy
       class: RecentRedundancyScorer
@@ -63,24 +53,30 @@ scoring:
         similarity_threshold: 0.85
         lookback_window: 6
         method: "tfidf_cosine"  # jaccard, cosine, or embeddings
+        # Strategies that manage interview process (never vetoed)
+        exempt_strategies:
+          - closing
+          - ease
+          - reflection
+          - clarify
 
-    - id: question_repetition
-      class: QuestionRepetitionScorer
+    - id: clarification_veto
+      class: ClarificationVetoScorer
       enabled: true
       params:
-        threshold: 3  # Number of repetitive "what else" patterns before veto
-        repetition_patterns:
-          - "what else"
-          - "what other"
-          - "what else about"
-          - "anything else"
-          - "what else can"
-          - "what else do"
-          - "what else would"
-          - "what else matters"
-          - "what else contributes"
-          - "what else stands"
-          - "what else is"
+        severity_threshold: 0.3  # Minimum severity to trigger veto
+        vetoed_strategies:
+          - deepen
+          - broaden
+          - bridge
+        use_llm_signals: true
+        # Strategies that manage interview process (never vetoed)
+        # Note: clarify is exempt from its own veto (idempotent)
+        exempt_strategies:
+          - closing
+          - ease
+          - reflection
+          - clarify
 
   # Tier 2 scorers (weighted additive)
   # Weights rebalanced to sum to 1.0 (was 1.45, causing score inflation)
@@ -281,6 +277,14 @@ strategies:
     enabled: true
     prompt_hint: "Briefly summarise what you've heard and invite correction or addition."
 
+  - id: clarify
+    name: "Clarify / Rephrase"
+    type_category: "clarification"
+    priority_base: 0.5
+    enabled: true
+    prompt_hint: "Rephrase the question in simpler terms when user shows confusion."
+    emergency_only: false
+
 # Phase profiles
 phase_profiles:
   exploratory:
@@ -293,6 +297,7 @@ phase_profiles:
     closing: 0.0
     ease: 1.0
     reflection: 0.3
+    clarify: 0.5
 
   focused:
     deepen: 1.3
@@ -304,6 +309,7 @@ phase_profiles:
     closing: 0.5
     ease: 1.0
     reflection: 0.7
+    clarify: 0.5
 
   closing:
     deepen: 0.3
@@ -315,29 +321,7 @@ phase_profiles:
     closing: 1.5
     ease: 1.0
     reflection: 0.3
-
-# Phase configuration
-phase_config:
-  exploratory:
-    min_turns: 8
-    max_turns: 20
-
-  focused:
-    min_turns: 5
-    max_turns: null
-
-  closing:
-    min_turns: 15
-    trigger_coverage: 0.95
-
-# Strategy service configuration
-strategy_service:
-  alternatives_count: 3
-  alternatives_min_score: 0.3
-  exploratory_min_turns: 8
-  focused_coverage_threshold: 0.6
-  closing_min_turns: 20
-  closing_coverage_threshold: 0.95
+    clarify: 0.3
 
 # Engine configuration
 engine:

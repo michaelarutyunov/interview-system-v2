@@ -56,6 +56,11 @@ class KnowledgeCeilingScorer(Tier1Scorer):
             ],
         )
 
+        # Consecutive terminal response tracking (from ConsecutiveExhaustionScorer)
+        self.consecutive_terminal_threshold = self.params.get(
+            "consecutive_terminal_threshold", 3
+        )
+
         # Enable LLM signal integration if available
         self.use_llm_signals = self.params.get("use_llm_signals", False)
 
@@ -97,6 +102,30 @@ class KnowledgeCeilingScorer(Tier1Scorer):
             strategy, focus, graph_state, conversation_history
         )
 
+    def _get_consecutive_terminal_count(self, graph_state: GraphState) -> int:
+        """
+        Get the current count of consecutive terminal responses from graph_state.
+
+        Args:
+            graph_state: Current graph state
+
+        Returns:
+            Current consecutive terminal response count
+        """
+        return graph_state.properties.get("consecutive_terminal_count", 0)
+
+    def _set_consecutive_terminal_count(
+        self, graph_state: GraphState, count: int
+    ) -> None:
+        """
+        Set the consecutive terminal response count in graph_state.
+
+        Args:
+            graph_state: Current graph state (will be modified)
+            count: New count to store
+        """
+        graph_state.properties["consecutive_terminal_count"] = count
+
     def _evaluate_with_llm_signals(
         self,
         strategy: Dict[str, Any],
@@ -108,6 +137,9 @@ class KnowledgeCeilingScorer(Tier1Scorer):
 
         Checks graph_state.properties for 'qualitative_signals' key containing
         QualitativeSignalSet. Uses knowledge_ceiling signal if available.
+
+        Also tracks consecutive terminal responses and vetoes deepen/broaden/cover
+        when threshold is exceeded (consolidating ConsecutiveExhaustionScorer).
 
         Args:
             strategy: Strategy being evaluated
@@ -130,11 +162,95 @@ class KnowledgeCeilingScorer(Tier1Scorer):
             logger.debug("No knowledge_ceiling signal in LLM qualitative signals")
             return None
 
+        # Track consecutive terminal responses (from ConsecutiveExhaustionScorer)
+        current_count = self._get_consecutive_terminal_count(graph_state)
+        is_terminal = kc_signal.get("is_terminal", False)
+
+        # Track new count (initialize to current, may be updated below)
+        new_count = current_count
+
+        if is_terminal:
+            # Increment consecutive terminal counter
+            new_count = current_count + 1
+            self._set_consecutive_terminal_count(graph_state, new_count)
+            logger.debug(
+                "Terminal response detected",
+                new_count=new_count,
+                threshold=self.consecutive_terminal_threshold,
+            )
+        else:
+            # Reset counter on non-terminal response
+            if current_count > 0:
+                new_count = 0
+                self._set_consecutive_terminal_count(graph_state, 0)
+                logger.debug("Non-terminal response - reset consecutive count")
+
+        strategy_id = strategy.get("id", "")
+
+        # Check if strategy is exempt (process-management strategies)
+        if self.is_strategy_exempt(strategy_id):
+            logger.debug(
+                "Knowledge ceiling signal but strategy is exempt",
+                strategy_id=strategy_id,
+                is_terminal=is_terminal,
+            )
+            return Tier1Output(
+                scorer_id=self.scorer_id,
+                is_veto=False,
+                reasoning=f"LLM detected {kc_signal.get('response_type')} but {strategy_id} is exempt from veto (process-management strategy)",
+                signals={
+                    "llm_enhanced": True,
+                    "exempt_strategy": strategy_id,
+                    "is_terminal": is_terminal,
+                },
+            )
+
+        # Check consecutive terminal threshold (from ConsecutiveExhaustionScorer)
+        if new_count >= self.consecutive_terminal_threshold:
+            # Veto deepen/broaden/cover on consecutive terminal responses
+            if strategy_id in ["deepen", "broaden", "cover_element"]:
+                logger.info(
+                    "LLM signal: Consecutive terminal threshold exceeded - vetoing content strategies",
+                    consecutive_count=new_count,
+                    threshold=self.consecutive_terminal_threshold,
+                    vetoed_strategy=strategy_id,
+                )
+                return Tier1Output(
+                    scorer_id=self.scorer_id,
+                    is_veto=True,
+                    reasoning=f"LLM detected {new_count} consecutive terminal responses (threshold: {self.consecutive_terminal_threshold}). Last: {kc_signal.get('response_type')}. Vetoing {strategy_id}.",
+                    signals={
+                        "llm_enhanced": True,
+                        "response_type": kc_signal.get("response_type"),
+                        "has_curiosity": kc_signal.get("has_curiosity"),
+                        "consecutive_count": new_count,
+                        "threshold": self.consecutive_terminal_threshold,
+                    },
+                )
+            else:
+                # Allow other strategies even with consecutive terminal responses
+                logger.debug(
+                    "LLM signal: Consecutive terminal responses but allowing non-content strategy",
+                    consecutive_count=new_count,
+                    strategy_id=strategy_id,
+                )
+                return Tier1Output(
+                    scorer_id=self.scorer_id,
+                    is_veto=False,
+                    reasoning=f"LLM detected {new_count} consecutive terminal responses but {strategy_id} is allowed (non-content strategy)",
+                    signals={
+                        "llm_enhanced": True,
+                        "response_type": kc_signal.get("response_type"),
+                        "consecutive_count": new_count,
+                        "threshold": self.consecutive_terminal_threshold,
+                    },
+                )
+
         # Use LLM signal for nuanced decision
-        if kc_signal.get("is_terminal", False):
+        if is_terminal:
             # Terminal knowledge ceiling - veto depth strategies
             strategy_type = strategy.get("type_category", "")
-            if strategy_type == "depth" or strategy.get("id") == "deepen":
+            if strategy_type == "depth" or strategy_id == "deepen":
                 logger.info(
                     "LLM signal: Terminal knowledge ceiling detected - vetoing deepen",
                     response_type=kc_signal.get("response_type"),
@@ -156,15 +272,16 @@ class KnowledgeCeilingScorer(Tier1Scorer):
                 # Allow breadth/coverage strategies even with terminal ceiling
                 logger.debug(
                     "LLM signal: Terminal knowledge ceiling but allowing non-depth strategy",
-                    strategy_id=strategy.get("id"),
+                    strategy_id=strategy_id,
                 )
                 return Tier1Output(
                     scorer_id=self.scorer_id,
                     is_veto=False,
-                    reasoning=f"LLM detected terminal knowledge ceiling but {strategy.get('id')} may still be productive",
+                    reasoning=f"LLM detected terminal knowledge ceiling but {strategy_id} may still be productive",
                     signals={
                         "llm_enhanced": True,
                         "allowed_strategies": "breadth/coverage",
+                        "response_type": kc_signal.get("response_type"),
                     },
                 )
         else:

@@ -95,6 +95,25 @@ class ElementExhaustedScorer(Tier1Scorer):
         is_exhausted = mention_count >= self.max_mentions and has_relationships
 
         if is_exhausted:
+            # Check if strategy is exempt (process-management strategies)
+            strategy_id = strategy.get("id", "")
+            if self.is_strategy_exempt(strategy_id):
+                logger.debug(
+                    "Element exhausted but strategy is exempt",
+                    strategy_id=strategy_id,
+                )
+                return Tier1Output(
+                    scorer_id=self.scorer_id,
+                    is_veto=False,
+                    reasoning=f"Element '{element_id}' exhausted but {strategy_id} is exempt from veto (process-management strategy)",
+                    signals={
+                        "element_id": element_id,
+                        "mention_count": mention_count,
+                        "has_relationships": has_relationships,
+                        "exempt_strategy": strategy_id,
+                    },
+                )
+
             logger.info(
                 "Element exhausted - vetoing",
                 element_id=element_id,

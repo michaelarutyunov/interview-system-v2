@@ -313,14 +313,19 @@ class ScoringPersistenceStage(TurnStage):
         )
 
     async def _update_turn_count(self, context: "PipelineContext", scoring: dict):
-        """Update session turn count."""
+        """Update session turn count.
+
+        Note: context.turn_number already represents the current turn number
+        (equal to the number of user turns completed so far). We store it
+        directly without incrementing.
+        """
         from src.domain.models.session import SessionState
 
         updated_state = SessionState(
             methodology=context.methodology,
             concept_id=context.concept_id,
             concept_name=context.concept_name,
-            turn_count=context.turn_number + 1,
+            turn_count=context.turn_number,
             coverage_score=scoring.get("coverage", 0.0),
         )
         await self.session_repo.update_state(context.session_id, updated_state)

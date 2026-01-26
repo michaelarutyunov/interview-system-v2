@@ -100,7 +100,9 @@ class RecentRedundancyScorer(Tier1Scorer):
 
         # Extract recent system questions and user responses
         recent_questions = self._extract_recent_questions(conversation_history)
-        recent_user_responses = self._extract_recent_user_responses(conversation_history)
+        recent_user_responses = self._extract_recent_user_responses(
+            conversation_history
+        )
 
         # Check 1: Similarity to recent system questions
         question_similarity = 0.0
@@ -121,7 +123,9 @@ class RecentRedundancyScorer(Tier1Scorer):
 
         # Determine veto based on either threshold
         is_question_redundant = question_similarity >= self.similarity_threshold
-        is_user_already_explained = user_response_similarity >= self.user_response_threshold
+        is_user_already_explained = (
+            user_response_similarity >= self.user_response_threshold
+        )
 
         signals = {
             "proposed_question": proposed_question[:50],
@@ -133,7 +137,26 @@ class RecentRedundancyScorer(Tier1Scorer):
             "recent_responses_count": len(recent_user_responses),
         }
 
+        # Check if strategy is exempt (process-management strategies)
+        strategy_id = strategy.get("id", "")
+
         if is_question_redundant:
+            if self.is_strategy_exempt(strategy_id):
+                logger.debug(
+                    "Question redundancy detected but strategy is exempt",
+                    strategy_id=strategy_id,
+                    similarity=question_similarity,
+                )
+                return Tier1Output(
+                    scorer_id=self.scorer_id,
+                    is_veto=False,
+                    reasoning=f"Question too similar to recent question but {strategy_id} is exempt from veto (process-management strategy)",
+                    signals={
+                        **signals,
+                        "exempt_strategy": strategy_id,
+                    },
+                )
+
             logger.info(
                 "Recent redundancy detected - too similar to recent question",
                 similarity=question_similarity,
@@ -148,6 +171,22 @@ class RecentRedundancyScorer(Tier1Scorer):
             )
 
         if is_user_already_explained:
+            if self.is_strategy_exempt(strategy_id):
+                logger.debug(
+                    "User already explained but strategy is exempt",
+                    strategy_id=strategy_id,
+                    similarity=user_response_similarity,
+                )
+                return Tier1Output(
+                    scorer_id=self.scorer_id,
+                    is_veto=False,
+                    reasoning=f"User already explained this topic but {strategy_id} is exempt from veto (process-management strategy)",
+                    signals={
+                        **signals,
+                        "exempt_strategy": strategy_id,
+                    },
+                )
+
             logger.info(
                 "User already explained this topic - vetoing to avoid repetition",
                 similarity=user_response_similarity,

@@ -1,13 +1,18 @@
 """Session repository for database operations."""
 
 import json
+import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any
 
 import aiosqlite
 
+from src.core.concept_loader import load_concept
 from src.domain.models.session import Session, SessionState
 from src.domain.models.utterance import Utterance
+import structlog
+
+log = structlog.get_logger(__name__)
 
 
 class SessionRepository:
@@ -19,7 +24,7 @@ class SessionRepository:
     async def create(
         self, session: Session, config: Optional[Dict[str, Any]] = None
     ) -> Session:
-        """Create a new session."""
+        """Create a new session and populate concept_elements."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             config_json = json.dumps(config or {})
@@ -40,6 +45,9 @@ class SessionRepository:
             )
             await db.commit()
 
+            # Populate concept_elements from concept configuration
+            await self._populate_concept_elements(db, session.id, session.concept_id)
+
             # Fetch the created session to get the timestamps
             cursor = await db.execute(
                 "SELECT * FROM sessions WHERE id = ?", (session.id,)
@@ -48,6 +56,67 @@ class SessionRepository:
             if not row:
                 raise ValueError(f"Session {session.id} not found after creation")
             return self._row_to_session(row)
+
+    async def _populate_concept_elements(
+        self, db: aiosqlite.Connection, session_id: str, concept_id: str
+    ) -> None:
+        """
+        Populate concept_elements table from concept configuration.
+
+        This enables coverage tracking by copying predefined elements from
+        the concept YAML file into the database for this specific session.
+
+        Args:
+            db: Active database connection
+            session_id: Session ID to link elements to
+            concept_id: Concept ID (e.g., 'coffee_jtbd_v2')
+        """
+        try:
+            # Load concept configuration
+            concept = load_concept(concept_id)
+
+            # Insert each element
+            for element in concept.elements:
+                element_uuid = str(uuid.uuid4())
+                await db.execute(
+                    """INSERT INTO concept_elements (
+                        id, session_id, element_id, label, element_type,
+                        priority, is_covered, covered_at, covered_by_node_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, 0, NULL, NULL)""",
+                    (
+                        element_uuid,
+                        session_id,
+                        element.id,  # Integer ID from concept config
+                        element.label,
+                        "attribute",  # Default element_type
+                        "medium",  # Default priority
+                    ),
+                )
+
+            await db.commit()
+            log.info(
+                "concept_elements_populated",
+                session_id=session_id,
+                concept_id=concept_id,
+                element_count=len(concept.elements),
+            )
+
+        except FileNotFoundError:
+            # Concept file not found - log warning but don't fail session creation
+            log.warning(
+                "concept_file_not_found",
+                session_id=session_id,
+                concept_id=concept_id,
+                detail="No concept_elements populated for this session",
+            )
+        except Exception as e:
+            # Log error but don't fail session creation
+            log.error(
+                "concept_elements_population_failed",
+                session_id=session_id,
+                concept_id=concept_id,
+                error=str(e),
+            )
 
     async def get(self, session_id: str) -> Optional[Session]:
         """Get a session by ID."""

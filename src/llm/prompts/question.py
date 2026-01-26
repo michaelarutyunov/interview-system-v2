@@ -2,53 +2,93 @@
 Prompts for question generation.
 
 Generates follow-up questions based on:
-- Selected strategy (deepen, broaden, cover, close)
+- Selected strategy (deepen, broaden, cover_element, closing, reflection,
+                  bridge, contrast, ease, synthesis)
 - Current graph state (what we know so far)
 - Recent conversation context
 - Focus concept (what to ask about)
 
-Phase 2: Hardcoded "deepen" strategy.
-Phase 3: Full strategy selection.
+Strategy definitions are loaded from config/scoring.yaml.
 """
 
 from typing import Optional, List, Dict
 
 
 # Strategy descriptions for prompts
+# Note: Keys must match strategy.id values in config/scoring.yaml
 STRATEGY_DESCRIPTIONS = {
     "deepen": {
-        "name": "Deepen",
+        "name": "Deepen Understanding",
         "intent": "Explore why something matters to understand deeper motivations",
         "probe_style": "Ask 'why is that important?' type questions",
         "example": "You mentioned {concept} - why is that important to you?",
     },
     "broaden": {
-        "name": "Broaden",
+        "name": "Explore Breadth",
         "intent": "Find new branches and related concepts",
         "probe_style": "Ask 'what else?' type questions",
         "example": "Besides {concept}, what else matters to you about this?",
     },
-    "cover": {
-        "name": "Cover",
+    "cover_element": {
+        "name": "Cover Stimulus Element",
         "intent": "Explore untouched stimulus elements",
         "probe_style": "Introduce new topic naturally",
         "example": "I'd like to hear your thoughts about {element}...",
     },
-    "close": {
-        "name": "Close",
+    "closing": {
+        "name": "Closing Interview",
         "intent": "Wrap up the interview naturally",
         "probe_style": "Summarize and invite final thoughts",
         "example": "We've covered a lot - is there anything else you'd like to add?",
     },
+    "reflection": {
+        "name": "Reflection / Meta-Question",
+        "intent": "Ask a meta-question about the interview process or experience",
+        "probe_style": "Step back and reflect on the conversation",
+        "example": "How has this conversation been for you so far?",
+    },
+    "bridge": {
+        "name": "Lateral Bridge to Peripheral",
+        "intent": "Link to what was just said, then gently shift to a related area",
+        "probe_style": "Acknowledge their point, then explore a connected topic",
+        "example": "That's interesting about X. Have you also noticed anything about Y?",
+    },
+    "contrast": {
+        "name": "Introduce Counter-Example",
+        "intent": "Politely introduce a counter-example to test boundaries",
+        "probe_style": "Gently challenge with an opposite case",
+        "example": "That makes sense. Have you ever experienced the opposite - where X?",
+    },
+    "ease": {
+        "name": "Ease / Rapport Repair",
+        "intent": "Simplify or soften the question to encourage participation",
+        "probe_style": "Make the question easier to answer",
+        "example": "Let me put this more simply - what do you think about X?",
+    },
+    "synthesis": {
+        "name": "Summarise & Invite Extension",
+        "intent": "Briefly summarize what you've heard and invite correction or addition",
+        "probe_style": "Reflect back and ask for more",
+        "example": "So far I've heard X and Y. Is that right, or is there more to add?",
+    },
+    "clarify": {
+        "name": "Clarify / Rephrase",
+        "intent": "Rephrase the previous question when user shows confusion or lack of understanding",
+        "probe_style": "Ask the same thing in simpler, clearer words",
+        "example": "Let me put this more simply - what do you think about {concept}?",
+    },
 }
 
 
-def get_question_system_prompt(strategy: str = "deepen", topic: Optional[str] = None) -> str:
+def get_question_system_prompt(
+    strategy: str = "deepen", topic: Optional[str] = None
+) -> str:
     """
     Get system prompt for question generation.
 
     Args:
-        strategy: Strategy name (deepen, broaden, cover, close)
+        strategy: Strategy name (deepen, broaden, cover_element, closing, reflection,
+                      bridge, contrast, ease, synthesis) - must match config/scoring.yaml
         topic: Research topic to anchor questions to (prevents drift)
 
     Returns:
@@ -66,28 +106,27 @@ ensure questions remain connected to the respondent's experience with {topic}.
 If the conversation drifts too far into abstract philosophy, gently relate back to {topic}.
 """
 
-    return f"""You are a skilled qualitative researcher conducting an interview using the Means-End Chain methodology.
+    return f"""You are a skilled qualitative researcher conducting an interview.
 
 Your current strategy is: **{strat["name"]}**
 Strategy intent: {strat["intent"]}
 Probe style: {strat["probe_style"]}
 
-## Interview Guidelines:
+## Question Style Guidelines:
 1. Ask ONE question at a time
-2. Use the respondent's own language and concepts
-3. Be warm, curious, and non-judgmental
-4. Questions should feel natural and conversational
-5. Avoid leading questions - stay open-ended
-6. Reference what the respondent said to show you're listening
+2. **Keep questions UNDER 15 WORDS** when possible
+3. Use simple, everyday language
+4. Be direct - avoid nested clauses and complex phrasing
+5. Use the respondent's own words when referencing what they said
+6. Be warm, curious, and non-judgmental
+7. Avoid leading questions - stay open-ended
+
+## Examples:
+- BAD: "Beyond what you mentioned about X, what else might Y be in terms of Z?"
+- GOOD: "What else does coffee do for you?"
+- BAD: "When you think about being reliable through your daily routine, why does that matter?"
+- GOOD: "Why does having that routine matter to you?"
 {topic_instruction}
-## Means-End Chain Methodology:
-- Start with concrete Attributes (product features)
-- Probe toward Functional Consequences (what it does)
-- Move to Psychosocial Consequences (how it makes them feel)
-- Ultimately reach Values (why it matters deeply)
-
-The typical "laddering" question is: "Why is that important to you?"
-
 ## Output:
 Generate ONLY the question - no explanations, no quotation marks, just the question itself."""
 
@@ -109,7 +148,7 @@ def get_question_user_prompt(
         graph_summary: Summary of what we know so far
         strategy: Strategy name
         topic: Research topic to anchor questions to (prevents drift)
-        depth_achieved: Current depth in the means-end chain (0-4+)
+        depth_achieved: Current depth in the conversation (0-4+)
 
     Returns:
         User prompt string

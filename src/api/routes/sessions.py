@@ -145,9 +145,18 @@ async def create_session(
     session_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
 
-    # Get concept_name and max_turns from config
+    # Get concept_name from config
     concept_name = request.config.get("concept_name", request.concept_id)
-    max_turns = request.config.get("max_turns", 20)
+
+    # Calculate max_turns from phase configuration (or use explicit override)
+    from src.core.config import interview_config
+
+    default_max_turns = (
+        (interview_config.phases.exploratory.n_turns or 4)
+        + (interview_config.phases.focused.n_turns or 6)
+        + (interview_config.phases.closing.n_turns or 1)
+    )
+    max_turns = request.config.get("max_turns", default_max_turns)
 
     session = Session(
         id=session_id,

@@ -53,10 +53,13 @@ class Tier1Scorer(ABC):
                 - enabled: bool (default: True)
                 - veto_threshold: float (if applicable)
                 - params: dict of scorer-specific params
+                - exempt_strategies: list of strategy IDs that are never vetoed by this scorer
         """
         self.config = config or {}
         self.enabled = self.config.get("enabled", True)
         self.params = self.config.get("params", {})
+        # Process-management strategies that should never be vetoed
+        self.exempt_strategies = set(self.params.get("exempt_strategies", []))
 
         # Extract scorer_id from class name
         self.scorer_id = self.__class__.__name__
@@ -90,8 +93,25 @@ class Tier1Scorer(ABC):
         """
         pass
 
+    def is_strategy_exempt(self, strategy_id: str) -> bool:
+        """Check if a strategy is exempt from vetoing.
+
+        Process-management strategies (closing, ease, reflection, clarify) should
+        never be vetoed as they manage the interview process rather than building content.
+
+        Args:
+            strategy_id: Strategy ID to check
+
+        Returns:
+            True if strategy is exempt from vetoing
+        """
+        return strategy_id in self.exempt_strategies
+
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(enabled={self.enabled})"
+        exempt_str = (
+            f", exempt={list(self.exempt_strategies)}" if self.exempt_strategies else ""
+        )
+        return f"{self.__class__.__name__}(enabled={self.enabled}{exempt_str})"
 
 
 class Tier2Output(BaseModel):

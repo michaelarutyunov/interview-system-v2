@@ -117,6 +117,12 @@ class AmbiguityScorer(Tier2Scorer):
         Checks graph_state.properties for 'qualitative_signals' key containing
         QualitativeSignalSet. Uses uncertainty_signal if available.
 
+        Strategy-aware scoring:
+        - conceptual_clarity: Boost clarify/ease, PENALIZE deepen/broaden/bridge
+        - knowledge_gap: Boost clarify/ease, PENALIZE deepen
+        - apathy: Boost ease, PENALIZE deepen
+        - epistemic_humility: No penalty (all strategies OK)
+
         Args:
             strategy: Strategy being evaluated
             focus: Focus target
@@ -140,28 +146,68 @@ class AmbiguityScorer(Tier2Scorer):
         uncertainty_type = uncertainty_signal.get("uncertainty_type", "")
         severity = uncertainty_signal.get("severity", 0.5)
         confidence = uncertainty_signal.get("confidence", 0.7)
+        strategy_id = strategy.get("id", "")
 
-        # Map uncertainty type to score
-        # High ambiguity = higher score (boost clarification strategies)
+        # Map uncertainty type to score (STRATEGY-AWARE)
+        # High ambiguity = higher score for clarification strategies
+
         if uncertainty_type == "knowledge_gap":
-            # Terminal knowledge gap - strong boost for clarification
-            raw_score = 1.6
-            reasoning = f"LLM detected knowledge gap (severity: {severity:.2f}): {uncertainty_signal.get('reasoning', '')}"
+            # Terminal knowledge gap - clarify is best, deepen is bad
+            if strategy_id == "clarify":
+                raw_score = 1.8
+                reasoning = f"LLM detected knowledge gap - clarify recommended (severity: {severity:.2f})"
+            elif strategy_id in ["ease", "synthesis"]:
+                raw_score = 1.3
+                reasoning = f"LLM detected knowledge gap - rapport strategies OK (severity: {severity:.2f})"
+            elif strategy_id in ["deepen", "broaden", "bridge"]:
+                raw_score = 0.5  # STRONG PENALTY - don't push deeper on knowledge gap
+                reasoning = f"LLM detected knowledge gap - deepen/broaden vetoed (severity: {severity:.2f})"
+            else:
+                raw_score = 1.0  # Neutral for other strategies
+                reasoning = f"LLM detected knowledge gap - neutral for {strategy_id} (severity: {severity:.2f})"
+
         elif uncertainty_type == "conceptual_clarity":
-            # User doesn't understand - very strong boost for clarification
-            raw_score = 1.8
-            reasoning = f"LLM detected conceptual clarity issue (severity: {severity:.2f}): {uncertainty_signal.get('reasoning', '')}"
+            # User doesn't understand - clarify is essential, deepen is bad
+            if strategy_id == "clarify":
+                raw_score = 1.8  # Maximum boost for clarify on confusion
+                reasoning = f"LLM detected conceptual confusion - clarify essential (severity: {severity:.2f})"
+            elif strategy_id in ["ease", "synthesis", "reflection"]:
+                raw_score = 1.3  # Moderate boost for rapport/repair strategies
+                reasoning = f"LLM detected conceptual confusion - rapport strategies OK (severity: {severity:.2f})"
+            elif strategy_id in ["deepen", "broaden", "bridge"]:
+                raw_score = 0.4  # VERY STRONG PENALTY - never deepen on confusion
+                reasoning = f"LLM detected conceptual confusion - deepen/broaden forbidden (severity: {severity:.2f})"
+            else:
+                raw_score = 0.9  # Slight penalty for other strategies on confusion
+                reasoning = f"LLM detected conceptual confusion - {strategy_id} suboptimal (severity: {severity:.2f})"
+
         elif uncertainty_type == "apathy":
-            # User disengaged - may need rapport repair, not clarification
-            raw_score = 0.8
-            reasoning = f"LLM detected apathy (severity: {severity:.2f}): clarification may not help"
+            # User disengaged - ease is best, deepen is bad
+            if strategy_id == "ease":
+                raw_score = 1.6  # Strong boost for rapport repair
+                reasoning = f"LLM detected apathy - ease/rapport repair essential (severity: {severity:.2f})"
+            elif strategy_id == "clarify":
+                raw_score = 1.2  # Clarify may help simplify
+                reasoning = f"LLM detected apathy - clarify may simplify (severity: {severity:.2f})"
+            elif strategy_id == "deepen":
+                raw_score = 0.5  # PENALTY - don't push deeper when disengaged
+                reasoning = f"LLM detected apathy - deepen inappropriate (severity: {severity:.2f})"
+            else:
+                raw_score = 0.9  # Slight penalty for most strategies
+                reasoning = f"LLM detected apathy - {strategy_id} may not engage (severity: {severity:.2f})"
+
         elif uncertainty_type == "epistemic_humility":
-            # Honest uncertainty - moderate boost for clarification
-            raw_score = 1.3
-            reasoning = f"LLM detected epistemic humility (severity: {severity:.2f}): worth exploring"
+            # Honest uncertainty - all strategies OK, mild boost for depth
+            if strategy_id in ["deepen", "clarify"]:
+                raw_score = 1.3  # Boost for exploration on honest uncertainty
+                reasoning = f"LLM detected epistemic humility - explore deeper (severity: {severity:.2f})"
+            else:
+                raw_score = 1.1  # Mild boost for all strategies
+                reasoning = f"LLM detected epistemic humility - worth exploring (severity: {severity:.2f})"
+
         else:
-            # confidence_qualification or default - mild boost
-            raw_score = 1.1 + (severity * 0.3)
+            # confidence_qualification or default - mild boost for all
+            raw_score = 1.1 + (severity * 0.2)
             reasoning = f"LLM detected {uncertainty_type} (severity: {severity:.2f}): {uncertainty_signal.get('reasoning', '')}"
 
         logger.debug(
@@ -169,6 +215,7 @@ class AmbiguityScorer(Tier2Scorer):
             score=raw_score,
             uncertainty_type=uncertainty_type,
             severity=severity,
+            strategy_id=strategy_id,
         )
 
         return self.make_output(
@@ -178,6 +225,7 @@ class AmbiguityScorer(Tier2Scorer):
                 "uncertainty_type": uncertainty_type,
                 "severity": severity,
                 "llm_confidence": confidence,
+                "strategy_id": strategy_id,
                 "examples": uncertainty_signal.get("examples", []),
             },
             reasoning=reasoning,

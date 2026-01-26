@@ -35,11 +35,11 @@ session:
 # Phases control which strategies are boosted via phase_profiles in config/scoring.yaml
 phases:
   exploratory:
-    n_turns: 4  # Focus on breadth exploration
+    n_turns: 5  # Focus on breadth exploration
   focused:
-    n_turns: 6  # Balance depth and coverage
+    n_turns: 5  # Balance depth and coverage
   closing:
-    n_turns: 1  # Wrap up (extendable via session.max_turns)
+    n_turns: 2  # Wrap up (extendable via session.max_turns)
 
 # ============================================================================
 # Strategy Service Configuration

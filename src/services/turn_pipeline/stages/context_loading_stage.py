@@ -59,7 +59,15 @@ class ContextLoadingStage(TurnStage):
             raise ValueError(f"Session {context.session_id} not found")
 
         # Get session config to read max_turns
-        max_turns = 20  # Default
+        # Default is calculated from phase configuration
+        from src.core.config import interview_config
+
+        default_max_turns = (
+            (interview_config.phases.exploratory.n_turns or 4)
+            + (interview_config.phases.focused.n_turns or 6)
+            + (interview_config.phases.closing.n_turns or 1)
+        )
+        max_turns = default_max_turns
         async with aiosqlite.connect(str(self.session_repo.db_path)) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
@@ -68,7 +76,7 @@ class ContextLoadingStage(TurnStage):
             row = await cursor.fetchone()
             if row:
                 config = json.loads(row["config"]) if row["config"] else {}
-                max_turns = config.get("max_turns", 20)
+                max_turns = config.get("max_turns", default_max_turns)
 
         # Get recent utterances
         recent_utterances = await self._get_recent_utterances(

@@ -123,8 +123,7 @@ class GraphVisualizer:
             edges = [
                 e
                 for e in edges
-                if e.get("source_node_id") in node_ids
-                and e.get("target_node_id") in node_ids
+                if e.get("source_id") in node_ids and e.get("target_id") in node_ids
             ]
 
         # Build NetworkX graph
@@ -134,8 +133,8 @@ class GraphVisualizer:
 
         for edge in edges:
             G.add_edge(
-                edge["source_node_id"],
-                edge["target_node_id"],
+                edge["source_id"],
+                edge["target_id"],
                 edge_type=edge.get("edge_type", "leads_to"),
                 **edge,
             )
@@ -177,8 +176,8 @@ class GraphVisualizer:
         edge_y = []
 
         for edge in edges:
-            x0, y0 = pos[edge["source_node_id"]]
-            x1, y1 = pos[edge["target_node_id"]]
+            x0, y0 = pos[edge["source_id"]]
+            x1, y1 = pos[edge["target_id"]]
             edge_x.extend([x0, x1, None])
             edge_y.extend([y0, y1, None])
 
@@ -265,8 +264,8 @@ class GraphVisualizer:
         edge_z = []
 
         for edge in edges:
-            x0, y0, z0 = pos_3d[edge["source_node_id"]]
-            x1, y1, z1 = pos_3d[edge["target_node_id"]]
+            x0, y0, z0 = pos_3d[edge["source_id"]]
+            x1, y1, z1 = pos_3d[edge["target_id"]]
             edge_x.extend([x0, x1, None])
             edge_y.extend([y0, y1, None])
             edge_z.extend([z0, z1, None])
