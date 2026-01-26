@@ -52,3 +52,4 @@ Accepted | Proposed | Deprecated | Superseded by [ADR-YYY]
 | [007](007-yaml-based-methodology-schema.md) | YAML-Based Methodology Schema Externalization | Accepted | 2025-01-23 |
 | [008](008-internal-api-boundaries-pipeline-pattern.md) | Internal API Boundaries & Pipeline Pattern | Accepted | 2025-01-23 |
 | [009](009-fail-fast-error-handling-mvp.md) | Fail-Fast Error Handling for MVP | Accepted | 2025-01-23 |
+| [010](010-three-client-llm-architecture.md) | Three-Client LLM Architecture | Accepted | 2025-01-26 |
