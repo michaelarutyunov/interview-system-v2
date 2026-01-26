@@ -220,6 +220,34 @@ class SessionRepository:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
+    async def get_all_scoring_candidates(self, session_id: str) -> Dict[int, list]:
+        """Get all scoring candidates for a session, grouped by turn_number.
+
+        Returns:
+            Dict mapping turn_number to list of candidate dicts.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                """SELECT
+                    turn_number, id, strategy_id, strategy_name, focus_type,
+                    focus_description, final_score, is_selected, vetoed_by,
+                    tier1_results, tier2_results, reasoning
+                   FROM scoring_candidates
+                   WHERE session_id = ?
+                   ORDER BY turn_number ASC, final_score DESC""",
+                (session_id,),
+            )
+            rows = await cursor.fetchall()
+            # Group by turn_number
+            result = {}
+            for row in rows:
+                turn = row["turn_number"]
+                if turn not in result:
+                    result[turn] = []
+                result[turn].append(dict(row))
+            return result
+
     async def get_all_turn_numbers_with_scoring(self, session_id: str) -> list:
         """Get all turn numbers that have scoring data."""
         async with aiosqlite.connect(self.db_path) as db:
@@ -267,6 +295,115 @@ class SessionRepository:
                 "strategy": row[0] if row else "unknown",
                 "reasoning": row[1] if row and len(row) > 1 else None,
             }
+
+    async def save_qualitative_signals(
+        self,
+        signal_id: str,
+        session_id: str,
+        turn_number: int,
+        signals: Dict[str, Any],
+        llm_model: str = "unknown",
+        extraction_latency_ms: int = 0,
+        extraction_errors: Optional[list] = None,
+    ) -> None:
+        """Save LLM-extracted qualitative signals for a turn.
+
+        Args:
+            signal_id: Unique identifier for this signal record
+            session_id: Session ID
+            turn_number: Turn number
+            signals: Dict with keys uncertainty, reasoning, emotional, contradiction,
+                     knowledge_ceiling, concept_depth (each a dict or None)
+            llm_model: Model used for extraction
+            extraction_latency_ms: Time taken to extract signals
+            extraction_errors: List of error messages (if any)
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                """INSERT INTO qualitative_signals (
+                    id, session_id, turn_number,
+                    llm_model, extraction_latency_ms, extraction_errors,
+                    uncertainty_signal, reasoning_signal, emotional_signal,
+                    contradiction_signal, knowledge_ceiling_signal, concept_depth_signal
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    signal_id,
+                    session_id,
+                    turn_number,
+                    llm_model,
+                    extraction_latency_ms,
+                    json.dumps(extraction_errors or []),
+                    json.dumps(signals.get("uncertainty"))
+                    if signals.get("uncertainty")
+                    else None,
+                    json.dumps(signals.get("reasoning"))
+                    if signals.get("reasoning")
+                    else None,
+                    json.dumps(signals.get("emotional"))
+                    if signals.get("emotional")
+                    else None,
+                    json.dumps(signals.get("contradiction"))
+                    if signals.get("contradiction")
+                    else None,
+                    json.dumps(signals.get("knowledge_ceiling"))
+                    if signals.get("knowledge_ceiling")
+                    else None,
+                    json.dumps(signals.get("concept_depth"))
+                    if signals.get("concept_depth")
+                    else None,
+                ),
+            )
+            await db.commit()
+
+    async def get_all_qualitative_signals(self, session_id: str) -> Dict[int, Dict]:
+        """Get all qualitative signals for a session, grouped by turn_number.
+
+        Returns:
+            Dict mapping turn_number to signal dict with all signal types.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                """SELECT
+                    turn_number, llm_model, extraction_latency_ms, extraction_errors,
+                    uncertainty_signal, reasoning_signal, emotional_signal,
+                    contradiction_signal, knowledge_ceiling_signal, concept_depth_signal
+                   FROM qualitative_signals
+                   WHERE session_id = ?
+                   ORDER BY turn_number ASC""",
+                (session_id,),
+            )
+            rows = await cursor.fetchall()
+            result = {}
+            for row in rows:
+                turn = row["turn_number"]
+                result[turn] = {
+                    "turn_number": turn,
+                    "llm_model": row["llm_model"],
+                    "extraction_latency_ms": row["extraction_latency_ms"],
+                    "extraction_errors": json.loads(row["extraction_errors"])
+                    if row["extraction_errors"]
+                    else [],
+                    "uncertainty": json.loads(row["uncertainty_signal"])
+                    if row["uncertainty_signal"]
+                    else None,
+                    "reasoning": json.loads(row["reasoning_signal"])
+                    if row["reasoning_signal"]
+                    else None,
+                    "emotional": json.loads(row["emotional_signal"])
+                    if row["emotional_signal"]
+                    else None,
+                    "contradiction": json.loads(row["contradiction_signal"])
+                    if row["contradiction_signal"]
+                    else None,
+                    "knowledge_ceiling": json.loads(row["knowledge_ceiling_signal"])
+                    if row["knowledge_ceiling_signal"]
+                    else None,
+                    "concept_depth": json.loads(row["concept_depth_signal"])
+                    if row["concept_depth_signal"]
+                    else None,
+                }
+            return result
 
     def _row_to_utterance(self, row: aiosqlite.Row) -> Utterance:
         """Convert a database row to an Utterance model."""

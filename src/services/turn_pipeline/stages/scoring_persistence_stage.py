@@ -58,6 +58,9 @@ class ScoringPersistenceStage(TurnStage):
             selection_result=context.selection_result,
         )
 
+        # Save LLM qualitative signals if available
+        await self._save_qualitative_signals(context)
+
         context.scoring = scoring
 
         # Update session turn count
@@ -171,6 +174,71 @@ class ScoringPersistenceStage(TurnStage):
                     )
 
             await db.commit()
+
+    async def _save_qualitative_signals(self, context: "PipelineContext") -> None:
+        """Save LLM-extracted qualitative signals from graph_state.
+
+        Extracts signals from graph_state.properties["qualitative_signals"]
+        and persists them to the qualitative_signals table.
+        """
+        if not context.graph_state:
+            return
+
+        signals_data = context.graph_state.properties.get("qualitative_signals")
+        if not signals_data:
+            return
+
+        # Extract signal metadata
+        llm_model = signals_data.get("llm_model", "unknown")
+        extraction_latency_ms = signals_data.get("extraction_latency_ms", 0)
+        extraction_errors = signals_data.get("extraction_errors", [])
+
+        # Extract individual signals
+        signals = {}
+        for signal_type in [
+            "uncertainty",
+            "reasoning",
+            "emotional",
+            "contradiction",
+            "knowledge_ceiling",
+            "concept_depth",
+        ]:
+            signal = signals_data.get(signal_type)
+            if signal:
+                # Handle both dict and model representations
+                if hasattr(signal, "model_dump"):
+                    signals[signal_type] = signal.model_dump()
+                elif isinstance(signal, dict):
+                    signals[signal_type] = signal
+                else:
+                    signals[signal_type] = {"data": signal}
+
+        if signals:  # Only save if we have at least one signal
+            signal_id = str(uuid.uuid4())
+            try:
+                await self.session_repo.save_qualitative_signals(
+                    signal_id=signal_id,
+                    session_id=context.session_id,
+                    turn_number=context.turn_number,
+                    signals=signals,
+                    llm_model=llm_model,
+                    extraction_latency_ms=extraction_latency_ms,
+                    extraction_errors=extraction_errors,
+                )
+                log.debug(
+                    "qualitative_signals_saved",
+                    session_id=context.session_id,
+                    turn_number=context.turn_number,
+                    signal_types=list(signals.keys()),
+                )
+            except Exception as e:
+                log.warning(
+                    "failed_to_save_qualitative_signals",
+                    session_id=context.session_id,
+                    turn_number=context.turn_number,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
 
     async def _save_candidate(
         self,

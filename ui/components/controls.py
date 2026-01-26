@@ -64,17 +64,36 @@ class SessionControls:
         """Render new session creation form."""
         st.subheader("Create New Session")
 
-        # Concept selection
-        concept_id = st.selectbox(
+        # Load concepts from API
+        if st.session_state.get("concepts") is None:
+            self._load_concepts()
+
+        concepts = st.session_state.get("concepts", [])
+
+        if not concepts:
+            st.warning("No concepts available. Check if the API is running.")
+            return
+
+        # Concept selection - map concept name/id for display
+        concept_options = {
+            f"{c.get('name', c['id'])} ({c['id']})": c["id"] for c in concepts
+        }
+        concept_display_id = st.selectbox(
             "Concept",
-            options=["oat_milk_v1"],  # Add more as available
+            options=list(concept_options.keys()),
             label_visibility="collapsed",
         )
+        concept_id = concept_options[concept_display_id]
 
         # Methodology selection
         methodology = st.selectbox(
             "Methodology",
-            options=["means_end_chain", "laddering", "critical_incident"],
+            options=[
+                "means_end_chain",
+                "jobs_to_be_done",
+                "critical_incident",
+                "repertory_grid",
+            ],
             label_visibility="collapsed",
         )
 
@@ -261,6 +280,15 @@ class SessionControls:
             st.error(f"Failed to load sessions: {str(e)}")
             st.session_state.sessions = []
 
+    def _load_concepts(self):
+        """Load available concepts from API."""
+        try:
+            concepts = self.api_client.list_concepts()
+            st.session_state.concepts = concepts
+        except Exception as e:
+            st.error(f"Failed to load concepts: {str(e)}")
+            st.session_state.concepts = []
+
     def _render_export(self):
         """Render export options."""
         st.subheader("Export Session")
@@ -319,6 +347,8 @@ def initialize_session_state():
         st.session_state.current_session = None
     if "sessions" not in st.session_state:
         st.session_state.sessions = None
+    if "concepts" not in st.session_state:
+        st.session_state.concepts = None
     if "confirm_delete" not in st.session_state:
         st.session_state.confirm_delete = False
 

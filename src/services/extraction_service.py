@@ -15,7 +15,7 @@ from typing import Optional, List, Dict
 
 import structlog
 
-from src.llm.client import LLMClient, get_llm_client
+from src.llm.client import LLMClient, get_extraction_llm_client
 from src.llm.prompts.extraction import (
     get_extraction_system_prompt,
     get_extraction_user_prompt,
@@ -60,7 +60,7 @@ class ExtractionService:
             methodology: Methodology schema name (e.g., "means_end_chain")
             concept_id: Optional concept ID for element linking
         """
-        self.llm = llm_client or get_llm_client()
+        self.llm = llm_client or get_extraction_llm_client()
         self.skip_extractability_check = skip_extractability_check
         self.min_word_count = min_word_count
         self.methodology = methodology

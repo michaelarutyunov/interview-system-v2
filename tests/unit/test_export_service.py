@@ -31,6 +31,8 @@ class TestExportService:
         session_repo.get.return_value = mock_session
         session_repo.get_utterances.return_value = []
         session_repo.get_scoring_history.return_value = []
+        session_repo.get_all_scoring_candidates.return_value = {}
+        session_repo.get_all_qualitative_signals.return_value = {}
 
         # Setup mock graph
         graph_repo.get_nodes_by_session.return_value = [
@@ -84,6 +86,8 @@ class TestExportService:
             )
         ]
         session_repo.get_scoring_history.return_value = []
+        session_repo.get_all_scoring_candidates.return_value = {}
+        session_repo.get_all_qualitative_signals.return_value = {}
 
         graph_repo.get_nodes_by_session.return_value = []
         graph_repo.get_edges_by_session.return_value = []
@@ -114,6 +118,8 @@ class TestExportService:
         session_repo.get.return_value = mock_session
         session_repo.get_utterances.return_value = []
         session_repo.get_scoring_history.return_value = []
+        session_repo.get_all_scoring_candidates.return_value = {}
+        session_repo.get_all_qualitative_signals.return_value = {}
 
         node = KGNode(
             id="n1",

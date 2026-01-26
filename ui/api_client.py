@@ -171,6 +171,17 @@ class APIClient:
             response.raise_for_status()
             return response.json()
 
+    def list_concepts(self) -> List[Dict[str, Any]]:
+        """List available concept configurations (synchronous).
+
+        Returns:
+            List of concept dicts with id, name, methodology, element_count
+        """
+        with httpx.Client(timeout=self.timeout) as client:
+            response = client.get(f"{self.base_url}/concepts")
+            response.raise_for_status()
+            return response.json()
+
     def start_session(self, session_id: str) -> str:
         """Start an interview session and get the opening question (synchronous).
 

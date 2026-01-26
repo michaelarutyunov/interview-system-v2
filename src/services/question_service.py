@@ -14,7 +14,7 @@ from typing import Optional, List, Dict
 
 import structlog
 
-from src.llm.client import LLMClient, get_llm_client
+from src.llm.client import LLMClient, get_generation_llm_client
 from src.llm.prompts.question import (
     get_question_system_prompt,
     get_question_user_prompt,
@@ -48,7 +48,7 @@ class QuestionService:
             llm_client: LLM client instance (creates default if None)
             default_strategy: Default strategy for Phase 2 (hardcoded "deepen")
         """
-        self.llm = llm_client or get_llm_client()
+        self.llm = llm_client or get_generation_llm_client()
         self.default_strategy = default_strategy
 
         log.info("question_service_initialized", default_strategy=default_strategy)

@@ -20,7 +20,7 @@ from typing import Optional, List, Dict, Any
 
 import structlog
 
-from src.llm.client import LLMClient, get_light_llm_client, LLMResponse
+from src.llm.client import LLMClient, get_scoring_llm_client, LLMResponse
 from src.llm.prompts.qualitative_signals import (
     get_qualitative_signals_system_prompt,
     get_qualitative_signals_user_prompt,
@@ -82,7 +82,7 @@ class QualitativeSignalExtractor:
                 Options: "uncertainty", "reasoning", "emotional",
                         "contradiction", "knowledge_ceiling", "concept_depth"
         """
-        self.llm = llm_client or get_light_llm_client()
+        self.llm = llm_client or get_scoring_llm_client()
         self.enabled_signals = set(enabled_signals) if enabled_signals else None
 
         log.info(

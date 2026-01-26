@@ -158,6 +158,12 @@ class ExportService:
         # Get scoring history
         scoring_history = await self.session_repo.get_scoring_history(session_id)
 
+        # Get all scoring candidates for diagnostics
+        all_candidates = await self.session_repo.get_all_scoring_candidates(session_id)
+
+        # Get all qualitative signals for diagnostics
+        all_signals = await self.session_repo.get_all_qualitative_signals(session_id)
+
         return {
             "metadata": {
                 "session_id": session.id,
@@ -214,6 +220,34 @@ class ExportService:
                 ],
             },
             "scoring_history": scoring_history,
+            "diagnostics": {
+                "scoring_candidates": {
+                    f"turn_{turn}": [
+                        {
+                            "strategy_id": c["strategy_id"],
+                            "strategy_name": c["strategy_name"],
+                            "focus_type": c["focus_type"],
+                            "focus_description": c["focus_description"],
+                            "final_score": c["final_score"],
+                            "is_selected": bool(c["is_selected"]),
+                            "vetoed_by": c["vetoed_by"],
+                            "tier1_results": json.loads(c["tier1_results"])
+                            if c.get("tier1_results")
+                            else [],
+                            "tier2_results": json.loads(c["tier2_results"])
+                            if c.get("tier2_results")
+                            else [],
+                            "reasoning": c["reasoning"],
+                        }
+                        for c in candidates
+                    ]
+                    for turn, candidates in sorted(all_candidates.items())
+                },
+                "llm_signals": {
+                    f"turn_{turn}": signals
+                    for turn, signals in sorted(all_signals.items())
+                },
+            },
         }
 
     def _export_json(self, data: Dict[str, Any]) -> str:

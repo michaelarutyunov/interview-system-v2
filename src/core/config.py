@@ -47,79 +47,40 @@ class Settings(BaseSettings):
     # ==========================================================================
     # LLM Configuration
     # ==========================================================================
+    #
+    # Three-client architecture for task-optimized LLM selection:
+    # - extraction: Extract nodes/edges/stance from user responses
+    # - scoring: Extract diagnostic signals for strategy scoring
+    # - generation: Generate interview questions
+    #
+    # Defaults are defined in src/llm/client.py. Set environment variables
+    # below only to override defaults (e.g., LLM_EXTRACTION_PROVIDER=kimi)
 
-    # Main LLM (for question generation)
-    llm_main_provider: str = Field(
-        default="anthropic", description="LLM provider for question generation"
+    # Optional provider overrides (defaults defined in client.py)
+    llm_extraction_provider: Optional[str] = Field(
+        default=None,
+        description="Override extraction LLM provider (default: anthropic)",
     )
-    llm_main_model: str = Field(
-        default="claude-sonnet-4-5-20250929",
-        description="Main LLM model identifier (question generation)",
+    llm_scoring_provider: Optional[str] = Field(
+        default=None, description="Override scoring LLM provider (default: kimi)"
     )
-    llm_main_temperature: float = Field(
-        default=0.7, ge=0.0, le=2.0, description="Main LLM sampling temperature"
-    )
-    llm_main_max_tokens: int = Field(
-        default=1024, ge=1, le=8192, description="Maximum tokens in main LLM response"
-    )
-    llm_main_timeout_seconds: float = Field(
-        default=30.0, ge=1.0, description="Timeout for main LLM API calls"
-    )
-
-    # Light LLM (for scoring tasks)
-    llm_light_provider: str = Field(
-        default="anthropic", description="LLM provider for scoring tasks"
-    )
-    llm_light_model: str = Field(
-        default="claude-haiku-4-20250514",
-        description="Light LLM model identifier (scoring tasks)",
-    )
-    llm_light_temperature: float = Field(
-        default=0.3,
-        ge=0.0,
-        le=2.0,
-        description="Light LLM sampling temperature (lower for consistency)",
-    )
-    llm_light_max_tokens: int = Field(
-        default=512, ge=1, le=4096, description="Maximum tokens in light LLM response"
-    )
-    llm_light_timeout_seconds: float = Field(
-        default=15.0, ge=1.0, description="Timeout for light LLM API calls"
+    llm_generation_provider: Optional[str] = Field(
+        default=None,
+        description="Override generation LLM provider (default: anthropic)",
     )
 
-    # API Keys (can be shared or separate)
+    # API Keys (required for providers you use)
     anthropic_api_key: Optional[str] = Field(
-        default=None, description="Anthropic API key (used for both main and light)"
+        default=None, description="Anthropic API key"
+    )
+    kimi_api_key: Optional[str] = Field(
+        default=None, description="Kimi (Moonshot AI) API key"
+    )
+    deepseek_api_key: Optional[str] = Field(
+        default=None, description="DeepSeek API key"
     )
     openai_api_key: Optional[str] = Field(
         default=None, description="OpenAI API key (optional, for GPT models)"
-    )
-
-    # Legacy configuration (for backward compatibility)
-    llm_provider: str = Field(
-        default="anthropic",
-        description="Legacy LLM provider (defaults to llm_main_provider)",
-    )
-    llm_model: str = Field(
-        default="claude-sonnet-4-5-20250929",
-        description="Legacy LLM model (defaults to llm_main_model)",
-    )
-    llm_temperature: float = Field(
-        default=0.7,
-        ge=0.0,
-        le=2.0,
-        description="Legacy LLM temperature (defaults to llm_main_temperature)",
-    )
-    llm_max_tokens: int = Field(
-        default=1024,
-        ge=1,
-        le=4096,
-        description="Legacy max tokens (defaults to llm_main_max_tokens)",
-    )
-    llm_timeout_seconds: float = Field(
-        default=30.0,
-        ge=1.0,
-        description="Legacy timeout (defaults to llm_main_timeout_seconds)",
     )
 
     # ==========================================================================
