@@ -2,9 +2,11 @@
 Context object for turn processing pipeline.
 
 ADR-008 Phase 3: TurnContext carries state through all pipeline stages.
+ADR-010: Added graph_state_computed_at for freshness validation.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Optional, List, Dict, Any
 
 from src.domain.models.knowledge_graph import GraphState, KGNode
@@ -38,6 +40,12 @@ class PipelineContext:
 
     # Graph state (loaded in ContextLoadingStage, updated in GraphUpdateStage)
     graph_state: Optional[GraphState] = None
+    graph_state_computed_at: Optional[datetime] = field(
+        default=None,
+        metadata={
+            "description": "When graph_state was computed (ADR-010 freshness tracking)"
+        },
+    )
     recent_nodes: List[KGNode] = field(default_factory=list)
 
     # Extraction results (computed in ExtractionStage)

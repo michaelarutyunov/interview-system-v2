@@ -5,8 +5,10 @@ Implements the two-tier approach:
 - Tier 2: Weighted additive scoring for ranking valid candidates
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 import structlog
 
@@ -18,6 +20,15 @@ from src.services.scoring.two_tier.base import (
     Tier2Output,
 )
 from src.core.exceptions import ScorerFailureError
+
+if TYPE_CHECKING:
+    from src.domain.models.pipeline_contracts import (
+        Focus,
+        VetoResult,
+        WeightedResult,
+        ScoredStrategy,
+        StrategySelectionResult,
+    )
 
 logger = structlog.get_logger(__name__)
 
@@ -374,3 +385,150 @@ class TwoTierScoringEngine:
             f"tier1={len(self.tier1_scorers)}, "
             f"tier2={len(self.tier2_scorers)})"
         )
+
+
+# =============================================================================
+# ADR-010 Phase 2: Conversion Functions for New Schema
+# =============================================================================
+
+"""
+Conversion functions to transform dataclass-based ScoringResult
+into Pydantic-based StrategySelectionResult.
+
+These functions maintain backward compatibility while enabling
+the new type-safe schema.
+"""
+
+
+def _convert_focus_to_pydantic(focus_dict: Dict[str, Any]) -> Focus:
+    """Convert focus dict to Pydantic Focus model."""
+    from src.domain.models.pipeline_contracts import Focus
+
+    return Focus(
+        focus_type=focus_dict.get("focus_type", "unknown"),
+        focus_description=focus_dict.get("focus_description", ""),
+        node_id=focus_dict.get("node_id"),
+        element_id=focus_dict.get("element_id"),
+    )
+
+
+def _convert_tier1_output_to_veto_result(output: Tier1Output) -> VetoResult:
+    """Convert Tier1Output to VetoResult Pydantic model."""
+    from src.domain.models.pipeline_contracts import VetoResult
+
+    return VetoResult(
+        scorer_id=output.scorer_id,
+        is_veto=output.is_veto,
+        reasoning=output.reasoning,
+        signals=output.signals,
+    )
+
+
+def _convert_tier2_output_to_weighted_result(output: Tier2Output) -> WeightedResult:
+    """Convert Tier2Output to WeightedResult Pydantic model."""
+    from src.domain.models.pipeline_contracts import WeightedResult
+
+    return WeightedResult(
+        scorer_id=output.scorer_id,
+        raw_score=output.raw_score,
+        weight=output.weight,
+        contribution=output.contribution,
+        reasoning=output.reasoning,
+        signals=output.signals,
+    )
+
+
+def convert_scoring_result_to_scored_strategy(
+    scoring_result: ScoringResult,
+    is_selected: bool = False,
+) -> ScoredStrategy:
+    """Convert ScoringResult dataclass to ScoredStrategy Pydantic model.
+
+    Args:
+        scoring_result: The dataclass-based ScoringResult
+        is_selected: Whether this strategy was the winner
+
+    Returns:
+        ScoredStrategy Pydantic model
+    """
+    from src.domain.models.pipeline_contracts import ScoredStrategy
+
+    # Convert focus dict to Pydantic model
+    focus = _convert_focus_to_pydantic(scoring_result.focus)
+
+    # Convert Tier 1 outputs
+    tier1_results = [
+        _convert_tier1_output_to_veto_result(o) for o in scoring_result.tier1_outputs
+    ]
+
+    # Convert Tier 2 outputs
+    tier2_results = [
+        _convert_tier2_output_to_weighted_result(o)
+        for o in scoring_result.tier2_outputs
+    ]
+
+    # Build reasoning string from trace
+    reasoning = "\n".join(scoring_result.reasoning_trace)
+
+    return ScoredStrategy(
+        strategy_id=scoring_result.strategy.get("id", "unknown"),
+        strategy_name=scoring_result.strategy.get("name", ""),
+        focus=focus,
+        tier1_results=tier1_results,
+        tier2_results=tier2_results,
+        tier2_score=scoring_result.scorer_sum or 0.0,
+        final_score=scoring_result.final_score,
+        is_selected=is_selected,
+        vetoed_by=scoring_result.vetoed_by,
+        reasoning=reasoning,
+    )
+
+
+def convert_selection_to_strategy_selection_result(
+    session_id: str,
+    turn_number: int,
+    phase: str,
+    phase_multiplier: float,
+    selected_result: ScoringResult,
+    alternative_results: List[ScoringResult],
+    total_candidates: int,
+    vetoed_count: int,
+) -> StrategySelectionResult:
+    """Convert selection data to StrategySelectionResult Pydantic model.
+
+    Args:
+        session_id: Session identifier
+        turn_number: Turn number
+        phase: Interview phase
+        phase_multiplier: Phase multiplier applied
+        selected_result: ScoringResult for the winning strategy
+        alternative_results: List of ScoringResults for runner-ups
+        total_candidates: Total number of candidates evaluated
+        vetoed_count: Number of vetoed candidates
+
+    Returns:
+        StrategySelectionResult Pydantic model
+    """
+    from src.domain.models.pipeline_contracts import StrategySelectionResult
+
+    # Convert selected strategy
+    selected_strategy = convert_scoring_result_to_scored_strategy(
+        selected_result, is_selected=True
+    )
+
+    # Convert alternatives
+    alternatives = [
+        convert_scoring_result_to_scored_strategy(r, is_selected=False)
+        for r in alternative_results
+    ]
+
+    return StrategySelectionResult(
+        session_id=session_id,
+        turn_number=turn_number,
+        phase=phase,
+        phase_multiplier=phase_multiplier,
+        selected_strategy=selected_strategy,
+        alternatives=alternatives,
+        total_candidates=total_candidates,
+        vetoed_count=vetoed_count,
+    )

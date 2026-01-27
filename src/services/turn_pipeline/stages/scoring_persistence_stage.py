@@ -89,7 +89,11 @@ class ScoringPersistenceStage(TurnStage):
         # Extract scoring details from two-tier result if available
         scorer_details = {}
         reasoning_trace_last = None
-        if selection_result and selection_result.scoring_result:
+        if (
+            selection_result is not None
+            and hasattr(selection_result, "scoring_result")
+            and selection_result.scoring_result
+        ):
             scorer_details = {
                 "tier1_results": [
                     {
@@ -160,31 +164,34 @@ class ScoringPersistenceStage(TurnStage):
                 )
 
                 # Save alternatives
-                for alternative in selection_result.alternative_strategies:
-                    await self._save_candidate(
-                        db=db,
-                        session_id=session_id,
-                        turn_number=turn_number,
-                        strategy_id=alternative.strategy["id"],
-                        strategy_name=alternative.strategy.get("name", ""),
-                        focus=alternative.focus,
-                        final_score=alternative.score,
-                        is_selected=False,
-                        scoring_result=alternative.scoring_result,
-                    )
+                if hasattr(selection_result, "alternative_strategies"):
+                    for alternative in selection_result.alternative_strategies:
+                        await self._save_candidate(
+                            db=db,
+                            session_id=session_id,
+                            turn_number=turn_number,
+                            strategy_id=alternative.strategy["id"],
+                            strategy_name=alternative.strategy.get("name", ""),
+                            focus=alternative.focus,
+                            final_score=alternative.score,
+                            is_selected=False,
+                            scoring_result=alternative.scoring_result,
+                        )
 
             await db.commit()
 
     async def _save_qualitative_signals(self, context: "PipelineContext") -> None:
         """Save LLM-extracted qualitative signals from graph_state.
 
-        Extracts signals from graph_state.properties["qualitative_signals"]
+        Extracts signals from graph_state.extended_properties["qualitative_signals"]
         and persists them to the qualitative_signals table.
         """
         if not context.graph_state:
             return
 
-        signals_data = context.graph_state.properties.get("qualitative_signals")
+        signals_data = context.graph_state.extended_properties.get(
+            "qualitative_signals"
+        )
         if not signals_data:
             return
 
@@ -338,7 +345,11 @@ class ScoringPersistenceStage(TurnStage):
         novelty_score = None
         richness_score = None
 
-        if selection_result and selection_result.scoring_result:
+        if (
+            selection_result is not None
+            and hasattr(selection_result, "scoring_result")
+            and selection_result.scoring_result
+        ):
             for result in selection_result.scoring_result.tier2_outputs:
                 scorer_id = result.scorer_id
                 signals = result.signals

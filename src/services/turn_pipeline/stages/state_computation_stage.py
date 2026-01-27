@@ -2,8 +2,10 @@
 Stage 5: Compute graph state.
 
 ADR-008 Phase 3: Refresh graph state after updates.
+ADR-010: Return StateComputationOutput with freshness tracking.
 """
 
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 import structlog
@@ -37,6 +39,8 @@ class StateComputationStage(TurnStage):
         """
         Refresh graph state after updates.
 
+        ADR-010: Now tracks computed_at timestamp for freshness validation.
+
         Args:
             context: Turn context
 
@@ -46,17 +50,17 @@ class StateComputationStage(TurnStage):
         graph_state = await self.graph.get_graph_state(context.session_id)
         recent_nodes = await self.graph.get_recent_nodes(context.session_id, limit=5)
 
-        # Set turn_count in graph_state.properties for strategy service phase detection
-        # This is critical - StrategyService._determine_phase() reads from this property
+        # ADR-010: Update GraphState using new typed fields instead of properties dict
         if graph_state:
-            graph_state.properties["turn_count"] = context.turn_number
-            # Set strategy_history for StrategyDiversityScorer
-            # This is loaded from DB in context_loading_stage and copied here
-            graph_state.properties["strategy_history"] = context.strategy_history
+            # Update turn_count (now a direct field, not in properties)
+            graph_state.turn_count = context.turn_number
+
+            # Update strategy_history (now a direct field, not in properties)
+            graph_state.strategy_history = context.strategy_history
 
             # P0 Fix: Compute chain depth metrics for MEC methodologies
             # This provides actual chain length analysis vs edge/node ratio heuristic
-            if hasattr(context, "methodology") and context.methodology == "means_end_chain":
+            if context.methodology == "means_end_chain":
                 # Fetch nodes and edges for chain depth calculation
                 nodes_raw = await self.graph.get_nodes_by_session(context.session_id)
                 edges_raw = await self.graph.get_edges_by_session(context.session_id)
@@ -66,7 +70,10 @@ class StateComputationStage(TurnStage):
                     {"id": n.id, "node_type": n.node_type} for n in nodes_raw
                 ]
                 edges_dicts = [
-                    {"source_node_id": e.source_node_id, "target_node_id": e.target_node_id}
+                    {
+                        "source_node_id": e.source_node_id,
+                        "target_node_id": e.target_node_id,
+                    }
                     for e in edges_raw
                 ]
 
@@ -76,7 +83,8 @@ class StateComputationStage(TurnStage):
                     methodology=context.methodology,
                 )
 
-                graph_state.properties["chain_depth"] = chain_depth
+                # Store in extended_properties (escape hatch for experimental metrics)
+                graph_state.extended_properties["chain_depth"] = chain_depth
 
                 log.debug(
                     "chain_depth_computed",
@@ -88,6 +96,9 @@ class StateComputationStage(TurnStage):
 
         context.graph_state = graph_state
         context.recent_nodes = recent_nodes
+
+        # ADR-010: Track when graph_state was computed for freshness validation
+        context.graph_state_computed_at = datetime.now(timezone.utc)
 
         log.debug(
             "graph_state_computed",

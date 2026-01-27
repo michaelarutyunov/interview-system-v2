@@ -109,6 +109,7 @@ class ExtractionService:
         self,
         text: str,
         context: str = "",
+        source_utterance_id: Optional[str] = None,
     ) -> ExtractionResult:
         """
         Extract concepts and relationships from text.
@@ -122,6 +123,7 @@ class ExtractionService:
         Args:
             text: User's response text
             context: Optional context from previous turns
+            source_utterance_id: Source utterance ID for traceability (ADR-010 Phase 2)
 
         Returns:
             ExtractionResult with concepts, relationships, and metadata
@@ -156,7 +158,11 @@ class ExtractionService:
             )
 
         # Step 4: Convert to domain models
-        concepts = self._parse_concepts(extraction_data.get("concepts", []))
+        # ADR-010 Phase 2: Pass source_utterance_id for traceability
+        concepts = self._parse_concepts(
+            extraction_data.get("concepts", []),
+            source_utterance_id or "unknown",
+        )
 
         # Build concept_types map for relationship validation
         concept_types = {c.text.lower(): c.node_type for c in concepts}
@@ -164,6 +170,7 @@ class ExtractionService:
         relationships = self._parse_relationships(
             extraction_data.get("relationships", []),
             concept_types,
+            source_utterance_id or "unknown",  # ADR-010 Phase 2: Traceability
         )
         discourse_markers = extraction_data.get("discourse_markers", [])
 
@@ -255,12 +262,15 @@ class ExtractionService:
 
         return parse_extraction_response(response.content)
 
-    def _parse_concepts(self, raw_concepts: List[dict]) -> List[ExtractedConcept]:
+    def _parse_concepts(
+        self, raw_concepts: List[dict], source_utterance_id: str
+    ) -> List[ExtractedConcept]:
         """
         Convert raw extraction data to ExtractedConcept models.
 
         Args:
             raw_concepts: List of concept dicts from LLM
+            source_utterance_id: Source utterance ID for traceability (ADR-010 Phase 2)
 
         Returns:
             List of ExtractedConcept models
@@ -296,9 +306,10 @@ class ExtractionService:
                     node_type=raw.get("node_type", "attribute"),
                     confidence=float(raw.get("confidence", 0.8)),
                     source_quote=raw.get("source_quote", ""),
+                    source_utterance_id=source_utterance_id,  # ADR-010 Phase 2: Traceability
                     properties=raw.get("properties", {}),
-                    stance=int(raw.get("stance", 0)),  # Default to neutral (0)
                     linked_elements=linked_elements,
+                    stance=int(raw.get("stance", 0)),  # Default to neutral (0)
                 )
 
                 # Schema validation: check node type is valid
@@ -321,6 +332,7 @@ class ExtractionService:
         self,
         raw_relationships: List[dict],
         concept_types: Dict[str, str],
+        source_utterance_id: str,
     ) -> List[ExtractedRelationship]:
         """
         Convert raw extraction data to ExtractedRelationship models.
@@ -328,6 +340,7 @@ class ExtractionService:
         Args:
             raw_relationships: List of relationship dicts from LLM
             concept_types: Map from concept text (lowercase) to node type
+            source_utterance_id: Source utterance ID for traceability (ADR-010 Phase 2)
 
         Returns:
             List of ExtractedRelationship models
@@ -340,7 +353,10 @@ class ExtractionService:
                     target_text=raw.get("target_text", ""),
                     relationship_type=raw.get("relationship_type", "leads_to"),
                     confidence=float(raw.get("confidence", 0.7)),
-                    source_quote=raw.get("source_quote", ""),
+                    reasoning=raw.get(
+                        "reasoning"
+                    ),  # ADR-010 Phase 2: Why edge was created
+                    source_utterance_id=source_utterance_id,  # ADR-010 Phase 2: Traceability
                 )
 
                 # Schema validation: check edge type is valid

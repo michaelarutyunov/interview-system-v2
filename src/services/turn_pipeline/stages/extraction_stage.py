@@ -89,9 +89,17 @@ class ExtractionStage(TurnStage):
                     error=str(e),
                 )
 
+        # Get source utterance ID for traceability (ADR-010 Phase 2)
+        source_utterance_id = (
+            context.user_utterance.id
+            if hasattr(context, "user_utterance") and context.user_utterance
+            else None
+        )
+
         extraction = await self.extraction.extract(
             text=context.user_input,
             context=self._format_context_for_extraction(context),
+            source_utterance_id=source_utterance_id,
         )
 
         context.extraction = extraction
@@ -134,9 +142,7 @@ class ExtractionStage(TurnStage):
         if len(recent) >= 1 and recent[-1]["speaker"] == "system":
             interviewer_question = recent[-1]["text"]
             lines.append("")
-            lines.append(
-                f"[Most recent question] Interviewer: {interviewer_question}"
-            )
+            lines.append(f"[Most recent question] Interviewer: {interviewer_question}")
             lines.append(
                 "[Task] Extract concepts from the Respondent's answer AND create a relationship from the question's topic to the answer concept."
             )

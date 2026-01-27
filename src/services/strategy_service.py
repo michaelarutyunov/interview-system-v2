@@ -7,9 +7,11 @@ Two-tier approach:
 - Tier 2: Weighted additive scoring for ranking
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 
 import structlog
 
@@ -20,6 +22,9 @@ from src.domain.models.turn import Focus
 from src.domain.models.extraction import ExtractionResult
 from src.services.scoring.two_tier import TwoTierScoringEngine, ScoringResult
 from src.services.scoring.llm_signals import QualitativeSignalExtractor
+
+if TYPE_CHECKING:
+    from src.domain.models.pipeline_contracts import StrategySelectionResult
 
 
 logger = structlog.get_logger(__name__)
@@ -60,11 +65,86 @@ class SelectionResult:
         default_factory=lambda: datetime.now(timezone.utc)
     )
 
+    # ADR-010 Phase 2: Track session context for conversion to new schema
+    session_id: Optional[str] = field(default=None)
+    turn_number: Optional[int] = field(default=None)
+    phase: Optional[str] = field(default=None)
+    phase_multiplier: Optional[float] = field(default=None)
+
     def get_selected_focus_dict(self) -> Dict[str, Any]:
         """Get selected focus as dict for backward compatibility."""
         if isinstance(self.selected_focus, Focus):
             return self.selected_focus.to_dict()
         return self.selected_focus
+
+    def to_strategy_selection_result(
+        self,
+        session_id: str,
+        turn_number: int,
+        phase: str,
+        phase_multiplier: float,
+    ) -> "StrategySelectionResult":
+        """
+        Convert to ADR-010 Phase 2 StrategySelectionResult Pydantic model.
+
+        Args:
+            session_id: Session identifier
+            turn_number: Turn number
+            phase: Interview phase
+            phase_multiplier: Phase multiplier applied
+
+        Returns:
+            StrategySelectionResult Pydantic model
+        """
+        from src.services.scoring.two_tier.engine import (
+            convert_selection_to_strategy_selection_result,
+        )
+
+        # If we don't have scoring_result, create a minimal one
+        if self.scoring_result is None:
+            from src.services.scoring.two_tier.engine import ScoringResult
+
+            self.scoring_result = ScoringResult(
+                strategy=self.selected_strategy,
+                focus=(
+                    self.selected_focus.to_dict()
+                    if isinstance(self.selected_focus, Focus)
+                    else self.selected_focus
+                ),
+                final_score=self.final_score,
+                tier1_outputs=[],
+                tier2_outputs=[],
+                vetoed_by=None,
+                reasoning_trace=[],
+            )
+
+        # Count vetoed alternatives
+        vetoed_count = sum(
+            1
+            for alt in self.alternative_strategies
+            if alt.scoring_result and alt.scoring_result.vetoed_by
+        )
+
+        # Count total candidates (selected + alternatives)
+        total_candidates = 1 + len(self.alternative_strategies)
+
+        # Build list of alternative ScoringResults
+        alternative_results = [
+            alt.scoring_result
+            for alt in self.alternative_strategies
+            if alt.scoring_result is not None
+        ]
+
+        return convert_selection_to_strategy_selection_result(
+            session_id=session_id,
+            turn_number=turn_number,
+            phase=phase,
+            phase_multiplier=phase_multiplier,
+            selected_result=self.scoring_result,
+            alternative_results=alternative_results,
+            total_candidates=total_candidates,
+            vetoed_count=vetoed_count,
+        )
 
 
 # Strategy definitions (two-tier system)

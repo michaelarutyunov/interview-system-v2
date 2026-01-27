@@ -141,11 +141,14 @@ class SaturationScorer(Tier2Scorer):
         # Calculate Chao1 coverage ratio
         chao1_ratio = self._calculate_chao1_ratio(graph_state, recent_nodes)
 
-        # Get saturation metrics from graph_state properties
-        new_info_rate = graph_state.properties.get("new_info_rate", 1.0)
-        consecutive_low_info = graph_state.properties.get(
-            "consecutive_low_info_turns", 0
-        )
+        # Get saturation metrics from graph_state.saturation_metrics (ADR-010 Phase 2)
+        # Fall back to defaults if not yet populated
+        if graph_state.saturation_metrics:
+            new_info_rate = graph_state.saturation_metrics.new_info_rate
+            consecutive_low_info = graph_state.saturation_metrics.consecutive_low_info
+        else:
+            new_info_rate = 1.0
+            consecutive_low_info = 0
 
         signals = {
             "chao1_ratio": chao1_ratio,
@@ -162,6 +165,17 @@ class SaturationScorer(Tier2Scorer):
         signals["is_saturated"] = is_saturated
         signals["is_chao1_saturated"] = is_chao1_saturated
         signals["is_low_info_run"] = is_low_info_run
+
+        # ADR-010 Phase 2: Populate graph_state.saturation_metrics
+        # Import here to avoid circular dependency
+        from src.domain.models.knowledge_graph import SaturationMetrics
+
+        graph_state.saturation_metrics = SaturationMetrics(
+            chao1_ratio=chao1_ratio,
+            new_info_rate=new_info_rate,
+            consecutive_low_info=consecutive_low_info,
+            is_saturated=is_saturated,
+        )
 
         # Get strategy type
         strategy_type = strategy.get("type_category", "").lower()

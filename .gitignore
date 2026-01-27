@@ -32,6 +32,7 @@ build/
 # Custom
 commands.md
 specs/*
+sessions/*
 
 
 

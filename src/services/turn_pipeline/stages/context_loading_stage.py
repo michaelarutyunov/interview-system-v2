@@ -86,8 +86,10 @@ class ContextLoadingStage(TurnStage):
         # Attach sentiment from stored turn_sentiments (if available)
         # This loads previously computed sentiment values for each utterance
         # Per bead sxj: Add sentiment to conversation turns using existing signals
-        if context.graph_state and context.graph_state.properties:
-            turn_sentiments = context.graph_state.properties.get("turn_sentiments", {})
+        if context.graph_state and context.graph_state.extended_properties:
+            turn_sentiments = context.graph_state.extended_properties.get(
+                "turn_sentiments", {}
+            )
             if turn_sentiments:
                 from src.services.scoring.signal_helpers import (
                     load_sentiments_for_utterances,

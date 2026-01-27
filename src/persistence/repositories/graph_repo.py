@@ -23,6 +23,7 @@ from src.domain.models.knowledge_graph import (
     GraphState,
     CoverageState,
     ElementCoverage,
+    DepthMetrics,
 )
 from src.domain.models.concept import Concept
 from src.services.depth_calculator import DepthCalculator
@@ -506,13 +507,28 @@ class GraphRepository:
         # Build enhanced coverage state with depth tracking
         coverage_state = await self._build_coverage_state(session_id)
 
+        # Create DepthMetrics (ADR-010)
+        # For now, use simplified calculation - full depth analysis requires graph traversal
+        depth_metrics = DepthMetrics(
+            max_depth=max_depth,
+            avg_depth=0.0,  # Will be computed by depth_calculator if available
+            depth_by_element={},  # Will be populated by depth calculator
+            longest_chain_path=[],  # Will be populated by depth calculator
+        )
+
+        # Handle case where coverage_state is None (no concept loaded)
+        # Per ADR-010, coverage_state should always be present for coverage-driven mode
+        # but during migration we handle None gracefully
+        if coverage_state is None:
+            coverage_state = CoverageState()
+
         return GraphState(
             node_count=node_count,
             edge_count=edge_count,
             nodes_by_type=nodes_by_type,
             edges_by_type=edges_by_type,
             orphan_count=orphan_count,
-            max_depth=max_depth,
+            depth_metrics=depth_metrics,
             coverage_state=coverage_state,
         )
 
