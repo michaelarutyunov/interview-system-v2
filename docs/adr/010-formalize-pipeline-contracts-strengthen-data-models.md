@@ -1,7 +1,17 @@
 # ADR-010: Formalize Pipeline Contracts and Strengthen GraphState Data Model
 
 ## Status
-**Proposed** | 2025-01-26
+**Partially Implemented** | 2025-01-26
+
+**Update 2026-01-27**: Emergency P0 bug fixes (documented in [ADR-011](./011-p0-critical-bug-fixes.md)) implemented subsets of this proposal:
+- ✅ Added `max_depth` field to CoverageState (Part 2)
+- ✅ Added `extended_properties` escape hatch to GraphState (Part 2)
+- ✅ Computed chain_depth metrics in StateComputationStage (Part 2)
+- ⚠️ Methodology update logic in ExtractionStage (partial contract formalization)
+- ❌ Full Pydantic stage input/output models (Part 1) - not yet implemented
+- ❌ Freshness validation between stages (Part 1) - not yet implemented
+
+See ADR-011 for details on what was implemented and what remains.
 
 ## Context
 

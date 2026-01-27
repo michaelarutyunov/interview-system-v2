@@ -50,6 +50,11 @@ Accepted | Proposed | Deprecated | Superseded by [ADR-YYY]
 | [005](005-dual-mode-interview-architecture.md) | Dual-Mode Interview Architecture | **Deprecated** | 2025-01-22 |
 | [006](006-scoring-architecture.md) | Enhanced Scoring Architecture | Accepted | 2025-01-22 |
 | [007](007-yaml-based-methodology-schema.md) | YAML-Based Methodology Schema Externalization | Accepted | 2025-01-23 |
-| [008](008-internal-api-boundaries-pipeline-pattern.md) | Internal API Boundaries & Pipeline Pattern | Accepted | 2025-01-23 |
+| [008a](008-internal-api-boundaries-pipeline-pattern.md) | Internal API Boundaries & Pipeline Pattern | Accepted | 2025-01-23 |
+| [008b](008-concept-element-coverage-system.md) | Concept-Driven Coverage and Depth Tracking | Accepted | 2025-01-25 |
 | [009](009-fail-fast-error-handling-mvp.md) | Fail-Fast Error Handling for MVP | Accepted | 2025-01-23 |
-| [010](010-three-client-llm-architecture.md) | Three-Client LLM Architecture | Accepted | 2025-01-26 |
+| [010a](010-three-client-llm-architecture.md) | Three-Client LLM Architecture | Accepted | 2025-01-26 |
+| [010b](010-formalize-pipeline-contracts-strengthen-data-models.md) | Formalize Pipeline Contracts | **Partially Implemented** | 2025-01-26 |
+| [011](011-p0-critical-bug-fixes.md) | P0 Critical Bug Fixes - Methodology, Coverage, Depth | **Implemented** | 2026-01-27 |
+
+**Note**: ADR numbering collisions (008a/b, 010a/b) occurred due to parallel development. Future ADRs will use sequential numbering starting from 012.
