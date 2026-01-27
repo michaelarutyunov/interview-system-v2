@@ -1,7 +1,7 @@
 # Pipeline Stage Contracts
 
 > **Context**: This document defines the read/write contracts for each stage in the turn processing pipeline.
-> **Related**: [Data Flow Paths](./data_flow_paths.md) | [ADR-008: Internal API Boundaries](./adr/008-internal-api-boundaries-pipeline-pattern.md)
+> **Related**: [Data Flow Paths](./data_flow_paths.md) | [ADR-008: Internal API Boundaries](./adr/008-internal-api-boundaries-pipeline-pattern.md) | [ADR-010: Pipeline Contracts](./adr/010-formalize-pipeline-contracts-strengthen-data-models.md)
 
 ## Overview
 
@@ -10,6 +10,56 @@ The turn pipeline implements a **shared context accumulator pattern** where `Pip
 - **Inputs**: Immutable parameters set at pipeline creation
 - **Reads**: Context fields consumed by the stage
 - **Writes**: Context fields modified or populated by the stage
+
+**ADR-010 Phase 2**: Pipeline contracts have been formalized as Pydantic models in `src/domain/models/pipeline_contracts.py`. Each stage now has typed input/output models with enhanced traceability via `source_utterance_id` fields throughout extraction and scoring data.
+
+## Pydantic Contract Models (ADR-010 Phase 2)
+
+ADR-010 Phase 2 introduced typed Pydantic models for all pipeline stage inputs and outputs. These models provide:
+
+- **Type Safety**: Runtime validation ensures data integrity
+- **Traceability**: `source_utterance_id` links all extraction and scoring data to specific user utterances
+- **Freshness Tracking**: `computed_at` timestamps prevent using stale state
+- **Documentation**: Field descriptions serve as inline documentation
+
+### Key Contract Models
+
+| Model | Purpose | Location |
+|-------|---------|----------|
+| `ContextLoadingOutput` | Session metadata, graph state | `ContextLoadingStage` |
+| `UtteranceSavingOutput` | Saved utterance with ID | `UtteranceSavingStage` |
+| `StateComputationOutput` | Fresh graph state with timestamp | `StateComputationStage` |
+| `StrategySelectionInput` | Validated input for strategy selection | `StrategySelectionStage` |
+| `StrategySelectionOutput` | Selected strategy with scoring breakdown | `StrategySelectionStage` |
+| `ExtractionResult` | Concepts and relationships with traceability | `ExtractionStage` |
+| `QualitativeSignalSet` | LLM-extracted semantic signals | Signal extraction |
+
+### Traceability Pattern
+
+All data extracted from user input now includes `source_utterance_id`:
+
+```python
+# ExtractionResult with traceability
+concept = ExtractedConcept(
+    text="oat milk is creamy",
+    node_type="attribute",
+    source_utterance_id="utter_123",  # Links to UtteranceSavingOutput.utterance_id
+)
+
+# QualitativeSignalSet with metadata
+signals = QualitativeSignalSet(
+    turn_number=5,
+    source_utterance_id="utter_123",  # Same utterance
+    generated_at=datetime.now(timezone.utc),
+    llm_model="moonshot-v1-8k",
+    prompt_version="v2.1",
+)
+```
+
+This traceability chain enables debugging and analysis:
+- Which utterance produced this concept?
+- What signals were extracted from this response?
+- Why was this strategy selected for this turn?
 
 ## Pipeline Context Schema
 

@@ -181,35 +181,86 @@ graph LR
 - History is appended and saved at end of turn
 - Creates a feedback loop for diversity
 
-## Path 5: Utterance Provenance Tracking
+## Path 5: Traceability Chain (ADR-010 Phase 2)
 
-**Why Critical**: Every user input and system response is tracked for debugging and conversation history.
+**Why Critical**: Every piece of extracted data is linked back to its source utterance for debugging and analysis.
 
 ```mermaid
 graph LR
     A[User Input] -->|create| B[UtteranceSavingStage]
-    B --> C[context.user_utterance]
+    B -->|utterance.id| C[context.user_utterance]
     C -->|save| D[(utterances table)]
-    D -->|provenance| E[ExtractionStage]
-    E -->|utterance_id| F[GraphUpdateStage]
+    C -->|utterance.id| E[ExtractionStage]
 
-    G[QuestionGenerationStage] --> H[context.next_question]
-    H -->|create| I[ResponseSavingStage]
-    I --> J[context.system_utterance]
-    J -->|save| K[(utterances table)]
+    E -->|source_utterance_id| F[ExtractionResult]
+    F -->|concepts| G[GraphUpdateStage]
+    F -->|relationships| G
+
+    E -->|source_utterance_id| H[QualitativeSignalSet]
+    H -->|signals| I[SaturationScorer]
+
+    G -->|node.utterance_id| J[(nodes table)]
+    G -->|edge.utterance_id| K[(edges table)]
 
     D -->|query| L[ContextLoadingStage]
     L --> M[context.recent_utterances]
-    M -->|history| N[StrategySelectionStage]
-    M -->|history| O[QuestionGenerationStage]
 ```
 
 ### Key Points
 
-- Each utterance gets a unique ID and timestamp
-- User utterance ID is attached to graph nodes/edges for provenance
-- Recent utterances are loaded for conversation context
-- Both user and system utterances are persisted
+**ADR-010 Phase 2 Enhanced Traceability:**
+- `UtteranceSavingStage` generates `utterance.id` (e.g., "utter_123")
+- `ExtractionStage` passes `source_utterance_id` to all extracted data:
+  - `ExtractedConcept.source_utterance_id` - Links concept to utterance
+  - `ExtractedRelationship.source_utterance_id` - Links edge to utterance
+  - `QualitativeSignalSet.source_utterance_id` - Links signals to utterance
+- `GraphUpdateStage` stores provenance in database:
+  - `node.utterance_id` - Which utterance created this node
+  - `edge.utterance_id` - Which utterance created this edge
+- `QualitativeSignalSet` includes metadata for signal provenance:
+  - `generated_at` - When signals were extracted
+  - `llm_model` - Which LLM extracted them
+  - `prompt_version` - Which prompt version was used
+
+**Debugging Benefits:**
+- Trace any concept/edge back to specific user response
+- Debug signal extraction by reviewing LLM model and prompt version
+- Analyze response quality by correlating with signal confidence scores
+- Reconstruct conversation provenance for analysis
+
+## Path 6: Strategy History Tracking (Diversity)
+
+**Why Critical**: Strategy history prevents repetitive questioning and ensures interview diversity.
+
+```mermaid
+graph LR
+    A[Session.state.strategy_history] -->|load| B[ContextLoadingStage]
+    B --> C[context.strategy_history]
+
+    C -->|read| D[StrategySelectionStage]
+    D --> E[StrategyService._calculate_diversity_penalty]
+
+    E -->|recent_strategies| F{strategy in history?}
+    F -->|Yes| G[Apply penalty: -0.3]
+    F -->|No| H[No penalty: 0.0]
+
+    G --> I[selection_result.diversity_penalty]
+    H --> I
+
+    I --> J[ScoringPersistenceStage]
+    J -->|append| K[Session.state.strategy_history]
+    K -->|save| L[(Database)]
+    L -->|next turn| M[ContextLoadingStage]
+```
+
+### Key Points
+
+- History is loaded at start of each turn
+- Penalty is applied during Tier 2 scoring
+- History is appended and saved at end of turn
+- Creates a feedback loop for diversity
+
+## Path 7: Focus Concept Selection
 
 ## Path 6: Focus Concept Selection
 
@@ -243,7 +294,7 @@ graph LR
 | Strategy Selection | 6, 10 | 1 | strategies, scoring |
 | Graph State Mutation | 3, 4, 5 | 6, 7 | nodes, edges |
 | Strategy History | 1, 6, 10 | - | sessions |
-| Utterance Provenance | 1, 2, 4, 9 | 3, 6, 8 | utterances |
+| Traceability Chain (ADR-010) | 2, 3, 4 | 5, 6 | utterances, nodes, edges |
 | Focus Concept | 6, 7, 8 | - | - |
 
 ## Usage for Development

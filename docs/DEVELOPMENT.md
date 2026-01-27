@@ -240,108 +240,61 @@ async def session_service(test_db):
 
 ## Code Style
 
-### Formatting
+### Formatting and Linting
 
-We use **Black** for code formatting:
+We use **ruff** for both formatting and linting:
 
 ```bash
+# Check and fix all issues
+ruff check src/ tests/ --fix
+
 # Format all code
-black src/ tests/
+ruff format src/ tests/
 
 # Check formatting without making changes
-black --check src/ tests/
-
-# Format specific file
-black src/services/session_service.py
+ruff format --check src/ tests/
 ```
 
 Configuration in `pyproject.toml`:
 ```toml
-[tool.black]
+[tool.ruff]
 line-length = 100
-target-version = ['py311']
-```
+target-version = "py311"
 
-### Import Sorting
-
-We use **isort** for import organization:
-
-```bash
-# Sort all imports
-isort src/ tests/
-
-# Check without making changes
-isort --check-only src/ tests/
-
-# Sort specific file
-isort src/services/session_service.py
-```
-
-Configuration in `pyproject.toml`:
-```toml
-[tool.isort]
-profile = "black"
-line_length = 100
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "N"]
 ```
 
 ### Type Checking
 
-We use **mypy** for static type checking:
+We use **pyright** for static type checking:
 
 ```bash
-# Type check all code
-mypy src/
+# Type check all code (via LSP or CLI)
+pyright src/
 
 # Type check specific file
-mypy src/services/session_service.py
-
-# Type check with strict mode
-mypy --strict src/
+pyright src/services/session_service.py
 ```
 
-### Linting
+### Pre-commit Workflow
 
-We use **pylint** for code quality:
-
+Before committing code:
 ```bash
-# Lint all code
-pylint src/
+# 1. Check and fix linting issues
+ruff check src/ tests/ --fix
 
-# Lint specific file
-pylint src/services/session_service.py
+# 2. Format code
+ruff format src/ tests/
 
-# Lint with specific configuration
-pylint --rcfile=.pylintrc src/
+# 3. Run type checker
+pyright src/
+
+# 4. Run tests
+uv run pytest
 ```
 
-### Pre-commit Hooks
-
-Install pre-commit hooks for automatic checks:
-
-```bash
-pip install pre-commit
-pre-commit install
-```
-
-Create `.pre-commit-config.yaml`:
-```yaml
-repos:
-  - repo: https://github.com/psf/black
-    rev: 24.1.1
-    hooks:
-      - id: black
-
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
-    hooks:
-      - id: isort
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
-    hooks:
-      - id: mypy
-        additional_dependencies: [types-all]
-```
+All checks must pass before committing.
 
 ---
 
@@ -781,6 +734,60 @@ class TurnContext:
 - `docs/raw_ideas/pipeline_architecture_visualization.md` - Before/after comparison with examples
 - `docs/adr/008-internal-api-boundaries-pipeline-pattern.md` - Full ADR
 
+### Pipeline Contracts (ADR-010 Phase 2)
+
+ADR-010 Phase 2 introduced typed Pydantic models for all pipeline stage inputs and outputs:
+
+**Key Benefits:**
+- **Type Safety**: Runtime validation prevents data corruption
+- **Traceability**: `source_utterance_id` links extraction results to specific utterances
+- **Freshness Tracking**: `computed_at` timestamps prevent using stale graph state
+- **Documentation**: Field descriptions serve as inline documentation
+
+**Contract Models Location:**
+```python
+# src/domain/models/pipeline_contracts.py
+class ContextLoadingOutput(BaseModel):
+    """Output from ContextLoadingStage with session metadata and graph state."""
+    session_id: str
+    methodology: str
+    concept_id: str
+    graph_state: GraphState
+    computed_at: datetime  # Freshness tracking
+
+class StrategySelectionOutput(BaseModel):
+    """Output from StrategySelectionStage with scoring breakdown."""
+    strategy: Dict[str, Any]
+    focus: Focus
+    scoring_result: Optional[ScoringResult]
+    alternative_strategies: List[ScoredStrategy]
+```
+
+**Traceability Pattern:**
+All extraction data includes `source_utterance_id`:
+```python
+# ExtractionResult
+ExtractedConcept(
+    text="oat milk is creamy",
+    node_type="attribute",
+    source_utterance_id="utter_123",  # Links to UtteranceSavingOutput
+)
+
+# QualitativeSignalSet
+QualitativeSignalSet(
+    turn_number=5,
+    source_utterance_id="utter_123",  # Same utterance
+    generated_at=datetime.now(timezone.utc),
+    llm_model="moonshot-v1-8k",
+    prompt_version="v2.1",
+)
+```
+
+**For more details:**
+- `docs/adr/010-formalize-pipeline-contracts-strengthen-data-models.md` - Full ADR
+- `docs/pipeline_contracts.md` - Stage-by-stage contract documentation
+- `docs/data_flow_paths.md` - Traceability chain visualization
+
 ### Concept-Driven Coverage (ADR-008)
 
 The system uses a two-layer architecture for interview guidance:
@@ -846,8 +853,10 @@ src/
 ├── domain/                # Business entities
 │   └── models/            # Pydantic models
 │       ├── concept.py     # Concept, ConceptElement, CoverageState (ADR-008)
-│       ├── knowledge_graph.py  # KGNode, KGEdge, GraphState
-│       ├── extraction.py  # ExtractionResult, ExtractedConcept
+│       ├── knowledge_graph.py  # KGNode, KGEdge, GraphState, SaturationMetrics
+│       ├── extraction.py  # ExtractionResult, ExtractedConcept, ExtractedRelationship
+│       ├── qualitative_signals.py  # LLM-extracted semantic signals
+│       ├── pipeline_contracts.py  # Stage I/O models (ADR-010 Phase 2)
 │       └── turn.py        # TurnContext, TurnResult, Focus
 ├── llm/                   # LLM integration
 │   ├── client.py
