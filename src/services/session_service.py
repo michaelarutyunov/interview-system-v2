@@ -9,7 +9,7 @@ delegating to a pipeline of stages for actual processing.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any, Union, TYPE_CHECKING
 from uuid import uuid4
 
 import structlog
@@ -22,7 +22,9 @@ from src.domain.models.turn import Focus
 from src.services.extraction_service import ExtractionService
 from src.services.graph_service import GraphService
 from src.services.question_service import QuestionService
-from src.services.strategy_service import StrategyService
+
+if TYPE_CHECKING:
+    pass  # DEPRECATED: Only for type hints
 from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
 from src.persistence.repositories.utterance_repo import UtteranceRepository
@@ -86,7 +88,9 @@ class SessionService:
         extraction_service: Optional[ExtractionService] = None,
         graph_service: Optional[GraphService] = None,
         question_service: Optional[QuestionService] = None,
-        strategy_service: Optional[StrategyService] = None,
+        strategy_service: Optional[
+            Any
+        ] = None,  # DEPRECATED: Not used with methodology-based selection
         utterance_repo: Optional[UtteranceRepository] = None,
         max_turns: Optional[int] = None,
         target_coverage: Optional[float] = None,

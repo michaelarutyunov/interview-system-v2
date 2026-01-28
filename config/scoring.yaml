@@ -211,7 +211,11 @@ scoring:
     warn_if_tier1_veto_rate_exceeds: 0.8
 
 # Strategy definitions
+# Strategy defines the purpose of the next question
 strategies:
+
+  # "Content Building" strategies
+
   - id: deepen
     name: "Deepen Understanding"
     type_category: "depth"
@@ -226,28 +230,19 @@ strategies:
     enabled: true
     prompt_hint: "Expand to related areas or perspectives."
 
+  - id: contrast
+    name: "Introduce Counter-Example"
+    type_category: "contrast"
+    priority_base: 0.7
+    enabled: true
+    prompt_hint: "Politely introduce a counter-example or opposite case to test boundaries."
+
   - id: cover_element
     name: "Cover Stimulus Element"
     type_category: "coverage"
     priority_base: 1.1
     enabled: true
     prompt_hint: "Ensure this element from the stimulus is addressed."
-
-  - id: closing
-    name: "Closing Interview"
-    type_category: "closing"
-    priority_base: 0.5  # Lower base - only use when appropriate
-    enabled: true
-    prompt_hint: "Begin to wrap up the interview."
-    # Note: Phase system controls timing via phase multipliers (no min_turns needed)
-
-  - id: reflection
-    name: "Reflection / Meta-Question"
-    type_category: "reflection"
-    priority_base: 0.7  # Emergency fallback
-    enabled: true
-    prompt_hint: "Ask a meta-question about the interview process."
-    emergency_only: true  # Only when all else fails
 
   - id: bridge
     name: "Lateral Bridge to Peripheral"
@@ -256,12 +251,14 @@ strategies:
     enabled: true
     prompt_hint: "Explicitly link to what was just said, then gently shift to a related but distinct area."
 
-  - id: contrast
-    name: "Introduce Counter-Example"
-    type_category: "contrast"
-    priority_base: 0.7
+  - id: synthesis
+    name: "Summarise & Invite Extension"
+    type_category: "transition"
+    priority_base: 0.8
     enabled: true
-    prompt_hint: "Politely introduce a counter-example or opposite case to test boundaries."
+    prompt_hint: "Briefly summarise what you've heard and invite correction or addition."
+
+  # "Interview Management" strategies
 
   - id: ease
     name: "Ease / Rapport Repair"
@@ -269,13 +266,6 @@ strategies:
     priority_base: 0.6
     enabled: true
     prompt_hint: "Simplify or soften the question, encourage participation."
-
-  - id: synthesis
-    name: "Summarise & Invite Extension"
-    type_category: "transition"
-    priority_base: 0.8
-    enabled: true
-    prompt_hint: "Briefly summarise what you've heard and invite correction or addition."
 
   - id: clarify
     name: "Clarify / Rephrase"
@@ -285,43 +275,59 @@ strategies:
     prompt_hint: "Rephrase the question in simpler terms when user shows confusion."
     emergency_only: false
 
+  - id: reflection
+    name: "Reflection / Meta-Question"
+    type_category: "reflection"
+    priority_base: 0.7  # Emergency fallback
+    enabled: true
+    prompt_hint: "Ask a meta-question about the interview process."
+    emergency_only: true  # Only when all else fails
+
+  - id: closing
+    name: "Closing Interview"
+    type_category: "closing"
+    priority_base: 0.5  # Lower base - only use when appropriate
+    enabled: true
+    prompt_hint: "Begin to wrap up the interview."
+    # Note: Phase system controls timing via phase multipliers (no min_turns needed)
+
 # Phase profiles
 phase_profiles:
   exploratory:
     deepen: 0.8
     broaden: 1.2
+    contrast: 0.0
     cover_element: 1.1
     bridge: 0.2
-    contrast: 0.0
-    synthesis: 0.3
-    closing: 0.0
+    synthesis: 0.3    
     ease: 1.0
-    reflection: 0.3
     clarify: 0.5
+    reflection: 0.3
+    closing: 0.0
 
   focused:
     deepen: 1.3
     broaden: 0.4
-    cover_element: 1.1
-    bridge: 1.0
     contrast: 1.2
-    synthesis: 0.7
-    closing: 0.5
+    cover_element: 1.1
+    bridge: 1.0    
+    synthesis: 0.7    
     ease: 1.0
     reflection: 0.7
     clarify: 0.5
+    closing: 0.5
 
   closing:
     deepen: 0.3
     broaden: 0.2
-    cover_element: 0.5
-    bridge: 0.3
     contrast: 0.5
+    cover_element: 0.5
+    bridge: 0.3    
     synthesis: 1.2
-    closing: 1.5
-    ease: 1.0
+    ease: 1.0    
     reflection: 0.3
     clarify: 0.3
+    closing: 1.5
 
 # Engine configuration
 engine:

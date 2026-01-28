@@ -1,0 +1,45 @@
+method:
+  name: customer_journey_mapping
+  version: "1.0"
+  goal: "Describe customer experience over time through stages, touchpoints, and states"
+
+nodes:
+  - name: stage
+    description: "High-level phase of the customer experience (e.g., Awareness, Purchase, Use)."
+  - name: touchpoint
+    description: "Specific interaction between customer and product, channel, or service."
+  - name: state
+    description: "Customer experiential state at a point in time, including feelings or cognitive condition."
+  - name: friction
+    description: "Negative experience occurring at a touchpoint or during a transition."
+
+edges:
+  - name: occurs_in
+    description: "Connects a touchpoint to the stage it belongs to."
+    permitted_connections:
+      - from: touchpoint
+        to: stage
+
+  - name: transitions_to
+    description: "Indicates sequential progression between nodes of the same type."
+    permitted_connections:
+      - from: stage
+        to: stage
+      - from: touchpoint
+        to: touchpoint
+      - from: state
+        to: state
+
+  - name: evokes
+    description: "Connects a touchpoint to a state it produces or influences."
+    permitted_connections:
+      - from: touchpoint
+        to: state
+
+  - name: disrupts
+    description: "Connects a friction to the touchpoint or state it negatively impacts."
+    permitted_connections:
+      - from: friction
+        to: touchpoint
+      - from: friction
+        to: state

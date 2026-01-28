@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from ..base import TurnStage
-from src.services.scoring.graph_utils import calculate_mec_chain_depth
+from src.methodologies.means_end_chain.utils import calculate_mec_chain_depth
 
 
 if TYPE_CHECKING:

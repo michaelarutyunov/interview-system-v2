@@ -85,19 +85,18 @@ class ContextLoadingStage(TurnStage):
 
         # Attach sentiment from stored turn_sentiments (if available)
         # This loads previously computed sentiment values for each utterance
-        # Per bead sxj: Add sentiment to conversation turns using existing signals
         if context.graph_state and context.graph_state.extended_properties:
             turn_sentiments = context.graph_state.extended_properties.get(
                 "turn_sentiments", {}
             )
             if turn_sentiments:
-                from src.services.scoring.signal_helpers import (
-                    load_sentiments_for_utterances,
-                )
-
-                recent_utterances = load_sentiments_for_utterances(
-                    recent_utterances, turn_sentiments
-                )
+                # Inline sentiment loading (from old signal_helpers)
+                for utterance in recent_utterances:
+                    turn_num = utterance.get("turn_number")
+                    if turn_num is not None:
+                        sentiment = turn_sentiments.get(str(turn_num))
+                        if sentiment is not None:
+                            utterance["sentiment"] = sentiment
 
         # Get recent nodes (used by DifficultySelectionStage)
         recent_nodes = await self.graph.get_recent_nodes(context.session_id, limit=5)

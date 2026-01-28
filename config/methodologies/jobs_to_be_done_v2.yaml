@@ -1,0 +1,73 @@
+method:
+  name: jobs_to_be_done
+  version: "final-minimal"
+  goal: "Capture customer motivation as jobs, situations, obstacles, outcomes, and solutions"
+
+nodes:
+  - name: job
+    description: >
+      A goal the customer is trying to accomplish, expressed as an action with an intended outcome.
+      May include functional, emotional, or social elements.
+
+  - name: context
+    description: >
+      The situation or circumstances in which the job becomes relevant
+      (time, place, condition, social setting).
+
+  - name: trigger
+    description: >
+      An event, signal, or realization that causes the job to arise or become salient.
+
+  - name: obstacle
+    description: >
+      Anything that makes the job harder to accomplish, including frustrations,
+      trade-offs, risks, anxieties, or constraints.
+
+  - name: outcome
+    description: >
+      A desired result or benefit the customer wants from completing the job,
+      including functional results or emotional states.
+
+  - name: solution
+    description: >
+      A current or potential way the customer attempts to accomplish the job,
+      including products, services, workarounds, or behaviors.
+
+edges:
+  - name: occurs_in
+    description: "Links a job to the context in which it occurs."
+    permitted_connections:
+      - from: job
+        to: context
+
+  - name: triggered_by
+    description: "Links a job to the trigger that initiates it."
+    permitted_connections:
+      - from: job
+        to: trigger
+
+  - name: hindered_by
+    description: "Links a job or solution to an obstacle that makes it harder."
+    permitted_connections:
+      - from: job
+        to: obstacle
+      - from: solution
+        to: obstacle
+
+  - name: aims_for
+    description: "Links a job to the outcome it seeks."
+    permitted_connections:
+      - from: job
+        to: outcome
+
+  - name: addressed_by
+    description: "Links a job to a solution used to accomplish it."
+    permitted_connections:
+      - from: job
+        to: solution
+
+  - name: produces
+    description: "Links a solution to the outcome it delivers."
+    permitted_connections:
+      - from: solution
+        to: outcome
