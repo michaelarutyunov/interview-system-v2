@@ -2,6 +2,7 @@
 Stage 2: Save user utterance.
 
 ADR-008 Phase 3: Persist user input to the utterances table.
+Phase 6: Output UtteranceSavingOutput contract.
 """
 
 from typing import TYPE_CHECKING
@@ -12,6 +13,7 @@ from uuid import uuid4
 import structlog
 
 from ..base import TurnStage
+from src.domain.models.pipeline_contracts import UtteranceSavingOutput
 
 
 if TYPE_CHECKING:
@@ -67,12 +69,19 @@ class UtteranceSavingStage(TurnStage):
         finally:
             await db.close()
 
-        context.user_utterance = Utterance(
+        # Create contract output (single source of truth)
+        # No need to set individual fields - they're derived from the contract
+        utterance = Utterance(
             id=utterance_id,
             session_id=context.session_id,
             turn_number=context.turn_number,
             speaker="user",
             text=context.user_input,
+        )
+        context.utterance_saving_output = UtteranceSavingOutput(
+            turn_number=context.turn_number,
+            user_utterance_id=utterance_id,
+            user_utterance=utterance,
         )
 
         log.debug(

@@ -9,12 +9,18 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field, model_validator
 
 from src.domain.models.knowledge_graph import GraphState, KGNode
+from src.domain.models.utterance import Utterance
+from src.domain.models.extraction import ExtractionResult
 
 
 class ContextLoadingOutput(BaseModel):
     """Contract: ContextLoadingStage output (Stage 1).
 
-    Stage 1 loads session metadata, conversation history, and graph state.
+    Stage 1 loads session metadata, conversation history, and recent nodes.
+
+    Note: graph_state is actually set by StateComputationStage (Stage 5) after
+    graph updates. This contract includes it for completeness but it's populated
+    later in the pipeline.
     """
 
     # Session metadata
@@ -35,8 +41,10 @@ class ContextLoadingOutput(BaseModel):
         default_factory=list, description="History of strategies used"
     )
 
-    # Graph state
-    graph_state: GraphState = Field(description="Current knowledge graph state")
+    # Graph state (populated by StateComputationStage, not ContextLoadingStage)
+    graph_state: GraphState = Field(
+        description="Current knowledge graph state (set by Stage 5, not Stage 1)"
+    )
     recent_nodes: List[KGNode] = Field(
         default_factory=list, description="Recently added graph nodes"
     )
@@ -50,6 +58,7 @@ class UtteranceSavingOutput(BaseModel):
 
     turn_number: int = Field(ge=0, description="Turn number for this utterance")
     user_utterance_id: str = Field(description="Database ID of saved utterance")
+    user_utterance: Utterance = Field(description="Full saved utterance record")
 
 
 class StateComputationOutput(BaseModel):
@@ -80,7 +89,11 @@ class StateComputationOutput(BaseModel):
 class StrategySelectionInput(BaseModel):
     """Contract: StrategySelectionStage input (Stage 6).
 
-    Stage 6 selects questioning strategy using two-tier scoring.
+    Stage 6 selects questioning strategy using methodology-based signal detection
+    (Phase 4: methodology-specific signals with direct signal->strategy scoring).
+
+    The two-tier scoring system has been removed and replaced by methodology-specific
+    signal detection in each methodology module (MEC, JTBD).
 
     ADR-010: Added freshness validation to prevent stale state bug.
     """
@@ -156,165 +169,148 @@ class StrategySelectionOutput(BaseModel):
     )
 
 
-# =============================================================================
-# ADR-010 Phase 2: Strategy Selection Result Schema
-# =============================================================================
+class ExtractionOutput(BaseModel):
+    """Contract: ExtractionStage output (Stage 3).
 
-"""
-Enhanced type-safe models for strategy selection results.
-
-Replaces dataclass-based SelectionResult with Pydantic models that provide:
-- Full type safety (no more Dict[str, Any])
-- Runtime validation
-- Better serialization for debugging/analysis
-- Proper element_id support for cover_element strategy
-- Aggregate statistics for observability
-"""
-
-
-class Focus(BaseModel):
-    """A focus target for strategy execution.
-
-    ADR-010 Phase 2: Enhanced focus model with element_id support.
-    The element_id field is CRITICAL for cover_element strategy to work correctly.
+    Stage 3 extracts concepts and relationships from user input using
+    methodology-specific extraction service.
     """
 
-    focus_type: str = Field(
-        description="Type of focus: breadth_exploration, depth_exploration, element_coverage, etc."
+    extraction: ExtractionResult = Field(
+        description="Extracted concepts and relationships"
     )
-    focus_description: str = Field(
-        description="Human-readable description of what to focus on"
+    methodology: str = Field(description="Methodology used for extraction")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When extraction was performed",
     )
-    node_id: Optional[str] = Field(
-        default=None, description="Graph node ID if focus is on a specific node"
+    concept_count: int = Field(
+        default=0, ge=0, description="Number of concepts extracted"
     )
-    element_id: Optional[int] = Field(
-        default=None,
-        description="CRITICAL: Coverage element ID for cover_element strategy",
+    relationship_count: int = Field(
+        default=0, ge=0, description="Number of relationships extracted"
     )
 
+    @model_validator(mode="after")
+    def set_counts_if_missing(self) -> "ExtractionOutput":
+        """Set counts from extraction if not provided."""
+        if self.concept_count == 0 and self.extraction:
+            self.concept_count = len(self.extraction.concepts)
+        if self.relationship_count == 0 and self.extraction:
+            self.relationship_count = len(self.extraction.relationships)
+        return self
 
-class VetoResult(BaseModel):
-    """Result from a Tier 1 scorer (hard constraint).
 
-    Tier 1 scorers return boolean veto decisions with reasoning.
+class GraphUpdateOutput(BaseModel):
+    """Contract: GraphUpdateStage output (Stage 4).
+
+    Stage 4 updates the knowledge graph with extracted concepts and
+    relationships, deduplicating against existing nodes.
     """
 
-    scorer_id: str = Field(
-        description="Identifier of the scorer (e.g., 'KnowledgeCeilingScorer')"
+    nodes_added: List[KGNode] = Field(
+        default_factory=list, description="Nodes added to graph"
     )
-    is_veto: bool = Field(description="Whether this scorer vetoed the candidate")
-    reasoning: str = Field(
-        description="Human-readable explanation of the veto decision"
+    edges_added: List[Dict[str, Any]] = Field(
+        default_factory=list, description="Edges added to graph"
     )
-    signals: Dict[str, Any] = Field(
-        default_factory=dict, description="Raw signals used for veto decision"
+    node_count: int = Field(default=0, ge=0, description="Number of nodes added")
+    edge_count: int = Field(default=0, ge=0, description="Number of edges added")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When graph update was performed",
     )
 
+    @model_validator(mode="after")
+    def set_counts_if_missing(self) -> "GraphUpdateOutput":
+        """Set counts from lists if not provided."""
+        if self.node_count == 0:
+            self.node_count = len(self.nodes_added)
+        if self.edge_count == 0:
+            self.edge_count = len(self.edges_added)
+        return self
 
-class WeightedResult(BaseModel):
-    """Result from a Tier 2 scorer (weighted additive).
 
-    Tier 2 scorers return numeric scores with weights and contributions.
+class QuestionGenerationOutput(BaseModel):
+    """Contract: QuestionGenerationStage output (Stage 7).
+
+    Stage 7 generates the next interview question based on selected
+    strategy and focus, using template-based generation with LLM fallback.
     """
 
-    scorer_id: str = Field(
-        description="Identifier of the scorer (e.g., 'CoverageGapScorer')"
+    question: str = Field(description="Generated question text")
+    strategy: str = Field(description="Strategy used to generate question")
+    focus: Optional[Dict[str, Any]] = Field(
+        default=None, description="Focus target for question"
     )
-    raw_score: float = Field(
-        ge=0.0, description="Raw score from scorer (typically 0-2 range, 1.0 = neutral)"
+    has_llm_fallback: bool = Field(
+        default=False, description="Whether LLM fallback was used"
     )
-    weight: float = Field(ge=0.0, description="Weight of this scorer in the total sum")
-    contribution: float = Field(
-        ge=0.0, description="Contribution to final score (weight × raw_score)"
-    )
-    reasoning: str = Field(description="Human-readable explanation of the score")
-    signals: Dict[str, Any] = Field(
-        default_factory=dict, description="Raw signals used for scoring"
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When question was generated",
     )
 
 
-class ScoredStrategy(BaseModel):
-    """A strategy+focus combination with full scoring breakdown.
+class ResponseSavingOutput(BaseModel):
+    """Contract: ResponseSavingStage output (Stage 8).
 
-    Represents one candidate in the strategy selection process.
+    Stage 8 persists the generated question as a system utterance to
+    the database.
     """
 
-    # Strategy identification
-    strategy_id: str = Field(
-        description="Strategy identifier (e.g., 'deepen', 'broaden')"
-    )
-    strategy_name: str = Field(description="Human-readable strategy name")
-
-    # Focus
-    focus: Focus = Field(description="Focus target for this strategy")
-
-    # Tier 1 results (hard constraints)
-    tier1_results: List[VetoResult] = Field(
-        default_factory=list, description="Results from Tier 1 veto scorers"
+    turn_number: int = Field(ge=0, description="Turn number for this utterance")
+    system_utterance_id: str = Field(description="Database ID of saved utterance")
+    system_utterance: Utterance = Field(description="Full saved utterance record")
+    question_text: str = Field(description="Question text that was saved")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When response was saved",
     )
 
-    # Tier 2 results (weighted scoring)
-    tier2_results: List[WeightedResult] = Field(
-        default_factory=list, description="Results from Tier 2 weighted scorers"
-    )
 
-    # Scores
-    tier2_score: float = Field(
-        ge=0.0, description="Sum of weighted Tier 2 scores (BEFORE phase multiplier)"
-    )
-    final_score: float = Field(
-        ge=0.0, description="Final score AFTER applying phase multiplier"
-    )
+class ContinuationOutput(BaseModel):
+    """Contract: ContinuationStage output (Stage 9).
 
-    # Selection status
-    is_selected: bool = Field(description="Whether this strategy was selected")
-    vetoed_by: Optional[str] = Field(
-        default=None, description="Scorer ID that vetoed this candidate, if any"
-    )
-
-    # Reasoning
-    reasoning: str = Field(description="Human-readable explanation of why this score")
-
-
-class StrategySelectionResult(BaseModel):
-    """Complete result from strategy selection process.
-
-    ADR-010 Phase 2: Type-safe replacement for dataclass SelectionResult.
-
-    This model provides:
-    - Session context (session_id, turn_number, phase)
-    - Selected strategy with full scoring breakdown
-    - Alternative strategies with their scores
-    - Aggregate statistics (total_candidates, vetoed_count)
-    - Phase multiplier information for debugging
+    Stage 9 determines whether the interview should continue based on
+    turn count, saturation, and other signals.
     """
 
-    # Session context
-    session_id: str = Field(description="Session identifier")
-    turn_number: int = Field(ge=0, description="Turn number when selection was made")
-
-    # Phase information
-    phase: str = Field(description="Interview phase: exploratory, focused, or closing")
-    phase_multiplier: float = Field(
-        ge=0.0, description="Phase multiplier applied to scores"
+    should_continue: bool = Field(description="Whether to continue the interview")
+    focus_concept: str = Field(default="", description="Concept to focus on next turn")
+    reason: str = Field(default="", description="Reason for continuation decision")
+    turns_remaining: int = Field(ge=0, description="Number of turns remaining")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When continuation decision was made",
     )
 
-    # Selected strategy
-    selected_strategy: ScoredStrategy = Field(
-        description="The winning strategy with full scoring breakdown"
-    )
 
-    # Alternatives
-    alternatives: List[ScoredStrategy] = Field(
-        default_factory=list,
-        description="All other evaluated strategies (runner-ups)",
-    )
+class ScoringPersistenceOutput(BaseModel):
+    """Contract: ScoringPersistenceStage output (Stage 10).
 
-    # Aggregate statistics
-    total_candidates: int = Field(
-        ge=0, description="Total number of (strategy, focus) candidates evaluated"
+    Stage 10 persists scoring metrics for observability and analysis.
+
+    Note: This stage saves both legacy two-tier scoring data (for old
+    sessions) and new methodology-based signals (for new sessions).
+    """
+
+    turn_number: int = Field(ge=0, description="Turn number for scoring")
+    strategy: str = Field(description="Strategy that was selected")
+    coverage_score: float = Field(
+        ge=0.0, description="Coverage metric from graph state"
     )
-    vetoed_count: int = Field(
-        ge=0, description="How many candidates were vetoed by Tier 1 scorers"
+    depth_score: float = Field(ge=0.0, description="Depth metric from graph state")
+    saturation_score: float = Field(
+        ge=0.0, description="Saturation metric from graph state"
+    )
+    has_methodology_signals: bool = Field(
+        default=False, description="Whether methodology signals were saved"
+    )
+    has_legacy_scoring: bool = Field(
+        default=False, description="Whether legacy two-tier scoring was saved"
+    )
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When scoring was persisted",
     )

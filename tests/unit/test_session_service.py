@@ -5,7 +5,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 from src.services.session_service import SessionService, TurnResult
 from src.domain.models.extraction import ExtractionResult, ExtractedConcept
-from src.domain.models.knowledge_graph import GraphState, KGNode
+from src.domain.models.knowledge_graph import (
+    GraphState,
+    KGNode,
+    DepthMetrics,
+    CoverageState,
+)
 
 
 @pytest.fixture
@@ -30,7 +35,11 @@ def mock_extraction_service():
     service = AsyncMock()
     service.extract = AsyncMock(
         return_value=ExtractionResult(
-            concepts=[ExtractedConcept(text="test", node_type="attribute")],
+            concepts=[
+                ExtractedConcept(
+                    text="test", node_type="attribute", source_utterance_id="u1"
+                )
+            ],
             relationships=[],
             is_extractable=True,
         )
@@ -45,7 +54,11 @@ def mock_graph_service():
     service.add_extraction_to_graph = AsyncMock(return_value=([], []))
     service.get_graph_state = AsyncMock(
         return_value=GraphState(
-            node_count=1, edge_count=0, nodes_by_type={"attribute": 1}
+            node_count=1,
+            edge_count=0,
+            nodes_by_type={"attribute": 1},
+            depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0, depth_by_element={}),
+            coverage_state=CoverageState(),
         )
     )
     service.get_recent_nodes = AsyncMock(
@@ -208,7 +221,12 @@ class TestStrategySelection:
     def test_returns_close_near_max_turns(self, service):
         """Returns close strategy near max turns."""
         strategy = service._select_strategy(
-            graph_state=GraphState(),
+            graph_state=GraphState(
+                depth_metrics=DepthMetrics(
+                    max_depth=0, avg_depth=0.0, depth_by_element={}
+                ),
+                coverage_state=CoverageState(),
+            ),
             turn_number=19,  # Near max of 20
             extraction=ExtractionResult(),
         )
@@ -218,7 +236,12 @@ class TestStrategySelection:
     def test_returns_deepen_by_default(self, service):
         """Returns deepen by default (Phase 2)."""
         strategy = service._select_strategy(
-            graph_state=GraphState(),
+            graph_state=GraphState(
+                depth_metrics=DepthMetrics(
+                    max_depth=0, avg_depth=0.0, depth_by_element={}
+                ),
+                coverage_state=CoverageState(),
+            ),
             turn_number=5,
             extraction=ExtractionResult(),
         )
@@ -233,7 +256,13 @@ class TestShouldContinue:
         """Returns False at max turns."""
         result = service._should_continue(
             turn_number=20,
-            graph_state=GraphState(),
+            max_turns=20,
+            graph_state=GraphState(
+                depth_metrics=DepthMetrics(
+                    max_depth=0, avg_depth=0.0, depth_by_element={}
+                ),
+                coverage_state=CoverageState(),
+            ),
             strategy="deepen",
         )
 
@@ -243,7 +272,13 @@ class TestShouldContinue:
         """Returns False for close strategy."""
         result = service._should_continue(
             turn_number=5,
-            graph_state=GraphState(),
+            max_turns=20,
+            graph_state=GraphState(
+                depth_metrics=DepthMetrics(
+                    max_depth=0, avg_depth=0.0, depth_by_element={}
+                ),
+                coverage_state=CoverageState(),
+            ),
             strategy="close",
         )
 
@@ -253,7 +288,13 @@ class TestShouldContinue:
         """Returns True for normal conditions."""
         result = service._should_continue(
             turn_number=5,
-            graph_state=GraphState(),
+            max_turns=20,
+            graph_state=GraphState(
+                depth_metrics=DepthMetrics(
+                    max_depth=0, avg_depth=0.0, depth_by_element={}
+                ),
+                coverage_state=CoverageState(),
+            ),
             strategy="deepen",
         )
 

@@ -2,6 +2,7 @@
 Stage 8: Generate follow-up question.
 
 ADR-008 Phase 3: Use QuestionService to generate next question.
+Phase 6: Output QuestionGenerationOutput contract.
 """
 
 from typing import TYPE_CHECKING
@@ -9,6 +10,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from ..base import TurnStage
+from src.domain.models.pipeline_contracts import QuestionGenerationOutput
 
 
 if TYPE_CHECKING:
@@ -59,7 +61,16 @@ class QuestionGenerationStage(TurnStage):
         else:
             next_question = "Thank you for sharing your thoughts with me today. This has been very helpful."
 
-        context.next_question = next_question
+        # Create contract output (single source of truth)
+        # No need to set individual fields - they're derived from the contract
+        # TODO: Track has_llm_fallback when QuestionService supports it
+        context.question_generation_output = QuestionGenerationOutput(
+            question=next_question,
+            strategy=context.strategy,
+            focus=context.focus,
+            has_llm_fallback=False,  # TODO: Track actual LLM fallback usage
+            # timestamp auto-set
+        )
 
         log.debug(
             "question_generated",

@@ -88,9 +88,6 @@ class SessionService:
         extraction_service: Optional[ExtractionService] = None,
         graph_service: Optional[GraphService] = None,
         question_service: Optional[QuestionService] = None,
-        strategy_service: Optional[
-            Any
-        ] = None,  # DEPRECATED: Not used with methodology-based selection
         utterance_repo: Optional[UtteranceRepository] = None,
         max_turns: Optional[int] = None,
         target_coverage: Optional[float] = None,
@@ -104,7 +101,6 @@ class SessionService:
             extraction_service: Extraction service (creates default if None)
             graph_service: Graph service (creates default if None)
             question_service: Question service (creates default if None)
-            strategy_service: Strategy service (creates default if None)
             utterance_repo: Utterance repository (creates default if None)
             max_turns: Maximum turns before forcing close (defaults to interview_config.yaml)
             target_coverage: Coverage target (defaults to interview_config.yaml)
@@ -116,7 +112,6 @@ class SessionService:
         self.extraction = extraction_service or ExtractionService()
         self.graph = graph_service or GraphService(graph_repo)
         self.question = question_service or QuestionService()
-        self.strategy = strategy_service
 
         # Create utterance repo if not provided
         if utterance_repo is None:
@@ -165,9 +160,7 @@ class SessionService:
             StateComputationStage(
                 graph_service=self.graph,
             ),
-            StrategySelectionStage(
-                strategy_service=self.strategy,
-            ),
+            StrategySelectionStage(),
             ContinuationStage(
                 question_service=self.question,
             ),

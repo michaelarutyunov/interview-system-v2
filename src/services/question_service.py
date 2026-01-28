@@ -93,7 +93,7 @@ class QuestionService:
         depth_achieved = 0
         if graph_state and recent_nodes:
             recent_concepts = [n.label for n in recent_nodes[:3]]
-            depth_achieved = graph_state.max_depth
+            depth_achieved = graph_state.depth_metrics.max_depth
             graph_summary = get_graph_summary(
                 nodes_by_type=graph_state.nodes_by_type,
                 recent_concepts=recent_concepts,

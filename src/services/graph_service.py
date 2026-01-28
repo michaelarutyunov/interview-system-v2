@@ -160,7 +160,7 @@ class GraphService:
             confidence=concept.confidence,
             properties=node_properties,
             source_utterance_ids=[utterance_id],
-            stance=concept.stance,
+            stance=concept.stance if concept.stance is not None else 0,
         )
 
     async def _add_edge_from_relationship(
@@ -321,7 +321,7 @@ class GraphService:
             node_type=new_concept.node_type,
             confidence=new_concept.confidence,
             source_utterance_ids=[utterance_id],
-            stance=new_concept.stance,
+            stance=new_concept.stance if new_concept.stance is not None else 0,
         )
 
         # Mark old node as superseded

@@ -3,6 +3,7 @@ Stage 5: Compute graph state.
 
 ADR-008 Phase 3: Refresh graph state after updates.
 ADR-010: Return StateComputationOutput with freshness tracking.
+Phase 6: Output StateComputationOutput contract.
 """
 
 from datetime import datetime, timezone
@@ -11,7 +12,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from ..base import TurnStage
-from src.methodologies.means_end_chain.utils import calculate_mec_chain_depth
+from src.domain.models.pipeline_contracts import StateComputationOutput
 
 
 if TYPE_CHECKING:
@@ -58,47 +59,20 @@ class StateComputationStage(TurnStage):
             # Update strategy_history (now a direct field, not in properties)
             graph_state.strategy_history = context.strategy_history
 
-            # P0 Fix: Compute chain depth metrics for MEC methodologies
-            # This provides actual chain length analysis vs edge/node ratio heuristic
-            if context.methodology == "means_end_chain":
-                # Fetch nodes and edges for chain depth calculation
-                nodes_raw = await self.graph.get_nodes_by_session(context.session_id)
-                edges_raw = await self.graph.get_edges_by_session(context.session_id)
-
-                # Convert to dict format expected by calculate_mec_chain_depth
-                nodes_dicts = [
-                    {"id": n.id, "node_type": n.node_type} for n in nodes_raw
-                ]
-                edges_dicts = [
-                    {
-                        "source_node_id": e.source_node_id,
-                        "target_node_id": e.target_node_id,
-                    }
-                    for e in edges_raw
-                ]
-
-                chain_depth = calculate_mec_chain_depth(
-                    edges=edges_dicts,
-                    nodes=nodes_dicts,
-                    methodology=context.methodology,
-                )
-
-                # Store in extended_properties (escape hatch for experimental metrics)
-                graph_state.extended_properties["chain_depth"] = chain_depth
-
-                log.debug(
-                    "chain_depth_computed",
-                    session_id=context.session_id,
-                    max_chain_length=chain_depth.get("max_chain_length", 0),
-                    avg_chain_length=chain_depth.get("avg_chain_length", 0),
-                    chain_count=chain_depth.get("chain_count", 0),
-                )
-
-        context.graph_state = graph_state
-        context.recent_nodes = recent_nodes
+            # Note: Chain depth metrics are now available via graph_state.depth_metrics
+            # The signal pools architecture provides this through GraphMaxDepthSignal
+            # No need for methodology-specific calculation here
 
         # ADR-010: Track when graph_state was computed for freshness validation
-        context.graph_state_computed_at = datetime.now(timezone.utc)
+        computed_at = datetime.now(timezone.utc)
+
+        # Create contract output (single source of truth)
+        # No need to set individual fields - they're derived from the contract
+        context.state_computation_output = StateComputationOutput(
+            graph_state=graph_state,
+            recent_nodes=recent_nodes,
+            computed_at=computed_at,
+        )
 
         log.debug(
             "graph_state_computed",

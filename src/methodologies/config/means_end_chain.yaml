@@ -1,0 +1,67 @@
+# Means-End Chain Methodology Configuration
+#
+# MEC explores chains from attributes → consequences → values
+# by asking "why is that important?" to probe deeper.
+
+methodology:
+  name: means_end_chain
+  description: "Means-End Chain interview methodology"
+
+  signals:
+    graph:
+      - graph.node_count
+      - graph.max_depth
+      - graph.avg_depth
+      - graph.coverage_breadth
+      - graph.missing_terminal_value
+      - graph.orphan_count
+
+    llm:
+      - llm.response_depth
+      - llm.sentiment
+      - llm.uncertainty
+
+    temporal:
+      - temporal.strategy_repetition_count
+      - temporal.turns_since_strategy_change
+
+    meta:
+      - meta.interview_progress
+
+  strategies:
+    # Strategy 1: Deepen the chain (laddering)
+    - name: deepen
+      technique: laddering
+      signal_weights:
+        llm.response_depth.surface: 0.8
+        llm.response_depth.moderate: 0.3
+        graph.max_depth: 0.5
+        graph.missing_terminal_value: 0.7
+      focus_preference: shallow
+
+    # Strategy 2: Clarify relationships (probing)
+    - name: clarify
+      technique: probing
+      signal_weights:
+        graph.orphan_count: 0.7
+        graph.coverage_breadth: -0.3
+        graph.edge_density: 0.6
+      focus_preference: related
+
+    # Strategy 3: Explore new areas (elaboration)
+    - name: explore
+      technique: elaboration
+      signal_weights:
+        graph.coverage_breadth: 0.6
+        llm.uncertainty: 0.4
+        temporal.strategy_repetition_count: 0.5
+      focus_preference: recent
+
+    # Strategy 4: Reflect and validate (validation)
+    - name: reflect
+      technique: validation
+      signal_weights:
+        graph.max_depth: 0.7
+        meta.interview_progress: 0.5
+        llm.response_depth.deep: 0.6
+      focus_preference: deep

@@ -1,31 +1,57 @@
-from typing import Dict, Optional
-from src.methodologies.base import MethodologyModule
+"""Methodologies module - YAML-based configuration with signal pools.
 
-_REGISTRY: Dict[str, MethodologyModule] = {}
+This module uses:
+- YAML configs for methodology definitions (config/*.yaml)
+- Shared signal pools (signals/graph, signals/llm, signals/temporal, signals/meta)
+- Shared technique pool (techniques/)
+- MethodologyRegistry for loading configs
+
+Usage:
+    from src.methodologies.registry import MethodologyRegistry
+    registry = MethodologyRegistry()
+    config = registry.get_methodology("means_end_chain")
+    detector = registry.create_signal_detector(config)
+"""
+
+from src.methodologies.registry import (
+    MethodologyRegistry,
+    MethodologyConfig,
+    StrategyConfig,
+)
+
+# Global registry instance
+_registry: MethodologyRegistry | None = None
 
 
-def register_methodology(module: MethodologyModule) -> None:
-    """Register a methodology module."""
-    _REGISTRY[module.name] = module
+def get_registry() -> MethodologyRegistry:
+    """Get the global methodology registry instance."""
+    global _registry
+    if _registry is None:
+        _registry = MethodologyRegistry()
+    return _registry
 
 
-def get_methodology(name: str) -> Optional[MethodologyModule]:
-    """Get a registered methodology module by name."""
-    return _REGISTRY.get(name)
+def get_methodology(name: str) -> MethodologyConfig:
+    """Get a methodology configuration by name.
+
+    Convenience function that uses the global registry.
+    """
+    return get_registry().get_methodology(name)
 
 
 def list_methodologies() -> list[str]:
-    """List all registered methodology names."""
-    return list(_REGISTRY.keys())
+    """List all available methodology names.
+
+    Convenience function that uses the global registry.
+    """
+    return get_registry().list_methodologies()
 
 
-# Auto-register methodologies on import
-def _auto_register():
-    from src.methodologies.means_end_chain import MECModule
-    from src.methodologies.jtbd import JTBDModule
-
-    register_methodology(MECModule())
-    register_methodology(JTBDModule())
-
-
-_auto_register()
+__all__ = [
+    "MethodologyRegistry",
+    "MethodologyConfig",
+    "StrategyConfig",
+    "get_registry",
+    "get_methodology",
+    "list_methodologies",
+]

@@ -11,8 +11,8 @@ def test_settings_defaults():
     # Create fresh settings (don't use global)
     s = Settings()
 
-    assert s.llm_provider == "anthropic"
-    assert s.llm_model == "claude-sonnet-4-5-20250929"
+    # Settings class no longer has llm_provider, llm_model, llm_temperature
+    # These are now in LLM client defaults
     assert s.default_max_turns == 10  # Settings default (not interview_config)
     assert s.default_target_coverage == 0.8
     # Note: debug may be True from .env file
@@ -40,13 +40,13 @@ def test_settings_validation():
     from src.core.config import Settings
     from pydantic import ValidationError
 
-    # Temperature out of range
-    with pytest.raises(ValidationError):
-        Settings(llm_temperature=3.0)
-
     # Coverage out of range
     with pytest.raises(ValidationError):
         Settings(default_target_coverage=1.5)
+
+    # Max turns out of range
+    with pytest.raises(ValidationError):
+        Settings(default_max_turns=100)
 
 
 def test_global_settings_available():

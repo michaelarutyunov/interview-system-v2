@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.services.turn_pipeline.stages.context_loading_stage import ContextLoadingStage
 from src.services.turn_pipeline.context import PipelineContext
-from src.domain.models.pipeline_contracts import ContextLoadingOutput
 
 
 class TestContextLoadingStageContract:
@@ -85,11 +84,6 @@ class TestContextLoadingStageContract:
         self, mock_get_db, mock_connect, session_repo, graph_service
     ):
         """Should be able to construct ContextLoadingOutput from result."""
-        from src.domain.models.knowledge_graph import (
-            GraphState,
-            DepthMetrics,
-            CoverageState,
-        )
 
         # Mock aiosqlite connection for config reading
         mock_db = AsyncMock()
@@ -113,32 +107,13 @@ class TestContextLoadingStageContract:
         context = PipelineContext(
             session_id="test-session",
             user_input="I like oat milk",
-            # Provide graph_state (loaded separately by StateComputationStage)
-            graph_state=GraphState(
-                node_count=0,
-                edge_count=0,
-                depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-                coverage_state=CoverageState(),
-                current_phase="exploratory",
-                turn_count=0,
-            ),
         )
 
         result_context = await stage.process(context)
 
-        # Verify we can construct the contract output
-        output = ContextLoadingOutput(
-            methodology=result_context.methodology,
-            concept_id=result_context.concept_id,
-            concept_name=result_context.concept_name,
-            turn_number=result_context.turn_number,
-            mode=result_context.mode,
-            max_turns=result_context.max_turns,
-            recent_utterances=result_context.recent_utterances,
-            strategy_history=result_context.strategy_history,
-            graph_state=result_context.graph_state,
-            recent_nodes=result_context.recent_nodes,
-        )
-
-        assert output.methodology == "means_end_chain"
-        assert output.graph_state.node_count == 0
+        # Verify we can construct the contract output from the result
+        # The contract output is already set by the stage
+        assert result_context.context_loading_output is not None
+        assert result_context.context_loading_output.methodology == "means_end_chain"
+        # graph_state is a placeholder at this stage (set by StateComputationStage later)
+        assert result_context.context_loading_output.graph_state.node_count == 0

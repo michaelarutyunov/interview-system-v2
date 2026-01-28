@@ -11,6 +11,7 @@ from src.domain.models import (
     ExtractedRelationship,
     ExtractionResult,
 )
+from src.domain.models.knowledge_graph import DepthMetrics, CoverageState
 
 
 class TestKGNode:
@@ -128,12 +129,14 @@ class TestExtractionResult:
                     node_type="attribute",
                     confidence=0.9,
                     source_quote="I love the creamy texture",
+                    source_utterance_id="u1",
                 ),
                 ExtractedConcept(
                     text="satisfying",
                     node_type="functional_consequence",
                     confidence=0.8,
                     source_quote="it's really satisfying",
+                    source_utterance_id="u1",
                 ),
             ],
             relationships=[
@@ -142,6 +145,7 @@ class TestExtractionResult:
                     target_text="satisfying",
                     relationship_type="leads_to",
                     confidence=0.75,
+                    source_utterance_id="u1",
                 ),
             ],
             discourse_markers=["because"],
@@ -168,11 +172,14 @@ class TestGraphState:
 
     def test_empty_graph_state(self):
         """GraphState defaults to empty."""
-        state = GraphState()
+        state = GraphState(
+            depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0, depth_by_element={}),
+            coverage_state=CoverageState(),
+        )
 
         assert state.node_count == 0
         assert state.edge_count == 0
-        assert state.max_depth == 0
+        assert state.depth_metrics.max_depth == 0
 
     def test_graph_state_with_data(self):
         """GraphState can hold aggregate data."""
@@ -180,16 +187,21 @@ class TestGraphState:
             node_count=5,
             edge_count=3,
             nodes_by_type={"attribute": 2, "functional_consequence": 3},
-            max_depth=2,
             orphan_count=1,
+            depth_metrics=DepthMetrics(max_depth=2, avg_depth=1.5, depth_by_element={}),
+            coverage_state=CoverageState(),
         )
 
         assert state.node_count == 5
         assert state.nodes_by_type["attribute"] == 2
+        assert state.depth_metrics.max_depth == 2
 
     def test_phase_getset(self):
         """Phase can be set and retrieved."""
-        state = GraphState()
+        state = GraphState(
+            depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0, depth_by_element={}),
+            coverage_state=CoverageState(),
+        )
 
         # Default phase is exploratory
         assert state.get_phase() == "exploratory"
@@ -204,26 +216,34 @@ class TestGraphState:
 
     def test_add_strategy_used_initializes_history(self):
         """First call to add_strategy_used initializes history list."""
-        state = GraphState()
+        state = GraphState(
+            depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0, depth_by_element={}),
+            coverage_state=CoverageState(),
+        )
 
         state.add_strategy_used("broaden")
 
-        assert "strategy_history" in state.properties
-        assert state.properties["strategy_history"] == ["broaden"]
+        assert state.strategy_history == ["broaden"]
 
     def test_add_strategy_used_appends_to_history(self):
         """Subsequent calls append to existing history."""
-        state = GraphState()
+        state = GraphState(
+            depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0, depth_by_element={}),
+            coverage_state=CoverageState(),
+        )
 
         state.add_strategy_used("broaden")
         state.add_strategy_used("deepen")
         state.add_strategy_used("broaden")
 
-        assert state.properties["strategy_history"] == ["broaden", "deepen", "broaden"]
+        assert state.strategy_history == ["broaden", "deepen", "broaden"]
 
     def test_strategy_history_persists_across_operations(self):
         """Strategy history persists through other state operations."""
-        state = GraphState()
+        state = GraphState(
+            depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0, depth_by_element={}),
+            coverage_state=CoverageState(),
+        )
 
         # Add some strategies
         state.add_strategy_used("broaden")
@@ -233,4 +253,4 @@ class TestGraphState:
         state.set_phase("focused")
 
         # History should still be there
-        assert state.properties["strategy_history"] == ["broaden", "deepen"]
+        assert state.strategy_history == ["broaden", "deepen"]

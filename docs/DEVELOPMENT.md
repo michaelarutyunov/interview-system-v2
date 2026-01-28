@@ -379,86 +379,6 @@ All checks must pass before committing.
 
 3. **Integrate with existing services if needed**
 
-### Adding a New Scoring Metric
-
-**Note**: The scoring system uses a two-tier architecture implemented in ADR-006. Tier 1 provides filtering, Tier 2 provides detailed scoring. Most new metrics should be added as Tier 2 scorers.
-
-1. **Create scorer in `src/services/scoring/tier2/`:**
-   ```python
-   # src/services/scoring/tier2/my_metric.py
-   from src.services.scoring.base import ScorerOutput, ScorerBase
-
-   class MyMetricScorer(ScorerBase):
-       """Custom scoring metric for strategy selection."""
-
-       def __init__(self, config: dict | None = None):
-           super().__init__(config or {})
-           self.threshold = self.config.get("threshold", 0.5)
-
-       async def score(
-           self,
-           candidate: StrategyCandidate,
-           context: TurnContext,
-       ) -> ScorerOutput:
-           # Calculate score based on candidate and context
-           raw_score = await self._calculate_score(candidate, context)
-
-           return self.make_output(
-               raw_score=raw_score,
-               weight=self.weight,
-           )
-
-       async def _calculate_score(
-           self,
-           candidate: StrategyCandidate,
-           context: TurnContext,
-       ) -> float:
-           # Your scoring logic here
-           # Read from context.graph_state, context.extraction, etc.
-           return 1.0
-   ```
-
-2. **Register in tier2 scorer factory:**
-   ```python
-   # src/services/scoring/tier2/__init__.py
-   from .my_metric import MyMetricScorer
-
-   def get_tier2_scorers(config: dict) -> list[ScorerBase]:
-       return [
-           CoverageGapScorer(config.get("coverage_gap", {})),
-           DepthScorer(config.get("depth", {})),
-           MyMetricScorer(config.get("my_metric", {})),  # Add new scorer
-       ]
-   ```
-
-3. **Add configuration (optional):**
-   ```yaml
-   # config/scoring.yaml
-   tier2_scorers:
-     my_metric:
-       enabled: true
-       weight: 0.15
-       threshold: 0.5
-   ```
-
-4. **Add tests:**
-   ```python
-   # tests/unit/test_my_metric_scorer.py
-   import pytest
-   from src.services.scoring.tier2.my_metric import MyMetricScorer
-
-   @pytest.mark.asyncio
-   async def test_my_metric_scoring():
-       scorer = MyMetricScorer({"weight": 0.15, "threshold": 0.5})
-       # Test your scorer logic
-   ```
-
-**Key benefits of this architecture** (from ADR-008):
-- Changes are isolated to single files
-- No need to modify SessionService, pipeline, or API
-- Scorers only read from TurnContext (no direct DB/LLM calls)
-- Easy to test in isolation
-
 ### Adding a New Prompt
 
 1. **Create prompt template in `src/llm/prompts/`:**
@@ -487,48 +407,247 @@ All checks must pass before committing.
 
 ### Adding a New Methodology
 
-Methodology schemas define the ontology (node types, edge types, valid connections) and are stored as YAML files in `config/methodologies/`. See [ADR-007](../adr/007-yaml-based-methodology-schema.md) for details.
+**Signal Pools Architecture (ADR-014)**: Methodologies are now defined using YAML-based configuration files that combine signals from shared pools with strategy definitions. This replaces the old folder-per-methodology approach.
 
-1. **Create YAML schema in `config/methodologies/`:**
+1. **Create YAML config in `src/methodologies/config/`:**
    ```yaml
-   # config/methodologies/my_methodology.yaml
-   name: my_methodology
-   version: "1.0"
-   description: "Brief description of the methodology"
+   # src/methodologies/config/my_methodology.yaml
+   methodology:
+     name: my_methodology
+     display_name: "My Interview Methodology"
+     description: "Brief description of the methodology"
 
-   node_types:
-     - name: concept
-       description: "Core concept or idea"
-       examples:
-         - "example 1"
-         - "example 2"
+     # Signal definitions (namespaced)
+     signals:
+       graph:
+         - graph.node_count
+         - graph.max_depth
+         - graph.orphan_count
+       llm:
+         - llm.response_depth
+         - llm.sentiment
+         - llm.topics
+       temporal:
+         - temporal.strategy_repetition_count
+         - temporal.turns_since_focus_change
+       meta:
+         - meta.interview_progress
+         - meta.exploration_score
 
-   edge_types:
-     - name: relates_to
-       description: "Semantic relationship"
+     # Strategy definitions (weighted by signals)
+     strategies:
+       - name: deepen
+         technique: laddering
+         signal_weights:
+           llm.response_depth.surface: 0.8
+           graph.max_depth: 0.5
+         focus_preference: shallow
 
-   valid_connections:
-     relates_to:
-       - [concept, concept]  # concept can relate to concept
+       - name: broaden
+         technique: elaboration
+         signal_weights:
+           llm.response_depth.deep: 0.7
+           graph.coverage_breadth: 0.6
+         focus_preference: recent
    ```
 
-2. **Load schema in services:**
+2. **The methodology is automatically available:**
    ```python
-   from src.core.schema_loader import load_methodology
+   from src.methodologies import get_registry
 
-   # In service __init__
-   def __init__(self, methodology: str = "my_methodology"):
-       self.schema = load_methodology(methodology)
+   # Load methodology
+   registry = get_registry()
+   config = registry.get_methodology("my_methodology")
 
-   # Validate against schema
-   if not self.schema.is_valid_node_type(node_type):
-       log.warning("invalid_node_type", type=node_type)
+   # Use with MethodologyStrategyService
+   from src.services.methodology_strategy_service import MethodologyStrategyService
+   service = MethodologyStrategyService()
+   strategy, focus, alternatives, signals = await service.select_strategy(
+       context, graph_state, response_text
+   )
    ```
 
-3. **Schema is automatically used for:**
-   - Extraction validation (invalid types/connections rejected)
-   - LLM prompt generation (node/edge descriptions)
-   - Graph constraints enforcement
+3. **Key components:**
+   - **Signals**: Auto-detected from shared pools (graph/, llm/, temporal/, meta/)
+   - **Techniques**: Reusable question generation modules (laddering, elaboration, probing, validation)
+   - **Strategies**: Methodology-specific "when-to-use" logic defined in YAML
+   - **Focus Selection**: Centralized in FocusSelectionService
+
+**For more details:**
+- [ADR-014](../adr/ADR-014-signal-pools-architecture.md) - Full signal pools architecture
+- [Implementation Plan](../plans/refactor-signals-strategies-plan.md) - Migration details
+
+### Adding a New Signal
+
+**Signal Pools Architecture (ADR-014)**: Signals are grouped by data source into pools. Add new signals to the appropriate pool.
+
+1. **Determine signal pool:**
+   - `graph/` - Signals from knowledge graph (node_count, max_depth, orphan_count)
+   - `llm/` - LLM-based signals from response text (response_depth, sentiment, topics)
+   - `temporal/` - Turn-level temporal signals (strategy_repetition_count, turns_since_focus_change)
+   - `meta/` - Composite signals derived from other signals (interview_progress, exploration_score)
+
+2. **Create signal class:**
+   ```python
+   # src/methodologies/signals/graph/my_signal.py
+   from typing import Any
+   from src.methodologies.signals.common import SignalDetector, SignalCostTier, RefreshTrigger
+
+   class MySignal(SignalDetector):
+       """My custom signal description."""
+
+       signal_name = "graph.my_signal"
+       cost_tier = SignalCostTier.LOW  # FREE, LOW, MEDIUM, HIGH
+       refresh_trigger = RefreshTrigger.PER_TURN  # PER_RESPONSE, PER_TURN, PER_SESSION
+
+       async def detect(
+           self,
+           context: "PipelineContext",
+           graph_state: "GraphState",
+           response_text: str,
+       ) -> dict[str, Any]:
+           # Your signal detection logic here
+           value = await self._calculate_value(graph_state)
+           return {self.signal_name: value}
+
+       async def _calculate_value(self, graph_state: "GraphState") -> float:
+           # Implementation
+           return graph_state.node_count * 0.5
+   ```
+
+3. **Export from pool `__init__.py`:**
+   ```python
+   # src/methodologies/signals/graph/__init__.py
+   from .my_signal import MySignal
+
+   __all__ = ["MySignal"]
+   ```
+
+4. **Register in signal registry:**
+   ```python
+   # src/methodologies/signals/registry.py
+   SIGNAL_CLASSES = {
+       # ... existing signals
+       "graph.my_signal": MySignal,
+   }
+   ```
+
+5. **Add to methodology YAML config:**
+   ```yaml
+   # src/methodologies/config/means_end_chain.yaml
+   signals:
+     graph:
+       - graph.node_count
+       - graph.max_depth
+       - graph.my_signal  # Add your new signal
+   ```
+
+6. **Add tests:**
+   ```python
+   # tests/methodologies/signals/graph/test_my_signal.py
+   import pytest
+   from src.methodologies.signals.graph.my_signal import MySignal
+
+   @pytest.mark.asyncio
+   async def test_my_signal_detection(context, graph_state):
+       signal = MySignal()
+       result = await signal.detect(context, graph_state, "test response")
+       assert "graph.my_signal" in result
+       assert result["graph.my_signal"] >= 0
+   ```
+
+**LLM Signals** (fresh per response):
+```python
+# src/methodologies/signals/llm/my_llm_signal.py
+from src.methodologies.signals.llm.common import BaseLLMSignal
+
+class MyLLMSignal(BaseLLMSignal):
+    """Fresh LLM analysis signal."""
+
+    signal_name = "llm.my_llm_signal"
+    # cost_tier = SignalCostTier.HIGH (inherited from BaseLLMSignal)
+    # refresh_trigger = RefreshTrigger.PER_RESPONSE (inherited)
+
+    async def _analyze_with_llm(self, response_text: str) -> dict[str, Any]:
+        # Your LLM analysis logic here
+        # Always computed fresh per response
+        return {self.signal_name: await self._call_llm(response_text)}
+```
+
+### Adding a New Technique
+
+**Techniques** are reusable "how-to" modules for generating questions. They are shared across all methodologies.
+
+1. **Create technique class:**
+   ```python
+   # src/methodologies/techniques/my_technique.py
+   from src.methodologies.techniques.base import Technique
+
+   class MyTechnique(Technique):
+       """My custom question generation technique."""
+
+       name = "my_technique"
+       description = "Brief description of what this technique does"
+
+       async def generate_questions(
+           self,
+           focus: str | None,
+           context: "PipelineContext",
+       ) -> list[str]:
+           # Generate questions based on focus and context
+           questions = [
+               f"Tell me more about {focus}...",
+               f"Why is {focus} important to you?",
+           ]
+
+           # Access signals for conditional logic
+           if context.signals.get("graph.max_depth", 0) < 2:
+               questions.append(f"And what does that mean for you?")
+
+           return questions
+   ```
+
+2. **Export from techniques module:**
+   ```python
+   # src/methodologies/techniques/__init__.py
+   from .my_technique import MyTechnique
+
+   __all__ = ["MyTechnique", "LadderingTechnique", ...]
+   ```
+
+3. **Register in methodology registry:**
+   ```python
+   # src/methodologies/registry.py
+   TECHNIQUE_CLASSES = {
+       # ... existing techniques
+       "my_technique": MyTechnique,
+   }
+   ```
+
+4. **Use in methodology YAML config:**
+   ```yaml
+   # src/methodologies/config/means_end_chain.yaml
+   strategies:
+     - name: my_strategy
+       technique: my_technique  # Use your new technique
+       signal_weights:
+         graph.max_depth: 0.5
+       focus_preference: shallow
+   ```
+
+5. **Add tests:**
+   ```python
+   # tests/methodologies/techniques/test_my_technique.py
+   import pytest
+   from src.methodologies.techniques.my_technique import MyTechnique
+
+   @pytest.mark.asyncio
+   async def test_my_technique_generates_questions(context):
+       technique = MyTechnique()
+       questions = await technique.generate_questions("test focus", context)
+       assert len(questions) > 0
+       assert all(isinstance(q, str) for q in questions)
+   ```
 
 ---
 
@@ -855,25 +974,41 @@ src/
 │       ├── concept.py     # Concept, ConceptElement, CoverageState (ADR-008)
 │       ├── knowledge_graph.py  # KGNode, KGEdge, GraphState, SaturationMetrics
 │       ├── extraction.py  # ExtractionResult, ExtractedConcept, ExtractedRelationship
-│       ├── qualitative_signals.py  # LLM-extracted semantic signals
-│       ├── pipeline_contracts.py  # Stage I/O models (ADR-010 Phase 2)
+│       ├── pipeline_contracts.py  # Stage I/O models (ADR-010)
 │       └── turn.py        # TurnContext, TurnResult, Focus
 ├── llm/                   # LLM integration
 │   ├── client.py
 │   └── prompts/
+├── methodologies/         # Methodology module (ADR-014)
+│   ├── signals/           # Shared signal pools
+│   │   ├── common.py      # SignalDetector, enums
+│   │   ├── graph/         # Graph-based signals
+│   │   ├── llm/           # LLM-based signals (fresh per response)
+│   │   ├── temporal/      # Temporal signals
+│   │   ├── meta/          # Composite signals
+│   │   └── registry.py    # ComposedSignalDetector
+│   ├── techniques/        # Shared technique pool
+│   │   ├── laddering.py
+│   │   ├── elaboration.py
+│   │   ├── probing.py
+│   │   └── validation.py
+│   ├── config/            # YAML methodology definitions
+│   │   ├── means_end_chain.yaml
+│   │   └── jobs_to_be_done.yaml
+│   ├── registry.py        # MethodologyRegistry (YAML loader)
+│   └── scoring.py         # Strategy scoring with signal weights
 ├── persistence/           # Data persistence
 │   ├── database.py
 │   ├── migrations/
 │   └── repositories/      # Session, Graph, Utterance repositories
 └── services/              # Business logic
     ├── depth_calculator.py  # Chain validation for depth (ADR-008)
-    ├── scoring/           # Two-tier scoring system
-    │   ├── tier1/         # Filter stages
-    │   └── tier2/         # Scoring modules
+    ├── methodology_strategy_service.py  # YAML-based strategy selection
+    ├── focus_selection_service.py  # Centralized focus selection
     ├── turn_pipeline/     # Pipeline orchestrator (ADR-008)
     │   ├── stages/        # 10 independent stages
     │   ├── base.py        # TurnStage base class
-    │   ├── context.py     # TurnContext dataclass
+    │   ├── context.py     # PipelineContext dataclass
     │   ├── pipeline.py    # TurnPipeline orchestrator
     │   └── result.py      # TurnResult model
     └── ...

@@ -1,13 +1,19 @@
 """Tests for ScoringPersistenceStage contract integration (ADR-010)."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
+from datetime import datetime, timezone
 
 from src.services.turn_pipeline.stages.scoring_persistence_stage import (
     ScoringPersistenceStage,
 )
 from src.services.turn_pipeline.context import PipelineContext
 from src.domain.models.knowledge_graph import GraphState, DepthMetrics, CoverageState
+from src.domain.models.pipeline_contracts import (
+    ContextLoadingOutput,
+    StateComputationOutput,
+    StrategySelectionOutput,
+)
 
 
 class TestScoringPersistenceStageContract:
@@ -16,20 +22,12 @@ class TestScoringPersistenceStageContract:
     @pytest.fixture
     def context(self):
         """Create a test pipeline context with strategy selection."""
+        ctx = PipelineContext(
+            session_id="test-session",
+            user_input="I like oat milk",
+        )
 
-        # Mock selection result
-        class MockSelectionResult:
-            selected_strategy = {"id": "deepen", "name": "Deepen"}
-            selected_focus = {"focus_type": "element", "focus_description": "oat milk"}
-            final_score = 1.0
-            scoring_result = MagicMock()
-            scoring_result.tier1_outputs = []
-            scoring_result.tier2_outputs = []
-            scoring_result.final_score = 1.0
-            scoring_result.reasoning_trace = []
-            scoring_result.vetoed_by = None
-            alternative_strategies = []
-
+        # Set ContextLoadingOutput for basic session metadata
         graph_state = GraphState(
             node_count=5,
             edge_count=3,
@@ -38,18 +36,36 @@ class TestScoringPersistenceStageContract:
             current_phase="exploratory",
             turn_count=1,
         )
-
-        return PipelineContext(
-            session_id="test-session",
-            user_input="I like oat milk",
-            turn_number=1,
-            graph_state=graph_state,
+        ctx.context_loading_output = ContextLoadingOutput(
             methodology="means_end_chain",
             concept_id="oat_milk_v2",
             concept_name="Oat Milk v2",
-            strategy="deepen",
-            selection_result=MockSelectionResult(),
+            turn_number=1,
+            mode="coverage_driven",
+            max_turns=20,
+            recent_utterances=[],
+            strategy_history=[],
+            graph_state=graph_state,
+            recent_nodes=[],
         )
+
+        # Set StateComputationOutput with graph_state
+        ctx.state_computation_output = StateComputationOutput(
+            graph_state=graph_state,
+            recent_nodes=[],
+            computed_at=datetime.now(timezone.utc),
+        )
+
+        # Set StrategySelectionOutput with methodology-based selection
+        # (selection_result is None for methodology-based selection)
+        ctx.strategy_selection_output = StrategySelectionOutput(
+            strategy="deepen",
+            focus={"focus_type": "element", "focus_description": "oat milk"},
+            signals={"signal1": "value1"},
+            strategy_alternatives=[("broaden", 0.8), ("deepen", 0.9)],
+        )
+
+        return ctx
 
     @pytest.fixture
     def session_repo(self):

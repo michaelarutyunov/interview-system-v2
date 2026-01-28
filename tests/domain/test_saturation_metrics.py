@@ -10,6 +10,7 @@ from src.domain.models.knowledge_graph import (
     SaturationMetrics,
     DepthMetrics,
     CoverageState,
+    ElementCoverage,
 )
 
 
@@ -67,14 +68,33 @@ class TestSaturationMetrics:
             depth_metrics=DepthMetrics(
                 max_depth=3,
                 avg_depth=1.5,
-                deep_chain_count=1,
-                deepest_chain_path=["node1", "node2", "node3"],
+                longest_chain_path=["node1", "node2", "node3"],
             ),
             coverage_state=CoverageState(
-                covered_elements=[1, 2, 3],
-                uncovered_elements=[4, 5],
-                coverage_ratio=0.6,
-                shallow_elements=[1],
+                elements={
+                    1: ElementCoverage(
+                        covered=True,
+                        linked_node_ids=["node1"],
+                        types_found=["attribute"],
+                        depth_score=1.0,
+                    ),
+                    2: ElementCoverage(
+                        covered=True,
+                        linked_node_ids=["node2"],
+                        types_found=["attribute"],
+                        depth_score=1.0,
+                    ),
+                    3: ElementCoverage(
+                        covered=True,
+                        linked_node_ids=["node3"],
+                        types_found=["attribute"],
+                        depth_score=1.0,
+                    ),
+                },
+                elements_covered=3,
+                elements_total=5,
+                overall_depth=1.0,
+                max_depth=3.0,
             ),
             saturation_metrics=SaturationMetrics(
                 chao1_ratio=0.85,
@@ -98,14 +118,13 @@ class TestSaturationMetrics:
             depth_metrics=DepthMetrics(
                 max_depth=2,
                 avg_depth=1.0,
-                deep_chain_count=0,
-                deepest_chain_path=[],
             ),
             coverage_state=CoverageState(
-                covered_elements=[],
-                uncovered_elements=[1, 2],
-                coverage_ratio=0.0,
-                shallow_elements=[],
+                elements={},
+                elements_covered=0,
+                elements_total=2,
+                overall_depth=0.0,
+                max_depth=0.0,
             ),
             # saturation_metrics not provided (optional)
         )

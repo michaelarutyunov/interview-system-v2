@@ -2,6 +2,7 @@
 Stage 7: Determine continuation.
 
 ADR-008 Phase 3: Decide if interview should continue or end.
+Phase 6: Output ContinuationOutput contract.
 """
 
 from typing import TYPE_CHECKING
@@ -9,6 +10,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from ..base import TurnStage
+from src.domain.models.pipeline_contracts import ContinuationOutput
 
 
 if TYPE_CHECKING:
@@ -50,7 +52,15 @@ class ContinuationStage(TurnStage):
             strategy=context.strategy,
         )
 
-        context.should_continue = should_continue
+        # Calculate continuation reason
+        reason = ""
+        if not should_continue:
+            if context.turn_number >= context.max_turns:
+                reason = "Maximum turns reached"
+            elif context.strategy == "close":
+                reason = "Closing strategy selected"
+            else:
+                reason = "Interview concluded"
 
         # Select focus concept if continuing
         if should_continue:
@@ -72,7 +82,7 @@ class ContinuationStage(TurnStage):
                     focus_concept = context.focus.get("focus_description", "the topic")
             else:
                 # Phase 2: fall back to heuristic selection
-                focus_concept = self.question.select_focus_concept(
+                focus_concept = await self.question.select_focus_concept(
                     recent_nodes=context.recent_nodes,
                     graph_state=context.graph_state,
                     strategy=context.strategy,
@@ -80,7 +90,15 @@ class ContinuationStage(TurnStage):
         else:
             focus_concept = ""
 
-        context.focus_concept = focus_concept
+        # Create contract output (single source of truth)
+        # No need to set individual fields - they're derived from the contract
+        context.continuation_output = ContinuationOutput(
+            should_continue=should_continue,
+            focus_concept=focus_concept,
+            reason=reason,
+            turns_remaining=max(0, context.max_turns - context.turn_number),
+            # timestamp auto-set
+        )
 
         log.info(
             "continuation_determined",

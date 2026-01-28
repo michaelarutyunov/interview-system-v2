@@ -142,7 +142,7 @@ class TestExtractionService:
             {"text": "", "node_type": "attribute"},  # Empty text
         ]
 
-        concepts = service._parse_concepts(raw)
+        concepts = service._parse_concepts(raw, source_utterance_id="u1")
 
         assert len(concepts) == 1
         assert concepts[0].text == "valid"
@@ -158,7 +158,9 @@ class TestExtractionService:
         # Provide concept_types map
         concept_types = {"a": "attribute", "b": "functional_consequence"}
 
-        relationships = service._parse_relationships(raw, concept_types)
+        relationships = service._parse_relationships(
+            raw, concept_types, source_utterance_id="u1"
+        )
 
         assert len(relationships) == 1
         assert relationships[0].source_text == "a"

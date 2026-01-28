@@ -1,0 +1,58 @@
+"""Graph structure signals - node count, edge count, orphans."""
+
+from src.methodologies.signals.common import (
+    SignalDetector,
+    SignalCostTier,
+    RefreshTrigger,
+)
+
+
+class GraphNodeCountSignal(SignalDetector):
+    """Number of nodes in the graph.
+
+    Namespaced signal: graph.node_count
+    Cost: free (O(1) lookup)
+    Refresh: per_turn (cached on graph update)
+    """
+
+    signal_name = "graph.node_count"
+    cost_tier = SignalCostTier.FREE
+    refresh_trigger = RefreshTrigger.PER_TURN
+
+    async def detect(self, context, graph_state, response_text):
+        """Return node count from graph state."""
+        return {self.signal_name: graph_state.node_count}
+
+
+class GraphEdgeCountSignal(SignalDetector):
+    """Number of edges in the graph.
+
+    Namespaced signal: graph.edge_count
+    Cost: free (O(1) lookup)
+    Refresh: per_turn (cached on graph update)
+    """
+
+    signal_name = "graph.edge_count"
+    cost_tier = SignalCostTier.FREE
+    refresh_trigger = RefreshTrigger.PER_TURN
+
+    async def detect(self, context, graph_state, response_text):
+        """Return edge count from graph state."""
+        return {self.signal_name: graph_state.edge_count}
+
+
+class OrphanCountSignal(SignalDetector):
+    """Number of orphaned nodes (no relationships).
+
+    Namespaced signal: graph.orphan_count
+    Cost: free (O(1) lookup)
+    Refresh: per_turn (cached on graph update)
+    """
+
+    signal_name = "graph.orphan_count"
+    cost_tier = SignalCostTier.FREE
+    refresh_trigger = RefreshTrigger.PER_TURN
+
+    async def detect(self, context, graph_state, response_text):
+        """Return orphan count from graph state."""
+        return {self.signal_name: graph_state.orphan_count}

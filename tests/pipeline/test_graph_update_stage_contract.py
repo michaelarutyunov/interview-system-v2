@@ -2,12 +2,23 @@
 
 import pytest
 from unittest.mock import AsyncMock
+from datetime import datetime, timezone
 
 from src.services.turn_pipeline.stages.graph_update_stage import GraphUpdateStage
 from src.services.turn_pipeline.context import PipelineContext
-from src.domain.models.knowledge_graph import KGNode, KGEdge
+from src.domain.models.knowledge_graph import (
+    KGNode,
+    GraphState,
+    DepthMetrics,
+    CoverageState,
+)
 from src.domain.models.utterance import Utterance
 from src.domain.models.extraction import ExtractionResult
+from src.domain.models.pipeline_contracts import (
+    ContextLoadingOutput,
+    ExtractionOutput,
+    UtteranceSavingOutput,
+)
 
 
 class TestGraphUpdateStageContract:
@@ -16,25 +27,60 @@ class TestGraphUpdateStageContract:
     @pytest.fixture
     def context_with_extraction(self):
         """Create a test pipeline context with extraction."""
-        from datetime import datetime, timezone
-
-        return PipelineContext(
+        ctx = PipelineContext(
             session_id="test-session",
             user_input="I like oat milk",
+        )
+
+        # Set ContextLoadingOutput
+        graph_state = GraphState(
+            node_count=0,
+            edge_count=0,
+            depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
+            coverage_state=CoverageState(),
+            current_phase="exploratory",
+            turn_count=1,
+        )
+        ctx.context_loading_output = ContextLoadingOutput(
+            methodology="means_end_chain",
+            concept_id="oat_milk",
+            concept_name="Oat Milk",
             turn_number=1,
+            mode="coverage_driven",
+            max_turns=20,
+            recent_utterances=[],
+            strategy_history=[],
+            graph_state=graph_state,
+            recent_nodes=[],
+        )
+
+        # Set UtteranceSavingOutput
+        user_utterance = Utterance(
+            id="utter_123",
+            session_id="test-session",
+            turn_number=1,
+            speaker="user",
+            text="I like oat milk",
+        )
+        ctx.utterance_saving_output = UtteranceSavingOutput(
+            turn_number=1,
+            user_utterance_id="utter_123",
+            user_utterance=user_utterance,
+        )
+
+        # Set ExtractionOutput
+        ctx.extraction_output = ExtractionOutput(
             extraction=ExtractionResult(
                 timestamp=datetime.now(timezone.utc),
                 concepts=[],
                 relationships=[],
             ),
-            user_utterance=Utterance(
-                id="utter_123",
-                session_id="test-session",
-                turn_number=1,
-                speaker="user",
-                text="I like oat milk",
-            ),
+            methodology="means_end_chain",
+            concept_count=0,
+            relationship_count=0,
         )
+
+        return ctx
 
     @pytest.fixture
     def graph_service(self):
@@ -67,13 +113,14 @@ class TestGraphUpdateStageContract:
             label="oat milk",
             node_type="attribute",
         )
-        test_edge = KGEdge(
-            id="edge_1",
-            session_id="test-session",
-            source_node_id="node_1",
-            target_node_id="node_2",
-            edge_type="related_to",
-        )
+        # edges_added should be a list of dicts, not KGEdge objects
+        test_edge = {
+            "id": "edge_1",
+            "session_id": "test-session",
+            "source_node_id": "node_1",
+            "target_node_id": "node_2",
+            "edge_type": "related_to",
+        }
         graph_service.add_extraction_to_graph = AsyncMock(
             return_value=([test_node], [test_edge])
         )

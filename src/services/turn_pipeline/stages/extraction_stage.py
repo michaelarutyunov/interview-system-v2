@@ -2,12 +2,14 @@
 Stage 3: Extract concepts and relationships.
 
 ADR-008 Phase 3: Use ExtractionService to extract knowledge from user input.
+Phase 6: Output ExtractionOutput contract.
 """
 
 import structlog
 
 from ..base import TurnStage
 from ..context import PipelineContext
+from src.domain.models.pipeline_contracts import ExtractionOutput
 
 log = structlog.get_logger(__name__)
 
@@ -102,7 +104,13 @@ class ExtractionStage(TurnStage):
             source_utterance_id=source_utterance_id,
         )
 
-        context.extraction = extraction
+        # Create contract output (single source of truth)
+        # No need to set individual fields - they're derived from the contract
+        context.extraction_output = ExtractionOutput(
+            extraction=extraction,
+            methodology=context.methodology,
+            # timestamp, concept_count, relationship_count auto-set
+        )
 
         log.info(
             "extraction_completed",

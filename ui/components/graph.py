@@ -134,7 +134,8 @@ class GraphVisualizer:
         for edge in edges:
             # Exclude structural keys from edge attributes
             edge_attrs = {
-                k: v for k, v in edge.items()
+                k: v
+                for k, v in edge.items()
                 if k not in ("source_id", "target_id", "edge_type", "id")
             }
             G.add_edge(

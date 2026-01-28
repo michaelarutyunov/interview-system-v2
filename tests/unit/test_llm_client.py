@@ -11,7 +11,14 @@ class TestAnthropicClient:
 
     def test_init_with_api_key(self):
         """Client initializes with explicit API key."""
-        client = AnthropicClient(api_key="test-key")
+        client = AnthropicClient(
+            model="claude-sonnet-4-5-20250929",
+            temperature=0.7,
+            max_tokens=1024,
+            timeout=30.0,
+            client_type="generation",
+            api_key="test-key",
+        )
         assert client.api_key == "test-key"
 
     def test_init_without_api_key_raises(self):
@@ -19,16 +26,26 @@ class TestAnthropicClient:
         with patch("src.llm.client.settings") as mock_settings:
             mock_settings.anthropic_api_key = None
             with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
-                AnthropicClient()
+                AnthropicClient(
+                    model="claude-sonnet-4-5-20250929",
+                    temperature=0.7,
+                    max_tokens=1024,
+                    timeout=30.0,
+                    client_type="generation",
+                )
 
     def test_init_uses_settings_defaults(self):
         """Client uses settings for defaults."""
         with patch("src.llm.client.settings") as mock_settings:
             mock_settings.anthropic_api_key = "settings-key"
-            mock_settings.llm_model = "claude-sonnet-4-20250514"
-            mock_settings.llm_timeout_seconds = 30.0
 
-            client = AnthropicClient()
+            client = AnthropicClient(
+                model="claude-sonnet-4-20250514",
+                temperature=0.7,
+                max_tokens=1024,
+                timeout=30.0,
+                client_type="generation",
+            )
 
             assert client.api_key == "settings-key"
             assert client.model == "claude-sonnet-4-20250514"
@@ -51,7 +68,14 @@ class TestAnthropicClient:
             mock_client.post.return_value = mock_response_obj
             MockClient.return_value.__aenter__.return_value = mock_client
 
-            client = AnthropicClient(api_key="test-key")
+            client = AnthropicClient(
+                model="claude-sonnet-4-20250514",
+                temperature=0.7,
+                max_tokens=1024,
+                timeout=30.0,
+                client_type="generation",
+                api_key="test-key",
+            )
             response = await client.complete("Say hello")
 
             assert isinstance(response, LLMResponse)
@@ -76,7 +100,14 @@ class TestAnthropicClient:
             mock_client.post.return_value = mock_response_obj
             MockClient.return_value.__aenter__.return_value = mock_client
 
-            client = AnthropicClient(api_key="test-key")
+            client = AnthropicClient(
+                model="claude-sonnet-4-20250514",
+                temperature=0.7,
+                max_tokens=1024,
+                timeout=30.0,
+                client_type="generation",
+                api_key="test-key",
+            )
             await client.complete("User message", system="You are helpful")
 
             # Verify system was included in payload
@@ -91,22 +122,23 @@ class TestGetLLMClient:
     def test_returns_anthropic_client(self):
         """Factory returns AnthropicClient for anthropic provider."""
         with patch("src.llm.client.settings") as mock_settings:
-            mock_settings.llm_provider = "anthropic"
             mock_settings.anthropic_api_key = "test-key"
-            mock_settings.llm_model = "claude-sonnet-4-20250514"
-            mock_settings.llm_timeout_seconds = 30.0
+            # Make llm_generation_provider return None to use default
+            mock_settings.llm_generation_provider = None
 
-            client = get_llm_client()
+            client = get_llm_client(client_type="generation")
 
             assert isinstance(client, AnthropicClient)
 
     def test_raises_for_unknown_provider(self):
         """Factory raises for unknown provider."""
         with patch("src.llm.client.settings") as mock_settings:
-            mock_settings.llm_provider = "openai"
+            # Override to unknown provider
+            mock_settings.llm_generation_provider = "unknown"
+            mock_settings.anthropic_api_key = "test-key"
 
             with pytest.raises(ValueError, match="Unknown LLM provider"):
-                get_llm_client()
+                get_llm_client(client_type="generation")
 
 
 class TestLLMResponse:

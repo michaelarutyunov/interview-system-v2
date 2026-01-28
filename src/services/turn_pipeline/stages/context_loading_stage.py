@@ -2,6 +2,7 @@
 Stage 1: Load session context.
 
 ADR-008 Phase 3: Load session metadata, graph state, and recent utterances.
+Phase 6: Output ContextLoadingOutput contract.
 """
 
 from typing import TYPE_CHECKING
@@ -11,6 +12,7 @@ import json
 import structlog
 
 from ..base import TurnStage
+from src.domain.models.pipeline_contracts import ContextLoadingOutput
 
 log = structlog.get_logger(__name__)
 
@@ -108,18 +110,37 @@ class ContextLoadingStage(TurnStage):
         )
 
         # Note: Graph state will be loaded in StateComputationStage after graph updates
+        # For now, provide a placeholder/empty GraphState to satisfy the contract
+        from src.domain.models.knowledge_graph import (
+            GraphState,
+            DepthMetrics,
+            CoverageState,
+        )
 
-        # Update context
-        context.methodology = session.methodology
-        context.concept_id = session.concept_id
-        context.concept_name = session.concept_name
-        # turn_count is completed turns, so current turn is turn_count + 1
-        context.turn_number = (session.state.turn_count or 0) + 1
-        context.mode = session.mode.value
-        context.max_turns = max_turns
-        context.recent_utterances = recent_utterances
-        context.recent_nodes = recent_nodes
-        context.strategy_history = strategy_history
+        placeholder_graph_state = context.graph_state or GraphState(
+            node_count=0,
+            edge_count=0,
+            depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
+            coverage_state=CoverageState(),
+            current_phase="exploratory",
+            turn_count=session.state.turn_count or 0,
+        )
+
+        # Create contract output (single source of truth)
+        # No need to set individual fields - they're derived from the contract
+        context.context_loading_output = ContextLoadingOutput(
+            methodology=session.methodology,
+            concept_id=session.concept_id,
+            concept_name=session.concept_name,
+            # turn_count is completed turns, so current turn is turn_count + 1
+            turn_number=(session.state.turn_count or 0) + 1,
+            mode=session.mode.value,
+            max_turns=max_turns,
+            recent_utterances=recent_utterances,
+            recent_nodes=recent_nodes,
+            strategy_history=strategy_history,
+            graph_state=placeholder_graph_state,  # Will be updated by StateComputationStage
+        )
 
         log.info(
             "context_loaded",

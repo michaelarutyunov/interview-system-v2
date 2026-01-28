@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 from src.services.turn_pipeline.stages.extraction_stage import ExtractionStage
 from src.services.turn_pipeline.context import PipelineContext
+from src.domain.models.pipeline_contracts import ContextLoadingOutput
+from src.domain.models.knowledge_graph import GraphState, DepthMetrics, CoverageState
 
 
 class TestExtractionStageContract:
@@ -15,10 +17,22 @@ class TestExtractionStageContract:
 
     @pytest.fixture
     def context(self):
-        """Create a test pipeline context."""
-        return PipelineContext(
+        """Create a test pipeline context with session metadata."""
+        ctx = PipelineContext(
             session_id="test-session",
             user_input="I like oat milk",
+        )
+
+        # Set ContextLoadingOutput
+        graph_state = GraphState(
+            node_count=0,
+            edge_count=0,
+            depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
+            coverage_state=CoverageState(),
+            current_phase="exploratory",
+            turn_count=1,
+        )
+        ctx.context_loading_output = ContextLoadingOutput(
             methodology="means_end_chain",
             concept_id="oat_milk_v2",
             concept_name="Oat Milk v2",
@@ -29,7 +43,12 @@ class TestExtractionStageContract:
                 {"speaker": "assistant", "text": "What do you think about oat milk?"},
                 {"speaker": "user", "text": "I like oat milk"},
             ],
+            strategy_history=[],
+            graph_state=graph_state,
+            recent_nodes=[],
         )
+
+        return ctx
 
     @pytest.fixture
     def extraction_service(self):

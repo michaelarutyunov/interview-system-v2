@@ -2,6 +2,7 @@
 Stage 4: Update knowledge graph.
 
 ADR-008 Phase 3: Add extracted concepts and relationships to the graph.
+Phase 6: Output GraphUpdateOutput contract.
 """
 
 from typing import TYPE_CHECKING
@@ -9,6 +10,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from ..base import TurnStage
+from src.domain.models.pipeline_contracts import GraphUpdateOutput
 
 
 if TYPE_CHECKING:
@@ -58,8 +60,35 @@ class GraphUpdateStage(TurnStage):
             utterance_id=context.user_utterance.id,
         )
 
-        context.nodes_added = nodes
-        context.edges_added = edges
+        # Convert edges to dicts for contract output
+        # The contract expects List[Dict[str, Any]] but service returns List[KGEdge]
+        edges_as_dicts = []
+        for edge in edges:
+            if hasattr(edge, "model_dump"):
+                edges_as_dicts.append(edge.model_dump())
+            elif hasattr(edge, "to_dict"):
+                edges_as_dicts.append(edge.to_dict())
+            elif isinstance(edge, dict):
+                edges_as_dicts.append(edge)
+            else:
+                # Fallback: convert to dict manually
+                edges_as_dicts.append(
+                    {
+                        "id": getattr(edge, "id", ""),
+                        "session_id": getattr(edge, "session_id", ""),
+                        "source_node_id": getattr(edge, "source_node_id", ""),
+                        "target_node_id": getattr(edge, "target_node_id", ""),
+                        "edge_type": getattr(edge, "edge_type", ""),
+                    }
+                )
+
+        # Create contract output (single source of truth)
+        # No need to set individual fields - they're derived from the contract
+        context.graph_update_output = GraphUpdateOutput(
+            nodes_added=nodes,
+            edges_added=edges_as_dicts,
+            # timestamp, node_count, edge_count auto-set
+        )
 
         log.info(
             "graph_updated",

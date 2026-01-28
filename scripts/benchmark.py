@@ -27,7 +27,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.services.session_service import SessionService
 from src.domain.models.extraction import ExtractionResult, ExtractedConcept
-from src.domain.models.knowledge_graph import GraphState, KGNode
+from src.domain.models.knowledge_graph import (
+    GraphState,
+    KGNode,
+    DepthMetrics,
+    CoverageState,
+)
 
 
 # PRD Requirements
@@ -182,7 +187,17 @@ class MockBenchmark:
         mock_graph_repo = AsyncMock()
         mock_graph_repo.get_graph_state = AsyncMock(
             return_value=GraphState(
-                node_count=5, edge_count=3, nodes_by_type={"attribute": 3}
+                node_count=5,
+                edge_count=3,
+                nodes_by_type={"attribute": 3},
+                edges_by_type={},
+                orphan_count=0,
+                depth_metrics=DepthMetrics(
+                    max_depth=1, avg_depth=0.6, depth_by_element={}
+                ),
+                coverage_state=CoverageState(),
+                current_phase="exploratory",
+                turn_count=1,
             )
         )
         mock_graph_repo.get_nodes_by_session = AsyncMock(return_value=[])
@@ -191,7 +206,13 @@ class MockBenchmark:
         extraction_svc = AsyncMock()
         extraction_svc.extract = AsyncMock(
             return_value=ExtractionResult(
-                concepts=[ExtractedConcept(text="quality", node_type="attribute")],
+                concepts=[
+                    ExtractedConcept(
+                        text="quality",
+                        node_type="attribute",
+                        source_utterance_id="u1",
+                    )
+                ],
                 relationships=[],
                 is_extractable=True,
             )
@@ -201,7 +222,17 @@ class MockBenchmark:
         graph_svc.add_extraction_to_graph = AsyncMock(return_value=([], []))
         graph_svc.get_graph_state = AsyncMock(
             return_value=GraphState(
-                node_count=5, edge_count=3, nodes_by_type={"attribute": 3}
+                node_count=5,
+                edge_count=3,
+                nodes_by_type={"attribute": 3},
+                edges_by_type={},
+                orphan_count=0,
+                depth_metrics=DepthMetrics(
+                    max_depth=1, avg_depth=0.6, depth_by_element={}
+                ),
+                coverage_state=CoverageState(),
+                current_phase="exploratory",
+                turn_count=1,
             )
         )
         graph_svc.get_recent_nodes = AsyncMock(

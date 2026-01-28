@@ -57,5 +57,10 @@ Accepted | Proposed | Deprecated | Superseded by [ADR-YYY]
 | [010b](010-formalize-pipeline-contracts-strengthen-data-models.md) | Formalize Pipeline Contracts | **Partially Implemented** | 2025-01-26 |
 | [011](011-p0-critical-bug-fixes.md) | P0 Critical Bug Fixes - Methodology, Coverage, Depth | **Implemented** | 2026-01-27 |
 | [013](0013-methodology-centric-architecture.md) | Methodology-Centric Architecture Refactoring | **Accepted** | 2026-01-28 |
+| [014](ADR-014-signal-pools-architecture.md) | Signal Pools Architecture | **Accepted** | 2025-01-28 |
 
 **Note**: ADR numbering collisions (008a/b, 010a/b) occurred due to parallel development. Future ADRs will use sequential numbering starting from 012.
+
+**Superseded ADRs:**
+- ADR-004 (Two-Tier Scoring System): Superseded by ADR-013 (Methodology-Centric Architecture) and ADR-014 (Signal Pools Architecture)
+- ADR-006 (Enhanced Scoring Architecture): Superseded by ADR-013 (Methodology-Centric Architecture) and ADR-014 (Signal Pools Architecture)

@@ -1,0 +1,22 @@
+# Methodology Configuration Schema
+#
+# Defines the structure for methodology YAML configs.
+# Each methodology specifies which signals to use and defines strategies.
+
+methodology:
+  name: str              # Unique methodology identifier (e.g., "means_end_chain")
+  description: str       # Human-readable description
+
+  # Signals to include (select from pools)
+  signals:
+    graph: list[str]     # Graph-derived signals: ["graph.node_count", "graph.max_depth", ...]
+    llm: list[str]       # LLM-derived signals: ["llm.response_depth", "llm.sentiment", ...]
+    temporal: list[str]  # Temporal signals: ["temporal.strategy_repetition_count", ...]
+    meta: list[str]      # Meta signals: ["meta.interview_progress", ...]
+
+  # Strategies defined per-methodology (NOT shared pool)
+  strategies:
+    - name: str                  # Strategy name (e.g., "deepen", "explore")
+      technique: str              # Technique to use: "laddering", "elaboration", "probing", "validation"
+      signal_weights: dict        # Signal weights for scoring (e.g., {"llm.response_depth.surface": 0.8})
+      focus_preference: str       # Focus selection: "shallow", "recent", "related", "deep"

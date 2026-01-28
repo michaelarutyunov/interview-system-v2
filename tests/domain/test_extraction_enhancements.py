@@ -4,8 +4,6 @@ RED Phase: Write failing tests first.
 Tests for new traceability fields (source_utterance_id, reasoning).
 """
 
-import pytest
-
 from src.domain.models.extraction import (
     ExtractedConcept,
     ExtractedRelationship,

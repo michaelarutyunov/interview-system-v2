@@ -9,7 +9,13 @@ from src.domain.models.extraction import (
     ExtractedRelationship,
     ExtractionResult,
 )
-from src.domain.models.knowledge_graph import KGNode, KGEdge, GraphState
+from src.domain.models.knowledge_graph import (
+    KGNode,
+    KGEdge,
+    GraphState,
+    DepthMetrics,
+    CoverageState,
+)
 
 
 @pytest.fixture
@@ -34,11 +40,13 @@ def sample_extraction():
                 text="creamy texture",
                 node_type="attribute",
                 confidence=0.9,
+                source_utterance_id="u1",
             ),
             ExtractedConcept(
                 text="satisfying",
                 node_type="functional_consequence",
                 confidence=0.8,
+                source_utterance_id="u1",
             ),
         ],
         relationships=[
@@ -47,6 +55,7 @@ def sample_extraction():
                 target_text="satisfying",
                 relationship_type="leads_to",
                 confidence=0.75,
+                source_utterance_id="u1",
             ),
         ],
         is_extractable=True,
@@ -183,7 +192,12 @@ class TestGetGraphState:
     @pytest.mark.asyncio
     async def test_delegates_to_repo(self, service, mock_repo):
         """Delegates to repository."""
-        expected = GraphState(node_count=5, edge_count=3)
+        expected = GraphState(
+            node_count=5,
+            edge_count=3,
+            depth_metrics=DepthMetrics(max_depth=2, avg_depth=1.5, depth_by_element={}),
+            coverage_state=CoverageState(),
+        )
         mock_repo.get_graph_state.return_value = expected
 
         result = await service.get_graph_state("s1")
@@ -221,7 +235,9 @@ class TestHandleContradiction:
         result_node, result_edge = await service.handle_contradiction(
             session_id="s1",
             old_node_id="old",
-            new_concept=ExtractedConcept(text="new belief", node_type="attribute"),
+            new_concept=ExtractedConcept(
+                text="new belief", node_type="attribute", source_utterance_id="u1"
+            ),
             utterance_id="u1",
         )
 

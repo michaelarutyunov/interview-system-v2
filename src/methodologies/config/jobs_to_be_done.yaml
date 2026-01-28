@@ -1,0 +1,72 @@
+# Jobs-to-be-Done Methodology Configuration
+#
+# JTBD explores what job users are trying to do, what triggers them,
+# what alternatives they consider, and what obstacles they face.
+
+methodology:
+  name: jobs_to_be_done
+  description: "Jobs-to-be-Done interview methodology"
+
+  signals:
+    graph:
+      - graph.node_count
+      - graph.orphan_count
+      - graph.max_depth
+      - graph.coverage_breadth
+
+    llm:
+      - llm.response_depth
+      - llm.sentiment
+      - llm.ambiguity
+
+    temporal:
+      - temporal.strategy_repetition_count
+      - temporal.turns_since_strategy_change
+
+    meta:
+      - meta.interview_progress
+
+  strategies:
+    # Strategy 1: Explore the situation (elaboration)
+    - name: explore_situation
+      technique: elaboration
+      signal_weights:
+        graph.node_count: -0.3
+        llm.sentiment.neutral: 0.5
+        temporal.strategy_repetition_count: 0.4
+      focus_preference: recent
+
+    # Strategy 2: Probe alternatives (probing)
+    - name: probe_alternatives
+      technique: probing
+      signal_weights:
+        graph.coverage_breadth: 0.5
+        llm.ambiguity: 0.4
+      focus_preference: related
+
+    # Strategy 3: Dig into motivation (laddering)
+    - name: dig_motivation
+      technique: laddering
+      signal_weights:
+        llm.response_depth.surface: 0.7
+        graph.max_depth: -0.4
+        temporal.turns_since_strategy_change: 0.3
+      focus_preference: shallow
+
+    # Strategy 4: Validate outcome (validation)
+    - name: validate_outcome
+      technique: validation
+      signal_weights:
+        meta.interview_progress: 0.6
+        graph.max_depth: 0.5
+        llm.response_depth.deep: 0.4
+      focus_preference: deep
+
+    # Strategy 5: Uncover obstacles (probing)
+    - name: uncover_obstacles
+      technique: probing
+      signal_weights:
+        graph.orphan_count: 0.5
+        llm.sentiment.negative: 0.3
+        temporal.turns_since_strategy_change: 0.2
+      focus_preference: related

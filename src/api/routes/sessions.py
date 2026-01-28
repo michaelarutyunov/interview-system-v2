@@ -81,7 +81,6 @@ async def get_session_service(
     return SessionService(
         session_repo=session_repo,
         graph_repo=graph_repo,
-        strategy_service=None,  # Uses methodology-based selection instead
     )
 
 

@@ -5,6 +5,7 @@ RED Phase: Write failing tests first to prove they test the right thing.
 
 import pytest
 from pydantic import ValidationError
+from typing import cast, Literal
 
 from src.domain.models.knowledge_graph import (
     DepthMetrics,
@@ -110,7 +111,11 @@ class TestGraphState:
 
     def test_current_phase_only_accepts_valid_values(self):
         """Should only allow valid phase values."""
-        valid_phases = ["exploratory", "focused", "closing"]
+        valid_phases: list[Literal["exploratory", "focused", "closing"]] = [
+            "exploratory",
+            "focused",
+            "closing",
+        ]
 
         for phase in valid_phases:
             state = GraphState(
@@ -126,12 +131,15 @@ class TestGraphState:
     def test_current_phase_rejects_invalid_values(self):
         """Should reject invalid phase values."""
         with pytest.raises(ValidationError):
+            # Use cast to bypass type checking since we're testing invalid input
             GraphState(
                 node_count=0,
                 edge_count=0,
                 depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
                 coverage_state=CoverageState(),
-                current_phase="invalid_phase",  # Invalid
+                current_phase=cast(
+                    Literal["exploratory", "focused", "closing"], "invalid_phase"
+                ),
                 turn_count=0,
             )
 

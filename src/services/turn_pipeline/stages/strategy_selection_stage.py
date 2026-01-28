@@ -4,6 +4,9 @@ Stage 6: Select strategy.
 ADR-008 Phase 3: Use two-tier scoring to select questioning strategy.
 ADR-010: Validate graph_state freshness before strategy selection.
 Phase 4: Use methodology-based strategy selection with direct signal->strategy scoring.
+
+Phase 6 Cleanup (2026-01-28): Removed two-tier scoring fallback code.
+The two-tier scoring system has been replaced by methodology-specific signal detection.
 """
 
 from typing import TYPE_CHECKING, Optional, Dict, Any
@@ -11,7 +14,10 @@ from typing import TYPE_CHECKING, Optional, Dict, Any
 import structlog
 
 from ..base import TurnStage
-from src.domain.models.pipeline_contracts import StrategySelectionInput
+from src.domain.models.pipeline_contracts import (
+    StrategySelectionInput,
+    StrategySelectionOutput,
+)
 from src.services.methodology_strategy_service import MethodologyStrategyService
 
 
@@ -25,30 +31,23 @@ class StrategySelectionStage(TurnStage):
     Select questioning strategy using methodology-based signal detection.
 
     Phase 4: Uses MethodologyStrategyService for direct signal->strategy scoring.
-    Falls back to two-tier scoring or hardcoded behavior if methodology service unavailable.
 
     Populates:
     - PipelineContext.strategy
-    - PipelineContext.selection_result
+    - PipelineContext.selection_result (None for methodology-based selection)
     - PipelineContext.focus
-    - PipelineContext.signals (NEW in Phase 4)
-    - PipelineContext.strategy_alternatives (NEW in Phase 4)
+    - PipelineContext.signals (methodology-specific signals)
+    - PipelineContext.strategy_alternatives (for observability)
     """
 
-    def __init__(self, strategy_service=None, use_methodology_service: bool = True):
+    def __init__(self):
         """
-        Initialize stage.
+        Initialize stage with methodology-based strategy service.
 
-        Args:
-            strategy_service: Optional StrategyService instance (two-tier scoring)
-            use_methodology_service: If True, use new methodology-based service
+        Note: The old two-tier scoring system has been removed.
+        All strategy selection now uses methodology-specific signal detection.
         """
-        self.strategy = strategy_service
-        self.use_methodology_service = use_methodology_service
-        self.methodology_strategy: Optional[MethodologyStrategyService] = None
-
-        if use_methodology_service:
-            self.methodology_strategy = MethodologyStrategyService()
+        self.methodology_strategy = MethodologyStrategyService()
 
     async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
@@ -95,74 +94,36 @@ class StrategySelectionStage(TurnStage):
                 # re-compute state or use fallback behavior
                 raise
 
-        # Phase 4: Try methodology-based strategy selection
-        if self.methodology_strategy:
-            (
-                strategy,
-                focus,
-                alternatives,
-                signals,
-            ) = await self._select_strategy_with_methodology(context)
-            selection_result = (
-                None  # Methodology service doesn't produce SelectionResult
-            )
-            # Store signals and alternatives for observability
-            context.signals = signals
-            context.strategy_alternatives = alternatives
-        elif self.strategy:
-            # Fallback to two-tier scoring
-            selection = await self.strategy.select(
-                graph_state=context.graph_state,
-                recent_nodes=[n.model_dump() for n in context.recent_nodes],
-                conversation_history=context.recent_utterances,
-                mode=context.mode,
-                current_user_input=context.user_input,
-                current_extraction=context.extraction,
-            )
+        # Select strategy using methodology-based signal detection
+        (
+            strategy,
+            focus,
+            alternatives,
+            signals,
+        ) = await self._select_strategy_with_methodology(context)
 
-            # ADR-010 Phase 2: Populate session context for conversion to new schema
-            selection.session_id = context.session_id
-            selection.turn_number = context.turn_number
-            selection.phase = (
-                context.graph_state.current_phase
-                if context.graph_state
-                else "exploratory"
-            )
-            # Get phase multiplier from scoring result if available
-            if selection.scoring_result:
-                selection.phase_multiplier = (
-                    selection.scoring_result.phase_multiplier or 1.0
-                )
-            else:
-                selection.phase_multiplier = 1.0
-
-            strategy = selection.selected_strategy["id"]
-            focus = selection.selected_focus
-            selection_result = selection
-            alternatives = []
-            signals = None
-        else:
-            # Phase 2: fallback to hardcoded selection
-            strategy = self._select_strategy(context)
-            selection_result = None
-            focus = None
-            alternatives = []
-            signals = None
-
-        # Track strategy history for StrategyDiversityScorer
-        # This enables the system to penalize repetitive questioning patterns
+        # Track strategy history for diversity tracking
+        # This enables the system to avoid repetitive questioning patterns
         if context.graph_state:
             context.graph_state.add_strategy_used(strategy)
 
-        context.strategy = strategy
-        context.selection_result = selection_result
-        context.focus = focus
+        # Wrap focus string in dict format for ContinuationStage compatibility
+        focus_dict = {"focus_description": focus} if focus else None
+
+        # Create contract output (single source of truth)
+        # No need to set individual fields - they're derived from the contract
+        context.strategy_selection_output = StrategySelectionOutput(
+            strategy=strategy,
+            focus=focus_dict,
+            # selected_at auto-set
+            signals=signals,
+            strategy_alternatives=alternatives or [],
+        )
 
         log.info(
             "strategy_selected",
             session_id=context.session_id,
             strategy=strategy,
-            has_selection_result=selection_result is not None,
             has_methodology_signals=signals is not None,
             alternatives_count=len(alternatives) if alternatives else 0,
         )
@@ -185,26 +146,13 @@ class StrategySelectionStage(TurnStage):
         # Get last response text
         response_text = context.user_input or ""
 
-        # Use new methodology-based selection
+        # Use methodology-based selection
+        # graph_state should be available after StateComputationStage
+        assert context.graph_state is not None, (
+            "graph_state must be set by StateComputationStage"
+        )
         return await self.methodology_strategy.select_strategy(
             context,
             context.graph_state,
             response_text,
         )
-
-    def _select_strategy(self, context: "PipelineContext") -> str:
-        """
-        Fallback strategy selection (Phase 2 behavior).
-
-        Args:
-            context: Turn context
-
-        Returns:
-            Strategy name
-        """
-        # Simple heuristics for variety
-        if context.turn_number >= context.max_turns - 2:
-            return "close"
-
-        # Default to deepen
-        return "deepen"

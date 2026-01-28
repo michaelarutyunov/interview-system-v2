@@ -13,6 +13,10 @@ from src.services.turn_pipeline.stages.state_computation_stage import (
 from src.domain.models.pipeline_contracts import StateComputationOutput
 from src.domain.models.knowledge_graph import GraphState, DepthMetrics, CoverageState
 from src.services.turn_pipeline.context import PipelineContext
+from src.domain.models.pipeline_contracts import (
+    ContextLoadingOutput,
+    GraphUpdateOutput,
+)
 
 
 class TestStateComputationStageContract:
@@ -21,16 +25,40 @@ class TestStateComputationStageContract:
     @pytest.fixture
     def context(self):
         """Create a test pipeline context."""
-        return PipelineContext(
+        ctx = PipelineContext(
             session_id="test-session",
             user_input="I like oat milk",
+        )
+
+        # Set ContextLoadingOutput
+        graph_state = GraphState(
+            node_count=0,
+            edge_count=0,
+            depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
+            coverage_state=CoverageState(),
+            current_phase="exploratory",
+            turn_count=1,
+        )
+        ctx.context_loading_output = ContextLoadingOutput(
             methodology="means_end_chain",
             concept_id="oat_milk_v2",
             concept_name="Oat Milk v2",
             turn_number=1,
             mode="coverage",
             max_turns=10,
+            recent_utterances=[],
+            strategy_history=[],
+            graph_state=graph_state,
+            recent_nodes=[],
         )
+
+        # Set GraphUpdateOutput
+        ctx.graph_update_output = GraphUpdateOutput(
+            nodes_added=[],
+            edges_added=[],
+        )
+
+        return ctx
 
     @pytest.fixture
     def graph_service(self):
@@ -67,6 +95,7 @@ class TestStateComputationStageContract:
 
         # The stage should have set computed_at timestamp
         # For migration: we construct from context
+        assert result_context.graph_state is not None
         output = StateComputationOutput(
             graph_state=result_context.graph_state,
             recent_nodes=result_context.recent_nodes,

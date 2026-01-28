@@ -53,7 +53,9 @@ class ScoringTab:
             # Fall back to legacy two-tier scoring
             self._render_legacy_scoring(api_client, current_session)
 
-    def _get_methodology_scoring(self, api_client, current_session) -> Optional[Dict[str, Any]]:
+    def _get_methodology_scoring(
+        self, api_client, current_session
+    ) -> Optional[Dict[str, Any]]:
         """
         Try to get methodology-centric scoring data.
 

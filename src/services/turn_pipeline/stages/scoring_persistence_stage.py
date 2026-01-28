@@ -2,6 +2,7 @@
 Stage 10: Persist scoring data and update session state.
 
 ADR-008 Phase 3: Save scoring results and update turn count.
+Phase 6: Output ScoringPersistenceOutput contract.
 """
 
 from typing import TYPE_CHECKING
@@ -13,6 +14,7 @@ import json
 import structlog
 
 from ..base import TurnStage
+from src.domain.models.pipeline_contracts import ScoringPersistenceOutput
 
 
 if TYPE_CHECKING:
@@ -61,7 +63,23 @@ class ScoringPersistenceStage(TurnStage):
         # Save LLM qualitative signals if available
         await self._save_qualitative_signals(context)
 
-        context.scoring = scoring
+        # Create contract output (single source of truth)
+        # No need to set individual fields - they're derived from the contract
+        # Check if methodology signals were saved
+        has_methodology_signals = context.signals is not None
+        # Check if legacy scoring was saved
+        has_legacy_scoring = context.selection_result is not None
+
+        context.scoring_persistence_output = ScoringPersistenceOutput(
+            turn_number=context.turn_number,
+            strategy=context.strategy,
+            coverage_score=scoring.get("coverage", 0.0),
+            depth_score=scoring.get("depth", 0.0),
+            saturation_score=scoring.get("saturation", 0.0),
+            has_methodology_signals=has_methodology_signals,
+            has_legacy_scoring=has_legacy_scoring,
+            # timestamp auto-set
+        )
 
         # Update session turn count
         await self._update_turn_count(context, scoring)

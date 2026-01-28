@@ -11,6 +11,13 @@ from src.services.turn_pipeline.stages.question_generation_stage import (
 )
 from src.services.turn_pipeline.context import PipelineContext
 from src.domain.models.knowledge_graph import GraphState, DepthMetrics, CoverageState
+from src.domain.models.pipeline_contracts import (
+    ContextLoadingOutput,
+    StateComputationOutput,
+    ContinuationOutput,
+    StrategySelectionOutput,
+)
+from datetime import datetime, timezone
 
 
 class TestQuestionGenerationStageContract:
@@ -19,6 +26,12 @@ class TestQuestionGenerationStageContract:
     @pytest.fixture
     def context(self):
         """Create a test pipeline context ready for question generation."""
+        ctx = PipelineContext(
+            session_id="test-session",
+            user_input="I like oat milk",
+        )
+
+        # Set ContextLoadingOutput
         graph_state = GraphState(
             node_count=5,
             edge_count=3,
@@ -27,20 +40,43 @@ class TestQuestionGenerationStageContract:
             current_phase="exploratory",
             turn_count=1,
         )
-
-        return PipelineContext(
-            session_id="test-session",
-            user_input="I like oat milk",
+        ctx.context_loading_output = ContextLoadingOutput(
+            methodology="means_end_chain",
+            concept_id="oat_milk",
+            concept_name="Oat Milk",
             turn_number=1,
+            mode="coverage_driven",
             max_turns=10,
-            graph_state=graph_state,
             recent_utterances=[
                 {"speaker": "assistant", "text": "What do you think about oat milk?"},
                 {"speaker": "user", "text": "I like oat milk"},
             ],
-            should_continue=True,
-            strategy="deepen",
+            strategy_history=[],
+            graph_state=graph_state,
+            recent_nodes=[],
         )
+
+        # Set StateComputationOutput
+        ctx.state_computation_output = StateComputationOutput(
+            graph_state=graph_state,
+            recent_nodes=[],
+            computed_at=datetime.now(timezone.utc),
+        )
+
+        # Set ContinuationOutput
+        ctx.continuation_output = ContinuationOutput(
+            should_continue=True,
+            focus_concept="oat milk",
+            turns_remaining=9,
+        )
+
+        # Set StrategySelectionOutput
+        ctx.strategy_selection_output = StrategySelectionOutput(
+            strategy="deepen",
+            focus={"focus_type": "concept", "focus_description": "oat milk"},
+        )
+
+        return ctx
 
     @pytest.fixture
     def llm_service(self):
@@ -68,17 +104,49 @@ class TestQuestionGenerationStageContract:
     @pytest.mark.asyncio
     async def test_generates_closing_message_when_stopping(self, llm_service):
         """Should generate closing message when should_continue is False."""
-        context = PipelineContext(
+        ctx = PipelineContext(
             session_id="test-session",
             user_input="I like oat milk",
+        )
+
+        # Minimal context for stopping
+        graph_state = GraphState(
+            node_count=0,
+            edge_count=0,
+            depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
+            coverage_state=CoverageState(),
+            current_phase="exploratory",
+            turn_count=10,
+        )
+        ctx.context_loading_output = ContextLoadingOutput(
+            methodology="means_end_chain",
+            concept_id="oat_milk",
+            concept_name="Oat Milk",
             turn_number=10,
+            mode="coverage_driven",
             max_turns=10,
+            recent_utterances=[],
+            strategy_history=[],
+            graph_state=graph_state,
+            recent_nodes=[],
+        )
+        ctx.state_computation_output = StateComputationOutput(
+            graph_state=graph_state,
+            recent_nodes=[],
+            computed_at=datetime.now(timezone.utc),
+        )
+        ctx.continuation_output = ContinuationOutput(
             should_continue=False,
+            focus_concept="",
+            turns_remaining=0,
+        )
+        ctx.strategy_selection_output = StrategySelectionOutput(
             strategy="closing",
+            focus=None,
         )
 
         stage = QuestionGenerationStage(llm_service)
-        result_context = await stage.process(context)
+        result_context = await stage.process(ctx)
 
         # Verify some message was generated (closing message)
         assert result_context.next_question != ""

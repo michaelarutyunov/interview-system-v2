@@ -1,17 +1,18 @@
 """
-Strategy selection service using methodology-specific modules.
+Strategy selection service using YAML-based methodology configs.
 
-Replaces the two-tier scoring system with direct signal->strategy scoring.
-
-This service integrates with the methodology modules created in Phases 2 and 3
-to provide strategy selection based on methodology-specific signals.
+Uses signal pools and YAML configs for methodology-specific strategy selection.
 """
 
 from typing import List, Tuple, Optional, TYPE_CHECKING, Any, Dict
 import structlog
 
-from src.methodologies import get_methodology
+from src.methodologies import get_registry
 from src.methodologies.scoring import rank_strategies
+from src.services.focus_selection_service import (
+    FocusSelectionService,
+    FocusSelectionInput,
+)
 
 if TYPE_CHECKING:
     from src.domain.models.knowledge_graph import GraphState
@@ -21,12 +22,18 @@ log = structlog.get_logger(__name__)
 
 
 class MethodologyStrategyService:
-    """Strategy selection using methodology modules.
+    """Strategy selection using YAML methodology configs.
 
-    This service replaces the two-tier scoring engine with a cleaner,
-    methodology-specific approach where each methodology defines its own
-    signals and strategies with direct signal->strategy scoring.
+    This service uses:
+    - YAML configs for methodology definitions (signals + strategies)
+    - Composed signal detectors from shared pools
+    - FocusSelectionService for focus selection
     """
+
+    def __init__(self):
+        """Initialize service with registries."""
+        self.methodology_registry = get_registry()
+        self.focus_service = FocusSelectionService()
 
     async def select_strategy(
         self,
@@ -38,9 +45,11 @@ class MethodologyStrategyService:
         Select best strategy for current context.
 
         This method:
-        1. Detects signals using the methodology-specific signal detector
-        2. Scores all strategies using the methodology-specific scoring
-        3. Returns the best strategy with focus and alternatives for observability
+        1. Loads methodology config from YAML
+        2. Detects signals using composed signal detector
+        3. Scores strategies using YAML-defined weights
+        4. Selects focus using FocusSelectionService
+        5. Returns best strategy with focus and alternatives
 
         Args:
             context: Pipeline context with methodology, recent_turns, etc.
@@ -54,38 +63,33 @@ class MethodologyStrategyService:
             - alternatives: List of (strategy_name, score) for observability
             - signals: Optional dict of detected signals for observability
         """
-        # Get methodology module
+        # Get methodology config from YAML
         methodology_name = (
-            context.methodology.name if context.methodology else "means_end_chain"
+            context.methodology if context.methodology else "means_end_chain"
         )
-        module = get_methodology(methodology_name)
+        config = self.methodology_registry.get_methodology(methodology_name)
 
-        if not module:
+        if not config:
             log.warning(
                 "methodology_not_found",
                 name=methodology_name,
-                available=self._list_available(),
+                available=self.methodology_registry.list_methodologies(),
             )
             # Fallback to default strategy
-            return "ladder_deeper", None, [], None
+            return "deepen", None, [], None
 
-        # Detect signals
-        signal_detector = module.get_signal_detector()
+        # Create signal detector and detect signals
+        signal_detector = self.methodology_registry.create_signal_detector(config)
         signals = await signal_detector.detect(context, graph_state, response_text)
-
-        # Convert signals to dict for observability
-        signals_dict = (
-            signals.model_dump() if hasattr(signals, "model_dump") else dict(signals)
-        )
 
         log.debug(
             "signals_detected",
             methodology=methodology_name,
-            signals=signals_dict,
+            signals=signals,
         )
 
-        # Get strategies for this methodology
-        strategies = module.get_strategies()
+        # Get strategies from config
+        strategies = config.strategies
 
         if not strategies:
             log.warning(
@@ -93,17 +97,24 @@ class MethodologyStrategyService:
                 methodology=methodology_name,
             )
             # Fallback
-            return "ladder_deeper", None, [], signals_dict
+            return "deepen", None, [], signals
 
         # Rank strategies by signal scores
         ranked = rank_strategies(strategies, signals)
 
         # Select best strategy
-        best_strategy_class, best_score = ranked[0]
+        best_strategy_config, best_score = ranked[0]
 
-        # Get focus for selected strategy
-        strategy_instance = best_strategy_class()
-        focus = await strategy_instance.generate_focus(context, graph_state)
+        # Get focus using FocusSelectionService
+        focus_input = FocusSelectionInput(
+            strategy=best_strategy_config.name,
+            graph_state=graph_state,
+            recent_nodes=context.recent_nodes
+            if hasattr(context, "recent_nodes")
+            else [],
+            signals=signals,
+        )
+        focus = await self.focus_service.select(focus_input)
 
         # Build alternatives for observability
         alternatives = [(s.name, score) for s, score in ranked]
@@ -111,17 +122,11 @@ class MethodologyStrategyService:
         log.info(
             "strategy_selected",
             methodology=methodology_name,
-            strategy=best_strategy_class.name,
+            strategy=best_strategy_config.name,
             score=best_score,
             focus=focus,
             alternatives_count=len(alternatives),
             top_3_alternatives=alternatives[:3],
         )
 
-        return best_strategy_class.name, focus, alternatives, signals_dict
-
-    def _list_available(self) -> List[str]:
-        """List available methodologies for error messages."""
-        from src.methodologies import list_methodologies
-
-        return list_methodologies()
+        return best_strategy_config.name, focus, alternatives, signals

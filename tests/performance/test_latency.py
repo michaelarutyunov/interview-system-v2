@@ -15,7 +15,12 @@ from src.domain.models.extraction import (
     ExtractedConcept,
     ExtractedRelationship,
 )
-from src.domain.models.knowledge_graph import GraphState, KGNode
+from src.domain.models.knowledge_graph import (
+    GraphState,
+    KGNode,
+    DepthMetrics,
+    CoverageState,
+)
 from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
 
@@ -39,10 +44,20 @@ def mock_session_repo():
 @pytest.fixture
 def mock_graph_repo():
     """Create mock graph repository."""
+    from src.domain.models.knowledge_graph import DepthMetrics, CoverageState
+
     repo = AsyncMock(spec=GraphRepository)
     repo.get_graph_state = AsyncMock(
         return_value=GraphState(
-            node_count=5, edge_count=3, nodes_by_type={"attribute": 3, "consequence": 2}
+            node_count=5,
+            edge_count=3,
+            nodes_by_type={"attribute": 3, "consequence": 2},
+            edges_by_type={},
+            orphan_count=0,
+            depth_metrics=DepthMetrics(max_depth=1, avg_depth=0.6, depth_by_element={}),
+            coverage_state=CoverageState(),
+            current_phase="exploratory",
+            turn_count=1,
         )
     )
     repo.get_nodes_by_session = AsyncMock(
@@ -67,9 +82,17 @@ def mock_services():
     extraction_service.extract = AsyncMock(
         return_value=ExtractionResult(
             concepts=[
-                ExtractedConcept(text="quality", node_type="attribute", confidence=0.9),
                 ExtractedConcept(
-                    text="satisfaction", node_type="consequence", confidence=0.85
+                    text="quality",
+                    node_type="attribute",
+                    confidence=0.9,
+                    source_utterance_id="u1",
+                ),
+                ExtractedConcept(
+                    text="satisfaction",
+                    node_type="consequence",
+                    confidence=0.85,
+                    source_utterance_id="u1",
                 ),
             ],
             relationships=[
@@ -78,6 +101,7 @@ def mock_services():
                     target_text="satisfaction",
                     relationship_type="leads_to",
                     confidence=0.8,
+                    source_utterance_id="u1",
                 )
             ],
             is_extractable=True,
@@ -87,7 +111,15 @@ def mock_services():
     graph_service.add_extraction_to_graph = AsyncMock(return_value=([], []))
     graph_service.get_graph_state = AsyncMock(
         return_value=GraphState(
-            node_count=5, edge_count=3, nodes_by_type={"attribute": 3, "consequence": 2}
+            node_count=5,
+            edge_count=3,
+            nodes_by_type={"attribute": 3, "consequence": 2},
+            edges_by_type={},
+            orphan_count=0,
+            depth_metrics=DepthMetrics(max_depth=1, avg_depth=0.6, depth_by_element={}),
+            coverage_state=CoverageState(),
+            current_phase="exploratory",
+            turn_count=1,
         )
     )
     graph_service.get_recent_nodes = AsyncMock(
