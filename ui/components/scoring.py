@@ -1,14 +1,13 @@
 """
 Scoring transparency component for Streamlit demo UI.
 
-Displays detailed scoring breakdown for each turn:
-- All (strategy, focus) candidates considered
-- Tier 1 veto results
-- Tier 2 scorer breakdown
-- Final ranking and winner selection
+Updated for methodology-centric architecture:
+- Displays methodology-specific signals
+- Shows strategy ranking with signal-based scoring
+- Supports backward compatibility with two-tier scoring
 """
 
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 import streamlit as st
 
 
@@ -17,10 +16,10 @@ class ScoringTab:
     Displays scoring transparency data.
 
     Shows:
-    - Turn selector to view different turns
-    - Candidates table with scores and vetoes
-    - Expandable Tier 1 veto details
-    - Expandable Tier 2 scorer breakdown
+    - Methodology-specific signals (MEC, JTBD, etc.)
+    - Signal grouping (graph, response, history)
+    - Strategy ranking with scores
+    - Backward compatible with two-tier scoring
     """
 
     def __init__(self):
@@ -45,6 +44,176 @@ class ScoringTab:
             st.info("No session selected.")
             return
 
+        # Try new methodology-centric scoring first
+        methodology_data = self._get_methodology_scoring(api_client, current_session)
+
+        if methodology_data:
+            self._render_methodology_scoring(methodology_data, current_session)
+        else:
+            # Fall back to legacy two-tier scoring
+            self._render_legacy_scoring(api_client, current_session)
+
+    def _get_methodology_scoring(self, api_client, current_session) -> Optional[Dict[str, Any]]:
+        """
+        Try to get methodology-centric scoring data.
+
+        Returns None if backend doesn't support new architecture yet.
+        """
+        try:
+            # Try to get session status which should include methodology signals
+            status = api_client.get_session_status(current_session.id)
+
+            # Check if new methodology signals are present
+            if "signals" in status or "strategy_alternatives" in status:
+                return {
+                    "methodology": status.get("methodology", "means_end_chain"),
+                    "signals": status.get("signals", {}),
+                    "strategy_alternatives": status.get("strategy_alternatives", []),
+                    "turn_number": status.get("turn_number", 0),
+                }
+        except Exception:
+            pass
+
+        return None
+
+    def _render_methodology_scoring(self, data: Dict[str, Any], current_session):
+        """Render methodology-centric scoring display."""
+        methodology = data.get("methodology", "means_end_chain")
+        signals = data.get("signals", {})
+        alternatives = data.get("strategy_alternatives", [])
+
+        st.subheader(f"🎯 Strategy Selection ({methodology.replace('_', ' ').title()})")
+
+        # Signals section
+        with st.expander("📊 Detected Signals", expanded=True):
+            if signals:
+                self._render_signals_by_category(signals, methodology)
+            else:
+                st.info("No signals detected yet")
+
+        # Strategy ranking section
+        with st.expander("🏆 Strategy Ranking", expanded=True):
+            if alternatives:
+                self._render_strategy_ranking(alternatives)
+            else:
+                st.info("No strategy alternatives available")
+
+    def _render_signals_by_category(self, signals: Dict[str, Any], methodology: str):
+        """Render signals grouped by category."""
+        if methodology == "means_end_chain":
+            graph_signals = {
+                k: v
+                for k, v in signals.items()
+                if k
+                in [
+                    "ladder_depth",
+                    "edge_density",
+                    "disconnected_nodes",
+                    "coverage_breadth",
+                    "missing_terminal_value",
+                    "attributes_explored",
+                    "consequences_explored",
+                    "values_explored",
+                ]
+            }
+            response_signals = {
+                k: v
+                for k, v in signals.items()
+                if k
+                in [
+                    "response_confidence",
+                    "response_ambiguity",
+                    "new_concepts_mentioned",
+                    "response_depth",
+                ]
+            }
+        elif methodology == "jobs_to_be_done":
+            graph_signals = {
+                k: v
+                for k, v in signals.items()
+                if k
+                in [
+                    "situation_depth",
+                    "motivation_depth",
+                    "alternatives_explored",
+                    "obstacles_explored",
+                    "outcome_clarity",
+                    "coverage_imbalance",
+                ]
+            }
+            response_signals = {
+                k: v
+                for k, v in signals.items()
+                if k
+                in [
+                    "mentioned_competitor",
+                    "mentioned_struggle",
+                    "mentioned_trigger",
+                    "response_confidence",
+                ]
+            }
+        else:
+            # Generic grouping
+            graph_signals = {
+                k: v for k, v in signals.items() if "depth" in k or "coverage" in k
+            }
+            response_signals = {
+                k: v for k, v in signals.items() if "response" in k or "mentioned" in k
+            }
+
+        history_signals = {
+            k: v
+            for k, v in signals.items()
+            if k in ["strategy_repetition_count", "turns_since_strategy_change"]
+        }
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.markdown("**Graph/State**")
+            for k, v in graph_signals.items():
+                self._render_signal(k, v)
+
+        with col2:
+            st.markdown("**Response**")
+            for k, v in response_signals.items():
+                self._render_signal(k, v)
+
+        with col3:
+            st.markdown("**History**")
+            for k, v in history_signals.items():
+                self._render_signal(k, v)
+
+    def _render_signal(self, name: str, value: Any):
+        """Render a single signal value."""
+        # Format based on type
+        if isinstance(value, bool):
+            icon = "✓" if value else "✗"
+            st.markdown(f"- {name}: {icon}")
+        elif isinstance(value, float):
+            st.markdown(f"- {name}: `{value:.2f}`")
+        elif isinstance(value, int):
+            st.markdown(f"- {name}: `{value}`")
+        else:
+            st.markdown(f"- {name}: {value}")
+
+    def _render_strategy_ranking(self, alternatives: List[Dict[str, Any]]):
+        """Render strategy ranking with scores."""
+        for i, alt in enumerate(alternatives[:5]):
+            score = alt.get("score", 0)
+            name = alt.get("strategy", "unknown")
+
+            # Highlight selected (first)
+            if i == 0:
+                st.markdown(f"**→ {name}** `{score:.2f}` ✓")
+            else:
+                st.markdown(f"  {name} `{score:.2f}`")
+
+            # Progress bar for score
+            st.progress(min(max(score, 0.0), 1.0))
+
+    def _render_legacy_scoring(self, api_client, current_session):
+        """Render legacy two-tier scoring display."""
         # Load all scoring data
         all_scoring = api_client.get_all_scoring(current_session.id)
 
@@ -131,6 +300,66 @@ class ScoringTab:
                 st.write(f"**Focus Type:** {candidate['focus_type']}")
                 if candidate.get("focus_description"):
                     st.write(f"**Focus:** {candidate['focus_description']}")
+
+                # Tier 1 vetoes
+                if candidate.get("tier1_results"):
+                    with st.expander("🔍 Tier 1: Hard Constraints (Vetoes)"):
+                        for t1 in candidate["tier1_results"]:
+                            if t1["is_veto"]:
+                                st.error(
+                                    f"❌ {t1['scorer_id']}: **VETO** - {t1['reasoning']}"
+                                )
+                            else:
+                                st.success(f"✓ {t1['scorer_id']}: Pass")
+
+                # Tier 2 scoring breakdown
+                if candidate.get("tier2_results"):
+                    with st.expander(
+                        f"📈 Tier 2: Weighted Scoring (Score: {candidate['final_score']:.2f})"
+                    ):
+                        # Calculate score contribution
+                        total_contribution = sum(
+                            t2["contribution"] for t2 in candidate["tier2_results"]
+                        )
+
+                        # Show each scorer
+                        for t2 in candidate["tier2_results"]:
+                            # Progress bar for contribution
+                            pct_of_total = (
+                                (t2["contribution"] / total_contribution * 100)
+                                if total_contribution > 0
+                                else 0
+                            )
+
+                            cols = st.columns([3, 2, 1])
+                            with cols[0]:
+                                st.write(f"**{t2['scorer_id']}**")
+
+                            with cols[1]:
+                                st.caption(
+                                    f"Raw: {t2['raw_score']:.2f} × {t2['weight']:.2f} = {t2['contribution']:.3f}"
+                                )
+
+                            with cols[2]:
+                                st.caption(f"{pct_of_total:.0f}%")
+
+                            # Reasoning
+                            if t2.get("reasoning"):
+                                st.caption(t2["reasoning"])
+
+                            # Contribution bar
+                            st.progress(
+                                t2["contribution"] / 2.0
+                            )  # Max contribution is weight × 2.0
+
+                        st.write(
+                            f"**Total Score:** 1.0 (base) + Σ(contributions) = {candidate['final_score']:.2f}"
+                        )
+
+                # Reasoning trace
+                if candidate.get("reasoning"):
+                    with st.expander("💭 Reasoning Trace"):
+                        st.write(candidate["reasoning"])
 
                 # Tier 1 vetoes
                 if candidate.get("tier1_results"):

@@ -242,6 +242,91 @@ class MetricsPanel:
                 st.plotly_chart(fig, use_container_width=True)
 
 
+def render_methodology_metrics(
+    methodology_name: str,
+    graph_data: Dict[str, Any],
+    status_data: Optional[Dict[str, Any]] = None,
+):
+    """
+    Render methodology-specific metrics.
+
+    Args:
+        methodology_name: Name of the methodology (e.g., "means_end_chain", "jobs_to_be_done")
+        graph_data: Graph state with nodes and edges
+        status_data: Optional status data for additional metrics
+    """
+    st.subheader(f"📈 {methodology_name.replace('_', ' ').title()} Metrics")
+
+    if methodology_name == "means_end_chain":
+        _render_mec_metrics(graph_data)
+    elif methodology_name == "jobs_to_be_done":
+        _render_jtbd_metrics(graph_data)
+    else:
+        st.info(f"No custom metrics for {methodology_name}")
+
+
+def _render_mec_metrics(graph_data: Dict[str, Any]):
+    """Render MEC-specific metrics."""
+    nodes = graph_data.get("nodes", [])
+
+    # Count by type
+    type_counts = {}
+    for node in nodes:
+        t = node.get("node_type", "unknown")
+        type_counts[t] = type_counts.get(t, 0) + 1
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric("Attributes", type_counts.get("attribute", 0))
+        st.metric(
+            "Functional Consequences", type_counts.get("functional_consequence", 0)
+        )
+        st.metric(
+            "Psychosocial Consequences", type_counts.get("psychosocial_consequence", 0)
+        )
+
+    with col2:
+        st.metric("Instrumental Values", type_counts.get("instrumental_value", 0))
+        st.metric("Terminal Values", type_counts.get("terminal_value", 0))
+
+        # Chain completeness
+        has_attr = type_counts.get("attribute", 0) > 0
+        has_cons = (
+            type_counts.get("functional_consequence", 0)
+            + type_counts.get("psychosocial_consequence", 0)
+        ) > 0
+        has_val = (
+            type_counts.get("instrumental_value", 0)
+            + type_counts.get("terminal_value", 0)
+        ) > 0
+
+        completeness = (has_attr + has_cons + has_val) / 3
+        st.metric("Chain Completeness", f"{completeness:.0%}")
+
+
+def _render_jtbd_metrics(graph_data: Dict[str, Any]):
+    """Render JTBD-specific metrics."""
+    nodes = graph_data.get("nodes", [])
+
+    # Dimension coverage (simplified)
+    dimensions = {
+        "Situation": ["context", "trigger"],
+        "Motivation": ["motivation", "desired_outcome"],
+        "Alternatives": ["alternative", "competing_solution"],
+        "Obstacles": ["obstacle", "barrier"],
+        "Outcome": ["outcome", "benefit"],
+    }
+
+    coverage = {}
+    for dim, types in dimensions.items():
+        count = sum(1 for n in nodes if n.get("node_type") in types)
+        coverage[dim] = min(count / 2, 1.0)  # 2 nodes = 100% coverage
+
+    for dim, cov in coverage.items():
+        st.progress(cov, text=f"{dim}: {cov:.0%}")
+
+
 def render_turn_diagnostics(turn_result: Dict[str, Any]):
     """
     Render diagnostics for a single turn.

@@ -130,10 +130,12 @@ class StrategySelectionOutput(BaseModel):
     """Contract: StrategySelectionStage output (Stage 6).
 
     Stage 6 produces selected strategy and focus for question generation.
+
+    Phase 4: Added signals and alternatives for methodology-based selection.
     """
 
     strategy: str = Field(
-        description="Selected strategy ID (e.g., 'deepen', 'broaden')"
+        description="Selected strategy ID (e.g., 'deepen', 'broaden', 'ladder_deeper')"
     )
     focus: Optional[Dict[str, Any]] = Field(
         default=None, description="Focus target (node_id, element_id, or description)"
@@ -141,6 +143,16 @@ class StrategySelectionOutput(BaseModel):
     selected_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         description="When strategy was selected (for debugging)",
+    )
+
+    # Phase 4: Methodology-based selection fields
+    signals: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Detected signals from methodology-specific signal detector (Phase 4)",
+    )
+    strategy_alternatives: List[tuple[str, float]] = Field(
+        default_factory=list,
+        description="Alternative strategies with scores for observability (Phase 4)",
     )
 
 

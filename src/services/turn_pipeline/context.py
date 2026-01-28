@@ -3,6 +3,7 @@ Context object for turn processing pipeline.
 
 ADR-008 Phase 3: TurnContext carries state through all pipeline stages.
 ADR-010: Added graph_state_computed_at for freshness validation.
+Phase 4: Added signals and strategy_alternatives for methodology-based selection.
 """
 
 from dataclasses import dataclass, field
@@ -63,6 +64,20 @@ class PipelineContext:
     strategy: str = "deepen"
     selection_result: Optional[Any] = None
     focus: Optional[Dict[str, Any]] = None
+
+    # Phase 4: Methodology-based strategy selection
+    signals: Optional[Dict[str, Any]] = field(
+        default=None,
+        metadata={
+            "description": "Detected signals from methodology-specific signal detector"
+        },
+    )
+    strategy_alternatives: List[tuple[str, float]] = field(
+        default_factory=list,
+        metadata={
+            "description": "Alternative strategies with scores for observability"
+        },
+    )
 
     # Continuation decision (computed in ContinuationStage)
     should_continue: bool = True

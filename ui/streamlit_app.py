@@ -20,6 +20,7 @@ from ui.components.metrics import (
     MetricsPanel,
     render_turn_diagnostics,
     render_coverage_details,
+    render_methodology_metrics,
 )
 from ui.components.scoring import render_scoring_tab
 from ui.components.controls import (
@@ -191,10 +192,35 @@ def _render_interview_tab(
             coverage = status_data.get("coverage", 0.0)
             st.metric("Coverage", f"{coverage * 100:.0f}%")
 
-        # Strategy indicator
+        # Methodology and strategy indicator
+        methodology = status_data.get("methodology", "means_end_chain")
         strategy = status_data.get("strategy_selected", "unknown")
         phase = status_data.get("phase", "unknown")
-        st.info(f"Phase: {phase.upper()} | Strategy: {strategy.upper()}")
+
+        # Display methodology-friendly name
+        methodology_names = {
+            "means_end_chain": "MEC",
+            "jobs_to_be_done": "JTBD",
+        }
+        method_abbr = methodology_names.get(methodology, methodology.upper())
+
+        st.info(
+            f"Methodology: {method_abbr} | Phase: {phase.upper()} | Strategy: {strategy.upper()}"
+        )
+
+        # Show methodology-specific signals if available
+        if "signals" in status_data:
+            with st.expander("📊 Current Signals"):
+                signals = status_data["signals"]
+                # Show top 5 most relevant signals
+                for key, value in list(signals.items())[:5]:
+                    if isinstance(value, bool):
+                        icon = "✓" if value else "✗"
+                        st.markdown(f"- **{key}**: {icon}")
+                    elif isinstance(value, float):
+                        st.markdown(f"- **{key}**: `{value:.2f}`")
+                    else:
+                        st.markdown(f"- **{key}**: {value}")
 
         # Show last turn diagnostics
         if "last_turn_result" in st.session_state:
@@ -256,6 +282,12 @@ def _render_metrics_tab(status_data: Dict[str, Any], graph_data: Optional[Dict])
     """Render the metrics and diagnostics tab."""
     metrics_panel = MetricsPanel()
     metrics_panel.render(status_data, graph_data)
+
+    # Methodology-specific metrics
+    methodology = status_data.get("methodology", "means_end_chain")
+    if graph_data:
+        st.divider()
+        render_methodology_metrics(methodology, graph_data, status_data)
 
     # Coverage details
     if "elements" in status_data:
