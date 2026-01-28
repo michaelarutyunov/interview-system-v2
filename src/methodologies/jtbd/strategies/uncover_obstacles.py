@@ -21,7 +21,12 @@ class UncoverObstaclesStrategy(BaseStrategy):
         }
 
     async def generate_focus(self, context, graph_state) -> Optional[str]:
-        for node in graph_state.nodes:
-            if node.node_type in ("alternative", "workaround"):
-                return node.label
+        # Use nodes_by_type to find alternative nodes
+        alt_nodes = (
+            graph_state.nodes_by_type.get("alternative", []) +
+            graph_state.nodes_by_type.get("workaround", [])
+        )
+        if alt_nodes:
+            node = alt_nodes[-1]
+            return node.get("label") if isinstance(node, dict) else node.label
         return None

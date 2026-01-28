@@ -26,7 +26,13 @@ class DigMotivationStrategy(BaseStrategy):
 
     async def generate_focus(self, context, graph_state) -> Optional[str]:
         # Find most recent motivation or job to ladder from
-        for node in reversed(graph_state.nodes):
-            if node.node_type in ("motivation", "desired_outcome", "job_statement"):
-                return node.label
+        # Use nodes_by_type to collect relevant nodes
+        motivation_nodes = (
+            graph_state.nodes_by_type.get("motivation", []) +
+            graph_state.nodes_by_type.get("desired_outcome", []) +
+            graph_state.nodes_by_type.get("job_statement", [])
+        )
+        if motivation_nodes:
+            node = motivation_nodes[-1]  # Most recent
+            return node.get("label") if isinstance(node, dict) else node.label
         return None

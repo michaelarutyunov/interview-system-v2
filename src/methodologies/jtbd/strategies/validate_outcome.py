@@ -21,7 +21,13 @@ class ValidateOutcomeStrategy(BaseStrategy):
         }
 
     async def generate_focus(self, context, graph_state) -> Optional[str]:
-        for node in graph_state.nodes:
-            if node.node_type in ("outcome", "benefit", "job_statement"):
-                return node.label
+        # Use nodes_by_type to find outcome nodes
+        outcome_nodes = (
+            graph_state.nodes_by_type.get("outcome", []) +
+            graph_state.nodes_by_type.get("benefit", []) +
+            graph_state.nodes_by_type.get("job_statement", [])
+        )
+        if outcome_nodes:
+            node = outcome_nodes[-1]
+            return node.get("label") if isinstance(node, dict) else node.label
         return None

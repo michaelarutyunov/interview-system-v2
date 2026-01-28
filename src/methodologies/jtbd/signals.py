@@ -92,8 +92,10 @@ class JTBDSignalDetector(BaseSignalDetector):
 
     def _has_job_node(self, graph_state: "GraphState") -> bool:
         """Check if core job has been identified."""
-        for node in graph_state.nodes:
-            if node.node_type in ("job_statement", "core_job"):
+        # Check nodes_by_type for job-related node types
+        job_types = ("job_statement", "core_job")
+        for node_type in job_types:
+            if graph_state.nodes_by_type.get(node_type):
                 return True
         return False
 
@@ -116,28 +118,29 @@ class JTBDSignalDetector(BaseSignalDetector):
 
         coverage = {dim: 0.0 for dim in self.DIMENSIONS}
 
-        for node in graph_state.nodes:
-            for dim, types in dimension_types.items():
-                if node.node_type in types:
-                    coverage[dim] = min(coverage[dim] + 0.25, 1.0)  # Cap at 1.0
+        # Use nodes_by_type to count nodes per dimension
+        for dim, types in dimension_types.items():
+            for node_type in types:
+                count = len(graph_state.nodes_by_type.get(node_type, []))
+                coverage[dim] = min(coverage[dim] + count * 0.25, 1.0)  # Cap at 1.0
 
         return coverage
 
     def _count_strategy_repetitions(self, context: "PipelineContext") -> int:
-        if not context.recent_turns:
+        if not context.strategy_history:
             return 0
-        current = context.recent_turns[-1].strategy if context.recent_turns else None
+        current = context.strategy_history[-1] if context.strategy_history else None
         if not current:
             return 0
-        return sum(1 for t in context.recent_turns[-5:] if t.strategy == current)
+        return sum(1 for t in context.strategy_history[-5:] if t == current)
 
     def _turns_since_change(self, context: "PipelineContext") -> int:
-        if not context.recent_turns or len(context.recent_turns) < 2:
+        if not context.strategy_history or len(context.strategy_history) < 2:
             return 0
-        current = context.recent_turns[-1].strategy
+        current = context.strategy_history[-1]
         count = 0
-        for turn in reversed(context.recent_turns):
-            if turn.strategy == current:
+        for turn in reversed(context.strategy_history):
+            if turn == current:
                 count += 1
             else:
                 break

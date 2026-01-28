@@ -22,7 +22,12 @@ class ExploreSituationStrategy(BaseStrategy):
 
     async def generate_focus(self, context, graph_state) -> Optional[str]:
         # Focus on the job statement
-        for node in graph_state.nodes:
-            if node.node_type in ("job_statement", "core_job"):
-                return node.label
+        # Use nodes_by_type to find job nodes
+        job_nodes = (
+            graph_state.nodes_by_type.get("job_statement", []) +
+            graph_state.nodes_by_type.get("core_job", [])
+        )
+        if job_nodes:
+            # Return the label of the most recent job node
+            return job_nodes[-1].get("label") if isinstance(job_nodes[-1], dict) else job_nodes[-1].label
         return None
