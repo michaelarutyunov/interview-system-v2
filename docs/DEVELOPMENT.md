@@ -782,6 +782,173 @@ sqlitebrowser data/interview.db
 
 ---
 
+## Error Handling Standards
+
+### Exception Hierarchy
+
+All custom exceptions inherit from `InterviewSystemError`:
+
+```
+InterviewSystemError (base)
+├── ConfigurationError
+├── LLMError
+│   ├── LLMTimeoutError
+│   ├── LLMRateLimitError
+│   ├── LLMContentFilterError
+│   ├── LLMResponseParseError
+│   └── LLMInvalidResponseError
+├── SessionError
+│   ├── SessionNotFoundError
+│   ├── SessionCompletedError
+│   └── SessionAbandonedError
+├── ExtractionError
+├── ValidationError
+└── GraphError
+    ├── NodeNotFoundError
+    └── DuplicateNodeError
+```
+
+### API Error Responses
+
+All error responses follow this structure:
+
+```json
+{
+  "error": {
+    "type": "ExceptionClassName",
+    "message": "Human-readable error message"
+  }
+}
+```
+
+### Status Code Mapping
+
+| Exception | Status Code | Use Case |
+|-----------|-------------|----------|
+| `SessionNotFoundError` | 404 | Session doesn't exist |
+| `ValidationError` | 400 | Invalid input |
+| `SessionCompletedError` | 400 | Modifying completed session |
+| `LLMTimeoutError` | 504 | LLM call timed out |
+| `LLMRateLimitError` | 429 | Rate limit exceeded |
+| `InterviewSystemError` | 500 | Other system errors |
+| `ConfigurationError` | 500 | Configuration issues |
+
+### Raising Exceptions in Services
+
+```python
+from src.domain.errors import SessionNotFoundError, ValidationError
+
+async def get_session(self, session_id: str) -> Session:
+    session = await self.session_repo.get(session_id)
+    if not session:
+        raise SessionNotFoundError(f"Session '{session_id}' not found")
+    return session
+
+async def validate_input(self, text: str) -> None:
+    if not text or len(text.strip()) == 0:
+        raise ValidationError("Input text cannot be empty")
+```
+
+### Security Considerations
+
+- Configuration errors return generic messages (don't expose internal details)
+- Unhandled exceptions don't expose stack traces to clients
+- Sensitive information (API keys, passwords) never logged
+- Error messages are user-friendly but informative
+
+---
+
+## Logging Standards
+
+### Configuration
+
+All logging uses `structlog` with context-bound loggers:
+
+```python
+from src.core.logging import get_logger
+
+log = get_logger(__name__)
+```
+
+### Event Logging Standards
+
+| Event | Level | Required Fields |
+|-------|-------|-----------------|
+| Request received | INFO | endpoint, method, session_id |
+| LLM call start | DEBUG | provider, model, prompt_tokens |
+| LLM call complete | INFO | provider, model, latency_ms, tokens_used |
+| LLM call failed | ERROR | provider, model, error_type, error_message |
+| Extraction complete | INFO | session_id, turn_number, concept_count |
+| Strategy selected | INFO | session_id, turn_number, strategy |
+| Session created | INFO | session_id, methodology, concept_id |
+| Session completed | INFO | session_id, turns, coverage, duration_seconds |
+| Database query | DEBUG | query, table, rows_affected |
+| Error | ERROR | error_type, error_message, context |
+
+### Level Guidelines
+
+- **DEBUG**: Detailed diagnostics (database queries, LLM prompts, token counts)
+- **INFO**: Normal operations (requests, responses, completions)
+- **WARNING**: Recoverable issues (fallbacks, retries, deprecated usage)
+- **ERROR**: Errors that affect operation (API failures, validation errors)
+- **CRITICAL**: System-wide failures (service unavailable, data corruption)
+
+### Binding Context
+
+Always bind relevant context to loggers:
+
+```python
+from src.core.logging import bind_context, get_logger
+
+# Bind request-scoped context
+bind_context(session_id=session.id, request_id=request_id)
+
+# Or bind to a specific logger instance
+log = log.bind(session_id=session.id, turn_number=turn.number)
+```
+
+### Examples
+
+**Basic Logging:**
+```python
+from src.core.logging import get_logger
+
+log = get_logger(__name__)
+
+# Info level - normal operations
+log.info("session_created", session_id=session.id, methodology=session.methodology)
+
+# Error level - with context
+log.error(
+    "llm_call_failed",
+    provider="openai",
+    model="gpt-4",
+    error_type=str(type(e).__name__),
+    error_message=str(e),
+)
+```
+
+**Structured Data:**
+```python
+# Always log structured data as keyword arguments
+log.info(
+    "extraction_complete",
+    session_id=session.id,
+    turn_number=turn.number,
+    concept_count=len(concepts),
+    concepts=[c.name for c in concepts],
+)
+```
+
+### What Not to Log
+
+- Passwords, API keys, or secrets
+- Large payloads (log size/offset instead)
+- PII in production (anonymize or hash)
+- Full request bodies in production (log metadata only)
+
+---
+
 ## Architecture
 
 ### Layered Architecture
