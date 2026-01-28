@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, TYPE_CHECKING
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 if TYPE_CHECKING:
     from src.domain.models.knowledge_graph import GraphState
@@ -16,8 +16,7 @@ class SignalState(BaseModel):
     response_confidence: float = 0.5
     response_ambiguity: float = 0.0
 
-    class Config:
-        extra = "allow"  # Allow methodology-specific signals
+    model_config = ConfigDict(extra="allow")  # Allow methodology-specific signals
 
 
 class BaseSignalDetector(ABC):

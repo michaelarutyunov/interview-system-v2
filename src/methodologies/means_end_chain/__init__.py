@@ -1,5 +1,18 @@
 from typing import List
 from src.methodologies.base import MethodologyModule, BaseStrategy, BaseSignalDetector
+from src.methodologies.means_end_chain.signals import MECSignalDetector
+from src.methodologies.means_end_chain.strategies.ladder_deeper import (
+    LadderDeeperStrategy,
+)
+from src.methodologies.means_end_chain.strategies.clarify_relationship import (
+    ClarifyRelationshipStrategy,
+)
+from src.methodologies.means_end_chain.strategies.explore_new_attribute import (
+    ExploreNewAttributeStrategy,
+)
+from src.methodologies.means_end_chain.strategies.reflect_and_validate import (
+    ReflectAndValidateStrategy,
+)
 
 
 class MECModule(MethodologyModule):
@@ -9,17 +22,12 @@ class MECModule(MethodologyModule):
     schema_path = "config/methodologies/means_end_chain.yaml"
 
     def get_strategies(self) -> List[type[BaseStrategy]]:
-        # Stub implementation - will be populated in Phase 2
-        return []
+        return [
+            LadderDeeperStrategy,
+            ClarifyRelationshipStrategy,
+            ExploreNewAttributeStrategy,
+            ReflectAndValidateStrategy,
+        ]
 
     def get_signal_detector(self) -> BaseSignalDetector:
-        # Stub implementation - will be populated in Phase 2
-        from src.methodologies.base import BaseSignalDetector
-
-        class StubSignalDetector(BaseSignalDetector):
-            async def detect(self, context, graph_state, response_text):
-                from src.methodologies.base import SignalState
-
-                return SignalState()
-
-        return StubSignalDetector()
+        return MECSignalDetector()
