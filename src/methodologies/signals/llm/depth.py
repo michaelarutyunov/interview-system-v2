@@ -1,6 +1,7 @@
 """Response depth signals - how deep the response is."""
 
 from src.methodologies.signals.llm.common import BaseLLMSignal
+from src.methodologies.signals.common import SignalCostTier
 
 
 class ResponseDepthSignal(BaseLLMSignal):
@@ -17,6 +18,8 @@ class ResponseDepthSignal(BaseLLMSignal):
     """
 
     signal_name = "llm.response_depth"
+    description = "LLM assessment of response depth. 'surface' means brief/superficial, 'moderate' means some detail, 'deep' means detailed and thoughtful. Used to gauge engagement and depth of exploration."
+    cost_tier = SignalCostTier.HIGH
 
     async def _analyze_with_llm(self, response_text: str) -> dict:
         """Analyze response depth (simplified for PoC).

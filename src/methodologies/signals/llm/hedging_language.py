@@ -9,6 +9,7 @@ Levels: none / low / medium / high
 """
 
 from src.methodologies.signals.llm.common import BaseLLMSignal
+from src.methodologies.signals.common import SignalCostTier
 import re
 
 
@@ -30,6 +31,8 @@ class HedgingLanguageSignal(BaseLLMSignal):
     """
 
     signal_name = "llm.hedging_language"
+    description = "Amount of uncertain language (maybe, perhaps, I think). 'none/low' = confident responses, 'medium' = some uncertainty, 'high' = very uncertain. High hedging may indicate need for clarification or rapport repair."
+    cost_tier = SignalCostTier.HIGH
 
     # Hedging patterns for PoC implementation
     # TODO: Replace with LLM-based analysis in production

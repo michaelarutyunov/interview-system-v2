@@ -10,7 +10,7 @@ Generates follow-up questions based on:
 Uses LLM for natural language generation.
 """
 
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 import structlog
 
@@ -25,6 +25,7 @@ from src.llm.prompts.question import (
 )
 from src.domain.models.knowledge_graph import KGNode, GraphState
 from src.core.schema_loader import load_methodology
+from src.domain.models.methodology_schema import MethodologySchema
 
 log = structlog.get_logger(__name__)
 
@@ -69,6 +70,8 @@ class QuestionService:
         recent_nodes: Optional[List[KGNode]] = None,
         strategy: Optional[str] = None,
         topic: Optional[str] = None,
+        signals: Optional[Dict[str, Any]] = None,
+        signal_descriptions: Optional[Dict[str, str]] = None,
     ) -> str:
         """
         Generate a follow-up question.
@@ -80,6 +83,8 @@ class QuestionService:
             recent_nodes: Recently added nodes
             strategy: Strategy to use (defaults to default_strategy)
             topic: Research topic to anchor questions to (prevents drift)
+            signals: Active signal values (for strategy rationale in prompt)
+            signal_descriptions: Signal descriptions (for strategy rationale in prompt)
 
         Returns:
             Generated question string
@@ -108,8 +113,17 @@ class QuestionService:
                 depth_achieved=depth_achieved,
             )
 
-        # Get prompts - include topic anchoring
-        system_prompt = get_question_system_prompt(strategy, topic=topic)
+        # Load methodology schema for prompt
+        methodology_schema: Optional[MethodologySchema] = None
+        try:
+            methodology_schema = self.load_methodology_schema()
+        except Exception:
+            pass  # Methodology is optional for follow-up prompts
+
+        # Get prompts - include topic anchoring and methodology
+        system_prompt = get_question_system_prompt(
+            strategy, topic=topic, methodology=methodology_schema
+        )
         user_prompt = get_question_user_prompt(
             focus_concept=focus_concept,
             recent_utterances=recent_utterances,
@@ -117,6 +131,8 @@ class QuestionService:
             strategy=strategy,
             topic=topic,
             depth_achieved=depth_achieved,
+            signals=signals,
+            signal_descriptions=signal_descriptions,
         )
 
         try:

@@ -2,8 +2,8 @@
 Prompts for question generation.
 
 Generates follow-up questions based on:
-- Selected strategy (deepen, broaden, cover_element, closing, reflection,
-                  bridge, contrast, ease, synthesis)
+- Selected strategy (loaded from config/scoring.yaml)
+- Active signals with their descriptions
 - Current graph state (what we know so far)
 - Recent conversation context
 - Focus concept (what to ask about)
@@ -12,78 +12,63 @@ Strategy definitions are loaded from config/scoring.yaml.
 """
 
 from typing import Optional, List, Dict, Any
+from pathlib import Path
+import yaml
+import structlog
 
 from src.domain.models.methodology_schema import MethodologySchema
 
+log = structlog.get_logger(__name__)
 
-# Strategy descriptions for prompts
-# Note: Keys must match strategy.id values in config/scoring.yaml
-STRATEGY_DESCRIPTIONS = {
-    "deepen": {
-        "name": "Deepen Understanding",
-        "intent": "Explore why something matters to understand deeper motivations",
-        "probe_style": "Ask 'why is that important?' type questions",
-        "example": "You mentioned {concept} - why is that important to you?",
-    },
-    "broaden": {
-        "name": "Explore Breadth",
-        "intent": "Find new branches and related concepts",
-        "probe_style": "Ask 'what else?' type questions",
-        "example": "Besides {concept}, what else matters to you about this?",
-    },
-    "cover_element": {
-        "name": "Cover Stimulus Element",
-        "intent": "Explore untouched stimulus elements",
-        "probe_style": "Introduce new topic naturally",
-        "example": "I'd like to hear your thoughts about {element}...",
-    },
-    "closing": {
-        "name": "Closing Interview",
-        "intent": "Wrap up the interview naturally",
-        "probe_style": "Summarize and invite final thoughts",
-        "example": "We've covered a lot - is there anything else you'd like to add?",
-    },
-    "reflection": {
-        "name": "Reflection / Meta-Question",
-        "intent": "Ask a meta-question about the interview process or experience",
-        "probe_style": "Step back and reflect on the conversation",
-        "example": "How has this conversation been for you so far?",
-    },
-    "bridge": {
-        "name": "Lateral Bridge to Peripheral",
-        "intent": "Link to what was just said, then gently shift to a related area",
-        "probe_style": "Acknowledge their point, then explore a connected topic",
-        "example": "That's interesting about X. Have you also noticed anything about Y?",
-    },
-    "contrast": {
-        "name": "Introduce Counter-Example",
-        "intent": "Politely introduce a counter-example to test boundaries",
-        "probe_style": "Gently challenge with an opposite case",
-        "example": "That makes sense. Have you ever experienced the opposite - where X?",
-    },
-    "ease": {
-        "name": "Ease / Rapport Repair",
-        "intent": "Simplify or soften the question to encourage participation",
-        "probe_style": "Make the question easier to answer",
-        "example": "Let me put this more simply - what do you think about X?",
-    },
-    "synthesis": {
-        "name": "Summarise & Invite Extension",
-        "intent": "Briefly summarize what you've heard and invite correction or addition",
-        "probe_style": "Reflect back and ask for more",
-        "example": "So far I've heard X and Y. Is that right, or is there more to add?",
-    },
-    "clarify": {
-        "name": "Clarify / Rephrase",
-        "intent": "Rephrase the previous question when user shows confusion or lack of understanding",
-        "probe_style": "Ask the same thing in simpler, clearer words",
-        "example": "Let me put this more simply - what do you think about {concept}?",
-    },
-}
+# Module-level cache for scoring config (loaded once, cached)
+_scoring_cache: Optional[Dict[str, Any]] = None
+
+
+def _load_scoring_config() -> Dict[str, Any]:
+    """Load scoring configuration from YAML with caching.
+
+    Returns:
+        Dict containing scoring config with strategies, phases, etc.
+    """
+    global _scoring_cache
+    if _scoring_cache is not None:
+        return _scoring_cache
+
+    try:
+        config_path = (
+            Path(__file__).parent.parent.parent.parent / "config" / "scoring.yaml"
+        )
+        with open(config_path) as f:
+            _scoring_cache = yaml.safe_load(f)
+        log.info("scoring_config_loaded", strategy_count=len(_scoring_cache.get("strategies", [])))
+        return _scoring_cache
+    except Exception as e:
+        log.error("scoring_config_load_failed", error=str(e))
+        # Return minimal default config
+        return {"strategies": []}
+
+
+def get_strategy_config(strategy_id: str) -> Dict[str, Any]:
+    """Get strategy configuration by ID.
+
+    Args:
+        strategy_id: Strategy identifier (e.g., "deepen", "broaden")
+
+    Returns:
+        Strategy dict with 'name', 'description', etc. Returns empty dict if not found.
+    """
+    config = _load_scoring_config()
+    strategies = config.get("strategies", [])
+    for strategy in strategies:
+        if strategy.get("id") == strategy_id:
+            return strategy
+    return {}
 
 
 def get_question_system_prompt(
-    strategy: str = "deepen", topic: Optional[str] = None
+    strategy: str = "deepen",
+    topic: Optional[str] = None,
+    methodology: Optional[MethodologySchema] = None,
 ) -> str:
     """
     Get system prompt for question generation.
@@ -92,11 +77,34 @@ def get_question_system_prompt(
         strategy: Strategy name (deepen, broaden, cover_element, closing, reflection,
                       bridge, contrast, ease, synthesis) - must match config/scoring.yaml
         topic: Research topic to anchor questions to (prevents drift)
+        methodology: Optional methodology schema for method-specific context
 
     Returns:
         System prompt string
     """
-    strat = STRATEGY_DESCRIPTIONS.get(strategy, STRATEGY_DESCRIPTIONS["deepen"])
+    # Load strategy from scoring.yaml
+    strat_config = get_strategy_config(strategy)
+    if strat_config:
+        strat_name = strat_config.get("name", "Deepen Understanding")
+        strat_description = strat_config.get("description", "")
+    else:
+        # Fallback to hardcoded defaults
+        strat_name = "Deepen Understanding"
+        strat_description = "Explore why something matters to understand deeper motivations"
+
+    # Build methodology section
+    methodology_section = ""
+    if methodology and methodology.method:
+        method_info = methodology.method
+        method_name = method_info.get("name", "qualitative interview")
+        method_goal = method_info.get("goal", "")
+        method_desc = method_info.get("description", "")
+
+        methodology_section = f"\n\nMethod: {method_name}"
+        if method_desc:
+            methodology_section += f"\n{method_desc}"
+        if method_goal:
+            methodology_section += f"\nGoal: {method_goal}"
 
     # Build topic anchoring instruction if topic provided
     topic_instruction = ""
@@ -110,9 +118,8 @@ If the conversation drifts too far into abstract philosophy, gently relate back 
 
     return f"""You are a skilled qualitative researcher conducting an interview.
 
-Your current strategy is: **{strat["name"]}**
-Strategy intent: {strat["intent"]}
-Probe style: {strat["probe_style"]}
+Your current strategy is: **{strat_name}**
+Strategy: {strat_description}{methodology_section}
 
 ## Question Style Guidelines:
 1. Ask ONE question at a time
@@ -140,6 +147,8 @@ def get_question_user_prompt(
     strategy: str = "deepen",
     topic: Optional[str] = None,
     depth_achieved: int = 0,
+    signals: Optional[Dict[str, Any]] = None,
+    signal_descriptions: Optional[Dict[str, str]] = None,
 ) -> str:
     """
     Get user prompt for question generation.
@@ -151,6 +160,8 @@ def get_question_user_prompt(
         strategy: Strategy name
         topic: Research topic to anchor questions to (prevents drift)
         depth_achieved: Current depth in the conversation (0-4+)
+        signals: Active signal values dict (signal_name -> value)
+        signal_descriptions: Signal descriptions dict (signal_name -> description)
 
     Returns:
         User prompt string
@@ -178,10 +189,39 @@ def get_question_user_prompt(
         prompt_parts.append(f"What we know so far: {graph_summary}")
         prompt_parts.append("")
 
+    # Build signal rationale section (inline formatting - Option B)
+    if signals and signal_descriptions:
+        signal_lines = ["## Active Signals:"]
+        for signal_name, value in signals.items():
+            description = signal_descriptions.get(signal_name, "")
+            if description:
+                signal_lines.append(f"- {signal_name}: {value}")
+                signal_lines.append(f"  → \"{description}\"")
+            else:
+                signal_lines.append(f"- {signal_name}: {value}")
+
+        # Add "Why This Strategy" section
+        signal_lines.append("")
+        signal_lines.append("## Why This Strategy Was Selected:")
+        signal_lines.append(_build_strategy_rationale(signals, strategy))
+
+        prompt_parts.append("\n".join(signal_lines))
+        prompt_parts.append("")
+
     # Add focus and strategy
-    strat = STRATEGY_DESCRIPTIONS.get(strategy, STRATEGY_DESCRIPTIONS["deepen"])
+    strat_config = get_strategy_config(strategy)
+    if strat_config:
+        strat_name = strat_config.get("name", strategy)
+        strat_description = strat_config.get("description", "")
+    else:
+        strat_name = strategy
+        strat_description = ""
+
     prompt_parts.append(f"Focus concept: {focus_concept}")
-    prompt_parts.append(f"Strategy: {strat['name']} - {strat['intent']}")
+    if strat_description:
+        prompt_parts.append(f"Strategy: {strat_name} - {strat_description}")
+    else:
+        prompt_parts.append(f"Strategy: {strat_name}")
 
     # Add topic anchoring reminder when depth is high (prevents drift to abstract philosophy)
     if topic and depth_achieved >= 2:
@@ -195,6 +235,59 @@ def get_question_user_prompt(
     prompt_parts.append("Generate a natural follow-up question:")
 
     return "\n".join(prompt_parts)
+
+
+def _build_strategy_rationale(signals: Dict[str, Any], strategy: str) -> str:
+    """Build explanation of why this strategy was selected based on active signals.
+
+    Args:
+        signals: Active signal values
+        strategy: Selected strategy ID
+
+    Returns:
+        Formatted rationale string
+    """
+    rationale_parts = []
+
+    # Common signal-based rationales
+    if "graph.max_depth" in signals:
+        depth = signals["graph.max_depth"]
+        if depth < 2:
+            rationale_parts.append("- Low depth suggests we're still at surface level")
+        elif depth >= 4:
+            rationale_parts.append("- High depth indicates we've reached deep values")
+
+    if "graph.chain_completion.has_complete_chain" in signals:
+        has_chain = signals["graph.chain_completion.has_complete_chain"]
+        if not has_chain:
+            rationale_parts.append("- No complete chains exist - need to reach terminal values")
+
+    if "llm.response_depth" in signals:
+        resp_depth = signals["llm.response_depth"]
+        if resp_depth == "surface":
+            rationale_parts.append("- Surface-level response suggests need for deeper probing")
+        elif resp_depth == "deep":
+            rationale_parts.append("- Deep response indicates strong engagement")
+
+    if "llm.hedging_language" in signals:
+        hedging = signals["llm.hedging_language"]
+        if hedging in ["medium", "high"]:
+            rationale_parts.append(f"- Hedging language ({hedging}) suggests uncertainty")
+        elif hedging in ["none", "low"]:
+            rationale_parts.append("- Confident response with low uncertainty")
+
+    # Strategy-specific rationale
+    if strategy == "deepen":
+        rationale_parts.append("- Strategy: deepen to probe motivations and values")
+    elif strategy == "broaden":
+        rationale_parts.append("- Strategy: broaden to explore new areas")
+    elif strategy == "clarify":
+        rationale_parts.append("- Strategy: clarify to resolve uncertainty")
+
+    if not rationale_parts:
+        return f"Selected {strategy} strategy based on current state"
+
+    return "\n".join(rationale_parts)
 
 
 def get_opening_question_system_prompt(

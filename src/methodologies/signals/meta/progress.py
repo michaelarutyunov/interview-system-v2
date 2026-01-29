@@ -25,6 +25,7 @@ class InterviewProgressSignal(SignalDetector):
     """
 
     signal_name = "meta.interview_progress"
+    description = "Overall interview progress from 0-1. 0 = just started, 1 = near completion. Combines coverage breadth, graph depth, and turn count. Higher values suggest we can start closing."
     cost_tier = SignalCostTier.LOW
     refresh_trigger = RefreshTrigger.PER_TURN
 

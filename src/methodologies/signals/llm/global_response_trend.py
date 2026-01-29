@@ -33,6 +33,7 @@ class GlobalResponseTrendSignal(SignalDetector):
     """
 
     signal_name = "llm.global_response_trend"
+    description = "Trend in response quality over time. 'deepening' = engaged, 'stable' = consistent, 'shallowing' = declining quality, 'fatigued' = disengaged (4+ shallow responses). 'fatigued' suggests need for rapport repair or closing."
     cost_tier = SignalCostTier.LOW
     refresh_trigger = RefreshTrigger.PER_TURN
 

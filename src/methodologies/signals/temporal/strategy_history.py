@@ -21,6 +21,7 @@ class StrategyRepetitionCountSignal(SignalDetector):
     """
 
     signal_name = "temporal.strategy_repetition_count"
+    description = "How many times the current strategy was used in the last 5 turns. High counts (3+) suggest strategy overuse and need to switch strategies for variety."
     cost_tier = SignalCostTier.FREE
     refresh_trigger = RefreshTrigger.PER_TURN
 
@@ -60,6 +61,7 @@ class TurnsSinceChangeSignal(SignalDetector):
     """
 
     signal_name = "temporal.turns_since_strategy_change"
+    description = "How many consecutive turns have used the current strategy. High values (3+) suggest it's time to switch strategies to maintain variety."
     cost_tier = SignalCostTier.FREE
     refresh_trigger = RefreshTrigger.PER_TURN
 

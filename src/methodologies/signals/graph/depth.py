@@ -19,6 +19,7 @@ class GraphMaxDepthSignal(SignalDetector):
     """
 
     signal_name = "graph.max_depth"
+    description = "Depth of the longest causal chain. Low values (0-1) indicate surface-level exploration, moderate (2-3) indicate reaching consequences or values, high (4+) indicate deep value exploration."
     cost_tier = SignalCostTier.FREE
     refresh_trigger = RefreshTrigger.PER_TURN
 
@@ -36,6 +37,7 @@ class GraphAvgDepthSignal(SignalDetector):
     """
 
     signal_name = "graph.avg_depth"
+    description = "Average depth across all chains. Indicates overall depth of exploration. Values below 2 suggest surface-focused conversation, 2-3 indicate balanced depth, above 3 indicate consistently deep exploration."
     cost_tier = SignalCostTier.FREE
     refresh_trigger = RefreshTrigger.PER_TURN
 
@@ -55,6 +57,7 @@ class DepthByElementSignal(SignalDetector):
     """
 
     signal_name = "graph.depth_by_element"
+    description = "Depth of each specific element/node. Used to identify which concepts are at surface vs deep levels. Helps select focus concepts for deepening or broadening."
     cost_tier = SignalCostTier.FREE
     refresh_trigger = RefreshTrigger.PER_TURN
 

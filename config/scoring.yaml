@@ -218,77 +218,77 @@ strategies:
 
   - id: deepen
     name: "Deepen Understanding"
+    description: "Explore why something matters to understand deeper motivations and values"
     type_category: "depth"
     priority_base: 1.0
     enabled: true
-    prompt_hint: "Explore deeper into why this is important."
 
   - id: broaden
     name: "Explore Breadth"
+    description: "Find new branches and related concepts by asking 'what else?'"
     type_category: "breadth"
     priority_base: 0.9
     enabled: true
-    prompt_hint: "Expand to related areas or perspectives."
 
   - id: contrast
     name: "Introduce Counter-Example"
+    description: "Politely introduce a counter-example or opposite case to test boundaries and refine understanding"
     type_category: "contrast"
     priority_base: 0.7
     enabled: true
-    prompt_hint: "Politely introduce a counter-example or opposite case to test boundaries."
 
   - id: cover_element
     name: "Cover Stimulus Element"
+    description: "Ensure an untouched element from the stimulus is addressed and explored"
     type_category: "coverage"
     priority_base: 1.1
     enabled: true
-    prompt_hint: "Ensure this element from the stimulus is addressed."
 
   - id: bridge
     name: "Lateral Bridge to Peripheral"
+    description: "Link to what was just said, then gently shift to a related but distinct area"
     type_category: "peripheral"
     priority_base: 0.8
     enabled: true
-    prompt_hint: "Explicitly link to what was just said, then gently shift to a related but distinct area."
 
   - id: synthesis
     name: "Summarise & Invite Extension"
+    description: "Briefly summarise what you've heard and invite correction or addition"
     type_category: "transition"
     priority_base: 0.8
     enabled: true
-    prompt_hint: "Briefly summarise what you've heard and invite correction or addition."
 
   # "Interview Management" strategies
 
   - id: ease
     name: "Ease / Rapport Repair"
+    description: "Simplify or soften the question to encourage participation and rebuild comfort"
     type_category: "interaction"
     priority_base: 0.6
     enabled: true
-    prompt_hint: "Simplify or soften the question, encourage participation."
 
   - id: clarify
     name: "Clarify / Rephrase"
+    description: "Rephrase the question in simpler, clearer words when user shows confusion or lack of understanding"
     type_category: "clarification"
     priority_base: 0.5
     enabled: true
-    prompt_hint: "Rephrase the question in simpler terms when user shows confusion."
     emergency_only: false
 
   - id: reflection
     name: "Reflection / Meta-Question"
+    description: "Ask a meta-question about the interview process or the respondent's experience so far"
     type_category: "reflection"
     priority_base: 0.7  # Emergency fallback
     enabled: true
-    prompt_hint: "Ask a meta-question about the interview process."
     emergency_only: true  # Only when all else fails
 
   - id: closing
     name: "Closing Interview"
+    description: "Begin to wrap up the interview by summarizing and inviting final thoughts"
     type_category: "closing"
     priority_base: 0.5  # Lower base - only use when appropriate
     enabled: true
-    prompt_hint: "Begin to wrap up the interview."
     # Note: Phase system controls timing via phase multipliers (no min_turns needed)
 
 # Phase profiles

@@ -36,6 +36,7 @@ class ChainCompletionSignal(SignalDetector):
     """
 
     signal_name = "graph.chain_completion"
+    description = "Whether complete causal chains exist from level 1 to terminal nodes. has_complete_chain=true means at least one chain reaches values, false means we're still mid-chain. complete_chain_count shows how many level-1 chains are complete."
     cost_tier = SignalCostTier.MEDIUM
     refresh_trigger = RefreshTrigger.PER_TURN
 

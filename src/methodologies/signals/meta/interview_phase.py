@@ -32,6 +32,7 @@ class InterviewPhaseSignal(SignalDetector):
     """
 
     signal_name = "meta.interview.phase"
+    description = "Current interview phase: 'early' (initial exploration, <5 nodes), 'mid' (building depth/connections, 5-15 nodes), 'late' (validation, 15+ nodes). Used to adjust strategy weights."
     cost_tier = SignalCostTier.FREE
     refresh_trigger = RefreshTrigger.PER_TURN
 

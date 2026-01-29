@@ -25,9 +25,10 @@ class TestQuestionSystemPrompt:
         assert "deeper motivations" in prompt.lower()
 
     def test_includes_methodology(self):
-        """System prompt includes Means-End Chain methodology."""
-        prompt = get_question_system_prompt()
-        assert "Means-End Chain" in prompt
+        """System prompt includes Means-End Chain methodology when provided."""
+        schema = load_methodology("means_end_chain")
+        prompt = get_question_system_prompt(methodology=schema)
+        assert "means_end_chain" in prompt or "Means-End Chain" in prompt
 
     def test_different_strategies(self):
         """Different strategies produce different prompts."""
