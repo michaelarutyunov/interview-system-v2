@@ -85,7 +85,7 @@ class TestUserPrompts:
         )
 
         assert "Oat Milk" in prompt
-        assert "turn 5" in prompt
+        assert "Turn 5" in prompt
         assert "60% coverage" in prompt
 
     def test_user_prompt_all_parameters(self):

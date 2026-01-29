@@ -577,6 +577,95 @@ This ensures the interview adapts its strategy preferences as the knowledge grap
 
 ---
 
+## Policy-Driven Follow-Up Question Generation
+
+### Opening vs Follow-Up Questions
+
+The system uses fundamentally different prompt structures for opening versus follow-up questions:
+
+**Opening Questions** (conversational, low-constraint):
+- Goal: Warmly invite the respondent to share initial thoughts
+- Style: Friendly, open-ended, narrative-focused
+- Context: Methodology + interview objective
+- Example: "What are your thoughts on oat milk alternatives?"
+
+**Follow-Up Questions** (policy-driven, high-constraint):
+- Goal: Execute a specific strategy based on signals
+- Style: Focused, strategic, signal-aware
+- Context: Strategy description + signal rationale + methodology + graph state
+- Example: "Why does that matter?" (because `graph.chain_completion.has_complete_chain=false`)
+
+### Signal Rationale in Prompts
+
+**Phase 6 (2026-01-29)**: Follow-up prompts now include active signals with descriptions to explain WHY each strategy was selected.
+
+#### Signal Descriptions
+
+Each signal class now includes a `description` attribute that explains:
+
+- **What the signal measures**: "Depth of the longest causal chain in the graph"
+- **How to interpret values**: "Low values (<2) indicate surface-level exploration"
+- **What it means for questioning**: "Low depth suggests we're still at surface level"
+
+Example signals with descriptions:
+```python
+class GraphMaxDepthSignal(SignalDetector):
+    signal_name = "graph.max_depth"
+    description = "Depth of the longest causal chain. Low values (<2) indicate surface-level exploration,
+                   moderate (2-3) indicate reaching consequences or values, high (4+) indicate deep value exploration."
+```
+
+#### Prompt Structure
+
+The follow-up user prompt includes:
+
+```
+## Active Signals:
+- graph.max_depth: 1
+  → "Depth of the longest chain. Low values (<2) indicate surface-level exploration"
+- llm.response_depth: moderate
+  → "LLM assessment of response depth. 'moderate' means some elaboration"
+- graph.chain_completion.has_complete_chain: false
+  → "Whether any complete chains exist from level 1 to terminal nodes"
+
+## Why This Strategy Was Selected:
+- Low depth suggests we're still at surface level
+- No complete chains exist - need to reach terminal values
+- Strategy: deepen to probe motivations and values
+
+Focus concept: indulgence
+Strategy: Deepen Understanding - "Explore why something matters to understand deeper motivations and values"
+```
+
+### Strategy Descriptions from YAML
+
+Strategies are now loaded from `config/scoring.yaml` with `description` fields that explain WHAT each strategy does:
+
+```yaml
+- id: deepen
+  name: "Deepen Understanding"
+  description: "Explore why something matters to understand deeper motivations and values"
+```
+
+This replaces hardcoded strategy dictionaries and makes strategies:
+- **Configurable**: Edit YAML without code changes
+- **Self-documenting**: Description field explains strategy purpose
+- **LLM-ready**: Descriptions formulated for prompt inclusion
+
+### Methodology Context
+
+When methodology schema is available, follow-up prompts also include:
+
+```
+Method: means_end_chain
+Laddering: attributes → consequences → values
+Goal: Explore causal chains from concrete attributes to abstract values
+```
+
+This provides the LLM with methodology-specific context for generating appropriate questions.
+
+---
+
 ## LLM Integration
 
 ### Three-Client Architecture (ADR-010)

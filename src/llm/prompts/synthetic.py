@@ -2,7 +2,7 @@
 Prompts for synthetic respondent generation.
 
 Generates contextually appropriate respondent answers for testing:
-- Persona system with 5 predefined personas
+- Persona system loaded from config/personas/*.yaml
 - Natural response patterns (detailed, medium, brief, deflections)
 - Interview context awareness (previous concepts, turn number, coverage)
 - Deflection patterns for authentic respondent behavior
@@ -10,13 +10,20 @@ Generates contextually appropriate respondent answers for testing:
 Used by:
 - SyntheticService for generating synthetic responses
 - Test scripts for automated regression testing
+
+Migration (2026-01-29):
+- Personas now loaded from config/personas/*.yaml via persona_loader
+- Legacy PERSONAS dict kept as fallback for backward compatibility
 """
 
 from typing import Dict, Any, List, Optional
 
+# Import persona loader
+from src.core.persona_loader import load_persona, list_personas as load_list_personas
 
-# Persona definitions with traits and speech patterns
-PERSONAS: Dict[str, Dict[str, Any]] = {
+
+# Legacy fallback personas (kept for backward compatibility during transition)
+_LEGACY_PERSONAS: Dict[str, Dict[str, Any]] = {
     "health_conscious": {
         "name": "Health-Conscious Millennial",
         "traits": [
@@ -94,6 +101,27 @@ PERSONAS: Dict[str, Dict[str, Any]] = {
     },
 }
 
+# Export PERSONAS for backward compatibility
+PERSONAS = _LEGACY_PERSONAS
+
+
+def _get_persona_config(persona_id: str) -> Dict[str, Any]:
+    """Get persona configuration from YAML or fallback to legacy dict.
+
+    Args:
+        persona_id: Persona identifier
+
+    Returns:
+        Dict with persona configuration (name, traits, speech_pattern, etc.)
+    """
+    try:
+        # Try loading from config/personas/*.yaml
+        persona = load_persona(persona_id)
+        return persona.model_dump()
+    except Exception:
+        # Fallback to legacy hardcoded personas
+        return _LEGACY_PERSONAS.get(persona_id, _LEGACY_PERSONAS["health_conscious"])
+
 
 def get_synthetic_system_prompt() -> str:
     """
@@ -168,15 +196,15 @@ def get_synthetic_user_prompt(
 
     Args:
         question: The interviewer's question
-        persona: Persona ID from PERSONAS dict
+        persona: Persona ID from config/personas/*.yaml or legacy PERSONAS dict
         previous_concepts: Optional list of concepts mentioned earlier
         interview_context: Optional dict with product_name, turn_number, coverage_achieved
 
     Returns:
         User prompt string
     """
-    # Get persona configuration
-    persona_config = PERSONAS.get(persona, PERSONAS["health_conscious"])
+    # Get persona configuration (from YAML or legacy fallback)
+    persona_config = _get_persona_config(persona)
 
     prompt_parts = []
 
@@ -184,6 +212,11 @@ def get_synthetic_user_prompt(
     prompt_parts.append(f"## Your Persona: {persona_config['name']} ({persona})")
     prompt_parts.append(f"Traits: {', '.join(persona_config['traits'])}")
     prompt_parts.append(f"Speech Pattern: {persona_config['speech_pattern']}")
+
+    # Add deflection patterns if available
+    if persona_config.get("deflection_patterns"):
+        prompt_parts.append(f"Deflection Patterns: {', '.join(persona_config['deflection_patterns'][:3])}")
+
     prompt_parts.append("")
 
     # Add previous concepts if provided
@@ -202,7 +235,7 @@ def get_synthetic_user_prompt(
         coverage = interview_context.get("coverage_achieved", 0.0)
 
         prompt_parts.append(f"- Product: {product_name}")
-        prompt_parts.append(f"- turn {turn_number}")
+        prompt_parts.append(f"- Turn {turn_number}")
         prompt_parts.append(f"- {coverage * 100:.0f}% coverage")
         prompt_parts.append("")
 
@@ -255,7 +288,17 @@ def get_available_personas() -> Dict[str, str]:
     """
     Get dict of available personas.
 
+    Loads from config/personas/*.yaml with fallback to legacy personas.
+
     Returns:
         Dict mapping persona_id to persona_name
     """
-    return {persona_id: config["name"] for persona_id, config in PERSONAS.items()}
+    try:
+        # Try loading from config/personas/*.yaml
+        return load_list_personas()
+    except Exception:
+        # Fallback to legacy personas
+        return {
+            persona_id: config["name"]
+            for persona_id, config in _LEGACY_PERSONAS.items()
+        }
