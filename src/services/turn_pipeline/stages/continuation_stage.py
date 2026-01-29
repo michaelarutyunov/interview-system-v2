@@ -82,7 +82,7 @@ class ContinuationStage(TurnStage):
                     focus_concept = context.focus.get("focus_description", "the topic")
             else:
                 # Phase 2: fall back to heuristic selection
-                focus_concept = await self.question.select_focus_concept(
+                focus_concept = self.question.select_focus_concept(
                     recent_nodes=context.recent_nodes,
                     graph_state=context.graph_state,
                     strategy=context.strategy,

@@ -68,7 +68,7 @@ SimulationServiceDep = Annotated[SimulationService, Depends(get_simulation_servi
 )
 async def simulate_interview(
     request: SimulationRequest,
-    simulation_service: SimulationServiceDep = Depends(),
+    simulation_service: SimulationServiceDep,
 ):
     """
     Simulate a complete AI-to-AI interview.

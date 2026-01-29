@@ -34,7 +34,7 @@ class ContextLoadingOutput(BaseModel):
     max_turns: int = Field(ge=1, description="Maximum number of turns")
 
     # Conversation history
-    recent_utterances: List[Dict[str, str]] = Field(
+    recent_utterances: List[Dict[str, Any]] = Field(
         default_factory=list, description="Recent conversation turns"
     )
     strategy_history: List[str] = Field(
@@ -108,7 +108,7 @@ class StrategySelectionInput(BaseModel):
     )
 
     # Context
-    conversation_history: List[Dict[str, str]] = Field(
+    conversation_history: List[Dict[str, Any]] = Field(
         default_factory=list, description="Conversation history"
     )
     turn_number: int = Field(ge=0, description="Current turn number")

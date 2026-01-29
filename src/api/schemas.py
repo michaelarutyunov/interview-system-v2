@@ -322,7 +322,7 @@ class SimulationTurnSchema(BaseModel):
     persona_name: str
     strategy_selected: Optional[str] = None
     should_continue: bool = True
-    latency_ms: int = 0
+    latency_ms: float = 0.0
 
 
 class SimulationRequest(BaseModel):
