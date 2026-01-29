@@ -155,3 +155,76 @@ class TestContinuationStageContract:
         result_context = await stage.process(context)
 
         assert result_context.should_continue is False
+
+    @pytest.mark.asyncio
+    async def test_uses_focus_from_strategy_selection(self, question_service):
+        """Should use focus_node_id from strategy selection when available."""
+        from src.domain.models.knowledge_graph import KGNode
+        from datetime import datetime, timezone
+
+        # Create context with a focus from strategy selection
+        ctx = PipelineContext(
+            session_id="test-session",
+            user_input="I like oat milk",
+        )
+
+        # Create graph_state
+        graph_state = GraphState(
+            node_count=5,
+            edge_count=3,
+            depth_metrics=DepthMetrics(max_depth=2, avg_depth=1.0),
+            coverage_state=CoverageState(),
+            current_phase="exploratory",
+            turn_count=1,
+        )
+
+        # Create recent nodes
+        node1 = KGNode(
+            id="node-1",
+            session_id="test-session",
+            label="creamy texture",
+            node_type="attribute",
+        )
+        node2 = KGNode(
+            id="node-2",
+            session_id="test-session",
+            label="satisfying",
+            node_type="functional_consequence",
+        )
+
+        # Set ContextLoadingOutput (required for turn_number, max_turns, etc.)
+        ctx.context_loading_output = ContextLoadingOutput(
+            methodology="means_end_chain",
+            concept_id="oat_milk_v2",
+            concept_name="Oat Milk v2",
+            turn_number=1,
+            mode="coverage",
+            max_turns=10,
+            recent_utterances=[],
+            strategy_history=[],
+            graph_state=graph_state,
+            recent_nodes=[],  # Not used - recent_nodes from state_computation_output
+        )
+
+        # Set StateComputationOutput with recent_nodes (this is what context.recent_nodes reads from)
+        from src.domain.models.pipeline_contracts import StateComputationOutput
+        ctx.state_computation_output = StateComputationOutput(
+            graph_state=graph_state,
+            recent_nodes=[node1, node2],
+            computed_at=datetime.now(timezone.utc),
+        )
+
+        # Set StrategySelectionOutput with focus_node_id
+        ctx.strategy_selection_output = StrategySelectionOutput(
+            strategy="deepen",
+            focus={"focus_node_id": "node-2"},  # Should match node2
+        )
+
+        stage = ContinuationStage(question_service)
+        result_context = await stage.process(ctx)
+
+        # Should use the node label from the focus
+        assert result_context.should_continue is True
+        assert result_context.focus_concept == "satisfying"
+        # select_focus_concept should NOT be called
+        question_service.select_focus_concept.assert_not_called()

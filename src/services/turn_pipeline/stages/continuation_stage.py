@@ -64,15 +64,15 @@ class ContinuationStage(TurnStage):
 
         # Select focus concept if continuing
         if should_continue:
-            if context.selection_result and context.focus:
+            if context.focus:
                 # Use focus from strategy service selection
-                if "node_id" in context.focus and context.recent_nodes:
+                if "focus_node_id" in context.focus and context.recent_nodes:
                     # Find the node in recent_nodes
                     focus_concept = next(
                         (
                             n.label
                             for n in context.recent_nodes
-                            if str(n.id) == context.focus["node_id"]
+                            if str(n.id) == context.focus["focus_node_id"]
                         ),
                         # Fallback to description if node not found
                         context.focus.get("focus_description", "the topic"),
