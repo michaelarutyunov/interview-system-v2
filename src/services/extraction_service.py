@@ -162,6 +162,7 @@ class ExtractionService:
         concepts = self._parse_concepts(
             extraction_data.get("concepts", []),
             source_utterance_id or "unknown",
+            self.schema,
         )
 
         # Build concept_types map for relationship validation
@@ -263,7 +264,7 @@ class ExtractionService:
         return parse_extraction_response(response.content)
 
     def _parse_concepts(
-        self, raw_concepts: List[dict], source_utterance_id: str
+        self, raw_concepts: List[dict], source_utterance_id: str, schema
     ) -> List[ExtractedConcept]:
         """
         Convert raw extraction data to ExtractedConcept models.
@@ -271,6 +272,7 @@ class ExtractionService:
         Args:
             raw_concepts: List of concept dicts from LLM
             source_utterance_id: Source utterance ID for traceability (ADR-010 Phase 2)
+            schema: Methodology schema for validation and metadata
 
         Returns:
             List of ExtractedConcept models
@@ -301,9 +303,11 @@ class ExtractionService:
                             linked_elements=linked_elements,
                         )
 
+                node_type = raw.get("node_type", "attribute")
+
                 concept = ExtractedConcept(
                     text=raw.get("text", ""),
-                    node_type=raw.get("node_type", "attribute"),
+                    node_type=node_type,
                     confidence=float(raw.get("confidence", 0.8)),
                     source_quote=raw.get("source_quote", ""),
                     source_utterance_id=source_utterance_id,  # ADR-010 Phase 2: Traceability
@@ -313,13 +317,17 @@ class ExtractionService:
                 )
 
                 # Schema validation: check node type is valid
-                if not self.schema.is_valid_node_type(concept.node_type):
+                if not schema.is_valid_node_type(concept.node_type):
                     log.warning(
                         "invalid_node_type",
                         node_type=concept.node_type,
                         text=concept.text,
                     )
                     continue  # Skip invalid concept
+
+                # Set is_terminal and level from schema
+                concept.is_terminal = schema.is_terminal_node_type(node_type)
+                concept.level = schema.get_level_for_node_type(node_type)
 
                 if concept.text:  # Skip empty concepts
                     concepts.append(concept)

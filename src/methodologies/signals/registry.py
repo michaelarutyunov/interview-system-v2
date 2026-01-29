@@ -48,8 +48,9 @@ class ComposedSignalDetector:
             GraphMaxDepthSignal,
             GraphAvgDepthSignal,
             DepthByElementSignal,
-            CoverageBreadthSignal,
-            MissingTerminalValueSignal,
+            ChainCompletionSignal,
+            # Deprecated: CoverageBreadthSignal, MissingTerminalValueSignal
+            # Replaced by ChainCompletionSignal
             # Node-level signals
             NodeExhaustedSignal,
             NodeExhaustionScoreSignal,
@@ -90,8 +91,9 @@ class ComposedSignalDetector:
             GraphMaxDepthSignal,
             GraphAvgDepthSignal,
             DepthByElementSignal,
-            CoverageBreadthSignal,
-            MissingTerminalValueSignal,
+            ChainCompletionSignal,
+            # Deprecated: CoverageBreadthSignal, MissingTerminalValueSignal
+            # Replaced by ChainCompletionSignal
             # LLM
             ResponseDepthSignal,
             SentimentSignal,

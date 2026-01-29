@@ -1,160 +1,314 @@
-name: jobs_to_be_done
-version: "1.0"
-description: "Framework for understanding customer motivation and needs through job statements"
+# Jobs-to-be-Done Methodology Configuration
+#
+# JTBD explores what job users are trying to do, what triggers them,
+# what alternatives they consider, and what obstacles they face.
 
-node_types:
-  - name: job_statement
-    description: "Core functional or emotional job a customer is trying to accomplish"
-    examples:
-      - "get my daily caffeine fix"
-      - "feel productive in the morning"
-      - "socialize with colleagues"
+method:
+  name: jobs_to_be_done
+  version: "2.0"
+  description: "Framework for understanding customer motivation and needs through job statements"
 
-  - name: job_context
-    description: "Situation or circumstances when the job arises"
-    examples:
-      - "when I'm rushing to work"
-      - "when I'm working from home"
-      - "when meeting clients"
+ontology:
+  nodes:
+    - name: job_statement
+      level: 0
+      terminal: false
+      description: "Core functional or emotional job a customer is trying to accomplish"
+      examples:
+        - "get my daily caffeine fix"
+        - "feel productive in the morning"
+        - "socialize with colleagues"
 
-  - name: job_trigger
-    description: "Event or stimulus that initiates the job"
-    examples:
-      - "feeling tired in the morning"
-      - "anticipating a long meeting"
-      - "hosting a gathering"
+    - name: job_context
+      level: 0
+      terminal: false
+      description: "Situation or circumstances when the job arises"
+      examples:
+        - "when I'm rushing to work"
+        - "when I'm working from home"
+        - "when meeting clients"
 
-  - name: pain_point
-    description: "Obstacle or frustration in getting the job done"
-    examples:
-      - "coffee is too bitter"
-      - "takes too long to prepare"
-      - "upsets my stomach"
+    - name: job_trigger
+      level: 0
+      terminal: false
+      description: "Event or stimulus that initiates the job"
+      examples:
+        - "feeling tired in the morning"
+        - "anticipating a long meeting"
+        - "hosting a gathering"
 
-  - name: gain_point
-    description: "Desired outcome or benefit that makes the job worthwhile"
-    examples:
-      - "smooth, enjoyable taste"
-      - "quick and convenient"
-      - "feeling energized without jitters"
+    - name: pain_point
+      level: 0
+      terminal: false
+      description: "Obstacle or frustration in getting the job done"
+      examples:
+        - "coffee is too bitter"
+        - "takes too long to prepare"
+        - "upsets my stomach"
 
-  - name: solution_approach
-    description: "Current or potential method for accomplishing the job"
-    examples:
-      - "using oat milk in coffee"
-      - "buying coffee at a cafe"
-      - "meal prepping"
+    - name: gain_point
+      level: 0
+      terminal: false
+      description: "Desired outcome or benefit that makes the job worthwhile"
+      examples:
+        - "smooth, enjoyable taste"
+        - "quick and convenient"
+        - "feeling energized without jitters"
 
-  - name: emotional_job
-    description: "Emotional state or identity the customer seeks to achieve"
-    examples:
-      - "feel healthy and conscientious"
-      - "project a professional image"
-      - "treat myself with care"
+    - name: solution_approach
+      level: 0
+      terminal: false
+      description: "Current or potential method for accomplishing the job"
+      examples:
+        - "using oat milk in coffee"
+        - "buying coffee at a cafe"
+        - "meal prepping"
 
-  - name: social_job
-    description: "Social impression or relationship the customer wants to influence"
-    examples:
-      - "fit in with health-conscious peers"
-      - "signal environmental values"
-      - "avoid social awkwardness"
+    - name: emotional_job
+      level: 1
+      terminal: true
+      description: "Emotional state or identity the customer seeks to achieve"
+      examples:
+        - "feel healthy and conscientious"
+        - "project a professional image"
+        - "treat myself with care"
 
-edge_types:
-  - name: occurs_in
-    description: "Temporal or situational relationship between job and context"
+    - name: social_job
+      level: 1
+      terminal: true
+      description: "Social impression or relationship the customer wants to influence"
+      examples:
+        - "fit in with health-conscious peers"
+        - "signal environmental values"
+        - "avoid social awkwardness"
 
-  - name: triggered_by
-    description: "Causal relationship where a stimulus initiates the job"
+  edges:
+    - name: occurs_in
+      description: "Temporal or situational relationship between job and context"
+      permitted_connections:
+        - [job_statement, job_context]
+        - [emotional_job, job_context]
+        - [social_job, job_context]
 
-  - name: addresses
-    description: "Solution approach resolves a pain point or enables a gain point"
+    - name: triggered_by
+      description: "Causal relationship where a stimulus initiates the job"
+      permitted_connections:
+        - [job_statement, job_trigger]
+        - [emotional_job, job_trigger]
+        - [social_job, job_trigger]
 
-  - name: conflicts_with
-    description: "Pain point that prevents the job from being done well"
+    - name: addresses
+      description: "Solution approach resolves a pain point or enables a gain point"
+      permitted_connections:
+        - [solution_approach, pain_point]
+        - [solution_approach, gain_point]
+        - [job_statement, emotional_job]
+        - [job_statement, social_job]
 
-  - name: enables
-    description: "Gain point that makes the job more achievable or satisfying"
+    - name: conflicts_with
+      description: "Pain point that prevents the job from being done well"
+      permitted_connections:
+        - [solution_approach, pain_point]
+        - [pain_point, job_statement]
 
-  - name: supports
-    description: "Functional job that supports an emotional or social job"
+    - name: enables
+      description: "Gain point that makes the job more achievable or satisfying"
+      permitted_connections:
+        - [solution_approach, gain_point]
+        - [gain_point, job_statement]
 
-  - name: revises
-    description: "Contradiction - newer belief or approach supersedes older one"
+    - name: supports
+      description: "Functional job that supports an emotional or social job"
+      permitted_connections:
+        - [job_statement, emotional_job]
+        - [job_statement, social_job]
 
-valid_connections:
-  occurs_in:
-    - [job_statement, job_context]
-    - [emotional_job, job_context]
-    - [social_job, job_context]
+    - name: revises
+      description: "Contradiction - newer belief or approach supersedes older one"
+      permitted_connections:
+        - ["*", "*"]
 
-  triggered_by:
-    - [job_statement, job_trigger]
-    - [emotional_job, job_trigger]
-    - [social_job, job_trigger]
+  extraction_guidelines:
+    - "Listen for phrases indicating what the user is trying to accomplish ('I need to...', 'I want to...', 'The goal is...')"
+    - "Identify the circumstances when the job becomes important ('when...', 'especially when...', 'in situations like...')"
+    - "Extract pain points directly expressed ('frustrating that...', 'hate it when...', 'problem is...')"
+    - "Extract gain points as positive outcomes ('love that...', 'great because...', 'important that...')"
+    - "Distinguish between functional, emotional, and social jobs - often all three coexist"
+    - "Map the current solution approach even if not explicitly stated"
+    - "Connect jobs to their underlying emotional and social drivers"
+    - "Look for trade-offs users make between competing jobs"
 
-  addresses:
-    - [solution_approach, pain_point]
-    - [solution_approach, gain_point]
-    - [job_statement, emotional_job]
-    - [job_statement, social_job]
+  relationship_examples:
+    explicit_job_statement:
+      description: "Direct statement of what needs to be accomplished"
+      example: "I need something that wakes me up but doesn't make me jittery"
+      extraction: "job_statement('wake up without jitters') → addresses → pain_point('caffeine jitters')"
 
-  conflicts_with:
-    - [solution_approach, pain_point]
-    - [pain_point, job_statement]
+    implicit_context:
+      description: "Context revealed through situation description"
+      example: "When I have 8am meetings, I can't wait in line at the cafe"
+      extraction: "job_statement('get morning coffee') → occurs_in → job_context('early morning meetings')"
 
-  enables:
-    - [solution_approach, gain_point]
-    - [gain_point, job_statement]
+    pain_trigger_chain:
+      description: "Trigger reveals the pain point and the job together"
+      example: "Dairy makes me feel bloated, especially before presentations"
+      extraction: "job_trigger('before presentations') → triggered_by → job_statement('feel comfortable') conflicts_with pain_point('dairy bloating')"
 
-  supports:
-    - [job_statement, emotional_job]
-    - [job_statement, social_job]
+    functional_supports_emotional:
+      description: "Functional choice enables emotional outcome"
+      example: "I choose oat milk because it aligns with my values"
+      extraction: "solution_approach('oat milk') → supports → emotional_job('feel environmentally responsible')"
 
-  revises:
-    - ["*", "*"]
+  extractability_criteria:
+    extractable_contains:
+      - "Goals or objectives the user wants to achieve"
+      - "Frustrations, pain points, or obstacles"
+      - "Positive outcomes or benefits they value"
+      - "Situational context (when, where, with whom)"
+      - "Current solutions or workarounds"
+      - "Emotions or social considerations related to choices"
+    non_extractable_contains:
+      - "Simple yes/no responses"
+      - "Acknowledgments ('okay', 'I see', 'right')"
+      - "Questions back to the interviewer"
+      - "Purely factual product descriptions without user context"
+      - "Irrelevant tangents"
 
-extraction_guidelines:
-  - "Listen for phrases indicating what the user is trying to accomplish ('I need to...', 'I want to...', 'The goal is...')"
-  - "Identify the circumstances when the job becomes important ('when...', 'especially when...', 'in situations like...')"
-  - "Extract pain points directly expressed ('frustrating that...', 'hate it when...', 'problem is...')"
-  - "Extract gain points as positive outcomes ('love that...', 'great because...', 'important that...')"
-  - "Distinguish between functional, emotional, and social jobs - often all three coexist"
-  - "Map the current solution approach even if not explicitly stated"
-  - "Connect jobs to their underlying emotional and social drivers"
-  - "Look for trade-offs users make between competing jobs"
+signals:
+  graph:
+    - graph.node_count
+    - graph.orphan_count
+    - graph.max_depth
+    # Removed: graph.coverage_breadth (deprecated, not meaningful for JTBD)
 
-relationship_examples:
-  explicit_job_statement:
-    description: "Direct statement of what needs to be accomplished"
-    example: "I need something that wakes me up but doesn't make me jittery"
-    extraction: "job_statement('wake up without jitters') → addresses → pain_point('caffeine jitters')"
+  llm:
+    - llm.response_depth
+    - llm.sentiment
+    - llm.ambiguity
+    - llm.hedging_language
+    # Note: llm.global_response_trend is session-scoped and managed separately
 
-  implicit_context:
-    description: "Context revealed through situation description"
-    example: "When I have 8am meetings, I can't wait in line at the cafe"
-    extraction: "job_statement('get morning coffee') → occurs_in → job_context('early morning meetings')"
+  temporal:
+    - temporal.strategy_repetition_count
+    - temporal.turns_since_strategy_change
 
-  pain_trigger_chain:
-    description: "Trigger reveals the pain point and the job together"
-    example: "Dairy makes me feel bloated, especially before presentations"
-    extraction: "job_trigger('before presentations') → triggered_by → job_statement('feel comfortable') conflicts_with pain_point('dairy bloating')"
+  meta:
+    - meta.interview_progress
+    - meta.interview.phase
 
-  functional_supports_emotional:
-    description: "Functional choice enables emotional outcome"
-    example: "I choose oat milk because it aligns with my values"
-    extraction: "solution_approach('oat milk') → supports → emotional_job('feel environmentally responsible')"
+strategies:
+  # Strategy 1: Explore the situation (elaboration)
+  - name: explore_situation
+    technique: elaboration
+    signal_weights:
+      # Global signals
+      graph.node_count: -0.3
+      llm.sentiment.neutral: 0.5
+      temporal.strategy_repetition_count: 0.4
+      # Node-level signals (Phase 3)
+      graph.node.focus_streak.none: 1.0  # Fresh nodes
+      graph.node.yield_stagnation.false: 0.8  # Nodes that yield
+      graph.node.exhausted.false: 0.7
+    focus_preference: recent
 
-extractability_criteria:
-  extractable_contains:
-    - "Goals or objectives the user wants to achieve"
-    - "Frustrations, pain points, or obstacles"
-    - "Positive outcomes or benefits they value"
-    - "Situational context (when, where, with whom)"
-    - "Current solutions or workarounds"
-    - "Emotions or social considerations related to choices"
-  non_extractable_contains:
-    - "Simple yes/no responses"
-    - "Acknowledgments ('okay', 'I see', 'right')"
-    - "Questions back to the interviewer"
-    - "Purely factual product descriptions without user context"
-    - "Irrelevant tangents"
+  # Strategy 2: Probe alternatives (probing)
+  - name: probe_alternatives
+    technique: probing
+    signal_weights:
+      # Global signals
+      # Removed: graph.coverage_breadth (deprecated)
+      llm.ambiguity: 0.4
+      # Node-level signals (Phase 3)
+      graph.node.is_orphan.true: 1.0  # Boost orphan nodes
+      graph.node.edge_count.low: 0.5  # Less connected nodes
+      graph.node.exhausted.false: 0.6
+    focus_preference: related
+
+  # Strategy 3: Dig into motivation (laddering)
+  - name: dig_motivation
+    technique: laddering
+    signal_weights:
+      # Global signals
+      llm.response_depth.surface: 0.7
+      graph.max_depth: -0.4
+      temporal.turns_since_strategy_change: 0.3
+      # Node-level signals (Phase 3)
+      graph.node.exhausted.false: 1.0  # Boost non-exhausted nodes
+      graph.node.focus_streak.low: 0.5  # Prefer fresh nodes
+      graph.node.exhaustion_score.low: 0.7  # Avoid exhausted nodes
+    focus_preference: shallow
+
+  # Strategy 4: Validate outcome (validation)
+  - name: validate_outcome
+    technique: validation
+    signal_weights:
+      # Global signals
+      meta.interview_progress: 0.6
+      graph.max_depth: 0.5
+      llm.response_depth.deep: 0.4
+      # Uncertainty/hedging triggers (Phase 5)
+      llm.hedging_language.high: 1.0  # Trigger on high uncertainty
+      llm.hedging_language.medium: 0.7  # Trigger on medium uncertainty
+      meta.node.opportunity.probe_deeper: 0.6  # Extraction opportunity
+      # Node-level signals (Phase 3)
+      graph.node.edge_count.high: 0.8  # Well-connected nodes
+      graph.node.focus_streak.high: 0.5  # Often-focused nodes
+      technique.node.strategy_repetition.low: 0.3  # Avoid overusing same strategy
+    focus_preference: deep
+
+  # Strategy 5: Revitalize engagement (elaboration) - Phase 5
+  - name: revitalize
+    technique: elaboration
+    signal_weights:
+      # Fatigue detection triggers (Phase 5)
+      llm.global_response_trend.fatigued: 1.0  # Trigger on fatigue
+      llm.global_response_trend.shallowing: 0.5  # Prevent fatigue
+      meta.node.opportunity.exhausted: 0.3  # Try exhausted nodes with new angle
+      # Global signals
+      graph.node_count: -0.3
+      temporal.strategy_repetition_count: 0.4
+      # Node-level signals (Phase 3)
+      graph.node.focus_streak.none: 0.8  # Fresh nodes
+      graph.node.exhausted.false: 0.5
+    focus_preference: recent
+
+  # Strategy 6: Uncover obstacles (probing)
+  - name: uncover_obstacles
+    technique: probing
+    signal_weights:
+      # Global signals
+      graph.orphan_count: 0.5
+      llm.sentiment.negative: 0.3
+      temporal.turns_since_strategy_change: 0.2
+      # Node-level signals (Phase 3)
+      graph.node.is_orphan.true: 1.0  # Boost orphan nodes
+      graph.node.yield_stagnation.false: 0.7  # Nodes that yield
+      graph.node.exhausted.false: 0.6
+    focus_preference: related
+
+phases:
+  early:
+    description: "Initial exploration, building graph structure"
+    signal_weights:
+      explore_situation: 1.5
+      probe_alternatives: 1.2
+      dig_motivation: 0.5
+      validate_outcome: 0.2
+      uncover_obstacles: 0.3
+
+  mid:
+    description: "Building depth and connections"
+    signal_weights:
+      dig_motivation: 1.3
+      probe_alternatives: 1.0
+      uncover_obstacles: 1.0
+      explore_situation: 0.8
+      validate_outcome: 0.5
+
+  late:
+    description: "Validation and verification"
+    signal_weights:
+      validate_outcome: 1.5
+      uncover_obstacles: 1.2
+      dig_motivation: 0.5
+      explore_situation: 0.3

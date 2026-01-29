@@ -143,7 +143,9 @@ class FocusSelectionService:
 
         if shallow_node is None:
             return None
-        return shallow_node.label if hasattr(shallow_node, "label") else str(shallow_node)
+        return (
+            shallow_node.label if hasattr(shallow_node, "label") else str(shallow_node)
+        )
 
     async def _select_recent(self, graph_state, recent_nodes, signals) -> Optional[str]:
         """For elaboration, prefer most recent node."""

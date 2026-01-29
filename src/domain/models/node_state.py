@@ -54,6 +54,9 @@ class NodeState:
     label: str
     created_at_turn: int
     depth: int
+    node_type: str
+    is_terminal: bool = False
+    level: int = 0
 
     # Engagement metrics
     focus_count: int = 0

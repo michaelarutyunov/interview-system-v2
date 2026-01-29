@@ -121,25 +121,15 @@ class ScoringTab:
         }
 
         # LLM signals (response analysis)
-        llm_signals = {
-            k: v
-            for k, v in signals.items()
-            if k.startswith("llm.")
-        }
+        llm_signals = {k: v for k, v in signals.items() if k.startswith("llm.")}
 
         # Temporal signals (history tracking)
         temporal_signals = {
-            k: v
-            for k, v in signals.items()
-            if k.startswith("temporal.")
+            k: v for k, v in signals.items() if k.startswith("temporal.")
         }
 
         # Meta signals (derived/composite signals)
-        meta_signals = {
-            k: v
-            for k, v in signals.items()
-            if k.startswith("meta.")
-        }
+        meta_signals = {k: v for k, v in signals.items() if k.startswith("meta.")}
 
         # Dynamic layout based on available signal types
         has_signals = [

@@ -13,8 +13,7 @@ import pytest
 from src.methodologies.signals.graph import (
     GraphNodeCountSignal,
     GraphMaxDepthSignal,
-    CoverageBreadthSignal,
-    MissingTerminalValueSignal,
+    ChainCompletionSignal,
 )
 from src.methodologies.signals.llm import (
     ResponseDepthSignal,
@@ -70,15 +69,14 @@ class TestGraphSignals:
         detectors = [
             GraphNodeCountSignal(),
             GraphMaxDepthSignal(),
-            CoverageBreadthSignal(),
-            MissingTerminalValueSignal(),
+            ChainCompletionSignal(),
         ]
 
         for detector in detectors:
             assert detector.signal_name.startswith("graph."), (
                 f"{detector.__class__.__name__} should have graph.* namespace"
             )
-            assert detector.cost_tier in ["free", "low"]
+            assert detector.cost_tier in ["free", "low", "medium"]
             assert detector.refresh_trigger == "per_turn"
 
     @pytest.mark.asyncio
@@ -87,7 +85,7 @@ class TestGraphSignals:
         detectors = [
             GraphNodeCountSignal(),
             GraphMaxDepthSignal(),
-            CoverageBreadthSignal(),
+            ChainCompletionSignal(),
         ]
 
         graph_state = GraphState(
@@ -110,7 +108,7 @@ class TestGraphSignals:
         # Verify all graph signals present
         assert "graph.node_count" in all_signals
         assert "graph.max_depth" in all_signals
-        assert "graph.coverage_breadth" in all_signals
+        assert "graph.chain_completion" in all_signals
 
 
 class TestLLMSignals:
@@ -359,7 +357,7 @@ class TestEndToEndIntegration:
         graph_detectors = [
             GraphNodeCountSignal(),
             GraphMaxDepthSignal(),
-            CoverageBreadthSignal(),
+            ChainCompletionSignal(),
         ]
         for detector in graph_detectors:
             signals = await detector.detect(context, graph_state, "")

@@ -241,7 +241,7 @@ def test_load_means_end_chain_schema():
 
     # Verify basic structure
     assert schema.name == "means_end_chain"
-    assert schema.version == "2.0"
+    assert schema.version == "3.0"
     assert "Laddering" in schema.description
 
     # Verify all 5 node types exist

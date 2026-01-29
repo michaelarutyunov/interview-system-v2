@@ -1,5 +1,7 @@
 """Graph coverage signals - breadth, missing terminal values."""
 
+import warnings
+
 from src.methodologies.signals.common import (
     SignalDetector,
     SignalCostTier,
@@ -9,6 +11,11 @@ from src.methodologies.signals.common import (
 
 class CoverageBreadthSignal(SignalDetector):
     """How well different MEC element types are covered.
+
+    .. deprecated::
+        CoverageBreadthSignal is deprecated and will be removed in a future version.
+        Use ChainCompletionSignal instead, which better measures graph quality
+        for exploratory interviews.
 
     Namespaced signal: graph.coverage_breadth
     Cost: low (O(n) where n is number of element types)
@@ -21,6 +28,16 @@ class CoverageBreadthSignal(SignalDetector):
     signal_name = "graph.coverage_breadth"
     cost_tier = SignalCostTier.LOW
     refresh_trigger = RefreshTrigger.PER_TURN
+
+    def __init__(self):
+        """Initialize the signal detector with deprecation warning."""
+        super().__init__()
+        warnings.warn(
+            "CoverageBreadthSignal is deprecated and will be removed in a future version. "
+            "Use ChainCompletionSignal instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     async def detect(self, context, graph_state, response_text):
         """Calculate coverage breadth from nodes_by_type."""
@@ -55,6 +72,11 @@ class CoverageBreadthSignal(SignalDetector):
 class MissingTerminalValueSignal(SignalDetector):
     """Whether the graph is missing terminal (end-chain) values.
 
+    .. deprecated::
+        MissingTerminalValueSignal is deprecated and will be removed in a future version.
+        Use ChainCompletionSignal instead, which better measures chain completeness
+        for exploratory interviews.
+
     Namespaced signal: graph.missing_terminal_value
     Cost: free (O(1) lookup)
     Refresh: per_turn (cached on graph update)
@@ -65,6 +87,16 @@ class MissingTerminalValueSignal(SignalDetector):
     signal_name = "graph.missing_terminal_value"
     cost_tier = SignalCostTier.FREE
     refresh_trigger = RefreshTrigger.PER_TURN
+
+    def __init__(self):
+        """Initialize the signal detector with deprecation warning."""
+        super().__init__()
+        warnings.warn(
+            "MissingTerminalValueSignal is deprecated and will be removed in a future version. "
+            "Use ChainCompletionSignal instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     async def detect(self, context, graph_state, response_text):
         """Check if graph has missing terminal values."""

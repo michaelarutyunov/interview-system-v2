@@ -12,8 +12,7 @@ import pytest
 from src.methodologies.signals.graph import (
     GraphNodeCountSignal,
     GraphMaxDepthSignal,
-    CoverageBreadthSignal,
-    MissingTerminalValueSignal,
+    ChainCompletionSignal,
 )
 from src.methodologies.techniques import LadderingTechnique, ElaborationTechnique
 from src.domain.models.knowledge_graph import (
@@ -108,68 +107,40 @@ class TestSignalComposition:
         }
 
     @pytest.mark.asyncio
-    async def test_coverage_breadth_signal(self):
-        """Should calculate coverage breadth correctly."""
-        detector = CoverageBreadthSignal()
+    async def test_chain_completion_signal(self):
+        """Should detect complete causal chains from level 1 to terminal."""
+        detector = ChainCompletionSignal()
 
-        # Create graph with attributes and consequences, but no values
-        # 2 out of 3 categories explored = 0.667 breadth
+        # Test with mock context (ChainCompletionSignal loads methodology schema)
+        from unittest.mock import Mock
+
+        context = Mock()
+        context.methodology = "means_end_chain"
+        context.session_id = "test-session"
+
+        # Create graph with attributes (level 1) but no terminal values
+        # Result: no complete chains
         graph_state = GraphState(
             node_count=3,
             edge_count=2,
-            nodes_by_type={
-                "attribute": 2,
-                "functional_consequence": 1,
-            },
+            nodes_by_type={"attribute": 3},
             edges_by_type={},
-            orphan_count=0,
+            orphan_count=1,
             depth_metrics=DepthMetrics(max_depth=1, avg_depth=0.6, depth_by_element={}),
             coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=1,
         )
 
-        result = await detector.detect(None, graph_state, "")
+        result = await detector.detect(context, graph_state, "")
 
-        # 2 out of 3 categories explored (attributes, consequences, no values) = 0.667
-        assert "graph.coverage_breadth" in result
-        assert result["graph.coverage_breadth"] == pytest.approx(0.667, rel=0.1)
-
-    @pytest.mark.asyncio
-    async def test_missing_terminal_value_signal(self):
-        """Should detect missing terminal values."""
-        detector = MissingTerminalValueSignal()
-
-        # Case 1: Has depth but no terminal values (missing terminal)
-        graph_state = GraphState(
-            node_count=3,
-            edge_count=2,
-            nodes_by_type={"attribute": 3},
-            edges_by_type={},
-            orphan_count=0,
-            depth_metrics=DepthMetrics(max_depth=2, avg_depth=1.0, depth_by_element={}),
-            coverage_state=CoverageState(),
-            current_phase="exploratory",
-            turn_count=1,
-        )
-
-        result = await detector.detect(None, graph_state, "")
-        assert result["graph.missing_terminal_value"] is True
-
-        # Case 2: Has terminal values (not missing)
-        graph_state = GraphState(
-            node_count=3,
-            edge_count=2,
-            nodes_by_type={"terminal_value": 1, "attribute": 2},
-            edges_by_type={},
-            orphan_count=0,
-            depth_metrics=DepthMetrics(max_depth=2, avg_depth=1.0, depth_by_element={}),
-            coverage_state=CoverageState(),
-            current_phase="exploratory",
-            turn_count=1,
-        )
-        result = await detector.detect(None, graph_state, "")
-        assert result["graph.missing_terminal_value"] is False
+        # Should return chain completion metrics
+        assert "graph.chain_completion" in result
+        assert "complete_chain_count" in result["graph.chain_completion"]
+        assert "has_complete_chain" in result["graph.chain_completion"]
+        assert "level_1_node_count" in result["graph.chain_completion"]
+        # With no terminal nodes, has_complete_chain should be False
+        assert result["graph.chain_completion"]["has_complete_chain"] is False
 
 
 class MockContext:

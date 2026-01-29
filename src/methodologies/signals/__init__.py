@@ -29,8 +29,9 @@ from src.methodologies.signals.graph import (
     GraphMaxDepthSignal,
     GraphAvgDepthSignal,
     DepthByElementSignal,
-    CoverageBreadthSignal,
-    MissingTerminalValueSignal,
+    ChainCompletionSignal,
+    # Deprecated: CoverageBreadthSignal, MissingTerminalValueSignal
+    # Replaced by ChainCompletionSignal
 )
 
 # LLM signals (fresh every response)
@@ -62,8 +63,7 @@ __all__ = [
     "GraphMaxDepthSignal",
     "GraphAvgDepthSignal",
     "DepthByElementSignal",
-    "CoverageBreadthSignal",
-    "MissingTerminalValueSignal",
+    "ChainCompletionSignal",
     # LLM
     "ResponseDepthSignal",
     "SentimentSignal",

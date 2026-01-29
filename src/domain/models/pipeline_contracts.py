@@ -164,12 +164,14 @@ class StrategySelectionOutput(BaseModel):
         description="Detected signals from methodology-specific signal detector (Phase 4)",
     )
     # Phase 6: Joint strategy-node scoring produces tuples with node_id
-    strategy_alternatives: List[Union[tuple[str, float], tuple[str, str, float]]] = Field(
-        default_factory=list,
-        description=(
-            "Alternative strategies with scores for observability (Phase 4, Phase 6). "
-            "Format: [(strategy, score)] or [(strategy, node_id, score)] for joint scoring"
-        ),
+    strategy_alternatives: List[Union[tuple[str, float], tuple[str, str, float]]] = (
+        Field(
+            default_factory=list,
+            description=(
+                "Alternative strategies with scores for observability (Phase 4, Phase 6). "
+                "Format: [(strategy, score)] or [(strategy, node_id, score)] for joint scoring"
+            ),
+        )
     )
 
 

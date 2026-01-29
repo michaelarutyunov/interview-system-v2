@@ -1,112 +1,243 @@
-name: means_end_chain
-version: "2.0"
-description: "Laddering: attributes → consequences → values"
+# Means-End Chain Methodology Configuration
+#
+# MEC explores chains from attributes → consequences → values
+# by asking "why is that important?" to probe deeper.
 
-node_types:
-  - name: attribute
-    description: "Concrete product feature or characteristic"
-    examples:
-      - "creamy texture"
-      - "plant-based"
-      - "sustainable packaging"
+method:
+  name: means_end_chain
+  version: "3.0"
+  description: "Laddering: attributes → consequences → values"
 
-  - name: functional_consequence
-    description: "Tangible outcome from using the product"
-    examples:
-      - "easier to digest"
-      - "mixes well with coffee"
+ontology:
+  nodes:
+    - name: attribute
+      level: 1
+      terminal: false
+      description: "Concrete product feature or characteristic"
+      examples:
+        - "creamy texture"
+        - "plant-based"
+        - "sustainable packaging"
 
-  - name: psychosocial_consequence
-    description: "Emotional or social outcome"
-    examples:
-      - "feel healthier"
-      - "gain respect from peers"
+    - name: functional_consequence
+      level: 2
+      terminal: false
+      description: "Tangible outcome from using the product"
+      examples:
+        - "easier to digest"
+        - "mixes well with coffee"
 
-  - name: instrumental_value
-    description: "Preferred mode of behavior"
-    examples:
-      - "being responsible"
-      - "taking care of myself"
+    - name: psychosocial_consequence
+      level: 3
+      terminal: false
+      description: "Emotional or social outcome"
+      examples:
+        - "feel healthier"
+        - "gain respect from peers"
 
-  - name: terminal_value
-    description: "End-state of existence, core life goal"
-    examples:
-      - "self-respect"
-      - "sense of accomplishment"
-      - "family security"
+    - name: instrumental_value
+      level: 4
+      terminal: false
+      description: "Preferred mode of behavior"
+      examples:
+        - "being responsible"
+        - "taking care of myself"
 
-edge_types:
-  - name: leads_to
-    description: "Causal or enabling relationship"
+    - name: terminal_value
+      level: 5
+      terminal: true
+      description: "End-state of existence, core life goal"
+      examples:
+        - "self-respect"
+        - "sense of accomplishment"
+        - "family security"
 
-  - name: revises
-    description: "Contradiction - newer belief supersedes older one"
+  edges:
+    - name: leads_to
+      description: "Causal or enabling relationship"
+      permitted_connections:
+        - [attribute, attribute]
+        - [attribute, functional_consequence]
+        - [functional_consequence, functional_consequence]
+        - [functional_consequence, psychosocial_consequence]
+        - [psychosocial_consequence, psychosocial_consequence]
+        - [psychosocial_consequence, instrumental_value]
+        - [instrumental_value, instrumental_value]
+        - [instrumental_value, terminal_value]
 
-# Which node type pairs can be connected by which edge type.
-# Connections not listed here are invalid.
-valid_connections:
-  leads_to:
-    # Same-level connections (consequence → consequence is legitimate)
-    - [attribute, attribute]
-    - [attribute, functional_consequence]
-    - [functional_consequence, functional_consequence]
-    - [functional_consequence, psychosocial_consequence]
-    - [psychosocial_consequence, psychosocial_consequence]
-    - [psychosocial_consequence, instrumental_value]
-    - [instrumental_value, instrumental_value]
-    - [instrumental_value, terminal_value]
+    - name: revises
+      description: "Contradiction - newer belief supersedes older one"
+      permitted_connections:
+        - ["*", "*"]
 
-  revises:
-    # Any node can revise any node (contradictions are unconstrained)
-    - ["*", "*"]
+  extraction_guidelines:
+    - "For Means-End Chain interviews, extract BOTH explicit AND implicit relationships"
+    - "Explicit: Look for causal markers like 'because', 'so', 'that's why', 'leads to'"
+    - "Implicit (MEC chains): When multiple concepts are mentioned in the same response, connect them if they form a logical means-end chain"
+    - "Contextual: If the interviewer asks 'why does X matter' and the response describes Y, create X→Y relationship"
+    - "For Means-End Chain interviews, create edges between concepts that represent the chain of reasoning, even when no explicit connector is used"
+    - "attribute → functional_consequence (features → outcomes)"
+    - "functional_consequence → psychosocial_consequence (outcomes → feelings)"
+    - "psychosocial_consequence → instrumental_value (feelings → goals)"
+    - "instrumental_value → terminal_value (goals → life values)"
+    - "Target 2-3x more edges than nodes for a well-structured MEC graph"
+    - "Prefer creating relationships over leaving concepts disconnected"
 
-# Methodology-specific extraction guidelines
-extraction_guidelines:
-  - "For Means-End Chain interviews, extract BOTH explicit AND implicit relationships"
-  - "Explicit: Look for causal markers like 'because', 'so', 'that's why', 'leads to'"
-  - "Implicit (MEC chains): When multiple concepts are mentioned in the same response, connect them if they form a logical means-end chain"
-  - "Contextual: If the interviewer asks 'why does X matter' and the response describes Y, create X→Y relationship"
-  - "For Means-End Chain interviews, create edges between concepts that represent the chain of reasoning, even when no explicit connector is used"
-  - "attribute → functional_consequence (features → outcomes)"
-  - "functional_consequence → psychosocial_consequence (outcomes → feelings)"
-  - "psychosocial_consequence → instrumental_value (feelings → goals)"
-  - "instrumental_value → terminal_value (goals → life values)"
-  - "Target 2-3x more edges than nodes for a well-structured MEC graph"
-  - "Prefer creating relationships over leaving concepts disconnected"
+  relationship_examples:
+    explicit_causal:
+      description: "Discourse markers explicitly state the connection"
+      example: "I like froth because it makes coffee less bitter"
+      extraction: "froth → makes coffee taste less bitter"
 
-# Methodology-specific relationship extraction examples
-relationship_examples:
-  explicit_causal:
-    description: "Discourse markers explicitly state the connection"
-    example: "I like froth because it makes coffee less bitter"
-    extraction: "froth → makes coffee taste less bitter"
+    implicit_same_response:
+      description: "Multiple concepts in one response form logical consequence chain"
+      example: "Froth makes coffee taste less bitter and gives a nice sensation in the mouth"
+      extraction: "makes coffee taste less bitter → nice sensation in the mouth"
 
-  implicit_same_response:
-    description: "Multiple concepts in one response form logical consequence chain"
-    example: "Froth makes coffee taste less bitter and gives a nice sensation in the mouth"
-    extraction: "makes coffee taste less bitter → nice sensation in the mouth"
+    implicit_conversational:
+      description: "Question establishes antecedent, response provides consequence"
+      example: "Interviewer: 'Why does the nice sensation matter?' Respondent: 'It feels like a good start of the day'"
+      extraction: "nice sensation in the mouth → good start of the day"
 
-  implicit_conversational:
-    description: "Question establishes antecedent, response provides consequence"
-    example: "Interviewer: 'Why does the nice sensation matter?' Respondent: 'It feels like a good start of the day'"
-    extraction: "nice sensation in the mouth → good start of the day"
+    value_progression:
+      description: "Parallel goals forming a chain toward terminal value"
+      example: "I can be my best and set a good example to my kids"
+      extraction: "be my best → set a good example to my kids"
 
-  value_progression:
-    description: "Parallel goals forming a chain toward terminal value"
-    example: "I can be my best and set a good example to my kids"
-    extraction: "be my best → set a good example to my kids"
+  extractability_criteria:
+    extractable_contains:
+      - "Product attributes, features, or characteristics"
+      - "Benefits, outcomes, or consequences"
+      - "Feelings, emotions, or social implications"
+      - "Values or life goals"
+      - "Causal relationships between any of the above"
+    non_extractable_contains:
+      - "Simple yes/no responses"
+      - "Acknowledgments ('okay', 'I see')"
+      - "Questions back to the interviewer"
+      - "Off-topic tangents"
+      - "Very short responses with no substance"
 
-# Methodology-specific extractability criteria
-extractability_criteria:
-  extractable_contains:
-    - "Product attributes, features, or characteristics"
-    - "Benefits, outcomes, or consequences"
-    - "Feelings, emotions, or social implications"
-    - "Values or life goals"
-    - "Causal relationships between any of the above"
-  non_extractable_contains:
-    - "Simple yes/no responses"
-    - "Acknowledgments ('okay', 'I see')"
-    - "Questions back to the interviewer"
-    - "Off-topic tangents"
-    - "Very short responses with no substance"
+signals:
+  graph:
+    - graph.node_count
+    - graph.max_depth
+    - graph.avg_depth
+    - graph.orphan_count
+    - graph.chain_completion
+    # Removed: graph.coverage_breadth, graph.missing_terminal_value (not applicable to MEC)
+
+  llm:
+    - llm.response_depth
+    - llm.sentiment
+    - llm.uncertainty
+    - llm.hedging_language
+    # Note: llm.global_response_trend is session-scoped and managed separately
+
+  temporal:
+    - temporal.strategy_repetition_count
+    - temporal.turns_since_strategy_change
+
+  meta:
+    - meta.interview_progress
+    - meta.interview.phase
+
+strategies:
+  # Strategy 1: Deepen the chain (laddering)
+  - name: deepen
+    technique: laddering
+    signal_weights:
+      # Global signals
+      llm.response_depth.surface: 0.8
+      llm.response_depth.moderate: 0.3
+      graph.max_depth: 0.5
+      graph.chain_completion.has_complete_chain.false: 1.0
+      # Node-level signals (Phase 3)
+      graph.node.exhausted.false: 1.0  # Boost non-exhausted nodes
+      graph.node.focus_streak.low: 0.5  # Prefer fresh nodes
+      graph.node.exhaustion_score.low: 0.7  # Avoid exhausted nodes
+    focus_preference: shallow
+
+  # Strategy 2: Clarify relationships (probing)
+  - name: clarify
+    technique: probing
+    signal_weights:
+      # Global signals
+      graph.orphan_count: 0.7
+      graph.edge_density: 0.6
+      # Node-level signals (Phase 3)
+      graph.node.is_orphan.true: 1.0  # Boost orphan nodes
+      graph.node.exhausted.false: 0.5
+      graph.node.focus_streak.none: 0.3
+    focus_preference: related
+
+  # Strategy 3: Explore new areas (elaboration)
+  - name: explore
+    technique: elaboration
+    signal_weights:
+      # Global signals
+      llm.uncertainty: 0.4
+      temporal.strategy_repetition_count: 0.5
+      # Node-level signals (Phase 3)
+      graph.node.focus_streak.none: 1.0  # Fresh nodes
+      graph.node.yield_stagnation.false: 0.8  # Nodes that yield
+      graph.node.exhausted.false: 0.7
+    focus_preference: recent
+
+  # Strategy 4: Reflect and validate (validation)
+  - name: reflect
+    technique: validation
+    signal_weights:
+      # Global signals
+      graph.max_depth: 0.7
+      meta.interview_progress: 0.5
+      llm.response_depth.deep: 0.6
+      # Uncertainty/hedging triggers (Phase 5)
+      llm.hedging_language.high: 1.0  # Trigger on high uncertainty
+      llm.hedging_language.medium: 0.7  # Trigger on medium uncertainty
+      meta.node.opportunity.probe_deeper: 0.6  # Extraction opportunity
+      # Node-level signals (Phase 3)
+      graph.node.edge_count.high: 0.8  # Well-connected nodes
+      graph.node.focus_streak.high: 0.5  # Often-focused nodes
+      technique.node.strategy_repetition.low: 0.3  # Avoid overusing same strategy
+    focus_preference: deep
+
+  # Strategy 5: Revitalize engagement (elaboration) - Phase 5
+  - name: revitalize
+    technique: elaboration
+    signal_weights:
+      # Fatigue detection triggers (Phase 5)
+      llm.global_response_trend.fatigued: 1.0  # Trigger on fatigue
+      llm.global_response_trend.shallowing: 0.5  # Prevent fatigue
+      meta.node.opportunity.exhausted: 0.3  # Try exhausted nodes with new angle
+      # Global signals
+      temporal.strategy_repetition_count: 0.5
+      # Node-level signals (Phase 3)
+      graph.node.focus_streak.none: 0.8  # Fresh nodes
+      graph.node.exhausted.false: 0.5
+    focus_preference: recent
+
+phases:
+  early:
+    description: "Initial exploration, building graph structure"
+    signal_weights:
+      explore: 1.5
+      clarify: 1.2
+      deepen: 0.5
+      reflect: 0.2
+
+  mid:
+    description: "Building depth and connections"
+    signal_weights:
+      deepen: 1.3
+      clarify: 1.0
+      explore: 0.8
+      reflect: 0.7
+
+  late:
+    description: "Validation and verification"
+    signal_weights:
+      reflect: 1.5
+      validate: 1.2
+      deepen: 0.5
+      explore: 0.3

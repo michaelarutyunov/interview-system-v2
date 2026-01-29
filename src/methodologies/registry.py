@@ -65,12 +65,13 @@ class MethodologyRegistry:
         """Initialize registry with config directory.
 
         Args:
-            config_dir: Path to YAML config directory (default: src/methodologies/config)
+            config_dir: Path to YAML config directory (default: config/methodologies)
         """
         if config_dir is None:
-            # Default to src/methodologies/config relative to this file
+            # Default to config/methodologies relative to project root
             this_file = Path(__file__)
-            config_dir = this_file.parent / "config"
+            project_root = this_file.parent.parent.parent
+            config_dir = project_root / "config" / "methodologies"
 
         self.config_dir = Path(config_dir)
         self._cache: dict[str, MethodologyConfig] = {}
@@ -97,11 +98,26 @@ class MethodologyRegistry:
         with open(config_path) as f:
             data = yaml.safe_load(f)
 
+        # Handle both new unified format and legacy format
+        # New format has 'method' key at top level
+        # Legacy format has 'methodology' key at top level
+        if "method" in data:
+            # New unified format
+            method_data = data["method"]
+        elif "methodology" in data:
+            # Legacy format
+            method_data = data["methodology"]
+        else:
+            raise ValueError(
+                f"Invalid methodology config format: {config_path}. "
+                "Expected 'method' or 'methodology' key."
+            )
+
         # Load phases if present
         phases = None
-        if "phases" in data["methodology"]:
+        if "phases" in data:
             phases = {}
-            for phase_name, phase_data in data["methodology"]["phases"].items():
+            for phase_name, phase_data in data["phases"].items():
                 phases[phase_name] = PhaseConfig(
                     name=phase_name,
                     description=phase_data.get("description", ""),
@@ -109,9 +125,9 @@ class MethodologyRegistry:
                 )
 
         config = MethodologyConfig(
-            name=data["methodology"]["name"],
-            description=data["methodology"]["description"],
-            signals=data["methodology"]["signals"],
+            name=method_data["name"],
+            description=method_data.get("description", ""),
+            signals=data.get("signals", {}),
             strategies=[
                 StrategyConfig(
                     name=s["name"],
@@ -119,7 +135,7 @@ class MethodologyRegistry:
                     signal_weights=s["signal_weights"],
                     focus_preference=s["focus_preference"],
                 )
-                for s in data["methodology"]["strategies"]
+                for s in data.get("strategies", [])
             ],
             phases=phases,
         )

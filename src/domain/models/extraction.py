@@ -41,6 +41,10 @@ class ExtractedConcept(BaseModel):
         default_factory=dict,
         description="Extensible metadata for methodology-specific info",
     )
+    is_terminal: bool = Field(
+        default=False, description="Whether this is a terminal node type"
+    )
+    level: int = Field(default=0, description="Hierarchy level in the methodology")
 
 
 class ExtractedRelationship(BaseModel):
