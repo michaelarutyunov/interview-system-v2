@@ -105,8 +105,14 @@ class MethodologyStrategyService:
             # Fallback
             return "deepen", None, [], signals
 
-        # Rank strategies by signal scores
-        ranked = rank_strategies(strategies, signals)
+        # Detect current phase for phase-weighted strategy selection
+        current_phase = signals.get("meta.interview.phase", "mid")
+        phase_weights = None
+        if config.phases and current_phase in config.phases:
+            phase_weights = config.phases[current_phase].signal_weights
+
+        # Rank strategies by signal scores with phase weighting
+        ranked = rank_strategies(strategies, signals, phase_weights)
 
         # Select best strategy
         best_strategy_config, best_score = ranked[0]

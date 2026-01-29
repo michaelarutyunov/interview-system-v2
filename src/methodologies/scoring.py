@@ -82,6 +82,7 @@ def _get_signal_value(signal_key: str, signals: Dict[str, Any]) -> Any:
 def rank_strategies(
     strategy_configs: List[StrategyConfig],
     signals: Dict[str, Any],
+    phase_weights: Optional[Dict[str, float]] = None,
 ) -> List[Tuple[StrategyConfig, float]]:
     """
     Rank all strategies by score.
@@ -89,15 +90,38 @@ def rank_strategies(
     Args:
         strategy_configs: List of strategy configs from YAML
         signals: Dict of detected signals
+        phase_weights: Optional dict of phase-based weight multipliers (e.g., {"deepen": 1.5, "reflect": 0.5})
 
     Returns:
         List of (strategy_config, score) sorted descending by score
     """
-    scored = [
-        (strategy_config, score_strategy(strategy_config, signals))
-        for strategy_config in strategy_configs
-    ]
-    return sorted(scored, key=lambda x: x[1], reverse=True)
+    import structlog
+    log = structlog.get_logger(__name__)
+
+    scored = []
+    for strategy_config in strategy_configs:
+        # Score strategy using signal weights
+        base_score = score_strategy(strategy_config, signals)
+
+        # Apply phase weight multiplier if available
+        if phase_weights and strategy_config.name in phase_weights:
+            multiplier = phase_weights[strategy_config.name]
+            final_score = base_score * multiplier
+        else:
+            multiplier = 1.0
+            final_score = base_score
+
+        scored.append((strategy_config, final_score))
+
+    # Log scores for debugging
+    log.info(
+        "strategies_ranked",
+        phase=signals.get("meta.interview.phase", "unknown"),
+        phase_weights=phase_weights,
+        ranked=[(s.name, score) for s, score in scored],
+    )
+
+    return scored
 
 
 def rank_strategy_node_pairs(
