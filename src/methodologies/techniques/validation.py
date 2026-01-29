@@ -1,6 +1,13 @@
 """Validation technique - confirm outcomes and understanding."""
 
+from typing import TYPE_CHECKING
+
 from src.methodologies.techniques.common import Technique
+
+if TYPE_CHECKING:
+    from src.services.turn_pipeline.context import PipelineContext
+else:
+    PipelineContext = object  # type: ignore
 
 
 class ValidationTechnique(Technique):
@@ -21,7 +28,7 @@ class ValidationTechnique(Technique):
     async def generate_questions(
         self,
         focus: str | None,
-        context: any,
+        context: PipelineContext,
     ) -> list[str]:
         """Generate validation questions.
 

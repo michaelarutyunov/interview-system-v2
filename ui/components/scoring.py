@@ -7,7 +7,7 @@ Updated for methodology-centric architecture:
 - Supports backward compatibility with two-tier scoring
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 import streamlit as st
 
 
@@ -101,90 +101,71 @@ class ScoringTab:
                 st.info("No strategy alternatives available")
 
     def _render_signals_by_category(self, signals: Dict[str, Any], methodology: str):
-        """Render signals grouped by category."""
-        if methodology == "means_end_chain":
-            graph_signals = {
-                k: v
-                for k, v in signals.items()
-                if k
-                in [
-                    "ladder_depth",
-                    "edge_density",
-                    "disconnected_nodes",
-                    "coverage_breadth",
-                    "missing_terminal_value",
-                    "attributes_explored",
-                    "consequences_explored",
-                    "values_explored",
-                ]
-            }
-            response_signals = {
-                k: v
-                for k, v in signals.items()
-                if k
-                in [
-                    "response_confidence",
-                    "response_ambiguity",
-                    "new_concepts_mentioned",
-                    "response_depth",
-                ]
-            }
-        elif methodology == "jobs_to_be_done":
-            graph_signals = {
-                k: v
-                for k, v in signals.items()
-                if k
-                in [
-                    "situation_depth",
-                    "motivation_depth",
-                    "alternatives_explored",
-                    "obstacles_explored",
-                    "outcome_clarity",
-                    "coverage_imbalance",
-                ]
-            }
-            response_signals = {
-                k: v
-                for k, v in signals.items()
-                if k
-                in [
-                    "mentioned_competitor",
-                    "mentioned_struggle",
-                    "mentioned_trigger",
-                    "response_confidence",
-                ]
-            }
-        else:
-            # Generic grouping
-            graph_signals = {
-                k: v for k, v in signals.items() if "depth" in k or "coverage" in k
-            }
-            response_signals = {
-                k: v for k, v in signals.items() if "response" in k or "mentioned" in k
-            }
+        """Render signals grouped by category using dynamic discovery.
 
-        history_signals = {
+        Phase 4: Uses namespaced signal prefixes to group dynamically
+        instead of hardcoded signal lists.
+        """
+        # Node-level signals (Phase 2) - per-node metrics
+        node_signals = {
             k: v
             for k, v in signals.items()
-            if k in ["strategy_repetition_count", "turns_since_strategy_change"]
+            if k.startswith("graph.node.") or k.startswith("technique.node.")
         }
 
-        col1, col2, col3 = st.columns(3)
+        # Graph signals (global state metrics)
+        graph_signals = {
+            k: v
+            for k, v in signals.items()
+            if k.startswith("graph.") and not k.startswith("graph.node.")
+        }
 
-        with col1:
-            st.markdown("**Graph/State**")
-            for k, v in graph_signals.items():
-                self._render_signal(k, v)
+        # LLM signals (response analysis)
+        llm_signals = {
+            k: v
+            for k, v in signals.items()
+            if k.startswith("llm.")
+        }
 
-        with col2:
-            st.markdown("**Response**")
-            for k, v in response_signals.items():
-                self._render_signal(k, v)
+        # Temporal signals (history tracking)
+        temporal_signals = {
+            k: v
+            for k, v in signals.items()
+            if k.startswith("temporal.")
+        }
 
-        with col3:
-            st.markdown("**History**")
-            for k, v in history_signals.items():
-                self._render_signal(k, v)
+        # Meta signals (derived/composite signals)
+        meta_signals = {
+            k: v
+            for k, v in signals.items()
+            if k.startswith("meta.")
+        }
+
+        # Dynamic layout based on available signal types
+        has_signals = [
+            ("Node-Level", node_signals),
+            ("Graph/State", graph_signals),
+            ("Response/LLM", llm_signals),
+            ("History", temporal_signals),
+            ("Meta", meta_signals),
+        ]
+
+        # Filter to only show sections with signals
+        active_sections = [(name, sigs) for name, sigs in has_signals if sigs]
+
+        if not active_sections:
+            st.info("No signals detected yet")
+            return
+
+        # Create columns for available signal types
+        num_cols = min(len(active_sections), 3)
+        cols = st.columns(num_cols)
+
+        for idx, (section_name, section_signals) in enumerate(active_sections):
+            with cols[idx % num_cols]:
+                st.markdown(f"**{section_name}**")
+                for k, v in section_signals.items():
+                    self._render_signal(k, v)
 
     def _render_signal(self, name: str, value: Any):
         """Render a single signal value."""
@@ -199,11 +180,26 @@ class ScoringTab:
         else:
             st.markdown(f"- {name}: {value}")
 
-    def _render_strategy_ranking(self, alternatives: List[Dict[str, Any]]):
-        """Render strategy ranking with scores."""
+    def _render_strategy_ranking(self, alternatives: list):
+        """Render strategy ranking with scores.
+
+        Handles both dict format (legacy) and tuple format (Phase 3+).
+        Dict format: [{"strategy": str, "score": float}, ...]
+        Tuple format: [(strategy, score)] or [(strategy, node_id, score)]
+        """
         for i, alt in enumerate(alternatives[:5]):
-            score = alt.get("score", 0)
-            name = alt.get("strategy", "unknown")
+            # Handle both dict (legacy) and tuple (Phase 3+) formats
+            if isinstance(alt, dict):
+                score = alt.get("score", 0)
+                name = alt.get("strategy", "unknown")
+            else:
+                # Phase 3+ format: tuple[str, float] or tuple[str, str, float]
+                if len(alt) == 2:
+                    name, score = alt
+                elif len(alt) == 3:
+                    name, node_id, score = alt  # node_id available but not displayed
+                else:
+                    continue
 
             # Highlight selected (first)
             if i == 0:

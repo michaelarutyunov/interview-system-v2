@@ -1,6 +1,12 @@
 """Base class for questioning techniques."""
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.services.turn_pipeline.context import PipelineContext
+else:
+    PipelineContext = object  # type: ignore
 
 
 class Technique(ABC):
@@ -33,7 +39,7 @@ class Technique(ABC):
     async def generate_questions(
         self,
         focus: str | None,
-        context: any,  # PipelineContext (circular import avoided)
+        context: PipelineContext,
     ) -> list[str]:
         """Generate 1-3 questions using this technique.
 

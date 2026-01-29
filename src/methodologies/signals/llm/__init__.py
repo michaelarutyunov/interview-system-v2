@@ -20,7 +20,9 @@ from src.methodologies.signals.llm.quality import (
     UncertaintySignal,
     AmbiguitySignal,
 )
-from src.methodologies.signals.llm.global_response_trend import GlobalResponseTrendSignal
+from src.methodologies.signals.llm.global_response_trend import (
+    GlobalResponseTrendSignal,
+)
 from src.methodologies.signals.llm.hedging_language import HedgingLanguageSignal
 
 __all__ = [

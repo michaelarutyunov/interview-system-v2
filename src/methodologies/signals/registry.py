@@ -66,7 +66,6 @@ class ComposedSignalDetector:
             SentimentSignal,
             UncertaintySignal,
             AmbiguitySignal,
-            GlobalResponseTrendSignal,
             HedgingLanguageSignal,
         )
         from src.methodologies.signals.temporal import (

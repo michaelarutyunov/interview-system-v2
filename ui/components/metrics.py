@@ -128,60 +128,35 @@ class MetricsPanel:
             st.caption("Interview should end soon")
 
     def _render_scoring(self, status_data: Dict[str, Any]):
-        """Render scoring breakdown."""
-        scoring = status_data.get("scoring", {})
+        """Render scoring breakdown.
 
-        if not scoring:
-            st.info("No scoring data available yet.")
+        Note: Legacy two-tier scoring gauges removed in Phase 6.
+        This now shows methodology-specific signals if available.
+        """
+        # Phase 4 methodology-centric signals
+        signals = status_data.get("signals", {})
+
+        if not signals:
+            st.info("No signal data available yet.")
             return
 
-        st.write("**Scoring Breakdown:**")
+        st.write("**Current Signals:**")
 
-        # Create metrics for each score
-        scores = {
-            "Coverage": scoring.get("coverage", 0.0),
-            "Depth": scoring.get("depth", 0.0),
-            "Saturation": scoring.get("saturation", 0.0),
-            "Novelty": scoring.get("novelty", 0.0),
-            "Richness": scoring.get("richness", 0.0),
-        }
+        # Show top signals dynamically (don't hardcode)
+        signal_items = list(signals.items())[:10]
+        for key, value in signal_items:
+            if isinstance(value, bool):
+                icon = "✓" if value else "✗"
+                st.markdown(f"- **{key}**: {icon}")
+            elif isinstance(value, float):
+                st.markdown(f"- **{key}**: `{value:.2f}`")
+            elif isinstance(value, int):
+                st.markdown(f"- **{key}**: `{value}`")
+            else:
+                st.markdown(f"- **{key}**: {value}")
 
-        # Render as gauge charts
-        cols = st.columns(len(scores))
-        for i, (name, value) in enumerate(scores.items()):
-            with cols[i]:
-                self._render_gauge(name, value)
-
-    def _render_gauge(self, name: str, value: float):
-        """Render a gauge chart for a score."""
-        fig = go.Figure(
-            go.Indicator(
-                mode="gauge+number",
-                value=value,
-                domain={"x": [0, 1], "y": [0, 1]},
-                title={"text": name},
-                gauge={
-                    "axis": {"range": [0, 1]},
-                    "bar": {"color": "darkblue"},
-                    "steps": [
-                        {"range": [0, 0.5], "color": "lightgray"},
-                        {"range": [0.5, 0.8], "color": "gray"},
-                    ],
-                    "threshold": {
-                        "line": {"color": "red", "width": 4},
-                        "thickness": 0.75,
-                        "value": 0.9,
-                    },
-                },
-            )
-        )
-
-        fig.update_layout(
-            height=200,
-            margin=dict(l=10, r=10, t=30, b=10),
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
+        if len(signals) > 10:
+            st.caption(f"... and {len(signals) - 10} more signals")
 
     def _render_strategy(self, status_data: Dict[str, Any]):
         """Render strategy selection info."""
@@ -190,12 +165,24 @@ class MetricsPanel:
 
         st.write("**Current Strategy:**")
 
+        # Phase 4 strategy descriptions (methodology-centric architecture)
         strategy_descriptions = {
-            "deepen": "🔍 Deepen - Explore deeper in current topic chain",
-            "broaden": "🌐 Broaden - Find new topic branches",
-            "cover_element": "🎯 Cover - Introduce unexplored elements",
+            # MEC strategies
+            "deepen": "🔍 Deepen - Build depth using laddering technique",
+            "clarify": "🔎 Clarify - Probe for relationships and clarity",
+            "explore": "🔍 Explore - Expand on recent topics",
+            "reflect": "🤔 Reflect - Validate understanding and confirm",
+            "revitalize": "⚡ Revitalize - Re-engage when fatigued",
+            # JTBD strategies (for reference)
+            "explore_situation": "📍 Explore Situation - Understand context",
+            "probe_alternatives": "🔀 Probe Alternatives - Find other options",
+            "dig_motivation": "💎 Dig Motivation - Uncover drivers",
+            "validate_outcome": "✓ Validate Outcome - Confirm goals",
+            "uncover_obstacles": "🚧 Uncover Obstacles - Find barriers",
+            # Legacy (for backward compatibility)
+            "broaden": "🌐 Broaden - Find new topic branches (legacy)",
+            "cover_element": "🎯 Cover - Introduce unexplored elements (legacy)",
             "closing": "✅ Closing - Wrap up the interview",
-            "reflection": "🤔 Reflection - Meta-question about the experience",
         }
 
         st.info(strategy_descriptions.get(strategy, f"Strategy: {strategy}"))

@@ -14,8 +14,15 @@ used in new code.
 """
 
 import warnings
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
 from dataclasses import dataclass
+
+if TYPE_CHECKING:
+    from src.domain.models.knowledge_graph import GraphState, KGNode
+else:
+    GraphState = object  # type: ignore
+    KGNode = object  # type: ignore
 
 
 @dataclass
@@ -23,8 +30,8 @@ class FocusSelectionInput:
     """Input for focus selection."""
 
     strategy: str
-    graph_state: any  # GraphState
-    recent_nodes: list
+    graph_state: GraphState
+    recent_nodes: list[KGNode]
     signals: dict
 
 
@@ -134,13 +141,9 @@ class FocusSelectionService:
                 min_depth = depth
                 shallow_node = node
 
-        return (
-            shallow_node.label
-            if hasattr(shallow_node, "label")
-            else str(shallow_node)
-            if shallow_node
-            else None
-        )
+        if shallow_node is None:
+            return None
+        return shallow_node.label if hasattr(shallow_node, "label") else str(shallow_node)
 
     async def _select_recent(self, graph_state, recent_nodes, signals) -> Optional[str]:
         """For elaboration, prefer most recent node."""
@@ -179,13 +182,9 @@ class FocusSelectionService:
                 max_depth = depth
                 deep_node = node
 
-        return (
-            deep_node.label
-            if hasattr(deep_node, "label")
-            else str(deep_node)
-            if deep_node
-            else None
-        )
+        if deep_node is None:
+            return None
+        return deep_node.label if hasattr(deep_node, "label") else str(deep_node)
 
     def _select_most_recent_node(self, recent_nodes) -> Optional[str]:
         """Select the most recent node (fallback)."""

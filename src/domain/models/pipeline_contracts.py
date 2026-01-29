@@ -5,7 +5,7 @@ type safety and runtime validation for the turn processing pipeline.
 """
 
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field, model_validator
 
 from src.domain.models.knowledge_graph import GraphState, KGNode
@@ -163,9 +163,13 @@ class StrategySelectionOutput(BaseModel):
         default=None,
         description="Detected signals from methodology-specific signal detector (Phase 4)",
     )
-    strategy_alternatives: List[tuple[str, float]] = Field(
+    # Phase 6: Joint strategy-node scoring produces tuples with node_id
+    strategy_alternatives: List[Union[tuple[str, float], tuple[str, str, float]]] = Field(
         default_factory=list,
-        description="Alternative strategies with scores for observability (Phase 4)",
+        description=(
+            "Alternative strategies with scores for observability (Phase 4, Phase 6). "
+            "Format: [(strategy, score)] or [(strategy, node_id, score)] for joint scoring"
+        ),
     )
 
 
