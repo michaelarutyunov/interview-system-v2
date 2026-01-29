@@ -176,7 +176,9 @@ class TestGenerateOpeningQuestion:
             model="test",
         )
 
-        objective = "Understand user perceptions of Oat Milk as a plant-based milk alternative"
+        objective = (
+            "Understand user perceptions of Oat Milk as a plant-based milk alternative"
+        )
         await service.generate_opening_question(objective=objective)
 
         call_args = mock_llm.complete.call_args

@@ -21,7 +21,13 @@ class TestListPersonas:
     def test_has_expected_personas(self):
         """Contains expected persona IDs."""
         personas = list_personas()
-        expected = ["health_conscious", "price_sensitive", "convenience_seeker", "quality_focused", "sustainability_minded"]
+        expected = [
+            "health_conscious",
+            "price_sensitive",
+            "convenience_seeker",
+            "quality_focused",
+            "sustainability_minded",
+        ]
         for persona_id in expected:
             assert persona_id in personas
 

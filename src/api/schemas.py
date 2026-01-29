@@ -22,7 +22,7 @@ class SessionCreate(BaseModel):
     config: Dict[str, Any] = Field(default_factory=dict)
     mode: InterviewMode = Field(
         default=InterviewMode.COVERAGE_DRIVEN,
-        description="Interview execution mode: coverage_driven (systematic) or graph_driven (exploratory)",
+        description="Interview execution mode: coverage_driven (systematic/evaluative) or exploratory (emergent discovery)",
     )
 
 

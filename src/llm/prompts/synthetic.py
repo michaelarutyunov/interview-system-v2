@@ -4,7 +4,7 @@ Prompts for synthetic respondent generation.
 Generates contextually appropriate respondent answers for testing:
 - Persona system loaded from config/personas/*.yaml
 - Natural response patterns (detailed, medium, brief, deflections)
-- Interview context awareness (previous concepts, turn number, coverage)
+- Interview context awareness (previous concepts, turn number)
 - Deflection patterns for authentic respondent behavior
 
 Used by:
@@ -198,7 +198,7 @@ def get_synthetic_user_prompt(
         question: The interviewer's question
         persona: Persona ID from config/personas/*.yaml or legacy PERSONAS dict
         previous_concepts: Optional list of concepts mentioned earlier
-        interview_context: Optional dict with product_name, turn_number, coverage_achieved
+        interview_context: Optional dict with product_name, turn_number
 
     Returns:
         User prompt string
@@ -215,7 +215,9 @@ def get_synthetic_user_prompt(
 
     # Add deflection patterns if available
     if persona_config.get("deflection_patterns"):
-        prompt_parts.append(f"Deflection Patterns: {', '.join(persona_config['deflection_patterns'][:3])}")
+        prompt_parts.append(
+            f"Deflection Patterns: {', '.join(persona_config['deflection_patterns'][:3])}"
+        )
 
     prompt_parts.append("")
 
@@ -232,11 +234,9 @@ def get_synthetic_user_prompt(
         prompt_parts.append("## Interview Context:")
         product_name = interview_context.get("product_name", "this product")
         turn_number = interview_context.get("turn_number", 1)
-        coverage = interview_context.get("coverage_achieved", 0.0)
 
         prompt_parts.append(f"- Product: {product_name}")
         prompt_parts.append(f"- Turn {turn_number}")
-        prompt_parts.append(f"- {coverage * 100:.0f}% coverage")
         prompt_parts.append("")
 
     # Add the question

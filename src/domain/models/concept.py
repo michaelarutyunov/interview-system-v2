@@ -35,7 +35,9 @@ class ConceptContext(BaseModel):
         "alternatives, focusing on the attributes that matter most to them.'",
     )
     # Legacy fields for backward compatibility with evaluative concepts
-    topic: Optional[str] = Field(None, description="Primary topic or domain being explored (legacy)")
+    topic: Optional[str] = Field(
+        None, description="Primary topic or domain being explored (legacy)"
+    )
     insight: Optional[str] = Field(
         None,
         description="Key insight or hypothesis (legacy - may bias AI, prefer objective)",

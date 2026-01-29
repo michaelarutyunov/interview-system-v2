@@ -130,6 +130,7 @@ class SimulationService:
 
         # Validate persona
         from src.llm.prompts.synthetic import get_available_personas
+
         available_personas = get_available_personas()
         if persona_id not in available_personas:
             raise ValueError(
@@ -141,6 +142,7 @@ class SimulationService:
         # Generate session_id if not provided
         if session_id is None:
             import uuid
+
             session_id = str(uuid.uuid4())
 
         log.info(
@@ -307,14 +309,14 @@ class SimulationService:
             created_at=now,
             updated_at=now,
             status="active",
-            mode=InterviewMode.COVERAGE_DRIVEN,
+            mode=InterviewMode.EXPLORATORY,
             state=SessionState(
                 methodology=methodology,
                 concept_id=concept_id,
                 concept_name=concept_name,
                 turn_count=0,
                 coverage_score=0.0,
-                mode=InterviewMode.COVERAGE_DRIVEN,
+                mode=InterviewMode.EXPLORATORY,
             ),
         )
 
@@ -400,6 +402,7 @@ def get_simulation_service(
     """
     if session_repo is None:
         from src.core.config import settings
+
         session_repo = SessionRepository(str(settings.database_path))
 
     if graph_repo is None:

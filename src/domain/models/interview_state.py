@@ -24,10 +24,10 @@ class InterviewMode(str, Enum):
     """Interview execution mode."""
 
     COVERAGE_DRIVEN = "coverage_driven"
-    """Systematic topic exploration for concept testing."""
+    """Systematic topic exploration for concept testing (evaluative)."""
 
-    GRAPH_DRIVEN = "graph_driven"
-    """Emergent discovery for exploratory research."""
+    EXPLORATORY = "exploratory"
+    """Emergent discovery for exploratory research (graph-driven)."""
 
 
 @dataclass
@@ -583,7 +583,7 @@ def create_interview_state(
 
         return CoverageState(topics=topic_states)
 
-    else:  # GRAPH_DRIVEN
+    else:  # EXPLORATORY
         return EmergenceState(themes={}, auto_discovery=True)
 
 

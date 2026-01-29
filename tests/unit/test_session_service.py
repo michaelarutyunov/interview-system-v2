@@ -213,12 +213,19 @@ class TestStartSession:
 
     @pytest.mark.asyncio
     async def test_generates_opening(
-        self, service, mock_session_repo, mock_session, mock_question_service, mock_concept
+        self,
+        service,
+        mock_session_repo,
+        mock_session,
+        mock_question_service,
+        mock_concept,
     ):
         """start_session generates opening question."""
         mock_session_repo.get = AsyncMock(return_value=mock_session)
 
-        with patch("src.services.session_service.load_concept", return_value=mock_concept):
+        with patch(
+            "src.services.session_service.load_concept", return_value=mock_concept
+        ):
             with patch.object(service, "_save_utterance", new_callable=AsyncMock):
                 question = await service.start_session("test-session")
 

@@ -40,7 +40,10 @@ def _load_scoring_config() -> Dict[str, Any]:
         )
         with open(config_path) as f:
             _scoring_cache = yaml.safe_load(f)
-        log.info("scoring_config_loaded", strategy_count=len(_scoring_cache.get("strategies", [])))
+        log.info(
+            "scoring_config_loaded",
+            strategy_count=len(_scoring_cache.get("strategies", [])),
+        )
         return _scoring_cache
     except Exception as e:
         log.error("scoring_config_load_failed", error=str(e))
@@ -90,7 +93,9 @@ def get_question_system_prompt(
     else:
         # Fallback to hardcoded defaults
         strat_name = "Deepen Understanding"
-        strat_description = "Explore why something matters to understand deeper motivations"
+        strat_description = (
+            "Explore why something matters to understand deeper motivations"
+        )
 
     # Build methodology section
     methodology_section = ""
@@ -196,7 +201,7 @@ def get_question_user_prompt(
             description = signal_descriptions.get(signal_name, "")
             if description:
                 signal_lines.append(f"- {signal_name}: {value}")
-                signal_lines.append(f"  → \"{description}\"")
+                signal_lines.append(f'  → "{description}"')
             else:
                 signal_lines.append(f"- {signal_name}: {value}")
 
@@ -260,19 +265,25 @@ def _build_strategy_rationale(signals: Dict[str, Any], strategy: str) -> str:
     if "graph.chain_completion.has_complete_chain" in signals:
         has_chain = signals["graph.chain_completion.has_complete_chain"]
         if not has_chain:
-            rationale_parts.append("- No complete chains exist - need to reach terminal values")
+            rationale_parts.append(
+                "- No complete chains exist - need to reach terminal values"
+            )
 
     if "llm.response_depth" in signals:
         resp_depth = signals["llm.response_depth"]
         if resp_depth == "surface":
-            rationale_parts.append("- Surface-level response suggests need for deeper probing")
+            rationale_parts.append(
+                "- Surface-level response suggests need for deeper probing"
+            )
         elif resp_depth == "deep":
             rationale_parts.append("- Deep response indicates strong engagement")
 
     if "llm.hedging_language" in signals:
         hedging = signals["llm.hedging_language"]
         if hedging in ["medium", "high"]:
-            rationale_parts.append(f"- Hedging language ({hedging}) suggests uncertainty")
+            rationale_parts.append(
+                f"- Hedging language ({hedging}) suggests uncertainty"
+            )
         elif hedging in ["none", "low"]:
             rationale_parts.append("- Confident response with low uncertainty")
 
