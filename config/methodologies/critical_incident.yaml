@@ -1,3 +1,9 @@
+method:
+  name: critical_incident
+  version: "1.0"
+  goal: "Explore exceptionally positive or negative experiences that stand out"
+  opening_bias: "Ask them to think of a recent time when this topic was especially memorable or significant."
+
 name: critical_incident
 version: "1.0"
 description: "Framework for understanding behavior through analysis of specific memorable experiences"

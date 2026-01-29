@@ -163,28 +163,27 @@ class TestGenerateOpeningQuestion:
         )
 
         question = await service.generate_opening_question(
-            concept_name="Oat Milk",
+            objective="Understand user perceptions of Oat Milk as a plant-based milk alternative",
         )
 
         assert "Oat Milk" in question or len(question) > 10
 
     @pytest.mark.asyncio
-    async def test_includes_description(self, service, mock_llm):
-        """Includes description in prompt when provided."""
+    async def test_includes_objective(self, service, mock_llm):
+        """Includes objective in prompt when provided."""
         mock_llm.complete.return_value = LLMResponse(
             content="Opening question?",
             model="test",
         )
 
-        await service.generate_opening_question(
-            concept_name="Oat Milk",
-            concept_description="Plant-based milk alternative",
-        )
+        objective = "Understand user perceptions of Oat Milk as a plant-based milk alternative"
+        await service.generate_opening_question(objective=objective)
 
         call_args = mock_llm.complete.call_args
         prompt = call_args.kwargs["prompt"]
 
-        assert "Plant-based" in prompt
+        # Objective should be in the prompt
+        assert "Oat Milk" in prompt or "plant-based" in prompt.lower()
 
 
 class TestSelectFocusConcept:

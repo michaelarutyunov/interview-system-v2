@@ -6,6 +6,8 @@
 method:
   name: means_end_chain
   version: "3.0"
+  goal: "Explore causal chains from concrete attributes to abstract values"
+  opening_bias: "Elicit concrete, experience-based responses. Ask for specific examples and situations."
   description: "Laddering: attributes → consequences → values"
 
 ontology:

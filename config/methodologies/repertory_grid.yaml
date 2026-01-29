@@ -1,3 +1,9 @@
+method:
+  name: repertory_grid
+  version: "1.0"
+  goal: "Understand personal constructs and how people differentiate between similar concepts"
+  opening_bias: "Ask for specific examples of when they encountered this topic in daily life."
+
 name: repertory_grid
 version: "1.0"
 description: "Personal construct psychology framework for understanding how people categorize and evaluate differences"

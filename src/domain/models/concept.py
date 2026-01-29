@@ -14,12 +14,27 @@ class ConceptContext(BaseModel):
     Research brief context for a concept.
 
     Provides LLM context about the research focus without being methodology-specific.
+
+    For exploratory interviews, the 'objective' field serves as the primary task
+    description, guiding the interviewer on what specific aspect of the concept
+    to explore. This is particularly useful when combined with methodology-specific
+    opening_bias to generate targeted opening questions.
     """
 
     topic: str = Field(..., description="Primary topic or domain being explored")
     insight: str = Field(
         ...,
-        description="Key insight or hypothesis about the topic (often framed as 'When [situation], I want [motivation], so that [outcome]')",
+        description="Key insight or hypothesis about the topic (often framed as 'When [situation], I want [motivation], so that [outcome]'). "
+        "For backward compatibility. Use 'objective' for exploratory interviews.",
+    )
+    objective: Optional[str] = Field(
+        None,
+        description="Primary research objective or task for exploratory interviews. "
+        "This field provides focused guidance on what specific aspect to explore, "
+        "making it particularly valuable for generating methodology-appropriate "
+        "opening questions when combined with the methodology's opening_bias. "
+        "Example: 'Explore how plant-based milk alternatives fit into consumers' "
+        "morning routines and the emotional associations they create.'",
     )
     promise: Optional[str] = Field(
         None,

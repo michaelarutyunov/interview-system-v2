@@ -1,7 +1,7 @@
 """Tests for session service."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.services.session_service import SessionService, TurnResult
 from src.domain.models.extraction import ExtractionResult, ExtractedConcept
@@ -11,6 +11,7 @@ from src.domain.models.knowledge_graph import (
     DepthMetrics,
     CoverageState,
 )
+from src.domain.models.concept import Concept, ConceptContext
 
 
 @pytest.fixture
@@ -77,6 +78,22 @@ def mock_question_service():
     service.generate_opening_question = AsyncMock(return_value="What do you think?")
     service.select_focus_concept = MagicMock(return_value="test")
     return service
+
+
+@pytest.fixture
+def mock_concept():
+    """Create mock concept for testing."""
+    return Concept(
+        id="test-concept",
+        name="Test Concept",
+        methodology="means_end_chain",
+        context=ConceptContext(
+            topic="test topic",
+            insight="test insight",
+            objective="Understand user perceptions of test product",
+        ),
+        elements=[],
+    )
 
 
 @pytest.fixture
@@ -196,12 +213,14 @@ class TestStartSession:
 
     @pytest.mark.asyncio
     async def test_generates_opening(
-        self, service, mock_session_repo, mock_session, mock_question_service
+        self, service, mock_session_repo, mock_session, mock_question_service, mock_concept
     ):
         """start_session generates opening question."""
         mock_session_repo.get = AsyncMock(return_value=mock_session)
 
-        question = await service.start_session("test-session")
+        with patch("src.services.session_service.load_concept", return_value=mock_concept):
+            with patch.object(service, "_save_utterance", new_callable=AsyncMock):
+                question = await service.start_session("test-session")
 
         assert question == "What do you think?"
         mock_question_service.generate_opening_question.assert_called_once()

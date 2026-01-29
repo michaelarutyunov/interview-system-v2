@@ -24,6 +24,7 @@ from src.llm.prompts.question import (
     format_question,
 )
 from src.domain.models.knowledge_graph import KGNode, GraphState
+from src.core.schema_loader import load_methodology
 
 log = structlog.get_logger(__name__)
 
@@ -40,6 +41,7 @@ class QuestionService:
         self,
         llm_client: Optional[LLMClient] = None,
         default_strategy: str = "deepen",
+        methodology: str = "means_end_chain",
     ):
         """
         Initialize question service.
@@ -47,11 +49,17 @@ class QuestionService:
         Args:
             llm_client: LLM client instance (creates default if None)
             default_strategy: Default strategy for Phase 2 (hardcoded "deepen")
+            methodology: Methodology name for opening question generation
         """
         self.llm = llm_client or get_generation_llm_client()
         self.default_strategy = default_strategy
+        self.methodology = methodology
 
-        log.info("question_service_initialized", default_strategy=default_strategy)
+        log.info(
+            "question_service_initialized",
+            default_strategy=default_strategy,
+            methodology=methodology,
+        )
 
     async def generate_question(
         self,
@@ -134,17 +142,26 @@ class QuestionService:
             log.error("question_generation_failed", error=str(e))
             raise RuntimeError(f"Question generation failed: {e}")
 
+    def load_methodology_schema(self):
+        """Load methodology schema for opening question generation.
+
+        Returns:
+            MethodologySchema instance
+
+        Raises:
+            FileNotFoundError: If methodology schema not found
+        """
+        return load_methodology(self.methodology)
+
     async def generate_opening_question(
         self,
-        concept_name: str,
-        concept_description: str = "",
+        objective: str,
     ) -> str:
         """
         Generate an opening question for a new session.
 
         Args:
-            concept_name: Name of the concept/product
-            concept_description: Optional description
+            objective: Interview objective (what we're studying)
 
         Returns:
             Opening question string
@@ -152,12 +169,17 @@ class QuestionService:
         Raises:
             RuntimeError: If LLM call fails
         """
-        log.info("generating_opening_question", concept=concept_name)
+        log.info("generating_opening_question", objective=objective[:100])
 
-        system_prompt = get_opening_question_system_prompt()
+        # Load methodology schema
+        methodology_schema = self.load_methodology_schema()
+
+        system_prompt = get_opening_question_system_prompt(
+            methodology=methodology_schema
+        )
         user_prompt = get_opening_question_user_prompt(
-            concept_name=concept_name,
-            description=concept_description,
+            objective=objective,
+            methodology=methodology_schema,
         )
 
         try:
@@ -172,7 +194,7 @@ class QuestionService:
 
             log.info(
                 "opening_question_generated",
-                concept=concept_name,
+                objective=objective[:100],
                 question_length=len(question),
             )
 

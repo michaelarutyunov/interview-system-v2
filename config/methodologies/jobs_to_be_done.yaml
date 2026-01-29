@@ -6,6 +6,8 @@
 method:
   name: jobs_to_be_done
   version: "2.0"
+  goal: "Understand what jobs users are trying to accomplish and what motivates them"
+  opening_bias: "Ask about a specific recent time they made a decision or change related to the topic."
   description: "Framework for understanding customer motivation and needs through job statements"
 
 ontology:

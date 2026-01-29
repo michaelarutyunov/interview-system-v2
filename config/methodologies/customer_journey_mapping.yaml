@@ -2,6 +2,7 @@ method:
   name: customer_journey_mapping
   version: "1.0"
   goal: "Describe customer experience over time through stages, touchpoints, and states"
+  opening_bias: "Ask them to walk you through their most recent experience with this service or product."
 
 nodes:
   - name: stage

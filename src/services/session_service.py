@@ -15,6 +15,7 @@ from uuid import uuid4
 import structlog
 
 from src.core.config import interview_config
+from src.core.concept_loader import load_concept
 from src.domain.models.extraction import ExtractionResult
 from src.domain.models.knowledge_graph import GraphState, KGNode
 from src.domain.models.utterance import Utterance
@@ -111,7 +112,14 @@ class SessionService:
         # Create services with graph_repo where needed
         self.extraction = extraction_service or ExtractionService()
         self.graph = graph_service or GraphService(graph_repo)
-        self.question = question_service or QuestionService()
+
+        # Question service needs methodology for opening question generation
+        # We'll create it with a default and update it when we have a session
+        if question_service:
+            self.question = question_service
+        else:
+            # Create with default methodology, will be updated per session
+            self.question = QuestionService(methodology="means_end_chain")
 
         # Create utterance repo if not provided
         if utterance_repo is None:
@@ -409,13 +417,25 @@ class SessionService:
         if not session:
             raise ValueError(f"Session {session_id} not found")
 
-        # Get concept name from session
-        concept_name = session.concept_name
-        concept_description = ""  # Not stored in Session model
+        # Load concept to get objective and methodology
+        concept = load_concept(session.concept_id)
+
+        # Update question service with the correct methodology
+        self.question.methodology = concept.methodology
+
+        # Extract objective from concept context
+        # Try objective first (new field for exploratory interviews)
+        # Fall back to insight for backward compatibility
+        # Finally fall back to concept name if neither exists
+        if concept.context.objective:
+            objective = concept.context.objective
+        elif concept.context.insight:
+            objective = concept.context.insight
+        else:
+            objective = concept.name
 
         question = await self.question.generate_opening_question(
-            concept_name=concept_name,
-            concept_description=concept_description,
+            objective=objective,
         )
 
         # Save as system utterance (turn 0)
@@ -426,7 +446,12 @@ class SessionService:
             text=question,
         )
 
-        log.info("session_started", session_id=session_id, concept=concept_name)
+        log.info(
+            "session_started",
+            session_id=session_id,
+            concept=concept.name,
+            methodology=concept.methodology,
+        )
 
         return question
 

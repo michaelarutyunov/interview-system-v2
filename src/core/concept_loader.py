@@ -54,6 +54,7 @@ def load_concept(name: str, concepts_dir: Optional[Path] = None) -> Concept:
     context = ConceptContext(
         topic=context_data.get("topic", ""),
         insight=context_data.get("insight", ""),
+        objective=context_data.get("objective"),  # New field for exploratory interviews
         promise=context_data.get("promise"),
         rtb=context_data.get("rtb"),
     )

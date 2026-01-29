@@ -8,6 +8,7 @@ from src.llm.prompts.question import (
     get_graph_summary,
     format_question,
 )
+from src.core.schema_loader import load_methodology
 
 
 class TestQuestionSystemPrompt:
@@ -87,16 +88,35 @@ class TestOpeningQuestionPrompts:
         assert "warm" in prompt.lower() or "friendly" in prompt.lower()
 
     def test_user_prompt_includes_concept(self):
-        """User prompt includes concept name."""
-        prompt = get_opening_question_user_prompt("Oat Milk")
+        """User prompt includes objective."""
+        prompt = get_opening_question_user_prompt(
+            "Understand user experiences with Oat Milk"
+        )
         assert "Oat Milk" in prompt
 
-    def test_user_prompt_includes_description(self):
-        """User prompt includes description when provided."""
+    def test_user_prompt_includes_objective(self):
+        """User prompt includes interview objective."""
         prompt = get_opening_question_user_prompt(
-            "Oat Milk", description="Plant-based milk alternative"
+            "Understand user experiences with plant-based milk alternatives"
         )
-        assert "Plant-based" in prompt
+        assert "plant-based milk alternatives" in prompt
+        assert "objective" in prompt.lower()
+
+    def test_user_prompt_includes_methodology(self):
+        """User prompt includes methodology context when provided."""
+        schema = load_methodology("means_end_chain")
+        prompt = get_opening_question_user_prompt(
+            "Understand coffee drinking habits", methodology=schema
+        )
+        assert "means_end_chain" in prompt
+        assert "opening_bias" in prompt.lower() or "guidance" in prompt.lower()
+
+    def test_system_prompt_includes_methodology(self):
+        """System prompt includes methodology context when provided."""
+        schema = load_methodology("means_end_chain")
+        prompt = get_opening_question_system_prompt(methodology=schema)
+        assert "means_end_chain" in prompt
+        assert "Methodology Context" in prompt
 
 
 class TestGraphSummary:

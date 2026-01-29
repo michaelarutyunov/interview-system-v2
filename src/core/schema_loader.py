@@ -97,6 +97,13 @@ def _transform_unified_schema(data: dict) -> dict:
         "name": method.get("name", ""),
         "version": method.get("version", "1.0"),
         "description": method.get("description", ""),
+        "method": {
+            "name": method.get("name", ""),
+            "version": method.get("version", "1.0"),
+            "goal": method.get("goal", ""),
+            "opening_bias": method.get("opening_bias", ""),
+            "description": method.get("description", ""),
+        },
     }
 
     # Transform nodes to node_types

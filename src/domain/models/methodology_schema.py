@@ -71,7 +71,15 @@ class MethodologySchema(BaseModel):
     # New structure fields
     method: Optional[Dict[str, Any]] = Field(
         default=None,
-        description="Method metadata (name, version, goal, etc.)",
+        description="Method metadata containing:\n"
+        "- name: Methodology identifier (e.g., 'means_end_chain', 'jobs_to_be_done')\n"
+        "- version: Schema version string\n"
+        "- goal: High-level description of the methodology's purpose\n"
+        "- opening_bias: Methodology-specific guidance for opening question generation\n"
+        "  (e.g., 'Start with concrete attributes' for MEC, 'Start with job context' for JTBD)\n\n"
+        "The opening_bias field is particularly important for exploratory interviews as it\n"
+        "provides methodology-specific context to guide the LLM in generating appropriate\n"
+        "opening questions that align with the methodology's approach.",
     )
     ontology: Optional[OntologySpec] = Field(
         default=None,
@@ -135,7 +143,7 @@ class MethodologySchema(BaseModel):
                 connections = self.valid_connections[edge_type.name]
                 # Convert to EdgeConnectionSpec objects
                 edge_dict["permitted_connections"] = [
-                    EdgeConnectionSpec(from_=conn[0], to=conn[1])
+                    EdgeConnectionSpec(**{"from": conn[0], "to": conn[1]})
                     for conn in connections
                 ]
             migrated_edges.append(EdgeTypeSpec(**edge_dict))

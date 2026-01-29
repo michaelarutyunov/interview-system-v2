@@ -11,7 +11,9 @@ Generates follow-up questions based on:
 Strategy definitions are loaded from config/scoring.yaml.
 """
 
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
+
+from src.domain.models.methodology_schema import MethodologySchema
 
 
 # Strategy descriptions for prompts
@@ -195,14 +197,19 @@ def get_question_user_prompt(
     return "\n".join(prompt_parts)
 
 
-def get_opening_question_system_prompt() -> str:
+def get_opening_question_system_prompt(
+    methodology: Optional[MethodologySchema] = None,
+) -> str:
     """
     Get system prompt for generating opening questions.
+
+    Args:
+        methodology: Optional methodology schema for method-specific guidance
 
     Returns:
         System prompt string
     """
-    return """You are starting a qualitative research interview about a product or concept.
+    base_prompt = """You are an experienced qualitative moderator starting an in-depth interview.
 
 Your goal is to warmly invite the participant to share their initial thoughts.
 
@@ -216,26 +223,66 @@ Your goal is to warmly invite the participant to share their initial thoughts.
 ## Output:
 Generate ONLY the opening question - no explanations, no quotation marks."""
 
+    # Add methodology-specific guidance if provided
+    if methodology and methodology.method:
+        method_info = methodology.method
+        name = method_info.get("name", "qualitative interview")
+        goal = method_info.get("goal", "")
 
-def get_opening_question_user_prompt(concept_name: str, description: str = "") -> str:
-    """
-    Get user prompt for generating opening question.
+        methodology_guidance = f"""
+
+## Methodology Context:
+You are using the **{name}** method"""
+
+        if goal:
+            methodology_guidance += f"\nMethod goal: {goal}"
+
+        base_prompt = methodology_guidance + "\n\n" + base_prompt
+
+    return base_prompt
+
+
+def get_opening_question_user_prompt(
+    objective: str, methodology: Optional[MethodologySchema] = None
+) -> str:
+    """Generate opening question with methodology context.
 
     Args:
-        concept_name: Name of the concept/product being discussed
-        description: Optional description of the concept
+        objective: Interview objective (what we're studying)
+        methodology: Optional methodology schema for method-specific guidance
 
     Returns:
         User prompt string
     """
-    prompt = f"Generate an opening question about: {concept_name}"
+    # Extract methodology information if provided
+    method_info: Dict[str, Any] = {}
+    if methodology and methodology.method:
+        method_info = methodology.method
 
-    if description:
-        prompt += f"\n\nProduct description: {description}"
+    name = method_info.get("name", "qualitative interview")
+    goal = method_info.get("goal", "understand user experiences")
+    opening_bias = method_info.get(
+        "opening_bias", "Elicit concrete, experience-based responses."
+    )
 
-    prompt += "\n\nGenerate a warm, open-ended opening question:"
+    return f"""You are an experienced qualitative moderator starting an in-depth interview.
 
-    return prompt
+**Interview objective (for you):**
+{objective}
+
+**Methodology (for you):**
+{name}: {goal}
+
+**Method-specific opening guidance:**
+{opening_bias}
+
+**Your task:**
+- Briefly and naturally frame the topic for the respondent
+- Ask an opening question that fits the methodology
+- Prefer concrete, experience-based responses over abstract opinions
+- Keep it conversational
+
+**Generate only what the moderator would say to the respondent:**"""
 
 
 def get_graph_summary(
