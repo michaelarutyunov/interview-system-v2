@@ -34,5 +34,8 @@ commands.md
 specs/*
 sessions/*
 
+# Synthetic interview results
+synthetic_interviews/
+
 
 

@@ -14,6 +14,7 @@ from src.core.logging import configure_logging, get_logger
 from src.persistence.database import init_database
 from src.api.routes import health, sessions, synthetic
 from src.api.routes.concepts import router as concepts_router
+from src.api.routes.simulation import router as simulation_router
 from src.api.exception_handlers import setup_exception_handlers
 
 # Configure logging before anything else
@@ -75,6 +76,9 @@ app.include_router(synthetic.router)
 
 # Register concepts router
 app.include_router(concepts_router)
+
+# Register simulation router
+app.include_router(simulation_router)
 
 
 # Root endpoint

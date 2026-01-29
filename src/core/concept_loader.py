@@ -49,12 +49,17 @@ def load_concept(name: str, concepts_dir: Optional[Path] = None) -> Concept:
     with open(path) as f:
         data = yaml.safe_load(f)
 
-    # Parse context
+    # Parse context (new structure uses objective, legacy uses insight/topic/etc.)
     context_data = data.get("context", {})
+
+    # For new concepts, objective is at root level (not nested in context)
+    # For legacy concepts, it's nested in context
+    objective = data.get("objective") or context_data.get("objective")
+
     context = ConceptContext(
-        topic=context_data.get("topic", ""),
-        insight=context_data.get("insight", ""),
-        objective=context_data.get("objective"),  # New field for exploratory interviews
+        objective=objective,
+        topic=context_data.get("topic"),
+        insight=context_data.get("insight"),
         promise=context_data.get("promise"),
         rtb=context_data.get("rtb"),
     )

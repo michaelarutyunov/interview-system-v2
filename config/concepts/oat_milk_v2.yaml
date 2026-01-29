@@ -2,14 +2,11 @@ id: oat_milk_v2
 name: "Oat Milk"
 methodology: means_end_chain
 
-# Research brief context - provides LLM context about the research focus
-context:
-  topic: "Oat milk consumption and preference drivers"
-  insight: "When choosing plant-based milk, consumers weigh sensory experience against values like sustainability and health"
-  promise: "A plant-based milk that delivers café-quality texture without compromising on environmental or nutritional values"
-  rtb: "Made with specially processed oats for creamy consistency that froths like dairy"
+# Objective describes what we want to explore in this interview
+# This is a one-liner that guides the AI interviewer on the research focus
+objective: "Explore how consumers make decisions about plant-based milk alternatives, focusing on the attributes that matter most to them"
 
-# Elements define WHAT to explore - methodology-agnostic (no type field)
+# Elements define WHAT to explore - methodology-agnostic
 # The system will link extracted nodes to these elements via LLM or alias matching
 elements:
   - id: 1

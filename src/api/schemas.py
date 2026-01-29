@@ -307,3 +307,45 @@ class ScoringTurnResponse(BaseModel):
     turn_number: int
     candidates: List[ScoringCandidateSchema]
     winner_strategy_id: Optional[str] = None
+
+
+# ============ SIMULATION SCHEMAS ============
+
+
+class SimulationTurnSchema(BaseModel):
+    """Single turn in simulated interview."""
+
+    turn_number: int
+    question: str
+    response: str
+    persona: str
+    persona_name: str
+    strategy_selected: Optional[str] = None
+    should_continue: bool = True
+    latency_ms: int = 0
+
+
+class SimulationRequest(BaseModel):
+    """Request to simulate an interview."""
+
+    concept_id: str = Field(..., description="Concept ID (e.g., 'oat_milk_v2')")
+    persona_id: str = Field(default="health_conscious", description="Persona ID")
+    max_turns: int = Field(default=10, description="Maximum turns before forcing stop")
+    session_id: Optional[str] = Field(default=None, description="Optional session ID")
+
+
+class SimulationResponse(BaseModel):
+    """Result of simulated interview."""
+
+    concept_id: str
+    concept_name: str
+    product_name: str
+    objective: str
+    methodology: str
+    persona_id: str
+    persona_name: str
+    session_id: str
+    total_turns: int
+    turns: List[SimulationTurnSchema]
+    coverage_achieved: float = 0.0
+    status: str = "completed"  # completed, max_turns_reached, error
