@@ -555,23 +555,64 @@ When a node becomes exhausted, the system automatically backtracks:
 
 #### Phase-Based Weight Multipliers
 
-Strategy preferences can be adjusted per interview phase using weight multipliers:
+Strategy preferences can be adjusted per interview phase using weight multipliers defined in YAML methodology configs.
+
+**Two Code Paths:**
+
+The system has two strategy selection code paths, both supporting phase-based weights:
+
+1. **`rank_strategies()`** - Used by `MethodologyStrategyService.select_strategy()` (legacy selection without node exhaustion)
+2. **`rank_strategy_node_pairs()`** - Used by `MethodologyStrategyService.select_strategy_and_focus()` (D1 architecture with node exhaustion)
+
+Both functions apply phase weights identically:
 
 ```python
-# Phase-based scoring in rank_strategy_node_pairs()
-phase_weights = {
-    "probe_attribute": 1.5,  # Boost probing in early phase
-    "connect_concepts": 2.0, # Prioritize connections in mid phase
-    "validate_findings": 1.8, # Focus on validation in late phase
-}
+# Phase detection from meta.interview.phase signal
+current_phase = signals.get("meta.interview.phase", "mid")  # early/mid/late
 
-score *= phase_weights.get(strategy.name, 1.0)
+# Phase weight retrieval from YAML config
+phase_weights = None
+if config.phases and current_phase in config.phases:
+    phase_weights = config.phases[current_phase].signal_weights
+
+# Base score calculation using signal weights
+base_score = score_strategy(strategy, signals)
+
+# Phase weight multiplication
+if phase_weights and strategy.name in phase_weights:
+    multiplier = phase_weights[strategy.name]
+    final_score = base_score * multiplier
+else:
+    multiplier = 1.0
+    final_score = base_score
+```
+
+**YAML Configuration Example:**
+
+```yaml
+# src/methodologies/config/means_end_chain.yaml
+phases:
+  early:
+    signal_weights:
+      deepen: 1.5      # Boost deepen in early phase
+      clarify: 1.2
+      reflect: 0.8     # Reduce reflect in early phase
+  mid:
+    signal_weights:
+      deepen: 1.0      # Default scoring in mid phase
+      clarify: 1.0
+      reflect: 1.0
+  late:
+    signal_weights:
+      deepen: 0.5      # Reduce deepen in late phase
+      clarify: 0.8
+      reflect: 1.8     # Boost reflect in late phase
 ```
 
 **Phase-based behavior:**
-- **Early phase**: Boost strategies that explore new concepts
-- **Mid phase**: Boost strategies that build connections and depth
-- **Late phase**: Boost strategies that validate and verify findings
+- **Early phase**: Boost strategies that explore new concepts (`deepen`, `clarify`)
+- **Mid phase**: Use default weights for balanced exploration
+- **Late phase**: Boost strategies that validate and verify findings (`reflect`)
 
 This ensures the interview adapts its strategy preferences as the knowledge graph matures.
 

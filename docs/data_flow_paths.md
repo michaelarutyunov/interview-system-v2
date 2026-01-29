@@ -69,6 +69,8 @@ This ensures that:
 
 **Phase 6 (2026-01-28)**: System now uses methodology-based signal detection with YAML configuration, replacing the old two-tier scoring system.
 
+**Phase Weights (2026-01-29)**: Phase-based weight multipliers are applied to strategy scores based on interview phase (early/mid/late).
+
 ```mermaid
 graph LR
     A[graph_state] -->|read| B[StrategySelectionStage]
@@ -88,17 +90,35 @@ graph LR
     K --> L3[temporal.* signals]
     K --> L4[meta.* composite signals]
 
-    L1 --> M[rank_strategies]
+    L1 --> M[Signal Detection Complete]
     L2 --> M
     L3 --> M
     L4 --> M
 
-    M --> N[Strategy Score Calculation]
-    N --> O[Select Best Strategy]
-    O --> P[FocusSelectionService]
-    P --> Q[context.strategy, focus, signals]
+    M --> N[InterviewPhaseSignal.detect]
+    N --> O[meta.interview.phase]
+    O --> P{Phase in config.phases?}
 
-    Q --> R[ContinuationStage]
+    P -->|Yes| Q[config.phases[phase].signal_weights]
+    P -->|No| R[phase_weights = None]
+
+    Q --> S[rank_strategies]
+    R --> S
+
+    S --> T[Base Score Calculation]
+    T --> U{phase_weights?}
+
+    U -->|Yes| V[base_score × phase_weight]
+    U -->|No| W[final_score = base_score]
+
+    V --> X[Final Score]
+    W --> X
+
+    X --> Y[Select Best Strategy]
+    Y --> Z[FocusSelectionService]
+    Z --> AA[context.strategy, focus, signals]
+
+    AA --> AB[ContinuationStage]
 ```
 
 ### Key Points
@@ -107,7 +127,10 @@ graph LR
 - **ComposedSignalDetector** pools signals from all pools (graph, llm, temporal, meta)
 - **Signals are namespaced**: `graph.node_count`, `llm.response_depth`, `temporal.strategy_repetition_count`, etc.
 - **LLM signals are fresh** - computed every response, no cross-response caching
-- **rank_strategies()** scores strategies using YAML-defined signal_weights
+- **InterviewPhaseSignal** detects current phase (`early`, `mid`, `late`) from `meta.interview.phase` signal
+- **Phase weights** are defined in YAML config under `config.phases[phase].signal_weights`
+- **Phase weight multiplication**: `final_score = base_score × phase_weight` (or `base_score` if no phase weight)
+- **rank_strategies()** scores strategies using YAML-defined signal_weights and optional phase multipliers
 - **FocusSelectionService** centralizes focus selection based on strategy.focus_preference
 
 ### Signal Namespacing
@@ -128,16 +151,45 @@ graph LR
     A[methodology_config.yaml] -->|MethodologyRegistry.load| B[MethodologyConfig]
     B -->|config.signals| C[ComposedSignalDetector]
     B -->|config.strategies| D[rank_strategies]
+    B -->|config.phases| E[Phase Weights]
 
-    C -->|detect| E[Signals Dict]
-    E --> F{signal_weights match?}
+    C -->|detect| F[Signals Dict]
+    F --> G[InterviewPhaseSignal]
+    G --> H[meta.interview.phase]
 
-    D -->|scores| G[Best Strategy]
-    F -->|weight| G
+    H --> I{Phase in config.phases?}
+    I -->|Yes| J[config.phases[phase].signal_weights]
+    I -->|No| K[No phase weights]
 
-    G --> H[Technique Lookup]
-    H --> I[Technique Pool]
-    I --> J[Question Generation]
+    J --> L[rank_strategies with phase_weights]
+    K --> L
+
+    L --> M[Base Score × Phase Weight]
+    M --> N[Best Strategy]
+
+    N --> O[Technique Lookup]
+    O --> P[Technique Pool]
+    P --> Q[Question Generation]
+```
+
+**Phase Weight Example**:
+```yaml
+phases:
+  early:
+    signal_weights:
+      deepen: 1.5      # Boost deepen in early phase
+      clarify: 1.2
+      reflect: 0.8     # Reduce reflect in early phase
+  mid:
+    signal_weights:
+      deepen: 1.0      # Default scoring in mid phase
+      clarify: 1.0
+      reflect: 1.0
+  late:
+    signal_weights:
+      deepen: 0.5      # Reduce deepen in late phase
+      clarify: 0.8
+      reflect: 1.8     # Boost reflect in late phase
 ```
 
 ## Path 3: Graph State Mutation
@@ -310,9 +362,24 @@ graph LR
     L --> M[meta.* composite signals]
     M --> N[All Signals]
 
-    N -->|rank_strategies| O[Strategy Scoring]
-    O -->|signal_weights| P[Score Calculation]
-    P --> Q[Best Strategy Selected]
+    N -->|meta.interview.phase| O[InterviewPhaseSignal]
+    O --> P[Current Phase]
+
+    P -->|phase| Q{Phase in config.phases?}
+    Q -->|Yes| R[config.phases[phase].signal_weights]
+    Q -->|No| S[No phase weights]
+
+    N -->|signals| T[rank_strategies]
+    R -->|phase_weights| T
+    S -->|phase_weights=None| T
+
+    T --> U[Base Score Calculation]
+    U --> V{phase_weights?}
+    V -->|Yes| W[base_score × phase_weight]
+    V -->|No| X[final_score = base_score]
+    W --> Y[Final Score]
+    X --> Y
+    Y --> Z[Best Strategy Selected]
 ```
 
 ### Key Points
@@ -322,6 +389,9 @@ graph LR
 - **Namespaced output**: All signals returned as `{pool.signal_name: value}` dict
 - **Cost tiers**: Signals declare computation cost (FREE/LOW/MEDIUM/HIGH)
 - **Refresh triggers**: Signals declare when to refresh (PER_RESPONSE/PER_TURN/PER_SESSION)
+- **Phase detection**: `InterviewPhaseSignal` determines current phase from `meta.interview.phase`
+- **Phase weights**: Applied from `config.phases[phase].signal_weights` if phase is defined
+- **Score multiplication**: `final_score = base_score × phase_weight` when phase weights are available
 
 ## Cross-References
 
