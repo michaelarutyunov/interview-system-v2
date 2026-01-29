@@ -5,38 +5,3 @@ methodology: jobs_to_be_done
 # Objective describes what we want to explore in this interview
 # This is a one-liner that guides the AI interviewer on the research focus
 objective: "Understand the underlying jobs people are trying to accomplish when they consume coffee in the morning, and what barriers prevent them from achieving those jobs"
-
-# Elements define WHAT to explore - methodology-agnostic
-# The system will link extracted nodes to these elements via LLM or alias matching
-elements:
-  - id: 1
-    label: "Instant coffee"
-    aliases: ["instant", "coffee", "brew", "nescafe", "instant coffee"]
-
-  - id: 2
-    label: "Rush, short on time"
-    aliases: ["rush", "short on time", "busy", "no time", "morning rush", "time", "quick"]
-
-  - id: 3
-    label: "Coffee aroma"
-    aliases: ["aroma", "smell", "scent", "fragrance", "nose"]
-
-  - id: 4
-    label: "Equipment"
-    aliases: ["equipment", "machine", "brewer", "french press", "espresso machine", "gear"]
-
-  - id: 5
-    label: "Clean-up"
-    aliases: ["clean-up", "cleanup", "washing", "dishes", "cleaning", "mess"]
-
-  - id: 6
-    label: "Mental readiness"
-    aliases: ["mental readiness", "ready", "focus", "alert", "awake", "morning brain", "wake up"]
-
-  - id: 7
-    label: "Satisfaction"
-    aliases: ["satisfaction", "satisfied", "enjoy", "happy", "good", "pleased"]
-
-  - id: 8
-    label: "Purchase or buying intention"
-    aliases: ["buy", "purchase", "intention", "switch", "try", "money", "cost"]

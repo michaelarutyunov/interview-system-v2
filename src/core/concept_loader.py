@@ -1,7 +1,10 @@
 """Concept loader for concept YAML files.
 
-Loads concept definitions including elements with labels and aliases.
-Used during extraction to link extracted concepts to predefined elements.
+Loads concept definitions with optional elements (for evaluative interviews).
+For exploratory research, concepts only need id, name, methodology, and objective.
+
+Elements are legacy feature for evaluative interviews - exploratory concepts
+should not define elements since the goal is discovery without predefined topics.
 """
 
 import yaml

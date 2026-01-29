@@ -347,5 +347,4 @@ class SimulationResponse(BaseModel):
     session_id: str
     total_turns: int
     turns: List[SimulationTurnSchema]
-    coverage_achieved: float = 0.0
     status: str = "completed"  # completed, max_turns_reached, error

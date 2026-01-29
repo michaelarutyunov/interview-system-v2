@@ -5,30 +5,3 @@ methodology: means_end_chain
 # Objective describes what we want to explore in this interview
 # This is a one-liner that guides the AI interviewer on the research focus
 objective: "Explore how consumers make decisions about plant-based milk alternatives, focusing on the attributes that matter most to them"
-
-# Elements define WHAT to explore - methodology-agnostic
-# The system will link extracted nodes to these elements via LLM or alias matching
-elements:
-  - id: 1
-    label: "Creamy texture"
-    aliases: ["silky", "smooth", "foam", "froth", "mouthfeel", "creamy", "texture"]
-
-  - id: 2
-    label: "Plant-based / dairy-free"
-    aliases: ["dairy-free", "no dairy", "vegan", "lactose-free", "non-dairy", "plant", "milk alternative"]
-
-  - id: 3
-    label: "Environmentally sustainable"
-    aliases: ["eco-friendly", "planet", "environment", "carbon", "green", "sustainability"]
-
-  - id: 4
-    label: "Froths well for coffee"
-    aliases: ["foam", "froth", "coffee", "latte", "cappuccino", "steamed"]
-
-  - id: 5
-    label: "Neutral/mild taste"
-    aliases: ["mild", "neutral", "bland", "taste", "flavor", "not sweet"]
-
-  - id: 6
-    label: "Nutritional profile"
-    aliases: ["nutrition", "healthy", "vitamins", "protein", "fortified", "health"]

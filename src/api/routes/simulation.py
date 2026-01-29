@@ -111,7 +111,6 @@ async def simulate_interview(
             session_id=result.session_id,
             concept_id=result.concept_id,
             total_turns=result.total_turns,
-            coverage=result.coverage_achieved,
         )
 
         return SimulationResponse(
@@ -137,7 +136,6 @@ async def simulate_interview(
                 )
                 for t in result.turns
             ],
-            coverage_achieved=result.coverage_achieved,
             status=result.status,
         )
 

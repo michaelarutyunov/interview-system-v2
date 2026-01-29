@@ -61,7 +61,6 @@ curl -X POST "http://localhost:8000/simulation/interview" \
       "latency_ms": 1250
     }
   ],
-  "coverage_achieved": 0.67,
   "status": "completed"
 }
 ```
@@ -89,8 +88,7 @@ curl -X POST "http://localhost:8000/synthetic/respond" \
     "persona": "health_conscious",
     "interview_context": {
       "product_name": "Oat Milk",
-      "turn_number": 3,
-      "coverage_achieved": 0.4
+      "turn_number": 3
     }
   }'
 ```
@@ -112,7 +110,7 @@ curl -X POST "http://localhost:8000/synthetic/respond" \
 - `question`: The interviewer's question
 - `session_id`: Session identifier for context tracking
 - `persona`: Persona ID (default: `health_conscious`)
-- `interview_context`: Optional context with product_name, turn_number, coverage_achieved
+- `interview_context`: Optional context with product_name, turn_number
 - `use_deflection`: Override deflection behavior (null = use 20% chance)
 
 ---
@@ -202,8 +200,8 @@ synthetic_interviews/
 
 **File contents:**
 - Complete simulation result (questions, responses, strategies)
-- Metadata (concept, methodology, persona, coverage)
-- Turn-by-turn analysis with latency metrics
+- Metadata (concept, methodology, persona, total turns)
+- Turn-by-turn analysis (questions, responses, strategies, latencies)
 
 ## Python API Usage
 
@@ -229,7 +227,6 @@ async def run_simulation():
     )
 
     print(f"Simulation complete: {result.total_turns} turns")
-    print(f"Coverage achieved: {result.coverage_achieved:.1%}")
 
     # Output is automatically saved to synthetic_interviews/
     await db.close()

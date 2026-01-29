@@ -65,7 +65,6 @@ class SimulationResult:
     session_id: str
     total_turns: int
     turns: List[SimulationTurn] = field(default_factory=list)
-    coverage_achieved: float = 0.0
     status: str = "completed"  # completed, max_turns_reached, error
 
 
@@ -201,9 +200,6 @@ class SimulationService:
             )
             turns.append(turn_result)
 
-        # Get final coverage
-        coverage = await self._get_coverage(session_id)
-
         result = SimulationResult(
             concept_id=concept_id,
             concept_name=concept.name,
@@ -215,7 +211,6 @@ class SimulationService:
             session_id=session_id,
             total_turns=len(turns),
             turns=turns,
-            coverage_achieved=coverage,
             status="completed" if turn_result.should_continue else "max_turns_reached",
         )
 
@@ -223,7 +218,6 @@ class SimulationService:
             "simulation_completed",
             session_id=session_id,
             total_turns=result.total_turns,
-            coverage=coverage,
             status=result.status,
         )
 
@@ -263,7 +257,6 @@ class SimulationService:
         interview_context = {
             "product_name": product_name,
             "turn_number": turn_number + 1,  # 1-indexed for display
-            "coverage_achieved": 0.0,  # Placeholder - could fetch actual
         }
 
         # Generate synthetic response
@@ -328,20 +321,6 @@ class SimulationService:
         config = {"max_turns": max_turns}
         await self.session.session_repo.create(session, config)
 
-    async def _get_coverage(self, session_id: str) -> float:
-        """Get current coverage for session.
-
-        Args:
-            session_id: Session ID
-
-        Returns:
-            Coverage ratio (0.0-1.0)
-        """
-        coverage_stats = await self.session.session_repo.get_coverage_stats(session_id)
-        total_elements = coverage_stats["total_elements"]
-        covered_elements = coverage_stats["covered_elements"]
-        return covered_elements / total_elements if total_elements > 0 else 0.0
-
     async def _save_simulation_result(self, result: SimulationResult) -> Path:
         """Save simulation result to JSON file.
 
@@ -371,7 +350,6 @@ class SimulationService:
                 "persona_name": result.persona_name,
                 "session_id": result.session_id,
                 "total_turns": result.total_turns,
-                "coverage_achieved": result.coverage_achieved,
                 "status": result.status,
                 "saved_at": datetime.now(timezone.utc).isoformat(),
             },
@@ -398,7 +376,6 @@ class SimulationService:
             "simulation_result_saved",
             filepath=str(filepath),
             total_turns=result.total_turns,
-            coverage=result.coverage_achieved,
         )
 
         return filepath
