@@ -1,21 +1,31 @@
 # Interview System v2
 
-Adaptive interview system for qualitative consumer research using LLM-powered knowledge extraction and graph-based analysis.
+Adaptive interview system for qualitative consumer research using LLM-powered knowledge extraction, signal pools, and graph-based analysis with intelligent backtracking.
 
 ## Features
 
-- **Adaptive Interviewing**: AI-powered questioning that adapts based on respondent answers using signal pools
+### Core Capabilities
+- **Adaptive Interviewing**: AI-powered questioning that adapts based on respondent answers using methodology-based signal detection
 - **Knowledge Graph Extraction**: Automatic extraction of concepts and relationships from responses
-- **Node Exhaustion Detection**: Intelligent backtracking when nodes stop yielding new information
-- **Multi-Dimensional Scoring**: Coverage, depth, saturation, engagement, and strategy diversity metrics
-- **Dynamic Strategy Selection**: 9 strategies (deepen, broaden, bridge, synthesis, contrast, ease, etc.) selected via weighted scoring
-- **Phase-Based Modulation**: Exploratory → focused → closing phases with adaptive strategy preferences
-- **LLM Qualitative Signals**: Semantic understanding of respondent engagement, reasoning quality, and knowledge state
-- **MEC Chain Depth Analysis**: BFS traversal for accurate depth measurement in Means-End Chain methodology
-- **Synthetic Respondents**: Test your interviews with AI-generated personas
-- **Multiple Export Formats**: Export sessions as JSON, Markdown, or CSV
-- **Demo UI**: Interactive Streamlit interface for conducting interviews
-- **RESTful API**: Complete API for programmatic access
+- **Node Exhaustion Detection**: Intelligent backtracking when nodes stop yielding new information (D1 architecture)
+- **Signal Pools Architecture**: Four signal pools (Graph, LLM, Temporal, Meta) for comprehensive context awareness
+- **Phase-Based Strategy Selection**: Early/mid/late interview phases with adaptive strategy preferences via YAML configs
+- **Synthetic Respondents**: Test interviews with AI-generated personas for rapid iteration
+
+### Strategy System
+- **9 Questioning Strategies**: deepen, clarify, reflect, elaborate, probe, connect, validate, synthesize, bridge
+- **Dynamic Scoring**: Strategy selection via YAML-configured signal weights
+- **Phase Weights**: Interview phase multipliers (early/mid/late) adjust strategy preferences
+- **Focus Selection**: Intelligent node selection based on strategy preferences and node state
+
+### Interview Modes
+- **Exploratory** (default): Pure exploration without coverage pressure
+- **Graph-Driven**: Deprecated - use Exploratory mode
+
+### Analysis & Export
+- **Multiple Export Formats**: JSON, Markdown, CSV
+- **Session Scoring**: Turn-by-turn strategy selection and signal tracking
+- **Knowledge Graph Visualization**: Real-time graph state in UI
 
 ## Quick Start
 
@@ -30,7 +40,7 @@ Adaptive interview system for qualitative consumer research using LLM-powered kn
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/michaelarutyunov/interview-system-v2.git
 cd interview-system-v2
 
 # Install dependencies with uv (recommended)
@@ -101,8 +111,8 @@ uv run pytest -v
 # Run ruff (linting + formatting)
 uv run ruff check . --fix
 
-# Run pyright (type checking)
-uv run pyright src/
+# Run ruff format
+uv run ruff format .
 ```
 
 ## Project Structure
@@ -111,50 +121,61 @@ uv run pyright src/
 interview-system-v2/
 ├── src/
 │   ├── api/
-│   │   ├── routes/          # API endpoints (sessions, synthetic, concepts, health)
+│   │   ├── routes/          # API endpoints (sessions, synthetic, simulation, concepts, health)
 │   │   └── schemas.py       # Pydantic models for request/response
 │   ├── core/
-│   │   ├── config.py        # Configuration settings (YAML-based)
+│   │   ├── config_loader.py # YAML configuration loader
+│   │   ├── concept_loader.py # Concept configuration loader
+│   │   ├── persona_loader.py # Persona configuration loader
+│   │   ├── schema_loader.py # Methodology schema loader
 │   │   ├── exceptions.py    # Custom exceptions
 │   │   └── logging.py       # Structured logging setup
 │   ├── domain/
-│   │   └── models/          # Domain models (Session, Utterance, Extraction, Graph, Focus)
+│   │   └── models/          # Domain models (Session, Utterance, Extraction, Graph, NodeState)
 │   ├── llm/
 │   │   ├── client.py        # Anthropic API client (with light/heavy variants)
 │   │   └── prompts/         # Prompt templates (extraction, questioning, synthetic, qualitative)
+│   ├── methodologies/
+│   │   ├── config/          # YAML methodology configurations (MEC, JTBD, CIM, etc.)
+│   │   ├── registry.py      # Methodology registry and signal detector factory
+│   │   ├── scoring.py       # Strategy scoring with phase weights
+│   │   ├── signals/         # Signal detectors (graph, llm, temporal, meta, technique)
+│   │   └── techniques/      # Question technique templates
 │   ├── persistence/
 │   │   ├── database.py      # Database connection management
 │   │   ├── migrations/      # Database schema migrations
 │   │   └── repositories/    # Data access layer (Session, Graph, Utterance)
 │   ├── services/
-│   │   ├── extraction_service.py  # Concept extraction logic
-│   │   ├── graph_service.py       # Knowledge graph management
-│   │   ├── question_service.py    # Question generation
-│   │   ├── scoring/               # Two-tier scoring system
-│   │   │   ├── tier1/            # Hard constraint scorers (vetoes)
-│   │   │   ├── tier2/            # Weighted additive scorers
-│   │   │   ├── two_tier/         # Scoring engine orchestration
-│   │   │   ├── graph_utils.py    # Graph analysis utilities
-│   │   │   ├── signal_helpers.py # Signal extraction helpers
-│   │   │   └── llm_signals.py    # LLM qualitative signal extraction
-│   │   ├── strategy_service.py    # Strategy selection logic
-│   │   ├── session_service.py     # Session orchestration
-│   │   ├── turn_pipeline/         # Pipeline architecture for turn processing
-│   │   ├── synthetic_service.py   # Synthetic respondent generation
-│   │   └── export_service.py      # Export functionality
+│   │   ├── extraction_service.py     # Concept extraction logic
+│   │   ├── focus_selection_service.py # Focus node selection
+│   │   ├── graph_service.py          # Knowledge graph management
+│   │   ├── methodology_strategy_service.py # Strategy selection with signal pools
+│   │   ├── node_state_tracker.py     # Node state tracking for exhaustion detection
+│   │   ├── question_service.py       # Question generation
+│   │   ├── session_service.py        # Session orchestration
+│   │   ├── simulation_service.py     # AI-to-AI simulation testing
+│   │   ├── turn_pipeline/            # Pipeline architecture for turn processing
+│   │   │   ├── context.py            # Pipeline context
+│   │   │   └── stages/               # Individual pipeline stages
+│   │   └── export_service.py         # Export functionality
 │   └── main.py              # FastAPI application entry point
 ├── tests/
-│   ├── unit/               # Unit tests
-│   └── integration/        # Integration tests
+│   ├── calibration/         # Signal weight calibration tests
+│   ├── integration/         # Integration tests (E2E, phase-based, joint scoring)
+│   ├── methodology/signals/ # Signal detection tests
+│   ├── performance/         # Performance tests (node exhaustion)
+│   ├── synthetic/           # Synthetic interview tests
+│   └── unit/                # Unit tests
 ├── ui/
-│   └── streamlit_app.py    # Demo UI
+│   ├── components/          # Streamlit UI components
+│   └── streamlit_app.py     # Demo UI
 ├── config/
-│   ├── scoring.yaml        # Scoring system configuration
-│   ├── interview_config.yaml # Interview phases and settings
-│   ├── concepts/           # Concept configuration YAML files
-│   └── methodologies/      # Methodology schema definitions (node/edge types)
-├── docs/                   # Documentation
-├── .env.example            # Environment template
+│   ├── concepts/            # Concept configuration YAML files
+│   ├── methodologies/       # Methodology YAML configurations
+│   └── personas/            # Persona configuration YAML files
+├── docs/                    # Documentation (ADR, system design, data flows, API)
+├── synthetic_interviews/    # Generated synthetic interview outputs
+├── .env.example             # Environment template
 ├── pyproject.toml          # Project configuration
 └── README.md
 ```
@@ -172,7 +193,9 @@ Quick reference:
 - **Scoring**: `GET /sessions/{id}/scoring/{turn}` - View scoring details for a turn
 - **Graph**: `GET /sessions/{id}/graph` - Get knowledge graph nodes and edges
 - **Synthetic**: `POST /synthetic/respond` - Generate synthetic response
+- **Simulation**: `POST /simulation/run` - Run AI-to-AI simulation interview
 - **Concepts**: `GET /concepts` - List available concepts
+- **Personas**: `GET /personas` - List available personas
 
 ### API Usage Example
 
@@ -188,9 +211,9 @@ async def conduct_interview():
             f"{base_url}/sessions",
             json={
                 "methodology": "means_end_chain",
-                "concept_id": "yogurt_consumption",
-                "mode": "test",
-                "config": {"concept_name": "Yogurt Consumption"}
+                "concept_id": "oat_milk_v2",
+                "mode": "exploratory",
+                "config": {"concept_name": "Oat Milk"}
             }
         )
         session = response.json()
@@ -215,9 +238,9 @@ async def conduct_interview():
             )
             result = response.json()
 
-            print(f"Extracted {len(result['extracted']['concepts'])} concepts")
-            print(f"Coverage: {result['scoring']['coverage']:.2%}")
             print(f"Strategy: {result['strategy_selected']}")
+            print(f"Phase: {result.get('phase', 'unknown')}")
+            print(f"Signals: {result.get('signals', {})}")
 
             if not result["should_continue"]:
                 print("Interview complete!")
@@ -246,20 +269,45 @@ async def conduct_interview():
 7. View scoring details for each turn
 8. Export results when complete
 
-### Using the Synthetic Respondent
+### Using Synthetic Respondents
 
 ```bash
 # Generate a single synthetic response
 curl -X POST http://localhost:8000/synthetic/respond \
   -H "Content-Type: application/json" \
   -d '{
-    "question": "What do you look for when buying yogurt?",
+    "question": "What do you look for when buying oat milk?",
     "session_id": "test-session-123",
-    "persona": "health_conscious"
+    "persona_id": "health_conscious"
   }'
 
 # List available personas
-curl http://localhost:8000/synthetic/personas
+curl http://localhost:8000/personas
+```
+
+### Running AI-to-AI Simulations
+
+```bash
+# Run a simulation interview
+curl -X POST http://localhost:8000/simulation/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "concept_id": "oat_milk_v2",
+    "methodology": "means_end_chain",
+    "persona_id": "health_conscious",
+    "max_turns": 10
+  }'
+
+# Run simulation with custom config
+curl -X POST http://localhost:8000/simulation/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "concept_id": "oat_milk_v2",
+    "methodology": "means_end_chain",
+    "persona_id": "price_sensitive",
+    "max_turns": 15,
+    "mode": "exploratory"
+  }'
 ```
 
 ### Exporting Session Data
@@ -291,12 +339,10 @@ uv run ruff format .
 # Run linting (with auto-fix)
 uv run ruff check . --fix
 
-# Type checking
-uv run pyright src/
-
 # Run specific test category
 uv run pytest tests/unit/
 uv run pytest tests/integration/
+uv run pytest tests/calibration/
 
 # Run tests with coverage
 uv run pytest --cov=src --cov-report=html
@@ -304,7 +350,7 @@ uv run pytest --cov=src --cov-report=html
 
 ## Architecture Overview
 
-The system uses a layered architecture with pipeline pattern for turn processing:
+The system uses a layered architecture with pipeline pattern for turn processing and signal pools for decision-making:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -312,28 +358,32 @@ The system uses a layered architecture with pipeline pattern for turn processing
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                   │
 │  ┌─────────────────────────────────────────────────────────────┐ │
-│  │              Turn Pipeline Architecture                      │ │
-│  │  1. ContextLoading → 2. Extraction → 3. GraphUpdate        │ │
-│  │  4. StateComputation → 5. StrategySelection → 6. QuestionGen │ │
+│ │              Turn Pipeline Architecture (10 stages)            │ │
+│  │  1. ContextLoading → 2. UtteranceSaving → 3. Extraction     │ │
+│  │  4. GraphUpdate → 5. StateComputation → 6. StrategySelection│ │
+│  │  7. Continuation → 8. QuestionGeneration → 9. ResponseSaving │ │
+│  │  10. ScoringPersistence                                       │ │
 │  └─────────────────────────────────────────────────────────────┘ │
 │                                                                   │
 │  ┌─────────────────────────────────────────────────────────────┐ │
-│  │              Two-Tier Scoring Engine                         │ │
-│  │  Tier 1: Hard Constraints (Veto Checks)                     │ │
-│  │  Tier 2: Weighted Additive Scoring                          │ │
+│  │         Methodology-Based Strategy Selection                  │ │
+│  │  • Signal Pools: Graph, LLM, Temporal, Meta                  │ │
+│  │  • Phase Weights: Early/Mid/Late multipliers                  │ │
+│  │  • Node Exhaustion Detection + Backtracking (D1)             │ │
 │  └─────────────────────────────────────────────────────────────┘ │
 │                                                                   │
 ├─────────────────────────────────────────────────────────────────┤
 │                        Service Layer                             │
 │  • SessionService (orchestration)                                │
+│  • MethodologyStrategyService (strategy + focus selection)        │
 │  • ExtractionService (concept extraction)                        │
 │  • QuestionService (question generation)                         │
-│  • GraphService (knowledge graph)                                │
-│  • StrategyService (strategy selection)                          │
+│  • NodeStateTracker (node state tracking)                        │
+│  • SimulationService (AI-to-AI testing)                          │
 │  • ExportService (data export)                                   │
 ├─────────────────────────────────────────────────────────────────┤
 │                        Domain Layer                              │
-│  • Session, Utterance, Extraction, GraphState, Focus            │
+│  • Session, Utterance, Extraction, GraphState, NodeState        │
 ├─────────────────────────────────────────────────────────────────┤
 │                       Persistence Layer                          │
 │  • SQLite + aiosqlite                                            │
@@ -347,57 +397,114 @@ The system uses a layered architecture with pipeline pattern for turn processing
 
 ### Key Components
 
-- **Turn Pipeline**: Modular stages for processing each respondent turn
-- **Two-Tier Scoring**: Hard constraints (vetoes) + weighted additive scoring
-- **Strategy Selection**: Dynamic selection from 9 strategies based on graph state
-- **Qualitative Signals**: LLM-based extraction of engagement, reasoning, and knowledge state
-- **MEC Chain Depth**: BFS traversal for accurate depth measurement
+- **Turn Pipeline**: 10 modular stages for processing each respondent turn
+- **Signal Pools**: 4 signal pools (Graph, LLM, Temporal, Meta) for comprehensive context
+- **MethodologyStrategyService**: Strategy selection using YAML configs and signal detection
+- **NodeStateTracker**: Tracks node visitation, yields, and exhaustion for backtracking
+- **Phase-Based Weights**: Interview phase multipliers adjust strategy preferences
+- **D1 Architecture**: Joint strategy-node scoring with node exhaustion awareness
 
 ### Configuration-Driven Design
 
 The system is heavily configuration-driven via YAML:
 
-- `config/scoring.yaml` - Strategies, scorers, phase profiles, weights
-- `config/interview_config.yaml` - Phases, turn limits, thresholds
-- `config/methodologies/*.yaml` - Node/edge types per methodology
-- `config/concepts/*.yaml` - Element definitions per concept
+- `config/methodologies/*.yaml` - Methodology configs with signals, strategies, techniques, phases
+- `config/concepts/*.yaml` - Concept definitions with element mappings
+- `config/personas/*.yaml` - Persona definitions for synthetic interviews
 
-## Scoring System
+Example methodology config structure:
+```yaml
+name: means_end_chain
+display_name: Means-End Chain
+description: Explores attribute → consequence → value chains
 
-For detailed scoring system documentation, see [src/services/scoring/README_scoring.md](src/services/scoring/README_scoring.md).
+signals:
+  graph.max_depth:
+    class: graph.depth.GraphMaxDepthSignal
+  llm.response_depth:
+    class: llm.depth.ResponseDepthSignal
+  meta.interview.phase:
+    class: meta.interview_phase.InterviewPhaseSignal
 
-**Key Features:**
-- **Tier 1 (Vetoes)**: KnowledgeCeilingScorer, ElementExhaustedScorer, RecentRedundancyScorer
-- **Tier 2 (Weighted)**: CoverageGapScorer, AmbiguityScorer, DepthBreadthBalanceScorer, EngagementScorer, StrategyDiversityScorer, NoveltyScorer, ClusterSaturationScorer, ContrastOpportunityScorer, PeripheralReadinessScorer
-- **Phase Multipliers**: Adaptive strategy preferences per interview stage
-- **LLM Qualitative Signals**: 6 signal types for nuanced understanding
+strategies:
+  deepen:
+    signal_weights:
+      graph.max_depth.low: 2.0
+      llm.response_depth.surface: 1.5
+    focus_preference: deep
+    technique: deepen
+
+phases:
+  early:
+    signal_weights:
+      deepen: 1.5
+      clarify: 1.2
+      reflect: 0.8
+  late:
+    signal_weights:
+      deepen: 0.5
+      clarify: 0.8
+      reflect: 1.8
+```
+
+## Signal Pools Architecture
+
+The system uses four signal pools for comprehensive context awareness:
+
+| Pool | Namespace | Examples | Purpose |
+|------|-----------|----------|---------|
+| **Graph** | `graph.*` | node_count, max_depth, orphan_count, chain_completion | Knowledge graph state |
+| **LLM** | `llm.*` | response_depth, sentiment, hedging_language, global_response_trend | Semantic understanding |
+| **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_focus_change | History tracking |
+| **Meta** | `meta.*` | interview.phase, node.opportunity | Composite signals |
+
+For details, see [ADR-014: Signal Pools Architecture](docs/adr/ADR-014-signal-pools-architecture.md).
+
+## Node Exhaustion Detection
+
+The D1 architecture implements intelligent backtracking when nodes stop yielding new information:
+
+- **Node State Tracking**: Tracks visitation count, consecutive visits, yield history
+- **Exhaustion Detection**: Multiple signals detect exhausted nodes (yield stagnation, focus streak, strategy repetition)
+- **Backtracking**: Automatically shifts focus to fresh nodes with better opportunity scores
+- **Opportunity Scoring**: Ranks nodes by freshness, orphan status, and recent yield
+
+For details, see [ADR-015: Node Exhaustion Backtracking](docs/adr/ADR-015-node-exhaustion-backtracking.md).
 
 ## Methodologies
 
 The system supports multiple qualitative research methodologies defined in YAML:
 
 - **Means-End Chain**: Explores attribute → consequence → value chains
-- **Laddering**: Deepens understanding through progressive questioning
+- **Jobs to Be Done**: Explores functional and emotional jobs
 - **Critical Incident**: Examines specific experiences and behaviors
+- **Customer Journey Mapping**: Maps customer experience across touchpoints
+- **Repertory Grid**: Elicits personal constructs
 
-Methodology schemas (node types, edge types, and validation rules) are defined in `config/methodologies/` (see [ADR-007](docs/adr/007-yaml-based-methodology-schema.md)).
+Methodology configurations are in `config/methodologies/` and include:
+- Signal detectors (graph, llm, temporal, meta)
+- Strategies with signal weights
+- Question techniques
+- Phase-based weight multipliers
+- Node/edge type definitions
 
 ## Documentation
 
-- [PRD](PRD.md) - Product Requirements Document
-- [Engineering Guide](ENGINEERING_GUIDE.md) - Technical specifications
+- [SYSTEM_DESIGN](docs/SYSTEM_DESIGN.md) - Narrative system architecture
 - [API Documentation](docs/API.md) - Complete API reference
+- [Data Flow Paths](docs/data_flow_paths.md) - Critical data flow diagrams
+- [Pipeline Contracts](docs/pipeline_contracts.md) - Stage read/write specifications
 - [Development Guide](docs/DEVELOPMENT.md) - Development setup and guidelines
-- [Scoring Architecture](src/services/scoring/README_scoring.md) - Scoring system details
+- [Synthetic Personas](docs/synthetic_personas.md) - AI persona system
 - [ADR Index](docs/adr/README.md) - Architecture Decision Records
 
 ## Architecture Decision Records
 
 Key ADRs:
-- [ADR-004](docs/adr/004-two-tier-scoring-system.md) - Two-tier scoring system
-- [ADR-006](docs/adr/006-scoring-architecture.md) - Enhanced scoring architecture
-- [ADR-007](docs/adr/007-yaml-based-methodology-schema.md) - YAML-based methodology schemas
 - [ADR-008](docs/adr/008-internal-api-boundaries-pipeline-pattern.md) - Pipeline pattern for turn processing
+- [ADR-010](docs/adr/010-formalize-pipeline-contracts-strengthen-data-models.md) - Pipeline contracts formalization
+- [ADR-014](docs/adr/ADR-014-signal-pools-architecture.md) - Signal pools architecture
+- [ADR-015](docs/adr/ADR-015-node-exhaustion-backtracking.md) - Node exhaustion detection and backtracking
 
 ## License
 
