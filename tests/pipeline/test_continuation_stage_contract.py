@@ -113,9 +113,11 @@ class TestContinuationStageContract:
     @pytest.fixture
     def question_service(self):
         """Create a mock question service."""
+        from unittest.mock import Mock
         mock_service = AsyncMock()
-        mock_service.select_focus_concept = AsyncMock(
-            side_effect=mock_select_focus_concept
+        # select_focus_concept is synchronous in the actual implementation
+        mock_service.select_focus_concept = Mock(
+            side_effect=lambda **kwargs: "oat milk"
         )
         mock_service.generate_question = AsyncMock(
             return_value="Tell me more about oat milk."
