@@ -4,7 +4,7 @@ Scores strategies based on detected signals and strategy weights
 defined in methodology YAML configs.
 """
 
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Optional
 from src.methodologies.registry import StrategyConfig
 
 
@@ -98,3 +98,51 @@ def rank_strategies(
         for strategy_config in strategy_configs
     ]
     return sorted(scored, key=lambda x: x[1], reverse=True)
+
+
+def rank_strategy_node_pairs(
+    strategies: List[StrategyConfig],
+    global_signals: Dict[str, Any],
+    node_signals: Dict[str, Dict[str, Any]],
+    node_tracker=None,
+    phase_weights: Optional[Dict[str, float]] = None,
+) -> List[Tuple[StrategyConfig, str, float]]:
+    """
+    Rank (strategy, node) pairs by joint score.
+
+    This function implements the D1 architecture for joint strategy-node
+    scoring. It scores each strategy for each node, combining global signals
+    with node-specific signals.
+
+    Args:
+        strategies: List of strategy configs from YAML
+        global_signals: Dict of global detected signals
+        node_signals: Dict mapping node_id to node-specific signals
+                     {node_id: {signal_name: value}}
+        node_tracker: Optional NodeStateTracker for future use
+        phase_weights: Optional dict of phase-based weight multipliers
+                      {strategy_name: multiplier}
+
+    Returns:
+        List of (strategy_config, node_id, score) sorted descending by score
+    """
+    scored_pairs: List[Tuple[StrategyConfig, str, float]] = []
+
+    for strategy in strategies:
+        for node_id, node_signal_dict in node_signals.items():
+            # Merge global + node signals
+            # Node signals take precedence when keys overlap
+            combined_signals = {**global_signals, **node_signal_dict}
+
+            # Score strategy for this specific node
+            score = score_strategy(strategy, combined_signals)
+
+            # Apply phase weight multiplier if available
+            if phase_weights and strategy.name in phase_weights:
+                multiplier = phase_weights[strategy.name]
+                score *= multiplier
+
+            scored_pairs.append((strategy, node_id, score))
+
+    # Sort by score descending
+    return sorted(scored_pairs, key=lambda x: x[2], reverse=True)

@@ -14,6 +14,19 @@ if TYPE_CHECKING:
 
 
 @dataclass
+class PhaseConfig:
+    """Configuration for an interview phase.
+
+    Defines signal weight multipliers for a specific interview phase.
+    These multipliers are applied on top of base strategy weights.
+    """
+
+    name: str
+    description: str
+    signal_weights: dict[str, float]  # strategy_name -> multiplier
+
+
+@dataclass
 class MethodologyConfig:
     """Loaded methodology configuration."""
 
@@ -21,6 +34,7 @@ class MethodologyConfig:
     description: str
     signals: dict[str, list[str]]  # graph, llm, temporal, meta
     strategies: list["StrategyConfig"]  # List of strategy definitions
+    phases: dict[str, PhaseConfig] | None = None  # phase_name -> config
 
 
 @dataclass
@@ -83,6 +97,17 @@ class MethodologyRegistry:
         with open(config_path) as f:
             data = yaml.safe_load(f)
 
+        # Load phases if present
+        phases = None
+        if "phases" in data["methodology"]:
+            phases = {}
+            for phase_name, phase_data in data["methodology"]["phases"].items():
+                phases[phase_name] = PhaseConfig(
+                    name=phase_name,
+                    description=phase_data.get("description", ""),
+                    signal_weights=phase_data.get("signal_weights", {}),
+                )
+
         config = MethodologyConfig(
             name=data["methodology"]["name"],
             description=data["methodology"]["description"],
@@ -96,6 +121,7 @@ class MethodologyRegistry:
                 )
                 for s in data["methodology"]["strategies"]
             ],
+            phases=phases,
         )
 
         self._cache[name] = config

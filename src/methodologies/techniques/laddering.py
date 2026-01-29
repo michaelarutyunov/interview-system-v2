@@ -51,7 +51,7 @@ class LadderingTechnique(Technique):
             if hasattr(context, "signals") and context.signals:
                 max_depth = context.signals.get("graph.max_depth", 0)
                 if max_depth < 2:
-                    questions.append(f"And what does that mean for you?")
+                    questions.append("And what does that mean for you?")
         else:
             # No focus available - general laddering question
             questions.append("What's important to you about this?")

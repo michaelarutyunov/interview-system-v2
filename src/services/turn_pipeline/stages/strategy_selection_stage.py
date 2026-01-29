@@ -9,7 +9,7 @@ Phase 6 Cleanup (2026-01-28): Removed two-tier scoring fallback code.
 The two-tier scoring system has been replaced by methodology-specific signal detection.
 """
 
-from typing import TYPE_CHECKING, Optional, Dict, Any
+from typing import TYPE_CHECKING, Optional, Dict, Any, Sequence, Union
 
 import structlog
 
@@ -95,20 +95,22 @@ class StrategySelectionStage(TurnStage):
                 raise
 
         # Select strategy using methodology-based signal detection
+        # Phase 3: Use joint strategy-node scoring
         (
             strategy,
-            focus,
+            focus_node_id,
             alternatives,
             signals,
-        ) = await self._select_strategy_with_methodology(context)
+        ) = await self._select_strategy_and_node(context)
 
         # Track strategy history for diversity tracking
         # This enables the system to avoid repetitive questioning patterns
         if context.graph_state:
             context.graph_state.add_strategy_used(strategy)
 
-        # Wrap focus string in dict format for ContinuationStage compatibility
-        focus_dict = {"focus_description": focus} if focus else None
+        # Wrap node_id in dict format for ContinuationStage compatibility
+        # Phase 3: focus is now node_id (not label)
+        focus_dict = {"focus_node_id": focus_node_id} if focus_node_id else None
 
         # Create contract output (single source of truth)
         # No need to set individual fields - they're derived from the contract
@@ -124,6 +126,7 @@ class StrategySelectionStage(TurnStage):
             "strategy_selected",
             session_id=context.session_id,
             strategy=strategy,
+            focus_node_id=focus_node_id,
             has_methodology_signals=signals is not None,
             alternatives_count=len(alternatives) if alternatives else 0,
         )
@@ -156,3 +159,64 @@ class StrategySelectionStage(TurnStage):
             context.graph_state,
             response_text,
         )
+
+    async def _select_strategy_and_node(
+        self,
+        context: "PipelineContext",
+    ) -> tuple[
+        str,
+        Optional[str],
+        Sequence[Union[tuple[str, float], tuple[str, str, float]]],
+        Optional[Dict[str, Any]],
+    ]:
+        """
+        Select strategy and focus node using joint scoring.
+
+        Phase 3: Uses MethodologyStrategyService.select_strategy_and_focus()
+        for joint (strategy, node) scoring.
+
+        Args:
+            context: Turn context
+
+        Returns:
+            Tuple of (strategy_name, focus_node_id, alternatives, signals)
+            - alternatives now includes (strategy_name, node_id, score) tuples
+        """
+        # Get last response text
+        response_text = context.user_input or ""
+
+        # Use joint strategy-node scoring
+        # graph_state should be available after StateComputationStage
+        assert context.graph_state is not None, (
+            "graph_state must be set by StateComputationStage"
+        )
+
+        # Call new joint scoring method
+        (
+            strategy_name,
+            focus_node_id,
+            alternatives,
+            signals,
+        ) = await self.methodology_strategy.select_strategy_and_focus(
+            context,
+            context.graph_state,
+            response_text,
+        )
+
+        # Convert alternatives from (strategy, node_id, score) to (strategy, score)
+        # for backward compatibility with logging
+        # The full alternatives are still available in context for debugging
+        simplified_alternatives = []
+        seen_strategies = set()
+        for alt in alternatives:
+            # Handle both 2-tuple and 3-tuple formats
+            if len(alt) == 3:
+                alt_strategy, _alt_node_id, alt_score = alt
+            else:
+                alt_strategy, alt_score = alt
+
+            if alt_strategy not in seen_strategies:
+                simplified_alternatives.append((alt_strategy, alt_score))
+                seen_strategies.add(alt_strategy)
+
+        return strategy_name, focus_node_id, simplified_alternatives, signals

@@ -9,10 +9,13 @@ Phase 6: Enforced contract outputs - contracts are the single source of truth.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 
 from src.domain.models.knowledge_graph import GraphState, KGNode
 from src.domain.models.utterance import Utterance
+
+if TYPE_CHECKING:
+    from src.services.node_state_tracker import NodeStateTracker
 
 
 @dataclass
@@ -29,6 +32,11 @@ class PipelineContext:
     # =============================================================================
     session_id: str
     user_input: str
+
+    # =============================================================================
+    # Service References (shared across stages)
+    # =============================================================================
+    node_tracker: Optional["NodeStateTracker"] = None
 
     # =============================================================================
     # Stage Outputs (Contracts)

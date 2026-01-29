@@ -4,10 +4,13 @@ Maps namespaced signal names to detector classes and handles
 dynamic signal detection.
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 if TYPE_CHECKING:
     from src.services.turn_pipeline.context import PipelineContext
+    from src.services.node_state_tracker import NodeStateTracker
+else:
+    NodeStateTracker = object
 
 
 class ComposedSignalDetector:
@@ -25,8 +28,10 @@ class ComposedSignalDetector:
         signals = await detector.detect(context, graph_state, response_text)
     """
 
-    # Mapping of signal names to detector classes (lazy loaded)
-    _signal_registry: dict[str, type] = {}
+    # Mapping of signal names to detector classes or factory functions
+    # Regular signals: signal_name -> detector_class
+    # Node-level signals: signal_name -> (detector_class, "node_level")
+    _signal_registry: dict[str, Union[type, tuple]] = {}
     _initialized = False
 
     @classmethod
@@ -45,21 +50,40 @@ class ComposedSignalDetector:
             DepthByElementSignal,
             CoverageBreadthSignal,
             MissingTerminalValueSignal,
+            # Node-level signals
+            NodeExhaustedSignal,
+            NodeExhaustionScoreSignal,
+            NodeYieldStagnationSignal,
+            NodeFocusStreakSignal,
+            NodeIsCurrentFocusSignal,
+            NodeRecencyScoreSignal,
+            NodeIsOrphanSignal,
+            NodeEdgeCountSignal,
+            NodeHasOutgoingSignal,
         )
         from src.methodologies.signals.llm import (
             ResponseDepthSignal,
             SentimentSignal,
             UncertaintySignal,
             AmbiguitySignal,
+            GlobalResponseTrendSignal,
+            HedgingLanguageSignal,
         )
         from src.methodologies.signals.temporal import (
             StrategyRepetitionCountSignal,
             TurnsSinceChangeSignal,
         )
-        from src.methodologies.signals.meta import InterviewProgressSignal
+        from src.methodologies.signals.meta import (
+            InterviewProgressSignal,
+            InterviewPhaseSignal,
+            NodeOpportunitySignal,
+        )
+        from src.methodologies.signals.technique import (
+            NodeStrategyRepetitionSignal,
+        )
 
-        # Build registry: signal_name -> detector_class
-        for signal_class in [
+        # Regular signals (no dependencies)
+        regular_signals = [
             # Graph
             GraphNodeCountSignal,
             GraphEdgeCountSignal,
@@ -74,34 +98,89 @@ class ComposedSignalDetector:
             SentimentSignal,
             UncertaintySignal,
             AmbiguitySignal,
+            HedgingLanguageSignal,
+            # Note: GlobalResponseTrendSignal is session-scoped and managed separately
             # Temporal
             StrategyRepetitionCountSignal,
             TurnsSinceChangeSignal,
             # Meta
             InterviewProgressSignal,
-        ]:
+            InterviewPhaseSignal,
+        ]
+
+        # Node-level signals (require NodeStateTracker)
+        node_level_signals = [
+            # Node-level: Exhaustion
+            NodeExhaustedSignal,
+            NodeExhaustionScoreSignal,
+            NodeYieldStagnationSignal,
+            # Node-level: Engagement
+            NodeFocusStreakSignal,
+            NodeIsCurrentFocusSignal,
+            NodeRecencyScoreSignal,
+            # Node-level: Relationships
+            NodeIsOrphanSignal,
+            NodeEdgeCountSignal,
+            NodeHasOutgoingSignal,
+            # Technique
+            NodeStrategyRepetitionSignal,
+            # Meta (node-level)
+            NodeOpportunitySignal,
+        ]
+
+        # Register regular signals
+        for signal_class in regular_signals:
             detector = signal_class()
-            # Register signal_name -> detector class
             cls._signal_registry[detector.signal_name] = signal_class
+
+        # Register node-level signals with marker
+        for signal_class in node_level_signals:
+            # Create a temporary instance to get the signal name
+            # We'll create the actual instance later with NodeStateTracker
+            temp_detector = signal_class.__new__(signal_class)
+            temp_detector.signal_name = signal_class.signal_name
+            cls._signal_registry[temp_detector.signal_name] = (
+                signal_class,
+                "node_level",
+            )
 
         cls._initialized = True
 
-    def __init__(self, signal_names: list[str]):
+    def __init__(
+        self,
+        signal_names: list[str],
+        node_tracker: Optional["NodeStateTracker"] = None,
+    ):
         """Initialize composed detector.
 
         Args:
             signal_names: List of namespaced signal names to detect
+            node_tracker: NodeStateTracker instance (required for node-level signals)
         """
         self._register_signals()
         self.signal_names = signal_names
+        self.node_tracker = node_tracker
 
         # Create detector instances
-        self.detectors = []
+        self.detectors: list[Any] = []
         for signal_name in signal_names:
             if signal_name not in self._signal_registry:
                 raise ValueError(f"Unknown signal: {signal_name}")
-            detector_class = self._signal_registry[signal_name]
-            self.detectors.append(detector_class())
+
+            registry_entry = self._signal_registry[signal_name]
+
+            # Check if this is a node-level signal
+            if isinstance(registry_entry, tuple) and registry_entry[1] == "node_level":
+                # Node-level signal: (signal_class, "node_level")
+                signal_class = registry_entry[0]
+                if self.node_tracker is None:
+                    raise ValueError(
+                        f"NodeStateTracker required for node-level signal: {signal_name}"
+                    )
+                self.detectors.append(signal_class(self.node_tracker))
+            else:
+                # Regular signal: signal_class
+                self.detectors.append(registry_entry())  # type: ignore
 
     async def detect(
         self,

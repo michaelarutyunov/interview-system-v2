@@ -54,6 +54,7 @@ src/methodologies/
 
 Signals are grouped by data source with namespace prefixes:
 - **graph.***: Signals from knowledge graph (node_count, max_depth, orphan_count)
+- **graph.node.***: Per-node signals from NodeStateTracker (exhausted, recency, orphan)
 - **llm.***: LLM-based signals from response text (response_depth, sentiment, topics)
 - **temporal.***: Turn-level temporal signals (strategy_repetition_count, turns_since_focus_change)
 - **meta.***: Composite signals derived from other signals (interview_progress, exploration_score)
@@ -63,12 +64,37 @@ Example namespaced signals:
 {
     "graph.node_count": 5,
     "graph.max_depth": 2,
+    "graph.node.exhausted": {
+        "node1": "true",
+        "node2": "false"
+    },
+    "graph.node.recency_score": {
+        "node1": 1.0,
+        "node2": 0.85
+    },
     "llm.response_depth": "surface",
     "llm.sentiment": "positive",
+    "llm.hedging_language": "medium",
     "temporal.strategy_repetition_count": 3,
     "meta.interview_progress": 0.25
 }
 ```
+
+**Node-Level Signals (Phase 6):**
+
+Node-level signals return dictionaries mapping node_id to signal value:
+
+| Signal | Description | Value Type | Example |
+|--------|-------------|------------|---------|
+| `graph.node.exhausted` | Is node exhausted (no yield, shallow responses) | `"true"` / `"false"` | `{"node1": "true", "node2": "false"}` |
+| `graph.node.exhaustion_score` | Continuous exhaustion score (0-1) | float | `{"node1": 0.8, "node2": 0.2}` |
+| `graph.node.yield_stagnation` | 3+ turns without yield | `"true"` / `"false"` | `{"node1": "true", "node2": "false"}` |
+| `graph.node.focus_streak` | Categorical streak level | `"none"` / `"low"` / `"medium"` / `"high"` | `{"node1": "high", "node2": "low"}` |
+| `graph.node.is_current_focus` | Is this the current focus node | `"true"` / `"false"` | `{"node1": "true", "node2": "false"}` |
+| `graph.node.recency_score` | Recency score (1.0=current, 0.0=20+ turns ago) | float | `{"node1": 1.0, "node2": 0.75}` |
+| `graph.node.is_orphan` | Node has no edges | `"true"` / `"false"` | `{"node1": "false", "node2": "true"}` |
+| `graph.node.edge_count` | Total edge count (incoming + outgoing) | int | `{"node1": 3, "node2": 0}` |
+| `graph.node.strategy_repetition` | Strategy repetition level | `"none"` / `"low"` / `"medium"` / `"high"` | `{"node1": "high", "node2": "none"}` |
 
 #### 2. Signal Detection Lifecycle
 

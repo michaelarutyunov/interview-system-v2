@@ -18,6 +18,8 @@ methodology:
       - llm.response_depth
       - llm.sentiment
       - llm.ambiguity
+      - llm.hedging_language
+      # Note: llm.global_response_trend is session-scoped and managed separately
 
     temporal:
       - temporal.strategy_repetition_count
@@ -25,48 +27,121 @@ methodology:
 
     meta:
       - meta.interview_progress
+      - meta.interview.phase
+
+  phases:
+    early:
+      description: "Initial exploration, building graph structure"
+      signal_weights:
+        explore_situation: 1.5
+        probe_alternatives: 1.2
+        dig_motivation: 0.5
+        validate_outcome: 0.2
+        uncover_obstacles: 0.3
+
+    mid:
+      description: "Building depth and connections"
+      signal_weights:
+        dig_motivation: 1.3
+        probe_alternatives: 1.0
+        uncover_obstacles: 1.0
+        explore_situation: 0.8
+        validate_outcome: 0.5
+
+    late:
+      description: "Validation and verification"
+      signal_weights:
+        validate_outcome: 1.5
+        uncover_obstacles: 1.2
+        dig_motivation: 0.5
+        explore_situation: 0.3
 
   strategies:
     # Strategy 1: Explore the situation (elaboration)
     - name: explore_situation
       technique: elaboration
       signal_weights:
+        # Global signals
         graph.node_count: -0.3
         llm.sentiment.neutral: 0.5
         temporal.strategy_repetition_count: 0.4
+        # Node-level signals (Phase 3)
+        graph.node.focus_streak.none: 1.0  # Fresh nodes
+        graph.node.yield_stagnation.false: 0.8  # Nodes that yield
+        graph.node.exhausted.false: 0.7
       focus_preference: recent
 
     # Strategy 2: Probe alternatives (probing)
     - name: probe_alternatives
       technique: probing
       signal_weights:
+        # Global signals
         graph.coverage_breadth: 0.5
         llm.ambiguity: 0.4
+        # Node-level signals (Phase 3)
+        graph.node.is_orphan.true: 1.0  # Boost orphan nodes
+        graph.node.edge_count.low: 0.5  # Less connected nodes
+        graph.node.exhausted.false: 0.6
       focus_preference: related
 
     # Strategy 3: Dig into motivation (laddering)
     - name: dig_motivation
       technique: laddering
       signal_weights:
+        # Global signals
         llm.response_depth.surface: 0.7
         graph.max_depth: -0.4
         temporal.turns_since_strategy_change: 0.3
+        # Node-level signals (Phase 3)
+        graph.node.exhausted.false: 1.0  # Boost non-exhausted nodes
+        graph.node.focus_streak.low: 0.5  # Prefer fresh nodes
+        graph.node.exhaustion_score.low: 0.7  # Avoid exhausted nodes
       focus_preference: shallow
 
     # Strategy 4: Validate outcome (validation)
     - name: validate_outcome
       technique: validation
       signal_weights:
+        # Global signals
         meta.interview_progress: 0.6
         graph.max_depth: 0.5
         llm.response_depth.deep: 0.4
+        # Uncertainty/hedging triggers (Phase 5)
+        llm.hedging_language.high: 1.0  # Trigger on high uncertainty
+        llm.hedging_language.medium: 0.7  # Trigger on medium uncertainty
+        meta.node.opportunity.probe_deeper: 0.6  # Extraction opportunity
+        # Node-level signals (Phase 3)
+        graph.node.edge_count.high: 0.8  # Well-connected nodes
+        graph.node.focus_streak.high: 0.5  # Often-focused nodes
+        technique.node.strategy_repetition.low: 0.3  # Avoid overusing same strategy
       focus_preference: deep
+
+    # Strategy 6: Revitalize engagement (elaboration) - Phase 5
+    - name: revitalize
+      technique: elaboration
+      signal_weights:
+        # Fatigue detection triggers (Phase 5)
+        llm.global_response_trend.fatigued: 1.0  # Trigger on fatigue
+        llm.global_response_trend.shallowing: 0.5  # Prevent fatigue
+        meta.node.opportunity.exhausted: 0.3  # Try exhausted nodes with new angle
+        # Global signals
+        graph.node_count: -0.3
+        temporal.strategy_repetition_count: 0.4
+        # Node-level signals (Phase 3)
+        graph.node.focus_streak.none: 0.8  # Fresh nodes
+        graph.node.exhausted.false: 0.5
+      focus_preference: recent
 
     # Strategy 5: Uncover obstacles (probing)
     - name: uncover_obstacles
       technique: probing
       signal_weights:
+        # Global signals
         graph.orphan_count: 0.5
         llm.sentiment.negative: 0.3
         temporal.turns_since_strategy_change: 0.2
+        # Node-level signals (Phase 3)
+        graph.node.is_orphan.true: 1.0  # Boost orphan nodes
+        graph.node.yield_stagnation.false: 0.7  # Nodes that yield
+        graph.node.exhausted.false: 0.6
       focus_preference: related

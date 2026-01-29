@@ -4,8 +4,9 @@ Adaptive interview system for qualitative consumer research using LLM-powered kn
 
 ## Features
 
-- **Adaptive Interviewing**: AI-powered questioning that adapts based on respondent answers using two-tier scoring
+- **Adaptive Interviewing**: AI-powered questioning that adapts based on respondent answers using signal pools
 - **Knowledge Graph Extraction**: Automatic extraction of concepts and relationships from responses
+- **Node Exhaustion Detection**: Intelligent backtracking when nodes stop yielding new information
 - **Multi-Dimensional Scoring**: Coverage, depth, saturation, engagement, and strategy diversity metrics
 - **Dynamic Strategy Selection**: 9 strategies (deepen, broaden, bridge, synthesis, contrast, ease, etc.) selected via weighted scoring
 - **Phase-Based Modulation**: Exploratory → focused → closing phases with adaptive strategy preferences

@@ -8,6 +8,7 @@ Example signals:
 - GraphNodeCountSignal: Number of nodes in the graph
 - GraphMaxDepthSignal: Maximum chain depth in the graph
 - CoverageBreadthSignal: How well different attribute types are covered
+- NodeExhaustedSignal: Per-node exhaustion detection
 """
 
 from src.methodologies.signals.graph.structure import (
@@ -24,6 +25,21 @@ from src.methodologies.signals.graph.coverage import (
     CoverageBreadthSignal,
     MissingTerminalValueSignal,
 )
+from src.methodologies.signals.graph.node_exhaustion import (
+    NodeExhaustedSignal,
+    NodeExhaustionScoreSignal,
+    NodeYieldStagnationSignal,
+)
+from src.methodologies.signals.graph.node_engagement import (
+    NodeFocusStreakSignal,
+    NodeIsCurrentFocusSignal,
+    NodeRecencyScoreSignal,
+)
+from src.methodologies.signals.graph.node_relationships import (
+    NodeIsOrphanSignal,
+    NodeEdgeCountSignal,
+    NodeHasOutgoingSignal,
+)
 
 __all__ = [
     # Structure
@@ -37,4 +53,16 @@ __all__ = [
     # Coverage
     "CoverageBreadthSignal",
     "MissingTerminalValueSignal",
+    # Node-level: Exhaustion
+    "NodeExhaustedSignal",
+    "NodeExhaustionScoreSignal",
+    "NodeYieldStagnationSignal",
+    # Node-level: Engagement
+    "NodeFocusStreakSignal",
+    "NodeIsCurrentFocusSignal",
+    "NodeRecencyScoreSignal",
+    # Node-level: Relationships
+    "NodeIsOrphanSignal",
+    "NodeEdgeCountSignal",
+    "NodeHasOutgoingSignal",
 ]

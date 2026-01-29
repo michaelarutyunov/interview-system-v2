@@ -357,6 +357,88 @@ class GraphState:
 
 These metrics drive strategy selection via signal pools.
 
+### Node State Tracking
+
+**Phase 6 (2026-01-29)**: The system now includes per-node state tracking via `NodeStateTracker` to enable node exhaustion detection and backtracking.
+
+The `NodeState` dataclass tracks for each node:
+
+```python
+@dataclass
+class NodeState:
+    # Basic info
+    node_id: str
+    label: str
+    created_at_turn: int
+    depth: int
+
+    # Engagement metrics
+    focus_count: int              # Times this node was selected as focus
+    last_focus_turn: Optional[int]
+    turns_since_last_focus: int
+    current_focus_streak: int     # Consecutive turns as focus
+
+    # Yield metrics
+    last_yield_turn: Optional[int]
+    turns_since_last_yield: int
+    yield_count: int              # Times node produced graph changes
+    yield_rate: float             # yield_count / focus_count
+
+    # Response quality
+    all_response_depths: List[str]  # All response depths for this node
+
+    # Relationships
+    connected_node_ids: Set[str]
+    edge_count_outgoing: int
+    edge_count_incoming: int
+
+    # Strategy usage
+    strategy_usage_count: Dict[str, int]
+    last_strategy_used: Optional[str]
+    consecutive_same_strategy: int
+
+    @property
+    def is_orphan(self) -> bool:
+        """Check if node has no edges."""
+        return (self.edge_count_incoming + self.edge_count_outgoing) == 0
+```
+
+### Node Exhaustion System
+
+The node exhaustion system enables intelligent backtracking by detecting when nodes are exhausted (no longer yielding new information).
+
+**Exhaustion Detection Criteria:**
+
+A node is considered exhausted when:
+1. It has been focused on at least once
+2. No yield for 3+ turns
+3. Current focus streak is 2+ (persistent focus without yield)
+4. 2/3 of recent responses are shallow
+
+**Node-Level Signals:**
+
+| Signal | Description | Type |
+|--------|-------------|------|
+| `graph.node.exhausted` | Boolean: is node exhausted | `"true"` / `"false"` |
+| `graph.node.exhaustion_score` | Continuous: 0.0 (fresh) to 1.0 (exhausted) | float |
+| `graph.node.yield_stagnation` | Boolean: 3+ turns without yield | `"true"` / `"false"` |
+| `graph.node.focus_streak` | Categorical: none/low/medium/high | str |
+| `graph.node.is_current_focus` | Boolean: is this the current focus | `"true"` / `"false"` |
+| `graph.node.recency_score` | Continuous: 1.0 (current) to 0.0 (20+ turns ago) | float |
+| `graph.node.is_orphan` | Boolean: node has no edges | `"true"` / `"false"` |
+| `graph.node.edge_count` | Integer: total edges (incoming + outgoing) | int |
+| `graph.node.strategy_repetition` | Categorical: none/low/medium/high | str |
+
+**Backtracking Behavior:**
+
+When a node is exhausted:
+1. Exhaustion signal (`graph.node.exhausted.true`) applies negative weight
+2. Strategy selection deprioritizes the exhausted node
+3. System backtracks to non-exhausted nodes with higher yield potential
+4. Orphan nodes receive priority boost for connection
+
+This enables natural breadth-first exploration while allowing deep dives when nodes continue to yield.
+
 ---
 
 ## LLM Integration

@@ -5,6 +5,7 @@ from .knowledge_graph import KGNode, KGEdge, GraphState, NodeType, EdgeType
 from .utterance import Utterance, Speaker
 from .extraction import ExtractedConcept, ExtractedRelationship, ExtractionResult
 from .concept import Concept, ConceptContext, ConceptElement
+from .node_state import NodeState
 
 __all__ = [
     "Session",
@@ -22,4 +23,5 @@ __all__ = [
     "Concept",
     "ConceptContext",
     "ConceptElement",
+    "NodeState",
 ]
