@@ -58,6 +58,7 @@ Accepted | Proposed | Deprecated | Superseded by [ADR-YYY]
 | [011](011-p0-critical-bug-fixes.md) | P0 Critical Bug Fixes - Methodology, Coverage, Depth | **Implemented** | 2026-01-27 |
 | [013](0013-methodology-centric-architecture.md) | Methodology-Centric Architecture Refactoring | **Accepted** | 2026-01-28 |
 | [014](ADR-014-signal-pools-architecture.md) | Signal Pools Architecture | **Accepted** | 2025-01-28 |
+| [015](ADR-015-node-exhaustion-backtracking.md) | Node Exhaustion and Backtracking System | **Accepted** | 2026-01-29 |
 
 **Note**: ADR numbering collisions (008a/b, 010a/b) occurred due to parallel development. Future ADRs will use sequential numbering starting from 012.
 

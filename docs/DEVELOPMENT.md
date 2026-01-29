@@ -38,35 +38,40 @@ Guide for setting up development environment, running tests, and contributing to
    .venv\Scripts\activate  # Windows
    ```
 
-3. **Install dependencies:**
+3. **Install uv (if not already installed):**
    ```bash
-   pip install -e ".[dev]"
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+4. **Install dependencies:**
+   ```bash
+   uv sync --dev
    ```
 
    This installs:
    - Core dependencies (FastAPI, uvicorn, aiosqlite, etc.)
-   - Dev dependencies (pytest, black, isort, mypy)
+   - Dev dependencies (pytest, ruff, pyright)
 
-4. **Configure environment:**
+5. **Configure environment:**
    ```bash
    cp .env.example .env
    # Edit .env with your Anthropic API key
    ```
 
-5. **Initialize the database:**
+6. **Initialize the database:**
    ```bash
    # The database will be created automatically on first run
    # Or run tests to create test database
-   pytest
+   uv run pytest
    ```
 
-6. **Verify installation:**
+7. **Verify installation:**
    ```bash
    # Run health check
-   python -c "from src.core.config import settings; print(f'Config loaded: {settings.debug}')"
+   uv run python -c "from src.core.config import settings; print(f'Config loaded: {settings.debug}')"
 
    # Start server
-   uvicorn src.main:app --reload
+   uv run uvicorn src.main:app --reload
    ```
 
 ### IDE Setup
@@ -76,22 +81,22 @@ Guide for setting up development environment, running tests, and contributing to
 Recommended extensions:
 - Python (ms-python.python)
 - Pylance (ms-python.vscode-pylance)
-- Black Formatter (ms-python.black-formatter)
-- isort (ms-python.isort)
+- Ruff (ms-python.ruff)
 
 Create `.vscode/settings.json`:
 ```json
 {
   "python.linting.enabled": true,
-  "python.linting.pylintEnabled": true,
-  "python.formatting.provider": "black",
-  "python.formatting.blackArgs": ["--line-length=100"],
+  "python.linting.ruffEnabled": true,
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.organizeImports": true
+    "source.organizeImports": "explicit"
   },
   "python.testing.pytestEnabled": true,
-  "python.testing.pytestArgs": ["tests"]
+  "python.testing.pytestArgs": ["tests"],
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.ruff"
+  }
 }
 ```
 
@@ -100,8 +105,8 @@ Create `.vscode/settings.json`:
 1. Open project directory
 2. Settings → Project → Python Interpreter → Add → Existing Environment
 3. Select `.venv/bin/python`
-4. Settings → Tools → Black → Enable
-5. Settings → Tools → External Tools → Add isort
+4. Settings → Tools → Ruff → Enable (install Ruff plugin if needed)
+5. Configure Ruff for formatting and import sorting
 
 ---
 
@@ -125,28 +130,28 @@ tests/
 
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # Run with verbose output
-pytest -v
+uv run pytest -v
 
 # Run with coverage report
-pytest --cov=src --cov-report=html --cov-report=term
+uv run pytest --cov=src --cov-report=html --cov-report=term
 
 # Run specific test file
-pytest tests/unit/test_extraction_service.py
+uv run pytest tests/unit/test_extraction_service.py
 
 # Run specific test
-pytest tests/unit/test_extraction_service.py::test_extract_concepts
+uv run pytest tests/unit/test_extraction_service.py::test_extract_concepts
 
 # Run only unit tests
-pytest tests/unit/
+uv run pytest tests/unit/
 
 # Run only integration tests
-pytest tests/integration/
+uv run pytest tests/integration/
 
 # Run with pytest watch (auto-rerun on changes)
-ptw
+uv run ptw
 ```
 
 ### Coverage Targets
@@ -1262,8 +1267,8 @@ chore: upgrade dependencies
 
 ```bash
 # ModuleNotFoundError: No module named 'src'
-# Solution: Install in editable mode
-pip install -e .
+# Solution: Install dependencies with uv
+uv sync --dev
 ```
 
 ### Database Lock Errors

@@ -190,9 +190,12 @@ All signals use dot-notation namespacing to prevent collisions:
 | Pool | Namespace | Example Signals |
 |------|-----------|-----------------|
 | **Graph** | `graph.*` | node_count, max_depth, orphan_count, coverage_breadth |
+| **Graph (Node)** | `graph.node.*` | exhausted, yield_stagnation, focus_streak, recency_score |
 | **LLM** | `llm.*` | response_depth, sentiment, topics |
 | **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_focus_change |
 | **Meta** | `meta.*` | interview_progress, exploration_score |
+| **Meta (Node)** | `meta.node.*` | opportunity (exhausted/probe_deeper/fresh) |
+| **Meta (Interview)** | `meta.interview.*` | phase (early/mid/late) |
 
 ### YAML Configuration Flow
 
@@ -219,6 +222,86 @@ graph LR
 - Signals reflect the current conversation state
 - No stale signals from previous responses
 - Accurate strategy selection
+
+### Node-Level Signals
+
+**Phase 6 (2026-01-29)**: Node-level signals enable per-node state tracking and joint strategy-node scoring.
+
+Node-level signals use the `graph.node.*` namespace and are computed by `NodeSignalDetector` subclasses:
+
+| Signal | Description | Type | Detector |
+|--------|-------------|------|----------|
+| `graph.node.exhausted` | Boolean: is node exhausted | `"true"` / `"false"` | `NodeExhaustedSignal` |
+| `graph.node.exhaustion_score` | Continuous: 0.0 (fresh) to 1.0 (exhausted) | float | `NodeExhaustionScoreSignal` |
+| `graph.node.yield_stagnation` | Boolean: 3+ turns without yield | `"true"` / `"false"` | `NodeYieldStagnationSignal` |
+| `graph.node.focus_streak` | Categorical: none/low/medium/high | str | `NodeFocusStreakSignal` |
+| `graph.node.is_current_focus` | Boolean: is this the current focus | `"true"` / `"false"` | `NodeIsCurrentFocusSignal` |
+| `graph.node.recency_score` | Continuous: 1.0 (current) to 0.0 (20+ turns ago) | float | `NodeRecencyScoreSignal` |
+| `graph.node.is_orphan` | Boolean: node has no edges | `"true"` / `"false"` | `NodeIsOrphanSignal` |
+| `graph.node.edge_count` | Integer: total edges (incoming + outgoing) | int | `NodeEdgeCountSignal` |
+| `graph.node.strategy_repetition` | Categorical: none/low/medium/high | str | `NodeStrategyRepetitionSignal` |
+
+**Node Signal Architecture:**
+
+All node signal detectors inherit from `NodeSignalDetector` base class, which provides:
+- Access to `NodeStateTracker` for per-node state
+- Automatic iteration over all tracked nodes
+- Consistent return type: `Dict[node_id, signal_value]`
+
+### Meta Signals
+
+Meta signals provide higher-level abstractions by combining multiple lower-level signals:
+
+**Node Opportunity Signal (`meta.node.opportunity`):**
+
+Combines node-level signals to determine what action should be taken for each node:
+- **exhausted**: Node is exhausted (no yield, shallow responses, persistent focus)
+- **probe_deeper**: Deep responses but no yield (extraction opportunity)
+- **fresh**: Node has opportunity for exploration
+
+Computed by `NodeOpportunitySignal` using:
+- `graph.node.exhausted`
+- `graph.node.focus_streak`
+- `llm.response_depth`
+
+**Interview Phase Signal (`meta.interview.phase`):**
+
+Detects the current interview phase based on graph state:
+- **early**: Initial exploration (node_count < 5)
+- **mid**: Building depth and connections (node_count < 15 or orphan_count > 3)
+- **late**: Validation and verification (node_count >= 15)
+
+Computed by `InterviewPhaseSignal` using graph state metrics.
+
+### Joint Strategy-Node Scoring (Phase 3)
+
+**Phase 6 (2026-01-29)**: The system implements joint strategy-node scoring for focus selection.
+
+Instead of selecting a strategy first and then a node, the system scores all (strategy, node) pairs:
+
+```python
+def rank_strategy_node_pairs(
+    strategies: List[StrategyConfig],
+    global_signals: Dict[str, Any],
+    node_signals: Dict[str, Dict[str, Any]],
+    phase_weights: Optional[Dict[str, float]] = None,
+) -> List[Tuple[StrategyConfig, str, float]]:
+    """
+    Rank (strategy, node) pairs by joint score.
+
+    For each (strategy, node) pair:
+    1. Merge global + node signals (node signals take precedence)
+    2. Score strategy using combined signals
+    3. Apply phase weight multiplier if available
+    4. Sort all pairs by score descending
+    """
+```
+
+**Benefits:**
+- Strategy selection considers node-specific context
+- Natural integration with node exhaustion (exhausted nodes get low scores)
+- Phase-based weight multipliers adjust strategy preferences per interview phase
+- Single scoring pass for both strategy and node selection
 
 ---
 
@@ -403,41 +486,94 @@ class NodeState:
         return (self.edge_count_incoming + self.edge_count_outgoing) == 0
 ```
 
-### Node Exhaustion System
+### Node Exhaustion and Backtracking
 
-The node exhaustion system enables intelligent backtracking by detecting when nodes are exhausted (no longer yielding new information).
+**Phase 6 (2026-01-29)**: The node exhaustion system enables intelligent backtracking by detecting when nodes are exhausted (no longer yielding new information).
 
-**Exhaustion Detection Criteria:**
+#### Exhaustion Detection Criteria
 
-A node is considered exhausted when:
-1. It has been focused on at least once
-2. No yield for 3+ turns
-3. Current focus streak is 2+ (persistent focus without yield)
-4. 2/3 of recent responses are shallow
+A node is considered **exhausted** when all of the following conditions are met:
 
-**Node-Level Signals:**
+1. **Minimum engagement**: The node has been focused on at least once (`focus_count >= 1`)
+2. **Yield stagnation**: No yield (graph changes) for 3+ turns (`turns_since_last_yield >= 3`)
+3. **Persistent focus**: Current focus streak is 2+ consecutive turns (`current_focus_streak >= 2`)
+4. **Shallow responses**: 2/3 of recent responses are shallow (indicates topic depletion)
 
-| Signal | Description | Type |
-|--------|-------------|------|
-| `graph.node.exhausted` | Boolean: is node exhausted | `"true"` / `"false"` |
-| `graph.node.exhaustion_score` | Continuous: 0.0 (fresh) to 1.0 (exhausted) | float |
-| `graph.node.yield_stagnation` | Boolean: 3+ turns without yield | `"true"` / `"false"` |
-| `graph.node.focus_streak` | Categorical: none/low/medium/high | str |
-| `graph.node.is_current_focus` | Boolean: is this the current focus | `"true"` / `"false"` |
-| `graph.node.recency_score` | Continuous: 1.0 (current) to 0.0 (20+ turns ago) | float |
-| `graph.node.is_orphan` | Boolean: node has no edges | `"true"` / `"false"` |
-| `graph.node.edge_count` | Integer: total edges (incoming + outgoing) | int |
-| `graph.node.strategy_repetition` | Categorical: none/low/medium/high | str |
+#### Node-Level Exhaustion Signals
 
-**Backtracking Behavior:**
+The system provides multiple signals for exhaustion detection:
 
-When a node is exhausted:
-1. Exhaustion signal (`graph.node.exhausted.true`) applies negative weight
-2. Strategy selection deprioritizes the exhausted node
-3. System backtracks to non-exhausted nodes with higher yield potential
-4. Orphan nodes receive priority boost for connection
+| Signal | Type | Purpose |
+|--------|------|---------|
+| `graph.node.exhausted` | boolean | Primary exhaustion flag for strategy weights |
+| `graph.node.exhaustion_score` | float (0.0-1.0) | Continuous score for fine-grained scoring |
+| `graph.node.yield_stagnation` | boolean | Early warning: 3+ turns without yield |
+| `graph.node.focus_streak` | categorical | Track persistent focus (none/low/medium/high) |
+| `graph.node.recency_score` | float (0.0-1.0) | How recently node was focused (decays over 20 turns) |
 
-This enables natural breadth-first exploration while allowing deep dives when nodes continue to yield.
+#### Exhaustion Score Calculation
+
+The continuous exhaustion score combines multiple factors:
+
+```python
+exhaustion_score = (
+    min(turns_since_last_yield, 10) / 10.0 * 0.4 +  # 0.0-0.4: Yield stagnation
+    min(current_focus_streak, 5) / 5.0 * 0.3 +      # 0.0-0.3: Persistent focus
+    shallow_response_ratio * 0.3                      # 0.0-0.3: Response quality
+)
+```
+
+**Score interpretation:**
+- `0.0 - 0.3`: Fresh node, high opportunity
+- `0.3 - 0.6`: Moderate engagement, some yield
+- `0.6 - 1.0`: Exhausted, backtracking recommended
+
+#### Backtracking Behavior
+
+When a node becomes exhausted, the system automatically backtracks:
+
+1. **Exhaustion signal applies negative weight**: Strategies targeting exhausted nodes receive `graph.node.exhausted.true` signal with negative weight in methodology configs
+
+2. **Strategy selection deprioritizes exhausted nodes**: During joint strategy-node scoring, exhausted nodes receive lower scores:
+   ```yaml
+   # Example methodology config
+   probe_attribute:
+     signal_weights:
+       graph.node.exhausted.true: -5.0  # Strong penalty for exhausted nodes
+       graph.node.is_orphan.true: 3.0   # Boost for orphan nodes
+   ```
+
+3. **System backtracks to high-yield nodes**: Focus selection service chooses nodes with better opportunity scores:
+   - Nodes with `meta.node.opportunity: "fresh"` get priority
+   - Orphan nodes receive priority boost for connection
+   - Nodes with recent yield history are preferred
+
+4. **Natural breadth-first exploration**: The system oscillates between:
+   - **Deep dive**: Focusing on a productive node until exhaustion
+   - **Backtracking**: Switching to fresh nodes when current node is exhausted
+   - **Revisiting**: Returning to nodes after other exploration (recency score decay)
+
+#### Phase-Based Weight Multipliers
+
+Strategy preferences can be adjusted per interview phase using weight multipliers:
+
+```python
+# Phase-based scoring in rank_strategy_node_pairs()
+phase_weights = {
+    "probe_attribute": 1.5,  # Boost probing in early phase
+    "connect_concepts": 2.0, # Prioritize connections in mid phase
+    "validate_findings": 1.8, # Focus on validation in late phase
+}
+
+score *= phase_weights.get(strategy.name, 1.0)
+```
+
+**Phase-based behavior:**
+- **Early phase**: Boost strategies that explore new concepts
+- **Mid phase**: Boost strategies that build connections and depth
+- **Late phase**: Boost strategies that validate and verify findings
+
+This ensures the interview adapts its strategy preferences as the knowledge graph matures.
 
 ---
 
