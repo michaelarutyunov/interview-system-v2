@@ -1,5 +1,7 @@
 # Coverage vs. Emergence in Adaptive Interview Systems
 
+> **Note**: In the current codebase, `GRAPH_DRIVEN` has been renamed to `EXPLORATORY` for clarity. This document uses the original design terminology (`graph-driven`) but the implementation uses `EXPLORATORY`.
+
 ## Executive Summary
 
 This document analyzes the fundamental tension between **coverage-driven** (systematic topic exploration) and **graph-driven** (emergent discovery) approaches in adaptive interview systems for qualitative research. It provides:
@@ -359,17 +361,17 @@ strategies:
 **Architecture:**
 
 ```python
-# Enum for interview modes
+# Enum for interview modes (current implementation)
 class InterviewMode(str, Enum):
-    COVERAGE_DRIVEN = "coverage_driven"
-    GRAPH_DRIVEN = "graph_driven"
+    COVERAGE_DRIVEN = "coverage_driven"  # Systematic topic exploration (evaluative)
+    EXPLORATORY = "exploratory"          # Emergent discovery (exploratory, was GRAPH_DRIVEN)
     # Future: HYBRID = "hybrid"
 
 # Session creation
 session = await session_service.create(
     concept_id="oat_milk",
     methodology="means_end_chain",
-    mode=InterviewMode.COVERAGE_DRIVEN  # or GRAPH_DRIVEN
+    mode=InterviewMode.EXPLORATORY  # or COVERAGE_DRIVEN
 )
 ```
 

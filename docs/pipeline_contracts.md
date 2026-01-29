@@ -115,8 +115,7 @@ class PipelineContext:
 
     # Strategy selection (computed in StrategySelectionStage)
     strategy: str
-    selection_result: Optional[Any]
-    focus: Optional[Dict[str, Any]]
+    focus: Optional[Dict[str, Any]]  # Contains focus_node_id when strategy selects a node
     signals: Optional[Dict[str, Any]]  # Phase 4: Methodology signals (namespaced)
     strategy_alternatives: List[tuple[str, float]]  # Phase 4: Scored alternatives
 
@@ -310,7 +309,7 @@ strategy_alternatives: List[tuple[str, float]]  # Alternatives with scores
 |--------|---------|
 | **Purpose** | Determine if interview should continue and select focus concept |
 | **Immutable Inputs** | `turn_number`, `max_turns` |
-| **Reads** | `graph_state`, `strategy`, `selection_result`, `focus` |
+| **Reads** | `graph_state`, `strategy`, `focus` (uses focus_node_id when available) |
 | **Writes** | `continuation_output` (ContinuationOutput contract) |
 | **Side Effects** | None (pure computation) |
 
