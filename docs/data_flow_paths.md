@@ -97,9 +97,9 @@ graph LR
 
     M --> N[InterviewPhaseSignal.detect]
     N --> O[meta.interview.phase]
-    O --> P{Phase in config.phases?}
+    O --> P{Phase in config?}
 
-    P -->|Yes| Q[config.phases[phase].signal_weights]
+    P -->|Yes| Q["config.phases[phase].signal_weights"]
     P -->|No| R[phase_weights = None]
 
     Q --> S[rank_strategies]
@@ -157,8 +157,8 @@ graph LR
     F --> G[InterviewPhaseSignal]
     G --> H[meta.interview.phase]
 
-    H --> I{Phase in config.phases?}
-    I -->|Yes| J[config.phases[phase].signal_weights]
+    H --> I{Phase in config?}
+    I -->|Yes| J["config.phases[phase].signal_weights"]
     I -->|No| K[No phase weights]
 
     J --> L[rank_strategies with phase_weights]
@@ -365,8 +365,8 @@ graph LR
     N -->|meta.interview.phase| O[InterviewPhaseSignal]
     O --> P[Current Phase]
 
-    P -->|phase| Q{Phase in config.phases?}
-    Q -->|Yes| R[config.phases[phase].signal_weights]
+    P -->|phase| Q{Phase in config?}
+    Q -->|Yes| R["config.phases[phase].signal_weights"]
     Q -->|No| S[No phase weights]
 
     N -->|signals| T[rank_strategies]
