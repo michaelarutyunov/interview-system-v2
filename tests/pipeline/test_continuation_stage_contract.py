@@ -114,6 +114,7 @@ class TestContinuationStageContract:
     def question_service(self):
         """Create a mock question service."""
         from unittest.mock import Mock
+
         mock_service = AsyncMock()
         # select_focus_concept is synchronous in the actual implementation
         mock_service.select_focus_concept = Mock(
@@ -208,6 +209,7 @@ class TestContinuationStageContract:
 
         # Set StateComputationOutput with recent_nodes (this is what context.recent_nodes reads from)
         from src.domain.models.pipeline_contracts import StateComputationOutput
+
         ctx.state_computation_output = StateComputationOutput(
             graph_state=graph_state,
             recent_nodes=[node1, node2],

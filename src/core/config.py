@@ -136,17 +136,6 @@ class SessionConfig(BaseModel):
     )
 
 
-class StrategyServiceConfig(BaseModel):
-    """Strategy service configuration."""
-
-    alternatives_count: int = Field(
-        default=3, ge=1, le=10, description="Number of alternative strategies to track"
-    )
-    alternatives_min_score: float = Field(
-        default=0.3, ge=0.0, le=1.0, description="Minimum score for alternatives"
-    )
-
-
 class SessionServiceConfig(BaseModel):
     """Session service configuration."""
 
@@ -179,9 +168,6 @@ class InterviewConfig(BaseModel):
 
     session: SessionConfig = Field(default_factory=SessionConfig)
     phases: PhasesConfig = Field(default_factory=PhasesConfig)
-    strategy_service: StrategyServiceConfig = Field(
-        default_factory=StrategyServiceConfig
-    )
     session_service: SessionServiceConfig = Field(default_factory=SessionServiceConfig)
 
     @field_validator("session")

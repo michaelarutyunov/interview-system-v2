@@ -5,10 +5,10 @@ rather than in two separate steps.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock
 
 from src.methodologies.scoring import rank_strategy_node_pairs
-from src.methodologies.registry import StrategyConfig
+from src.methodologies import StrategyConfig
 from src.services.methodology_strategy_service import MethodologyStrategyService
 from src.services.node_state_tracker import NodeStateTracker
 from src.domain.models.node_state import NodeState
@@ -21,31 +21,31 @@ def sample_strategies():
     strategies = [
         StrategyConfig(
             name="deepen",
+            description="Explore why something matters to understand deeper motivations",
             technique="laddering",
             signal_weights={
                 "llm.response_depth.surface": 0.8,
                 "graph.node.exhausted.false": 1.0,
                 "graph.node.focus_streak.low": 0.5,
             },
-            focus_preference="shallow",
         ),
         StrategyConfig(
             name="clarify",
+            description="Rephrase the question in simpler, clearer words",
             technique="probing",
             signal_weights={
                 "graph.node.is_orphan.true": 1.0,
                 "graph.node.exhausted.false": 0.5,
             },
-            focus_preference="related",
         ),
         StrategyConfig(
             name="explore",
+            description="Find new branches and related concepts",
             technique="elaboration",
             signal_weights={
                 "graph.node.focus_streak.none": 1.0,
                 "graph.node.yield_stagnation.false": 0.8,
             },
-            focus_preference="recent",
         ),
     ]
     return strategies
@@ -70,6 +70,7 @@ def sample_node_states():
             label="Career Growth",
             created_at_turn=1,
             depth=1,
+            node_type="attribute",
             focus_count=3,
             last_focus_turn=5,
             turns_since_last_focus=0,
@@ -87,6 +88,7 @@ def sample_node_states():
             label="Work Life Balance",
             created_at_turn=2,
             depth=2,
+            node_type="value",
             focus_count=1,
             last_focus_turn=4,
             turns_since_last_focus=1,
@@ -104,6 +106,7 @@ def sample_node_states():
             label="Remote Work",
             created_at_turn=3,
             depth=1,
+            node_type="attribute",
             focus_count=0,
             last_focus_turn=None,
             turns_since_last_focus=3,
@@ -393,32 +396,19 @@ class TestMethodologyStrategyServiceJointScoring:
     async def test_select_strategy_and_focus_without_node_tracker(
         self, mock_context, mock_graph_state
     ):
-        """Test fallback when node_tracker is not available."""
+        """Test error when node_tracker is not available."""
         # Remove node_tracker
         mock_context.node_tracker = None
 
         service = MethodologyStrategyService()
 
-        # Should fall back to legacy select_strategy
-        with patch.object(
-            service, "select_strategy", new_callable=AsyncMock
-        ) as mock_select:
-            mock_select.return_value = ("deepen", "Career Growth", [], None)
-
-            (
-                strategy_name,
-                focus_node_id,
-                alternatives,
-                signals,
-            ) = await service.select_strategy_and_focus(
+        # Should raise ValueError since node_tracker is required
+        with pytest.raises(ValueError, match="NodeStateTracker is required"):
+            await service.select_strategy_and_focus(
                 context=mock_context,
                 graph_state=mock_graph_state,
                 response_text="I want to grow in my career",
             )
-
-            # Should call fallback
-            mock_select.assert_called_once()
-            assert strategy_name == "deepen"
 
 
 class TestNodeStateSignalIntegration:
@@ -435,6 +425,7 @@ class TestNodeStateSignalIntegration:
             label="Career",
             created_at_turn=1,
             depth=1,
+            node_type="attribute",
             focus_count=3,
             current_focus_streak=2,
             all_response_depths=["shallow", "shallow", "surface"],
@@ -447,6 +438,7 @@ class TestNodeStateSignalIntegration:
             label="Balance",
             created_at_turn=2,
             depth=2,
+            node_type="value",
             focus_count=1,
             current_focus_streak=0,
             all_response_depths=["deep"],
@@ -459,6 +451,7 @@ class TestNodeStateSignalIntegration:
             label="Remote",
             created_at_turn=3,
             depth=1,
+            node_type="attribute",
             focus_count=0,
             current_focus_streak=0,
             all_response_depths=[],
@@ -554,6 +547,7 @@ class TestFullPipelineIntegration:
                 label="Career",
                 created_at_turn=1,
                 depth=1,
+                node_type="attribute",
                 focus_count=0,
                 current_focus_streak=0,
                 all_response_depths=[],

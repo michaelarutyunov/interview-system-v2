@@ -133,33 +133,6 @@ class StrategySelectionStage(TurnStage):
 
         return context
 
-    async def _select_strategy_with_methodology(
-        self,
-        context: "PipelineContext",
-    ) -> tuple[str, Optional[str], list[tuple[str, float]], Optional[Dict[str, Any]]]:
-        """
-        Select strategy using methodology-based service.
-
-        Args:
-            context: Turn context
-
-        Returns:
-            Tuple of (strategy_name, focus, alternatives, signals)
-        """
-        # Get last response text
-        response_text = context.user_input or ""
-
-        # Use methodology-based selection
-        # graph_state should be available after StateComputationStage
-        assert context.graph_state is not None, (
-            "graph_state must be set by StateComputationStage"
-        )
-        return await self.methodology_strategy.select_strategy(
-            context,
-            context.graph_state,
-            response_text,
-        )
-
     async def _select_strategy_and_node(
         self,
         context: "PipelineContext",

@@ -42,18 +42,6 @@ phases:
     n_turns: 2  # Wrap up (extendable via session.max_turns)
 
 # ============================================================================
-# Strategy Service Configuration
-# ============================================================================
-# Used by: src/services/strategy_service.py (lines 320-325)
-#
-# Controls alternative strategy tracking for transparency/debugging:
-# - alternatives_count: Number of runner-up strategies to return
-# - alternatives_min_score: Minimum score threshold (filters low-scoring candidates)
-strategy_service:
-  alternatives_count: 3  # Track top 3 non-selected strategies
-  alternatives_min_score: 0.3  # Filter out alternatives below this score
-
-# ============================================================================
 # Session Service Configuration
 # ============================================================================
 # Used by: src/services/session_service.py

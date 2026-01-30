@@ -96,6 +96,7 @@ def rank_strategies(
         List of (strategy_config, score) sorted descending by score
     """
     import structlog
+
     log = structlog.get_logger(__name__)
 
     scored = []
