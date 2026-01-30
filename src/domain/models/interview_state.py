@@ -284,4 +284,3 @@ class EmergenceState(InterviewState):
             if theme.is_active and node_id in theme.node_ids:
                 return True
         return False
-

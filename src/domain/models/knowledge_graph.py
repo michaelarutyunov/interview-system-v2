@@ -76,7 +76,6 @@ class KGEdge(BaseModel):
     model_config = {"from_attributes": True}
 
 
-
 class DepthMetrics(BaseModel):
     """Depth analysis of the knowledge graph (ADR-010).
 

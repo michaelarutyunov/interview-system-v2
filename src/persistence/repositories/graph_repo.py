@@ -107,7 +107,9 @@ class GraphRepository:
 
         node = await self.get_node(node_id)
         if node is None:
-            raise RuntimeError(f"Node creation failed: node {node_id} not found after INSERT")
+            raise RuntimeError(
+                f"Node creation failed: node {node_id} not found after INSERT"
+            )
         return node
 
     async def get_node(self, node_id: str) -> Optional[KGNode]:
@@ -360,7 +362,9 @@ class GraphRepository:
 
         edge = await self.get_edge(edge_id)
         if edge is None:
-            raise RuntimeError(f"Edge creation failed: edge {edge_id} not found after INSERT")
+            raise RuntimeError(
+                f"Edge creation failed: edge {edge_id} not found after INSERT"
+            )
         return edge
 
     async def get_edge(self, edge_id: str) -> Optional[KGEdge]:
@@ -640,4 +644,3 @@ class GraphRepository:
             else [],
             recorded_at=datetime.fromisoformat(row["recorded_at"]),
         )
-

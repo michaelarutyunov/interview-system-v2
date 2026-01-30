@@ -201,5 +201,3 @@ class TestGraphState:
         state = await repo.get_graph_state(session_id)
 
         assert state.orphan_count == 1
-
-

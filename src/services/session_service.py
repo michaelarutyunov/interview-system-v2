@@ -209,10 +209,17 @@ class SessionService:
         """
         log.info("processing_turn", session_id=session_id, input_length=len(user_input))
 
-        # Create initial context
+        # Create NodeStateTracker for this turn
+        # The tracker will be populated with existing nodes by GraphUpdateStage
+        from src.services.node_state_tracker import NodeStateTracker
+
+        node_tracker = NodeStateTracker()
+
+        # Create initial context with node_tracker
         context = PipelineContext(
             session_id=session_id,
             user_input=user_input,
+            node_tracker=node_tracker,
         )
 
         # Execute pipeline

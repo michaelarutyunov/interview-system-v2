@@ -252,13 +252,10 @@ class ContinuationStage(TurnStage):
         if not tracker or not tracker.states:
             return False
 
-        explored = [
-            ns for ns in tracker.states.values() if ns.focus_count > 0
-        ]
+        explored = [ns for ns in tracker.states.values() if ns.focus_count > 0]
         if not explored:
             return False
 
         return all(
-            ns.turns_since_last_yield >= NODE_EXHAUSTION_YIELD_GAP
-            for ns in explored
+            ns.turns_since_last_yield >= NODE_EXHAUSTION_YIELD_GAP for ns in explored
         )
