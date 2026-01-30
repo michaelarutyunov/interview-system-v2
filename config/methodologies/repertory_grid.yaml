@@ -1,128 +1,122 @@
+# Repertory Grid Methodology Configuration
+#
+# Personal construct psychology framework for understanding
+# how people categorize and evaluate differences between concepts
+
 method:
   name: repertory_grid
-  version: "1.0"
+  version: "2.0"
   goal: "Understand personal constructs and how people differentiate between similar concepts"
   opening_bias: "Ask for specific examples of when they encountered this topic in daily life."
+  description: "Personal construct psychology framework for understanding how people categorize and evaluate differences"
 
-name: repertory_grid
-version: "1.0"
-description: "Personal construct psychology framework for understanding how people categorize and evaluate differences"
+ontology:
+  nodes:
+    - name: element
+      description: "Specific item, brand, product, or variant being compared"
+      examples:
+        - "oat milk"
+        - "dairy milk"
+        - "almond milk"
 
-node_types:
-  - name: element
-    description: "Specific item, brand, product, or variant being compared"
-    examples:
-      - "oat milk"
-      - "dairy milk"
-      - "almond milk"
+    - name: construct_pole
+      description: "One end of a bipolar construct used to evaluate elements"
+      examples:
+        - "creamy"
+        - "sustainable"
+        - "neutral taste"
 
-  - name: construct_pole
-    description: "One end of a bipolar construct used to evaluate elements"
-    examples:
-      - "creamy"
-      - "sustainable"
-      - "neutral taste"
+    - name: opposite_pole
+      description: "The contrasting end of a bipolar construct"
+      examples:
+        - "watery"
+        - "environmentally harmful"
+        - "strong flavor"
 
-  - name: opposite_pole
-    description: "The contrasting end of a bipolar construct"
-    examples:
-      - "watery"
-      - "environmentally harmful"
-      - "strong flavor"
+    - name: construct
+      description: "Bipolar dimension used for evaluation (combines both poles)"
+      examples:
+        - "creamy vs watery"
+        - "sustainable vs harmful"
+        - "neutral vs strong flavor"
 
-  - name: construct
-    description: "Bipolar dimension used for evaluation (combines both poles)"
-    examples:
-      - "creamy vs watery"
-      - "sustainable vs harmful"
-      - "neutral vs strong flavor"
+    - name: rating
+      description: "Numerical score assigned to an element on a construct"
+      examples:
+        - "oat milk is 8/10 on creamy"
+        - "dairy milk is 3/10 on sustainable"
 
-  - name: rating
-    description: "Numerical score assigned to an element on a construct"
-    examples:
-      - "oat milk is 8/10 on creamy"
-      - "dairy milk is 3/10 on sustainable"
+    - name: similarity
+      description: "Shared characteristics between elements"
+      examples:
+        - "both oat and almond are plant-based"
+        - "dairy and oat both froth well"
 
-  - name: similarity
-    description: "Shared characteristics between elements"
-    examples:
-      - "both oat and almond are plant-based"
-      - "dairy and oat both froth well"
+    - name: difference
+      description: "Distinguishing characteristics between elements"
+      examples:
+        - "oat is creamier than almond"
+        - "dairy has more protein than oat"
 
-  - name: difference
-    description: "Distinguishing characteristics between elements"
-    examples:
-      - "oat is creamier than almond"
-      - "dairy has more protein than oat"
+    - name: ideal_element
+      description: "Hypothetical perfect product combining desired qualities"
+      examples:
+        - "something as creamy as dairy but sustainable like oat"
+        - "neutral taste but with nutritional value"
 
-  - name: ideal_element
-    description: "Hypothetical perfect product combining desired qualities"
-    examples:
-      - "something as creamy as dairy but sustainable like oat"
-      - "neutral taste but with nutritional value"
+    - name: laddered_construct
+      description: "Higher-level abstraction or value underlying a surface construct"
+      examples:
+        - "creamy → feels indulgent → self-care"
+        - "sustainable → responsible → good person"
 
-  - name: laddered_construct
-    description: "Higher-level abstraction or value underlying a surface construct"
-    examples:
-      - "creamy → feels indulgent → self-care"
-      - "sustainable → responsible → good person"
+  edges:
+    - name: evaluated_by
+      description: "Element is assessed using a construct"
+      permitted_connections:
+        - [element, construct]
+        - [element, construct_pole]
 
-edge_types:
-  - name: evaluated_by
-    description: "Element is assessed using a construct"
+    - name: opposite_of
+      description: "The two poles of a construct"
+      permitted_connections:
+        - [construct_pole, construct_pole]
+        - [construct_pole, opposite_pole]
 
-  - name: opposite_of
-    description: "The two poles of a construct"
+    - name: rated_on
+      description: "Rating applies a construct to an element"
+      permitted_connections:
+        - [element, rating]
 
-  - name: rated_on
-    description: "Rating applies a construct to an element"
+    - name: similar_on
+      description: "Elements share a characteristic"
+      permitted_connections:
+        - [element, construct]
+        - [element, construct_pole]
 
-  - name: similar_on
-    description: "Elements share a characteristic"
+    - name: differs_on
+      description: "Elements are distinguished by a construct"
+      permitted_connections:
+        - [element, construct]
+        - [element, construct_pole]
 
-  - name: differs_on
-    description: "Elements are distinguished by a construct"
+    - name: implies
+      description: "Construct implies or leads to another construct (laddering)"
+      permitted_connections:
+        - [construct, construct]
+        - [construct_pole, construct_pole]
+        - [construct, laddered_construct]
 
-  - name: implies
-    description: "Construct implies or leads to another construct (laddering)"
+    - name: closer_to_ideal
+      description: "Element better matches ideal specification"
+      permitted_connections:
+        - [element, ideal_element]
 
-  - name: closer_to_ideal
-    description: "Element better matches ideal specification"
-
-  - name: defines
-    description: "Construct helps define what is ideal"
-
-valid_connections:
-  evaluated_by:
-    - [element, construct]
-    - [element, construct_pole]
-
-  opposite_of:
-    - [construct_pole, construct_pole]
-    - [construct_pole, opposite_pole]
-
-  rated_on:
-    - [element, rating]
-
-  similar_on:
-    - [element, construct]
-    - [element, construct_pole]
-
-  differs_on:
-    - [element, construct]
-    - [element, construct_pole]
-
-  implies:
-    - [construct, construct]
-    - [construct_pole, construct_pole]
-    - [construct, laddered_construct]
-
-  closer_to_ideal:
-    - [element, ideal_element]
-
-  defines:
-    - [construct, ideal_element]
-    - [construct_pole, ideal_element]
+    - name: defines
+      description: "Construct helps define what is ideal"
+      permitted_connections:
+        - [construct, ideal_element]
+        - [construct_pole, ideal_element]
 
 extraction_guidelines:
   - "Use triadic elicitation: 'In what way are two of these similar but different from the third?'"
@@ -178,3 +172,96 @@ extractability_criteria:
     - "Factual specifications without personal meaning"
     - "Simple agreement or acknowledgment"
     - "Questions back to the interviewer"
+
+signals:
+  graph:
+    - graph.node_count
+    - graph.edge_density
+    - graph.orphan_count
+
+  llm:
+    - llm.response_depth
+    - llm.sentiment
+    - llm.uncertainty
+
+  temporal:
+    - temporal.strategy_repetition_count
+    - temporal.turns_since_strategy_change
+
+  meta:
+    - meta.interview_progress
+    - meta.interview.phase
+
+signal_norms:
+  graph.node_count: 40
+  graph.edge_count: 80
+  graph.orphan_count: 20
+  graph.max_depth: 6
+  temporal.strategy_repetition_count: 5
+  temporal.turns_since_strategy_change: 5
+
+strategies:
+  - name: triadic_elicitation
+    description: "Compare elements to elicit constructs using similarity/difference"
+    technique: probing
+    signal_weights:
+      graph.node_count: 0.8
+      llm.uncertainty: 0.6
+
+  - name: explore_constructs
+    description: "Explore the meaning and importance of identified constructs"
+    technique: elaboration
+    signal_weights:
+      graph.edge_density: 0.7
+      llm.response_depth.moderate: 0.8
+
+  - name: ladder_constructs
+    description: "Use 'why does that matter' to reveal higher-level constructs"
+    technique: laddering
+    signal_weights:
+      graph.max_depth: 0.9
+      llm.response_depth.deep: 0.9
+
+  - name: explore_ideal
+    description: "Understand the ideal product specification and what defines it"
+    technique: validation
+    signal_weights:
+      graph.node_count: 0.5
+      meta.interview_progress: 0.7
+
+  - name: explore_similarities
+    description: "Identify shared characteristics between elements"
+    technique: probing
+    signal_weights:
+      graph.orphan_count: 0.6
+      llm.uncertainty: 0.4
+
+phases:
+  early:
+    description: "Elicit constructs through triadic comparison"
+    signal_weights:
+      triadic_elicitation: 1.5
+      explore_constructs: 1.0
+      explore_similarities: 0.8
+    phase_bonuses:
+      triadic_elicitation: 0.3
+
+  mid:
+    description: "Deepen understanding of constructs and laddering"
+    signal_weights:
+      explore_constructs: 1.3
+      ladder_constructs: 1.4
+      triadic_elicitation: 0.5
+    phase_bonuses:
+      ladder_constructs: 0.3
+      explore_constructs: 0.2
+
+  late:
+    description: "Identify ideals and validate understanding"
+    signal_weights:
+      explore_ideal: 1.4
+      ladder_constructs: 1.0
+      explore_constructs: 0.6
+    phase_bonuses:
+      explore_ideal: 0.3
+      ladder_constructs: 0.2

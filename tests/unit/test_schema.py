@@ -15,30 +15,41 @@ from src.core.schema_loader import load_methodology, _cache
 
 @pytest.fixture
 def sample_schema_data():
-    """Sample schema data for testing."""
+    """Sample schema data for testing (new format)."""
     return {
-        "name": "test_methodology",
-        "version": "1.0",
-        "description": "Test methodology",
-        "node_types": [
-            {
-                "name": "concept_a",
-                "description": "First concept type",
-                "examples": ["example1", "example2"],
-            },
-            {
-                "name": "concept_b",
-                "description": "Second concept type",
-                "examples": ["example3"],
-            },
-        ],
-        "edge_types": [
-            {"name": "connects_to", "description": "Connection relationship"},
-            {"name": "replaces", "description": "Replacement relationship"},
-        ],
-        "valid_connections": {
-            "connects_to": [["concept_a", "concept_b"], ["concept_b", "concept_b"]],
-            "replaces": [["*", "*"]],
+        "method": {
+            "name": "test_methodology",
+            "version": "2.0",
+            "goal": "Test methodology",
+        },
+        "ontology": {
+            "nodes": [
+                {
+                    "name": "concept_a",
+                    "description": "First concept type",
+                    "examples": ["example1", "example2"],
+                },
+                {
+                    "name": "concept_b",
+                    "description": "Second concept type",
+                    "examples": ["example3"],
+                },
+            ],
+            "edges": [
+                {
+                    "name": "connects_to",
+                    "description": "Connection relationship",
+                    "permitted_connections": [
+                        ["concept_a", "concept_b"],
+                        ["concept_b", "concept_b"],
+                    ],
+                },
+                {
+                    "name": "replaces",
+                    "description": "Replacement relationship",
+                    "permitted_connections": [["*", "*"]],
+                },
+            ],
         },
     }
 
@@ -74,10 +85,10 @@ def test_methodology_schema_creation(sample_schema_data):
     """MethodologySchema can be created from dict data."""
     schema = MethodologySchema(**sample_schema_data)
 
-    assert schema.name == "test_methodology"
-    assert schema.version == "1.0"
-    assert len(schema.node_types) == 2
-    assert len(schema.edge_types) == 2
+    assert schema.method["name"] == "test_methodology"
+    assert schema.method["version"] == "2.0"
+    assert len(schema.ontology.nodes) == 2
+    assert len(schema.ontology.edges) == 2
 
 
 def test_schema_post_init_builds_lookup_sets(sample_schema_data):
@@ -159,18 +170,17 @@ def test_get_node_descriptions(sample_schema_data):
 def test_get_node_descriptions_limits_examples():
     """get_node_descriptions limits to first 3 examples."""
     schema_data = {
-        "name": "test",
-        "version": "1.0",
-        "description": "Test",
-        "node_types": [
-            {
-                "name": "many_examples",
-                "description": "Node with many examples",
-                "examples": ["ex1", "ex2", "ex3", "ex4", "ex5"],
-            }
-        ],
-        "edge_types": [],
-        "valid_connections": {},
+        "method": {"name": "test", "version": "2.0", "goal": "Test"},
+        "ontology": {
+            "nodes": [
+                {
+                    "name": "many_examples",
+                    "description": "Node with many examples",
+                    "examples": ["ex1", "ex2", "ex3", "ex4", "ex5"],
+                }
+            ],
+            "edges": [],
+        },
     }
     schema = MethodologySchema(**schema_data)
     descriptions = schema.get_node_descriptions()
@@ -200,10 +210,10 @@ def test_load_methodology_from_file(temp_schema_dir):
 
     schema = load_methodology("test_methodology", schema_dir=temp_schema_dir)
 
-    assert schema.name == "test_methodology"
-    assert schema.version == "1.0"
-    assert len(schema.node_types) == 2
-    assert len(schema.edge_types) == 2
+    assert schema.method["name"] == "test_methodology"
+    assert schema.method["version"] == "2.0"
+    assert len(schema.ontology.nodes) == 2
+    assert len(schema.ontology.edges) == 2
 
 
 def test_load_methodology_caching(temp_schema_dir):
@@ -240,12 +250,12 @@ def test_load_means_end_chain_schema():
     schema = load_methodology("means_end_chain")
 
     # Verify basic structure
-    assert schema.name == "means_end_chain"
-    assert schema.version == "3.0"
-    assert "Laddering" in schema.description
+    assert schema.method["name"] == "means_end_chain"
+    assert schema.method["version"] == "3.0"
+    assert "Laddering" in schema.method.get("description", "")
 
     # Verify all 5 node types exist
-    node_names = {nt.name for nt in schema.node_types}
+    node_names = {nt.name for nt in schema.ontology.nodes}
     assert node_names == {
         "attribute",
         "functional_consequence",
@@ -255,7 +265,7 @@ def test_load_means_end_chain_schema():
     }
 
     # Verify edge types
-    edge_names = {et.name for et in schema.edge_types}
+    edge_names = {et.name for et in schema.ontology.edges}
     assert edge_names == {"leads_to", "revises"}
 
     # Verify some specific connections
