@@ -111,7 +111,7 @@ class PipelineContext:
         """Get mode from ContextLoadingOutput."""
         if self.context_loading_output:
             return self.context_loading_output.mode
-        return "coverage_driven"
+        return "exploratory"
 
     @property
     def max_turns(self) -> int:

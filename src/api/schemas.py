@@ -21,8 +21,8 @@ class SessionCreate(BaseModel):
     concept_id: str
     config: Dict[str, Any] = Field(default_factory=dict)
     mode: InterviewMode = Field(
-        default=InterviewMode.COVERAGE_DRIVEN,
-        description="Interview execution mode: coverage_driven (systematic/evaluative) or exploratory (emergent discovery)",
+        default=InterviewMode.EXPLORATORY,
+        description="Interview execution mode",
     )
 
 
@@ -37,7 +37,7 @@ class SessionResponse(BaseModel):
     turn_count: int = 0
     created_at: datetime
     updated_at: datetime
-    mode: InterviewMode = InterviewMode.COVERAGE_DRIVEN  # NEW: Interview execution mode
+    mode: InterviewMode = InterviewMode.EXPLORATORY
 
 
 class SessionListResponse(BaseModel):

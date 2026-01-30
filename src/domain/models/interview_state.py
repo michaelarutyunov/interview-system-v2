@@ -20,10 +20,7 @@ from src.domain.models.knowledge_graph import GraphState
 
 
 class InterviewMode(str, Enum):
-    """Interview execution mode."""
-
-    COVERAGE_DRIVEN = "coverage_driven"
-    """Systematic topic exploration for concept testing (evaluative)."""
+    """Interview mode."""
 
     EXPLORATORY = "exploratory"
     """Emergent discovery for exploratory research (graph-driven)."""
@@ -49,8 +46,8 @@ class InterviewState(ABC):
     """
     Abstract base for interview state tracking.
 
-    Each interview mode (coverage-driven, graph-driven) maintains
-    different state and has different completion criteria.
+    Each interview mode maintains different state and has different
+    completion criteria.
     """
 
     @abstractmethod

@@ -16,7 +16,7 @@ class SessionState(BaseModel):
     turn_count: int = 0
     coverage_score: float = 0.0
     last_strategy: Optional[str] = None
-    mode: InterviewMode = InterviewMode.COVERAGE_DRIVEN  # NEW: Interview execution mode
+    mode: InterviewMode = InterviewMode.EXPLORATORY
 
 
 class Session(BaseModel):
@@ -30,4 +30,4 @@ class Session(BaseModel):
     updated_at: datetime
     state: SessionState
     status: str = Field(default="active")  # "active", "completed", "abandoned"
-    mode: InterviewMode = InterviewMode.COVERAGE_DRIVEN  # NEW: Interview execution mode
+    mode: InterviewMode = InterviewMode.EXPLORATORY

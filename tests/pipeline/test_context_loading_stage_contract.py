@@ -21,7 +21,7 @@ class TestContextLoadingStageContract:
         mock_session.concept_id = "oat_milk_v2"
         mock_session.concept_name = "Oat Milk v2"
         mock_session.mode = MagicMock()
-        mock_session.mode.value = "coverage"
+        mock_session.mode.value = "exploratory"
         mock_session.state = MagicMock()
         mock_session.state.turn_count = 0
 

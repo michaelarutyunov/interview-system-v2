@@ -30,7 +30,7 @@ class ContextLoadingOutput(BaseModel):
     concept_id: str = Field(description="Concept identifier")
     concept_name: str = Field(description="Human-readable concept name")
     turn_number: int = Field(ge=0, description="Current turn number (0-indexed)")
-    mode: str = Field(description="Interview mode (e.g., 'coverage', 'depth')")
+    mode: str = Field(description="Interview mode (e.g., 'exploratory')")
     max_turns: int = Field(ge=1, description="Maximum number of turns")
 
     # Conversation history

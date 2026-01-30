@@ -30,7 +30,7 @@ class TurnContext(BaseModel):
     graph_state: GraphState
     recent_nodes: List[KGNode] = Field(default_factory=list)
     conversation_history: List[Utterance] = Field(default_factory=list)
-    mode: InterviewMode = InterviewMode.COVERAGE_DRIVEN
+    mode: InterviewMode = InterviewMode.EXPLORATORY
 
     # Additional context fields
     methodology: str = ""

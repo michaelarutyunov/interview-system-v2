@@ -67,7 +67,7 @@ class SessionContext:
     concept_id: str
     concept_name: str
     turn_number: int
-    mode: str  # NEW: Interview mode (coverage_driven or graph_driven)
+    mode: str  # Interview mode (exploratory)
     max_turns: int = 20
     recent_utterances: List[Dict[str, str]] = field(default_factory=list)
     graph_state: Optional[GraphState] = None

@@ -41,7 +41,7 @@ class TestScoringPersistenceStageContract:
             concept_id="oat_milk_v2",
             concept_name="Oat Milk v2",
             turn_number=1,
-            mode="coverage_driven",
+            mode="exploratory",
             max_turns=20,
             recent_utterances=[],
             strategy_history=[],

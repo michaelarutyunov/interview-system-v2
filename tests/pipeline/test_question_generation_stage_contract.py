@@ -45,7 +45,7 @@ class TestQuestionGenerationStageContract:
             concept_id="oat_milk",
             concept_name="Oat Milk",
             turn_number=1,
-            mode="coverage_driven",
+            mode="exploratory",
             max_turns=10,
             recent_utterances=[
                 {"speaker": "assistant", "text": "What do you think about oat milk?"},
@@ -123,7 +123,7 @@ class TestQuestionGenerationStageContract:
             concept_id="oat_milk",
             concept_name="Oat Milk",
             turn_number=10,
-            mode="coverage_driven",
+            mode="exploratory",
             max_turns=10,
             recent_utterances=[],
             strategy_history=[],
