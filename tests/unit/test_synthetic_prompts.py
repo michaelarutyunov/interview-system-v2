@@ -80,13 +80,11 @@ class TestUserPrompts:
             interview_context={
                 "product_name": "Oat Milk",
                 "turn_number": 5,
-                "coverage_achieved": 0.6,
             },
         )
 
         assert "Oat Milk" in prompt
         assert "Turn 5" in prompt
-        assert "60% coverage" in prompt
 
     def test_user_prompt_all_parameters(self):
         """User prompt works with all parameters."""
@@ -97,7 +95,6 @@ class TestUserPrompts:
             interview_context={
                 "product_name": "Oat Milk",
                 "turn_number": 3,
-                "coverage_achieved": 0.4,
             },
         )
 

@@ -1,13 +1,11 @@
 """Session repository for database operations."""
 
 import json
-import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any
 
 import aiosqlite
 
-from src.core.concept_loader import load_concept
 from src.domain.models.session import Session, SessionState
 from src.domain.models.utterance import Utterance
 import structlog
@@ -30,8 +28,8 @@ class SessionRepository:
             config_json = json.dumps(config or {})
             await db.execute(
                 "INSERT INTO sessions (id, methodology, concept_id, concept_name, status, "
-                "config, turn_count, coverage_score, created_at, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+                "config, turn_count, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
                 (
                     session.id,
                     session.methodology,
@@ -40,13 +38,9 @@ class SessionRepository:
                     session.status,
                     config_json,
                     session.state.turn_count,
-                    session.state.coverage_score,
                 ),
             )
             await db.commit()
-
-            # Populate concept_elements from concept configuration
-            await self._populate_concept_elements(db, session.id, session.concept_id)
 
             # Fetch the created session to get the timestamps
             cursor = await db.execute(
@@ -56,67 +50,6 @@ class SessionRepository:
             if not row:
                 raise ValueError(f"Session {session.id} not found after creation")
             return self._row_to_session(row)
-
-    async def _populate_concept_elements(
-        self, db: aiosqlite.Connection, session_id: str, concept_id: str
-    ) -> None:
-        """
-        Populate concept_elements table from concept configuration.
-
-        This enables coverage tracking by copying predefined elements from
-        the concept YAML file into the database for this specific session.
-
-        Args:
-            db: Active database connection
-            session_id: Session ID to link elements to
-            concept_id: Concept ID (e.g., 'coffee_jtbd_v2')
-        """
-        try:
-            # Load concept configuration
-            concept = load_concept(concept_id)
-
-            # Insert each element
-            for element in concept.elements:
-                element_uuid = str(uuid.uuid4())
-                await db.execute(
-                    """INSERT INTO concept_elements (
-                        id, session_id, element_id, label, element_type,
-                        priority, is_covered, covered_at, covered_by_node_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, 0, NULL, NULL)""",
-                    (
-                        element_uuid,
-                        session_id,
-                        element.id,  # Integer ID from concept config
-                        element.label,
-                        "attribute",  # Default element_type
-                        "medium",  # Default priority
-                    ),
-                )
-
-            await db.commit()
-            log.info(
-                "concept_elements_populated",
-                session_id=session_id,
-                concept_id=concept_id,
-                element_count=len(concept.elements),
-            )
-
-        except FileNotFoundError:
-            # Concept file not found - log warning but don't fail session creation
-            log.warning(
-                "concept_file_not_found",
-                session_id=session_id,
-                concept_id=concept_id,
-                detail="No concept_elements populated for this session",
-            )
-        except Exception as e:
-            # Log error but don't fail session creation
-            log.error(
-                "concept_elements_population_failed",
-                session_id=session_id,
-                concept_id=concept_id,
-                error=str(e),
-            )
 
     async def get(self, session_id: str) -> Optional[Session]:
         """Get a session by ID."""
@@ -135,9 +68,9 @@ class SessionRepository:
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
                 "UPDATE sessions SET "
-                "turn_count = ?, coverage_score = ?, updated_at = datetime('now') "
+                "turn_count = ?, updated_at = datetime('now') "
                 "WHERE id = ?",
-                (state.turn_count, state.coverage_score, session_id),
+                (state.turn_count, session_id),
             )
             await db.commit()
 
@@ -200,7 +133,6 @@ class SessionRepository:
         scoring_id: str,
         session_id: str,
         turn_number: int,
-        coverage_score: float,
         depth_score: float,
         saturation_score: float,
         strategy_selected: str,
@@ -212,14 +144,13 @@ class SessionRepository:
             await db.execute(
                 """INSERT INTO scoring_history (
                     id, session_id, turn_number,
-                    coverage_score, depth_score, saturation_score,
+                    depth_score, saturation_score,
                     strategy_selected, strategy_reasoning, scorer_details
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     scoring_id,
                     session_id,
                     turn_number,
-                    coverage_score,
                     depth_score,
                     saturation_score,
                     strategy_selected,
@@ -329,23 +260,6 @@ class SessionRepository:
             )
             rows = await cursor.fetchall()
             return [row[0] for row in rows]
-
-    async def get_coverage_stats(self, session_id: str) -> Dict[str, Any]:
-        """Get coverage statistics from concept_elements table."""
-        async with aiosqlite.connect(self.db_path) as db:
-            cursor = await db.execute(
-                """SELECT
-                    COUNT(*) as total,
-                    SUM(CASE WHEN is_covered = 1 THEN 1 ELSE 0 END) as covered
-                   FROM concept_elements
-                   WHERE session_id = ?""",
-                (session_id,),
-            )
-            row = await cursor.fetchone()
-            return {
-                "total_elements": row[0] if row else 0,
-                "covered_elements": row[1] if row else 0,
-            }
 
     async def get_latest_strategy(self, session_id: str) -> Dict[str, Any]:
         """Get the most recent strategy from scoring_history."""
@@ -533,7 +447,6 @@ class SessionRepository:
                 concept_id=row["concept_id"],
                 concept_name=row["concept_name"],
                 turn_count=row["turn_count"],
-                coverage_score=row["coverage_score"] or 0.0,
                 last_strategy=None,  # Not stored in DB, computed on-demand
             ),
         )

@@ -93,7 +93,6 @@ class TestSyntheticRespondEndpoint:
                         "interview_context": {
                             "product_name": "Oat Milk",
                             "turn_number": 5,
-                            "coverage_achieved": 0.6,
                         },
                     },
                 )

@@ -149,7 +149,6 @@ class TestSyntheticInterviewFlow:
                     "interview_context": {
                         "product_name": "Oat Milk",
                         "turn_number": 2,
-                        "coverage_achieved": 0.3,
                     },
                 },
             )
@@ -207,7 +206,6 @@ class TestSyntheticInterviewFlow:
                         "interview_context": {
                             "product_name": "Test",
                             "turn_number": i + 1,
-                            "coverage_achieved": i * 0.2,
                         },
                     },
                 )

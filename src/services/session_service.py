@@ -91,7 +91,6 @@ class SessionService:
         question_service: Optional[QuestionService] = None,
         utterance_repo: Optional[UtteranceRepository] = None,
         max_turns: Optional[int] = None,
-        target_coverage: Optional[float] = None,
     ):
         """
         Initialize session service with pipeline.
@@ -104,7 +103,6 @@ class SessionService:
             question_service: Question service (creates default if None)
             utterance_repo: Utterance repository (creates default if None)
             max_turns: Maximum turns before forcing close (defaults to interview_config.yaml)
-            target_coverage: Coverage target (defaults to interview_config.yaml)
         """
         self.session_repo = session_repo
         self.graph_repo = graph_repo
@@ -130,11 +128,6 @@ class SessionService:
         self.max_turns = (
             max_turns if max_turns is not None else interview_config.session.max_turns
         )
-        self.target_coverage = (
-            target_coverage
-            if target_coverage is not None
-            else interview_config.session.target_coverage
-        )
 
         # Build pipeline with all stages
         self.pipeline = self._build_pipeline()
@@ -142,7 +135,6 @@ class SessionService:
         log.info(
             "session_service_initialized",
             max_turns=self.max_turns,
-            target_coverage=self.target_coverage,
             pipeline_stages=len(self.pipeline.stages),
         )
 
@@ -283,7 +275,6 @@ class SessionService:
             scoring_id=scoring_id,
             session_id=session_id,
             turn_number=turn_number,
-            coverage_score=scoring.get("coverage", 0.0),
             depth_score=scoring.get("depth", 0.0),
             saturation_score=scoring.get("saturation", 0.0),
             strategy_selected=strategy,
@@ -644,25 +635,16 @@ class SessionService:
             session_id: Session ID
 
         Returns:
-            Dict with turn_number, max_turns, coverage, target_coverage,
-            status, should_continue, strategy_selected, strategy_reasoning
+            Dict with turn_number, max_turns,
+            status, should_continue, strategy_selected, strategy_reasoning, phase
         """
         session = await self.session_repo.get(session_id)
         if not session:
             raise ValueError(f"Session {session_id} not found")
 
-        # Get session config to read max_turns and target_coverage
+        # Get session config to read max_turns
         config = await self.session_repo.get_config(session_id)
         max_turns = config.get("max_turns", interview_config.session.max_turns)
-        target_coverage = config.get(
-            "target_coverage", interview_config.session.target_coverage
-        )
-
-        # Calculate coverage from concept_elements
-        coverage_stats = await self.session_repo.get_coverage_stats(session_id)
-        total_elements = coverage_stats["total_elements"]
-        covered_elements = coverage_stats["covered_elements"]
-        coverage = covered_elements / total_elements if total_elements > 0 else 0.0
 
         # Get the most recent turn to extract strategy from scoring_history
         strategy_data = await self.session_repo.get_latest_strategy(session_id)
@@ -683,8 +665,6 @@ class SessionService:
         return {
             "turn_number": turn_count,
             "max_turns": max_turns,
-            "coverage": coverage,
-            "target_coverage": target_coverage,
             "status": session.status,
             "should_continue": session.status == "active",
             "strategy_selected": strategy,

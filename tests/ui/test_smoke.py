@@ -61,14 +61,11 @@ def sample_status_data():
     return {
         "turn_number": 3,
         "max_turns": 20,
-        "coverage": 0.4,
-        "target_coverage": 0.8,
         "status": "active",
         "should_continue": True,
         "strategy_selected": "deepen",
         "strategy_reasoning": "Shallow chain, explore deeper",
         "scoring": {
-            "coverage": 0.4,
             "depth": 0.2,
             "saturation": 0.0,
             "novelty": 1.0,

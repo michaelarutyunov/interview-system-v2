@@ -315,7 +315,6 @@ class SimulationService:
                 concept_id=concept_id,
                 concept_name=concept_name,
                 turn_count=0,
-                coverage_score=0.0,
                 mode=InterviewMode.EXPLORATORY,
             ),
         )

@@ -303,9 +303,6 @@ class ScoringPersistenceOutput(BaseModel):
 
     turn_number: int = Field(ge=0, description="Turn number for scoring")
     strategy: str = Field(description="Strategy that was selected")
-    coverage_score: float = Field(
-        ge=0.0, description="Coverage metric from graph state"
-    )
     depth_score: float = Field(ge=0.0, description="Depth metric from graph state")
     saturation_score: float = Field(
         ge=0.0, description="Saturation metric from graph state"

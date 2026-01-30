@@ -127,7 +127,6 @@ async def create_session(
             concept_id=request.concept_id,
             concept_name=concept_name,
             turn_count=0,
-            coverage_score=0.0,
             mode=request.mode,  # NEW: Pass mode to state
         ),
     )

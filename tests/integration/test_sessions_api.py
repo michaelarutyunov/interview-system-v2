@@ -119,7 +119,6 @@ async def test_create_session(client):
     assert data["state"]["methodology"] == "mec"
     assert data["state"]["concept_id"] == "test-concept"
     assert data["state"]["turn_count"] == 0
-    assert data["state"]["coverage_score"] == 0.0
 
 
 @pytest.mark.asyncio
@@ -320,7 +319,7 @@ async def test_get_session_returns_full_state(client):
     assert "concept_id" in state
     assert "concept_name" in state
     assert "turn_count" in state
-    assert "coverage_score" in state
+    assert "turn_count" in state
 
 
 # =============================================================================

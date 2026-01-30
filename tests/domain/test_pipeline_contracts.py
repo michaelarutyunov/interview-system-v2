@@ -469,7 +469,6 @@ class TestScoringPersistenceOutput:
         output = ScoringPersistenceOutput(
             turn_number=3,
             strategy="deepen",
-            coverage_score=0.75,
             depth_score=1.5,
             saturation_score=0.9,
             has_methodology_signals=True,
@@ -478,7 +477,7 @@ class TestScoringPersistenceOutput:
 
         assert output.turn_number == 3
         assert output.strategy == "deepen"
-        assert output.coverage_score == 0.75
+        assert output.depth_score == 1.5
         assert output.has_methodology_signals is True
 
     def test_scoring_persistence_with_legacy_data(self):
@@ -486,7 +485,6 @@ class TestScoringPersistenceOutput:
         output = ScoringPersistenceOutput(
             turn_number=1,
             strategy="broaden",
-            coverage_score=0.5,
             depth_score=1.0,
             saturation_score=0.3,
             has_methodology_signals=False,

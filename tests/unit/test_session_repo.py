@@ -34,7 +34,6 @@ def create_test_session(
     concept_name: str = "Test Concept",
     status: str = "active",
     turn_count: int = 0,
-    coverage_score: float = 0.0,
 ) -> Session:
     """Helper to create test sessions."""
     if session_id is None:
@@ -54,7 +53,6 @@ def create_test_session(
             concept_id=concept_id,
             concept_name=concept_name,
             turn_count=turn_count,
-            coverage_score=coverage_score,
             last_strategy=None,
         ),
     )
@@ -74,7 +72,6 @@ async def test_create_session(db_path):
     assert created.concept_name == "Test Concept"
     assert created.status == "active"
     assert created.state.turn_count == 0
-    assert created.state.coverage_score == 0.0
 
 
 @pytest.mark.asyncio
@@ -115,7 +112,6 @@ async def test_update_state(db_path):
         concept_id="concept-1",
         concept_name="Test Concept",
         turn_count=5,
-        coverage_score=0.75,
         last_strategy="ladder_up",
     )
     await repo.update_state("test-session-3", new_state)
@@ -124,7 +120,6 @@ async def test_update_state(db_path):
     updated = await repo.get("test-session-3")
     assert updated is not None
     assert updated.state.turn_count == 5
-    assert updated.state.coverage_score == 0.75
 
 
 @pytest.mark.asyncio
@@ -210,7 +205,6 @@ async def test_update_state_updates_timestamp(db_path):
         concept_id="concept-1",
         concept_name="Test Concept",
         turn_count=1,
-        coverage_score=0.1,
     )
     await repo.update_state("update-timestamp-test", new_state)
 

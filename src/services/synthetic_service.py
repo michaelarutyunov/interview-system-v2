@@ -63,7 +63,7 @@ class SyntheticService:
             session_id: Session identifier
             persona: Persona ID (must be in get_available_personas())
             graph_state: Optional graph state with recent_nodes attribute
-            interview_context: Optional dict with product_name, turn_number, coverage_achieved
+            interview_context: Optional dict with product_name, turn_number
             use_deflection: Override deflection behavior (None = use chance)
 
         Returns:
@@ -182,7 +182,6 @@ class SyntheticService:
             interview_context = {
                 "product_name": product_name,
                 "turn_number": turn_number,
-                "coverage_achieved": 0.0,  # Placeholder
             }
 
             response = await self.generate_response(

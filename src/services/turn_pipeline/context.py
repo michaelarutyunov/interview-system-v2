@@ -249,7 +249,6 @@ class PipelineContext:
         """Get scoring dict from ScoringPersistenceOutput."""
         if self.scoring_persistence_output:
             return {
-                "coverage": self.scoring_persistence_output.coverage_score,
                 "depth": self.scoring_persistence_output.depth_score,
                 "saturation": self.scoring_persistence_output.saturation_score,
             }

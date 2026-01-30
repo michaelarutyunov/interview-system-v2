@@ -73,7 +73,6 @@ class ScoringPersistenceStage(TurnStage):
         context.scoring_persistence_output = ScoringPersistenceOutput(
             turn_number=context.turn_number,
             strategy=context.strategy,
-            coverage_score=scoring.get("coverage", 0.0),
             depth_score=scoring.get("depth", 0.0),
             saturation_score=scoring.get("saturation", 0.0),
             has_methodology_signals=has_methodology_signals,
@@ -147,15 +146,14 @@ class ScoringPersistenceStage(TurnStage):
             await db.execute(
                 """INSERT INTO scoring_history (
                     id, session_id, turn_number,
-                    coverage_score, depth_score, saturation_score,
+                    depth_score, saturation_score,
                     novelty_score, richness_score,
                     strategy_selected, strategy_reasoning, scorer_details
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     scoring_id,
                     session_id,
                     turn_number,
-                    scoring.get("coverage", 0.0),
                     scoring.get("depth", 0.0),
                     scoring.get("saturation", 0.0),
                     scoring.get("novelty"),
@@ -351,13 +349,11 @@ class ScoringPersistenceStage(TurnStage):
             concept_id=context.concept_id,
             concept_name=context.concept_name,
             turn_count=context.turn_number,
-            coverage_score=scoring.get("coverage", 0.0),
         )
         await self.session_repo.update_state(context.session_id, updated_state)
 
     async def _extract_legacy_scores(self, selection_result) -> dict:
         """Extract legacy scoring metrics from tier2 results."""
-        coverage_score = 0.0
         depth_score = 0.0
         saturation_score = 0.0
         novelty_score = None
@@ -373,7 +369,6 @@ class ScoringPersistenceStage(TurnStage):
                 signals = result.signals
 
                 if scorer_id == "DepthBreadthBalanceScorer":
-                    coverage_score = signals.get("breadth_pct", 0.0)
                     depth_avg = signals.get("depth_avg", 0.0)
                     depth_score = min(1.0, depth_avg / 5.0) if depth_avg else 0.0
 
@@ -388,7 +383,6 @@ class ScoringPersistenceStage(TurnStage):
                     saturation_score = result.raw_score
 
         return {
-            "coverage": coverage_score,
             "depth": depth_score,
             "saturation": saturation_score,
             "novelty": novelty_score,

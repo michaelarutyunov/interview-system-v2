@@ -14,7 +14,6 @@ class SessionState(BaseModel):
     concept_id: str
     concept_name: str
     turn_count: int = 0
-    coverage_score: float = 0.0
     last_strategy: Optional[str] = None
     mode: InterviewMode = InterviewMode.EXPLORATORY
 
