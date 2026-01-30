@@ -24,9 +24,9 @@ class TestInterviewPhaseSignal:
         # Create mock graph state
         graph_state = Mock()
         graph_state.node_count = 3
-        graph_state.max_depth = 2
+        graph_state.depth_metrics = Mock()
+        graph_state.depth_metrics.max_depth = 2
         graph_state.orphan_count = 1
-        graph_state.extended_properties = {"orphan_count": 1}
 
         context = Mock()
         response_text = "Test response"
@@ -43,9 +43,9 @@ class TestInterviewPhaseSignal:
         # Create mock graph state
         graph_state = Mock()
         graph_state.node_count = 10
-        graph_state.max_depth = 3
+        graph_state.depth_metrics = Mock()
+        graph_state.depth_metrics.max_depth = 3
         graph_state.orphan_count = 2
-        graph_state.extended_properties = {"orphan_count": 2}
 
         context = Mock()
         response_text = "Test response"
@@ -62,9 +62,9 @@ class TestInterviewPhaseSignal:
         # Create mock graph state with many orphans
         graph_state = Mock()
         graph_state.node_count = 20
-        graph_state.max_depth = 4
+        graph_state.depth_metrics = Mock()
+        graph_state.depth_metrics.max_depth = 4
         graph_state.orphan_count = 5
-        graph_state.extended_properties = {"orphan_count": 5}
 
         context = Mock()
         response_text = "Test response"
@@ -82,9 +82,9 @@ class TestInterviewPhaseSignal:
         # Create mock graph state
         graph_state = Mock()
         graph_state.node_count = 20
-        graph_state.max_depth = 5
+        graph_state.depth_metrics = Mock()
+        graph_state.depth_metrics.max_depth = 5
         graph_state.orphan_count = 2
-        graph_state.extended_properties = {"orphan_count": 2}
 
         context = Mock()
         response_text = "Test response"
@@ -94,15 +94,16 @@ class TestInterviewPhaseSignal:
         assert result["meta.interview.phase"] == "late"
 
     @pytest.mark.asyncio
-    async def test_orphan_count_from_extended_properties(self):
-        """Test orphan count is read from extended_properties."""
+    async def test_orphan_count_direct_access(self):
+        """Test orphan count is read directly from graph_state.orphan_count."""
         signal = InterviewPhaseSignal()
 
         # Create mock graph state
         graph_state = Mock()
         graph_state.node_count = 8
-        graph_state.max_depth = 3
-        graph_state.extended_properties = {"orphan_count": 4}
+        graph_state.depth_metrics = Mock()
+        graph_state.depth_metrics.max_depth = 3
+        graph_state.orphan_count = 4
 
         context = Mock()
         response_text = "Test response"
@@ -113,25 +114,43 @@ class TestInterviewPhaseSignal:
         assert result["meta.interview.phase"] == "mid"
 
     @pytest.mark.asyncio
-    async def test_orphan_count_fallback_to_attribute(self):
-        """Test orphan count fallback to attribute when not in extended_properties."""
+    async def test_orphan_count_fallback_default(self):
+        """Test orphan count uses default value when attribute missing."""
         signal = InterviewPhaseSignal()
 
-        # Create mock graph state without extended_properties
-        graph_state = Mock()
+        # Create mock graph state without orphan_count attribute
+        graph_state = Mock(spec=["node_count", "depth_metrics"])
         graph_state.node_count = 10
-        graph_state.max_depth = 3
-        graph_state.orphan_count = 1
-        graph_state.extended_properties = {}
-
-        # Mock hasattr to return False for extended_properties check
-        graph_state.extended_properties = {}
+        graph_state.depth_metrics = Mock()
+        graph_state.depth_metrics.max_depth = 3
 
         context = Mock()
         response_text = "Test response"
 
         result = await signal.detect(context, graph_state, response_text)
 
+        # Should be mid due to node_count < 15 (orphan_count defaults to 0)
+        assert result["meta.interview.phase"] == "mid"
+
+    @pytest.mark.asyncio
+    async def test_max_depth_from_depth_metrics(self):
+        """Test max_depth is read from depth_metrics correctly."""
+        signal = InterviewPhaseSignal()
+
+        # Create mock with nested depth_metrics
+        graph_state = Mock()
+        graph_state.node_count = 8
+        graph_state.depth_metrics = Mock()
+        graph_state.depth_metrics.max_depth = 6
+        graph_state.orphan_count = 2
+
+        context = Mock()
+        response_text = "Test response"
+
+        result = await signal.detect(context, graph_state, response_text)
+
+        # Verify phase detection uses max_depth correctly
+        # node_count=8 is < 15, so should be mid
         assert result["meta.interview.phase"] == "mid"
 
 

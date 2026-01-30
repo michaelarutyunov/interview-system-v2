@@ -49,7 +49,11 @@ class InterviewPhaseSignal(SignalDetector):
         """
         # Extract graph state metrics
         node_count = getattr(graph_state, "node_count", 0)
-        max_depth = getattr(graph_state, "max_depth", 0)
+        max_depth = (
+            getattr(graph_state.depth_metrics, "max_depth", 0)
+            if graph_state.depth_metrics
+            else 0
+        )
         orphan_count = self._get_orphan_count(graph_state)
 
         # Determine phase
@@ -94,21 +98,4 @@ class InterviewPhaseSignal(SignalDetector):
         Returns:
             Number of orphan nodes (nodes with no connections)
         """
-        # Try to get orphan_count from extended_properties first
-        if hasattr(graph_state, "extended_properties"):
-            orphan_count = graph_state.extended_properties.get("orphan_count")
-            if orphan_count is not None:
-                return orphan_count
-
-        # Fallback: check if orphan_count exists as attribute
-        if hasattr(graph_state, "orphan_count"):
-            return graph_state.orphan_count
-
-        # If not available, compute from nodes_by_type
-        # This is a simplified calculation - in production would traverse graph
-        if hasattr(graph_state, "nodes_by_type"):
-            # Orphan nodes are typically attribute nodes with no connections
-            # This is a heuristic approximation
-            return 0
-
-        return 0
+        return getattr(graph_state, "orphan_count", 0)
