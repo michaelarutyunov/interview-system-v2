@@ -233,9 +233,9 @@ class TestMetaSignals:
         # Mock context with signals
         context = MockContext(
             signals={
-                "graph.coverage_breadth": 0.67,
+                "graph.chain_completion": 0.67,
                 "graph.max_depth": 2,
-                "graph.missing_terminal_value": False,
+                "graph.node_count": 8,
             }
         )
 

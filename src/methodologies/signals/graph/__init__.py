@@ -21,13 +21,6 @@ from src.methodologies.signals.graph.depth import (
     GraphAvgDepthSignal,
     DepthByElementSignal,
 )
-
-# Deprecated: CoverageBreadthSignal, MissingTerminalValueSignal
-# Replaced by ChainCompletionSignal
-# from src.methodologies.signals.graph.coverage import (
-#     CoverageBreadthSignal,
-#     MissingTerminalValueSignal,
-# )
 from src.methodologies.signals.graph.node_exhaustion import (
     NodeExhaustedSignal,
     NodeExhaustionScoreSignal,
@@ -58,10 +51,6 @@ __all__ = [
     "DepthByElementSignal",
     # Chain completion
     "ChainCompletionSignal",
-    # Deprecated: CoverageBreadthSignal, MissingTerminalValueSignal
-    # Replaced by ChainCompletionSignal
-    # "CoverageBreadthSignal",
-    # "MissingTerminalValueSignal",
     # Node-level: Exhaustion
     "NodeExhaustedSignal",
     "NodeExhaustionScoreSignal",

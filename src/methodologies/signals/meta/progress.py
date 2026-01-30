@@ -15,17 +15,17 @@ class InterviewProgressSignal(SignalDetector):
     Refresh: per_turn (cached during turn)
 
     Returns float 0-1:
-    - 0: Just started, minimal coverage
-    - 1: Near completion, good coverage depth
+    - 0: Just started, minimal depth
+    - 1: Near completion, good depth and chain completion
 
     Composites:
-    - Coverage breadth (graph.coverage_breadth)
+    - Chain completion (graph.chain_completion)
     - Graph depth (graph.max_depth)
-    - Turn count relative to max turns
+    - Node count (graph.node_count)
     """
 
     signal_name = "meta.interview_progress"
-    description = "Overall interview progress from 0-1. 0 = just started, 1 = near completion. Combines coverage breadth, graph depth, and turn count. Higher values suggest we can start closing."
+    description = "Overall interview progress from 0-1. 0 = just started, 1 = near completion. Combines chain completion, graph depth, and node count. Higher values suggest we can start closing."
     cost_tier = SignalCostTier.LOW
     refresh_trigger = RefreshTrigger.PER_TURN
 
@@ -37,22 +37,22 @@ class InterviewProgressSignal(SignalDetector):
 
         signals = context.signals
 
-        # Component 1: Coverage breadth (0-1)
-        coverage_breadth = signals.get("graph.coverage_breadth", 0.0)
+        # Component 1: Chain completion (0-1) - replaces coverage breadth
+        chain_completion = signals.get("graph.chain_completion", 0.0)
 
         # Component 2: Depth (normalized to 0-1, assuming depth 3+ is good)
         max_depth = signals.get("graph.max_depth", 0)
         depth_score = min(max_depth / 3.0, 1.0)
 
-        # Component 3: Missing terminal value (penalty if missing)
-        missing_terminal = signals.get("graph.missing_terminal_value", True)
-        terminal_penalty = 0.3 if missing_terminal else 0.0
+        # Component 3: Node count (normalized to 0-1, assuming 10+ nodes is good)
+        node_count = signals.get("graph.node_count", 0)
+        node_score = min(node_count / 10.0, 1.0)
 
         # Combine components (weighted average)
         progress = (
-            (coverage_breadth * 0.4)
+            (chain_completion * 0.4)
             + (depth_score * 0.4)
-            + ((1.0 - terminal_penalty) * 0.2)
+            + (node_score * 0.2)
         )
 
         return {self.signal_name: progress}

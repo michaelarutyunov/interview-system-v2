@@ -68,7 +68,7 @@ class TestMethodologyStrategySelection:
 
         # Verify methodology signals are populated (namespaced)
         assert result_context.signals is not None
-        assert "graph.missing_terminal_value" in result_context.signals
+        assert "graph.chain_completion" in result_context.signals
         assert "graph.max_depth" in result_context.signals
         assert "temporal.strategy_repetition_count" in result_context.signals
 
@@ -103,10 +103,9 @@ class TestMethodologyStrategySelection:
         assert "llm.sentiment" in result_context.signals
 
         # MEC-specific signals (default methodology) - now namespaced
-        assert "graph.missing_terminal_value" in result_context.signals
+        assert "graph.chain_completion" in result_context.signals
         assert "graph.max_depth" in result_context.signals
         assert "graph.orphan_count" in result_context.signals
-        assert "graph.coverage_breadth" in result_context.signals
         assert "graph.node_count" in result_context.signals
 
     @pytest.mark.asyncio

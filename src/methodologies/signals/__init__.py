@@ -30,8 +30,6 @@ from src.methodologies.signals.graph import (
     GraphAvgDepthSignal,
     DepthByElementSignal,
     ChainCompletionSignal,
-    # Deprecated: CoverageBreadthSignal, MissingTerminalValueSignal
-    # Replaced by ChainCompletionSignal
 )
 
 # LLM signals (fresh every response)
