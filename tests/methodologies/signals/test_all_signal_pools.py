@@ -39,7 +39,6 @@ from src.services.focus_selection_service import (
 from src.domain.models.knowledge_graph import (
     GraphState,
     DepthMetrics,
-    CoverageState,
 )
 
 
@@ -95,7 +94,6 @@ class TestGraphSignals:
             edges_by_type={},
             orphan_count=0,
             depth_metrics=DepthMetrics(max_depth=2, avg_depth=1.0, depth_by_element={}),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=1,
         )
@@ -291,7 +289,6 @@ class TestFocusSelectionService:
             depth_metrics=DepthMetrics(
                 max_depth=1, avg_depth=0.5, depth_by_element={"n1": 0, "n2": 1}
             ),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=1,
         )
@@ -340,7 +337,6 @@ class TestEndToEndIntegration:
             edges_by_type={},
             orphan_count=0,
             depth_metrics=DepthMetrics(max_depth=2, avg_depth=1.0, depth_by_element={}),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=1,
         )

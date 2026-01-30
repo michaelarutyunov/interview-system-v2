@@ -9,7 +9,6 @@ from src.domain.models.knowledge_graph import (
     GraphState,
     KGNode,
     DepthMetrics,
-    CoverageState,
 )
 from src.domain.models.concept import Concept, ConceptContext
 
@@ -59,7 +58,6 @@ def mock_graph_service():
             edge_count=0,
             nodes_by_type={"attribute": 1},
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0, depth_by_element={}),
-            coverage_state=CoverageState(),
         )
     )
     service.get_recent_nodes = AsyncMock(
@@ -251,7 +249,6 @@ class TestStrategySelection:
                 depth_metrics=DepthMetrics(
                     max_depth=0, avg_depth=0.0, depth_by_element={}
                 ),
-                coverage_state=CoverageState(),
             ),
             turn_number=19,  # Near max of 20
             extraction=ExtractionResult(),
@@ -266,7 +263,6 @@ class TestStrategySelection:
                 depth_metrics=DepthMetrics(
                     max_depth=0, avg_depth=0.0, depth_by_element={}
                 ),
-                coverage_state=CoverageState(),
             ),
             turn_number=5,
             extraction=ExtractionResult(),
@@ -287,7 +283,6 @@ class TestShouldContinue:
                 depth_metrics=DepthMetrics(
                     max_depth=0, avg_depth=0.0, depth_by_element={}
                 ),
-                coverage_state=CoverageState(),
             ),
             strategy="deepen",
         )
@@ -303,7 +298,6 @@ class TestShouldContinue:
                 depth_metrics=DepthMetrics(
                     max_depth=0, avg_depth=0.0, depth_by_element={}
                 ),
-                coverage_state=CoverageState(),
             ),
             strategy="close",
         )
@@ -319,7 +313,6 @@ class TestShouldContinue:
                 depth_metrics=DepthMetrics(
                     max_depth=0, avg_depth=0.0, depth_by_element={}
                 ),
-                coverage_state=CoverageState(),
             ),
             strategy="deepen",
         )

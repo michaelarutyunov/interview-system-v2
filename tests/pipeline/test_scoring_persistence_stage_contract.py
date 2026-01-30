@@ -8,7 +8,7 @@ from src.services.turn_pipeline.stages.scoring_persistence_stage import (
     ScoringPersistenceStage,
 )
 from src.services.turn_pipeline.context import PipelineContext
-from src.domain.models.knowledge_graph import GraphState, DepthMetrics, CoverageState
+from src.domain.models.knowledge_graph import GraphState, DepthMetrics
 from src.domain.models.pipeline_contracts import (
     ContextLoadingOutput,
     StateComputationOutput,
@@ -32,7 +32,6 @@ class TestScoringPersistenceStageContract:
             node_count=5,
             edge_count=3,
             depth_metrics=DepthMetrics(max_depth=2, avg_depth=1.0),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=1,
         )

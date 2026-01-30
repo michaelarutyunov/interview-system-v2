@@ -76,24 +76,6 @@ class KGEdge(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class ElementCoverage(BaseModel):
-    """Coverage state for a single element."""
-
-    covered: bool = False  # Any linked node = covered
-    linked_node_ids: List[str] = Field(default_factory=list)
-    types_found: List[str] = Field(default_factory=list)
-    depth_score: float = 0.0  # Chain validation: longest connected path / ladder length
-
-
-class CoverageState(BaseModel):
-    """Coverage state for concept elements."""
-
-    elements: Dict[int, ElementCoverage] = Field(default_factory=dict)
-    elements_covered: int = 0  # How many elements have any linked nodes
-    elements_total: int = 0  # Total elements in concept
-    overall_depth: float = 0.0  # Average depth_score across all elements
-    max_depth: float = 0.0  # P0 Fix: Maximum depth_score (monotonically increasing)
-
 
 class DepthMetrics(BaseModel):
     """Depth analysis of the knowledge graph (ADR-010).
@@ -152,11 +134,6 @@ class GraphState(BaseModel):
     saturation_metrics: Optional[SaturationMetrics] = Field(
         default=None,
         description="Information saturation indicators (expensive to compute)",
-    )
-
-    # === Coverage ===
-    coverage_state: CoverageState = Field(
-        description="Element coverage state (required for coverage-driven mode)"
     )
 
     # === Phase Tracking (promoted from properties, ADR-010) ===

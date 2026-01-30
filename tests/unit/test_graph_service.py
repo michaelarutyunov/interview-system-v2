@@ -14,7 +14,6 @@ from src.domain.models.knowledge_graph import (
     KGEdge,
     GraphState,
     DepthMetrics,
-    CoverageState,
 )
 
 
@@ -196,7 +195,6 @@ class TestGetGraphState:
             node_count=5,
             edge_count=3,
             depth_metrics=DepthMetrics(max_depth=2, avg_depth=1.5, depth_by_element={}),
-            coverage_state=CoverageState(),
         )
         mock_repo.get_graph_state.return_value = expected
 

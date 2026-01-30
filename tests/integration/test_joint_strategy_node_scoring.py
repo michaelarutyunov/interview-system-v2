@@ -5,7 +5,7 @@ rather than in two separate steps.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import Mock
 
 from src.methodologies.scoring import rank_strategy_node_pairs
 from src.methodologies import StrategyConfig
@@ -327,7 +327,7 @@ class TestMethodologyStrategyServiceJointScoring:
     @pytest.fixture
     def mock_graph_state(self):
         """Create a mock GraphState."""
-        from src.domain.models.knowledge_graph import DepthMetrics, CoverageState
+        from src.domain.models.knowledge_graph import DepthMetrics
 
         graph_state = Mock(spec=GraphState)
         graph_state.nodes = {}
@@ -348,13 +348,6 @@ class TestMethodologyStrategyServiceJointScoring:
 
         # Add nodes_by_type mock
         graph_state.nodes_by_type = {}
-
-        # Add coverage_state mock
-        coverage_state = Mock(spec=CoverageState)
-        coverage_state.elements_covered = 2
-        coverage_state.elements_total = 5
-        coverage_state.overall_depth = 1.5
-        graph_state.coverage_state = coverage_state
 
         return graph_state
 
@@ -574,7 +567,7 @@ class TestFullPipelineIntegration:
         mock_graph_state.edge_density = 0.5
 
         # Add depth_metrics mock
-        from src.domain.models.knowledge_graph import DepthMetrics, CoverageState
+        from src.domain.models.knowledge_graph import DepthMetrics
 
         depth_metrics = Mock(spec=DepthMetrics)
         depth_metrics.max_depth = 2
@@ -583,13 +576,6 @@ class TestFullPipelineIntegration:
 
         # Add nodes_by_type mock
         mock_graph_state.nodes_by_type = {}
-
-        # Add coverage_state mock
-        coverage_state = Mock(spec=CoverageState)
-        coverage_state.elements_covered = 2
-        coverage_state.elements_total = 5
-        coverage_state.overall_depth = 1.5
-        mock_graph_state.coverage_state = coverage_state
 
         # Should not raise errors
         (

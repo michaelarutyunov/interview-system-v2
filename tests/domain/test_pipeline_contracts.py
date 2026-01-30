@@ -19,7 +19,6 @@ from src.domain.models.pipeline_contracts import (
 )
 from src.domain.models.knowledge_graph import (
     GraphState,
-    CoverageState,
     DepthMetrics,
     KGNode,
 )
@@ -40,7 +39,6 @@ class TestContextLoadingOutput:
             node_count=5,
             edge_count=3,
             depth_metrics=DepthMetrics(max_depth=2, avg_depth=1.0),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=1,
         )
@@ -113,7 +111,6 @@ class TestStateComputationOutput:
             node_count=10,
             edge_count=8,
             depth_metrics=DepthMetrics(max_depth=3, avg_depth=1.5),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=2,
         )
@@ -136,7 +133,6 @@ class TestStateComputationOutput:
             node_count=0,
             edge_count=0,
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=0,
         )
@@ -162,7 +158,6 @@ class TestStrategySelectionInput:
             node_count=5,
             edge_count=3,
             depth_metrics=DepthMetrics(max_depth=2, avg_depth=1.0),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=1,
         )
@@ -199,7 +194,6 @@ class TestStrategySelectionInput:
             node_count=0,
             edge_count=0,
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=0,
         )
@@ -227,7 +221,6 @@ class TestStrategySelectionInput:
             node_count=0,
             edge_count=0,
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=0,
         )
@@ -255,7 +248,6 @@ class TestStrategySelectionInput:
             node_count=0,
             edge_count=0,
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=0,
         )

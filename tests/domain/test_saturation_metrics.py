@@ -9,8 +9,6 @@ from src.domain.models.knowledge_graph import (
     GraphState,
     SaturationMetrics,
     DepthMetrics,
-    CoverageState,
-    ElementCoverage,
 )
 
 
@@ -70,32 +68,6 @@ class TestSaturationMetrics:
                 avg_depth=1.5,
                 longest_chain_path=["node1", "node2", "node3"],
             ),
-            coverage_state=CoverageState(
-                elements={
-                    1: ElementCoverage(
-                        covered=True,
-                        linked_node_ids=["node1"],
-                        types_found=["attribute"],
-                        depth_score=1.0,
-                    ),
-                    2: ElementCoverage(
-                        covered=True,
-                        linked_node_ids=["node2"],
-                        types_found=["attribute"],
-                        depth_score=1.0,
-                    ),
-                    3: ElementCoverage(
-                        covered=True,
-                        linked_node_ids=["node3"],
-                        types_found=["attribute"],
-                        depth_score=1.0,
-                    ),
-                },
-                elements_covered=3,
-                elements_total=5,
-                overall_depth=1.0,
-                max_depth=3.0,
-            ),
             saturation_metrics=SaturationMetrics(
                 chao1_ratio=0.85,
                 new_info_rate=0.10,
@@ -118,13 +90,6 @@ class TestSaturationMetrics:
             depth_metrics=DepthMetrics(
                 max_depth=2,
                 avg_depth=1.0,
-            ),
-            coverage_state=CoverageState(
-                elements={},
-                elements_covered=0,
-                elements_total=2,
-                overall_depth=0.0,
-                max_depth=0.0,
             ),
             # saturation_metrics not provided (optional)
         )

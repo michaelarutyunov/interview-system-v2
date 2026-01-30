@@ -9,7 +9,6 @@ from src.domain.models.knowledge_graph import (
     KGNode,
     GraphState,
     DepthMetrics,
-    CoverageState,
 )
 
 
@@ -34,7 +33,6 @@ def sample_graph_state():
         edge_count=3,
         nodes_by_type={"attribute": 2, "functional_consequence": 3},
         depth_metrics=DepthMetrics(max_depth=2, avg_depth=1.5, depth_by_element={}),
-        coverage_state=CoverageState(),
     )
 
 

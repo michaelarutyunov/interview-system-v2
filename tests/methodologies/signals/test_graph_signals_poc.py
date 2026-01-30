@@ -18,7 +18,6 @@ from src.methodologies.techniques import LadderingTechnique, ElaborationTechniqu
 from src.domain.models.knowledge_graph import (
     GraphState,
     DepthMetrics,
-    CoverageState,
 )
 
 
@@ -38,7 +37,6 @@ class TestNamespacedSignals:
             edges_by_type={},
             orphan_count=0,
             depth_metrics=DepthMetrics(max_depth=1, avg_depth=0.6, depth_by_element={}),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=1,
         )
@@ -61,7 +59,6 @@ class TestNamespacedSignals:
             edges_by_type={},
             orphan_count=0,
             depth_metrics=DepthMetrics(max_depth=3, avg_depth=1.5, depth_by_element={}),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=1,
         )
@@ -90,7 +87,6 @@ class TestSignalComposition:
             edges_by_type={},
             orphan_count=0,
             depth_metrics=DepthMetrics(max_depth=3, avg_depth=1.5, depth_by_element={}),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=1,
         )
@@ -127,7 +123,6 @@ class TestSignalComposition:
             edges_by_type={},
             orphan_count=1,
             depth_metrics=DepthMetrics(max_depth=1, avg_depth=0.6, depth_by_element={}),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=1,
         )

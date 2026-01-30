@@ -11,7 +11,7 @@ from src.domain.models import (
     ExtractedRelationship,
     ExtractionResult,
 )
-from src.domain.models.knowledge_graph import DepthMetrics, CoverageState
+from src.domain.models.knowledge_graph import DepthMetrics
 
 
 class TestKGNode:
@@ -174,7 +174,6 @@ class TestGraphState:
         """GraphState defaults to empty."""
         state = GraphState(
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0, depth_by_element={}),
-            coverage_state=CoverageState(),
         )
 
         assert state.node_count == 0
@@ -189,7 +188,6 @@ class TestGraphState:
             nodes_by_type={"attribute": 2, "functional_consequence": 3},
             orphan_count=1,
             depth_metrics=DepthMetrics(max_depth=2, avg_depth=1.5, depth_by_element={}),
-            coverage_state=CoverageState(),
         )
 
         assert state.node_count == 5
@@ -200,7 +198,6 @@ class TestGraphState:
         """Phase can be set and retrieved."""
         state = GraphState(
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0, depth_by_element={}),
-            coverage_state=CoverageState(),
         )
 
         # Default phase is exploratory
@@ -218,7 +215,6 @@ class TestGraphState:
         """First call to add_strategy_used initializes history list."""
         state = GraphState(
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0, depth_by_element={}),
-            coverage_state=CoverageState(),
         )
 
         state.add_strategy_used("broaden")
@@ -229,7 +225,6 @@ class TestGraphState:
         """Subsequent calls append to existing history."""
         state = GraphState(
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0, depth_by_element={}),
-            coverage_state=CoverageState(),
         )
 
         state.add_strategy_used("broaden")
@@ -242,7 +237,6 @@ class TestGraphState:
         """Strategy history persists through other state operations."""
         state = GraphState(
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0, depth_by_element={}),
-            coverage_state=CoverageState(),
         )
 
         # Add some strategies

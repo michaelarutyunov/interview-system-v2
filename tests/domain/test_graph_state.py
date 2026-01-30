@@ -11,8 +11,6 @@ from src.domain.models.knowledge_graph import (
     DepthMetrics,
     SaturationMetrics,
     GraphState,
-    CoverageState,
-    ElementCoverage,
 )
 
 
@@ -82,11 +80,6 @@ class TestGraphState:
             depth_by_element={"elem1": 2.0},
             longest_chain_path=["n1", "n2", "n3"],
         )
-        coverage = CoverageState(
-            elements={1: ElementCoverage(covered=True, linked_node_ids=["n1"])},
-            elements_covered=1,
-            elements_total=5,
-        )
 
         state = GraphState(
             node_count=10,
@@ -95,7 +88,6 @@ class TestGraphState:
             edges_by_type={"leads_to": 8},
             orphan_count=2,
             depth_metrics=depth,
-            coverage_state=coverage,
             current_phase="exploratory",
             turn_count=1,
             strategy_history=["broaden"],
@@ -107,7 +99,6 @@ class TestGraphState:
         assert state.turn_count == 1
         assert state.strategy_history == ["broaden"]
         assert state.depth_metrics.max_depth == 3
-        assert state.coverage_state.elements_total == 5
 
     def test_current_phase_only_accepts_valid_values(self):
         """Should only allow valid phase values."""
@@ -122,7 +113,6 @@ class TestGraphState:
                 node_count=0,
                 edge_count=0,
                 depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-                coverage_state=CoverageState(),
                 current_phase=phase,
                 turn_count=0,
             )
@@ -136,25 +126,11 @@ class TestGraphState:
                 node_count=0,
                 edge_count=0,
                 depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-                coverage_state=CoverageState(),
                 current_phase=cast(
                     Literal["exploratory", "focused", "closing"], "invalid_phase"
                 ),
                 turn_count=0,
             )
-
-    def test_coverage_state_is_required(self):
-        """Should require coverage_state for coverage-driven mode."""
-        # Valid with coverage_state
-        state = GraphState(
-            node_count=0,
-            edge_count=0,
-            depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-            coverage_state=CoverageState(),
-            current_phase="exploratory",
-            turn_count=0,
-        )
-        assert state.coverage_state is not None
 
     def test_saturation_metrics_is_optional(self):
         """Should allow optional saturation_metrics (expensive to compute)."""
@@ -163,7 +139,6 @@ class TestGraphState:
             node_count=0,
             edge_count=0,
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=0,
             saturation_metrics=None,
@@ -181,7 +156,6 @@ class TestGraphState:
             node_count=0,
             edge_count=0,
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=0,
             saturation_metrics=saturation,
@@ -195,7 +169,6 @@ class TestGraphState:
             node_count=0,
             edge_count=0,
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=0,
             extended_properties={"experimental_metric": 42, "sentiment": "positive"},
@@ -212,7 +185,6 @@ class TestGraphState:
                 edge_count=0,
                 nodes_by_type={"attribute": 3, "value": 4},  # But 3+4=7 nodes
                 depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-                coverage_state=CoverageState(),
                 current_phase="exploratory",
                 turn_count=0,
             )
@@ -224,7 +196,6 @@ class TestGraphState:
             edge_count=0,
             nodes_by_type={"attribute": 3, "value": 7},  # 3+7=10 matches
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=0,
         )
@@ -237,7 +208,6 @@ class TestGraphState:
                 node_count=0,
                 edge_count=0,
                 depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-                coverage_state=CoverageState(),
                 current_phase="exploratory",
                 turn_count=-1,  # Invalid
             )
@@ -250,7 +220,6 @@ class TestGraphState:
                 edge_count=0,
                 orphan_count=-1,  # Invalid
                 depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-                coverage_state=CoverageState(),
                 current_phase="exploratory",
                 turn_count=0,
             )
@@ -261,7 +230,6 @@ class TestGraphState:
             node_count=0,
             edge_count=0,
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=0,
         )
@@ -274,7 +242,6 @@ class TestGraphState:
             node_count=10,
             edge_count=8,
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-            coverage_state=CoverageState(),
             current_phase="focused",
             turn_count=5,
             strategy_history=["deepen", "broaden"],
@@ -295,7 +262,6 @@ class TestGraphState:
                 node_count=-1,  # Invalid
                 edge_count=0,
                 depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-                coverage_state=CoverageState(),
                 current_phase="exploratory",
                 turn_count=0,
             )
@@ -307,7 +273,6 @@ class TestGraphState:
                 node_count=0,
                 edge_count=-1,  # Invalid
                 depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-                coverage_state=CoverageState(),
                 current_phase="exploratory",
                 turn_count=0,
             )

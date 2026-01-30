@@ -10,7 +10,6 @@ from src.domain.models.knowledge_graph import (
     KGNode,
     GraphState,
     DepthMetrics,
-    CoverageState,
 )
 from src.domain.models.utterance import Utterance
 from src.domain.models.extraction import ExtractionResult
@@ -37,7 +36,6 @@ class TestGraphUpdateStageContract:
             node_count=0,
             edge_count=0,
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=1,
         )

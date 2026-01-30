@@ -19,7 +19,6 @@ from src.domain.models.knowledge_graph import (
     GraphState,
     KGNode,
     DepthMetrics,
-    CoverageState,
 )
 from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
@@ -44,7 +43,7 @@ def mock_session_repo():
 @pytest.fixture
 def mock_graph_repo():
     """Create mock graph repository."""
-    from src.domain.models.knowledge_graph import DepthMetrics, CoverageState
+    from src.domain.models.knowledge_graph import DepthMetrics
 
     repo = AsyncMock(spec=GraphRepository)
     repo.get_graph_state = AsyncMock(
@@ -55,7 +54,6 @@ def mock_graph_repo():
             edges_by_type={},
             orphan_count=0,
             depth_metrics=DepthMetrics(max_depth=1, avg_depth=0.6, depth_by_element={}),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=1,
         )
@@ -117,7 +115,6 @@ def mock_services():
             edges_by_type={},
             orphan_count=0,
             depth_metrics=DepthMetrics(max_depth=1, avg_depth=0.6, depth_by_element={}),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=1,
         )

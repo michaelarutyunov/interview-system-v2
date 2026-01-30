@@ -114,14 +114,12 @@ class ContextLoadingStage(TurnStage):
         from src.domain.models.knowledge_graph import (
             GraphState,
             DepthMetrics,
-            CoverageState,
         )
 
         placeholder_graph_state = context.graph_state or GraphState(
             node_count=0,
             edge_count=0,
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-            coverage_state=CoverageState(),
             current_phase="exploratory",
             turn_count=session.state.turn_count or 0,
         )
