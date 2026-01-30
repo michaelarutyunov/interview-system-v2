@@ -70,6 +70,18 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
         # Execute all statements in the migration
         await db.executescript(sql)
 
+    # Post-migration cleanup: drop coverage columns from existing databases.
+    # These are idempotent checks — safe to run even if columns don't exist.
+    for table, column in [("sessions", "coverage_score"), ("scoring_history", "coverage_score")]:
+        try:
+            cursor = await db.execute(f"PRAGMA table_info({table})")
+            columns = [row[1] for row in await cursor.fetchall()]
+            if column in columns:
+                await db.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
+                log.info("dropped_column", table=table, column=column)
+        except Exception as e:
+            log.debug("column_drop_skipped", table=table, column=column, reason=str(e))
+
     log.info("migrations_complete", count=len(migration_files))
 
 

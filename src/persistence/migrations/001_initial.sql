@@ -1,6 +1,6 @@
 -- Interview System v2 - Initial Schema (Consolidated)
 -- Supports: sessions, conversational graph (utterances), knowledge graph (nodes/edges),
---            scoring candidates, qualitative signals, coverage tracking
+--            scoring candidates, qualitative signals
 
 PRAGMA foreign_keys = ON;
 
@@ -24,8 +24,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     completed_at TEXT,
 
     -- Metrics (denormalized for quick access)
-    turn_count INTEGER NOT NULL DEFAULT 0,
-    coverage_score REAL DEFAULT 0.0
+    turn_count INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
@@ -135,7 +134,6 @@ CREATE TABLE IF NOT EXISTS scoring_history (
     turn_number INTEGER NOT NULL,
 
     -- Scores
-    coverage_score REAL NOT NULL,
     depth_score REAL NOT NULL,
     saturation_score REAL NOT NULL,
     novelty_score REAL DEFAULT NULL,
@@ -155,31 +153,6 @@ CREATE TABLE IF NOT EXISTS scoring_history (
 );
 
 CREATE INDEX IF NOT EXISTS idx_scoring_session ON scoring_history(session_id);
-
--- =============================================================================
--- Concept Elements (for coverage tracking)
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS concept_elements (
-    id TEXT PRIMARY KEY,
-    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-
-    -- Element definition
-    element_id TEXT NOT NULL,
-    label TEXT NOT NULL,
-    element_type TEXT NOT NULL DEFAULT 'attribute',
-    priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('high', 'medium', 'low')),
-
-    -- Coverage tracking
-    is_covered INTEGER NOT NULL DEFAULT 0,
-    covered_at TEXT,
-    covered_by_node_id TEXT REFERENCES kg_nodes(id),
-
-    UNIQUE(session_id, element_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_elements_session ON concept_elements(session_id);
-CREATE INDEX IF NOT EXISTS idx_elements_covered ON concept_elements(session_id, is_covered);
 
 -- =============================================================================
 -- Scoring Candidates (for transparency UI)

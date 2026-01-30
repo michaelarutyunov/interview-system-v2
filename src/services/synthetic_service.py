@@ -3,7 +3,7 @@
 Generates contextually appropriate respondent answers using:
 - Persona system with 5 predefined personas
 - Natural response patterns (detailed, medium, brief, deflections)
-- Interview context awareness (previous concepts, turn number, coverage)
+- Interview context awareness (previous concepts, turn number)
 - Deflection patterns for authentic respondent behavior
 """
 

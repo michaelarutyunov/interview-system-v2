@@ -623,7 +623,7 @@ class SessionService:
             log.info("session_ending", reason="close_strategy")
             return False
 
-        # Phase 3 will add: coverage target reached, saturation detected
+        # Future: saturation detected, other termination conditions
 
         return True
 
