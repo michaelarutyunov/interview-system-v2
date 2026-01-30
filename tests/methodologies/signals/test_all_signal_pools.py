@@ -32,10 +32,11 @@ from src.methodologies.techniques import (
     ProbingTechnique,
     ValidationTechnique,
 )
-from src.services.focus_selection_service import (
-    FocusSelectionService,
-    FocusSelectionInput,
-)
+# FocusSelectionService was removed - tests for it commented out
+# from src.services.focus_selection_service import (
+#     FocusSelectionService,
+#     FocusSelectionInput,
+# )
 from src.domain.models.knowledge_graph import (
     GraphState,
     DepthMetrics,
@@ -272,55 +273,56 @@ class TestAllTechniques:
             assert all(isinstance(q, str) for q in questions)
 
 
-class TestFocusSelectionService:
-    """Tests for FocusSelectionService."""
-
-    @pytest.mark.asyncio
-    async def test_service_selects_focus_by_strategy(self):
-        """Should select focus based on strategy preference."""
-        service = FocusSelectionService()
-
-        graph_state = GraphState(
-            node_count=3,
-            edge_count=2,
-            nodes_by_type={"attribute": 3},
-            edges_by_type={},
-            orphan_count=0,
-            depth_metrics=DepthMetrics(
-                max_depth=1, avg_depth=0.5, depth_by_element={"n1": 0, "n2": 1}
-            ),
-            current_phase="exploratory",
-            turn_count=1,
-        )
-
-        recent_nodes = [MockNode("n1", "quality"), MockNode("n2", "health")]
-
-        # Test "deepen" strategy (prefers shallow)
-        input_data = FocusSelectionInput(
-            strategy="deepen",
-            graph_state=graph_state,
-            recent_nodes=recent_nodes,
-            signals={"graph.depth_by_element": {"n1": 0, "n2": 1}},
-        )
-
-        focus = await service.select(input_data)
-        # Should select shallow node (n1 with depth 0)
-        assert focus == "quality"
-
-    @pytest.mark.asyncio
-    async def test_service_handles_no_nodes(self):
-        """Should return None when no nodes available."""
-        service = FocusSelectionService()
-
-        input_data = FocusSelectionInput(
-            strategy="deepen",
-            graph_state=None,
-            recent_nodes=[],
-            signals={},
-        )
-
-        focus = await service.select(input_data)
-        assert focus is None
+# TestFocusSelectionService class commented out - FocusSelectionService was removed
+# class TestFocusSelectionService:
+#     """Tests for FocusSelectionService."""
+#
+#     @pytest.mark.asyncio
+#     async def test_service_selects_focus_by_strategy(self):
+#         """Should select focus based on strategy preference."""
+#         service = FocusSelectionService()
+#
+#         graph_state = GraphState(
+#             node_count=3,
+#             edge_count=2,
+#             nodes_by_type={"attribute": 3},
+#             edges_by_type={},
+#             orphan_count=0,
+#             depth_metrics=DepthMetrics(
+#                 max_depth=1, avg_depth=0.5, depth_by_element={"n1": 0, "n2": 1}
+#             ),
+#             current_phase="exploratory",
+#             turn_count=1,
+#         )
+#
+#         recent_nodes = [MockNode("n1", "quality"), MockNode("n2", "health")]
+#
+#         # Test "deepen" strategy (prefers shallow)
+#         input_data = FocusSelectionInput(
+#             strategy="deepen",
+#             graph_state=graph_state,
+#             recent_nodes=recent_nodes,
+#             signals={"graph.depth_by_element": {"n1": 0, "n2": 1}},
+#         )
+#
+#         focus = await service.select(input_data)
+#         # Should select shallow node (n1 with depth 0)
+#         assert focus == "quality"
+#
+#     @pytest.mark.asyncio
+#     async def test_service_handles_no_nodes(self):
+#         """Should return None when no nodes available."""
+#         service = FocusSelectionService()
+#
+#         input_data = FocusSelectionInput(
+#             strategy="deepen",
+#             graph_state=None,
+#             recent_nodes=[],
+#             signals={},
+#         )
+#
+#         focus = await service.select(input_data)
+#         assert focus is None
 
 
 class TestEndToEndIntegration:

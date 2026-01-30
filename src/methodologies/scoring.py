@@ -105,6 +105,7 @@ def rank_strategies(
     strategy_configs: List[StrategyConfig],
     signals: Dict[str, Any],
     phase_weights: Optional[Dict[str, float]] = None,
+    phase_bonuses: Optional[Dict[str, float]] = None,
     signal_norms: Optional[Dict[str, float]] = None,
 ) -> List[Tuple[StrategyConfig, float]]:
     """
@@ -114,6 +115,8 @@ def rank_strategies(
         strategy_configs: List of strategy configs from YAML
         signals: Dict of detected signals
         phase_weights: Optional dict of phase-based weight multipliers (e.g., {"deepen": 1.5, "reflect": 0.5})
+        phase_bonuses: Optional dict of phase-based additive bonuses (e.g., {"reflect": 0.3})
+                        Applied additively: final_score = (base_score * multiplier) + bonus
 
     Returns:
         List of (strategy_config, score) sorted descending by score
@@ -130,10 +133,16 @@ def rank_strategies(
         # Apply phase weight multiplier if available
         if phase_weights and strategy_config.name in phase_weights:
             multiplier = phase_weights[strategy_config.name]
-            final_score = base_score * multiplier
         else:
             multiplier = 1.0
-            final_score = base_score
+
+        # Apply phase bonus additively if available
+        bonus = 0.0
+        if phase_bonuses and strategy_config.name in phase_bonuses:
+            bonus = phase_bonuses[strategy_config.name]
+
+        # Final score: (base_score * multiplier) + bonus
+        final_score = (base_score * multiplier) + bonus
 
         scored.append((strategy_config, final_score))
 
@@ -142,6 +151,7 @@ def rank_strategies(
         "strategies_ranked",
         phase=signals.get("meta.interview.phase", "unknown"),
         phase_weights=phase_weights,
+        phase_bonuses=phase_bonuses,
         ranked=[(s.name, score) for s, score in scored],
     )
 
@@ -154,6 +164,7 @@ def rank_strategy_node_pairs(
     node_signals: Dict[str, Dict[str, Any]],
     node_tracker=None,
     phase_weights: Optional[Dict[str, float]] = None,
+    phase_bonuses: Optional[Dict[str, float]] = None,
     signal_norms: Optional[Dict[str, float]] = None,
 ) -> List[Tuple[StrategyConfig, str, float]]:
     """
@@ -171,6 +182,9 @@ def rank_strategy_node_pairs(
         node_tracker: Optional NodeStateTracker for future use
         phase_weights: Optional dict of phase-based weight multipliers
                       {strategy_name: multiplier}
+        phase_bonuses: Optional dict of phase-based additive bonuses
+                      {strategy_name: bonus}
+                      Applied additively: final_score = (base_score * multiplier) + bonus
 
     Returns:
         List of (strategy_config, node_id, score) sorted descending by score
@@ -184,16 +198,24 @@ def rank_strategy_node_pairs(
             combined_signals = {**global_signals, **node_signal_dict}
 
             # Score strategy for this specific node
-            score = score_strategy(
+            base_score = score_strategy(
                 strategy, combined_signals, signal_norms=signal_norms
             )
 
             # Apply phase weight multiplier if available
+            multiplier = 1.0
             if phase_weights and strategy.name in phase_weights:
                 multiplier = phase_weights[strategy.name]
-                score *= multiplier
 
-            scored_pairs.append((strategy, node_id, score))
+            # Apply phase bonus additively if available
+            bonus = 0.0
+            if phase_bonuses and strategy.name in phase_bonuses:
+                bonus = phase_bonuses[strategy.name]
+
+            # Final score: (base_score * multiplier) + bonus
+            final_score = (base_score * multiplier) + bonus
+
+            scored_pairs.append((strategy, node_id, final_score))
 
     # Sort by score descending
     return sorted(scored_pairs, key=lambda x: x[2], reverse=True)

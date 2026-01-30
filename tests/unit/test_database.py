@@ -39,12 +39,14 @@ async def test_init_database_creates_tables():
             )
             tables = [row[0] for row in await cursor.fetchall()]
 
+        # Core tables
         assert "sessions" in tables
         assert "utterances" in tables
         assert "kg_nodes" in tables
         assert "kg_edges" in tables
+        # Scoring tables
         assert "scoring_history" in tables
-        assert "concept_elements" in tables
+        assert "scoring_candidates" in tables
 
 
 @pytest.mark.asyncio

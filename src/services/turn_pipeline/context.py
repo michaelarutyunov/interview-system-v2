@@ -13,6 +13,18 @@ from typing import Optional, List, Dict, Any, TYPE_CHECKING
 
 from src.domain.models.knowledge_graph import GraphState, KGNode
 from src.domain.models.utterance import Utterance
+from src.domain.models.pipeline_contracts import (
+    ContextLoadingOutput,
+    UtteranceSavingOutput,
+    ExtractionOutput,
+    GraphUpdateOutput,
+    StateComputationOutput,
+    StrategySelectionOutput,
+    ContinuationOutput,
+    QuestionGenerationOutput,
+    ResponseSavingOutput,
+    ScoringPersistenceOutput,
+)
 
 if TYPE_CHECKING:
     from src.services.node_state_tracker import NodeStateTracker
@@ -44,34 +56,34 @@ class PipelineContext:
     # Each stage produces a formal contract output. These contracts ARE the state.
 
     # Stage 1: ContextLoadingStage output
-    context_loading_output: Optional[Any] = None
+    context_loading_output: Optional[ContextLoadingOutput] = None
 
     # Stage 2: UtteranceSavingStage output
-    utterance_saving_output: Optional[Any] = None
+    utterance_saving_output: Optional[UtteranceSavingOutput] = None
 
     # Stage 3: ExtractionStage output
-    extraction_output: Optional[Any] = None
+    extraction_output: Optional[ExtractionOutput] = None
 
     # Stage 4: GraphUpdateStage output
-    graph_update_output: Optional[Any] = None
+    graph_update_output: Optional[GraphUpdateOutput] = None
 
     # Stage 5: StateComputationStage output
-    state_computation_output: Optional[Any] = None
+    state_computation_output: Optional[StateComputationOutput] = None
 
     # Stage 6: StrategySelectionStage output
-    strategy_selection_output: Optional[Any] = None
+    strategy_selection_output: Optional[StrategySelectionOutput] = None
 
     # Stage 7: ContinuationStage output
-    continuation_output: Optional[Any] = None
+    continuation_output: Optional[ContinuationOutput] = None
 
     # Stage 8: QuestionGenerationStage output
-    question_generation_output: Optional[Any] = None
+    question_generation_output: Optional[QuestionGenerationOutput] = None
 
     # Stage 9: ResponseSavingStage output
-    response_saving_output: Optional[Any] = None
+    response_saving_output: Optional[ResponseSavingOutput] = None
 
     # Stage 10: ScoringPersistenceStage output
-    scoring_persistence_output: Optional[Any] = None
+    scoring_persistence_output: Optional[ScoringPersistenceOutput] = None
 
     # =============================================================================
     # Convenience Properties (derive from contracts, don't duplicate state)

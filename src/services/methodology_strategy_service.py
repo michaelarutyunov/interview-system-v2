@@ -161,12 +161,15 @@ class MethodologyStrategyService:
 
         # Get phase weights from config
         phase_weights = None
+        phase_bonuses = None
         if config.phases and current_phase in config.phases:
             phase_weights = config.phases[current_phase].signal_weights
+            phase_bonuses = config.phases[current_phase].phase_bonuses
             log.debug(
                 "phase_weights_loaded",
                 phase=current_phase,
                 weights=phase_weights,
+                bonuses=phase_bonuses,
             )
 
         # Get strategies from config
@@ -187,6 +190,7 @@ class MethodologyStrategyService:
             node_signals=node_signals,
             node_tracker=node_tracker,
             phase_weights=phase_weights,
+            phase_bonuses=phase_bonuses,
             signal_norms=config.signal_norms,
         )
 

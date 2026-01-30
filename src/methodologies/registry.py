@@ -24,6 +24,7 @@ class PhaseConfig:
     name: str
     description: str
     signal_weights: dict[str, float]  # strategy_name -> multiplier
+    phase_bonuses: dict[str, float]  # strategy_name -> additive bonus
 
 
 @dataclass
@@ -123,6 +124,7 @@ class MethodologyRegistry:
                     name=phase_name,
                     description=phase_data.get("description", ""),
                     signal_weights=phase_data.get("signal_weights", {}),
+                    phase_bonuses=phase_data.get("phase_bonuses", {}),
                 )
 
         # Load signal_norms if present

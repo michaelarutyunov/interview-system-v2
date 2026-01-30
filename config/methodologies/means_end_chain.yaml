@@ -238,6 +238,8 @@ phases:
       clarify: 1.2
       deepen: 0.5
       reflect: 0.2
+    phase_bonuses:
+      explore: 0.2  # Additive bonus to encourage exploration even with zero base score
 
   mid:
     description: "Building depth and connections"
@@ -246,6 +248,8 @@ phases:
       clarify: 1.0
       explore: 0.8
       reflect: 0.7
+    phase_bonuses:
+      deepen: 0.3  # Additive bonus to prioritize deepening in mid-phase
 
   late:
     description: "Validation and verification"
@@ -254,3 +258,6 @@ phases:
       validate: 1.2
       deepen: 0.5
       explore: 0.3
+    phase_bonuses:
+      reflect: 0.4  # Additive bonus to ensure reflection gets selected even with zero base score
+      validate: 0.2  # Additive bonus to prioritize validation in late phase

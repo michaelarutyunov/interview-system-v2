@@ -86,6 +86,9 @@ class NodeStateTracker:
             label=node.label,
             created_at_turn=turn_number,
             depth=self._calculate_node_depth(node),
+            node_type=node.node_type,
+            is_terminal=node.properties.get("is_terminal", False),
+            level=node.properties.get("level", 0),
         )
 
         self.states[node.id] = node_state
@@ -193,12 +196,19 @@ class NodeStateTracker:
             )
             return
 
-        # Only record yield if there were actual changes
-        if graph_changes.nodes_added == 0 and graph_changes.edges_added == 0:
+        # Only record yield if there were actual changes (nodes/edges added or modified)
+        if (
+            graph_changes.nodes_added == 0
+            and graph_changes.edges_added == 0
+            and graph_changes.nodes_modified == 0
+        ):
             self.log.debug(
                 "no_yield_no_changes",
                 node_id=node_id,
                 turn_number=turn_number,
+                nodes_added=graph_changes.nodes_added,
+                edges_added=graph_changes.edges_added,
+                nodes_modified=graph_changes.nodes_modified,
             )
             return
 
@@ -221,6 +231,9 @@ class NodeStateTracker:
             turn_number=turn_number,
             yield_count=state.yield_count,
             yield_rate=state.yield_rate,
+            nodes_added=graph_changes.nodes_added,
+            edges_added=graph_changes.edges_added,
+            nodes_modified=graph_changes.nodes_modified,
         )
 
     async def append_response_signal(

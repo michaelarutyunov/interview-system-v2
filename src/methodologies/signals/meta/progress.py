@@ -38,21 +38,25 @@ class InterviewProgressSignal(SignalDetector):
         signals = context.signals
 
         # Component 1: Chain completion (0-1) - replaces coverage breadth
-        chain_completion = signals.get("graph.chain_completion", 0.0)
+        # chain_completion is a dict with "has_complete_chain" and "complete_chain_count"
+        chain_completion_data = signals.get("graph.chain_completion", {})
+        if isinstance(chain_completion_data, dict):
+            # Calculate completion ratio (complete chains / total level 1 nodes)
+            level_1_count = chain_completion_data.get("level_1_node_count", 1)
+            complete_count = chain_completion_data.get("complete_chain_count", 0)
+            chain_completion = (complete_count / max(level_1_count, 1)) if level_1_count > 0 else 0.0
+        else:
+            chain_completion = float(chain_completion_data) if chain_completion_data else 0.0
 
         # Component 2: Depth (normalized to 0-1, assuming depth 3+ is good)
         max_depth = signals.get("graph.max_depth", 0)
-        depth_score = min(max_depth / 3.0, 1.0)
+        depth_score = min(max(max_depth / 3.0, 0.0), 1.0)
 
         # Component 3: Node count (normalized to 0-1, assuming 10+ nodes is good)
         node_count = signals.get("graph.node_count", 0)
-        node_score = min(node_count / 10.0, 1.0)
+        node_score = min(max(node_count / 10.0, 0.0), 1.0)
 
         # Combine components (weighted average)
-        progress = (
-            (chain_completion * 0.4)
-            + (depth_score * 0.4)
-            + (node_score * 0.2)
-        )
+        progress = (chain_completion * 0.4) + (depth_score * 0.4) + (node_score * 0.2)
 
         return {self.signal_name: progress}
