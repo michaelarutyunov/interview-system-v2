@@ -500,20 +500,26 @@ class GraphRepository:
         row = await cursor.fetchone()
         orphan_count = row[0] if row else 0
 
-        # Max depth (simplified: just count depth levels)
-        # Full graph traversal would be expensive; use node type as proxy
-        max_depth = len([t for t in nodes_by_type if nodes_by_type.get(t, 0) > 0])
+        # Max depth via graph traversal (chain validation)
+        # Fetch all nodes and edges, then use DepthCalculator's DFS
+        # to find the longest connected chain across the entire graph.
+        all_nodes = await self.get_nodes_by_session(session_id)
+        all_edges = await self.get_edges_by_session(session_id)
+
+        depth_calc = DepthCalculator()
+        all_node_ids = {node.id for node in all_nodes}
+        adjacency = depth_calc._build_undirected_adjacency(all_node_ids, all_edges)
+        max_depth = depth_calc._find_longest_path(adjacency)
 
         # Build enhanced coverage state with depth tracking
         coverage_state = await self._build_coverage_state(session_id)
 
         # Create DepthMetrics (ADR-010)
-        # For now, use simplified calculation - full depth analysis requires graph traversal
         depth_metrics = DepthMetrics(
             max_depth=max_depth,
-            avg_depth=0.0,  # Will be computed by depth_calculator if available
-            depth_by_element={},  # Will be populated by depth calculator
-            longest_chain_path=[],  # Will be populated by depth calculator
+            avg_depth=0.0,
+            depth_by_element={},
+            longest_chain_path=[],
         )
 
         # Handle case where coverage_state is None (no concept loaded)
