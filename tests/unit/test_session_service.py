@@ -72,9 +72,7 @@ def mock_concept():
 
 
 @pytest.fixture
-async def test_session(
-    session_repo, test_db, mock_concept
-):
+async def test_session(session_repo, test_db, mock_concept):
     """Create a test session in the database."""
     session = Session(
         id="test-session",

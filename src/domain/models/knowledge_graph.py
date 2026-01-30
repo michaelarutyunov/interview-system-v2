@@ -1,39 +1,11 @@
 """Domain models for knowledge graph nodes and edges."""
 
-from pydantic import BaseModel, Field, model_validator, computed_field
+from pydantic import BaseModel, Field, model_validator
 from typing import List, Dict, Any, Optional, Literal
 from datetime import datetime, timezone
-from enum import Enum
 import structlog
 
 logger = structlog.get_logger(__name__)
-
-
-class NodeType(str, Enum):
-    """Valid node types for Means-End Chain methodology.
-
-    DEPRECATED: This enum is kept for IDE autocomplete only.
-    The authoritative source of truth is config/methodologies/means_end_chain.yaml.
-    Use src.core.schema_loader.load_methodology() to get valid types at runtime.
-    """
-
-    ATTRIBUTE = "attribute"
-    FUNCTIONAL_CONSEQUENCE = "functional_consequence"
-    PSYCHOSOCIAL_CONSEQUENCE = "psychosocial_consequence"
-    INSTRUMENTAL_VALUE = "instrumental_value"
-    TERMINAL_VALUE = "terminal_value"
-
-
-class EdgeType(str, Enum):
-    """Valid edge types.
-
-    DEPRECATED: This enum is kept for IDE autocomplete only.
-    The authoritative source of truth is config/methodologies/means_end_chain.yaml.
-    Use src.core.schema_loader.load_methodology() to get valid types at runtime.
-    """
-
-    LEADS_TO = "leads_to"
-    REVISES = "revises"
 
 
 class KGNode(BaseModel):
@@ -149,14 +121,6 @@ class GraphState(BaseModel):
         description="Experimental metrics not yet promoted to first-class fields",
     )
 
-    # === Backwards Compatibility (migration period) ===
-    # Deprecated: Use current_phase instead
-    @computed_field
-    @property
-    def phase(self) -> str:
-        """Current interview phase (deprecated: use current_phase)."""
-        return self.current_phase
-
     @model_validator(mode="after")
     def validate_consistency(self) -> "GraphState":
         """Validate internal consistency of the graph state."""
@@ -181,21 +145,6 @@ class GraphState(BaseModel):
             )
 
         return self
-
-    # === Backwards Compatibility Methods ===
-
-    def get_phase(self) -> str:
-        """Get current interview phase (deprecated: use current_phase directly)."""
-        return self.current_phase
-
-    def set_phase(self, phase: str) -> None:
-        """Transition to a new phase.
-
-        Args:
-            phase: New phase ('exploratory', 'focused', or 'closing')
-        """
-        # This will validate via Pydantic on assignment
-        self.current_phase = phase  # type: ignore
 
     def add_strategy_used(self, strategy_id: str) -> None:
         """Record a strategy selection in history for diversity tracking.

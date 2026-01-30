@@ -44,9 +44,13 @@ class InterviewProgressSignal(SignalDetector):
             # Calculate completion ratio (complete chains / total level 1 nodes)
             level_1_count = chain_completion_data.get("level_1_node_count", 1)
             complete_count = chain_completion_data.get("complete_chain_count", 0)
-            chain_completion = (complete_count / max(level_1_count, 1)) if level_1_count > 0 else 0.0
+            chain_completion = (
+                (complete_count / max(level_1_count, 1)) if level_1_count > 0 else 0.0
+            )
         else:
-            chain_completion = float(chain_completion_data) if chain_completion_data else 0.0
+            chain_completion = (
+                float(chain_completion_data) if chain_completion_data else 0.0
+            )
 
         # Component 2: Depth (normalized to 0-1, assuming depth 3+ is good)
         max_depth = signals.get("graph.max_depth", 0)

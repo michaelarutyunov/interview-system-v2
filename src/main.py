@@ -5,12 +5,15 @@ Run with: uvicorn src.main:app --reload
 """
 
 from contextlib import asynccontextmanager
+import uuid
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 from src.core.config import settings
-from src.core.logging import configure_logging, get_logger
+from src.core.logging import configure_logging, get_logger, bind_context, clear_context
 from src.persistence.database import init_database
 from src.api.routes import health, sessions, synthetic
 from src.api.routes.concepts import router as concepts_router
@@ -20,6 +23,43 @@ from src.api.exception_handlers import setup_exception_handlers
 # Configure logging before anything else
 configure_logging()
 log = get_logger(__name__)
+
+
+# =============================================================================
+# Correlation ID Middleware
+# =============================================================================
+
+
+class CorrelationIDMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware that adds a unique correlation ID to each request.
+
+    - Generates a UUID4 request_id for each incoming request
+    - Binds it to structlog context for all logs in that request
+    - Adds X-Request-ID header to responses
+
+    This allows tracing all log entries for a specific request.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        """Process request and add correlation ID."""
+        # Generate or retrieve request ID
+        request_id = str(uuid.uuid4())
+
+        # Bind to structlog context for all subsequent logs
+        bind_context(request_id=request_id)
+
+        try:
+            # Call next middleware/endpoint
+            response = await call_next(request)
+
+            # Add request ID to response headers
+            response.headers["X-Request-ID"] = request_id
+
+            return response
+        finally:
+            # Clear context after request completes
+            clear_context()
 
 
 # =============================================================================
@@ -89,7 +129,9 @@ def validate_api_keys() -> list[str]:
             )
 
     if errors:
-        error_msg = "API Key Validation Failed:\n" + "\n".join(f"  - {e}" for e in errors)
+        error_msg = "API Key Validation Failed:\n" + "\n".join(
+            f"  - {e}" for e in errors
+        )
         raise RuntimeError(error_msg)
 
     log.info(
@@ -149,6 +191,9 @@ if settings.debug:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+# Correlation ID middleware (added after CORS, before exception handlers)
+app.add_middleware(CorrelationIDMiddleware)
 
 # Setup exception handlers
 setup_exception_handlers(app)

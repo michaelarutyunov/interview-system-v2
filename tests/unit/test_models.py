@@ -194,22 +194,22 @@ class TestGraphState:
         assert state.nodes_by_type["attribute"] == 2
         assert state.depth_metrics.max_depth == 2
 
-    def test_phase_getset(self):
-        """Phase can be set and retrieved."""
+    def test_current_phase_getset(self):
+        """Current phase can be set and retrieved directly."""
         state = GraphState(
             depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0, depth_by_element={}),
         )
 
         # Default phase is exploratory
-        assert state.get_phase() == "exploratory"
+        assert state.current_phase == "exploratory"
 
         # Set to focused
-        state.set_phase("focused")
-        assert state.get_phase() == "focused"
+        state.current_phase = "focused"
+        assert state.current_phase == "focused"
 
         # Set to closing
-        state.set_phase("closing")
-        assert state.get_phase() == "closing"
+        state.current_phase = "closing"
+        assert state.current_phase == "closing"
 
     def test_add_strategy_used_initializes_history(self):
         """First call to add_strategy_used initializes history list."""
@@ -244,7 +244,7 @@ class TestGraphState:
         state.add_strategy_used("deepen")
 
         # Change phase (other operation)
-        state.set_phase("focused")
+        state.current_phase = "focused"
 
         # History should still be there
         assert state.strategy_history == ["broaden", "deepen"]
