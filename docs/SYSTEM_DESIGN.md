@@ -150,6 +150,10 @@ class ExtractionOutput(BaseModel):
 
 **Phase 6 (2026-01-28)**: The system now uses methodology-based signal detection with YAML configuration, replacing the old two-tier scoring system.
 
+**Phase 6 (2026-01-29)**: Node-level signals enable per-node state tracking and intelligent backtracking.
+
+**D1 Architecture (2026-01-30)**: Joint strategy-node scoring enables the system to select optimal (strategy, node) combinations, with node exhaustion awareness driving automatic backtracking.
+
 Signal pools enable flexible strategy selection by collecting signals from multiple data sources:
 
 ```
@@ -159,16 +163,23 @@ Signal pools enable flexible strategy selection by collecting signals from multi
 │  - Two-pass detection (non-meta first, then meta)           │
 └─────────────────────────────────────────────────────────────┘
                             ↓
-        ┌───────────────────┼───────────────────┐
-        ↓                   ↓                   ↓
-┌──────────────┐   ┌──────────────┐   ┌──────────────┐
-│ Graph Pool   │   │  LLM Pool    │   │Temporal Pool │
-│              │   │              │   │              │
-│ - node_count │   │ - response_  │   │ - strategy_  │
-│ - max_depth  │   │   depth      │   │   repetition │
-│ - coverage   │   │ - sentiment  │   │ - turns_     │
-│ - orphan_    │   │ - topics     │   │   since_     │
-│   count      │   │              │   │   focus      │
+        ┌───────────────────┼───────────────────┬───────────────┐
+        ↓                   ↓                   ↓               ↓
+┌──────────────┐   ┌──────────────┐   ┌──────────────┐ ┌──────────────┐
+│ Graph Pool   │   │  LLM Pool    │   │Temporal Pool │ │Technique Pool│
+│              │   │              │   │              │ │              │
+│Global:       │   │ - response_  │   │ - strategy_  │ │Node-level:   │
+│ - node_count │   │   depth      │   │   repetition │ │ - strategy_  │
+│ - max_depth  │   │ - sentiment  │   │ - turns_     │ │   repetition │
+│ - chain_comp │   │ - uncertainty │   │   since_     │ │              │
+│              │   │ - hedging    │   │   strategy   │ └──────────────┘
+│Node-level:   │   │ - global_    │   │   change     │
+│ - exhausted  │   │   trend      │   │              │
+│ - yield_stag │   │              │   │              │
+│ - focus_     │   │              │   │              │
+│   streak     │   │              │   │              │
+│ - recency_   │   │              │   │              │
+│   score      │   │              │   │              │
 └──────────────┘   └──────────────┘   └──────────────┘
         ↓                   ↓                   ↓
         └───────────────────┼───────────────────┘
@@ -176,10 +187,15 @@ Signal pools enable flexible strategy selection by collecting signals from multi
                     ┌──────────────┐
                     │  Meta Pool   │
                     │              │
+                    │Global:       │
                     │ - interview_ │
-                    │   progress  │
-                    │ - exploratn_ │
-                    │   score     │
+                    │   progress   │
+                    │ - interview_ │
+                    │   phase      │
+                    │              │
+                    │Node-level:   │
+                    │ - node.opport │
+                    │   unity       │
                     └──────────────┘
 ```
 
@@ -189,13 +205,13 @@ All signals use dot-notation namespacing to prevent collisions:
 
 | Pool | Namespace | Example Signals |
 |------|-----------|-----------------|
-| **Graph** | `graph.*` | node_count, max_depth, orphan_count, coverage_breadth |
-| **Graph (Node)** | `graph.node.*` | exhausted, yield_stagnation, focus_streak, recency_score |
-| **LLM** | `llm.*` | response_depth, sentiment, topics |
-| **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_focus_change |
-| **Meta** | `meta.*` | interview_progress, exploration_score |
+| **Graph (Global)** | `graph.*` | node_count, max_depth, orphan_count, chain_completion |
+| **Graph (Node)** | `graph.node.*` | exhausted, exhaustion_score, yield_stagnation, focus_streak, recency_score, is_orphan, edge_count |
+| **LLM** | `llm.*` | response_depth, sentiment, uncertainty, ambiguity, hedging_language, global_response_trend |
+| **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_strategy_change |
+| **Meta (Global)** | `meta.*` | interview_progress, interview.phase |
 | **Meta (Node)** | `meta.node.*` | opportunity (exhausted/probe_deeper/fresh) |
-| **Meta (Interview)** | `meta.interview.*` | phase (early/mid/late) |
+| **Technique (Node)** | `technique.node.*` | strategy_repetition (consecutive same strategy on node) |
 
 ### YAML Configuration Flow
 
@@ -203,17 +219,34 @@ All signals use dot-notation namespacing to prevent collisions:
 graph LR
     A[methodology_config.yaml] -->|MethodologyRegistry.load| B[MethodologyConfig]
     B -->|config.signals| C[ComposedSignalDetector]
-    B -->|config.strategies| D[rank_strategies]
+    B -->|config.strategies| D[rank_strategy_node_pairs]
+    B -->|config.phases| E[Phase Weights + Bonuses]
 
-    C -->|detect| E[Signals Dict]
-    E --> F{signal_weights match?}
+    C -->|detect global| F[Global Signals Dict]
+    C -->|detect per-node| G[Node Signals Dict]
 
-    D -->|scores| G[Best Strategy]
-    F -->|weight| G
+    F --> H{phase in config?}
+    G --> H
+    E --> H
 
-    G --> H[Technique Lookup]
-    H --> I[Technique Pool]
-    I --> J[Question Generation]
+    H -->|Yes| I[Load phase weights + bonuses]
+    H -->|No| J[No phase modifiers]
+
+    I --> K[rank_strategy_node_pairs]
+    J --> K
+
+    K --> L[For Each Strategy × Node Pair]
+    L --> M[Merge global + node signals]
+    M --> N[Score with combined signals]
+    N --> O[Apply phase weights and bonuses]
+    O --> P[Sort all pairs by score]
+
+    P --> Q[Select Best (Strategy, Node)]
+    Q --> R[Return with alternatives]
+
+    R --> S[Technique Lookup]
+    S --> T[Technique Pool]
+    T --> U[Question Generation]
 ```
 
 ### Fresh LLM Signals
@@ -273,7 +306,7 @@ Detects the current interview phase based on graph state:
 
 Computed by `InterviewPhaseSignal` using graph state metrics.
 
-### Joint Strategy-Node Scoring (Phase 3)
+### Joint Strategy-Node Scoring (D1 Architecture)
 
 **Phase 6 (2026-01-29)**: The system implements joint strategy-node scoring for focus selection.
 
@@ -284,7 +317,10 @@ def rank_strategy_node_pairs(
     strategies: List[StrategyConfig],
     global_signals: Dict[str, Any],
     node_signals: Dict[str, Dict[str, Any]],
+    node_tracker: NodeStateTracker,
     phase_weights: Optional[Dict[str, float]] = None,
+    phase_bonuses: Optional[Dict[str, float]] = None,
+    signal_norms: Optional[Dict[str, float]] = None,
 ) -> List[Tuple[StrategyConfig, str, float]]:
     """
     Rank (strategy, node) pairs by joint score.
@@ -293,15 +329,34 @@ def rank_strategy_node_pairs(
     1. Merge global + node signals (node signals take precedence)
     2. Score strategy using combined signals
     3. Apply phase weight multiplier if available
-    4. Sort all pairs by score descending
+    4. Apply phase bonus additively if available
+    5. Sort all pairs by score descending
+
+    Returns: List of (StrategyConfig, node_id, score) tuples
     """
+```
+
+**Scoring Formula**:
+```python
+# Base score from signal weights
+base_score = score_strategy(strategy, combined_signals, signal_norms)
+
+# Apply phase weight multiplier if available
+multiplier = phase_weights.get(strategy.name, 1.0)
+
+# Apply phase bonus additively if available
+bonus = phase_bonuses.get(strategy.name, 0.0)
+
+# Final score: (base_score × multiplier) + bonus
+final_score = (base_score * multiplier) + bonus
 ```
 
 **Benefits:**
 - Strategy selection considers node-specific context
 - Natural integration with node exhaustion (exhausted nodes get low scores)
-- Phase-based weight multipliers adjust strategy preferences per interview phase
+- Phase-based weights (multiplicative) and bonuses (additive) adjust strategy preferences per interview phase
 - Single scoring pass for both strategy and node selection
+- Returns alternatives list for debugging: `[(strategy, node_id, score), ...]`
 
 ---
 
@@ -553,38 +608,40 @@ When a node becomes exhausted, the system automatically backtracks:
    - **Backtracking**: Switching to fresh nodes when current node is exhausted
    - **Revisiting**: Returning to nodes after other exploration (recency score decay)
 
-#### Phase-Based Weight Multipliers
+#### Phase-Based Weights and Bonuses
 
-Strategy preferences can be adjusted per interview phase using weight multipliers defined in YAML methodology configs.
+Strategy preferences can be adjusted per interview phase using both multiplicative weights and additive bonuses defined in YAML methodology configs.
 
 **Two Code Paths:**
 
-The system has two strategy selection code paths, both supporting phase-based weights:
+The system has two strategy selection code paths, both supporting phase-based modifiers:
 
 1. **`rank_strategies()`** - Used by `MethodologyStrategyService.select_strategy()` (legacy selection without node exhaustion)
 2. **`rank_strategy_node_pairs()`** - Used by `MethodologyStrategyService.select_strategy_and_focus()` (D1 architecture with node exhaustion)
 
-Both functions apply phase weights identically:
+Both functions apply phase modifiers identically:
 
 ```python
 # Phase detection from meta.interview.phase signal
 current_phase = signals.get("meta.interview.phase", "mid")  # early/mid/late
 
-# Phase weight retrieval from YAML config
+# Phase weights and bonuses retrieval from YAML config
 phase_weights = None
+phase_bonuses = None
 if config.phases and current_phase in config.phases:
-    phase_weights = config.phases[current_phase].signal_weights
+    phase_config = config.phases[current_phase]
+    phase_weights = phase_config.signal_weights      # Multiplicative
+    phase_bonuses = phase_config.phase_bonuses        # Additive
 
 # Base score calculation using signal weights
-base_score = score_strategy(strategy, signals)
+base_score = score_strategy(strategy, signals, signal_norms)
 
-# Phase weight multiplication
-if phase_weights and strategy.name in phase_weights:
-    multiplier = phase_weights[strategy.name]
-    final_score = base_score * multiplier
-else:
-    multiplier = 1.0
-    final_score = base_score
+# Apply phase weight multiplier and bonus additively
+multiplier = phase_weights.get(strategy.name, 1.0) if phase_weights else 1.0
+bonus = phase_bonuses.get(strategy.name, 0.0) if phase_bonuses else 0.0
+
+# Final score: (base_score × multiplier) + bonus
+final_score = (base_score * multiplier) + bonus
 ```
 
 **YAML Configuration Example:**
@@ -593,26 +650,34 @@ else:
 # src/methodologies/config/means_end_chain.yaml
 phases:
   early:
-    signal_weights:
+    signal_weights:    # Multiplicative weights
       deepen: 1.5      # Boost deepen in early phase
       clarify: 1.2
       reflect: 0.8     # Reduce reflect in early phase
+    phase_bonuses:     # Additive bonuses
+      broaden: 0.2     # Small bonus for broaden strategy
   mid:
-    signal_weights:
-      deepen: 1.0      # Default scoring in mid phase
+    signal_weights:    # Default scoring in mid phase
+      deepen: 1.0
       clarify: 1.0
       reflect: 1.0
+    phase_bonuses:
+      probe: 0.1
   late:
     signal_weights:
       deepen: 0.5      # Reduce deepen in late phase
       clarify: 0.8
       reflect: 1.8     # Boost reflect in late phase
+    phase_bonuses:
+      synthesize: 0.3  # Bonus for synthesis strategies
+      validate: 0.2
 ```
 
 **Phase-based behavior:**
 - **Early phase**: Boost strategies that explore new concepts (`deepen`, `clarify`)
 - **Mid phase**: Use default weights for balanced exploration
-- **Late phase**: Boost strategies that validate and verify findings (`reflect`)
+- **Late phase**: Boost strategies that validate and verify findings (`reflect`, `synthesize`)
+- **Additive bonuses** provide small strategy nudges independent of multiplicative weights
 
 This ensures the interview adapts its strategy preferences as the knowledge graph matures.
 

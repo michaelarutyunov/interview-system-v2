@@ -428,16 +428,46 @@ All checks must pass before committing.
          - graph.node_count
          - graph.max_depth
          - graph.orphan_count
+         - graph.chain_completion
+       graph.node:          # Node-level signals
+         - graph.node.exhausted
+         - graph.node.exhaustion_score
+         - graph.node.focus_streak
+         - graph.node.recency_score
        llm:
          - llm.response_depth
          - llm.sentiment
-         - llm.topics
+         - llm.uncertainty
+         - llm.hedging_language
        temporal:
          - temporal.strategy_repetition_count
-         - temporal.turns_since_focus_change
+         - temporal.turns_since_strategy_change
        meta:
          - meta.interview_progress
-         - meta.exploration_score
+         - meta.interview.phase
+       meta.node:           # Node-level meta signals
+         - meta.node.opportunity
+       technique.node:      # Node-level technique signals
+         - technique.node.strategy_repetition
+
+     # Phase-based weights and bonuses
+     phases:
+       early:
+         signal_weights:    # Multiplicative weights
+           deepen: 1.5
+           broaden: 0.8
+         phase_bonuses:     # Additive bonuses
+           broaden: 0.2
+       mid:
+         signal_weights:
+           deepen: 1.0
+           broaden: 1.0
+       late:
+         signal_weights:
+           deepen: 0.5
+           reflect: 1.8
+         phase_bonuses:
+           synthesize: 0.3
 
      # Strategy definitions (weighted by signals)
      strategies:
@@ -464,19 +494,24 @@ All checks must pass before committing.
    registry = get_registry()
    config = registry.get_methodology("my_methodology")
 
-   # Use with MethodologyStrategyService
+   # Use with MethodologyStrategyService (D1 Architecture)
    from src.services.methodology_strategy_service import MethodologyStrategyService
    service = MethodologyStrategyService()
-   strategy, focus, alternatives, signals = await service.select_strategy(
+   strategy, focus_node_id, alternatives, signals = await service.select_strategy_and_focus(
        context, graph_state, response_text
    )
+   # Returns: (strategy_name, focus_node_id, alternatives_list, signals_dict)
+   # alternatives_list: [(strategy, node_id, score), ...] for debugging
    ```
 
 3. **Key components:**
-   - **Signals**: Auto-detected from shared pools (graph/, llm/, temporal/, meta/)
+   - **Signals**: Auto-detected from shared pools (graph/, llm/, temporal/, meta/, technique/)
+   - **Node-level signals**: Per-node state signals (graph.node.*, technique.node.*, meta.node.*)
    - **Techniques**: Reusable question generation modules (laddering, elaboration, probing, validation)
    - **Strategies**: Methodology-specific "when-to-use" logic defined in YAML
-   - **Focus Selection**: Centralized in FocusSelectionService
+   - **Joint scoring**: `rank_strategy_node_pairs()` scores all (strategy, node) combinations
+   - **Phase weights & bonuses**: Multiplicative weights + additive bonuses per interview phase
+   - **NodeStateTracker**: Persistent per-node state for exhaustion detection
 
 **For more details:**
 - [ADR-014](../adr/ADR-014-signal-pools-architecture.md) - Full signal pools architecture
@@ -486,11 +521,17 @@ All checks must pass before committing.
 
 **Signal Pools Architecture (ADR-014)**: Signals are grouped by data source into pools. Add new signals to the appropriate pool.
 
-1. **Determine signal pool:**
-   - `graph/` - Signals from knowledge graph (node_count, max_depth, orphan_count)
-   - `llm/` - LLM-based signals from response text (response_depth, sentiment, topics)
-   - `temporal/` - Turn-level temporal signals (strategy_repetition_count, turns_since_focus_change)
-   - `meta/` - Composite signals derived from other signals (interview_progress, exploration_score)
+1. **Determine signal pool and type:**
+   - **Global signals** (single value per interview):
+     - `graph/` - Signals from knowledge graph (node_count, max_depth, orphan_count, chain_completion)
+     - `llm/` - LLM-based signals from response text (response_depth, sentiment, uncertainty)
+     - `temporal/` - Turn-level temporal signals (strategy_repetition_count, turns_since_strategy_change)
+     - `meta/` - Composite signals derived from other signals (interview_progress, interview.phase)
+   - **Node-level signals** (per-node values):
+     - `graph/` - Node-specific signals (exhausted, exhaustion_score, focus_streak, recency_score)
+     - `technique/` - Node technique signals (strategy_repetition per node)
+   - **Node-level meta** (derived from node signals):
+     - `meta/` - Node opportunity (exhausted/probe_deeper/fresh)
 
 2. **Create signal class:**
    ```python
@@ -545,6 +586,11 @@ All checks must pass before committing.
        - graph.node_count
        - graph.max_depth
        - graph.my_signal  # Add your new signal
+     graph.node:          # For node-level signals
+       - graph.node.exhausted
+       - graph.node.my_node_signal
+     meta.node:           # For node-level meta signals
+       - meta.node.opportunity
    ```
 
 6. **Add tests:**
@@ -552,13 +598,24 @@ All checks must pass before committing.
    # tests/methodologies/signals/graph/test_my_signal.py
    import pytest
    from src.methodologies.signals.graph.my_signal import MySignal
+   from src.methodologies.signals.graph.my_node_signal import MyNodeSignal
 
    @pytest.mark.asyncio
-   async def test_my_signal_detection(context, graph_state):
+   async def test_my_global_signal_detection(context, graph_state):
        signal = MySignal()
        result = await signal.detect(context, graph_state, "test response")
        assert "graph.my_signal" in result
        assert result["graph.my_signal"] >= 0
+
+   @pytest.mark.asyncio
+   async def test_my_node_signal_detection(context, graph_state, node_tracker):
+       signal = MyNodeSignal()
+       # Register test nodes first
+       await node_tracker.register_node(test_node, turn_number=1)
+       result = await signal.detect_for_node(
+           "test_node_id", node_state, graph_state, context
+       )
+       assert "test_node_id" in result
    ```
 
 **LLM Signals** (fresh per response):
@@ -577,6 +634,74 @@ class MyLLMSignal(BaseLLMSignal):
         # Your LLM analysis logic here
         # Always computed fresh per response
         return {self.signal_name: await self._call_llm(response_text)}
+```
+
+**Node-Level Signals** (per-node values):
+```python
+# src/methodologies/signals/graph/my_node_signal.py
+from typing import Any
+from src.methodologies.signals.graph.common import NodeSignalDetector
+from src.domain.models.node_state import NodeState
+
+class MyNodeSignal(NodeSignalDetector):
+    """My custom node-level signal."""
+
+    signal_name = "graph.node.my_signal"
+    cost_tier = SignalCostTier.LOW
+    refresh_trigger = RefreshTrigger.PER_TURN
+
+    async def detect_for_node(
+        self,
+        node_id: str,
+        node_state: NodeState,
+        graph_state: "GraphState",
+        context: "PipelineContext",
+    ) -> dict[str, Any]:
+        # Calculate signal value for this specific node
+        # Return value should be serializable (bool, int, float, str)
+        value = self._calculate_node_value(node_state)
+        return {node_id: value}
+
+    def _calculate_node_value(self, node_state: NodeState) -> float:
+        # Implementation using node state
+        return node_state.focus_count / max(node_state.turns_since_last_focus, 1)
+```
+
+**Node-Level Technique Signals**:
+```python
+# src/methodologies/signals/technique/my_technique_node_signal.py
+from src.methodologies.signals.technique.common import TechniqueNodeSignal
+
+class MyTechniqueNodeSignal(TechniqueNodeSignal):
+    """Node-level technique signal."""
+
+    signal_name = "technique.node.my_technique_signal"
+
+    async def detect_for_node(
+        self,
+        node_id: str,
+        node_state: NodeState,
+        graph_state: "GraphState",
+        context: "PipelineContext",
+    ) -> dict[str, Any]:
+        # Technique-specific node signal logic
+        consecutive_strategy = node_state.consecutive_same_strategy
+        return {node_id: consecutive_strategy}
+```
+
+**Registering Node-Level Signals**:
+In `src/methodologies/signals/registry.py`, node-level signals are registered with a special marker:
+```python
+SIGNAL_CLASSES = {
+    # Global signals
+    "graph.node_count": GraphNodeCountSignal,
+    "llm.response_depth": ResponseDepthSignal,
+
+    # Node-level signals - marked with "node_level" flag
+    "graph.node.exhausted": (NodeExhaustedSignal, "node_level"),
+    "graph.node.exhaustion_score": (NodeExhaustionScoreSignal, "node_level"),
+    "technique.node.strategy_repetition": (NodeStrategyRepetitionSignal, "node_level"),
+}
 ```
 
 ### Adding a New Technique

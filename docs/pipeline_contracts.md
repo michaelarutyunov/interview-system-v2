@@ -225,7 +225,7 @@ relationship_count: int       # Number of relationships extracted (auto-calculat
 | **Immutable Inputs** | None |
 | **Reads** | `extraction`, `user_utterance` |
 | **Writes** | `graph_update_output` (GraphUpdateOutput contract) |
-| **Side Effects** | INSERT/UPDATE to nodes and edges in graph database |
+| **Side Effects** | INSERT/UPDATE to nodes and edges in graph database; updates NodeStateTracker |
 
 **Contract Output**: `GraphUpdateOutput`
 ```python
@@ -239,6 +239,10 @@ timestamp: datetime           # When graph update was performed (auto-set)
 **Features**:
 - Auto-calculates counts from lists
 - Auto-sets timestamp
+- **NodeStateTracker integration**:
+  - `register_node()` - Registers new nodes when added
+  - `update_edge_counts()` - Updates relationship counts for nodes
+  - `record_yield()` - Records yield when graph changes occur
 
 ---
 
@@ -271,9 +275,9 @@ computed_at: datetime         # When state was computed (freshness tracking)
 
 | Aspect | Details |
 |--------|---------|
-| **Purpose** | Select questioning strategy using methodology-based signal detection (Phase 6: Signal Pools) |
+| **Purpose** | Select questioning strategy and focus node using joint strategy-node scoring (D1 Architecture) |
 | **Immutable Inputs** | `user_input`, `mode` |
-| **Reads** | `state_computation_output`, `graph_state`, `recent_nodes`, `extraction`, `strategy_history` |
+| **Reads** | `state_computation_output`, `graph_state`, `recent_nodes`, `extraction`, `strategy_history`, `node_tracker` |
 | **Writes** | `strategy_selection_output` (StrategySelectionOutput contract) |
 | **Side Effects** | None (pure computation) |
 
@@ -286,18 +290,22 @@ conversation_history: List[Dict[str, str]]  # Conversation history
 turn_number: int                      # Current turn number
 mode: str                             # Interview mode
 computed_at: datetime                 # When graph_state was computed (freshness validation)
+node_tracker: NodeStateTracker        # Node state tracker for node-level signals
 ```
 
 **Contract Output**: `StrategySelectionOutput`
 ```python
 strategy: str                          # Selected strategy ID
-focus: Optional[Dict[str, Any]]        # Focus target
+focus: Optional[Dict[str, Any]]        # Focus target with focus_node_id
 selected_at: datetime                   # When strategy was selected (auto-set)
 signals: Optional[Dict[str, Any]]      # Methodology-specific signals (namespaced)
-strategy_alternatives: List[tuple[str, float]]  # Alternatives with scores
+strategy_alternatives: List[tuple[str, str, float]]  # (strategy, node_id, score) tuples
 ```
 
-**Phase 6 Update**: Now uses `MethodologyStrategyService` with YAML-based signal detection (no two-tier fallback).
+**D1 Architecture Update**: Now uses `MethodologyStrategyService.select_strategy_and_focus()` with joint strategy-node scoring:
+- `rank_strategy_node_pairs()` scores all (strategy, node) combinations
+- Returns best (strategy, node_id) pair with alternatives for debugging
+- Node-level signals enable exhaustion-aware backtracking
 
 ---
 
@@ -309,7 +317,7 @@ strategy_alternatives: List[tuple[str, float]]  # Alternatives with scores
 |--------|---------|
 | **Purpose** | Determine if interview should continue and select focus concept |
 | **Immutable Inputs** | `turn_number`, `max_turns` |
-| **Reads** | `graph_state`, `strategy`, `focus` (uses focus_node_id when available) |
+| **Reads** | `graph_state`, `strategy`, `focus` (uses focus_node_id from D1 joint selection) |
 | **Writes** | `continuation_output` (ContinuationOutput contract) |
 | **Side Effects** | None (pure computation) |
 
@@ -321,6 +329,8 @@ reason: str              # Reason for continuation decision
 turns_remaining: int     # Number of turns remaining
 timestamp: datetime      # When continuation decision was made (auto-set)
 ```
+
+**D1 Architecture**: The `focus` dict contains `focus_node_id` selected jointly with the strategy by `rank_strategy_node_pairs()`.
 
 ---
 

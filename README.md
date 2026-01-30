@@ -398,10 +398,10 @@ The system uses a layered architecture with pipeline pattern for turn processing
 ### Key Components
 
 - **Turn Pipeline**: 10 modular stages for processing each respondent turn
-- **Signal Pools**: 4 signal pools (Graph, LLM, Temporal, Meta) for comprehensive context
+- **Signal Pools**: 5 signal pools (Graph, LLM, Temporal, Meta, Technique) for comprehensive context
 - **MethodologyStrategyService**: Strategy selection using YAML configs and signal detection
 - **NodeStateTracker**: Tracks node visitation, yields, and exhaustion for backtracking
-- **Phase-Based Weights**: Interview phase multipliers adjust strategy preferences
+- **Phase-Based Weights & Bonuses**: Interview phase multipliers (multiplicative) and bonuses (additive) adjust strategy preferences
 - **D1 Architecture**: Joint strategy-node scoring with node exhaustion awareness
 
 ### Configuration-Driven Design
@@ -436,27 +436,40 @@ strategies:
 
 phases:
   early:
-    signal_weights:
+    signal_weights:    # Multiplicative weights
       deepen: 1.5
       clarify: 1.2
       reflect: 0.8
+    phase_bonuses:     # Additive bonuses
+      broaden: 0.2
+  mid:
+    signal_weights:
+      deepen: 1.0
+      clarify: 1.0
+      reflect: 1.0
   late:
     signal_weights:
       deepen: 0.5
       clarify: 0.8
       reflect: 1.8
+    phase_bonuses:
+      synthesize: 0.3
+      validate: 0.2
 ```
 
 ## Signal Pools Architecture
 
-The system uses four signal pools for comprehensive context awareness:
+The system uses five signal pools for comprehensive context awareness:
 
 | Pool | Namespace | Examples | Purpose |
 |------|-----------|----------|---------|
-| **Graph** | `graph.*` | node_count, max_depth, orphan_count, chain_completion | Knowledge graph state |
-| **LLM** | `llm.*` | response_depth, sentiment, hedging_language, global_response_trend | Semantic understanding |
-| **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_focus_change | History tracking |
-| **Meta** | `meta.*` | interview.phase, node.opportunity | Composite signals |
+| **Graph (Global)** | `graph.*` | node_count, max_depth, orphan_count, chain_completion | Knowledge graph state |
+| **Graph (Node)** | `graph.node.*` | exhausted, exhaustion_score, focus_streak, recency_score | Per-node state |
+| **LLM** | `llm.*` | response_depth, sentiment, uncertainty, hedging_language | Semantic understanding |
+| **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_strategy_change | History tracking |
+| **Meta (Global)** | `meta.*` | interview.phase, interview_progress | Composite signals |
+| **Meta (Node)** | `meta.node.*` | opportunity (exhausted/probe_deeper/fresh) | Node opportunity |
+| **Technique (Node)** | `technique.node.*` | strategy_repetition (consecutive same strategy on node) | Per-node technique |
 
 For details, see [ADR-014: Signal Pools Architecture](docs/adr/ADR-014-signal-pools-architecture.md).
 
@@ -482,10 +495,10 @@ The system supports multiple qualitative research methodologies defined in YAML:
 - **Repertory Grid**: Elicits personal constructs
 
 Methodology configurations are in `config/methodologies/` and include:
-- Signal detectors (graph, llm, temporal, meta)
+- Signal detectors (graph, llm, temporal, meta, technique)
 - Strategies with signal weights
 - Question techniques
-- Phase-based weight multipliers
+- Phase-based weights (multiplicative) and bonuses (additive)
 - Node/edge type definitions
 
 ## Documentation

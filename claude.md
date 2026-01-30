@@ -4,7 +4,7 @@
 
 ## Project Overview
 
-The Interview System v2 is a knowledge-graph-based conversational interview system that uses a **10-stage turn processing pipeline** with adaptive strategy selection.
+The Interview System v2 is a knowledge-graph-based conversational **semi-structured** interview system that uses a **10-stage turn processing pipeline** with adaptive strategy selection.
 
 ---
 
