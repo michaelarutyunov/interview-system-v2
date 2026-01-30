@@ -5,7 +5,7 @@ Concepts define WHAT to explore (semantic targets) and are methodology-agnostic.
 The methodology defines HOW to explore (node types, ladder, opening style).
 """
 
-from typing import List, Optional, Dict
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -102,21 +102,3 @@ class Concept(BaseModel):
         ...,
         description="Semantic elements to explore (methodology-agnostic)",
     )
-
-
-class ElementCoverage(BaseModel):
-    """Coverage state for a single element."""
-
-    covered: bool = False  # Any linked node = covered
-    linked_node_ids: List[str] = Field(default_factory=list)
-    types_found: List[str] = Field(default_factory=list)
-    depth_score: float = 0.0  # Chain validation: longest connected path / ladder length
-
-
-class CoverageState(BaseModel):
-    """Coverage state for concept elements."""
-
-    elements: Dict[int, ElementCoverage] = Field(default_factory=dict)
-    elements_covered: int = 0  # How many elements have any linked nodes
-    elements_total: int = 0  # Total elements in concept
-    overall_depth: float = 0.0  # Average depth_score across all elements
