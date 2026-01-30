@@ -147,6 +147,7 @@ signals:
 strategies:
   # Strategy 1: Deepen the chain (laddering)
   - name: deepen
+    description: "Explore why something matters to understand deeper motivations and values through progressive 'why' questioning"
     technique: laddering
     signal_weights:
       # Global signals
@@ -158,10 +159,10 @@ strategies:
       graph.node.exhausted.false: 1.0  # Boost non-exhausted nodes
       graph.node.focus_streak.low: 0.5  # Prefer fresh nodes
       graph.node.exhaustion_score.low: 0.7  # Avoid exhausted nodes
-    focus_preference: shallow
 
   # Strategy 2: Clarify relationships (probing)
   - name: clarify
+    description: "Rephrase the question in simpler, clearer words when user shows confusion or lack of understanding"
     technique: probing
     signal_weights:
       # Global signals
@@ -171,10 +172,10 @@ strategies:
       graph.node.is_orphan.true: 1.0  # Boost orphan nodes
       graph.node.exhausted.false: 0.5
       graph.node.focus_streak.none: 0.3
-    focus_preference: related
 
   # Strategy 3: Explore new areas (elaboration)
   - name: explore
+    description: "Find new branches and related concepts by asking 'what else?' to expand coverage"
     technique: elaboration
     signal_weights:
       # Global signals
@@ -184,10 +185,10 @@ strategies:
       graph.node.focus_streak.none: 1.0  # Fresh nodes
       graph.node.yield_stagnation.false: 0.8  # Nodes that yield
       graph.node.exhausted.false: 0.7
-    focus_preference: recent
 
   # Strategy 4: Reflect and validate (validation)
   - name: reflect
+    description: "Summarize what you've heard and invite correction or addition to validate understanding"
     technique: validation
     signal_weights:
       # Global signals
@@ -202,10 +203,10 @@ strategies:
       graph.node.edge_count.high: 0.8  # Well-connected nodes
       graph.node.focus_streak.high: 0.5  # Often-focused nodes
       technique.node.strategy_repetition.low: 0.3  # Avoid overusing same strategy
-    focus_preference: deep
 
   # Strategy 5: Revitalize engagement (elaboration) - Phase 5
   - name: revitalize
+    description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
     technique: elaboration
     signal_weights:
       # Fatigue detection triggers (Phase 5)
@@ -217,7 +218,6 @@ strategies:
       # Node-level signals (Phase 3)
       graph.node.focus_streak.none: 0.8  # Fresh nodes
       graph.node.exhausted.false: 0.5
-    focus_preference: recent
 
 phases:
   early:

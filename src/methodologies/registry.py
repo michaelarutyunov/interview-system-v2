@@ -42,9 +42,9 @@ class StrategyConfig:
     """Strategy configuration from YAML."""
 
     name: str
+    description: str
     technique: str
     signal_weights: dict[str, float]
-    focus_preference: str
 
 
 class MethodologyRegistry:
@@ -131,9 +131,9 @@ class MethodologyRegistry:
             strategies=[
                 StrategyConfig(
                     name=s["name"],
+                    description=s.get("description", ""),
                     technique=s["technique"],
                     signal_weights=s["signal_weights"],
-                    focus_preference=s["focus_preference"],
                 )
                 for s in data.get("strategies", [])
             ],

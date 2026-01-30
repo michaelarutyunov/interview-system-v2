@@ -2,70 +2,22 @@
 Prompts for question generation.
 
 Generates follow-up questions based on:
-- Selected strategy (loaded from config/scoring.yaml)
+- Selected strategy (loaded from methodology config)
 - Active signals with their descriptions
 - Current graph state (what we know so far)
 - Recent conversation context
 - Focus concept (what to ask about)
 
-Strategy definitions are loaded from config/scoring.yaml.
+Strategy definitions are loaded from methodology YAML configs.
 """
 
 from typing import Optional, List, Dict, Any
-from pathlib import Path
-import yaml
 import structlog
 
 from src.domain.models.methodology_schema import MethodologySchema
+from src.methodologies import get_registry
 
 log = structlog.get_logger(__name__)
-
-# Module-level cache for scoring config (loaded once, cached)
-_scoring_cache: Optional[Dict[str, Any]] = None
-
-
-def _load_scoring_config() -> Dict[str, Any]:
-    """Load scoring configuration from YAML with caching.
-
-    Returns:
-        Dict containing scoring config with strategies, phases, etc.
-    """
-    global _scoring_cache
-    if _scoring_cache is not None:
-        return _scoring_cache
-
-    try:
-        config_path = (
-            Path(__file__).parent.parent.parent.parent / "config" / "scoring.yaml"
-        )
-        with open(config_path) as f:
-            _scoring_cache = yaml.safe_load(f)
-        log.info(
-            "scoring_config_loaded",
-            strategy_count=len(_scoring_cache.get("strategies", [])),
-        )
-        return _scoring_cache
-    except Exception as e:
-        log.error("scoring_config_load_failed", error=str(e))
-        # Return minimal default config
-        return {"strategies": []}
-
-
-def get_strategy_config(strategy_id: str) -> Dict[str, Any]:
-    """Get strategy configuration by ID.
-
-    Args:
-        strategy_id: Strategy identifier (e.g., "deepen", "broaden")
-
-    Returns:
-        Strategy dict with 'name', 'description', etc. Returns empty dict if not found.
-    """
-    config = _load_scoring_config()
-    strategies = config.get("strategies", [])
-    for strategy in strategies:
-        if strategy.get("id") == strategy_id:
-            return strategy
-    return {}
 
 
 def get_question_system_prompt(
@@ -77,25 +29,37 @@ def get_question_system_prompt(
     Get system prompt for question generation.
 
     Args:
-        strategy: Strategy name (deepen, broaden, cover_element, closing, reflection,
-                      bridge, contrast, ease, synthesis) - must match config/scoring.yaml
+        strategy: Strategy name (e.g., deepen, explore, clarify, reflect, revitalize)
+                  - must match methodology config
         topic: Research topic to anchor questions to (prevents drift)
         methodology: Optional methodology schema for method-specific context
 
     Returns:
         System prompt string
     """
-    # Load strategy from scoring.yaml
-    strat_config = get_strategy_config(strategy)
-    if strat_config:
-        strat_name = strat_config.get("name", "Deepen Understanding")
-        strat_description = strat_config.get("description", "")
-    else:
-        # Fallback to hardcoded defaults
-        strat_name = "Deepen Understanding"
-        strat_description = (
-            "Explore why something matters to understand deeper motivations"
+    # Load strategy from methodology config
+    methodology_name = (
+        methodology.method["name"]
+        if methodology and methodology.method
+        else "means_end_chain"
+    )
+    registry = get_registry()
+    try:
+        config = registry.get_methodology(methodology_name)
+        strategy_config = next(
+            (s for s in config.strategies if s.name == strategy), None
         )
+        if strategy_config:
+            strat_name = strategy.replace("_", " ").title()
+            strat_description = strategy_config.description
+        else:
+            # Fallback to strategy name
+            strat_name = strategy.replace("_", " ").title()
+            strat_description = ""
+    except Exception:
+        # Fallback on error
+        strat_name = strategy.replace("_", " ").title()
+        strat_description = ""
 
     # Build methodology section
     methodology_section = ""
@@ -154,6 +118,7 @@ def get_question_user_prompt(
     depth_achieved: int = 0,
     signals: Optional[Dict[str, Any]] = None,
     signal_descriptions: Optional[Dict[str, str]] = None,
+    methodology: Optional[MethodologySchema] = None,
 ) -> str:
     """
     Get user prompt for question generation.
@@ -167,6 +132,7 @@ def get_question_user_prompt(
         depth_achieved: Current depth in the conversation (0-4+)
         signals: Active signal values dict (signal_name -> value)
         signal_descriptions: Signal descriptions dict (signal_name -> description)
+        methodology: Optional methodology schema for method-specific context
 
     Returns:
         User prompt string
@@ -214,12 +180,26 @@ def get_question_user_prompt(
         prompt_parts.append("")
 
     # Add focus and strategy
-    strat_config = get_strategy_config(strategy)
-    if strat_config:
-        strat_name = strat_config.get("name", strategy)
-        strat_description = strat_config.get("description", "")
-    else:
-        strat_name = strategy
+    # Load strategy description from methodology config
+    methodology_name = (
+        methodology.method["name"]
+        if methodology and methodology.method
+        else "means_end_chain"
+    )
+    registry = get_registry()
+    try:
+        config = registry.get_methodology(methodology_name)
+        strategy_config = next(
+            (s for s in config.strategies if s.name == strategy), None
+        )
+        if strategy_config:
+            strat_name = strategy.replace("_", " ").title()
+            strat_description = strategy_config.description
+        else:
+            strat_name = strategy.replace("_", " ").title()
+            strat_description = ""
+    except Exception:
+        strat_name = strategy.replace("_", " ").title()
         strat_description = ""
 
     prompt_parts.append(f"Focus concept: {focus_concept}")
