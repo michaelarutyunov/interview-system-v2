@@ -206,10 +206,8 @@ class TestMetricsPanel:
         status_data = {
             "turn_number": 5,
             "max_turns": 20,
-            "coverage": 0.6,
             "status": "active",
             "scoring": {
-                "coverage": 0.6,
                 "depth": 0.4,
                 "saturation": 0.1,
             },

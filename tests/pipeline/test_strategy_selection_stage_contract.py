@@ -44,7 +44,7 @@ class TestStrategySelectionStageFreshnessValidation:
             concept_id="oat_milk_v2",
             concept_name="Oat Milk v2",
             turn_number=1,
-            mode="coverage",
+            mode="exploratory",
             max_turns=10,
             recent_utterances=[],
             strategy_history=[],
@@ -108,7 +108,7 @@ class TestStrategySelectionStageFreshnessValidation:
             extraction=context_with_extraction.extraction_output.extraction,
             conversation_history=[],
             turn_number=1,
-            mode="coverage",
+            mode="exploratory",
             computed_at=computed_at,
         )
 
@@ -141,7 +141,7 @@ class TestStrategySelectionStageFreshnessValidation:
                 extraction=context_with_extraction.extraction_output.extraction,
                 conversation_history=[],
                 turn_number=1,
-                mode="coverage",
+                mode="exploratory",
                 computed_at=computed_at,
             )
 
@@ -173,7 +173,7 @@ class TestStrategySelectionStageFreshnessValidation:
             extraction=context_with_extraction.extraction_output.extraction,
             conversation_history=[],
             turn_number=1,
-            mode="coverage",
+            mode="exploratory",
             computed_at=computed_at,
         )
 

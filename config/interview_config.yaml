@@ -15,11 +15,7 @@ session:
   # Can be overridden via API: config={"max_turns": custom_value}
   # Default sum: exploratory.n_turns + focused.n_turns + closing.n_turns = 4 + 6 + 1 = 11
   # Note: Omitting max_turns here triggers auto-calculation from phases
-  # Coverage ratio threshold for interview completion
-  # Used by: src/domain/models/interview_state.py:251
-  target_coverage: 0.80
   # Minimum turns before allowing early termination
-  # Used by: src/domain/models/interview_state.py:243
   min_turns: 5
 
 # ============================================================================
@@ -37,7 +33,7 @@ phases:
   exploratory:
     n_turns: 5  # Focus on breadth exploration
   focused:
-    n_turns: 5  # Balance depth and coverage
+    n_turns: 5  # Balance depth and breadth
   closing:
     n_turns: 2  # Wrap up (extendable via session.max_turns)
 

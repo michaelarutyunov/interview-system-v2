@@ -48,7 +48,7 @@ class TestContextLoadingOutput:
             concept_id="oat_milk_v2",
             concept_name="Oat Milk v2",
             turn_number=1,
-            mode="coverage",
+            mode="exploratory",
             max_turns=10,
             recent_utterances=[],
             strategy_history=[],
@@ -172,7 +172,7 @@ class TestStrategySelectionInput:
             extraction=MockExtraction(),  # type: ignore
             conversation_history=[],
             turn_number=1,
-            mode="coverage",
+            mode="exploratory",
             computed_at=state_time,
         )
 
@@ -209,7 +209,7 @@ class TestStrategySelectionInput:
                 extraction=MockExtraction(),  # type: ignore
                 conversation_history=[],
                 turn_number=0,
-                mode="coverage",
+                mode="exploratory",
                 computed_at=state_time,
             )
 
@@ -236,7 +236,7 @@ class TestStrategySelectionInput:
             extraction=MockExtraction(),  # type: ignore
             conversation_history=[],
             turn_number=0,
-            mode="coverage",
+            mode="exploratory",
             computed_at=now,  # Same time as extraction
         )
 

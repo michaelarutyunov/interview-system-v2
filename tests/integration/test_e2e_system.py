@@ -382,8 +382,7 @@ class TestSyntheticInterviewIntegration:
             assert turn_resp.status_code == 200
             turn_data = turn_resp.json()
 
-            # 4. Verify coverage achieved
-            assert turn_data["scoring"]["coverage"] >= 0.0
+            # 4. Verify graph building
             assert turn_data["graph_state"]["node_count"] > 0
 
 

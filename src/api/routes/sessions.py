@@ -413,7 +413,6 @@ async def process_turn(
                 depth_achieved=result.graph_state.get("depth_achieved", {}),
             ),
             scoring=ScoringSchema(
-                coverage=result.scoring["coverage"],
                 depth=result.scoring["depth"],
                 saturation=result.scoring["saturation"],
             ),

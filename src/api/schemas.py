@@ -92,7 +92,6 @@ class GraphStateSchema(BaseModel):
 class ScoringSchema(BaseModel):
     """Scoring results in turn response (Phase 3)."""
 
-    coverage: float = 0.0
     depth: float = 0.0
     saturation: float = 0.0
 
@@ -137,7 +136,7 @@ class TurnResponse(BaseModel):
                     "edge_count": 3,
                     "depth_achieved": {"attribute": 3, "functional_consequence": 2},
                 },
-                "scoring": {"coverage": 0.25, "depth": 0.15, "saturation": 0.0},
+                "scoring": {"depth": 0.15, "saturation": 0.0},
                 "strategy_selected": "deepen",
                 "next_question": "You mentioned the creamy texture feels satisfying. Why is that feeling important to you?",
                 "should_continue": True,
@@ -171,7 +170,7 @@ class SyntheticRespondRequest(BaseModel):
     persona: str = Field(default="health_conscious", description="Persona ID")
     interview_context: Optional[Dict[str, Any]] = Field(
         default=None,
-        description="Optional interview context with product_name, turn_number, coverage_achieved",
+        description="Optional interview context with product_name, turn_number",
     )
     use_deflection: Optional[bool] = Field(
         default=None, description="Override deflection behavior (None = use chance)"
@@ -252,8 +251,6 @@ class SessionStatusResponse(BaseModel):
 
     turn_number: int
     max_turns: int
-    coverage: float = 0.0
-    target_coverage: float  # No default - must be provided by service
     status: str
     should_continue: bool
     strategy_selected: str = "unknown"

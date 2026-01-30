@@ -181,7 +181,6 @@ signals:
     - graph.node_count
     - graph.orphan_count
     - graph.max_depth
-    # Removed: graph.coverage_breadth (deprecated, not meaningful for JTBD)
 
   llm:
     - llm.response_depth
@@ -229,7 +228,6 @@ strategies:
     technique: probing
     signal_weights:
       # Global signals
-      # Removed: graph.coverage_breadth (deprecated)
       llm.ambiguity: 0.4
       # Node-level signals (Phase 3)
       graph.node.is_orphan.true: 1.0  # Boost orphan nodes

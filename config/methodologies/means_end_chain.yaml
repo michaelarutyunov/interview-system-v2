@@ -127,7 +127,6 @@ signals:
     - graph.avg_depth
     - graph.orphan_count
     - graph.chain_completion
-    # Removed: graph.coverage_breadth, graph.missing_terminal_value (not applicable to MEC)
 
   llm:
     - llm.response_depth
@@ -187,7 +186,7 @@ strategies:
 
   # Strategy 3: Explore new areas (elaboration)
   - name: explore
-    description: "Find new branches and related concepts by asking 'what else?' to expand coverage"
+    description: "Find new branches and related concepts by asking 'what else?' to expand breadth"
     technique: elaboration
     signal_weights:
       # Global signals

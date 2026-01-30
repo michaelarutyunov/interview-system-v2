@@ -67,7 +67,7 @@ class StateComputationOutput(BaseModel):
     Stage 5 refreshes graph state metrics after updates.
 
     ADR-010: Added computed_at for freshness tracking to prevent
-    stale state bug where coverage_state from Stage 1 was used in Stage 6.
+    stale state bug where graph_state from Stage 1 was used in Stage 6.
     """
 
     graph_state: GraphState = Field(description="Refreshed knowledge graph state")
@@ -123,7 +123,7 @@ class StrategySelectionInput(BaseModel):
     def verify_state_freshness(self) -> "StrategySelectionInput":
         """Ensure state isn't stale relative to extraction.
 
-        ADR-010: This validation prevents the stale coverage_state bug where
+        ADR-010: This validation prevents the stale graph_state bug where
         StateComputation output from before extraction was used, causing wrong
         strategy selection.
         """

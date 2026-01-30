@@ -137,6 +137,5 @@ class TestScoringPersistenceStageContract:
 
         # Verify scoring was populated in context
         assert result_context.scoring is not None
-        assert "coverage" in result_context.scoring
         assert "depth" in result_context.scoring
         assert "saturation" in result_context.scoring

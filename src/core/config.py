@@ -90,10 +90,6 @@ class Settings(BaseSettings):
     default_max_turns: int = Field(
         default=10, ge=1, le=50, description="Default maximum turns per interview"
     )
-    default_target_coverage: float = Field(
-        default=0.8, ge=0.0, le=1.0, description="Default target coverage ratio"
-    )
-
     # ==========================================================================
     # Server Configuration
     # ==========================================================================
@@ -127,9 +123,6 @@ class SessionConfig(BaseModel):
 
     max_turns: int = Field(
         default=20, ge=1, le=100, description="Maximum turns before forcing close"
-    )
-    target_coverage: float = Field(
-        default=0.80, ge=0.0, le=1.0, description="Target coverage ratio"
     )
     min_turns: int = Field(
         default=5, ge=1, le=20, description="Minimum turns before early termination"

@@ -14,7 +14,6 @@ def test_settings_defaults():
     # Settings class no longer has llm_provider, llm_model, llm_temperature
     # These are now in LLM client defaults
     assert s.default_max_turns == 10  # Settings default (not interview_config)
-    assert s.default_target_coverage == 0.8
     # Note: debug may be True from .env file
 
 
@@ -39,10 +38,6 @@ def test_settings_validation():
     """Settings validate constraints."""
     from src.core.config import Settings
     from pydantic import ValidationError
-
-    # Coverage out of range
-    with pytest.raises(ValidationError):
-        Settings(default_target_coverage=1.5)
 
     # Max turns out of range
     with pytest.raises(ValidationError):

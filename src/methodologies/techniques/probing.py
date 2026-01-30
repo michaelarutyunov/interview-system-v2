@@ -33,7 +33,6 @@ class ProbingTechnique(Technique):
         """Generate probing questions.
 
         Uses namespaced signals to adapt:
-        - If graph.coverage_breadth is low: probe for more options
         - If focus is None: use most recent node
         """
         questions = []

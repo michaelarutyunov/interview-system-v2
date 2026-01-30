@@ -63,7 +63,7 @@ class StrategySelectionStage(TurnStage):
             Modified context with strategy, selection_result, focus, signals, and alternatives
         """
         # ADR-010: Validate freshness before using graph_state
-        # This prevents the stale state bug where coverage_state from Stage 1
+        # This prevents the stale state bug where graph_state from Stage 1
         # (before extraction) was used in Stage 6
         if context.graph_state and context.graph_state_computed_at:
             try:

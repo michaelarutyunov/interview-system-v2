@@ -33,7 +33,6 @@ class ConceptElement(BaseModel):
 class ConceptCompletion(BaseModel):
     """Completion criteria for a concept."""
 
-    target_coverage: float = Field(description="Target coverage threshold")
     max_turns: int = Field(description="Maximum turns")
     saturation_threshold: float = Field(description="Saturation threshold")
 

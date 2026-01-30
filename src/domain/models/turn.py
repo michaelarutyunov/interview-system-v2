@@ -52,8 +52,6 @@ class Focus(BaseModel):
     focus_type: Literal[
         "depth_exploration",
         "breadth_exploration",
-        "coverage_gap",
-        "deepen_coverage",  # For shallow elements that need laddering
         "closing",
         "reflection",
         "lateral_bridge",
@@ -63,9 +61,6 @@ class Focus(BaseModel):
     ]
     node_id: Optional[str] = Field(
         None, description="Node ID if focusing on a specific node"
-    )
-    element_id: Optional[str | int] = Field(
-        None, description="Element ID for coverage gaps (int in v2, str in v1)"
     )
     focus_description: str = Field(
         ..., description="Human-readable description of the focus"
@@ -83,8 +78,6 @@ class Focus(BaseModel):
         }
         if self.node_id:
             result["node_id"] = self.node_id
-        if self.element_id:
-            result["element_id"] = self.element_id
         return result
 
     @classmethod
@@ -93,7 +86,6 @@ class Focus(BaseModel):
         return cls(
             focus_type=data.get("focus_type", "depth_exploration"),
             node_id=data.get("node_id"),
-            element_id=data.get("element_id"),
             focus_description=data.get("focus_description", ""),
             confidence=data.get("confidence", 1.0),
         )
