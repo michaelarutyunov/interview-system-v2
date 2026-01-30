@@ -123,7 +123,7 @@ class GraphService:
         Add a concept as node, or get existing node if duplicate.
 
         Deduplication strategy (v2 simplified):
-        1. Exact label match (case-insensitive)
+        1. Exact label match AND node_type match (case-insensitive label)
         2. If match found, add utterance to provenance
         3. If no match, create new node
 
@@ -135,13 +135,16 @@ class GraphService:
         Returns:
             KGNode (existing or newly created)
         """
-        # Try to find existing node
-        existing = await self.repo.find_node_by_label(session_id, concept.text)
+        # Try to find existing node with matching label AND node_type
+        existing = await self.repo.find_node_by_label_and_type(
+            session_id, concept.text, concept.node_type
+        )
 
         if existing:
             log.debug(
                 "node_deduplicated",
                 label=concept.text,
+                node_type=concept.node_type,
                 existing_id=existing.id,
             )
             # Add this utterance to provenance

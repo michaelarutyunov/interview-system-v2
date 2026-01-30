@@ -22,6 +22,86 @@ configure_logging()
 log = get_logger(__name__)
 
 
+# =============================================================================
+# LLM Provider Defaults (must match client.py)
+# =============================================================================
+
+# These are copied from src/llm/client.py to validate API keys at startup
+# without importing the client module (avoiding circular imports).
+
+EXTRACTION_DEFAULT_PROVIDER = "anthropic"
+SCORING_DEFAULT_PROVIDER = "kimi"
+GENERATION_DEFAULT_PROVIDER = "anthropic"
+
+
+def validate_api_keys() -> list[str]:
+    """
+    Validate that required API keys are configured.
+
+    Checks API keys for all configured LLM providers. If a provider is
+    configured (either via default or environment override), its API key
+    must be present.
+
+    Returns:
+        List of error messages (empty if all keys are valid)
+
+    Raises:
+        RuntimeError: If any required API key is missing
+    """
+    errors = []
+
+    # Determine which providers are in use
+    extraction_provider = (
+        settings.llm_extraction_provider or EXTRACTION_DEFAULT_PROVIDER
+    )
+    scoring_provider = settings.llm_scoring_provider or SCORING_DEFAULT_PROVIDER
+    generation_provider = (
+        settings.llm_generation_provider or GENERATION_DEFAULT_PROVIDER
+    )
+
+    # Map providers to their API key attributes and env var names
+    providers = {
+        "anthropic": ("anthropic_api_key", "ANTHROPIC_API_KEY"),
+        "kimi": ("kimi_api_key", "KIMI_API_KEY"),
+        "deepseek": ("deepseek_api_key", "DEEPSEEK_API_KEY"),
+    }
+
+    # Check each provider in use
+    for client_type, provider in [
+        ("extraction", extraction_provider),
+        ("scoring", scoring_provider),
+        ("generation", generation_provider),
+    ]:
+        if provider not in providers:
+            errors.append(
+                f"Unknown LLM provider '{provider}' for {client_type}. "
+                f"Supported providers: {', '.join(providers.keys())}"
+            )
+            continue
+
+        attr_name, env_var = providers[provider]
+        api_key = getattr(settings, attr_name, None)
+
+        if not api_key:
+            errors.append(
+                f"LLM API key missing: {env_var} is required for {provider} "
+                f"(used by {client_type} client). Set it in .env file."
+            )
+
+    if errors:
+        error_msg = "API Key Validation Failed:\n" + "\n".join(f"  - {e}" for e in errors)
+        raise RuntimeError(error_msg)
+
+    log.info(
+        "api_keys_validated",
+        extraction=extraction_provider,
+        scoring=scoring_provider,
+        generation=generation_provider,
+    )
+
+    return []  # No errors
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -35,6 +115,10 @@ async def lifespan(app: FastAPI):
         debug=settings.debug,
         database_path=str(settings.database_path),
     )
+
+    # Validate API keys before initializing database
+    # Fail fast if LLM providers are misconfigured
+    validate_api_keys()
 
     # Initialize database
     await init_database()
