@@ -35,6 +35,7 @@ class MethodologyConfig:
     signals: dict[str, list[str]]  # graph, llm, temporal, meta
     strategies: list["StrategyConfig"]  # List of strategy definitions
     phases: dict[str, PhaseConfig] | None = None  # phase_name -> config
+    signal_norms: dict[str, float] | None = None  # signal_key -> max_expected
 
 
 @dataclass
@@ -124,6 +125,12 @@ class MethodologyRegistry:
                     signal_weights=phase_data.get("signal_weights", {}),
                 )
 
+        # Load signal_norms if present
+        raw_norms = data.get("signal_norms", None)
+        signal_norms = (
+            {k: float(v) for k, v in raw_norms.items()} if raw_norms else None
+        )
+
         config = MethodologyConfig(
             name=method_data["name"],
             description=method_data.get("description", ""),
@@ -138,6 +145,7 @@ class MethodologyRegistry:
                 for s in data.get("strategies", [])
             ],
             phases=phases,
+            signal_norms=signal_norms,
         )
 
         self._cache[name] = config

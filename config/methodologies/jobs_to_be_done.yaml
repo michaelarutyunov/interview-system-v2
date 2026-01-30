@@ -198,6 +198,16 @@ signals:
     - meta.interview_progress
     - meta.interview.phase
 
+# Per-signal normalization: max_expected values for numeric signals.
+# Numeric signal values are divided by max_expected and clipped to [0, 1].
+# Signals not listed here fall back to the legacy /10 heuristic.
+signal_norms:
+  graph.node_count: 50       # JTBD interviews rarely exceed 50 nodes
+  graph.orphan_count: 20     # Orphans typically < half of node_count
+  graph.max_depth: 8         # JTBD chains can be deep (situation → outcome)
+  temporal.strategy_repetition_count: 5  # Last 5 turns tracked
+  temporal.turns_since_strategy_change: 5  # Practical max before forced pivot
+
 strategies:
   # Strategy 1: Explore the situation (elaboration)
   - name: explore_situation

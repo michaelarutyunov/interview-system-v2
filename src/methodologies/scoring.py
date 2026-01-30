@@ -11,6 +11,7 @@ from src.methodologies.registry import StrategyConfig
 def score_strategy(
     strategy_config: StrategyConfig,
     signals: Dict[str, Any],
+    signal_norms: Optional[Dict[str, float]] = None,
 ) -> float:
     """
     Score a strategy based on current signals using YAML weights.
@@ -18,6 +19,9 @@ def score_strategy(
     Args:
         strategy_config: Strategy config with signal_weights from YAML
         signals: Dict of detected signals (namespaced)
+        signal_norms: Optional dict of signal_key -> max_expected value
+                     for normalizing numeric signals. E.g.,
+                     {"graph.node_count": 50, "graph.max_depth": 8}
 
     Returns:
         Score in range [0, 1] (unbounded if multiple weights add up > 1)
@@ -36,13 +40,8 @@ def score_strategy(
         if isinstance(signal_value, bool):
             contribution = weight if signal_value else 0.0
         elif isinstance(signal_value, (int, float)):
-            # For counts/ratios, normalize if likely > 1
-            # Heuristic: if value > 1, normalize by assuming max of 10
-            if abs(signal_value) > 1:
-                normalized = min(max(signal_value / 10.0, 0.0), 1.0)
-                contribution = weight * normalized
-            else:
-                contribution = weight * signal_value
+            normalized = _normalize_numeric(signal_key, signal_value, signal_norms)
+            contribution = weight * normalized
         else:
             contribution = 0.0
 
@@ -51,6 +50,29 @@ def score_strategy(
     # Return raw score (can be negative or > 1 depending on weights)
     # The comparison matters more than absolute value
     return score
+
+
+def _normalize_numeric(
+    signal_key: str,
+    value: float,
+    signal_norms: Optional[Dict[str, float]],
+) -> float:
+    """Normalize a numeric signal value to [0, 1].
+
+    Uses signal_norms max_expected if available, otherwise falls back
+    to the legacy /10.0 heuristic for values > 1.
+    """
+    # Already in [0, 1] range — pass through
+    if abs(value) <= 1:
+        return value
+
+    # Use per-signal max_expected if available
+    if signal_norms and signal_key in signal_norms:
+        max_expected = signal_norms[signal_key]
+        return min(max(value / max_expected, 0.0), 1.0)
+
+    # Legacy fallback: divide by 10 and clip
+    return min(max(value / 10.0, 0.0), 1.0)
 
 
 def _get_signal_value(signal_key: str, signals: Dict[str, Any]) -> Any:
@@ -83,6 +105,7 @@ def rank_strategies(
     strategy_configs: List[StrategyConfig],
     signals: Dict[str, Any],
     phase_weights: Optional[Dict[str, float]] = None,
+    signal_norms: Optional[Dict[str, float]] = None,
 ) -> List[Tuple[StrategyConfig, float]]:
     """
     Rank all strategies by score.
@@ -102,7 +125,7 @@ def rank_strategies(
     scored = []
     for strategy_config in strategy_configs:
         # Score strategy using signal weights
-        base_score = score_strategy(strategy_config, signals)
+        base_score = score_strategy(strategy_config, signals, signal_norms=signal_norms)
 
         # Apply phase weight multiplier if available
         if phase_weights and strategy_config.name in phase_weights:
@@ -131,6 +154,7 @@ def rank_strategy_node_pairs(
     node_signals: Dict[str, Dict[str, Any]],
     node_tracker=None,
     phase_weights: Optional[Dict[str, float]] = None,
+    signal_norms: Optional[Dict[str, float]] = None,
 ) -> List[Tuple[StrategyConfig, str, float]]:
     """
     Rank (strategy, node) pairs by joint score.
@@ -160,7 +184,9 @@ def rank_strategy_node_pairs(
             combined_signals = {**global_signals, **node_signal_dict}
 
             # Score strategy for this specific node
-            score = score_strategy(strategy, combined_signals)
+            score = score_strategy(
+                strategy, combined_signals, signal_norms=signal_norms
+            )
 
             # Apply phase weight multiplier if available
             if phase_weights and strategy.name in phase_weights:
