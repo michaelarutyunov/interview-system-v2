@@ -59,8 +59,9 @@ def _normalize_numeric(
 ) -> float:
     """Normalize a numeric signal value to [0, 1].
 
-    Uses signal_norms max_expected if available, otherwise falls back
-    to the legacy /10.0 heuristic for values > 1.
+    Uses signal_norms max_expected value. Raises ValueError if a numeric
+    signal >1 has no norm defined — this forces methodology YAML configs
+    to explicitly declare expected ranges for all numeric signals.
     """
     # Already in [0, 1] range — pass through
     if abs(value) <= 1:
@@ -71,8 +72,11 @@ def _normalize_numeric(
         max_expected = signal_norms[signal_key]
         return min(max(value / max_expected, 0.0), 1.0)
 
-    # Legacy fallback: divide by 10 and clip
-    return min(max(value / 10.0, 0.0), 1.0)
+    raise ValueError(
+        f"Numeric signal '{signal_key}' has value {value} (>1) but no "
+        f"signal_norm defined. Add '{signal_key}' to signal_norms in "
+        f"the methodology YAML config."
+    )
 
 
 def _get_signal_value(signal_key: str, signals: Dict[str, Any]) -> Any:

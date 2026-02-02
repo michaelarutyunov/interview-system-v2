@@ -87,17 +87,15 @@ class TestNumericNormalizationWithSignalNorms:
 
 
 class TestFallbackWithoutSignalNorms:
-    """Test behavior when signal_norms is not provided (backward compat)."""
+    """Test behavior when signal_norms is not provided."""
 
-    def test_no_signal_norms_uses_fallback(self):
-        """Without signal_norms, numeric values > 1 still get normalized."""
+    def test_no_signal_norms_raises_for_numeric_gt_1(self):
+        """Without signal_norms, numeric values > 1 raise ValueError."""
         strategy = _make_strategy({"graph.node_count": 1.0})
         signals = {"graph.node_count": 5}
 
-        # Without signal_norms, should still produce a value in [0, 1]
-        score = score_strategy(strategy, signals)
-
-        assert 0.0 <= score <= 1.0
+        with pytest.raises(ValueError, match="signal_norm defined"):
+            score_strategy(strategy, signals)
 
     def test_already_normalized_signals_pass_through(self):
         """Values already in [0, 1] should not be re-normalized."""

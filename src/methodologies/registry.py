@@ -12,6 +12,37 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from src.methodologies.signals.registry import ComposedSignalDetector
 
+# Known technique names (must match get_technique() lookup)
+KNOWN_TECHNIQUES = frozenset({"laddering", "elaboration", "probing", "validation"})
+
+# Signal weight prefixes that are valid but not in the main signal registry.
+# These are session-scoped signals managed separately (e.g., in
+# MethodologyStrategyService) rather than through ComposedSignalDetector.
+EXTRA_SIGNAL_WEIGHT_PREFIXES = frozenset({"llm.global_response_trend"})
+
+
+def _is_valid_signal_weight_key(key: str, known_signals: set[str]) -> bool:
+    """Check if a signal weight key has a valid signal prefix.
+
+    Signal weight keys can be:
+    - Exact signal name: "graph.max_depth"
+    - Compound key: "llm.response_depth.surface" (base signal + value qualifier)
+    - Deep compound: "graph.chain_completion.has_complete_chain.false"
+
+    Tries progressively shorter prefixes until one matches a known signal
+    or an allowed extra prefix.
+    """
+    if key in known_signals or key in EXTRA_SIGNAL_WEIGHT_PREFIXES:
+        return True
+
+    parts = key.split(".")
+    for i in range(len(parts) - 1, 0, -1):
+        prefix = ".".join(parts[:i])
+        if prefix in known_signals or prefix in EXTRA_SIGNAL_WEIGHT_PREFIXES:
+            return True
+
+    return False
+
 
 @dataclass
 class PhaseConfig:
@@ -88,7 +119,7 @@ class MethodologyRegistry:
             MethodologyConfig with signals and strategies
 
         Raises:
-            ValueError: If methodology config not found
+            ValueError: If methodology config not found or validation fails
         """
         if name in self._cache:
             return self._cache[name]
@@ -150,8 +181,87 @@ class MethodologyRegistry:
             signal_norms=signal_norms,
         )
 
+        self._validate_config(config, config_path)
+
         self._cache[name] = config
         return config
+
+    def _validate_config(
+        self, config: MethodologyConfig, config_path: Path
+    ) -> None:
+        """Validate methodology config against known signals and techniques.
+
+        Collects all errors and raises a single ValueError listing them all.
+        """
+        from src.methodologies.signals.registry import ComposedSignalDetector
+
+        errors: list[str] = []
+        known_signals = ComposedSignalDetector.get_known_signal_names()
+
+        # Collect defined strategy names
+        strategy_names: set[str] = set()
+
+        # 1. Validate signals in signals: dict
+        for pool_name, signal_list in config.signals.items():
+            for signal_name in signal_list:
+                if signal_name not in known_signals:
+                    errors.append(
+                        f"signals.{pool_name}: unknown signal '{signal_name}'"
+                    )
+
+        # 2. Validate strategies
+        for i, strategy in enumerate(config.strategies):
+            if strategy.name in strategy_names:
+                errors.append(
+                    f"strategies[{i}]: duplicate strategy name '{strategy.name}'"
+                )
+            strategy_names.add(strategy.name)
+
+            if strategy.technique not in KNOWN_TECHNIQUES:
+                errors.append(
+                    f"strategies[{i}] '{strategy.name}': "
+                    f"unknown technique '{strategy.technique}'"
+                )
+
+            for weight_key in strategy.signal_weights:
+                if not _is_valid_signal_weight_key(weight_key, known_signals):
+                    errors.append(
+                        f"strategies[{i}] '{strategy.name}': "
+                        f"unknown signal weight key '{weight_key}'"
+                    )
+
+        # 3. Validate phases reference defined strategies
+        if config.phases:
+            for phase_name, phase_config in config.phases.items():
+                for key in phase_config.signal_weights:
+                    if key not in strategy_names:
+                        errors.append(
+                            f"phases.{phase_name}.signal_weights: "
+                            f"unknown strategy '{key}' "
+                            f"(defined: {sorted(strategy_names)})"
+                        )
+                for key in phase_config.phase_bonuses:
+                    if key not in strategy_names:
+                        errors.append(
+                            f"phases.{phase_name}.phase_bonuses: "
+                            f"unknown strategy '{key}' "
+                            f"(defined: {sorted(strategy_names)})"
+                        )
+
+        # 4. Validate signal_norms keys
+        if config.signal_norms:
+            for norm_key in config.signal_norms:
+                if norm_key not in known_signals:
+                    errors.append(
+                        f"signal_norms: unknown signal '{norm_key}'"
+                    )
+
+        if errors:
+            error_list = "\n  - ".join(errors)
+            raise ValueError(
+                f"Methodology config validation failed for "
+                f"'{config_path.name}':\n  - {error_list}"
+            )
 
     def list_methodologies(self) -> list[str]:
         """List all available methodology names."""

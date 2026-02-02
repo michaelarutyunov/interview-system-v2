@@ -176,7 +176,7 @@ extractability_criteria:
 signals:
   graph:
     - graph.node_count
-    - graph.edge_density
+    - graph.edge_count
     - graph.orphan_count
 
   llm:
@@ -212,7 +212,7 @@ strategies:
     description: "Explore the meaning and importance of identified constructs"
     technique: elaboration
     signal_weights:
-      graph.edge_density: 0.7
+      graph.edge_count: 0.7
       llm.response_depth.moderate: 0.8
 
   - name: ladder_constructs

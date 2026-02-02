@@ -4,7 +4,10 @@ Maps namespaced signal names to detector classes and handles
 dynamic signal detection.
 """
 
+import structlog
 from typing import TYPE_CHECKING, Any, Optional, Union
+
+log = structlog.get_logger(__name__)
 
 if TYPE_CHECKING:
     from src.services.turn_pipeline.context import PipelineContext
@@ -143,6 +146,16 @@ class ComposedSignalDetector:
 
         cls._initialized = True
 
+    @classmethod
+    def get_known_signal_names(cls) -> set[str]:
+        """Return the set of all registered signal names.
+
+        Initializes the registry if needed. Used by MethodologyRegistry
+        for YAML config validation.
+        """
+        cls._register_signals()
+        return set(cls._signal_registry.keys())
+
     def __init__(
         self,
         signal_names: list[str],
@@ -203,8 +216,15 @@ class ComposedSignalDetector:
             if detector.signal_name.startswith("meta."):
                 continue
 
-            signals = await detector.detect(context, graph_state, response_text)
-            all_signals.update(signals)
+            try:
+                signals = await detector.detect(context, graph_state, response_text)
+                all_signals.update(signals)
+            except Exception as e:
+                log.error(
+                    "signal_detector_failed",
+                    signal_name=detector.signal_name,
+                    error=str(e),
+                )
 
         # Update context with detected signals for meta signals
         # Note: context.signals is set by the pipeline stage, not here
@@ -222,7 +242,14 @@ class ComposedSignalDetector:
                     self.signals = signals_dict
 
             temp_context = ContextWithSignals(all_signals)
-            signals = await detector.detect(temp_context, graph_state, response_text)
-            all_signals.update(signals)
+            try:
+                signals = await detector.detect(temp_context, graph_state, response_text)
+                all_signals.update(signals)
+            except Exception as e:
+                log.error(
+                    "signal_detector_failed",
+                    signal_name=detector.signal_name,
+                    error=str(e),
+                )
 
         return all_signals

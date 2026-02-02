@@ -178,7 +178,7 @@ strategies:
     signal_weights:
       # Global signals
       graph.orphan_count: 0.7
-      graph.edge_density: 0.6
+      graph.edge_count: 0.6
       # Node-level signals (Phase 3)
       graph.node.is_orphan.true: 1.0  # Boost orphan nodes
       graph.node.exhausted.false: 0.5
@@ -255,9 +255,9 @@ phases:
     description: "Validation and verification"
     signal_weights:
       reflect: 1.5
-      validate: 1.2
+      revitalize: 1.2
       deepen: 0.5
       explore: 0.3
     phase_bonuses:
       reflect: 0.4  # Additive bonus to ensure reflection gets selected even with zero base score
-      validate: 0.2  # Additive bonus to prioritize validation in late phase
+      revitalize: 0.2  # Additive bonus for revitalize in late phase
