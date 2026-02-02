@@ -210,11 +210,6 @@ class PipelineContext:
         return "deepen"
 
     @property
-    def selection_result(self) -> Optional[Any]:
-        """Get selection_result (None for methodology-based selection)."""
-        return None  # Methodology service doesn't produce SelectionResult
-
-    @property
     def focus(self) -> Optional[Dict[str, Any]]:
         """Get focus from StrategySelectionOutput."""
         if self.strategy_selection_output:
@@ -229,7 +224,7 @@ class PipelineContext:
         return None
 
     @property
-    def strategy_alternatives(self) -> List[tuple[str, float]]:
+    def strategy_alternatives(self) -> List[tuple[str, float] | tuple[str, str, float]]:
         """Get strategy_alternatives from StrategySelectionOutput."""
         if self.strategy_selection_output:
             return self.strategy_selection_output.strategy_alternatives

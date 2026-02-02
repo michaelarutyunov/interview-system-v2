@@ -19,10 +19,7 @@ from src.llm.client import LLMClient, get_extraction_llm_client
 from src.llm.prompts.extraction import (
     get_extraction_system_prompt,
     get_extraction_user_prompt,
-    get_extractability_system_prompt,
-    get_extractability_user_prompt,
     parse_extraction_response,
-    parse_extractability_response,
 )
 from src.core.concept_loader import load_concept, get_element_alias_map
 from src.domain.models.extraction import (
@@ -102,7 +99,7 @@ class ExtractionService:
         log.info(
             "extraction_service_initialized",
             methodology=methodology,
-            node_types=len(self.schema.node_types),
+            node_count=len(self.schema.ontology.nodes) if self.schema.ontology else 0,
         )
 
     async def extract(
@@ -397,38 +394,3 @@ class ExtractionService:
                 log.warning("relationship_parse_error", raw=raw, error=str(e))
 
         return relationships
-
-    async def assess_extractability(self, text: str) -> tuple[bool, str]:
-        """
-        Assess whether text is extractable using LLM.
-
-        More expensive than heuristics but more accurate.
-
-        Args:
-            text: Text to assess
-
-        Returns:
-            (is_extractable, reason) tuple
-        """
-        # First do fast check
-        is_extractable, reason = self._fast_extractability_check(text)
-        if not is_extractable:
-            return is_extractable, reason or ""
-
-        # Then LLM check
-        try:
-            system_prompt = get_extractability_system_prompt(self.methodology)
-            user_prompt = get_extractability_user_prompt(text)
-
-            response = await self.llm.complete(
-                prompt=user_prompt,
-                system=system_prompt,
-                temperature=0.1,
-                max_tokens=100,
-            )
-
-            return parse_extractability_response(response.content)
-        except Exception as e:
-            log.warning("extractability_llm_error", error=str(e))
-            # Default to extractable on error
-            return True, "LLM check failed, assuming extractable"

@@ -7,7 +7,7 @@ untyped Dict[str, Any] usage in service interfaces.
 Part of ADR-008 Phase 2: Formalize Contracts
 """
 
-from typing import List, Optional, Literal, Any
+from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 
 from src.domain.models.knowledge_graph import GraphState, KGNode
@@ -102,9 +102,6 @@ class TurnResult(BaseModel):
     turn_number: int
     extracted: ExtractionResult
     graph_state: GraphState
-    selection: Optional["SelectionResult"] = Field(
-        None, description="Strategy selection result"
-    )
     next_question: str
     should_continue: bool
     latency_ms: int = 0
@@ -142,25 +139,8 @@ class TurnResult(BaseModel):
                 "edge_count": self.graph_state.edge_count,
                 "depth_achieved": self.graph_state.nodes_by_type,
             },
-            "strategy_selected": self.selection.selected_strategy["id"]
-            if self.selection
-            else "unknown",
+            "strategy_selected": "unknown",
             "next_question": self.next_question,
             "should_continue": self.should_continue,
             "latency_ms": self.latency_ms,
         }
-
-
-# Forward reference for SelectionResult imported from strategy_service
-class SelectionResult(BaseModel):
-    """
-    Result of strategy selection process.
-
-    Imported from strategy_service.SelectionResult for type annotations.
-    """
-
-    selected_strategy: dict
-    selected_focus: dict
-    final_score: float
-    scoring_result: Optional[Any] = None
-    alternative_strategies: List[Any] = Field(default_factory=list)

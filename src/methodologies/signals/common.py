@@ -79,13 +79,3 @@ class SignalDetector(ABC):
             May return multiple related signals for efficiency.
         """
         ...
-
-
-class SignalState:
-    """Base class for signal state containers.
-
-    Deprecated: New signal pools return plain dicts instead of state objects.
-    Kept for backward compatibility during migration.
-    """
-
-    pass
