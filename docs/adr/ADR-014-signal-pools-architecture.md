@@ -181,7 +181,25 @@ methodology:
         llm.response_depth.surface: 0.8
         graph.max_depth: 0.5
       focus_preference: shallow
+
+  # Signal normalization ranges (optional)
+  signal_norms:
+    graph.node_count: 50
+    graph.max_depth: 10
+    temporal.strategy_repetition_count: 5
 ```
+
+**YAML Validation** (implemented in fr4):
+
+`MethodologyRegistry.get_methodology()` validates configs at load-time:
+- **Signal names**: All signals in `signals` dict must be registered in `ComposedSignalDetector`
+- **Technique names**: All `strategy.technique` values must match known techniques (laddering, elaboration, probing, validation)
+- **Signal weight keys**: All keys in `strategy.signal_weights` must have valid signal name prefixes (supports compound keys like `llm.response_depth.surface`)
+- **Strategy names**: Must be unique within a methodology
+- **Phase references**: Phase `signal_weights` and `phase_bonuses` must reference defined strategy names
+- **signal_norms keys**: All keys in `signal_norms` must be registered signal names
+
+Validation errors are collected and reported together with the config filename and specific error locations.
 
 #### 6. Techniques vs Strategies
 

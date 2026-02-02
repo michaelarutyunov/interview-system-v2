@@ -644,10 +644,43 @@ bonus = phase_bonuses.get(strategy.name, 0.0) if phase_bonuses else 0.0
 final_score = (base_score * multiplier) + bonus
 ```
 
+**Signal Normalization** (t19):
+
+The `score_strategy()` function normalizes numeric signals to [0, 1] using `signal_norms` from YAML configs:
+
+```python
+# For numeric signals with values > 1, normalize using max_expected from signal_norms
+# Example: graph.node_count = 25, signal_norms["graph.node_count"] = 50
+# → normalized value = 25/50 = 0.5
+
+# Signals already in [0, 1] pass through unchanged
+# Example: llm.uncertainty = 0.7 → no normalization needed
+
+# If a numeric signal > 1 has no norm defined, raises ValueError
+# This forces methodology configs to declare expected ranges explicitly
+```
+
+**Error Handling in Signal Detection:**
+
+Each signal detector runs in isolation with try/except handling. If a detector fails (e.g., database timeout, LLM error):
+- Error logged with `structlog` at error level
+- Failed signal scored as 0 (missing from signals dict)
+- Other detectors continue executing
+- Strategy selection proceeds with partial signals (degraded but not dead)
+
 **YAML Configuration Example:**
 
 ```yaml
 # src/methodologies/config/means_end_chain.yaml
+
+# Signal normalization ranges for numeric signals
+signal_norms:
+  graph.node_count: 50         # Expect up to 50 nodes
+  graph.max_depth: 10          # Expect max depth of 10
+  graph.orphan_count: 10       # Expect up to 10 orphans
+  temporal.strategy_repetition_count: 5  # Expect up to 5 repetitions
+
+# Phase-based strategy modifiers
 phases:
   early:
     signal_weights:    # Multiplicative weights
