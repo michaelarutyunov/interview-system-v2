@@ -299,12 +299,21 @@ Computed by `NodeOpportunitySignal` using:
 
 **Interview Phase Signal (`meta.interview.phase`):**
 
-Detects the current interview phase based on graph state:
-- **early**: Initial exploration (node_count < 5)
-- **mid**: Building depth and connections (node_count < 15 or orphan_count > 3)
-- **late**: Validation and verification (node_count >= 15)
+Detects the current interview phase based on graph state and methodology-specific thresholds:
+- **early**: Initial exploration (node_count < early_max_nodes)
+- **mid**: Building depth and connections (early_max_nodes ≤ node_count < mid_max_nodes)
+- **late**: Validation and verification (node_count ≥ mid_max_nodes)
 
-Computed by `InterviewPhaseSignal` using graph state metrics.
+**Configurable Phase Boundaries (54d)**: Each methodology defines its own phase transition thresholds in YAML config under `phases.<phase>.phase_boundaries`:
+```yaml
+phases:
+  early:
+    phase_boundaries:
+      early_max_nodes: 5   # Transition to mid at this count
+      mid_max_nodes: 15    # Transition to late at this count
+```
+
+Computed by `InterviewPhaseSignal` using methodology-specific thresholds from config with fallback to defaults (5/15).
 
 ### Joint Strategy-Node Scoring (D1 Architecture)
 

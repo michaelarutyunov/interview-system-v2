@@ -281,7 +281,7 @@ graph LR
 
 ```mermaid
 graph LR
-    A[Session.state.strategy_history] -->|load| B[ContextLoadingStage]
+    A[Session.state.strategy_history] -->|load deque| B[ContextLoadingStage]
     B --> C[context.strategy_history]
 
     C -->|read| D[StrategySelectionStage]
@@ -296,17 +296,20 @@ graph LR
 
     I --> J[ScoringPersistenceStage]
     J -->|append| K[Session.state.strategy_history]
-    K -->|save| L[(Database)]
-    L -->|next turn| M[ContextLoadingStage]
+    K -->|auto-trim to 30| L[deque maxlen=30]
+    L -->|save| M[(Database)]
+    M -->|list→deque convert| N[ContextLoadingStage]
 ```
 
 ### Key Points
 
-- History is loaded at start of each turn
+- History is loaded at start of each turn as `deque(maxlen=30)`
+- **Automatic trimming**: Deque automatically discards items beyond 30 (O(1) append/pop)
 - **Temporal signals** track strategy repetition (`temporal.strategy_repetition_count`)
 - Signal weights in YAML configs automatically penalize repetition
 - History is appended and saved at end of turn
-- Creates a feedback loop for diversity
+- **Backward compatibility**: Lists from database are auto-converted to deque via field validator
+- Creates a feedback loop for diversity with bounded memory usage
 
 ## Path 5: Traceability Chain (ADR-010 Phase 2)
 

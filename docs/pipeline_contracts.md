@@ -96,7 +96,7 @@ class PipelineContext:
     mode: str
     max_turns: int
     recent_utterances: List[Dict[str, str]]
-    strategy_history: List[str]
+    strategy_history: deque[str]  # Auto-trimmed to 30 items
 
     # Graph state (loaded in ContextLoadingStage, updated in StateComputationStage)
     graph_state: Optional[GraphState]
@@ -158,7 +158,7 @@ turn_number: int          # Current turn number
 mode: str                 # Interview mode
 max_turns: int            # Maximum turns
 recent_utterances: List[Dict[str, str]]  # Conversation history
-strategy_history: List[str]  # Strategy history
+strategy_history: deque[str]  # Strategy history (auto-trimmed to 30 items)
 graph_state: GraphState    # Knowledge graph state
 recent_nodes: List[KGNode] # Recent nodes
 ```
