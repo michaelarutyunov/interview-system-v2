@@ -20,6 +20,7 @@ from src.domain.models.extraction import ExtractionResult
 from src.domain.models.knowledge_graph import GraphState, KGNode
 from src.domain.models.utterance import Utterance
 from src.domain.models.turn import Focus
+from src.llm.client import LLMClient
 from src.services.extraction_service import ExtractionService
 from src.services.focus_selection_service import FocusSelectionService
 from src.services.graph_service import GraphService
@@ -88,6 +89,8 @@ class SessionService:
         question_service: Optional[QuestionService] = None,
         utterance_repo: Optional[UtteranceRepository] = None,
         max_turns: Optional[int] = None,
+        extraction_llm_client: Optional[LLMClient] = None,
+        generation_llm_client: Optional[LLMClient] = None,
     ):
         """
         Initialize session service with pipeline.
@@ -100,12 +103,20 @@ class SessionService:
             question_service: Question service (creates default if None)
             utterance_repo: Utterance repository (creates default if None)
             max_turns: Maximum turns before forcing close (defaults to interview_config.yaml)
+            extraction_llm_client: LLM client for extraction (required if extraction_service not provided)
+            generation_llm_client: LLM client for question generation (required if question_service not provided)
         """
         self.session_repo = session_repo
         self.graph_repo = graph_repo
 
         # Create services with graph_repo where needed
-        self.extraction = extraction_service or ExtractionService()
+        if extraction_service:
+            self.extraction = extraction_service
+        else:
+            if extraction_llm_client is None:
+                raise ValueError("extraction_llm_client is required when extraction_service is not provided")
+            self.extraction = ExtractionService(llm_client=extraction_llm_client)
+
         self.graph = graph_service or GraphService(graph_repo)
 
         # Question service needs methodology for opening question generation
@@ -113,8 +124,10 @@ class SessionService:
         if question_service:
             self.question = question_service
         else:
+            if generation_llm_client is None:
+                raise ValueError("generation_llm_client is required when question_service is not provided")
             # Create with default methodology, will be updated per session
-            self.question = QuestionService(methodology="means_end_chain")
+            self.question = QuestionService(llm_client=generation_llm_client, methodology="means_end_chain")
 
         # Create utterance repo if not provided
         if utterance_repo is None:

@@ -14,7 +14,7 @@ from typing import Optional, List, Dict, Any
 
 import structlog
 
-from src.llm.client import LLMClient, get_generation_llm_client
+from src.llm.client import LLMClient
 from src.llm.prompts.question import (
     get_question_system_prompt,
     get_question_user_prompt,
@@ -40,7 +40,7 @@ class QuestionService:
 
     def __init__(
         self,
-        llm_client: Optional[LLMClient] = None,
+        llm_client: LLMClient,
         default_strategy: str = "deepen",
         methodology: str = "means_end_chain",
     ):
@@ -48,11 +48,11 @@ class QuestionService:
         Initialize question service.
 
         Args:
-            llm_client: LLM client instance (creates default if None)
+            llm_client: LLM client instance (required)
             default_strategy: Default strategy for Phase 2 (hardcoded "deepen")
             methodology: Methodology name for opening question generation
         """
-        self.llm = llm_client or get_generation_llm_client()
+        self.llm = llm_client
         self.default_strategy = default_strategy
         self.methodology = methodology
 

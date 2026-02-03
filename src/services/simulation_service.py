@@ -28,6 +28,7 @@ from src.services.session_service import SessionService
 from src.services.synthetic_service import SyntheticService
 from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
+from src.api.dependencies import get_shared_extraction_client, get_shared_generation_client
 from src.domain.models.session import Session, SessionState
 from src.domain.models.interview_state import InterviewMode
 
@@ -415,6 +416,8 @@ def get_simulation_service(
     session_service = SessionService(
         session_repo=session_repo,
         graph_repo=graph_repo,
+        extraction_llm_client=get_shared_extraction_client(),
+        generation_llm_client=get_shared_generation_client(),
     )
 
     # Create synthetic service (will be created in SimulationService if None)

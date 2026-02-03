@@ -32,6 +32,7 @@ from src.api.schemas import (
     ScoringCandidateSchema,
     ScoringTurnResponse,
 )
+from src.api.dependencies import get_shared_extraction_client, get_shared_generation_client
 from src.core.config import settings
 from src.core.exceptions import SessionNotFoundError, SessionCompletedError
 from src.domain.models.session import Session, SessionState
@@ -74,13 +75,18 @@ async def get_session_service(
     Create SessionService with dependencies.
 
     Phase 4: No longer requires StrategyService - uses methodology-based strategy selection.
+    LLM clients are injected via centralized factory functions.
     """
     session_repo = SessionRepository(str(settings.database_path))
     graph_repo = GraphRepository(db)
+    extraction_llm_client = get_shared_extraction_client()
+    generation_llm_client = get_shared_generation_client()
 
     return SessionService(
         session_repo=session_repo,
         graph_repo=graph_repo,
+        extraction_llm_client=extraction_llm_client,
+        generation_llm_client=generation_llm_client,
     )
 
 

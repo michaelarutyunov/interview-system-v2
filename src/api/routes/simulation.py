@@ -15,6 +15,7 @@ from src.api.schemas import (
     SimulationResponse,
     SimulationTurnSchema,
 )
+from src.api.dependencies import get_shared_extraction_client, get_shared_generation_client
 from src.core.config import settings
 from src.persistence.database import get_db
 from src.persistence.repositories.session_repo import SessionRepository
@@ -45,10 +46,12 @@ async def get_simulation_service(
     session_repo = SessionRepository(str(settings.database_path))
     graph_repo = GraphRepository(db)
 
-    # Create session service
+    # Create session service with LLM clients
     session_service = SessionService(
         session_repo=session_repo,
         graph_repo=graph_repo,
+        extraction_llm_client=get_shared_extraction_client(),
+        generation_llm_client=get_shared_generation_client(),
     )
 
     # Create simulation service (synthetic service will be created internally)

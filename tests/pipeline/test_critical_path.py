@@ -25,7 +25,6 @@ from src.services.turn_pipeline.context import PipelineContext
 from src.services.turn_pipeline.pipeline import TurnPipeline
 from src.domain.models.session import Session, SessionState
 from src.domain.models.interview_state import InterviewMode
-from src.llm.client import LLMClientType
 
 
 @pytest.mark.asyncio
@@ -48,6 +47,7 @@ async def test_pipeline_critical_path_minimal(session_repo, graph_repo, utteranc
     from src.services.turn_pipeline.stages.extraction_stage import ExtractionStage
     from src.services.extraction_service import ExtractionService
     from src.services.graph_service import GraphService
+    from src.llm.client import AnthropicClient
 
     # Setup: Create a session first
     session_id = "test-critical-path"
@@ -74,11 +74,21 @@ async def test_pipeline_critical_path_minimal(session_repo, graph_repo, utteranc
     # Create services needed for stages
     graph_service = GraphService(graph_repo)
 
+    # Create mock LLM client for extraction service
+    mock_llm = AnthropicClient(
+        model="claude-3-5-sonnet-20241022",
+        temperature=0.3,
+        max_tokens=2000,
+        client_type="extraction",
+        api_key="test-key",
+        timeout=60.0,
+    )
+
     # Create minimal pipeline (first 3 stages)
     stages = [
         ContextLoadingStage(session_repo, graph_service),
         UtteranceSavingStage(),
-        ExtractionStage(extraction_service=ExtractionService()),
+        ExtractionStage(extraction_service=ExtractionService(llm_client=mock_llm)),
     ]
 
     pipeline = TurnPipeline(stages)
@@ -194,9 +204,20 @@ async def test_extraction_extract_requires_methodology():
     Validates the at0 fix: methodology is now required on extract(), no default.
     """
     from src.services.extraction_service import ExtractionService
+    from src.llm.client import AnthropicClient
+
+    # Create mock LLM client
+    mock_llm = AnthropicClient(
+        model="claude-3-5-sonnet-20241022",
+        temperature=0.3,
+        max_tokens=2000,
+        client_type="extraction",
+        api_key="test-key",
+        timeout=60.0,
+    )
 
     # Create service with skip_extractability_check to avoid heuristic filtering
-    service = ExtractionService(skip_extractability_check=True)
+    service = ExtractionService(llm_client=mock_llm, skip_extractability_check=True)
 
     # This should work - methodology provided
     # Note: We mock the LLM call so we don't need a real API key
