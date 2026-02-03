@@ -414,6 +414,52 @@ class SessionRepository:
                 }
             return result
 
+    # ==================== NODE TRACKER STATE PERSISTENCE ====================
+
+    async def get_node_tracker_state(self, session_id: str) -> Optional[str]:
+        """
+        Get the persisted node tracker state for a session.
+
+        Args:
+            session_id: Session ID to get tracker state for
+
+        Returns:
+            JSON string of tracker state, or None if not set
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT node_tracker_state FROM sessions WHERE id = ?",
+                (session_id,),
+            )
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            return row["node_tracker_state"]
+
+    async def update_node_tracker_state(
+        self, session_id: str, tracker_state_json: str
+    ) -> None:
+        """
+        Update the persisted node tracker state for a session.
+
+        Args:
+            session_id: Session ID to update tracker state for
+            tracker_state_json: JSON string of serialized NodeStateTracker
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "UPDATE sessions SET node_tracker_state = ?, updated_at = datetime('now') "
+                "WHERE id = ?",
+                (tracker_state_json, session_id),
+            )
+            await db.commit()
+            log.debug(
+                "node_tracker_state_saved",
+                session_id=session_id,
+                state_size_bytes=len(tracker_state_json),
+            )
+
     def _row_to_utterance(self, row: aiosqlite.Row) -> Utterance:
         """Convert a database row to an Utterance model."""
         return Utterance(

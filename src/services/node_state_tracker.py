@@ -5,13 +5,19 @@ This service tracks engagement patterns, yield history, response quality,
 relationships, and strategy usage for each knowledge graph node.
 """
 
-from dataclasses import dataclass
-from typing import Dict, Optional
+import json
+from dataclasses import dataclass, asdict
+from typing import Dict, Optional, Any
 
 import structlog
 
 from src.domain.models.knowledge_graph import KGNode
 from src.domain.models.node_state import NodeState
+
+
+# Schema version for node_tracker_state serialization
+# Increment when structure changes to handle migration
+NODE_TRACKER_SCHEMA_VERSION = 1
 
 
 @dataclass
@@ -345,3 +351,81 @@ class NodeStateTracker:
 
         # Default to depth 0 (root level)
         return 0
+
+    # ==================== SERIALIZATION FOR PERSISTENCE ====================
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Serialize node tracker state to dictionary for database persistence.
+
+        Converts the tracker's state to a JSON-serializable dictionary that
+        can be stored in the sessions.node_tracker_state column and loaded
+        in subsequent turns to maintain continuity.
+
+        Returns:
+            Dictionary with schema_version, previous_focus, and states data
+        """
+        # Convert each NodeState to a dict, handling Set serialization
+        states_dict = {}
+        for node_id, state in self.states.items():
+            # Use dataclass.asdict but convert Set to list for JSON compatibility
+            state_dict = asdict(state)
+            # Convert Set to list for JSON serialization
+            state_dict["connected_node_ids"] = list(state.connected_node_ids)
+            states_dict[node_id] = state_dict
+
+        return {
+            "schema_version": NODE_TRACKER_SCHEMA_VERSION,
+            "previous_focus": self.previous_focus,
+            "states": states_dict,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "NodeStateTracker":
+        """
+        Deserialize node tracker state from database-persisted dictionary.
+
+        Reconstructs a NodeStateTracker from previously persisted state,
+        restoring all per-node metrics for continuity across turns.
+
+        Args:
+            data: Dictionary previously created by to_dict()
+
+        Returns:
+            Reconstructed NodeStateTracker with restored state
+
+        Raises:
+            ValueError: If schema version is incompatible
+        """
+        # Validate schema version
+        schema_version = data.get("schema_version", 1)
+        if schema_version != NODE_TRACKER_SCHEMA_VERSION:
+            raise ValueError(
+                f"Incompatible node_tracker_state schema version: "
+                f"expected {NODE_TRACKER_SCHEMA_VERSION}, got {schema_version}"
+            )
+
+        tracker = cls()
+
+        # Restore previous_focus
+        tracker.previous_focus = data.get("previous_focus")
+
+        # Restore each NodeState
+        states_data = data.get("states", {})
+        for node_id, state_dict in states_data.items():
+            # Convert list back to Set for connected_node_ids
+            state_dict["connected_node_ids"] = set(state_dict.get("connected_node_ids", []))
+
+            # Reconstruct NodeState from dict
+            tracker.states[node_id] = NodeState(**state_dict)
+
+        return tracker
+
+    def is_empty(self) -> bool:
+        """
+        Check if the tracker has no tracked state.
+
+        Returns:
+            True if no nodes are tracked, False otherwise
+        """
+        return len(self.states) == 0

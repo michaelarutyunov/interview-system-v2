@@ -7,6 +7,7 @@ This service provides the main entry point for interview turn processing,
 delegating to a pipeline of stages for actual processing.
 """
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, List, Dict, TYPE_CHECKING
@@ -222,11 +223,9 @@ class SessionService:
         """
         log.info("processing_turn", session_id=session_id, input_length=len(user_input))
 
-        # Create NodeStateTracker for this turn
-        # The tracker will be populated with existing nodes by GraphUpdateStage
-        from src.services.node_state_tracker import NodeStateTracker
-
-        node_tracker = NodeStateTracker()
+        # Load or create NodeStateTracker for this turn
+        # If persisted state exists, load it; otherwise create fresh tracker
+        node_tracker = await self._get_or_create_node_tracker(session_id)
 
         # Create initial context with node_tracker
         context = PipelineContext(
@@ -237,6 +236,10 @@ class SessionService:
 
         # Execute pipeline
         result = await self.pipeline.execute(context)
+
+        # Persist node_tracker state after turn completes
+        # This ensures previous_focus and all_response_depths are saved for next turn
+        await self._save_node_tracker(session_id, node_tracker)
 
         log.info(
             "turn_processed",
@@ -598,3 +601,82 @@ class SessionService:
             results.append(turn_data)
 
         return results
+
+    # ==================== NODE TRACKER STATE PERSISTENCE ====================
+
+    async def _get_or_create_node_tracker(self, session_id: str):
+        """
+        Load existing node tracker state or create new tracker.
+
+        Args:
+            session_id: Session ID to load tracker state for
+
+        Returns:
+            NodeStateTracker with restored state or fresh tracker
+        """
+        from src.services.node_state_tracker import NodeStateTracker
+
+        # Try to load persisted state
+        tracker_state_json = await self.session_repo.get_node_tracker_state(
+            session_id
+        )
+
+        if tracker_state_json:
+            try:
+                # Deserialize from JSON
+                state_data = json.loads(tracker_state_json)
+                tracker = NodeStateTracker.from_dict(state_data)
+                log.debug(
+                    "node_tracker_loaded",
+                    session_id=session_id,
+                    nodes_count=len(tracker.states),
+                    previous_focus=tracker.previous_focus,
+                )
+                return tracker
+            except (json.JSONDecodeError, ValueError) as e:
+                log.warning(
+                    "node_tracker_load_failed_creating_fresh",
+                    session_id=session_id,
+                    error=str(e),
+                )
+                # Fall through to create fresh tracker
+
+        # No persisted state or load failed - create fresh tracker
+        log.debug(
+            "node_tracker_created_fresh",
+            session_id=session_id,
+            reason="no_persisted_state_or_load_failed",
+        )
+        return NodeStateTracker()
+
+    async def _save_node_tracker(self, session_id: str, node_tracker) -> None:
+        """
+        Persist node tracker state to database.
+
+        Args:
+            session_id: Session ID to save tracker state for
+            node_tracker: NodeStateTracker to persist
+        """
+        # Skip if tracker is empty (no nodes tracked yet)
+        if node_tracker.is_empty():
+            log.debug(
+                "node_tracker_skip_save",
+                session_id=session_id,
+                reason="no_states_to_save",
+            )
+            return
+
+        # Serialize to JSON
+        tracker_dict = node_tracker.to_dict()
+        tracker_state_json = json.dumps(tracker_dict)
+
+        # Persist to database
+        await self.session_repo.update_node_tracker_state(
+            session_id, tracker_state_json
+        )
+        log.debug(
+            "node_tracker_saved",
+            session_id=session_id,
+            nodes_count=len(node_tracker.states),
+            previous_focus=node_tracker.previous_focus,
+        )

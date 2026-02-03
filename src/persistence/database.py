@@ -55,6 +55,9 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
 
     Migrations are .sql files in the migrations directory, sorted by name.
     Each migration is run in full (no partial migration tracking for simplicity).
+
+    Note: Migrations that add columns may fail if already applied.
+    This is handled gracefully by catching duplicate column errors.
     """
     if not MIGRATIONS_DIR.exists():
         log.warning("migrations_dir_not_found", path=str(MIGRATIONS_DIR))
@@ -67,8 +70,21 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
 
         sql = migration_file.read_text()
 
-        # Execute all statements in the migration
-        await db.executescript(sql)
+        try:
+            # Execute all statements in the migration
+            await db.executescript(sql)
+        except Exception as e:
+            # Gracefully handle "duplicate column name" errors
+            # This occurs when a migration was already applied manually
+            if "duplicate column name" in str(e):
+                log.info(
+                    "migration_already_applied",
+                    file=migration_file.name,
+                    reason=str(e),
+                )
+            else:
+                # Re-raise other errors
+                raise
 
     # Post-migration cleanup: drop coverage columns from existing databases.
     # These are idempotent checks — safe to run even if columns don't exist.
