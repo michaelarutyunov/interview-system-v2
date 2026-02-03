@@ -268,3 +268,215 @@ async def test_llm_timeout_error_exists():
 
     # Verify timeout attribute is set
     assert client.timeout == 0.001
+
+
+# =============================================================================
+# Saturation Tracking Tests (8yko)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_saturation_metrics_model():
+    """
+    Test that SaturationMetrics model has all required fields.
+
+    Validates the 8yko fix: SaturationMetrics extended with quality and depth tracking.
+    """
+    from src.domain.models.knowledge_graph import SaturationMetrics
+
+    # Create metrics with all fields
+    metrics = SaturationMetrics(
+        chao1_ratio=0.8,
+        new_info_rate=0.5,
+        consecutive_low_info=3,
+        is_saturated=False,
+        consecutive_shallow=2,
+        consecutive_depth_plateau=1,
+        prev_max_depth=4,
+    )
+
+    # Verify all fields accessible
+    assert metrics.chao1_ratio == 0.8
+    assert metrics.new_info_rate == 0.5
+    assert metrics.consecutive_low_info == 3
+    assert metrics.is_saturated is False
+    assert metrics.consecutive_shallow == 2
+    assert metrics.consecutive_depth_plateau == 1
+    assert metrics.prev_max_depth == 4
+
+    # Verify is_saturated defaults to False
+    default_metrics = SaturationMetrics()
+    assert default_metrics.is_saturated is False
+    assert default_metrics.consecutive_low_info == 0
+
+
+@pytest.mark.asyncio
+async def test_state_computation_output_has_saturation():
+    """
+    Test that StateComputationOutput includes saturation_metrics field.
+
+    Validates the 8yko fix: saturation computed by StateComputationStage.
+    """
+    from src.domain.models.pipeline_contracts import StateComputationOutput
+    from src.domain.models.knowledge_graph import GraphState, DepthMetrics, SaturationMetrics
+
+    # Create state computation output with saturation
+    graph_state = GraphState(
+        node_count=5,
+        edge_count=3,
+        nodes_by_type={"attribute": 3, "value": 2},
+        edges_by_type={"leads_to": 3},
+        orphan_count=0,
+        depth_metrics=DepthMetrics(max_depth=2, avg_depth=1.5, depth_by_element={}),
+        current_phase="focused",
+        turn_count=3,
+    )
+
+    saturation = SaturationMetrics(
+        new_info_rate=0.3,
+        consecutive_low_info=2,
+        is_saturated=False,
+    )
+
+    output = StateComputationOutput(
+        graph_state=graph_state,
+        recent_nodes=[],
+        computed_at=datetime.now(timezone.utc),
+        saturation_metrics=saturation,
+    )
+
+    # Verify saturation metrics accessible
+    assert output.saturation_metrics is not None
+    assert output.saturation_metrics.is_saturated is False
+    assert output.saturation_metrics.consecutive_low_info == 2
+
+
+@pytest.mark.asyncio
+async def test_continuation_stage_reads_saturation_from_context():
+    """
+    Test that ContinuationStage reads saturation from StateComputationOutput.
+
+    Validates the 8yko fix: ContinuationStage is now a pure consumer of
+    pre-computed saturation metrics (no internal state).
+    """
+    from src.services.turn_pipeline.stages.continuation_stage import ContinuationStage
+    from src.services.turn_pipeline.context import PipelineContext
+    from src.domain.models.pipeline_contracts import (
+        ContextLoadingOutput,
+        StateComputationOutput,
+        StrategySelectionOutput,
+    )
+    from src.domain.models.knowledge_graph import GraphState, DepthMetrics, SaturationMetrics
+    from src.services.focus_selection_service import FocusSelectionService
+
+    # Create mock dependencies
+    mock_question_service = MagicMock()
+    focus_selection_service = FocusSelectionService()
+
+    stage = ContinuationStage(
+        question_service=mock_question_service,
+        focus_selection_service=focus_selection_service,
+    )
+
+    # Create graph state (use 'focused' as valid phase literal)
+    graph_state = GraphState(
+        node_count=10,
+        edge_count=8,
+        nodes_by_type={"attribute": 5, "value": 5},
+        edges_by_type={"leads_to": 8},
+        orphan_count=0,
+        depth_metrics=DepthMetrics(max_depth=3, avg_depth=2.0, depth_by_element={}),
+        current_phase="focused",
+        turn_count=6,
+    )
+
+    # Test case 1: Not saturated - should continue
+    context = PipelineContext(session_id="test-1", user_input="test")
+
+    # Set up contracts (single source of truth)
+    context.context_loading_output = ContextLoadingOutput(
+        methodology="means_end_chain",
+        concept_id="test-concept",
+        concept_name="Test Product",
+        turn_number=6,
+        mode="exploratory",
+        max_turns=15,
+        graph_state=graph_state,
+    )
+
+    context.state_computation_output = StateComputationOutput(
+        graph_state=graph_state,
+        recent_nodes=[],
+        computed_at=datetime.now(timezone.utc),
+        saturation_metrics=SaturationMetrics(
+            new_info_rate=0.5,
+            consecutive_low_info=1,
+            is_saturated=False,
+        ),
+    )
+
+    context.strategy_selection_output = StrategySelectionOutput(
+        strategy="deepen",
+        focus={"type": "node", "node_id": "node-1"},
+        signals={},
+    )
+
+    result = await stage.process(context)
+
+    assert result.continuation_output is not None
+    assert result.continuation_output.should_continue is True
+
+    # Test case 2: Saturated - should end
+    context2 = PipelineContext(session_id="test-2", user_input="test")
+
+    context2.context_loading_output = ContextLoadingOutput(
+        methodology="means_end_chain",
+        concept_id="test-concept",
+        concept_name="Test Product",
+        turn_number=10,
+        mode="exploratory",
+        max_turns=15,
+        graph_state=graph_state,
+    )
+
+    context2.state_computation_output = StateComputationOutput(
+        graph_state=graph_state,
+        recent_nodes=[],
+        computed_at=datetime.now(timezone.utc),
+        saturation_metrics=SaturationMetrics(
+            new_info_rate=0.0,
+            consecutive_low_info=5,  # Threshold is 5
+            is_saturated=True,
+        ),
+    )
+
+    context2.strategy_selection_output = StrategySelectionOutput(
+        strategy="deepen",
+        focus={},
+        signals={},
+    )
+
+    result2 = await stage.process(context2)
+
+    assert result2.continuation_output is not None
+    assert result2.continuation_output.should_continue is False
+    assert "saturated" in result2.continuation_output.reason
+
+
+@pytest.mark.asyncio
+async def test_saturation_thresholds_in_state_computation():
+    """
+    Test that saturation thresholds are defined in StateComputationStage.
+
+    Validates the 8yko fix: thresholds centralized in StateComputationStage.
+    """
+    from src.services.turn_pipeline.stages.state_computation_stage import (
+        CONSECUTIVE_ZERO_YIELD_THRESHOLD,
+        CONSECUTIVE_SHALLOW_THRESHOLD,
+        DEPTH_PLATEAU_THRESHOLD,
+    )
+
+    # Verify thresholds are defined
+    assert CONSECUTIVE_ZERO_YIELD_THRESHOLD == 5
+    assert CONSECUTIVE_SHALLOW_THRESHOLD == 4
+    assert DEPTH_PLATEAU_THRESHOLD == 6

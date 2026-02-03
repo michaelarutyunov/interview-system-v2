@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field, model_validator
 
-from src.domain.models.knowledge_graph import GraphState, KGNode
+from src.domain.models.knowledge_graph import GraphState, KGNode, SaturationMetrics
 from src.domain.models.utterance import Utterance
 from src.domain.models.extraction import ExtractionResult
 
@@ -68,6 +68,10 @@ class StateComputationOutput(BaseModel):
 
     ADR-010: Added computed_at for freshness tracking to prevent
     stale state bug where graph_state from Stage 1 was used in Stage 6.
+
+    Domain Encapsulation: Added saturation_metrics computed from graph
+    yield and quality signals. ContinuationStage reads this instead of
+    maintaining its own tracking state.
     """
 
     graph_state: GraphState = Field(description="Refreshed knowledge graph state")
@@ -76,6 +80,10 @@ class StateComputationOutput(BaseModel):
     )
     computed_at: datetime = Field(
         description="When state was computed (for freshness validation)"
+    )
+    saturation_metrics: Optional[SaturationMetrics] = Field(
+        default=None,
+        description="Saturation indicators computed from graph state and yield tracking",
     )
 
     @model_validator(mode="after")

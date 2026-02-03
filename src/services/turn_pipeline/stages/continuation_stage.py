@@ -3,16 +3,19 @@ Stage 7: Determine continuation.
 
 ADR-008 Phase 3: Decide if interview should continue or end.
 Phase 6: Output ContinuationOutput contract.
-Domain Encapsulation: Focus selection delegated to FocusSelectionService.
+Domain Encapsulation:
+- Focus selection delegated to FocusSelectionService
+- Saturation metrics read from StateComputationOutput (computed by Stage 5)
+  This stage is now a pure consumer of pre-computed metrics.
 """
 
-from dataclasses import dataclass
-from typing import Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import structlog
 
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import ContinuationOutput
+from src.domain.models.knowledge_graph import SaturationMetrics
 from src.services.focus_selection_service import FocusSelectionService
 
 
@@ -22,23 +25,10 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 # =============================================================================
-# Saturation thresholds (tune these as needed)
+# Continuation thresholds
 # =============================================================================
 MIN_TURN_FOR_SATURATION = 5  # Don't check saturation before this turn
-CONSECUTIVE_ZERO_YIELD_THRESHOLD = 5  # Turns with 0 new nodes+edges
-CONSECUTIVE_SHALLOW_THRESHOLD = 4  # Turns with only shallow responses
-DEPTH_PLATEAU_THRESHOLD = 6  # Turns at same max_depth
 NODE_EXHAUSTION_YIELD_GAP = 3  # turns_since_last_yield to consider exhausted
-
-
-@dataclass
-class _SessionSaturationState:
-    """Per-session rolling state for saturation detection."""
-
-    consecutive_zero_yield: int = 0
-    consecutive_shallow: int = 0
-    prev_max_depth: int = -1
-    consecutive_depth_plateau: int = 0
 
 
 class ContinuationStage(TurnStage):
@@ -47,16 +37,9 @@ class ContinuationStage(TurnStage):
 
     Populates PipelineContext.should_continue and PipelineContext.focus_concept.
 
-    Saturation detection (Approach A): tracking is self-contained in this stage
-    using per-session rolling state derived from PipelineContext data available
-    at Stage 7 (graph_update_output, graph_state, node_tracker).
-
-    Future improvement (Approach B): move saturation computation into
-    StateComputationStage (Stage 5) by populating the existing
-    SaturationMetrics model (chao1_ratio, new_info_rate, etc.) on GraphState.
-    This would let other stages and signals also consume saturation data, and
-    would enable richer species-richness estimators (Chao1). See
-    src/domain/models/knowledge_graph.py:SaturationMetrics for the model.
+    Domain Encapsulation: Saturation metrics are now computed by
+    StateComputationStage (Stage 5) and read from context.saturation_metrics.
+    This stage only reads the computed values and makes continuation decisions.
     """
 
     def __init__(
@@ -73,7 +56,6 @@ class ContinuationStage(TurnStage):
         """
         self.question = question_service
         self.focus_selection = focus_selection_service
-        self._tracking: Dict[str, _SessionSaturationState] = {}
 
     async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
@@ -85,10 +67,7 @@ class ContinuationStage(TurnStage):
         Returns:
             Modified context with should_continue and focus_concept
         """
-        # Update saturation tracking before deciding
-        self._update_tracking(context)
-
-        # Determine if we should continue
+        # Determine if we should continue (reads saturation from context)
         should_continue, reason = self._should_continue(context)
 
         # Select focus concept if continuing
@@ -130,59 +109,15 @@ class ContinuationStage(TurnStage):
 
         return context
 
-    def _get_tracking(self, session_id: str) -> _SessionSaturationState:
-        """Get or create per-session saturation tracking state."""
-        if session_id not in self._tracking:
-            self._tracking[session_id] = _SessionSaturationState()
-        return self._tracking[session_id]
-
-    def _update_tracking(self, context: "PipelineContext") -> None:
-        """Update rolling saturation counters from this turn's data."""
-        state = self._get_tracking(context.session_id)
-
-        # --- Graph yield tracking ---
-        nodes_added = 0
-        edges_added = 0
-        if context.graph_update_output:
-            nodes_added = context.graph_update_output.node_count
-            edges_added = context.graph_update_output.edge_count
-
-        if nodes_added + edges_added == 0:
-            state.consecutive_zero_yield += 1
-        else:
-            state.consecutive_zero_yield = 0
-
-        # --- Depth plateau tracking ---
-        current_max_depth = 0
-        if context.graph_state and context.graph_state.depth_metrics:
-            current_max_depth = context.graph_state.depth_metrics.max_depth
-
-        if state.prev_max_depth >= 0 and current_max_depth == state.prev_max_depth:
-            state.consecutive_depth_plateau += 1
-        else:
-            state.consecutive_depth_plateau = 0
-        state.prev_max_depth = current_max_depth
-
-        # --- Quality degradation tracking ---
-        if context.node_tracker and context.node_tracker.states:
-            # Check if the most recent response depths are all shallow/surface
-            has_any_deep = False
-            for ns in context.node_tracker.states.values():
-                if ns.all_response_depths and ns.all_response_depths[-1] == "deep":
-                    has_any_deep = True
-                    break
-            if not has_any_deep:
-                state.consecutive_shallow += 1
-            else:
-                state.consecutive_shallow = 0
-        # If no node_tracker, don't increment — we can't assess quality
-
     def _should_continue(
         self,
         context: "PipelineContext",
     ) -> tuple[bool, str]:
         """
         Determine if interview should continue.
+
+        Domain Encapsulation: Reads saturation metrics from StateComputationOutput
+        (computed by Stage 5) instead of maintaining local tracking state.
 
         Returns:
             Tuple of (should_continue, reason). Reason is empty string if continuing.
@@ -223,17 +158,20 @@ class ContinuationStage(TurnStage):
         if turn_number < MIN_TURN_FOR_SATURATION and not is_late_stage:
             return True, ""
 
-        state = self._get_tracking(context.session_id)
+        # Read saturation metrics from StateComputationOutput (computed by Stage 5)
+        saturation = None
+        if context.state_computation_output:
+            saturation = context.state_computation_output.saturation_metrics
 
-        # Graph saturation: no new nodes/edges for N consecutive turns
-        if state.consecutive_zero_yield >= CONSECUTIVE_ZERO_YIELD_THRESHOLD:
-            log.info(
-                "session_ending",
-                reason="graph_saturated",
-                consecutive_zero_yield=state.consecutive_zero_yield,
-                phase=current_phase,
-            )
-            return False, "graph_saturated"
+        # If no saturation metrics available, continue (can't assess saturation)
+        if not saturation:
+            return True, ""
+
+        # Check is_saturated flag (computed by StateComputationStage)
+        if saturation.is_saturated:
+            # Determine the specific reason from the metrics
+            reason = self._get_saturation_reason(saturation, current_phase)
+            return False, reason
 
         # Node exhaustion: all explored nodes are exhausted
         if self._all_nodes_exhausted(context):
@@ -244,27 +182,65 @@ class ContinuationStage(TurnStage):
             )
             return False, "all_nodes_exhausted"
 
-        # Quality degradation: consecutive shallow responses
-        if state.consecutive_shallow >= CONSECUTIVE_SHALLOW_THRESHOLD:
+        return True, ""
+
+    def _get_saturation_reason(
+        self,
+        saturation: SaturationMetrics,
+        current_phase: str | None,
+    ) -> str:
+        """
+        Determine the specific saturation reason from metrics.
+
+        Args:
+            saturation: SaturationMetrics from StateComputationOutput
+            current_phase: Current interview phase for logging
+
+        Returns:
+            Reason string for the saturation condition
+        """
+        # Import thresholds from StateComputationStage (single source of truth)
+        from .state_computation_stage import (
+            CONSECUTIVE_ZERO_YIELD_THRESHOLD,
+            CONSECUTIVE_SHALLOW_THRESHOLD,
+            DEPTH_PLATEAU_THRESHOLD,
+        )
+
+        # Check each saturation condition and log appropriately
+        if saturation.consecutive_low_info >= CONSECUTIVE_ZERO_YIELD_THRESHOLD:
+            log.info(
+                "session_ending",
+                reason="graph_saturated",
+                consecutive_zero_yield=saturation.consecutive_low_info,
+                phase=current_phase,
+            )
+            return "graph_saturated"
+
+        if saturation.consecutive_shallow >= CONSECUTIVE_SHALLOW_THRESHOLD:
             log.info(
                 "session_ending",
                 reason="quality_degraded",
-                consecutive_shallow=state.consecutive_shallow,
+                consecutive_shallow=saturation.consecutive_shallow,
                 phase=current_phase,
             )
-            return False, "quality_degraded"
+            return "quality_degraded"
 
-        # Depth plateau: max_depth unchanged for N turns
-        if state.consecutive_depth_plateau >= DEPTH_PLATEAU_THRESHOLD:
+        if saturation.consecutive_depth_plateau >= DEPTH_PLATEAU_THRESHOLD:
             log.info(
                 "session_ending",
                 reason="depth_plateau",
-                consecutive_depth_plateau=state.consecutive_depth_plateau,
+                consecutive_depth_plateau=saturation.consecutive_depth_plateau,
                 phase=current_phase,
             )
-            return False, "depth_plateau"
+            return "depth_plateau"
 
-        return True, ""
+        # Generic saturation (shouldn't happen if is_saturated is True)
+        log.info(
+            "session_ending",
+            reason="saturated",
+            phase=current_phase,
+        )
+        return "saturated"
 
     @staticmethod
     def _all_nodes_exhausted(context: "PipelineContext") -> bool:

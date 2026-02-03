@@ -71,18 +71,50 @@ class SaturationMetrics(BaseModel):
     """Information saturation indicators (ADR-010).
 
     Tracks whether the interview is reaching information saturation.
+    Computed by StateComputationStage (Stage 5) and consumed by
+    ContinuationStage (Stage 7) for termination decisions.
     """
 
+    # === Core saturation metrics ===
     chao1_ratio: float = Field(
-        description="Chao1 diversity estimator (0-1)", ge=0.0, le=1.0
+        default=0.0,
+        description="Chao1 diversity estimator (0-1, placeholder for future)",
+        ge=0.0,
+        le=1.0,
     )
     new_info_rate: float = Field(
-        description="Rate of novel concept introduction", ge=0.0, le=1.0
+        default=0.0,
+        description="Rate of novel concept introduction",
+        ge=0.0,
+        le=1.0,
     )
     consecutive_low_info: int = Field(
-        description="Turns since last novel concept", ge=0
+        default=0,
+        description="Turns since last novel concept (consecutive zero yield)",
+        ge=0,
     )
-    is_saturated: bool = Field(description="Derived: indicates topic exhaustion")
+    is_saturated: bool = Field(
+        default=False,
+        description="Derived: indicates topic exhaustion",
+    )
+
+    # === Quality degradation tracking ===
+    consecutive_shallow: int = Field(
+        default=0,
+        description="Turns with only shallow/surface responses",
+        ge=0,
+    )
+
+    # === Depth plateau tracking ===
+    consecutive_depth_plateau: int = Field(
+        default=0,
+        description="Turns at same max_depth (no depth progress)",
+        ge=0,
+    )
+    prev_max_depth: int = Field(
+        default=-1,
+        description="Previous turn's max_depth (for plateau detection)",
+    )
 
 
 class GraphState(BaseModel):
