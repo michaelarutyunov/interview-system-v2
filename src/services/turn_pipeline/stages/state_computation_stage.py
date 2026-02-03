@@ -16,6 +16,7 @@ import structlog
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import StateComputationOutput
 from src.domain.models.knowledge_graph import SaturationMetrics, GraphState
+from src.services.graph_service import GraphService
 
 
 if TYPE_CHECKING:
@@ -59,7 +60,7 @@ class StateComputationStage(TurnStage):
     reads these metrics instead of maintaining its own tracking.
     """
 
-    def __init__(self, graph_service):
+    def __init__(self, graph_service: GraphService):
         """
         Initialize stage.
 

@@ -15,6 +15,7 @@ import structlog
 
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import ScoringPersistenceOutput
+from src.persistence.repositories.session_repo import SessionRepository
 
 
 if TYPE_CHECKING:
@@ -30,7 +31,7 @@ class ScoringPersistenceStage(TurnStage):
     Updates session turn count.
     """
 
-    def __init__(self, session_repo):
+    def __init__(self, session_repo: SessionRepository):
         """
         Initialize stage.
 

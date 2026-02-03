@@ -11,6 +11,7 @@ import structlog
 
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import QuestionGenerationOutput
+from src.services.question_service import QuestionService
 
 
 if TYPE_CHECKING:
@@ -25,7 +26,7 @@ class QuestionGenerationStage(TurnStage):
     Populates PipelineContext.next_question.
     """
 
-    def __init__(self, question_service):
+    def __init__(self, question_service: QuestionService):
         """
         Initialize stage.
 

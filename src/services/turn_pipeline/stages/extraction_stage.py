@@ -11,6 +11,7 @@ from ..base import TurnStage
 from ..context import PipelineContext
 from src.core.exceptions import ConfigurationError
 from src.domain.models.pipeline_contracts import ExtractionOutput
+from src.services.extraction_service import ExtractionService
 
 log = structlog.get_logger(__name__)
 
@@ -22,7 +23,7 @@ class ExtractionStage(TurnStage):
     Populates PipelineContext.extraction.
     """
 
-    def __init__(self, extraction_service):
+    def __init__(self, extraction_service: ExtractionService):
         """
         Initialize stage.
 

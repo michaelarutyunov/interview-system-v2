@@ -13,6 +13,8 @@ import structlog
 
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import ContextLoadingOutput
+from src.persistence.repositories.session_repo import SessionRepository
+from src.services.graph_service import GraphService
 
 log = structlog.get_logger(__name__)
 
@@ -33,8 +35,8 @@ class ContextLoadingStage(TurnStage):
 
     def __init__(
         self,
-        session_repo,
-        graph_service,
+        session_repo: SessionRepository,
+        graph_service: GraphService,
     ):
         """
         Initialize stage.

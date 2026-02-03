@@ -13,6 +13,7 @@ import structlog
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import GraphUpdateOutput
 from src.services.node_state_tracker import GraphChangeSummary
+from src.services.graph_service import GraphService
 
 
 if TYPE_CHECKING:
@@ -27,7 +28,7 @@ class GraphUpdateStage(TurnStage):
     Populates PipelineContext.nodes_added and PipelineContext.edges_added.
     """
 
-    def __init__(self, graph_service):
+    def __init__(self, graph_service: GraphService):
         """
         Initialize stage.
 
