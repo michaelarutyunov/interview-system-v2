@@ -67,6 +67,13 @@ class ContinuationStage(TurnStage):
         Returns:
             Modified context with should_continue and focus_concept
         """
+        # Validate Stage 6 (StrategySelectionStage) completed first
+        if context.strategy_selection_output is None:
+            raise RuntimeError(
+                "Pipeline contract violation: ContinuationStage (Stage 7) requires "
+                "StrategySelectionStage (Stage 6) to complete first."
+            )
+
         # Determine if we should continue (reads saturation from context)
         should_continue, reason = self._should_continue(context)
 

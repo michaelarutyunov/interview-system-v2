@@ -45,18 +45,36 @@ class QuestionGenerationStage(TurnStage):
         Returns:
             Modified context with next_question
         """
+        # Validate Stage 6 (StrategySelectionStage) completed first
+        if context.strategy_selection_output is None:
+            raise RuntimeError(
+                "Pipeline contract violation: QuestionGenerationStage (Stage 8) requires "
+                "StrategySelectionStage (Stage 6) to complete first."
+            )
+
+        # Validate Stage 7 (ContinuationStage) completed first
+        if context.continuation_output is None:
+            raise RuntimeError(
+                "Pipeline contract violation: QuestionGenerationStage (Stage 8) requires "
+                "ContinuationStage (Stage 7) to complete first."
+            )
+
         if context.should_continue:
             # Add current utterance to recent for context
             updated_utterances = context.recent_utterances + [
                 {"speaker": "user", "text": context.user_input}
             ]
 
+            # Get values from contract outputs
+            strategy = context.strategy_selection_output.strategy
+            focus_concept = context.continuation_output.focus_concept
+
             next_question = await self.question.generate_question(
-                focus_concept=context.focus_concept,
+                focus_concept=focus_concept,
                 recent_utterances=updated_utterances,
                 graph_state=context.graph_state,
                 recent_nodes=context.recent_nodes,
-                strategy=context.strategy,
+                strategy=strategy,
                 topic=context.concept_name,  # Anchor questions to research topic
             )
         else:
@@ -67,8 +85,8 @@ class QuestionGenerationStage(TurnStage):
         # TODO: Track has_llm_fallback when QuestionService supports it
         context.question_generation_output = QuestionGenerationOutput(
             question=next_question,
-            strategy=context.strategy,
-            focus=context.focus,
+            strategy=context.strategy_selection_output.strategy,
+            focus=context.strategy_selection_output.focus,
             has_llm_fallback=False,  # TODO: Track actual LLM fallback usage
             # timestamp auto-set
         )

@@ -52,36 +52,28 @@ class GraphUpdateStage(TurnStage):
         Returns:
             Modified context with nodes_added and edges_added
         """
-        if not context.extraction:
-            log.error(
-                "contract_violation",
-                stage="GraphUpdateStage",
-                session_id=context.session_id,
-                violation="context.extraction is None or empty",
-            )
-            raise ValueError(
-                "GraphUpdateStage contract violation: context.extraction is required "
-                "but was None or empty. Stage 3 (ExtractionStage) must provide "
-                "extraction results before GraphUpdateStage can process."
+        # Validate Stage 2 (UtteranceSavingStage) completed first
+        if context.utterance_saving_output is None:
+            raise RuntimeError(
+                "Pipeline contract violation: GraphUpdateStage (Stage 4) requires "
+                "UtteranceSavingStage (Stage 2) to complete first."
             )
 
-        if not context.user_utterance:
-            log.error(
-                "contract_violation",
-                stage="GraphUpdateStage",
-                session_id=context.session_id,
-                violation="context.user_utterance is None",
+        # Validate Stage 3 (ExtractionStage) completed first
+        if context.extraction_output is None:
+            raise RuntimeError(
+                "Pipeline contract violation: GraphUpdateStage (Stage 4) requires "
+                "ExtractionStage (Stage 3) to complete first."
             )
-            raise ValueError(
-                "GraphUpdateStage contract violation: context.user_utterance is required "
-                "but was None. Stage 2 (UtteranceSavingStage) must save the user "
-                "utterance before GraphUpdateStage can process."
-            )
+
+        # Get extraction and utterance from contract outputs
+        extraction = context.extraction_output.extraction
+        utterance_id = context.utterance_saving_output.user_utterance.id
 
         nodes, edges = await self.graph.add_extraction_to_graph(
             session_id=context.session_id,
-            extraction=context.extraction,
-            utterance_id=context.user_utterance.id,
+            extraction=extraction,
+            utterance_id=utterance_id,
         )
 
         # Convert edges to dicts for contract output

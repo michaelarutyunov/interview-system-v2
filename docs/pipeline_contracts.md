@@ -135,6 +135,48 @@ class PipelineContext:
 
 ---
 
+## Stage Dependencies (Contract Validation)
+
+Each stage validates that its required predecessor stages have completed successfully by checking for the presence of their contract outputs. This ensures pipeline execution order is maintained and prevents silent failures.
+
+| Stage | Depends On | Validation Check |
+|-------|-----------|------------------|
+| **Stage 1: ContextLoadingStage** | None (first stage) | N/A |
+| **Stage 2: UtteranceSavingStage** | Stage 1: `context_loading_output` | Validates context is loaded |
+| **Stage 3: ExtractionStage** | Stage 2: `utterance_saving_output` | Validates utterance is saved |
+| **Stage 4: GraphUpdateStage** | Stage 2: `utterance_saving_output`, Stage 3: `extraction_output` | Validates both utterance saved and extraction completed |
+| **Stage 5: StateComputationStage** | Stage 4: `graph_update_output` | Validates graph was updated |
+| **Stage 6: StrategySelectionStage** | Stage 5: `state_computation_output` | Validates state computation completed |
+| **Stage 7: ContinuationStage** | Stage 6: `strategy_selection_output` | Validates strategy was selected |
+| **Stage 8: QuestionGenerationStage** | Stage 6: `strategy_selection_output`, Stage 7: `continuation_output` | Validates both strategy selected and continuation determined |
+| **Stage 9: ResponseSavingStage** | Stage 8: `question_generation_output` | Validates question was generated |
+| **Stage 10: ScoringPersistenceStage** | Stage 6: `strategy_selection_output` | Validates strategy was selected |
+
+### Implementation Pattern
+
+Each stage implements contract validation at the start of its `process()` method:
+
+```python
+async def process(self, context: "PipelineContext") -> "PipelineContext":
+    """Stage-specific docstring..."""
+    # Validate Stage N (PredecessorStage) completed first
+    if context.predecessor_output is None:
+        raise RuntimeError(
+            "Pipeline contract violation: CurrentStage (Stage N+1) requires "
+            "PredecessorStage (Stage N) to complete first."
+        )
+    # ... rest of stage logic
+```
+
+### Benefits
+
+1. **Fail-fast**: Errors are detected immediately when stages are called out of order
+2. **Clear error messages**: Each violation identifies both the current stage and the missing predecessor
+3. **Documentation**: The validation checks serve as inline documentation of stage dependencies
+4. **Debugging**: Contract violations are easy to trace through the error messages
+
+---
+
 ## Stage Contracts
 
 ### Stage 1: ContextLoadingStage
@@ -144,6 +186,7 @@ class PipelineContext:
 | Aspect | Details |
 |--------|---------|
 | **Purpose** | Load session metadata, conversation history, and current graph state from database |
+| **Dependencies** | None (first stage) |
 | **Immutable Inputs** | `session_id`, `user_input` |
 | **Reads** | Database (Session, Utterance, GraphRepository) |
 | **Writes** | `context_loading_output` (ContextLoadingOutput contract) |
@@ -174,6 +217,7 @@ recent_nodes: List[KGNode] # Recent nodes
 | Aspect | Details |
 |--------|---------|
 | **Purpose** | Persist user input to database for conversation history and provenance |
+| **Dependencies** | Stage 1: `context_loading_output` |
 | **Immutable Inputs** | `session_id`, `user_input` |
 | **Reads** | `turn_number` |
 | **Writes** | `utterance_saving_output` (UtteranceSavingOutput contract) |
@@ -195,6 +239,7 @@ user_utterance: Utterance # Full saved utterance record
 | Aspect | Details |
 |--------|---------|
 | **Purpose** | Extract concepts and relationships from user text using AI/ML |
+| **Dependencies** | Stage 2: `utterance_saving_output` |
 | **Immutable Inputs** | `user_input` |
 | **Reads** | `recent_utterances`, `concept_id` |
 | **Writes** | `extraction_output` (ExtractionOutput contract) |
@@ -222,8 +267,9 @@ relationship_count: int       # Number of relationships extracted (auto-calculat
 | Aspect | Details |
 |--------|---------|
 | **Purpose** | Add extracted concepts and relationships to knowledge graph |
+| **Dependencies** | Stage 2: `utterance_saving_output`, Stage 3: `extraction_output` |
 | **Immutable Inputs** | None |
-| **Reads** | `extraction`, `user_utterance` |
+| **Reads** | `extraction`, `user_utterance` (from contract outputs) |
 | **Writes** | `graph_update_output` (GraphUpdateOutput contract) |
 | **Side Effects** | INSERT/UPDATE to nodes and edges in graph database; updates NodeStateTracker |
 
@@ -253,6 +299,7 @@ timestamp: datetime           # When graph update was performed (auto-set)
 | Aspect | Details |
 |--------|---------|
 | **Purpose** | Refresh graph state metrics after updates (node count, coverage, depth, etc.) |
+| **Dependencies** | Stage 4: `graph_update_output` |
 | **Immutable Inputs** | `session_id` |
 | **Reads** | None (re-queries from database) |
 | **Writes** | `state_computation_output` (StateComputationOutput contract) |
@@ -276,6 +323,7 @@ computed_at: datetime         # When state was computed (freshness tracking)
 | Aspect | Details |
 |--------|---------|
 | **Purpose** | Select questioning strategy and focus node using joint strategy-node scoring (D1 Architecture) |
+| **Dependencies** | Stage 5: `state_computation_output` |
 | **Immutable Inputs** | `user_input`, `mode` |
 | **Reads** | `state_computation_output`, `graph_state`, `recent_nodes`, `extraction`, `strategy_history`, `node_tracker` |
 | **Writes** | `strategy_selection_output` (StrategySelectionOutput contract) |
@@ -316,6 +364,7 @@ strategy_alternatives: List[tuple[str, str, float]]  # (strategy, node_id, score
 | Aspect | Details |
 |--------|---------|
 | **Purpose** | Determine if interview should continue and select focus concept |
+| **Dependencies** | Stage 6: `strategy_selection_output` |
 | **Immutable Inputs** | `turn_number`, `max_turns` |
 | **Reads** | `graph_state`, `strategy`, `focus` (uses focus_node_id from D1 joint selection) |
 | **Writes** | `continuation_output` (ContinuationOutput contract) |
@@ -341,6 +390,7 @@ timestamp: datetime      # When continuation decision was made (auto-set)
 | Aspect | Details |
 |--------|---------|
 | **Purpose** | Generate follow-up question or closing message |
+| **Dependencies** | Stage 6: `strategy_selection_output`, Stage 7: `continuation_output` |
 | **Immutable Inputs** | None |
 | **Reads** | `should_continue`, `focus_concept`, `recent_utterances`, `graph_state`, `strategy` |
 | **Writes** | `question_generation_output` (QuestionGenerationOutput contract) |
@@ -364,6 +414,7 @@ timestamp: datetime          # When question was generated (auto-set)
 | Aspect | Details |
 |--------|---------|
 | **Purpose** | Persist system response to database |
+| **Dependencies** | Stage 8: `question_generation_output` |
 | **Immutable Inputs** | `session_id`, `turn_number` |
 | **Reads** | `question_generation_output` |
 | **Writes** | `response_saving_output` (ResponseSavingOutput contract) |
@@ -387,6 +438,7 @@ timestamp: datetime         # When response was saved (auto-set)
 | Aspect | Details |
 |--------|---------|
 | **Purpose** | Save scoring results to database and update session state |
+| **Dependencies** | Stage 6: `strategy_selection_output` |
 | **Immutable Inputs** | `turn_number` |
 | **Reads** | `strategy_selection_output` |
 | **Writes** | `scoring_persistence_output` (ScoringPersistenceOutput contract) |

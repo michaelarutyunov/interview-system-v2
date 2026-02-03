@@ -42,6 +42,13 @@ class ExtractionStage(TurnStage):
         Returns:
             Modified context with extraction result
         """
+        # Validate Stage 2 (UtteranceSavingStage) completed first
+        if context.utterance_saving_output is None:
+            raise RuntimeError(
+                "Pipeline contract violation: ExtractionStage (Stage 3) requires "
+                "UtteranceSavingStage (Stage 2) to complete first."
+            )
+
         # Update extraction service with concept_id from session context
         # This allows element linking to work with the correct concept
         if hasattr(context, "concept_id") and context.concept_id:
