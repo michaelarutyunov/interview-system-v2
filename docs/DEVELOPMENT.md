@@ -172,7 +172,8 @@ from src.services.extraction_service import ExtractionService
 
 @pytest.fixture
 def extraction_service():
-    return ExtractionService()
+    # methodology is required (no default)
+    return ExtractionService(methodology="means_end_chain")
 
 @pytest.mark.asyncio
 async def test_extract_concepts(extraction_service):

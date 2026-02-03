@@ -826,6 +826,21 @@ The system uses three specialized LLM clients:
 | `SignalClient` | Qualitative signal extraction | Claude (high quality) |
 | `QuestionClient` | Question generation | Claude/Moonshot (cost-optimized) |
 
+### LLM Timeout and Retry (wqo)
+
+**Phase 6 (2026-02-03)**: LLM clients implement timeout with exponential backoff retry for resilience.
+
+**Behavior**:
+- **Timeout**: Configurable per-client (default 30s for extraction/scoring, 60s for generation)
+- **Retry**: Max 1 retry on timeout or transient errors (429 rate limit, 5xx server errors)
+- **Backoff**: Exponential delay (1s × 2^attempt) between retries
+- **Circuit breaker**: Errors propagate as `LLMTimeoutError` or `LLMError` after retries exhausted
+
+**Error Types**:
+- `httpx.TimeoutException` → Retry with backoff → `LLMTimeoutError` if exhausted
+- `HTTPStatusError(429)` → Retry with backoff → `LLMError` if exhausted
+- `HTTPStatusError(5xx)` → Retry with backoff → `LLMError` if exhausted
+
 ### LLM Fallback
 
 The system implements LLM fallback for reliability:
