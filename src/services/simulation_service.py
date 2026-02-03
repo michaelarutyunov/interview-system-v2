@@ -73,6 +73,10 @@ class SimulationResult:
     turns: List[SimulationTurn] = field(default_factory=list)
     status: str = "completed"  # completed, max_turns_reached, error
 
+    # Graph diagnostics
+    nodes: List[Dict[str, Any]] = field(default_factory=list)
+    edges: List[Dict[str, Any]] = field(default_factory=list)
+
 
 class SimulationService:
     """Service for AI-to-AI interview simulation.
@@ -211,6 +215,9 @@ class SimulationService:
             )
             turns.append(turn_result)
 
+        # NEW: Fetch graph data for diagnostics (after loop, before result creation)
+        nodes_data, edges_data = await self._serialize_graph_data(session_id)
+
         # Determine status from termination reason
         if turn_result.should_continue:
             # Loop was terminated by turn count reaching max_turns
@@ -234,6 +241,8 @@ class SimulationService:
             total_turns=len(turns),
             turns=turns,
             status=status,
+            nodes=nodes_data,
+            edges=edges_data,
         )
 
         log.info(
@@ -311,6 +320,85 @@ class SimulationService:
             termination_reason=termination_reason,
         )
 
+    async def _serialize_graph_data(
+        self, session_id: str
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Fetch and serialize nodes and edges for JSON output.
+
+        Args:
+            session_id: Session ID to fetch graph data for
+
+        Returns:
+            Tuple of (nodes_list, edges_list) as JSON-compatible dicts
+        """
+        # Fetch from graph repository (SessionService has graph_repo as attribute)
+        nodes = await self.session.graph_repo.get_nodes_by_session(session_id)
+        edges = await self.session.graph_repo.get_edges_by_session(session_id)
+
+        # Serialize nodes to JSON-compatible format
+        # INCLUDE properties dict for diagnostic visibility
+        nodes_data = [
+            {
+                "id": n.id,
+                "label": n.label,
+                "node_type": n.node_type,
+                "confidence": n.confidence,
+                "properties": n.properties,  # INCLUDE for diagnostics
+                "source_utterance_ids": n.source_utterance_ids,
+                "stance": n.stance,
+                "recorded_at": n.recorded_at.isoformat(),
+                "superseded_by": n.superseded_by,
+            }
+            for n in nodes
+        ]
+
+        # Serialize edges to JSON-compatible format
+        edges_data = [
+            {
+                "id": e.id,
+                "source_node_id": e.source_node_id,
+                "target_node_id": e.target_node_id,
+                "edge_type": e.edge_type,
+                "confidence": e.confidence,
+                "properties": e.properties,  # INCLUDE for diagnostics
+                "source_utterance_ids": e.source_utterance_ids,
+                "recorded_at": e.recorded_at.isoformat(),
+            }
+            for e in edges
+        ]
+
+        return nodes_data, edges_data
+
+    def _count_nodes_by_type(self, nodes: list[dict[str, Any]]) -> dict[str, int]:
+        """Count nodes by their type.
+
+        Args:
+            nodes: List of serialized node dictionaries
+
+        Returns:
+            Dictionary mapping node_type to count
+        """
+        counts: dict[str, int] = {}
+        for node in nodes:
+            node_type = node.get("node_type", "unknown")
+            counts[node_type] = counts.get(node_type, 0) + 1
+        return counts
+
+    def _count_edges_by_type(self, edges: list[dict[str, Any]]) -> dict[str, int]:
+        """Count edges by their type.
+
+        Args:
+            edges: List of serialized edge dictionaries
+
+        Returns:
+            Dictionary mapping edge_type to count
+        """
+        counts: dict[str, int] = {}
+        for edge in edges:
+            edge_type = edge.get("edge_type", "unknown")
+            counts[edge_type] = counts.get(edge_type, 0) + 1
+        return counts
+
     async def _create_simulation_session(
         self,
         session_id: str,
@@ -382,6 +470,17 @@ class SimulationService:
                 "total_turns": result.total_turns,
                 "status": result.status,
                 "saved_at": datetime.now(timezone.utc).isoformat(),
+            },
+            # Graph section (inserted between metadata and turns)
+            "graph": {
+                "nodes": result.nodes,
+                "edges": result.edges,
+                "summary": {
+                    "total_nodes": len(result.nodes),
+                    "total_edges": len(result.edges),
+                    "nodes_by_type": self._count_nodes_by_type(result.nodes),
+                    "edges_by_type": self._count_edges_by_type(result.edges),
+                }
             },
             "turns": [
                 {
