@@ -297,8 +297,8 @@ class ScoringPersistenceOutput(BaseModel):
 
     Stage 10 persists scoring metrics for observability and analysis.
 
-    Note: This stage saves both legacy two-tier scoring data (for old
-    sessions) and new methodology-based signals (for new sessions).
+    Note: The legacy two-tier scoring system has been removed. This stage now
+    saves methodology-based signals from StrategySelectionStage.
     """
 
     turn_number: int = Field(ge=0, description="Turn number for scoring")
@@ -311,7 +311,7 @@ class ScoringPersistenceOutput(BaseModel):
         default=False, description="Whether methodology signals were saved"
     )
     has_legacy_scoring: bool = Field(
-        default=False, description="Whether legacy two-tier scoring was saved"
+        default=False, description="Legacy two-tier scoring (always False now)"
     )
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),

@@ -165,7 +165,7 @@ user_utterance, system_utterance
 nodes_added, edges_added
 
 # Strategy selection (Phase 6: Signal Pools)
-strategy, selection_result, focus, signals, strategy_alternatives
+strategy, focus, signals, strategy_alternatives
 
 # Continuation
 should_continue, focus_concept

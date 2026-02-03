@@ -3,13 +3,13 @@ Stage 10: Persist scoring data and update session state.
 
 ADR-008 Phase 3: Save scoring results and update turn count.
 Phase 6: Output ScoringPersistenceOutput contract.
+Phase 6 Refactor: Removed legacy two-tier scoring, now uses methodology-based signals.
 """
 
 from typing import TYPE_CHECKING
 
 import uuid
 import aiosqlite
-import json
 
 import structlog
 
@@ -27,7 +27,7 @@ class ScoringPersistenceStage(TurnStage):
     """
     Persist scoring data and update session state.
 
-    Saves to scoring_history and scoring_candidates tables.
+    Saves to scoring_history table.
     Updates session turn count.
     """
 
@@ -45,50 +45,58 @@ class ScoringPersistenceStage(TurnStage):
         Save scoring data and update session turn count.
 
         Args:
-            context: Turn context with strategy, selection_result, turn_number
+            context: Turn context with strategy, signals, graph_state, turn_number
 
         Returns:
             Modified context with scoring populated
         """
-        # Build scoring dict from tier2 results
-        scoring = await self._extract_legacy_scores(context.selection_result)
+        # Extract scores from graph state (not from legacy selection_result)
+        depth_score = 0.0
+        saturation_score = 0.0
 
+        if context.graph_state:
+            depth_score = getattr(context.graph_state, 'max_depth', 0.0)
+            saturation_score = 1.0 - getattr(context.graph_state, 'yield_score', 0.0)
+
+        # Save scoring data
         await self._save_scoring(
             session_id=context.session_id,
             turn_number=context.turn_number,
             strategy=context.strategy,
-            scoring=scoring,
-            selection_result=context.selection_result,
+            depth_score=depth_score,
+            saturation_score=saturation_score,
         )
 
-        # Save LLM qualitative signals if available
+        # Save qualitative signals if available
         await self._save_qualitative_signals(context)
 
+        # Save methodology signals if available
+        await self._save_methodology_signals(context)
+
         # Create contract output (single source of truth)
-        # No need to set individual fields - they're derived from the contract
-        # Check if methodology signals were saved
         has_methodology_signals = context.signals is not None
-        # Check if legacy scoring was saved
-        has_legacy_scoring = context.selection_result is not None
 
         context.scoring_persistence_output = ScoringPersistenceOutput(
             turn_number=context.turn_number,
             strategy=context.strategy,
-            depth_score=scoring.get("depth", 0.0),
-            saturation_score=scoring.get("saturation", 0.0),
+            depth_score=depth_score,
+            saturation_score=saturation_score,
             has_methodology_signals=has_methodology_signals,
-            has_legacy_scoring=has_legacy_scoring,
+            has_legacy_scoring=False,  # Legacy scoring removed
             # timestamp auto-set
         )
 
         # Update session turn count
-        await self._update_turn_count(context, scoring)
+        await self._update_turn_count(context)
 
         log.info(
             "scoring_persisted",
             session_id=context.session_id,
             turn_number=context.turn_number,
             strategy=context.strategy,
+            depth_score=depth_score,
+            saturation_score=saturation_score,
+            has_methodology_signals=has_methodology_signals,
         )
 
         return context
@@ -98,52 +106,17 @@ class ScoringPersistenceStage(TurnStage):
         session_id: str,
         turn_number: int,
         strategy: str,
-        scoring: dict,
-        selection_result=None,
+        depth_score: float,
+        saturation_score: float,
     ):
-        """Save scoring data to scoring_history table and all candidates to scoring_candidates."""
+        """Save scoring data to scoring_history table.
+
+        Note: scoring_candidates table is deprecated and no longer used.
+        """
         scoring_id = str(uuid.uuid4())
 
-        # Extract scoring details from two-tier result if available
-        scorer_details = {}
-        reasoning_trace_last = None
-        if (
-            selection_result is not None
-            and hasattr(selection_result, "scoring_result")
-            and selection_result.scoring_result
-        ):
-            scorer_details = {
-                "tier1_results": [
-                    {
-                        "scorer_id": t.scorer_id,
-                        "is_veto": t.is_veto,
-                        "reasoning": t.reasoning,
-                        "signals": t.signals,
-                    }
-                    for t in selection_result.scoring_result.tier1_outputs
-                ],
-                "tier2_results": [
-                    {
-                        "scorer_id": t.scorer_id,
-                        "raw_score": t.raw_score,
-                        "weight": t.weight,
-                        "contribution": t.contribution,
-                        "reasoning": t.reasoning,
-                        "signals": t.signals,
-                    }
-                    for t in selection_result.scoring_result.tier2_outputs
-                ],
-                "final_score": selection_result.scoring_result.final_score,
-                "vetoed_by": selection_result.scoring_result.vetoed_by,
-            }
-            # Extract last reasoning entry
-            if selection_result.scoring_result.reasoning_trace:
-                reasoning_trace_last = selection_result.scoring_result.reasoning_trace[
-                    -1
-                ]
-
         async with aiosqlite.connect(str(self.session_repo.db_path)) as db:
-            # Save winner to scoring_history (legacy)
+            # Save to scoring_history
             await db.execute(
                 """INSERT INTO scoring_history (
                     id, session_id, turn_number,
@@ -155,46 +128,15 @@ class ScoringPersistenceStage(TurnStage):
                     scoring_id,
                     session_id,
                     turn_number,
-                    scoring.get("depth", 0.0),
-                    scoring.get("saturation", 0.0),
-                    scoring.get("novelty"),
-                    scoring.get("richness"),
+                    depth_score,
+                    saturation_score,
+                    None,  # novelty_score - not computed in methodology-based system
+                    None,  # richness_score - not computed in methodology-based system
                     strategy,
-                    reasoning_trace_last,
-                    json.dumps(scorer_details),
+                    None,  # strategy_reasoning - methodology signals are saved separately
+                    None,  # scorer_details - deprecated
                 ),
             )
-
-            # Save ALL candidates to scoring_candidates table
-            if selection_result:
-                # Save the winner
-                await self._save_candidate(
-                    db=db,
-                    session_id=session_id,
-                    turn_number=turn_number,
-                    strategy_id=selection_result.selected_strategy["id"],
-                    strategy_name=selection_result.selected_strategy.get("name", ""),
-                    focus=selection_result.selected_focus,
-                    final_score=selection_result.final_score,
-                    is_selected=True,
-                    scoring_result=selection_result.scoring_result,
-                )
-
-                # Save alternatives
-                if hasattr(selection_result, "alternative_strategies"):
-                    for alternative in selection_result.alternative_strategies:
-                        await self._save_candidate(
-                            db=db,
-                            session_id=session_id,
-                            turn_number=turn_number,
-                            strategy_id=alternative.strategy["id"],
-                            strategy_name=alternative.strategy.get("name", ""),
-                            focus=alternative.focus,
-                            final_score=alternative.score,
-                            is_selected=False,
-                            scoring_result=alternative.scoring_result,
-                        )
-
             await db.commit()
 
     async def _save_qualitative_signals(self, context: "PipelineContext") -> None:
@@ -264,79 +206,55 @@ class ScoringPersistenceStage(TurnStage):
                     error_type=type(e).__name__,
                 )
 
-    async def _save_candidate(
-        self,
-        db: aiosqlite.Connection,
-        session_id: str,
-        turn_number: int,
-        strategy_id: str,
-        strategy_name: str,
-        focus: dict,
-        final_score: float,
-        is_selected: bool,
-        scoring_result,
-    ):
-        """Save a single candidate to the scoring_candidates table."""
-        candidate_id = str(uuid.uuid4())
+    async def _save_methodology_signals(self, context: "PipelineContext") -> None:
+        """Save methodology-based signals from strategy_selection_output.
 
-        # Extract Tier 1 and Tier 2 results
-        tier1_results = []
-        tier2_results = []
+        Extracts signals from context.signals (populated by StrategySelectionStage)
+        and persists them to the qualitative_signals table for observability.
 
-        if scoring_result:
-            tier1_results = [
-                {
-                    "scorer_id": t.scorer_id,
-                    "is_veto": t.is_veto,
-                    "reasoning": t.reasoning,
-                    "signals": t.signals,
-                }
-                for t in scoring_result.tier1_outputs
-            ]
-            tier2_results = [
-                {
-                    "scorer_id": t.scorer_id,
-                    "raw_score": t.raw_score,
-                    "weight": t.weight,
-                    "contribution": t.contribution,
-                    "reasoning": t.reasoning,
-                    "signals": t.signals,
-                }
-                for t in scoring_result.tier2_outputs
-            ]
+        This provides traceability for the new signal-based strategy selection.
+        """
+        if not context.signals:
+            return
 
-        # Build reasoning trace
-        reasoning = (
-            " | ".join(scoring_result.reasoning_trace)
-            if scoring_result and scoring_result.reasoning_trace
-            else None
-        )
+        # Convert methodology signals to format compatible with qualitative_signals table
+        # We're reusing the qualitative_signals table for simplicity
+        signal_id = str(uuid.uuid4())
+        try:
+            # Flatten signals for storage
+            # Format: {"graph": {...}, "llm": {...}, "temporal": {...}, "meta": {...}}
+            flattened_signals = {}
+            for pool_name, pool_signals in context.signals.items():
+                if isinstance(pool_signals, dict):
+                    flattened_signals[pool_name] = pool_signals
+                else:
+                    flattened_signals[pool_name] = {"value": pool_signals}
 
-        await db.execute(
-            """INSERT INTO scoring_candidates (
-                id, session_id, turn_number,
-                strategy_id, strategy_name, focus_type, focus_description,
-                final_score, is_selected, vetoed_by,
-                tier1_results, tier2_results, reasoning
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                candidate_id,
-                session_id,
-                turn_number,
-                strategy_id,
-                strategy_name,
-                focus.get("focus_type", ""),
-                focus.get("focus_description", "")[:500],  # Limit length
-                final_score,
-                1 if is_selected else 0,
-                scoring_result.vetoed_by if scoring_result else None,
-                json.dumps(tier1_results),
-                json.dumps(tier2_results),
-                reasoning,
-            ),
-        )
+            await self.session_repo.save_qualitative_signals(
+                signal_id=signal_id,
+                session_id=context.session_id,
+                turn_number=context.turn_number,
+                signals=flattened_signals,
+                llm_model="methodology_signals",
+                extraction_latency_ms=0,
+                extraction_errors=[],
+            )
+            log.debug(
+                "methodology_signals_saved",
+                session_id=context.session_id,
+                turn_number=context.turn_number,
+                signal_pools=list(context.signals.keys()),
+            )
+        except Exception as e:
+            log.warning(
+                "failed_to_save_methodology_signals",
+                session_id=context.session_id,
+                turn_number=context.turn_number,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
-    async def _update_turn_count(self, context: "PipelineContext", scoring: dict):
+    async def _update_turn_count(self, context: "PipelineContext") -> None:
         """Update session turn count.
 
         Note: context.turn_number already represents the current turn number
@@ -352,40 +270,3 @@ class ScoringPersistenceStage(TurnStage):
             turn_count=context.turn_number,
         )
         await self.session_repo.update_state(context.session_id, updated_state)
-
-    async def _extract_legacy_scores(self, selection_result) -> dict:
-        """Extract legacy scoring metrics from tier2 results."""
-        depth_score = 0.0
-        saturation_score = 0.0
-        novelty_score = None
-        richness_score = None
-
-        if (
-            selection_result is not None
-            and hasattr(selection_result, "scoring_result")
-            and selection_result.scoring_result
-        ):
-            for result in selection_result.scoring_result.tier2_outputs:
-                scorer_id = result.scorer_id
-                signals = result.signals
-
-                if scorer_id == "DepthBreadthBalanceScorer":
-                    depth_avg = signals.get("depth_avg", 0.0)
-                    depth_score = min(1.0, depth_avg / 5.0) if depth_avg else 0.0
-
-                elif scorer_id == "NoveltyScorer":
-                    novelty_score = result.raw_score
-
-                elif scorer_id == "EngagementScorer":
-                    momentum = signals.get("avg_momentum", 50)
-                    richness_score = min(1.0, momentum / 150.0)
-
-                elif scorer_id == "SaturationScorer":
-                    saturation_score = result.raw_score
-
-        return {
-            "depth": depth_score,
-            "saturation": saturation_score,
-            "novelty": novelty_score,
-            "richness": richness_score,
-        }

@@ -9,7 +9,7 @@ delegating to a pipeline of stages for actual processing.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List, Dict, Any, Union, TYPE_CHECKING
+from typing import Optional, List, Dict, TYPE_CHECKING
 from uuid import uuid4
 
 import structlog
@@ -19,7 +19,6 @@ from src.core.concept_loader import load_concept
 from src.domain.models.extraction import ExtractionResult
 from src.domain.models.knowledge_graph import GraphState, KGNode
 from src.domain.models.utterance import Utterance
-from src.domain.models.turn import Focus
 from src.llm.client import LLMClient
 from src.services.extraction_service import ExtractionService
 from src.services.focus_selection_service import FocusSelectionService
@@ -249,164 +248,6 @@ class SessionService:
         )
 
         return result
-
-    async def _save_scoring(
-        self,
-        session_id: str,
-        turn_number: int,
-        strategy: str,
-        scoring: Dict[str, Any],
-        selection_result: Any = None,
-    ):
-        """Save scoring data to scoring_history table and all candidates to scoring_candidates."""
-        import uuid
-
-        scoring_id = str(uuid.uuid4())
-
-        # Extract scoring details from two-tier result if available
-        scorer_details = {}
-        if selection_result and selection_result.scoring_result:
-            scorer_details = {
-                "tier1_results": [
-                    {
-                        "scorer_id": t.scorer_id,
-                        "is_veto": t.is_veto,
-                        "reasoning": t.reasoning,
-                        "signals": t.signals,
-                    }
-                    for t in selection_result.scoring_result.tier1_outputs
-                ],
-                "tier2_results": [
-                    {
-                        "scorer_id": t.scorer_id,
-                        "raw_score": t.raw_score,
-                        "weight": t.weight,
-                        "contribution": t.contribution,
-                        "reasoning": t.reasoning,
-                        "signals": t.signals,
-                    }
-                    for t in selection_result.scoring_result.tier2_outputs
-                ],
-                "final_score": selection_result.scoring_result.final_score,
-                "vetoed_by": selection_result.scoring_result.vetoed_by,
-            }
-
-        # Save winner to scoring_history (legacy)
-        await self.session_repo.save_scoring_history(
-            scoring_id=scoring_id,
-            session_id=session_id,
-            turn_number=turn_number,
-            depth_score=scoring.get("depth", 0.0),
-            saturation_score=scoring.get("saturation", 0.0),
-            strategy_selected=strategy,
-            strategy_reasoning=selection_result.scoring_result.reasoning_trace[-1]
-            if selection_result.scoring_result
-            and selection_result.scoring_result.reasoning_trace
-            else None,
-            scorer_details=scorer_details,
-        )
-
-        # Save ALL candidates to scoring_candidates table
-        if selection_result:
-            # Save the winner
-            await self._save_candidate(
-                session_id=session_id,
-                turn_number=turn_number,
-                strategy_id=selection_result.selected_strategy["id"],
-                strategy_name=selection_result.selected_strategy.get("name", ""),
-                focus=selection_result.selected_focus,
-                final_score=selection_result.final_score,
-                is_selected=True,
-                scoring_result=selection_result.scoring_result,
-            )
-
-            # Save alternatives
-            for alternative in selection_result.alternative_strategies:
-                await self._save_candidate(
-                    session_id=session_id,
-                    turn_number=turn_number,
-                    strategy_id=alternative.strategy["id"],
-                    strategy_name=alternative.strategy.get("name", ""),
-                    focus=alternative.focus,
-                    final_score=alternative.score,
-                    is_selected=False,
-                    scoring_result=alternative.scoring_result,
-                )
-
-    async def _save_candidate(
-        self,
-        session_id: str,
-        turn_number: int,
-        strategy_id: str,
-        strategy_name: str,
-        focus: Union[
-            "Focus", Dict[str, Any]
-        ],  # Accept both typed Focus and dict for compatibility
-        final_score: float,
-        is_selected: bool,
-        scoring_result: Any,
-    ):
-        """Save a single candidate to the scoring_candidates table."""
-        import uuid
-
-        candidate_id = str(uuid.uuid4())
-
-        # Convert Focus to dict if needed
-        if isinstance(focus, dict):
-            focus_dict: Dict[str, Any] = focus
-        else:
-            focus_dict: Dict[str, Any] = focus.model_dump()
-
-        # Extract Tier 1 and Tier 2 results
-        tier1_results = []
-        tier2_results = []
-
-        if scoring_result:
-            tier1_results = [
-                {
-                    "scorer_id": t.scorer_id,
-                    "is_veto": t.is_veto,
-                    "reasoning": t.reasoning,
-                    "signals": t.signals,
-                }
-                for t in scoring_result.tier1_outputs
-            ]
-            tier2_results = [
-                {
-                    "scorer_id": t.scorer_id,
-                    "raw_score": t.raw_score,
-                    "weight": t.weight,
-                    "contribution": t.contribution,
-                    "reasoning": t.reasoning,
-                    "signals": t.signals,
-                }
-                for t in scoring_result.tier2_outputs
-            ]
-
-        # Build reasoning trace
-        reasoning = (
-            " | ".join(scoring_result.reasoning_trace)
-            if scoring_result and scoring_result.reasoning_trace
-            else None
-        )
-
-        await self.session_repo.save_scoring_candidate(
-            candidate_id=candidate_id,
-            session_id=session_id,
-            turn_number=turn_number,
-            strategy_id=strategy_id,
-            strategy_name=strategy_name,
-            focus_type=focus_dict.get("focus_type", ""),
-            focus_description=focus_dict.get("focus_description", "")[
-                :500
-            ],  # Limit length
-            final_score=final_score,
-            is_selected=is_selected,
-            vetoed_by=scoring_result.vetoed_by if scoring_result else None,
-            tier1_results=tier1_results,
-            tier2_results=tier2_results,
-            reasoning=reasoning,
-        )
 
     async def start_session(
         self,
