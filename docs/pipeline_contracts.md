@@ -102,6 +102,10 @@ class PipelineContext:
     graph_state: Optional[GraphState]
     recent_nodes: List[KGNode]
 
+    # Node state tracking (persisted across turns via SessionService)
+    # Phase 9 (2026-02-03): Now persisted to sessions.node_tracker_state
+    node_tracker: NodeStateTracker
+
     # Extraction results (computed in ExtractionStage)
     extraction: Optional[ExtractionResult]
 
@@ -481,6 +485,64 @@ The following contract fields exist but are **not currently set** by their respe
 | Stage 10 | `has_legacy_scoring` | Has default=False - stage should set this |
 
 **Recommendation**: Stages 7, 9, and 10 should be updated to explicitly set their boolean fields for better observability. Stage 9 must set `turns_remaining`.
+
+---
+
+## TurnResult: Pipeline Output
+
+**File**: `src/services/turn_pipeline/result.py`
+
+The `TurnResult` dataclass is the final output returned by the pipeline after all stages complete. It aggregates key information from the turn processing.
+
+```python
+@dataclass
+class TurnResult:
+    turn_number: int
+    extracted: dict                    # concepts, relationships
+    graph_state: dict                  # node_count, edge_count, depth_achieved
+    scoring: dict                      # strategy_id, score, reasoning (Phase 3)
+    strategy_selected: Optional[str]   # Selected strategy name
+    next_question: str                  # Generated question
+    should_continue: bool              # Whether interview continues
+    latency_ms: int = 0                # Pipeline execution time
+    signals: Optional[Dict[str, Any]] = None           # Raw methodology signals (Phase 6)
+    strategy_alternatives: Optional[List[Dict[str, Any]]] = None  # Alternative strategies with scores
+    termination_reason: Optional[str] = None  # Reason for termination (e.g., "max_turns_reached", "graph_saturated", "depth_plateau")
+```
+
+### Field Details
+
+| Field | Source | Description |
+|-------|--------|-------------|
+| `turn_number` | PipelineContext | Current turn number (1-indexed) |
+| `extracted` | ExtractionOutput | Extracted concepts and relationships |
+| `graph_state` | StateComputationOutput | Current graph state metrics |
+| `scoring` | ScoringPersistenceOutput | Strategy scoring data |
+| `strategy_selected` | StrategySelectionOutput | Selected strategy name |
+| `next_question` | QuestionGenerationOutput | Generated follow-up question |
+| `should_continue` | ContinuationOutput | Whether to continue interview |
+| `latency_ms` | Pipeline | Total execution time in milliseconds |
+| `signals` | StrategySelectionOutput | Raw signals from signal pools (Phase 6) |
+| `strategy_alternatives` | StrategySelectionOutput | All scored alternatives with scores |
+| `termination_reason` | ContinuationOutput.reason | Reason for termination when `should_continue=False` |
+
+### Termination Reasons
+
+The `termination_reason` field is populated by `ContinuationStage` when `should_continue=False`:
+
+| Reason | Description |
+|--------|-------------|
+| `"max_turns_reached"` | Interview reached configured max_turns limit |
+| `"depth_plateau"` | Graph max_depth hasn't increased in 6 consecutive turns |
+| `"quality_degraded"` | Consecutive shallow responses detected (saturation) |
+| `"close_strategy"` | Closing strategy was selected |
+
+### Usage
+
+`TurnResult` is returned by:
+- `SessionService.process_turn()` - API endpoint response
+- Simulation endpoints - For testing and diagnostics
+- Tests - For validating pipeline behavior
 
 ---
 

@@ -476,6 +476,8 @@ graph LR
 
 **Why Critical**: NodeStateTracker maintains per-node state for exhaustion detection, enabling intelligent backtracking.
 
+**Phase 9 (2026-02-03)**: NodeStateTracker now persists across turns, enabling response depth tracking for saturation detection.
+
 ```mermaid
 graph LR
     A[GraphUpdateStage] -->|new nodes| B[NodeStateTracker.register_node]
@@ -492,11 +494,11 @@ graph LR
     I --> J[yield_rate calculation]
 
     K[StrategySelectionStage] -->|select focus| L[NodeStateTracker.update_focus]
-    L --> M[focus_count, current_focus_streak]
+    L --> M[focus_count, current_focus_streak, previous_focus]
     M --> N[Update consecutive_same_strategy]
 
-    O[ExtractionStage] -->|response_depth| P[NodeStateTracker.append_response_signal]
-    P --> Q[all_response_depths list]
+    O[StrategySelectionStage] -->|llm.response_depth| P[NodeStateTracker.append_response_signal]
+    P -->|using previous_focus| Q[all_response_depths list]
 
     B --> R[graph.node.* signals]
     C --> R
@@ -522,6 +524,28 @@ graph LR
     AB --> AC[Negative weight for exhausted nodes]
     AC --> AD[Backtrack to fresh nodes]
 ```
+
+### Key Points
+
+**NodeStateTracker** maintains persistent per-node state across turns:
+- **Basic info**: node_id, label, created_at_turn, depth, node_type, is_terminal, level
+- **Engagement metrics**: focus_count, last_focus_turn, turns_since_last_focus, current_focus_streak
+- **Yield metrics**: last_yield_turn, turns_since_last_yield, yield_count, yield_rate
+- **Response quality**: all_response_depths (list of surface/shallow/deep) - **NOW PERSISTED**
+- **Relationships**: connected_node_ids, edge_count_outgoing, edge_count_incoming
+- **Strategy usage**: strategy_usage_count, last_strategy_used, consecutive_same_strategy
+- **previous_focus**: Tracks the focus node from the previous turn - **NOW PERSISTED**
+
+**Response Depth Tracking** (NEW - Phase 9):
+1. `llm.response_depth` signal detected in StrategySelectionStage
+2. Appended to `previous_focus` node's `all_response_depths` list
+3. Enables `consecutive_shallow` saturation detection in StateComputationStage
+
+**Exhaustion Detection Criteria** (NodeExhaustedSignal):
+1. Minimum engagement: `focus_count >= 1`
+2. Yield stagnation: `turns_since_last_yield >= 3`
+3. Persistent focus: `current_focus_streak >= 2`
+4. Shallow responses: 2/3 of recent responses are "surface"
 
 ### Key Points
 
@@ -553,6 +577,73 @@ exhaustion_score = (
 - `"probe_deeper"`: Deep responses but no yield (extraction opportunity)
 - `"fresh"`: Node has opportunity for exploration
 
+## Path 9: Node Tracker Persistence
+
+**Why Critical**: NodeStateTracker must persist across turns to maintain `previous_focus` and `all_response_depths` for response depth tracking and saturation detection.
+
+**Phase 9 (2026-02-03)**: Database persistence added for node_tracker state.
+
+```mermaid
+graph LR
+    A[SessionService.process_turn] -->|load or create| B[SessionService._get_or_create_node_tracker]
+
+    B -->|check database| C[SessionRepository.get_node_tracker_state]
+    C -->|state found?| D{Has persisted state?}
+
+    D -->|Yes| E[NodeStateTracker.from_dict]
+    D -->|No| F[New NodeStateTracker]
+
+    E -->|restored states| G[node_tracker]
+    F --> G
+
+    G -->|Load at turn start| H[StrategySelectionStage]
+    H -->|append_response_depth| I[node_tracker]
+    H -->|update_focus| J[node_tracker]
+
+    I -->|all_response_depths.append| K[previous_focus node]
+    J -->|set previous_focus| L[node_tracker]
+
+    L -->|After turn completes| M[SessionService._save_node_tracker]
+    M -->|to_dict| N[node_tracker.to_dict]
+    N -->|JSON serialize| O[tracker_dict]
+
+    O -->|save to database| P[SessionRepository.update_node_tracker_state]
+    P -->|Write| Q[(sessions.node_tracker_state)]
+
+    Q -->|Next turn| A
+```
+
+### Key Points
+
+**Persistence Flow**:
+1. **Load** (turn start): `SessionService._get_or_create_node_tracker()`
+   - Queries `sessions.node_tracker_state` from database
+   - If found: `NodeStateTracker.from_dict()` restores all node states
+   - If not found: Creates fresh `NodeStateTracker()`
+
+2. **Use** (during turn):
+   - `StrategySelectionStage.append_response_signal()`: Appends `llm.response_depth` to `previous_focus` node
+   - `StrategySelectionStage.update_focus()`: Updates `previous_focus` for next turn
+
+3. **Save** (turn end): `SessionService._save_node_tracker()`
+   - `NodeStateTracker.to_dict()`: Serializes to JSON-compatible dict
+   - Stores in `sessions.node_tracker_state` column
+
+**Schema Versioning**:
+- `NODE_TRACKER_SCHEMA_VERSION = 1` for future compatibility
+- Includes: schema_version, previous_focus, states dict
+
+**Backwards Compatibility**:
+- Existing sessions with `node_tracker_state = NULL` create fresh tracker (no change in behavior)
+- Graceful degradation: If load fails, creates fresh tracker with warning log
+
+**State Size**: ~15KB JSON for 25 nodes (varies by interview length)
+
+**Enables**:
+- `consecutive_shallow` saturation detection (now works correctly)
+- Response depth tracking across entire interview
+- Future features: pause/resume interviews, interview replay
+
 ## Cross-References
 
 | Path | Primary Stages | Secondary Stages | Database Tables |
@@ -561,6 +652,7 @@ exhaustion_score = (
 | Joint Strategy-Node Selection (D1) | 4, 6 | 1, 5, 10 | nodes |
 | Graph State Mutation | 3, 4, 5 | 6, 7 | nodes, edges |
 | Node State Tracking (Exhaustion) | 3, 4, 6 | - | - |
+| Node Tracker Persistence | SessionService | 6, 10 | sessions |
 | Strategy History (Diversity) | 1, 6, 10 | - | sessions |
 | Traceability Chain (ADR-010) | 2, 3, 4 | 5, 6 | utterances, nodes, edges |
 | Signal Detection | 6 | - | - |
