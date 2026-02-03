@@ -119,7 +119,7 @@ class StrategySelectionStage(TurnStage):
             focus=focus_dict,
             # selected_at auto-set
             signals=signals,
-            strategy_alternatives=alternatives or [],
+            strategy_alternatives=list(alternatives) if alternatives else [],
         )
 
         log.info(
@@ -160,9 +160,11 @@ class StrategySelectionStage(TurnStage):
 
         # Use joint strategy-node scoring
         # graph_state should be available after StateComputationStage
-        assert context.graph_state is not None, (
-            "graph_state must be set by StateComputationStage"
-        )
+        if context.graph_state is None:
+            raise ValueError(
+                "Pipeline contract violation: graph_state must be set by "
+                "StateComputationStage before StrategySelectionStage"
+            )
 
         # Call new joint scoring method
         (

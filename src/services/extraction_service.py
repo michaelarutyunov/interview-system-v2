@@ -44,7 +44,6 @@ class ExtractionService:
         llm_client: Optional[LLMClient] = None,
         skip_extractability_check: bool = False,
         min_word_count: int = 3,
-        methodology: Optional[str] = None,
         concept_id: Optional[str] = None,
     ):
         """
@@ -54,27 +53,15 @@ class ExtractionService:
             llm_client: LLM client instance (creates default if None)
             skip_extractability_check: Skip fast pre-filter (for testing)
             min_word_count: Minimum words for extractability
-            methodology: Methodology schema name (e.g., "means_end_chain", "jobs_to_be_done")
-                       DEPRECATED: Will be set dynamically from session context
             concept_id: Optional concept ID for element linking
+
+        Note:
+            Methodology is now passed as a required parameter to extract()
+            instead of being set at initialization time.
         """
         self.llm = llm_client or get_extraction_llm_client()
         self.skip_extractability_check = skip_extractability_check
         self.min_word_count = min_word_count
-
-        # P0 Fix: Methodology mismatch - remove hardcoded default
-        # Methodology will be updated from session context in ExtractionStage
-        if methodology is None:
-            # Temporary fallback for backward compatibility
-            # ExtractionStage will update this before first use
-            log.warning(
-                "extraction_service_no_methodology",
-                message="No methodology provided - will be set from session context",
-            )
-            methodology = "means_end_chain"  # Temporary default for initialization
-
-        self.methodology = methodology
-        self.schema = load_methodology(methodology)
         self.concept_id = concept_id
 
         # Load concept for element linking if provided
@@ -98,13 +85,14 @@ class ExtractionService:
 
         log.info(
             "extraction_service_initialized",
-            methodology=methodology,
-            node_count=len(self.schema.ontology.nodes) if self.schema.ontology else 0,
+            concept_id=concept_id,
+            element_count=len(self.concept.elements) if self.concept else 0,
         )
 
     async def extract(
         self,
         text: str,
+        methodology: str,
         context: str = "",
         source_utterance_id: Optional[str] = None,
     ) -> ExtractionResult:
@@ -119,14 +107,22 @@ class ExtractionService:
 
         Args:
             text: User's response text
+            methodology: Methodology schema name (e.g., "means_end_chain", "jobs_to_be_done")
             context: Optional context from previous turns
             source_utterance_id: Source utterance ID for traceability (ADR-010 Phase 2)
 
         Returns:
             ExtractionResult with concepts, relationships, and metadata
         """
+        # Load methodology schema per-call (cached by load_methodology)
+        schema = load_methodology(methodology)
+
         start_time = time.perf_counter()
-        log.info("extraction_started", text_length=len(text))
+        log.info(
+            "extraction_started",
+            text_length=len(text),
+            methodology=methodology,
+        )
 
         # Step 1: Fast heuristic check
         if not self.skip_extractability_check:
@@ -144,7 +140,9 @@ class ExtractionService:
 
         # Step 3: Full extraction via LLM
         try:
-            extraction_data = await self._extract_via_llm(text, context)
+            extraction_data = await self._extract_via_llm(
+                text, context, methodology
+            )
         except Exception as e:
             log.error("extraction_llm_error", error=str(e))
             # Graceful degradation: return empty result
@@ -159,7 +157,7 @@ class ExtractionService:
         concepts = self._parse_concepts(
             extraction_data.get("concepts", []),
             source_utterance_id or "unknown",
-            self.schema,
+            schema,
         )
 
         # Build concept_types map for relationship validation
@@ -169,6 +167,7 @@ class ExtractionService:
             extraction_data.get("relationships", []),
             concept_types,
             source_utterance_id or "unknown",  # ADR-010 Phase 2: Traceability
+            schema,
         )
         discourse_markers = extraction_data.get("discourse_markers", [])
 
@@ -231,13 +230,16 @@ class ExtractionService:
 
         return True, None
 
-    async def _extract_via_llm(self, text: str, context: str) -> dict:
+    async def _extract_via_llm(
+        self, text: str, context: str, methodology: str
+    ) -> dict:
         """
         Call LLM for extraction.
 
         Args:
             text: Text to extract from
             context: Optional context
+            methodology: Methodology schema name for extraction
 
         Returns:
             Parsed extraction data dict
@@ -246,7 +248,7 @@ class ExtractionService:
             ValueError: If LLM response is invalid
         """
         system_prompt = get_extraction_system_prompt(
-            methodology=self.methodology,
+            methodology=methodology,
             concept_id=self.concept_id,
         )
         user_prompt = get_extraction_user_prompt(text, context)
@@ -338,6 +340,7 @@ class ExtractionService:
         raw_relationships: List[dict],
         concept_types: Dict[str, str],
         source_utterance_id: str,
+        schema,
     ) -> List[ExtractedRelationship]:
         """
         Convert raw extraction data to ExtractedRelationship models.
@@ -365,7 +368,7 @@ class ExtractionService:
                 )
 
                 # Schema validation: check edge type is valid
-                if not self.schema.is_valid_edge_type(rel.relationship_type):
+                if not schema.is_valid_edge_type(rel.relationship_type):
                     log.warning(
                         "invalid_edge_type",
                         relationship_type=rel.relationship_type,
@@ -377,7 +380,7 @@ class ExtractionService:
                 target_type = concept_types.get(rel.target_text.lower())
 
                 if source_type and target_type:
-                    if not self.schema.is_valid_connection(
+                    if not schema.is_valid_connection(
                         rel.relationship_type, source_type, target_type
                     ):
                         log.warning(

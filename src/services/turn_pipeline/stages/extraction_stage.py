@@ -40,33 +40,6 @@ class ExtractionStage(TurnStage):
         Returns:
             Modified context with extraction result
         """
-        # Update extraction service with methodology from session context
-        # This fixes P0 Issue 3: Methodology Mismatch
-        if hasattr(context, "methodology") and context.methodology:
-            if context.methodology != self.extraction.methodology:
-                log.info(
-                    "extraction_methodology_updated",
-                    old_methodology=self.extraction.methodology,
-                    new_methodology=context.methodology,
-                )
-                self.extraction.methodology = context.methodology
-                # Reload methodology schema
-                try:
-                    from src.core.schema_loader import load_methodology
-
-                    self.extraction.schema = load_methodology(context.methodology)
-                    log.debug(
-                        "extraction_schema_reloaded",
-                        methodology=context.methodology,
-                        node_types=len(self.extraction.schema.node_types),
-                    )
-                except Exception as e:
-                    log.error(
-                        "methodology_schema_load_failed",
-                        methodology=context.methodology,
-                        error=str(e),
-                    )
-
         # Update extraction service with concept_id from session context
         # This allows element linking to work with the correct concept
         if hasattr(context, "concept_id") and context.concept_id:
@@ -100,6 +73,7 @@ class ExtractionStage(TurnStage):
 
         extraction = await self.extraction.extract(
             text=context.user_input,
+            methodology=context.methodology,
             context=self._format_context_for_extraction(context),
             source_utterance_id=source_utterance_id,
         )

@@ -170,7 +170,7 @@ class AnthropicClient(LLMClient):
         max_tokens: Optional[int] = None,
     ) -> LLMResponse:
         """
-        Call Anthropic Messages API.
+        Call Anthropic Messages API with automatic retry on timeout/rate-limit.
 
         Args:
             prompt: User message
@@ -182,22 +182,27 @@ class AnthropicClient(LLMClient):
             LLMResponse with content and usage stats
 
         Raises:
-            httpx.HTTPStatusError: On API errors (4xx, 5xx)
-            httpx.TimeoutException: On timeout
+            LLMTimeoutError: After all retries exhausted on timeout
+            LLMRateLimitError: After all retries exhausted on rate limit (429)
+            httpx.HTTPStatusError: On other API errors (no retry)
         """
-        start = time.perf_counter()
+        import asyncio
+        from src.core.exceptions import LLMTimeoutError, LLMRateLimitError
 
-        headers = {
-            "x-api-key": self.api_key,
-            "content-type": "application/json",
-            "anthropic-version": "2023-06-01",
-        }
+        max_retries = 1  # 2 total attempts
+        base_delay = 1.0  # seconds
 
         # Use instance defaults if not provided
         if max_tokens is None:
             max_tokens = self.max_tokens
         if temperature is None:
             temperature = self.temperature
+
+        headers = {
+            "x-api-key": self.api_key,
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+        }
 
         payload: Dict[str, Any] = {
             "model": self.model,
@@ -209,55 +214,114 @@ class AnthropicClient(LLMClient):
         if system:
             payload["system"] = system
 
-        log.debug(
-            "llm_call_start",
-            provider="anthropic",
-            client_type=self.client_type,
-            model=self.model,
-            prompt_length=len(prompt),
-            system_length=len(system) if system else 0,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        for attempt in range(max_retries + 1):
+            start = time.perf_counter()
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(
-                f"{self.base_url}/messages",
-                headers=headers,
-                json=payload,
+            log.debug(
+                "llm_call_start",
+                provider="anthropic",
+                client_type=self.client_type,
+                model=self.model,
+                prompt_length=len(prompt),
+                system_length=len(system) if system else 0,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                attempt=attempt + 1,
+                max_retries=max_retries,
             )
-            response.raise_for_status()
-            data = response.json()
 
-        latency_ms = (time.perf_counter() - start) * 1000
+            try:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    response = await client.post(
+                        f"{self.base_url}/messages",
+                        headers=headers,
+                        json=payload,
+                    )
+                    response.raise_for_status()
+                    data = response.json()
 
-        # Extract content from response
-        content = ""
-        if data.get("content"):
-            content = data["content"][0].get("text", "")
+                latency_ms = (time.perf_counter() - start) * 1000
 
-        usage = {
-            "input_tokens": data.get("usage", {}).get("input_tokens", 0),
-            "output_tokens": data.get("usage", {}).get("output_tokens", 0),
-        }
+                # Extract content from response
+                content = ""
+                if data.get("content"):
+                    content = data["content"][0].get("text", "")
 
-        log.info(
-            "llm_call_complete",
-            provider="anthropic",
-            client_type=self.client_type,
-            model=self.model,
-            latency_ms=round(latency_ms, 2),
-            input_tokens=usage["input_tokens"],
-            output_tokens=usage["output_tokens"],
-        )
+                usage = {
+                    "input_tokens": data.get("usage", {}).get("input_tokens", 0),
+                    "output_tokens": data.get("usage", {}).get("output_tokens", 0),
+                }
 
-        return LLMResponse(
-            content=content,
-            model=data.get("model", self.model),
-            usage=usage,
-            latency_ms=latency_ms,
-            raw_response=data,
-        )
+                log.info(
+                    "llm_call_complete",
+                    provider="anthropic",
+                    client_type=self.client_type,
+                    model=self.model,
+                    latency_ms=round(latency_ms, 2),
+                    input_tokens=usage["input_tokens"],
+                    output_tokens=usage["output_tokens"],
+                    attempt=attempt + 1,
+                )
+
+                return LLMResponse(
+                    content=content,
+                    model=data.get("model", self.model),
+                    usage=usage,
+                    latency_ms=latency_ms,
+                    raw_response=data,
+                )
+
+            except httpx.TimeoutException as e:
+                log.warning(
+                    "llm_timeout",
+                    provider="anthropic",
+                    attempt=attempt + 1,
+                    max_retries=max_retries,
+                    timeout_seconds=self.timeout,
+                )
+                if attempt < max_retries:
+                    delay = base_delay * (2 ** attempt)  # 1s on first retry
+                    log.info(
+                        "llm_retry_after_timeout",
+                        delay_seconds=delay,
+                        next_attempt=attempt + 2,
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    raise LLMTimeoutError(
+                        f"LLM call timed out after {max_retries + 1} attempts "
+                        f"(timeout={self.timeout}s)"
+                    ) from e
+
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code
+                if status_code == 429:  # Rate limit
+                    log.warning(
+                        "llm_rate_limit",
+                        provider="anthropic",
+                        attempt=attempt + 1,
+                        max_retries=max_retries,
+                    )
+                    if attempt < max_retries:
+                        delay = base_delay * (2 ** attempt)
+                        log.info(
+                            "llm_retry_after_rate_limit",
+                            delay_seconds=delay,
+                            next_attempt=attempt + 2,
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        raise LLMRateLimitError(
+                            f"Rate limit exceeded after {max_retries + 1} attempts"
+                        ) from e
+                else:
+                    # Don't retry other 4xx/5xx errors
+                    log.error(
+                        "llm_http_error",
+                        provider="anthropic",
+                        status_code=status_code,
+                    )
+                    raise
 
 
 # =============================================================================
@@ -323,7 +387,7 @@ class OpenAICompatibleClient(LLMClient):
         max_tokens: Optional[int] = None,
     ) -> LLMResponse:
         """
-        Call OpenAI-compatible API.
+        Call OpenAI-compatible API with automatic retry on timeout/rate-limit.
 
         Args:
             prompt: User message
@@ -335,15 +399,15 @@ class OpenAICompatibleClient(LLMClient):
             LLMResponse with content and usage stats
 
         Raises:
-            httpx.HTTPStatusError: On API errors (4xx, 5xx)
-            httpx.TimeoutException: On timeout
+            LLMTimeoutError: After all retries exhausted on timeout
+            LLMRateLimitError: After all retries exhausted on rate limit (429)
+            httpx.HTTPStatusError: On other API errors (no retry)
         """
-        start = time.perf_counter()
+        import asyncio
+        from src.core.exceptions import LLMTimeoutError, LLMRateLimitError
 
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        max_retries = 1  # 2 total attempts
+        base_delay = 1.0  # seconds
 
         # Use instance defaults if not provided
         if max_tokens is None:
@@ -364,55 +428,119 @@ class OpenAICompatibleClient(LLMClient):
             "max_tokens": max_tokens,
         }
 
-        log.debug(
-            "llm_call_start",
-            provider=self.provider_name,
-            client_type=self.client_type,
-            model=self.model,
-            prompt_length=len(prompt),
-            system_length=len(system) if system else 0,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        for attempt in range(max_retries + 1):
+            start = time.perf_counter()
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(
-                f"{self.base_url}/chat/completions",
-                headers=headers,
-                json=payload,
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
+
+            log.debug(
+                "llm_call_start",
+                provider=self.provider_name,
+                client_type=self.client_type,
+                model=self.model,
+                prompt_length=len(prompt),
+                system_length=len(system) if system else 0,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                attempt=attempt + 1,
+                max_retries=max_retries,
             )
-            response.raise_for_status()
-            data = response.json()
 
-        latency_ms = (time.perf_counter() - start) * 1000
+            try:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    response = await client.post(
+                        f"{self.base_url}/chat/completions",
+                        headers=headers,
+                        json=payload,
+                    )
+                    response.raise_for_status()
+                    data = response.json()
 
-        # Extract content from OpenAI-compatible response
-        content = ""
-        if data.get("choices"):
-            content = data["choices"][0].get("message", {}).get("content", "")
+                latency_ms = (time.perf_counter() - start) * 1000
 
-        usage = {
-            "input_tokens": data.get("usage", {}).get("prompt_tokens", 0),
-            "output_tokens": data.get("usage", {}).get("completion_tokens", 0),
-        }
+                # Extract content from OpenAI-compatible response
+                content = ""
+                if data.get("choices"):
+                    content = data["choices"][0].get("message", {}).get("content", "")
 
-        log.info(
-            "llm_call_complete",
-            provider=self.provider_name,
-            client_type=self.client_type,
-            model=self.model,
-            latency_ms=round(latency_ms, 2),
-            input_tokens=usage["input_tokens"],
-            output_tokens=usage["output_tokens"],
-        )
+                usage = {
+                    "input_tokens": data.get("usage", {}).get("prompt_tokens", 0),
+                    "output_tokens": data.get("usage", {}).get("completion_tokens", 0),
+                }
 
-        return LLMResponse(
-            content=content,
-            model=data.get("model", self.model),
-            usage=usage,
-            latency_ms=latency_ms,
-            raw_response=data,
-        )
+                log.info(
+                    "llm_call_complete",
+                    provider=self.provider_name,
+                    client_type=self.client_type,
+                    model=self.model,
+                    latency_ms=round(latency_ms, 2),
+                    input_tokens=usage["input_tokens"],
+                    output_tokens=usage["output_tokens"],
+                    attempt=attempt + 1,
+                )
+
+                return LLMResponse(
+                    content=content,
+                    model=data.get("model", self.model),
+                    usage=usage,
+                    latency_ms=latency_ms,
+                    raw_response=data,
+                )
+
+            except httpx.TimeoutException as e:
+                log.warning(
+                    "llm_timeout",
+                    provider=self.provider_name,
+                    attempt=attempt + 1,
+                    max_retries=max_retries,
+                    timeout_seconds=self.timeout,
+                )
+                if attempt < max_retries:
+                    delay = base_delay * (2 ** attempt)
+                    log.info(
+                        "llm_retry_after_timeout",
+                        delay_seconds=delay,
+                        next_attempt=attempt + 2,
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    raise LLMTimeoutError(
+                        f"LLM call timed out after {max_retries + 1} attempts "
+                        f"(timeout={self.timeout}s)"
+                    ) from e
+
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code
+                if status_code == 429:  # Rate limit
+                    log.warning(
+                        "llm_rate_limit",
+                        provider=self.provider_name,
+                        attempt=attempt + 1,
+                        max_retries=max_retries,
+                    )
+                    if attempt < max_retries:
+                        delay = base_delay * (2 ** attempt)
+                        log.info(
+                            "llm_retry_after_rate_limit",
+                            delay_seconds=delay,
+                            next_attempt=attempt + 2,
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        raise LLMRateLimitError(
+                            f"Rate limit exceeded after {max_retries + 1} attempts"
+                        ) from e
+                else:
+                    # Don't retry other 4xx/5xx errors
+                    log.error(
+                        "llm_http_error",
+                        provider=self.provider_name,
+                        status_code=status_code,
+                    )
+                    raise
 
 
 # =============================================================================
