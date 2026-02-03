@@ -3,6 +3,7 @@ Stage 7: Determine continuation.
 
 ADR-008 Phase 3: Decide if interview should continue or end.
 Phase 6: Output ContinuationOutput contract.
+Domain Encapsulation: Focus selection delegated to FocusSelectionService.
 """
 
 from dataclasses import dataclass
@@ -12,10 +13,12 @@ import structlog
 
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import ContinuationOutput
+from src.services.focus_selection_service import FocusSelectionService
 
 
 if TYPE_CHECKING:
     from ..context import PipelineContext
+    from src.services.question_service import QuestionService
 log = structlog.get_logger(__name__)
 
 # =============================================================================
@@ -56,14 +59,20 @@ class ContinuationStage(TurnStage):
     src/domain/models/knowledge_graph.py:SaturationMetrics for the model.
     """
 
-    def __init__(self, question_service):
+    def __init__(
+        self,
+        question_service: "QuestionService",
+        focus_selection_service: FocusSelectionService,
+    ):
         """
         Initialize stage.
 
         Args:
-            question_service: QuestionService instance
+            question_service: QuestionService instance (used for legacy compatibility)
+            focus_selection_service: FocusSelectionService for focus resolution
         """
         self.question = question_service
+        self.focus_selection = focus_selection_service
         self._tracking: Dict[str, _SessionSaturationState] = {}
 
     async def process(self, context: "PipelineContext") -> "PipelineContext":
@@ -83,30 +92,14 @@ class ContinuationStage(TurnStage):
         should_continue, reason = self._should_continue(context)
 
         # Select focus concept if continuing
+        # All focus selection is delegated to FocusSelectionService
         if should_continue:
-            if context.focus:
-                # Use focus from strategy service selection
-                if "focus_node_id" in context.focus and context.recent_nodes:
-                    # Find the node in recent_nodes
-                    focus_concept = next(
-                        (
-                            n.label
-                            for n in context.recent_nodes
-                            if str(n.id) == context.focus["focus_node_id"]
-                        ),
-                        # Fallback to description if node not found
-                        context.focus.get("focus_description", "the topic"),
-                    )
-                else:
-                    # Use focus description as fallback
-                    focus_concept = context.focus.get("focus_description", "the topic")
-            else:
-                # Phase 2: fall back to heuristic selection
-                focus_concept = self.question.select_focus_concept(
-                    recent_nodes=context.recent_nodes,
-                    graph_state=context.graph_state,
-                    strategy=context.strategy,
-                )
+            focus_concept = self.focus_selection.resolve_focus_from_strategy_output(
+                focus_dict=context.focus,
+                recent_nodes=context.recent_nodes,
+                strategy=context.strategy,
+                graph_state=context.graph_state,
+            )
         else:
             focus_concept = ""
 

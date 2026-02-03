@@ -21,6 +21,7 @@ from src.domain.models.knowledge_graph import GraphState, KGNode
 from src.domain.models.utterance import Utterance
 from src.domain.models.turn import Focus
 from src.services.extraction_service import ExtractionService
+from src.services.focus_selection_service import FocusSelectionService
 from src.services.graph_service import GraphService
 from src.services.question_service import QuestionService
 
@@ -120,6 +121,9 @@ class SessionService:
             utterance_repo = UtteranceRepository(str(session_repo.db_path))
         self.utterance_repo = utterance_repo
 
+        # Create focus selection service (consolidates focus resolution logic)
+        self.focus_selection = FocusSelectionService()
+
         # Load from centralized interview config (Phase 4: ADR-008)
         self.max_turns = (
             max_turns if max_turns is not None else interview_config.session.max_turns
@@ -159,6 +163,7 @@ class SessionService:
             StrategySelectionStage(),
             ContinuationStage(
                 question_service=self.question,
+                focus_selection_service=self.focus_selection,
             ),
             QuestionGenerationStage(
                 question_service=self.question,
