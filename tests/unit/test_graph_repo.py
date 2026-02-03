@@ -92,20 +92,24 @@ class TestNodeOperations:
         assert len(nodes) == 2
 
     @pytest.mark.asyncio
-    async def test_find_node_by_label(self, repo, session_id):
-        """find_node_by_label finds by exact label."""
+    async def test_find_node_by_label_and_type(self, repo, session_id):
+        """find_node_by_label_and_type finds by exact label and type."""
         await repo.create_node(session_id, "Creamy Texture", "attribute")
 
-        # Case-insensitive match
-        found = await repo.find_node_by_label(session_id, "creamy texture")
+        # Case-insensitive match with type
+        found = await repo.find_node_by_label_and_type(
+            session_id, "creamy texture", "attribute"
+        )
 
         assert found is not None
         assert found.label == "Creamy Texture"
 
     @pytest.mark.asyncio
-    async def test_find_node_by_label_not_found(self, repo, session_id):
-        """find_node_by_label returns None if not found."""
-        result = await repo.find_node_by_label(session_id, "nonexistent")
+    async def test_find_node_by_label_and_type_not_found(self, repo, session_id):
+        """find_node_by_label_and_type returns None if not found."""
+        result = await repo.find_node_by_label_and_type(
+            session_id, "nonexistent", "attribute"
+        )
         assert result is None
 
     @pytest.mark.asyncio

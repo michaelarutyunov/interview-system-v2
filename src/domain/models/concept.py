@@ -19,10 +19,6 @@ class ConceptContext(BaseModel):
     description, guiding the interviewer on what specific aspect of the concept
     to explore. This is particularly useful when combined with methodology-specific
     opening_bias to generate targeted opening questions.
-
-    Migration note: Legacy concepts may include 'topic', 'insight', 'promise', and
-    'rtb' fields for evaluative research. New exploratory concepts should only
-    use 'objective' to avoid biasing the AI interviewer.
     """
 
     objective: Optional[str] = Field(
@@ -33,22 +29,6 @@ class ConceptContext(BaseModel):
         "opening questions when combined with the methodology's opening_bias. "
         "Example: 'Explore how consumers make decisions about plant-based milk "
         "alternatives, focusing on the attributes that matter most to them.'",
-    )
-    # Legacy fields for backward compatibility with evaluative concepts
-    topic: Optional[str] = Field(
-        None, description="Primary topic or domain being explored (legacy)"
-    )
-    insight: Optional[str] = Field(
-        None,
-        description="Key insight or hypothesis (legacy - may bias AI, prefer objective)",
-    )
-    promise: Optional[str] = Field(
-        None,
-        description="Value proposition being tested (legacy - evaluative only)",
-    )
-    rtb: Optional[str] = Field(
-        None,
-        description="Reason to believe (legacy - evaluative only)",
     )
 
 

@@ -17,7 +17,6 @@ from src.llm.prompts.synthetic import (
     get_synthetic_system_prompt_with_deflection,
     get_synthetic_user_prompt,
     parse_synthetic_response,
-    PERSONAS,
 )
 
 
@@ -115,7 +114,7 @@ class SyntheticService:
         return {
             "response": response,
             "persona": persona,
-            "persona_name": PERSONAS[persona]["name"],
+            "persona_name": get_available_personas()[persona],
             "question": question,
             "latency_ms": llm_response.latency_ms,
             "tokens_used": llm_response.usage,

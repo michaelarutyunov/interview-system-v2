@@ -153,36 +153,6 @@ class GraphRepository:
 
         return [self._row_to_node(row) for row in rows]
 
-    async def find_node_by_label(self, session_id: str, label: str) -> Optional[KGNode]:
-        """
-        Find a node by exact label match (case-insensitive).
-
-        DEPRECATED: Use find_node_by_label_and_type for type-aware deduplication.
-        This method is kept for backward compatibility but should not be used
-        for new node deduplication as it can merge nodes of different types.
-
-        Args:
-            session_id: Session ID
-            label: Node label to find
-
-        Returns:
-            KGNode or None if not found
-        """
-        self.db.row_factory = aiosqlite.Row
-        cursor = await self.db.execute(
-            """
-            SELECT * FROM kg_nodes
-            WHERE session_id = ? AND LOWER(label) = LOWER(?) AND superseded_by IS NULL
-            """,
-            (session_id, label),
-        )
-        row = await cursor.fetchone()
-
-        if not row:
-            return None
-
-        return self._row_to_node(row)
-
     async def find_node_by_label_and_type(
         self, session_id: str, label: str, node_type: str
     ) -> Optional[KGNode]:

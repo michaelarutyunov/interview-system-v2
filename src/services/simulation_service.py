@@ -125,8 +125,8 @@ class SimulationService:
         # Extract product_name from concept.name
         product_name = concept.name
 
-        # Extract objective (try objective field, fall back to insight)
-        objective = concept.context.objective or concept.context.insight or concept.name
+        # Extract objective from concept context
+        objective = concept.context.objective or concept.name
 
         # Validate persona
         from src.llm.prompts.synthetic import get_available_personas

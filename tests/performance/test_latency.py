@@ -9,7 +9,8 @@ import time
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-from src.services.session_service import SessionService, TurnResult
+from src.services.session_service import SessionService
+from src.services.turn_pipeline import TurnResult
 from src.domain.models.extraction import (
     ExtractionResult,
     ExtractedConcept,

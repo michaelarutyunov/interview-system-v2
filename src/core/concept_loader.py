@@ -42,30 +42,16 @@ def load_concept(name: str, concepts_dir: Optional[Path] = None) -> Concept:
 
     path = concepts_dir / f"{name}.yaml"
     if not path.exists():
-        # Try without _v2 suffix for backwards compatibility
-        path_without_suffix = concepts_dir / f"{name.replace('_v2', '')}.yaml"
-        if path_without_suffix.exists():
-            path = path_without_suffix
-        else:
-            raise FileNotFoundError(f"Concept not found: {path}")
+        raise FileNotFoundError(f"Concept not found: {path}")
 
     with open(path) as f:
         data = yaml.safe_load(f)
 
-    # Parse context (new structure uses objective, legacy uses insight/topic/etc.)
+    # Parse context (objective is at root level or nested in context)
     context_data = data.get("context", {})
-
-    # For new concepts, objective is at root level (not nested in context)
-    # For legacy concepts, it's nested in context
     objective = data.get("objective") or context_data.get("objective")
 
-    context = ConceptContext(
-        objective=objective,
-        topic=context_data.get("topic"),
-        insight=context_data.get("insight"),
-        promise=context_data.get("promise"),
-        rtb=context_data.get("rtb"),
-    )
+    context = ConceptContext(objective=objective)
 
     # Parse elements
     elements_data = data.get("elements", [])

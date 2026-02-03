@@ -50,10 +50,6 @@ from src.services.turn_pipeline.stages import (
 log = structlog.get_logger(__name__)
 
 
-# Re-export TurnResult for backward compatibility
-TurnResult = PipelineTurnResult
-
-
 @dataclass
 class SessionContext:
     """
@@ -179,7 +175,7 @@ class SessionService:
         self,
         session_id: str,
         user_input: str,
-    ) -> TurnResult:
+    ) -> PipelineTurnResult:
         """
         Process a single interview turn using the pipeline.
 
@@ -340,12 +336,8 @@ class SessionService:
         # Convert Focus to dict if needed
         if isinstance(focus, dict):
             focus_dict: Dict[str, Any] = focus
-        elif hasattr(focus, "to_dict"):
-            focus_dict: Dict[str, Any] = focus.to_dict()
-        elif hasattr(focus, "model_dump"):  # Pydantic v2
-            focus_dict: Dict[str, Any] = focus.model_dump()
         else:
-            focus_dict: Dict[str, Any] = focus  # type: ignore[assignment]
+            focus_dict: Dict[str, Any] = focus.model_dump()
 
         # Extract Tier 1 and Tier 2 results
         tier1_results = []
@@ -422,15 +414,7 @@ class SessionService:
         self.question.methodology = concept.methodology
 
         # Extract objective from concept context
-        # Try objective first (new field for exploratory interviews)
-        # Fall back to insight for backward compatibility
-        # Finally fall back to concept name if neither exists
-        if concept.context.objective:
-            objective = concept.context.objective
-        elif concept.context.insight:
-            objective = concept.context.insight
-        else:
-            objective = concept.name
+        objective = concept.context.objective or concept.name
 
         question = await self.question.generate_opening_question(
             objective=objective,

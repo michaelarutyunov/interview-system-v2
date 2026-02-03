@@ -69,27 +69,6 @@ class Focus(BaseModel):
         default=1.0, ge=0.0, le=1.0, description="Confidence score for this focus"
     )
 
-    def to_dict(self) -> dict:
-        """Convert to dict for backward compatibility."""
-        result = {
-            "focus_type": self.focus_type,
-            "focus_description": self.focus_description,
-            "confidence": self.confidence,
-        }
-        if self.node_id:
-            result["node_id"] = self.node_id
-        return result
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "Focus":
-        """Create from dict for backward compatibility."""
-        return cls(
-            focus_type=data.get("focus_type", "depth_exploration"),
-            node_id=data.get("node_id"),
-            focus_description=data.get("focus_description", ""),
-            confidence=data.get("confidence", 1.0),
-        )
-
 
 class TurnResult(BaseModel):
     """
@@ -107,40 +86,3 @@ class TurnResult(BaseModel):
     latency_ms: int = 0
 
     model_config = {"arbitrary_types_allowed": True}
-
-    def to_response_dict(self) -> dict:
-        """
-        Convert to API response format.
-
-        Provides backward compatibility with existing API contracts.
-        """
-        return {
-            "turn_number": self.turn_number,
-            "extracted": {
-                "concepts": [
-                    {
-                        "text": c.text,
-                        "type": c.node_type,
-                        "confidence": c.confidence,
-                    }
-                    for c in self.extracted.concepts
-                ],
-                "relationships": [
-                    {
-                        "source": r.source_text,
-                        "target": r.target_text,
-                        "type": r.relationship_type,
-                    }
-                    for r in self.extracted.relationships
-                ],
-            },
-            "graph_state": {
-                "node_count": self.graph_state.node_count,
-                "edge_count": self.graph_state.edge_count,
-                "depth_achieved": self.graph_state.nodes_by_type,
-            },
-            "strategy_selected": "unknown",
-            "next_question": self.next_question,
-            "should_continue": self.should_continue,
-            "latency_ms": self.latency_ms,
-        }

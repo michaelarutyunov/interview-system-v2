@@ -8,7 +8,8 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
 
-from src.services.session_service import SessionService, TurnResult
+from src.services.session_service import SessionService
+from src.services.turn_pipeline import TurnResult
 from src.domain.models.extraction import ExtractionResult, ExtractedConcept
 from src.domain.models.knowledge_graph import (
     GraphState,

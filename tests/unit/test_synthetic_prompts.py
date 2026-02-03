@@ -6,8 +6,8 @@ from src.llm.prompts.synthetic import (
     get_synthetic_system_prompt_with_deflection,
     parse_synthetic_response,
     get_available_personas,
-    PERSONAS,
 )
+from src.core.persona_loader import load_persona
 
 
 class TestSystemPrompts:
@@ -109,7 +109,10 @@ class TestPersonaConfig:
 
     def test_personas_have_required_keys(self):
         """All personas have required configuration keys."""
-        for persona_id, config in PERSONAS.items():
+        personas = get_available_personas()
+        for persona_id in personas.keys():
+            persona = load_persona(persona_id)
+            config = persona.model_dump()
             assert "name" in config
             assert "traits" in config
             assert isinstance(config["traits"], list)
