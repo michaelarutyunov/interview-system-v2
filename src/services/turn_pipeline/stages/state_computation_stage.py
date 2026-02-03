@@ -178,16 +178,24 @@ class StateComputationStage(TurnStage):
         # --- Quality degradation tracking (shallow responses) ---
         if context.node_tracker and context.node_tracker.states:
             # Check if the most recent response depths are all shallow/surface
+            # Note: response_depth is appended in Stage 6 (StrategySelectionStage)
+            # so we need to look at the PREVIOUS turn's data
+            has_any_depth_data = False
             has_any_deep = False
             for ns in context.node_tracker.states.values():
-                if ns.all_response_depths and ns.all_response_depths[-1] == "deep":
-                    has_any_deep = True
-                    break
-            if not has_any_deep:
-                tracking.consecutive_shallow += 1
-            else:
-                tracking.consecutive_shallow = 0
-        # If no node_tracker, don't increment — we can't assess quality
+                if ns.all_response_depths:
+                    has_any_depth_data = True
+                    if ns.all_response_depths[-1] == "deep":
+                        has_any_deep = True
+                        break
+            # Only assess quality if we have response depth data
+            # Empty response_depths means we can't assess quality yet
+            if has_any_depth_data:
+                if not has_any_deep:
+                    tracking.consecutive_shallow += 1
+                else:
+                    tracking.consecutive_shallow = 0
+        # If no node_tracker or no depth data, don't increment — we can't assess quality
 
         # --- Calculate new_info_rate ---
         total_nodes = graph_state.node_count if graph_state else 0

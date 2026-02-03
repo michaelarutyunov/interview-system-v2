@@ -338,6 +338,10 @@ class SimulationTurnSchema(BaseModel):
         default=None,
         description="Alternative strategies with scores (including node_id for joint scoring)"
     )
+    termination_reason: Optional[str] = Field(
+        default=None,
+        description="Reason for termination (e.g., 'max_turns_reached', 'graph_saturated', 'close_strategy')"
+    )
 
 
 class SimulationRequest(BaseModel):

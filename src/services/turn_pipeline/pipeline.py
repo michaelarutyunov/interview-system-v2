@@ -162,6 +162,11 @@ class TurnPipeline:
             if context.continuation_output
             else True
         )
+        termination_reason = (
+            context.continuation_output.reason
+            if context.continuation_output and not should_continue
+            else None
+        )
 
         # Extract methodology signals and strategy alternatives for observability
         signals = None
@@ -199,4 +204,5 @@ class TurnPipeline:
             latency_ms=latency_ms,
             signals=signals,
             strategy_alternatives=strategy_alternatives,
+            termination_reason=termination_reason,
         )

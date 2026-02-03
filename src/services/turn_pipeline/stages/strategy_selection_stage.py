@@ -111,6 +111,16 @@ class StrategySelectionStage(TurnStage):
             signals,
         ) = await self._select_strategy_and_node(context)
 
+        # Update node_tracker with the new focus (sets previous_focus for next turn)
+        # This must be done AFTER response depth append (which uses previous_focus)
+        # and BEFORE the next turn starts
+        if context.node_tracker and focus_node_id:
+            await context.node_tracker.update_focus(
+                node_id=focus_node_id,
+                strategy=strategy,
+                turn_number=context.turn_number,
+            )
+
         # Track strategy history for diversity tracking
         # This enables the system to avoid repetitive questioning patterns
         if context.graph_state:
@@ -185,6 +195,33 @@ class StrategySelectionStage(TurnStage):
             context.graph_state,
             response_text,
         )
+
+        # Update node_tracker with response depth from the detected signals
+        # The response_depth belongs to the focus node from the PREVIOUS turn
+        # (the node that was asked about when generating the question this response answers)
+        log.info(
+            "response_depth_append_check",
+            has_signals=bool(signals),
+            has_node_tracker=bool(context.node_tracker),
+            has_previous_focus=bool(context.node_tracker and context.node_tracker.previous_focus),
+            previous_focus=context.node_tracker.previous_focus if context.node_tracker else None,
+        )
+        if (
+            signals
+            and context.node_tracker
+            and context.node_tracker.previous_focus
+        ):
+            response_depth = signals.get("llm.response_depth")
+            if response_depth:
+                await context.node_tracker.append_response_signal(
+                    context.node_tracker.previous_focus,
+                    response_depth,
+                )
+                log.info(
+                    "response_depth_appended_to_node",
+                    node_id=context.node_tracker.previous_focus,
+                    response_depth=response_depth,
+                )
 
         # Convert alternatives from (strategy, node_id, score) to (strategy, score)
         # for backward compatibility with logging

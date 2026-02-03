@@ -136,6 +136,10 @@ async def simulate_interview(
                     strategy_selected=t.strategy_selected,
                     should_continue=t.should_continue,
                     latency_ms=t.latency_ms,
+                    # Phase 6: Enhanced diagnostics
+                    signals=t.signals,
+                    strategy_alternatives=t.strategy_alternatives,
+                    termination_reason=t.termination_reason,
                 )
                 for t in result.turns
             ],

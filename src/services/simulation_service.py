@@ -53,6 +53,8 @@ class SimulationTurn:
     # Phase 6: Methodology-based signal detection observability
     signals: Optional[Dict[str, Any]] = None
     strategy_alternatives: Optional[List[Dict[str, Any]]] = None
+    # Termination reason (populated when should_continue=False)
+    termination_reason: Optional[str] = None
 
 
 @dataclass
@@ -205,8 +207,20 @@ class SimulationService:
                 should_continue=turn_result_session.should_continue,
                 signals=turn_result_session.signals,
                 strategy_alternatives=turn_result_session.strategy_alternatives,
+                termination_reason=turn_result_session.termination_reason,
             )
             turns.append(turn_result)
+
+        # Determine status from termination reason
+        if turn_result.should_continue:
+            # Loop was terminated by turn count reaching max_turns
+            status = "completed"
+        elif turn_result.termination_reason:
+            # Use actual termination reason (e.g., "graph_saturated", "close_strategy")
+            status = turn_result.termination_reason
+        else:
+            # Fallback
+            status = "max_turns_reached"
 
         result = SimulationResult(
             concept_id=concept_id,
@@ -219,7 +233,7 @@ class SimulationService:
             session_id=session_id,
             total_turns=len(turns),
             turns=turns,
-            status="completed" if turn_result.should_continue else "max_turns_reached",
+            status=status,
         )
 
         log.info(
@@ -245,6 +259,7 @@ class SimulationService:
         should_continue: bool = True,
         signals: Optional[Dict[str, Any]] = None,
         strategy_alternatives: Optional[List[Dict[str, Any]]] = None,
+        termination_reason: Optional[str] = None,
     ) -> SimulationTurn:
         """Simulate a single interview turn.
 
@@ -258,6 +273,7 @@ class SimulationService:
             should_continue: Whether interview should continue
             signals: Methodology signals from signal pools
             strategy_alternatives: Alternative strategies with scores
+            termination_reason: Reason for termination (if should_continue=False)
 
         Returns:
             SimulationTurn with question and response
@@ -292,6 +308,7 @@ class SimulationService:
             latency_ms=synthetic_response["latency_ms"],
             signals=signals,
             strategy_alternatives=strategy_alternatives,
+            termination_reason=termination_reason,
         )
 
     async def _create_simulation_session(
@@ -376,6 +393,10 @@ class SimulationService:
                     "strategy_selected": t.strategy_selected,
                     "should_continue": t.should_continue,
                     "latency_ms": t.latency_ms,
+                    # Phase 6: Enhanced diagnostics
+                    "signals": t.signals,
+                    "strategy_alternatives": t.strategy_alternatives,
+                    "termination_reason": t.termination_reason,
                 }
                 for t in result.turns
             ],
