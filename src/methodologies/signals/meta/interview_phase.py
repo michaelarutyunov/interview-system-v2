@@ -50,7 +50,12 @@ class InterviewPhaseSignal(SignalDetector):
             response_text: User's response text (not used)
 
         Returns:
-            Dict with single key: {self.signal_name: "early" | "mid" | "late"}
+            Dict with phase, phase_reason, and is_late_stage signals:
+            {
+                "meta.interview.phase": "early" | "mid" | "late",
+                "meta.interview.phase_reason": str,
+                "meta.interview.is_late_stage": bool,
+            }
         """
         # Get phase boundaries from methodology config
         boundaries = self._get_phase_boundaries(context)
@@ -67,7 +72,18 @@ class InterviewPhaseSignal(SignalDetector):
             boundaries["mid_max_nodes"],
         )
 
-        return {self.signal_name: phase}
+        # Build phase reason for logging/debugging
+        phase_reason = (
+            f"node_count={node_count}, orphan_count={orphan_count}, "
+            f"phase={phase}, boundaries=early<{boundaries['early_max_nodes']}, "
+            f"mid<{boundaries['mid_max_nodes']}"
+        )
+
+        return {
+            self.signal_name: phase,
+            "meta.interview.phase_reason": phase_reason,
+            "meta.interview.is_late_stage": phase == "late",
+        }
 
     def _get_phase_boundaries(self, context) -> dict:
         """Get phase boundaries from methodology config.

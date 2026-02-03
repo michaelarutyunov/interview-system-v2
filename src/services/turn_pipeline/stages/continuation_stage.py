@@ -111,11 +111,20 @@ class ContinuationStage(TurnStage):
             turns_remaining=max(0, context.max_turns - context.turn_number),
         )
 
+        # Get phase from signal for logging (unified source of truth)
+        current_phase = None
+        phase_reason = None
+        if context.signals:
+            current_phase = context.signals.get("meta.interview.phase")
+            phase_reason = context.signals.get("meta.interview.phase_reason")
+
         log.info(
             "continuation_determined",
             session_id=context.session_id,
             should_continue=should_continue,
             focus_concept=focus_concept if should_continue else None,
+            phase=current_phase,
+            phase_reason=phase_reason,
             reason=reason if reason else None,
         )
 
@@ -182,6 +191,13 @@ class ContinuationStage(TurnStage):
         max_turns = context.max_turns
         strategy = context.strategy
 
+        # Get phase from signal (unified source of truth)
+        current_phase = None
+        is_late_stage = False
+        if context.signals:
+            current_phase = context.signals.get("meta.interview.phase")
+            is_late_stage = context.signals.get("meta.interview.is_late_stage", False)
+
         # --- Hard stops (always checked) ---
 
         if turn_number >= max_turns:
@@ -190,16 +206,21 @@ class ContinuationStage(TurnStage):
                 reason="max_turns",
                 turn_number=turn_number,
                 max_turns=max_turns,
+                phase=current_phase,
             )
             return False, "Maximum turns reached"
 
         if strategy == "close":
-            log.info("session_ending", reason="close_strategy")
+            log.info(
+                "session_ending",
+                reason="close_strategy",
+                phase=current_phase,
+            )
             return False, "Closing strategy selected"
 
-        # --- Saturation checks (only after minimum turns) ---
-
-        if turn_number < MIN_TURN_FOR_SATURATION:
+        # --- Saturation checks (only after minimum turns OR late stage) ---
+        # Use phase-based OR turn-based detection for saturation checks
+        if turn_number < MIN_TURN_FOR_SATURATION and not is_late_stage:
             return True, ""
 
         state = self._get_tracking(context.session_id)
@@ -210,12 +231,17 @@ class ContinuationStage(TurnStage):
                 "session_ending",
                 reason="graph_saturated",
                 consecutive_zero_yield=state.consecutive_zero_yield,
+                phase=current_phase,
             )
             return False, "graph_saturated"
 
         # Node exhaustion: all explored nodes are exhausted
         if self._all_nodes_exhausted(context):
-            log.info("session_ending", reason="all_nodes_exhausted")
+            log.info(
+                "session_ending",
+                reason="all_nodes_exhausted",
+                phase=current_phase,
+            )
             return False, "all_nodes_exhausted"
 
         # Quality degradation: consecutive shallow responses
@@ -224,6 +250,7 @@ class ContinuationStage(TurnStage):
                 "session_ending",
                 reason="quality_degraded",
                 consecutive_shallow=state.consecutive_shallow,
+                phase=current_phase,
             )
             return False, "quality_degraded"
 
@@ -233,6 +260,7 @@ class ContinuationStage(TurnStage):
                 "session_ending",
                 reason="depth_plateau",
                 consecutive_depth_plateau=state.consecutive_depth_plateau,
+                phase=current_phase,
             )
             return False, "depth_plateau"
 
