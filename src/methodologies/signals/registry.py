@@ -7,6 +7,8 @@ dynamic signal detection.
 import structlog
 from typing import TYPE_CHECKING, Any, Optional, Union
 
+from src.core.exceptions import ScorerFailureError
+
 log = structlog.get_logger(__name__)
 
 if TYPE_CHECKING:
@@ -224,7 +226,11 @@ class ComposedSignalDetector:
                     "signal_detector_failed",
                     signal_name=detector.signal_name,
                     error=str(e),
+                    exc_info=True,
                 )
+                raise ScorerFailureError(
+                    f"Signal detector '{detector.signal_name}' failed: {e}"
+                ) from e
 
         # Update context with detected signals for meta signals
         # Note: context.signals is set by the pipeline stage, not here
@@ -252,6 +258,10 @@ class ComposedSignalDetector:
                     "signal_detector_failed",
                     signal_name=detector.signal_name,
                     error=str(e),
+                    exc_info=True,
                 )
+                raise ScorerFailureError(
+                    f"Signal detector '{detector.signal_name}' failed: {e}"
+                ) from e
 
         return all_signals

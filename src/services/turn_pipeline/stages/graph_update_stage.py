@@ -52,14 +52,30 @@ class GraphUpdateStage(TurnStage):
             Modified context with nodes_added and edges_added
         """
         if not context.extraction:
-            log.warning("no_extraction_to_add", session_id=context.session_id)
-            return context
+            log.error(
+                "contract_violation",
+                stage="GraphUpdateStage",
+                session_id=context.session_id,
+                violation="context.extraction is None or empty",
+            )
+            raise ValueError(
+                "GraphUpdateStage contract violation: context.extraction is required "
+                "but was None or empty. Stage 3 (ExtractionStage) must provide "
+                "extraction results before GraphUpdateStage can process."
+            )
 
         if not context.user_utterance:
-            log.warning(
-                "no_user_utterance_for_graph_update", session_id=context.session_id
+            log.error(
+                "contract_violation",
+                stage="GraphUpdateStage",
+                session_id=context.session_id,
+                violation="context.user_utterance is None",
             )
-            return context
+            raise ValueError(
+                "GraphUpdateStage contract violation: context.user_utterance is required "
+                "but was None. Stage 2 (UtteranceSavingStage) must save the user "
+                "utterance before GraphUpdateStage can process."
+            )
 
         nodes, edges = await self.graph.add_extraction_to_graph(
             session_id=context.session_id,

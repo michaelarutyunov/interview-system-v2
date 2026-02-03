@@ -8,6 +8,7 @@ Phase 3 (D1): Uses joint strategy-node scoring with node exhaustion detection.
 from typing import Tuple, Optional, TYPE_CHECKING, Any, Dict, Union, Sequence
 import structlog
 
+from src.core.exceptions import ConfigurationError, ScoringError, ScorerFailureError
 from src.methodologies import get_registry
 from src.methodologies.scoring import rank_strategy_node_pairs
 from src.methodologies.signals.llm.global_response_trend import (
@@ -79,13 +80,19 @@ class MethodologyStrategyService:
         config = self.methodology_registry.get_methodology(methodology_name)
 
         if not config:
-            log.warning(
+            available = self.methodology_registry.list_methodologies()
+            log.error(
                 "methodology_not_found",
                 name=methodology_name,
-                available=self.methodology_registry.list_methodologies(),
+                available=available,
+                exc_info=True,
             )
-            # Fallback to default strategy
-            return "deepen", None, [], None
+            raise ConfigurationError(
+                f"Methodology '{methodology_name}' not found in registry. "
+                f"Available methodologies: {available}. "
+                f"Check that the methodology YAML file exists in src/methodologies/config/ "
+                f"and is properly registered."
+            )
 
         # Get NodeStateTracker from context
         node_tracker: Optional["NodeStateTracker"] = (
@@ -176,12 +183,16 @@ class MethodologyStrategyService:
         strategies = config.strategies
 
         if not strategies:
-            log.warning(
+            log.error(
                 "no_strategies_defined",
                 methodology=methodology_name,
+                exc_info=True,
             )
-            # Fallback
-            return "deepen", None, [], global_signals
+            raise ConfigurationError(
+                f"No strategies defined for methodology '{methodology_name}'. "
+                f"Check the methodology YAML configuration in src/methodologies/config/ "
+                f"to ensure at least one strategy is defined under the 'strategies' key."
+            )
 
         # Score all (strategy, node) pairs using joint scoring
         scored_pairs = rank_strategy_node_pairs(
@@ -195,17 +206,19 @@ class MethodologyStrategyService:
         )
 
         if not scored_pairs:
-            log.warning(
+            log.error(
                 "no_scored_pairs",
                 methodology=methodology_name,
                 strategy_count=len(strategies),
                 node_count=len(node_signals),
+                exc_info=True,
             )
-            # Fallback to first strategy, any node
-            if node_signals:
-                first_node_id = next(iter(node_signals.keys()))
-                return strategies[0].name, first_node_id, [], global_signals
-            return strategies[0].name, None, [], global_signals
+            raise ScoringError(
+                f"No valid (strategy, node) pairs could be scored for methodology '{methodology_name}'. "
+                f"Strategies available: {len(strategies)}, Nodes with signals: {len(node_signals)}. "
+                f"Check that signal weights and strategy configurations are valid. "
+                f"Node signals may be empty if no nodes are being tracked by NodeStateTracker."
+            )
 
         # Select best pair
         best_strategy_config, best_node_id, best_score = scored_pairs[0]
@@ -303,10 +316,17 @@ class MethodologyStrategyService:
                         node_signals[node_id][detector.signal_name] = signal_value
 
             except Exception as e:
-                log.warning(
+                log.error(
                     "node_signal_detection_failed",
                     signal=detector.signal_name,
                     error=str(e),
+                    exc_info=True,
                 )
+                raise ScorerFailureError(
+                    f"Node signal detector '{detector.signal_name}' failed during detection. "
+                    f"Original error: {type(e).__name__}: {e}. "
+                    f"Check that the signal detector is properly configured and "
+                    f"that all required data (context, graph_state, node_tracker) is available."
+                ) from e
 
         return node_signals

@@ -6,6 +6,7 @@ Detects the current interview phase based on graph state:
 - late: Validation and verification
 """
 
+from src.core.exceptions import ConfigurationError
 from src.methodologies.signals.common import (
     SignalDetector,
     SignalCostTier,
@@ -76,16 +77,22 @@ class InterviewPhaseSignal(SignalDetector):
 
         Returns:
             Dict with 'early_max_nodes' and 'mid_max_nodes' keys
+
+        Raises:
+            ConfigurationError: If methodology config fails to load due to
+                malformed YAML, missing methodology, or registry errors.
+                Does NOT raise for valid configs with missing phase_boundaries.
         """
         # Get boundaries from the first phase that has them defined
         # (all phases should have the same boundaries, but we check in order)
         from src.methodologies.registry import MethodologyRegistry
 
-        try:
-            methodology = getattr(context, "methodology", None)
-            if not methodology:
-                return self.DEFAULT_BOUNDARIES
+        methodology = getattr(context, "methodology", None)
+        if not methodology:
+            # No methodology specified - use defaults (valid case)
+            return self.DEFAULT_BOUNDARIES
 
+        try:
             registry = MethodologyRegistry()
             config = registry.get_methodology(methodology)
 
@@ -93,11 +100,17 @@ class InterviewPhaseSignal(SignalDetector):
                 for phase_config in config.phases.values():
                     if phase_config.phase_boundaries:
                         return phase_config.phase_boundaries
-        except Exception:
-            # Fall back to defaults on any error
-            pass
 
-        return self.DEFAULT_BOUNDARIES
+            # Config loaded successfully, but no phase boundaries defined
+            # This is valid - use defaults
+            return self.DEFAULT_BOUNDARIES
+        except Exception as e:
+            # Actual config loading error (malformed YAML, missing file, etc.)
+            # This is a fail-fast violation - raise ConfigurationError
+            raise ConfigurationError(
+                f"InterviewPhaseSignal failed to load phase config for "
+                f"methodology '{methodology}': {e}"
+            ) from e
 
     def _determine_phase(
         self,

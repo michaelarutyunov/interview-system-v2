@@ -7,7 +7,7 @@ Pipeline:
 3. Parse and validate results
 4. Return ExtractionResult
 
-Graceful degradation: Returns empty result on LLM errors.
+Fail-fast behavior: Raises ExtractionError on LLM errors (ADR-009).
 """
 
 import time
@@ -22,6 +22,7 @@ from src.llm.prompts.extraction import (
     parse_extraction_response,
 )
 from src.core.concept_loader import load_concept, get_element_alias_map
+from src.core.exceptions import ExtractionError
 from src.domain.models.extraction import (
     ExtractedConcept,
     ExtractedRelationship,
@@ -113,6 +114,9 @@ class ExtractionService:
 
         Returns:
             ExtractionResult with concepts, relationships, and metadata
+
+        Raises:
+            ExtractionError: If LLM extraction fails (fail-fast per ADR-009)
         """
         # Load methodology schema per-call (cached by load_methodology)
         schema = load_methodology(methodology)
@@ -142,13 +146,8 @@ class ExtractionService:
         try:
             extraction_data = await self._extract_via_llm(text, context, methodology)
         except Exception as e:
-            log.error("extraction_llm_error", error=str(e))
-            # Graceful degradation: return empty result
-            return ExtractionResult(
-                is_extractable=True,
-                extractability_reason=f"LLM error: {e}",
-                latency_ms=int((time.perf_counter() - start_time) * 1000),
-            )
+            log.error("extraction_llm_error", error=str(e), exc_info=True)
+            raise ExtractionError(f"LLM extraction failed: {e}") from e
 
         # Step 4: Convert to domain models
         # ADR-010 Phase 2: Pass source_utterance_id for traceability

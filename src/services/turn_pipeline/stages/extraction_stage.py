@@ -9,6 +9,7 @@ import structlog
 
 from ..base import TurnStage
 from ..context import PipelineContext
+from src.core.exceptions import ConfigurationError
 from src.domain.models.pipeline_contracts import ExtractionOutput
 
 log = structlog.get_logger(__name__)
@@ -57,12 +58,16 @@ class ExtractionStage(TurnStage):
                     concept_id=context.concept_id,
                     element_count=len(self.extraction.concept.elements),
                 )
-            except Exception as e:
-                log.warning(
-                    "concept_load_failed",
-                    concept_id=context.concept_id,
-                    error=str(e),
+            except FileNotFoundError:
+                # Concept file not found - this is a configuration error
+                raise ConfigurationError(
+                    f"Concept '{context.concept_id}' not found. "
+                    f"Ensure concept YAML exists in concepts/ directory."
                 )
+            except Exception as e:
+                raise ConfigurationError(
+                    f"Failed to load concept '{context.concept_id}': {e}"
+                ) from e
 
         # Get source utterance ID for traceability (ADR-010 Phase 2)
         source_utterance_id = (

@@ -3,6 +3,7 @@
 from collections import deque
 from typing import Any, Dict, List, Set
 
+from src.core.exceptions import ConfigurationError, GraphError
 from src.core.schema_loader import load_methodology
 from src.methodologies.signals.common import (
     SignalDetector,
@@ -48,15 +49,11 @@ class ChainCompletionSignal(SignalDetector):
         # Load methodology schema to get terminal node types and level info
         try:
             schema = load_methodology(methodology_name)
-        except Exception:
-            # Fallback if schema can't be loaded
-            return {
-                self.signal_name: {
-                    "complete_chain_count": 0,
-                    "has_complete_chain": False,
-                    "level_1_node_count": 0,
-                }
-            }
+        except Exception as e:
+            raise ConfigurationError(
+                f"ChainCompletionSignal failed to load methodology schema "
+                f"'{methodology_name}': {e}"
+            ) from e
 
         # Get terminal node types from schema
         terminal_types = set(schema.get_terminal_node_types())
@@ -121,41 +118,43 @@ class ChainCompletionSignal(SignalDetector):
         # Try to get nodes from context properties
         session_id = getattr(context, "session_id", None)
         if not session_id:
-            return []
+            raise GraphError(
+                "ChainCompletionSignal failed to load nodes: session_id is None"
+            )
 
-        # Try to access the graph repository directly
+        # Access the graph repository directly
         try:
             from src.persistence.repositories.graph_repo import GraphRepository
             from src.persistence.database import get_db_connection
 
             repo = GraphRepository(await get_db_connection())
             return await repo.get_nodes_by_session(session_id)
-        except Exception:
-            # Fallback: try to get from recent_nodes
-            if hasattr(context, "recent_nodes"):
-                return context.recent_nodes
-
-        return []
+        except Exception as e:
+            raise GraphError(
+                f"ChainCompletionSignal failed to load nodes for session "
+                f"'{session_id}': {e}"
+            ) from e
 
     async def _get_session_edges(self, context: Any) -> List[Any]:
         """Get all edges for the session."""
         session_id = getattr(context, "session_id", None)
         if not session_id:
-            return []
+            raise GraphError(
+                "ChainCompletionSignal failed to load edges: session_id is None"
+            )
 
-        # Try to access the graph repository directly
+        # Access the graph repository directly
         try:
             from src.persistence.repositories.graph_repo import GraphRepository
             from src.persistence.database import get_db_connection
 
             repo = GraphRepository(await get_db_connection())
             return await repo.get_edges_by_session(session_id)
-        except Exception:
-            # Fallback: try to get from edges_added
-            if hasattr(context, "edges_added"):
-                return context.edges_added
-
-        return []
+        except Exception as e:
+            raise GraphError(
+                f"ChainCompletionSignal failed to load edges for session "
+                f"'{session_id}': {e}"
+            ) from e
 
     def _build_adjacency_list(
         self, nodes: List[Any], edges: List[Any]

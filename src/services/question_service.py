@@ -263,20 +263,3 @@ class QuestionService:
 
         # Default: most recent
         return recent_nodes[0].label
-
-    async def generate_fallback_question(self, focus_concept: str) -> str:
-        """
-        Generate a simple fallback question without LLM.
-
-        Used when LLM is unavailable.
-
-        Args:
-            focus_concept: Concept to ask about
-
-        Returns:
-            Simple fallback question
-        """
-        log.warning("using_fallback_question", focus=focus_concept)
-
-        # Simple laddering fallback
-        return f"Why is {focus_concept} important to you?"
