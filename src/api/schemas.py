@@ -110,6 +110,15 @@ class TurnResponse(BaseModel):
     next_question: str
     should_continue: bool
     latency_ms: int = 0
+    # Phase 6: Methodology-based signal detection observability
+    signals: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Methodology signals from signal pools (graph, llm, temporal, meta)"
+    )
+    strategy_alternatives: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Alternative strategies with scores (including node_id for joint scoring)"
+    )
 
     class Config:
         json_schema_extra = {
@@ -320,6 +329,15 @@ class SimulationTurnSchema(BaseModel):
     strategy_selected: Optional[str] = None
     should_continue: bool = True
     latency_ms: float = 0.0
+    # Phase 6: Methodology-based signal detection observability
+    signals: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Methodology signals from signal pools (graph, llm, temporal, meta)"
+    )
+    strategy_alternatives: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Alternative strategies with scores (including node_id for joint scoring)"
+    )
 
 
 class SimulationRequest(BaseModel):

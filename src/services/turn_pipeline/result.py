@@ -5,7 +5,7 @@ ADR-008 Phase 3: TurnResult is returned by the pipeline.
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 
 @dataclass
@@ -28,3 +28,6 @@ class TurnResult:
     next_question: str
     should_continue: bool
     latency_ms: int = 0
+    # Phase 6: Methodology-based signal detection observability
+    signals: Optional[Dict[str, Any]] = None  # Raw methodology signals from signal pools
+    strategy_alternatives: Optional[List[Dict[str, Any]]] = None  # Alternative strategies with scores

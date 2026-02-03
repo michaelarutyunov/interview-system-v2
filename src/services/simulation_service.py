@@ -17,7 +17,7 @@ Key Design:
 """
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, field
 from pathlib import Path
 import json
@@ -50,6 +50,9 @@ class SimulationTurn:
     strategy_selected: Optional[str] = None
     should_continue: bool = True
     latency_ms: int = 0
+    # Phase 6: Methodology-based signal detection observability
+    signals: Optional[Dict[str, Any]] = None
+    strategy_alternatives: Optional[List[Dict[str, Any]]] = None
 
 
 @dataclass
@@ -200,6 +203,8 @@ class SimulationService:
                 product_name=product_name,
                 strategy_selected=turn_result_session.strategy_selected,
                 should_continue=turn_result_session.should_continue,
+                signals=turn_result_session.signals,
+                strategy_alternatives=turn_result_session.strategy_alternatives,
             )
             turns.append(turn_result)
 
@@ -238,6 +243,8 @@ class SimulationService:
         product_name: str,
         strategy_selected: Optional[str] = None,
         should_continue: bool = True,
+        signals: Optional[Dict[str, Any]] = None,
+        strategy_alternatives: Optional[List[Dict[str, Any]]] = None,
     ) -> SimulationTurn:
         """Simulate a single interview turn.
 
@@ -249,6 +256,8 @@ class SimulationService:
             product_name: Product name for context
             strategy_selected: Strategy selected by interviewer
             should_continue: Whether interview should continue
+            signals: Methodology signals from signal pools
+            strategy_alternatives: Alternative strategies with scores
 
         Returns:
             SimulationTurn with question and response
@@ -281,6 +290,8 @@ class SimulationService:
             strategy_selected=strategy_selected,
             should_continue=should_continue,
             latency_ms=synthetic_response["latency_ms"],
+            signals=signals,
+            strategy_alternatives=strategy_alternatives,
         )
 
     async def _create_simulation_session(

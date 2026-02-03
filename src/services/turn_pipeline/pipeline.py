@@ -163,6 +163,27 @@ class TurnPipeline:
             else True
         )
 
+        # Extract methodology signals and strategy alternatives for observability
+        signals = None
+        strategy_alternatives = None
+        if context.strategy_selection_output:
+            signals = context.strategy_selection_output.signals
+            # Convert tuples to dicts for JSON serialization
+            alternatives = context.strategy_selection_output.strategy_alternatives
+            if alternatives:
+                strategy_alternatives = []
+                for alt in alternatives:
+                    if len(alt) == 2:
+                        strategy, score = alt
+                        strategy_alternatives.append({"strategy": strategy, "score": score})
+                    elif len(alt) == 3:
+                        strategy, node_id, score = alt
+                        strategy_alternatives.append({
+                            "strategy": strategy,
+                            "node_id": node_id,
+                            "score": score
+                        })
+
         return TurnResult(
             turn_number=turn_number,
             extracted=extracted,
@@ -176,4 +197,6 @@ class TurnPipeline:
             next_question=next_question,
             should_continue=should_continue,
             latency_ms=latency_ms,
+            signals=signals,
+            strategy_alternatives=strategy_alternatives,
         )
