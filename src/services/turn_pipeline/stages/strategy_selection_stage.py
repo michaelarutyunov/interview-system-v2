@@ -62,6 +62,14 @@ class StrategySelectionStage(TurnStage):
         Returns:
             Modified context with strategy, selection_result, focus, signals, and alternatives
         """
+        # Pipeline stage order validation: StateComputationStage (Stage 5) must run first
+        if context.state_computation_output is None:
+            raise RuntimeError(
+                "Pipeline stage order violation: StrategySelectionStage (Stage 6) "
+                "requires StateComputationStage (Stage 5) to have run first. "
+                "state_computation_output is None."
+            )
+
         # ADR-010: Validate freshness before using graph_state
         # This prevents the stale state bug where graph_state from Stage 1
         # (before extraction) was used in Stage 6

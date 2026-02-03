@@ -16,11 +16,11 @@ from src.domain.models.extraction import ExtractionResult
 class ContextLoadingOutput(BaseModel):
     """Contract: ContextLoadingStage output (Stage 1).
 
-    Stage 1 loads session metadata, conversation history, and recent nodes.
+    Stage 1 loads session metadata and conversation history.
 
-    Note: graph_state is actually set by StateComputationStage (Stage 5) after
-    graph updates. This contract includes it for completeness but it's populated
-    later in the pipeline.
+    Note: graph_state and recent_nodes are NOT loaded here - they come from
+    StateComputationStage (Stage 5) after graph updates. Stages 2-4 should
+    not access these properties via context.graph_state or context.recent_nodes.
     """
 
     # Session metadata
@@ -39,14 +39,6 @@ class ContextLoadingOutput(BaseModel):
     )
     strategy_history: List[str] = Field(
         default_factory=list, description="History of strategies used"
-    )
-
-    # Graph state (populated by StateComputationStage, not ContextLoadingStage)
-    graph_state: GraphState = Field(
-        description="Current knowledge graph state (set by Stage 5, not Stage 1)"
-    )
-    recent_nodes: List[KGNode] = Field(
-        default_factory=list, description="Recently added graph nodes"
     )
 
 
