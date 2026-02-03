@@ -56,6 +56,7 @@ class PhaseConfig:
     description: str
     signal_weights: dict[str, float]  # strategy_name -> multiplier
     phase_bonuses: dict[str, float]  # strategy_name -> additive bonus
+    phase_boundaries: dict[str, int] | None = None  # phase_boundary_key -> value
 
 
 @dataclass
@@ -156,6 +157,7 @@ class MethodologyRegistry:
                     description=phase_data.get("description", ""),
                     signal_weights=phase_data.get("signal_weights", {}),
                     phase_bonuses=phase_data.get("phase_bonuses", {}),
+                    phase_boundaries=phase_data.get("phase_boundaries"),
                 )
 
         # Load signal_norms if present
@@ -186,9 +188,7 @@ class MethodologyRegistry:
         self._cache[name] = config
         return config
 
-    def _validate_config(
-        self, config: MethodologyConfig, config_path: Path
-    ) -> None:
+    def _validate_config(self, config: MethodologyConfig, config_path: Path) -> None:
         """Validate methodology config against known signals and techniques.
 
         Collects all errors and raises a single ValueError listing them all.
@@ -252,9 +252,7 @@ class MethodologyRegistry:
         if config.signal_norms:
             for norm_key in config.signal_norms:
                 if norm_key not in known_signals:
-                    errors.append(
-                        f"signal_norms: unknown signal '{norm_key}'"
-                    )
+                    errors.append(f"signal_norms: unknown signal '{norm_key}'")
 
         if errors:
             error_list = "\n  - ".join(errors)

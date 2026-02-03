@@ -299,6 +299,9 @@ strategies:
 phases:
   early:
     description: "Initial exploration, building graph structure"
+    phase_boundaries:
+      early_max_nodes: 3
+      mid_max_nodes: 8
     signal_weights:
       explore_situation: 1.5
       probe_alternatives: 1.2
@@ -308,6 +311,9 @@ phases:
 
   mid:
     description: "Building depth and connections"
+    phase_boundaries:
+      early_max_nodes: 3
+      mid_max_nodes: 8
     signal_weights:
       dig_motivation: 1.3
       probe_alternatives: 1.0
@@ -317,6 +323,9 @@ phases:
 
   late:
     description: "Validation and verification"
+    phase_boundaries:
+      early_max_nodes: 3
+      mid_max_nodes: 8
     signal_weights:
       validate_outcome: 1.5
       uncover_obstacles: 1.2

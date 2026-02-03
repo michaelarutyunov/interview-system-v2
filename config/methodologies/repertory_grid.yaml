@@ -239,6 +239,9 @@ strategies:
 phases:
   early:
     description: "Elicit constructs through triadic comparison"
+    phase_boundaries:
+      early_max_nodes: 4
+      mid_max_nodes: 10
     signal_weights:
       triadic_elicitation: 1.5
       explore_constructs: 1.0
@@ -248,6 +251,9 @@ phases:
 
   mid:
     description: "Deepen understanding of constructs and laddering"
+    phase_boundaries:
+      early_max_nodes: 4
+      mid_max_nodes: 10
     signal_weights:
       explore_constructs: 1.3
       ladder_constructs: 1.4
@@ -258,6 +264,9 @@ phases:
 
   late:
     description: "Identify ideals and validate understanding"
+    phase_boundaries:
+      early_max_nodes: 4
+      mid_max_nodes: 10
     signal_weights:
       explore_ideal: 1.4
       ladder_constructs: 1.0
