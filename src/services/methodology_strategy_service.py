@@ -3,17 +3,20 @@ Strategy selection service using YAML-based methodology configs.
 
 Uses signal pools and YAML configs for methodology-specific strategy selection.
 Phase 3 (D1): Uses joint strategy-node scoring with node exhaustion detection.
+
+Domain decomposition: Signal detection delegated to dedicated services.
+- GlobalSignalDetectionService: Handles global signal detection
+- NodeSignalDetectionService: Handles node-level signal detection
 """
 
 from typing import Tuple, Optional, TYPE_CHECKING, Any, Dict, Union, Sequence
 import structlog
 
-from src.core.exceptions import ConfigurationError, ScoringError, ScorerFailureError
+from src.core.exceptions import ConfigurationError, ScoringError
 from src.methodologies import get_registry
 from src.methodologies.scoring import rank_strategy_node_pairs
-from src.methodologies.signals.llm.global_response_trend import (
-    GlobalResponseTrendSignal,
-)
+from src.services.global_signal_detection_service import GlobalSignalDetectionService
+from src.services.node_signal_detection_service import NodeSignalDetectionService
 
 if TYPE_CHECKING:
     from src.domain.models.knowledge_graph import GraphState
@@ -28,18 +31,32 @@ class MethodologyStrategyService:
 
     This service uses:
     - YAML configs for methodology definitions (signals + strategies)
-    - Composed signal detectors from shared pools
+    - Delegated signal detection services (single responsibility)
     - Joint strategy-node scoring with node exhaustion detection (D1 architecture)
 
     Phase 3: The legacy select_strategy() method has been removed.
     All selection now uses select_strategy_and_focus() for joint scoring.
+
+    Domain decomposition:
+    - Global signal detection delegated to GlobalSignalDetectionService
+    - Node signal detection delegated to NodeSignalDetectionService
     """
 
-    def __init__(self):
-        """Initialize service with registries."""
+    def __init__(
+        self,
+        global_signal_service: Optional[GlobalSignalDetectionService] = None,
+        node_signal_service: Optional[NodeSignalDetectionService] = None,
+    ):
+        """Initialize service with registries and signal detection services.
+
+        Args:
+            global_signal_service: Optional GlobalSignalDetectionService for dependency injection
+            node_signal_service: Optional NodeSignalDetectionService for dependency injection
+        """
         self.methodology_registry = get_registry()
-        # Session-scoped global response trend tracking
-        self.global_trend_signal = GlobalResponseTrendSignal()
+        # Use injected services or create defaults
+        self.global_signal_service = global_signal_service or GlobalSignalDetectionService()
+        self.node_signal_service = node_signal_service or NodeSignalDetectionService()
 
     async def select_strategy_and_focus(
         self,
@@ -111,10 +128,12 @@ class MethodologyStrategyService:
                 "Ensure node_tracker is set in PipelineContext."
             )
 
-        # Create signal detector and detect global signals
-        signal_detector = self.methodology_registry.create_signal_detector(config)
-        global_signals = await signal_detector.detect(
-            context, graph_state, response_text
+        # Detect global signals (delegated to GlobalSignalDetectionService)
+        global_signals = await self.global_signal_service.detect(
+            methodology_name=methodology_name,
+            context=context,
+            graph_state=graph_state,
+            response_text=response_text,
         )
 
         log.debug(
@@ -123,26 +142,12 @@ class MethodologyStrategyService:
             signals=global_signals,
         )
 
-        # Update and detect global response trend
-        current_depth = global_signals.get("llm.response_depth", "surface")
-        trend_result = await self.global_trend_signal.detect(
-            context, graph_state, response_text, current_depth=current_depth
-        )
-        global_trend = trend_result.get("llm.global_response_trend", "stable")
-
-        # Add trend to global_signals
-        global_signals["llm.global_response_trend"] = global_trend
-
-        log.debug(
-            "global_response_trend_detected",
-            methodology=methodology_name,
-            trend=global_trend,
-            history_length=len(self.global_trend_signal.response_history),
-        )
-
-        # Detect node-level signals for all tracked nodes
-        node_signals = await self._detect_node_signals(
-            config, context, graph_state, response_text, node_tracker
+        # Detect node-level signals (delegated to NodeSignalDetectionService)
+        node_signals = await self.node_signal_service.detect(
+            context=context,
+            graph_state=graph_state,
+            response_text=response_text,
+            node_tracker=node_tracker,
         )
 
         log.debug(
@@ -237,96 +242,3 @@ class MethodologyStrategyService:
         )
 
         return best_strategy_config.name, best_node_id, alternatives, global_signals
-
-    async def _detect_node_signals(
-        self,
-        config: Any,
-        context: "PipelineContext",
-        graph_state: "GraphState",
-        response_text: str,
-        node_tracker: "NodeStateTracker",
-    ) -> Dict[str, Dict[str, Any]]:
-        """
-        Detect node-level signals for all tracked nodes.
-
-        Args:
-            config: Methodology config
-            context: Pipeline context
-            graph_state: Current knowledge graph state
-            response_text: User's response text
-            node_tracker: NodeStateTracker instance
-
-        Returns:
-            Dict mapping node_id to dict of signal_name: value
-        """
-        from src.methodologies.signals.graph.node_exhaustion import (
-            NodeExhaustedSignal,
-            NodeExhaustionScoreSignal,
-            NodeYieldStagnationSignal,
-        )
-        from src.methodologies.signals.graph.node_engagement import (
-            NodeFocusStreakSignal,
-            NodeIsCurrentFocusSignal,
-            NodeRecencyScoreSignal,
-        )
-        from src.methodologies.signals.graph.node_relationships import (
-            NodeIsOrphanSignal,
-            NodeEdgeCountSignal,
-            NodeHasOutgoingSignal,
-        )
-        from src.methodologies.signals.technique.node_strategy_repetition import (
-            NodeStrategyRepetitionSignal,
-        )
-
-        # Get all tracked nodes
-        all_states = node_tracker.get_all_states()
-
-        if not all_states:
-            log.debug("no_tracked_nodes_for_signals")
-            return {}
-
-        # Initialize node signals dict
-        node_signals: Dict[str, Dict[str, Any]] = {
-            node_id: {} for node_id in all_states.keys()
-        }
-
-        # List of node signal detectors to run
-        # These detectors take node_tracker in their constructor
-        signal_detectors = [
-            NodeExhaustedSignal(node_tracker),
-            NodeExhaustionScoreSignal(node_tracker),
-            NodeYieldStagnationSignal(node_tracker),
-            NodeFocusStreakSignal(node_tracker),
-            NodeIsCurrentFocusSignal(node_tracker),
-            NodeRecencyScoreSignal(node_tracker),
-            NodeIsOrphanSignal(node_tracker),
-            NodeEdgeCountSignal(node_tracker),
-            NodeHasOutgoingSignal(node_tracker),
-            NodeStrategyRepetitionSignal(node_tracker),
-        ]
-
-        # Detect all node signals
-        for detector in signal_detectors:
-            try:
-                detected = await detector.detect(context, graph_state, response_text)
-
-                # Merge results into node_signals
-                for node_id, signal_value in detected.items():
-                    if node_id in node_signals:
-                        node_signals[node_id][detector.signal_name] = signal_value
-
-            except Exception as e:
-                log.error(
-                    "node_signal_detection_failed",
-                    signal=detector.signal_name,
-                    error=str(e),
-                    exc_info=True,
-                )
-                raise ScorerFailureError(
-                    f"Node signal detector '{detector.signal_name}' failed during detection. "
-                    f"Original error: {type(e).__name__}: {e}. "
-                    f"Check that the signal detector is properly configured and "
-                    f"that all required data (context, graph_state, node_tracker) is available."
-                ) from e
-
-        return node_signals
