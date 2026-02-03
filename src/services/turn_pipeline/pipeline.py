@@ -140,8 +140,31 @@ class TurnPipeline:
                 "depth_achieved": context.graph_state.nodes_by_type,
             }
 
+        # Safely access stage outputs (may be None for partial pipeline execution)
+        # Access contracts directly to avoid RuntimeError from convenience properties
+        turn_number = (
+            context.context_loading_output.turn_number
+            if context.context_loading_output
+            else 1
+        )
+        strategy_selected = (
+            context.strategy_selection_output.strategy
+            if context.strategy_selection_output
+            else None
+        )
+        next_question = (
+            context.question_generation_output.question
+            if context.question_generation_output
+            else ""
+        )
+        should_continue = (
+            context.continuation_output.should_continue
+            if context.continuation_output
+            else True
+        )
+
         return TurnResult(
-            turn_number=context.turn_number,
+            turn_number=turn_number,
             extracted=extracted,
             graph_state=graph_state,
             scoring=context.scoring
@@ -149,8 +172,8 @@ class TurnPipeline:
                 "depth": 0.0,
                 "saturation": 0.0,
             },
-            strategy_selected=context.strategy,
-            next_question=context.next_question,
-            should_continue=context.should_continue,
+            strategy_selected=strategy_selected,
+            next_question=next_question,
+            should_continue=should_continue,
             latency_ms=latency_ms,
         )

@@ -92,45 +92,93 @@ class PipelineContext:
 
     @property
     def methodology(self) -> str:
-        """Get methodology from ContextLoadingOutput."""
+        """Get methodology from ContextLoadingOutput.
+
+        Raises:
+            RuntimeError: If context_loading_output is not set (pipeline contract violation)
+        """
         if self.context_loading_output:
             return self.context_loading_output.methodology
-        return ""
+        raise RuntimeError(
+            "Pipeline contract violation: methodology accessed before "
+            "ContextLoadingStage (Stage 1) completed. "
+            f"Session: {self.session_id}"
+        )
 
     @property
     def concept_id(self) -> str:
-        """Get concept_id from ContextLoadingOutput."""
+        """Get concept_id from ContextLoadingOutput.
+
+        Raises:
+            RuntimeError: If context_loading_output is not set (pipeline contract violation)
+        """
         if self.context_loading_output:
             return self.context_loading_output.concept_id
-        return ""
+        raise RuntimeError(
+            "Pipeline contract violation: concept_id accessed before "
+            "ContextLoadingStage (Stage 1) completed. "
+            f"Session: {self.session_id}"
+        )
 
     @property
     def concept_name(self) -> str:
-        """Get concept_name from ContextLoadingOutput."""
+        """Get concept_name from ContextLoadingOutput.
+
+        Raises:
+            RuntimeError: If context_loading_output is not set (pipeline contract violation)
+        """
         if self.context_loading_output:
             return self.context_loading_output.concept_name
-        return ""
+        raise RuntimeError(
+            "Pipeline contract violation: concept_name accessed before "
+            "ContextLoadingStage (Stage 1) completed. "
+            f"Session: {self.session_id}"
+        )
 
     @property
     def turn_number(self) -> int:
-        """Get turn_number from ContextLoadingOutput."""
+        """Get turn_number from ContextLoadingOutput.
+
+        Raises:
+            RuntimeError: If context_loading_output is not set (pipeline contract violation)
+        """
         if self.context_loading_output:
             return self.context_loading_output.turn_number
-        return 1
+        raise RuntimeError(
+            "Pipeline contract violation: turn_number accessed before "
+            "ContextLoadingStage (Stage 1) completed. "
+            f"Session: {self.session_id}"
+        )
 
     @property
     def mode(self) -> str:
-        """Get mode from ContextLoadingOutput."""
+        """Get mode from ContextLoadingOutput.
+
+        Raises:
+            RuntimeError: If context_loading_output is not set (pipeline contract violation)
+        """
         if self.context_loading_output:
             return self.context_loading_output.mode
-        return "exploratory"
+        raise RuntimeError(
+            "Pipeline contract violation: mode accessed before "
+            "ContextLoadingStage (Stage 1) completed. "
+            f"Session: {self.session_id}"
+        )
 
     @property
     def max_turns(self) -> int:
-        """Get max_turns from ContextLoadingOutput."""
+        """Get max_turns from ContextLoadingOutput.
+
+        Raises:
+            RuntimeError: If context_loading_output is not set (pipeline contract violation)
+        """
         if self.context_loading_output:
             return self.context_loading_output.max_turns
-        return 20
+        raise RuntimeError(
+            "Pipeline contract violation: max_turns accessed before "
+            "ContextLoadingStage (Stage 1) completed. "
+            f"Session: {self.session_id}"
+        )
 
     @property
     def recent_utterances(self) -> List[Dict[str, str]]:
@@ -204,10 +252,19 @@ class PipelineContext:
 
     @property
     def strategy(self) -> str:
-        """Get strategy from StrategySelectionOutput."""
+        """Get strategy from StrategySelectionOutput.
+
+        Raises:
+            RuntimeError: If strategy_selection_output is not set (pipeline contract violation)
+        """
         if self.strategy_selection_output:
             return self.strategy_selection_output.strategy
-        return "deepen"
+        raise RuntimeError(
+            "Pipeline contract violation: strategy accessed before "
+            "StrategySelectionStage (Stage 6) completed. "
+            "Ensure stages run in order. "
+            f"Session: {self.session_id}"
+        )
 
     @property
     def focus(self) -> Optional[Dict[str, Any]]:
@@ -232,24 +289,48 @@ class PipelineContext:
 
     @property
     def should_continue(self) -> bool:
-        """Get should_continue from ContinuationOutput."""
+        """Get should_continue from ContinuationOutput.
+
+        Raises:
+            RuntimeError: If continuation_output is not set (pipeline contract violation)
+        """
         if self.continuation_output:
             return self.continuation_output.should_continue
-        return True
+        raise RuntimeError(
+            "Pipeline contract violation: should_continue accessed before "
+            "ContinuationStage (Stage 7) completed. "
+            f"Session: {self.session_id}"
+        )
 
     @property
     def focus_concept(self) -> str:
-        """Get focus_concept from ContinuationOutput."""
+        """Get focus_concept from ContinuationOutput.
+
+        Raises:
+            RuntimeError: If continuation_output is not set (pipeline contract violation)
+        """
         if self.continuation_output:
             return self.continuation_output.focus_concept
-        return ""
+        raise RuntimeError(
+            "Pipeline contract violation: focus_concept accessed before "
+            "ContinuationStage (Stage 7) completed. "
+            f"Session: {self.session_id}"
+        )
 
     @property
     def next_question(self) -> str:
-        """Get next_question from QuestionGenerationOutput."""
+        """Get next_question from QuestionGenerationOutput.
+
+        Raises:
+            RuntimeError: If question_generation_output is not set (pipeline contract violation)
+        """
         if self.question_generation_output:
             return self.question_generation_output.question
-        return ""
+        raise RuntimeError(
+            "Pipeline contract violation: next_question accessed before "
+            "QuestionGenerationStage (Stage 8) completed. "
+            f"Session: {self.session_id}"
+        )
 
     @property
     def scoring(self) -> Dict[str, Any]:

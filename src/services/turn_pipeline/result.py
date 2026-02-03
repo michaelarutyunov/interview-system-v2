@@ -5,6 +5,7 @@ ADR-008 Phase 3: TurnResult is returned by the pipeline.
 """
 
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
@@ -13,13 +14,17 @@ class TurnResult:
     Result of processing a single turn.
 
     Matches PRD Section 8.6 response structure.
+
+    Note: strategy_selected is Optional to support partial pipeline execution
+    (e.g., tests that only run early stages). In full pipeline execution,
+    it will always be set after StrategySelectionStage (Stage 6).
     """
 
     turn_number: int
     extracted: dict  # concepts, relationships
     graph_state: dict  # node_count, edge_count, depth_achieved
     scoring: dict  # strategy_id, score, reasoning (Phase 3)
-    strategy_selected: str
+    strategy_selected: Optional[str]
     next_question: str
     should_continue: bool
     latency_ms: int = 0
