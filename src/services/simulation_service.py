@@ -335,9 +335,9 @@ class SimulationService:
         # Create output directory if it doesn't exist
         SYNTHETIC_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-        # Generate filename: {concept_id}_{persona_id}_{timestamp}.json
+        # Generate filename: {timestamp}_{concept_id}_{persona_id}.json
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        filename = f"{result.concept_id}_{result.persona_id}_{timestamp}.json"
+        filename = f"{timestamp}_{result.concept_id}_{result.persona_id}.json"
         filepath = SYNTHETIC_OUTPUT_DIR / filename
 
         # Convert dataclass to dict, handling nested dataclasses

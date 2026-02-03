@@ -71,7 +71,7 @@ curl -X POST "http://localhost:8000/simulation/interview" \
 - `max_turns`: Maximum turns before forcing stop (default: 10)
 - `session_id`: Optional session ID (generates new if not provided)
 
-**Output:** Results are **automatically saved** to `synthetic_interviews/` as JSON files with naming pattern: `{concept_id}_{persona_id}_{timestamp}.json`
+**Output:** Results are **automatically saved** to `synthetic_interviews/` as JSON files with naming pattern: `{timestamp}_{concept_id}_{persona_id}.json`
 
 ---
 
@@ -191,12 +191,12 @@ Simulation results are automatically saved to `synthetic_interviews/`:
 
 ```
 synthetic_interviews/
-├── oat_milk_v2_health_conscious_20260129_123456.json
-├── oat_milk_v2_price_sensitive_20260129_123507.json
-└── coffee_jtbd_v2_quality_focused_20260129_124015.json
+├── 20260129_123456_oat_milk_v2_health_conscious.json
+├── 20260129_123507_oat_milk_v2_price_sensitive.json
+└── 20260129_124015_coffee_jtbd_v2_quality_focused.json
 ```
 
-**Filename format:** `{concept_id}_{persona_id}_{timestamp}.json`
+**Filename format:** `{timestamp}_{concept_id}_{persona_id}.json`
 
 **File contents:**
 - Complete simulation result (questions, responses, strategies)
