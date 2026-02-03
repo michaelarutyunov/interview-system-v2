@@ -12,6 +12,7 @@
 - [Concept-Driven Coverage](#concept-driven-coverage)
 - [Methodology-Centric Design](#methodology-centric-design)
 - [Knowledge Graph State](#knowledge-graph-state)
+- [Policy-Driven Follow-Up Question Generation](#policy-driven-follow-up-question-generation)
 - [LLM Integration](#llm-integration)
 
 ---
@@ -141,6 +142,103 @@ class ExtractionOutput(BaseModel):
 ```
 
 **ADR-010 Phase 2** enhanced traceability by adding `source_utterance_id` throughout extraction and scoring data, linking all extracted concepts back to the specific user utterance that produced them.
+
+### Pipeline Output: TurnResult
+
+**Phase 6 (2026-02-03)**: The `TurnResult` dataclass is the final output returned by the pipeline after all stages complete.
+
+```python
+@dataclass
+class TurnResult:
+    # Core results
+    turn_number: int
+    extracted: dict                    # concepts, relationships
+    graph_state: dict                  # node_count, edge_count, depth_achieved
+    scoring: dict                      # strategy_id, score, reasoning
+    strategy_selected: Optional[str]   # Selected strategy name
+    next_question: str                  # Generated question
+    should_continue: bool              # Whether interview continues
+
+    # Observability (Phase 6)
+    signals: Optional[Dict[str, Any]] = None           # Raw methodology signals
+    strategy_alternatives: Optional[List[Dict[str, Any]]] = None  # All scored alternatives
+    termination_reason: Optional[str] = None  # Reason for termination
+
+    # Performance
+    latency_ms: int = 0                # Pipeline execution time
+```
+
+#### Field Details
+
+| Field | Source | Description |
+|-------|--------|-------------|
+| `turn_number` | PipelineContext | Current turn number (1-indexed) |
+| `extracted` | ExtractionOutput | Extracted concepts and relationships |
+| `graph_state` | StateComputationOutput | Current graph state metrics |
+| `scoring` | ScoringPersistenceOutput | Strategy scoring data |
+| `strategy_selected` | StrategySelectionOutput | Selected strategy name |
+| `next_question` | QuestionGenerationOutput | Generated follow-up question |
+| `should_continue` | ContinuationOutput | Whether to continue interview |
+| `signals` | StrategySelectionOutput | Raw signals from signal pools (Phase 6) |
+| `strategy_alternatives` | StrategySelectionOutput | All scored alternatives with node_id |
+| `termination_reason` | ContinuationOutput.reason | Reason for termination |
+| `latency_ms` | Pipeline | Total execution time in milliseconds |
+
+#### Signals and Strategy Alternatives
+
+**Phase 6 (2026-02-03)**: Observability fields expose raw signal data for debugging:
+
+- **`signals`**: Raw methodology signals from all signal pools
+  - `graph.*`: Global and node-level graph signals
+  - `llm.*`: Response depth, sentiment, uncertainty
+  - `temporal.*`: Strategy repetition, turns since change
+  - `meta.*`: Interview progress, phase, node opportunity
+
+- **`strategy_alternatives`**: All (strategy, node) pairs with scores
+  ```python
+  [
+      {"strategy": "deepen", "node_id": "node_123", "score": 2.5},
+      {"strategy": "clarify", "node_id": "node_456", "score": 2.1},
+      ...
+  ]
+  ```
+
+These fields enable:
+- Debugging why a strategy was selected
+- Understanding signal influence on scoring
+- Analyzing joint strategy-node selection behavior
+
+### Continuation and Termination
+
+**Phase 9 (2026-02-03)**: The `ContinuationStage` (Stage 7) decides whether to continue the interview based on multiple termination conditions.
+
+#### Termination Reasons
+
+The `termination_reason` field is populated when `should_continue=False`:
+
+| Reason | Description | Detection |
+|--------|-------------|-----------|
+| `"max_turns_reached"` | Interview reached configured `max_turns` limit | `turn_number >= max_turns` |
+| `"depth_plateau"` | Graph max_depth hasn't increased in 6 consecutive turns | Tracked in `StateComputationStage` |
+| `"quality_degraded"` | Consecutive shallow responses detected (saturation) | `consecutive_shallow` threshold in node_tracker |
+| `"close_strategy"` | Closing strategy was selected | Strategy-based termination |
+
+#### Continuation Logic
+
+```python
+# ContinuationStage evaluates:
+should_continue = (
+    turn_number < max_turns and
+    not depth_plateau and
+    not quality_degraded and
+    strategy != "close"
+)
+```
+
+If `should_continue=False`, the `termination_reason` field is set to explain why, enabling:
+- User understanding of why interview ended
+- Analytics on termination patterns
+- Debugging premature termination
 
 ---
 
@@ -549,6 +647,62 @@ class NodeState:
         """Check if node has no edges."""
         return (self.edge_count_incoming + self.edge_count_outgoing) == 0
 ```
+
+### Node Tracker Persistence (Phase 9)
+
+**Phase 9 (2026-02-03)**: NodeStateTracker now persists across turns via database storage, enabling `previous_focus` tracking and `all_response_depths` accumulation for saturation detection.
+
+#### Persistence Flow
+
+```mermaid
+graph LR
+    A[SessionService.process_turn] -->|load or create| B[SessionService._get_or_create_node_tracker]
+    B -->|check database| C[SessionRepository.get_node_tracker_state]
+    C -->|state found?| D{Has persisted state?}
+    D -->|Yes| E[NodeStateTracker.from_dict]
+    D -->|No| F[New NodeStateTracker]
+    E -->|restored states| G[node_tracker]
+    F --> G
+    G -->|Load at turn start| H[StrategySelectionStage]
+    H -->|append_response_depth| I[node_tracker]
+    H -->|update_focus| J[node_tracker]
+    I -->|all_response_depths.append| K[previous_focus node]
+    J -->|set previous_focus| L[node_tracker]
+    L -->|After turn completes| M[SessionService._save_node_tracker]
+    M -->|to_dict| N[node_tracker.to_dict]
+    N -->|JSON serialize| O[tracker_dict]
+    O -->|save to database| P[SessionRepository.update_node_tracker_state]
+    P -->|Write| Q[(sessions.node_tracker_state)]
+    Q -->|Next turn| A
+```
+
+#### Key Points
+
+**Load (turn start)**:
+- `SessionService._get_or_create_node_tracker()` queries `sessions.node_tracker_state` from database
+- If found: `NodeStateTracker.from_dict()` restores all node states
+- If not found: Creates fresh `NodeStateTracker()`
+
+**Use (during turn)**:
+- `StrategySelectionStage.append_response_signal()`: Appends `llm.response_depth` to `previous_focus` node's `all_response_depths` list
+- `StrategySelectionStage.update_focus()`: Updates `previous_focus` for next turn
+
+**Save (turn end)**:
+- `SessionService._save_node_tracker()` serializes via `NodeStateTracker.to_dict()`
+- Stores JSON in `sessions.node_tracker_state` column (added in migration 004)
+
+#### Schema and Compatibility
+
+- `NODE_TRACKER_SCHEMA_VERSION = 1` for future compatibility
+- Includes: `schema_version`, `previous_focus`, `states` dict
+- Existing sessions with `node_tracker_state = NULL` create fresh tracker (graceful degradation)
+- State size: ~15KB JSON for 25 nodes (varies by interview length)
+
+#### Enables
+
+- **Response depth tracking**: `all_response_depths` accumulates across turns per node
+- **Saturation detection**: `consecutive_shallow` calculation requires historical depth data
+- **Focus continuity**: `previous_focus` enables tracking which node received the last response
 
 ### Node Exhaustion and Backtracking
 
