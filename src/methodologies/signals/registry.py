@@ -243,7 +243,9 @@ class ComposedSignalDetector:
 
             temp_context = ContextWithSignals(all_signals)
             try:
-                signals = await detector.detect(temp_context, graph_state, response_text)
+                signals = await detector.detect(
+                    temp_context, graph_state, response_text
+                )
                 all_signals.update(signals)
             except Exception as e:
                 log.error(

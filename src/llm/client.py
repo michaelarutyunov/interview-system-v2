@@ -280,7 +280,7 @@ class AnthropicClient(LLMClient):
                     timeout_seconds=self.timeout,
                 )
                 if attempt < max_retries:
-                    delay = base_delay * (2 ** attempt)  # 1s on first retry
+                    delay = base_delay * (2**attempt)  # 1s on first retry
                     log.info(
                         "llm_retry_after_timeout",
                         delay_seconds=delay,
@@ -303,7 +303,7 @@ class AnthropicClient(LLMClient):
                         max_retries=max_retries,
                     )
                     if attempt < max_retries:
-                        delay = base_delay * (2 ** attempt)
+                        delay = base_delay * (2**attempt)
                         log.info(
                             "llm_retry_after_rate_limit",
                             delay_seconds=delay,
@@ -499,7 +499,7 @@ class OpenAICompatibleClient(LLMClient):
                     timeout_seconds=self.timeout,
                 )
                 if attempt < max_retries:
-                    delay = base_delay * (2 ** attempt)
+                    delay = base_delay * (2**attempt)
                     log.info(
                         "llm_retry_after_timeout",
                         delay_seconds=delay,
@@ -522,7 +522,7 @@ class OpenAICompatibleClient(LLMClient):
                         max_retries=max_retries,
                     )
                     if attempt < max_retries:
-                        delay = base_delay * (2 ** attempt)
+                        delay = base_delay * (2**attempt)
                         log.info(
                             "llm_retry_after_rate_limit",
                             delay_seconds=delay,

@@ -140,9 +140,7 @@ class ExtractionService:
 
         # Step 3: Full extraction via LLM
         try:
-            extraction_data = await self._extract_via_llm(
-                text, context, methodology
-            )
+            extraction_data = await self._extract_via_llm(text, context, methodology)
         except Exception as e:
             log.error("extraction_llm_error", error=str(e))
             # Graceful degradation: return empty result
@@ -230,9 +228,7 @@ class ExtractionService:
 
         return True, None
 
-    async def _extract_via_llm(
-        self, text: str, context: str, methodology: str
-    ) -> dict:
+    async def _extract_via_llm(self, text: str, context: str, methodology: str) -> dict:
         """
         Call LLM for extraction.
 

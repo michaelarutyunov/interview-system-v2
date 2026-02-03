@@ -230,6 +230,19 @@ next_question, scoring, stage_timings
 
 ---
 
+## Documents that should be updated after codebase changes
+
+- `docs/pipeline_contracts.md`
+- `docs/data_flow_paths.md`
+- `docs/SYSTEM_DESIGN.md`
+  
+  optionally, if relevant for the implemented changes:
+- `docs/DEVELOPMENT.md`
+- `docs/API.md`
+- `docs/syntheric_personas.md`
+
+---
+
 ## Project Files Reference
 
 | File | Purpose |

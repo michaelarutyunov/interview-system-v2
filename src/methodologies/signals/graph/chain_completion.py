@@ -63,9 +63,8 @@ class ChainCompletionSignal(SignalDetector):
 
         # Get level 1 node types (nodes with level=1 in ontology)
         level_1_types = set()
-        node_types = schema.ontology.nodes if schema.ontology else schema.node_types
-        if node_types:
-            for nt in node_types:
+        if schema.ontology:
+            for nt in schema.ontology.nodes:
                 if nt.level == 1:
                     level_1_types.add(nt.name)
 
