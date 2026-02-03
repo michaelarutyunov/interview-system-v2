@@ -1,6 +1,7 @@
 """Domain models for knowledge graph nodes and edges."""
 
-from pydantic import BaseModel, Field, model_validator
+from collections import deque
+from pydantic import BaseModel, Field, model_validator, field_validator
 from typing import List, Dict, Any, Optional, Literal
 from datetime import datetime, timezone
 import structlog
@@ -110,9 +111,9 @@ class GraphState(BaseModel):
     # === Phase Tracking (promoted from properties, ADR-010) ===
     current_phase: Literal["exploratory", "focused", "closing"] = "exploratory"
     turn_count: int = Field(ge=0, default=0)
-    strategy_history: List[str] = Field(
-        default_factory=list,
-        description="History of recently used strategies for diversity tracking",
+    strategy_history: Any = Field(
+        default_factory=lambda: deque(maxlen=30),
+        description="History of recently used strategies (max 30 for diversity tracking)",
     )
 
     # === Extensibility (ADR-010) ===
@@ -145,6 +146,24 @@ class GraphState(BaseModel):
             )
 
         return self
+
+    @field_validator("strategy_history", mode="before")
+    @classmethod
+    def _ensure_strategy_history_deque(cls, v: Any) -> Any:
+        """Convert list to deque on load from DB (backward compatibility).
+
+        When loading from database, Pydantic deserializes as list.
+        This validator converts it to deque for automatic trimming.
+
+        Args:
+            v: Value from DB (list or deque)
+
+        Returns:
+            deque(maxlen=30) with preserved items
+        """
+        if isinstance(v, list):
+            return deque(v, maxlen=30)
+        return v
 
     def add_strategy_used(self, strategy_id: str) -> None:
         """Record a strategy selection in history for diversity tracking.
