@@ -1,13 +1,14 @@
 """
-Shared test fixtures for critical path tests.
+Shared test fixtures for all test modules.
 
-Minimal fixture set for testing core pipeline functionality.
+Provides common fixtures for database initialization, mocking, and test data.
 """
 
 import pytest
 import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+import aiosqlite
 
 from src.persistence.database import init_database
 from src.persistence.repositories.session_repo import SessionRepository
@@ -17,25 +18,44 @@ from src.persistence.repositories.utterance_repo import UtteranceRepository
 
 @pytest.fixture
 async def test_db():
-    """Create and initialize test database."""
+    """
+    Create and initialize test database.
+
+    Creates a temporary SQLite database with all tables initialized.
+    Patches settings to use the test database path.
+
+    Yields:
+        Path: Path to the temporary database file
+    """
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = Path(tmpdir) / "test.db"
         await init_database(db_path)
 
+        # Import settings and patch
         from src.core import config
+
         original_path = config.settings.database_path
         config.settings.database_path = db_path
 
+        # Also patch at the module level for database imports
         with patch("src.persistence.database.settings", config.settings):
             yield db_path
 
+        # Restore original path
         config.settings.database_path = original_path
 
 
 @pytest.fixture
 async def db_connection(test_db):
-    """Create a database connection for testing."""
-    import aiosqlite
+    """
+    Create a database connection for testing.
+
+    This is used for repositories that expect a connection object
+    (like GraphRepository in FastAPI dependency injection).
+
+    Yields:
+        aiosqlite.Connection: Database connection with row_factory set
+    """
     async with aiosqlite.connect(str(test_db)) as db:
         db.row_factory = aiosqlite.Row
         yield db

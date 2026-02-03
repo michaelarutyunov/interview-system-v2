@@ -85,8 +85,10 @@ def test_methodology_schema_creation(sample_schema_data):
     """MethodologySchema can be created from dict data."""
     schema = MethodologySchema(**sample_schema_data)
 
+    assert schema.method is not None
     assert schema.method["name"] == "test_methodology"
     assert schema.method["version"] == "2.0"
+    assert schema.ontology is not None
     assert len(schema.ontology.nodes) == 2
     assert len(schema.ontology.edges) == 2
 
@@ -210,8 +212,10 @@ def test_load_methodology_from_file(temp_schema_dir):
 
     schema = load_methodology("test_methodology", schema_dir=temp_schema_dir)
 
+    assert schema.method is not None
     assert schema.method["name"] == "test_methodology"
     assert schema.method["version"] == "2.0"
+    assert schema.ontology is not None
     assert len(schema.ontology.nodes) == 2
     assert len(schema.ontology.edges) == 2
 
@@ -250,11 +254,13 @@ def test_load_means_end_chain_schema():
     schema = load_methodology("means_end_chain")
 
     # Verify basic structure
+    assert schema.method is not None
     assert schema.method["name"] == "means_end_chain"
     assert schema.method["version"] == "3.0"
     assert "Laddering" in schema.method.get("description", "")
 
     # Verify all 5 node types exist
+    assert schema.ontology is not None
     node_names = {nt.name for nt in schema.ontology.nodes}
     assert node_names == {
         "attribute",

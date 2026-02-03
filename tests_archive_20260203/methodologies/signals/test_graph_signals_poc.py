@@ -167,7 +167,7 @@ class TestTechniquesUseSignals:
             recent_nodes=[MockNode("quality")],
         )
 
-        questions = await technique.generate_questions("quality", context)
+        questions = await technique.generate_questions("quality", context)  # type: ignore[arg-type]
 
         assert len(questions) == 3
         assert "Why is quality important to you?" in questions
@@ -185,7 +185,7 @@ class TestTechniquesUseSignals:
             recent_nodes=[MockNode("quality")],
         )
 
-        questions = await technique.generate_questions("quality", context)
+        questions = await technique.generate_questions("quality", context)  # type: ignore[arg-type]
 
         assert len(questions) == 2
         assert "Why is quality important to you?" in questions
@@ -201,7 +201,7 @@ class TestTechniquesUseSignals:
             recent_nodes=[MockNode("quality")],
         )
 
-        questions = await technique.generate_questions("quality", context)
+        questions = await technique.generate_questions("quality", context)  # type: ignore[arg-type]
 
         assert len(questions) == 3
         assert "Tell me more about quality." in questions

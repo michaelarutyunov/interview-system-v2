@@ -320,7 +320,15 @@ class TestSaturationContinuation:
         stage = ContinuationStage(svc)
 
         # Simulate 5 consecutive zero-yield turns (all past minimum turn)
-        for turn in range(6, 11):
+        # Initialize result with first iteration to avoid "possibly unbound" error
+        ctx = _make_context(
+            turn_number=6,
+            nodes_added_this_turn=0,
+            edges_added_this_turn=0,
+        )
+        result = await stage.process(ctx)
+
+        for turn in range(7, 11):
             ctx = _make_context(
                 turn_number=turn,
                 nodes_added_this_turn=0,
@@ -330,6 +338,7 @@ class TestSaturationContinuation:
 
         # The 5th zero-yield turn (turn 10) should trigger stop
         assert result.should_continue is False
+        assert result.continuation_output is not None
         assert "graph_saturated" in result.continuation_output.reason
 
     @pytest.mark.asyncio
@@ -409,6 +418,7 @@ class TestSaturationContinuation:
         result = await stage.process(ctx)
 
         assert result.should_continue is False
+        assert result.continuation_output is not None
         assert "all_nodes_exhausted" in result.continuation_output.reason
 
     # ── Quality degradation: 4 consecutive shallow turns ─────────────
@@ -433,7 +443,16 @@ class TestSaturationContinuation:
         )
 
         # Simulate 4 turns — each turn the tracker shows only shallow responses
-        for turn in range(6, 10):
+        # Initialize with first iteration to avoid "possibly unbound" error
+        ctx = _make_context(
+            turn_number=6,
+            nodes_added_this_turn=0,
+            edges_added_this_turn=0,
+            node_tracker=tracker,
+        )
+        result = await stage.process(ctx)
+
+        for turn in range(7, 10):
             ctx = _make_context(
                 turn_number=turn,
                 nodes_added_this_turn=0,
@@ -443,6 +462,7 @@ class TestSaturationContinuation:
             result = await stage.process(ctx)
 
         assert result.should_continue is False
+        assert result.continuation_output is not None
         assert "quality_degraded" in result.continuation_output.reason
 
     # ── Depth plateau: 6 turns at same max_depth ─────────────────────
@@ -455,7 +475,16 @@ class TestSaturationContinuation:
 
         # 7 turns all at max_depth=3. The 1st turn initializes prev_max_depth,
         # so plateau counting starts from the 2nd turn onward (6 plateaus).
-        for turn in range(5, 12):
+        # Initialize with first iteration to avoid "possibly unbound" error
+        ctx = _make_context(
+            turn_number=5,
+            max_depth=3,
+            nodes_added_this_turn=1,  # not zero-yield, so graph saturation won't fire
+            edges_added_this_turn=0,
+        )
+        result = await stage.process(ctx)
+
+        for turn in range(6, 12):
             ctx = _make_context(
                 turn_number=turn,
                 max_depth=3,
@@ -465,6 +494,7 @@ class TestSaturationContinuation:
             result = await stage.process(ctx)
 
         assert result.should_continue is False
+        assert result.continuation_output is not None
         assert "depth_plateau" in result.continuation_output.reason
 
     # ── Minimum turn threshold ───────────────────────────────────────
@@ -487,7 +517,16 @@ class TestSaturationContinuation:
             turns_since_last_yield=5,
         )
 
-        for turn in range(1, 5):
+        # Initialize with first iteration to avoid "possibly unbound" error
+        ctx = _make_context(
+            turn_number=1,
+            nodes_added_this_turn=0,
+            edges_added_this_turn=0,
+            node_tracker=tracker,
+        )
+        result = await stage.process(ctx)
+
+        for turn in range(2, 5):
             ctx = _make_context(
                 turn_number=turn,
                 nodes_added_this_turn=0,

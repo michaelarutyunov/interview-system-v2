@@ -148,9 +148,9 @@ class TestPhaseWeightApplication:
 
         strategy = StrategyConfig(
             name="explore",
+            description="Explore recent topics",
             technique="elaboration",
             signal_weights={"graph.node_count": 0.5},
-            focus_preference="recent",
         )
 
         # Mock signals
@@ -175,15 +175,15 @@ class TestPhaseWeightApplication:
         strategies = [
             StrategyConfig(
                 name="explore",
+                description="Explore recent topics",
                 technique="elaboration",
                 signal_weights={"graph.node_count": 0.5},
-                focus_preference="recent",
             ),
             StrategyConfig(
                 name="deepen",
+                description="Deepen using laddering",
                 technique="laddering",
                 signal_weights={"graph.max_depth": 0.5},
-                focus_preference="shallow",
             ),
         ]
 
@@ -238,15 +238,15 @@ class TestPhaseWeightApplication:
         strategies = [
             StrategyConfig(
                 name="explore",
+                description="Explore recent topics",
                 technique="elaboration",
                 signal_weights={"graph.node_count": 1.0},
-                focus_preference="recent",
             ),
             StrategyConfig(
                 name="deepen",
+                description="Deepen using laddering",
                 technique="laddering",
                 signal_weights={"graph.max_depth": 1.0},
-                focus_preference="shallow",
             ),
         ]
 

@@ -192,7 +192,7 @@ class NodeExhaustionTestRunner:
                         nodes_modified=turn.graph_changes.get("nodes_modified", 0),
                     )
                     await tracker.record_yield(
-                        turn.focus_node_id,
+                        turn.focus_node_id or "unknown",
                         turn_number=turn_num,
                         graph_changes=changes,
                     )

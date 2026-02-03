@@ -25,6 +25,7 @@ class TestNodeState:
             label="creamy texture",
             created_at_turn=1,
             depth=0,
+            node_type="attribute",
         )
 
         assert state.node_id == "node-1"
@@ -39,6 +40,7 @@ class TestNodeState:
             label="test",
             created_at_turn=1,
             depth=0,
+            node_type="attribute",
         )
 
         assert state.focus_count == 0
@@ -64,6 +66,7 @@ class TestNodeState:
             label="test",
             created_at_turn=1,
             depth=0,
+            node_type="attribute",
             edge_count_outgoing=0,
             edge_count_incoming=0,
         )
@@ -77,6 +80,7 @@ class TestNodeState:
             label="test",
             created_at_turn=1,
             depth=0,
+            node_type="attribute",
             edge_count_outgoing=2,
             edge_count_incoming=0,
         )
@@ -90,6 +94,7 @@ class TestNodeState:
             label="test",
             created_at_turn=1,
             depth=0,
+            node_type="attribute",
             edge_count_outgoing=0,
             edge_count_incoming=3,
         )
@@ -103,6 +108,7 @@ class TestNodeState:
             label="test",
             created_at_turn=1,
             depth=0,
+            node_type="attribute",
             edge_count_outgoing=1,
             edge_count_incoming=1,
         )
@@ -572,6 +578,7 @@ class TestNodeStateTracker:
             label="test",
             created_at_turn=1,
             depth=0,
+            node_type="attribute",
         )
         tracker.states["node-1"] = state
 
@@ -593,12 +600,14 @@ class TestNodeStateTracker:
             label="test1",
             created_at_turn=1,
             depth=0,
+            node_type="attribute",
         )
         state2 = NodeState(
             node_id="node-2",
             label="test2",
             created_at_turn=1,
             depth=0,
+            node_type="attribute",
         )
         tracker.states = {"node-1": state1, "node-2": state2}
 

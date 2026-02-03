@@ -37,7 +37,7 @@ class PerformanceBenchmark:
     unit: str
     target: float
     acceptable: float
-    passed: bool
+    passed: bool = False
 
     def __post_init__(self):
         self.passed = self.value <= self.acceptable
@@ -134,7 +134,7 @@ class TestSignalDetectionLatency:
 
     @pytest.mark.asyncio
     async def test_individual_signal_latency(
-        self, signal_detectors, performance_targets
+        self, signal_detectors, performance_targets, request
     ):
         """Test latency of individual signal detectors."""
         tracker = NodeStateTracker()
@@ -179,7 +179,7 @@ class TestSignalDetectionLatency:
 
         # Log results
         for result in results:
-            pytest.stash.setdefault(f"perf_{result.name}", result)
+            request.stash.setdefault(f"perf_{result.name}", result)
 
         # Most should pass
         passed_count = sum(1 for r in results if r.passed)
@@ -188,7 +188,9 @@ class TestSignalDetectionLatency:
         )
 
     @pytest.mark.asyncio
-    async def test_all_signals_latency(self, signal_detectors, performance_targets):
+    async def test_all_signals_latency(
+        self, signal_detectors, performance_targets, request
+    ):
         """Test latency of detecting all signals together."""
         tracker = NodeStateTracker()
 
@@ -196,7 +198,9 @@ class TestSignalDetectionLatency:
         for i in range(10):
             node = KGNode(
                 id=f"node{i}",
+                session_id="test-session",
                 label=f"Node {i}",
+                node_type="attribute",
                 properties={"depth": 0},
             )
             await tracker.register_node(node, turn_number=0)
@@ -228,7 +232,7 @@ class TestSignalDetectionLatency:
             acceptable=acceptable,
         )
 
-        pytest.stash["perf_signal_detection_all"] = benchmark
+        request.stash["perf_signal_detection_all"] = benchmark
 
         assert total_latency_ms < acceptable, (
             f"Signal detection too slow: {total_latency_ms:.2f}ms > {acceptable}ms"
@@ -247,7 +251,9 @@ class TestSignalDetectionLatency:
             for i in range(node_count):
                 node = KGNode(
                     id=f"node{i}",
+                    session_id="test-session",
                     label=f"Node {i}",
+                    node_type="attribute",
                     properties={"depth": 0},
                 )
                 await tracker.register_node(node, turn_number=0)
@@ -280,7 +286,7 @@ class TestJointScoringPerformance:
     """Tests for joint scoring performance."""
 
     @pytest.mark.asyncio
-    async def test_joint_scoring_10_nodes(self, performance_targets):
+    async def test_joint_scoring_10_nodes(self, performance_targets, request):
         """Test joint scoring performance with 10 nodes."""
         tracker = NodeStateTracker()
 
@@ -306,11 +312,12 @@ class TestJointScoringPerformance:
             for node_id in tracker.get_all_states():
                 # Simulate scoring computation
                 state = tracker.get_state(node_id)
-                _ = {
-                    "focus_count": state.focus_count,
-                    "yield_rate": state.yield_rate,
-                    "depth": state.depth,
-                }
+                if state is not None:
+                    _ = {
+                        "focus_count": state.focus_count,
+                        "yield_rate": state.yield_rate,
+                        "depth": state.depth,
+                    }
 
         end_time = time.perf_counter()
 
@@ -328,14 +335,14 @@ class TestJointScoringPerformance:
             acceptable=acceptable,
         )
 
-        pytest.stash["perf_joint_scoring_10_nodes"] = benchmark
+        request.stash["perf_joint_scoring_10_nodes"] = benchmark
 
         assert scoring_time_ms < acceptable, (
             f"Joint scoring too slow: {scoring_time_ms:.2f}ms > {acceptable}ms"
         )
 
     @pytest.mark.asyncio
-    async def test_joint_scoring_50_nodes(self, performance_targets):
+    async def test_joint_scoring_50_nodes(self, performance_targets, request):
         """Test joint scoring performance with 50 nodes."""
         tracker = NodeStateTracker()
 
@@ -362,11 +369,12 @@ class TestJointScoringPerformance:
         for strategy in strategies:
             for node_id in tracker.get_all_states():
                 state = tracker.get_state(node_id)
-                _ = {
-                    "focus_count": state.focus_count,
-                    "yield_rate": state.yield_rate,
-                    "depth": state.depth,
-                }
+                if state is not None:
+                    _ = {
+                        "focus_count": state.focus_count,
+                        "yield_rate": state.yield_rate,
+                        "depth": state.depth,
+                    }
 
         end_time = time.perf_counter()
 
@@ -384,7 +392,7 @@ class TestJointScoringPerformance:
             acceptable=acceptable,
         )
 
-        pytest.stash["perf_joint_scoring_50_nodes"] = benchmark
+        request.stash["perf_joint_scoring_50_nodes"] = benchmark
 
         assert scoring_time_ms < acceptable, (
             f"Joint scoring too slow: {scoring_time_ms:.2f}ms > {acceptable}ms"
@@ -418,11 +426,12 @@ class TestJointScoringPerformance:
         for strategy in strategies:
             for node_id in tracker.get_all_states():
                 state = tracker.get_state(node_id)
-                _ = {
-                    "focus_count": state.focus_count,
-                    "yield_rate": state.yield_rate,
-                    "depth": state.depth,
-                }
+                if state is not None:
+                    _ = {
+                        "focus_count": state.focus_count,
+                        "yield_rate": state.yield_rate,
+                        "depth": state.depth,
+                    }
 
         end_time = time.perf_counter()
 
@@ -479,7 +488,9 @@ class TestMemoryUsage:
         for i in range(100):
             node = KGNode(
                 id=f"node{i}",
+                session_id="test-session",
                 label=f"Node {i}",
+                node_type="attribute",
                 properties={"depth": 0},
             )
             await tracker.register_node(node, turn_number=0)
@@ -488,7 +499,7 @@ class TestMemoryUsage:
                     f"node{i}", turn_number=i + 1, strategy="deepen"
                 )
 
-        current, peak = tracemalloc.get_traced_memory()
+        _current, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
 
         # Memory usage should scale linearly (< 10MB)
@@ -506,7 +517,9 @@ class TestMemoryUsage:
         for i in range(50):
             node = KGNode(
                 id=f"node{i}",
+                session_id="test-session",
                 label=f"Node {i}",
+                node_type="attribute",
                 properties={"depth": 0},
             )
             await tracker.register_node(node, turn_number=0)
@@ -524,7 +537,7 @@ class TestMemoryUsage:
         for detector in detectors:
             await detector.detect(None, None, "test response")
 
-        current, peak = tracemalloc.get_traced_memory()
+        _current, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
 
         # Memory usage should be modest (< 5MB)
@@ -541,7 +554,7 @@ class TestTurnProcessingPerformance:
     """Tests for complete turn processing performance."""
 
     @pytest.mark.asyncio
-    async def test_single_turn_processing(self, performance_targets):
+    async def test_single_turn_processing(self, performance_targets, request):
         """Test processing a single turn."""
         from tests.synthetic.runner.node_exhaustion_test_runner import (
             NodeExhaustionTestRunner,
@@ -551,6 +564,7 @@ class TestTurnProcessingPerformance:
         )
 
         scenario = get_scenario_by_name("exhaustion_detection")
+        assert scenario is not None, "Scenario 'exhaustion_detection' not found"
         runner = NodeExhaustionTestRunner(enable_signal_detection=True)
 
         start_time = time.perf_counter()
@@ -572,7 +586,7 @@ class TestTurnProcessingPerformance:
             acceptable=acceptable,
         )
 
-        pytest.stash["perf_total_turn_processing"] = benchmark
+        request.stash["perf_total_turn_processing"] = benchmark
 
         assert avg_turn_time_ms < acceptable, (
             f"Turn processing too slow: {avg_turn_time_ms:.2f}ms > {acceptable}ms"
@@ -613,7 +627,7 @@ class TestTurnProcessingPerformance:
 
 
 @pytest.fixture(autouse=True)
-def benchmark_summary(request, performance_targets):
+def benchmark_summary(request):
     """Generate benchmark summary at end of test session."""
     yield
 

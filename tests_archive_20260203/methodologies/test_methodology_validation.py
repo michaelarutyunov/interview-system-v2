@@ -62,9 +62,7 @@ class TestCompoundKeyPrefixMatching:
         assert _is_valid_signal_weight_key("graph.node.exhausted.false", known)
 
     def test_extra_prefix_global_response_trend(self, known):
-        assert _is_valid_signal_weight_key(
-            "llm.global_response_trend.fatigued", known
-        )
+        assert _is_valid_signal_weight_key("llm.global_response_trend.fatigued", known)
 
     def test_invalid_signal(self, known):
         assert not _is_valid_signal_weight_key("graph.edge_density", known)
@@ -129,7 +127,9 @@ strategies: []
 """
         (tmp_path / "test_bad.yaml").write_text(yaml_content)
         registry = MethodologyRegistry(config_dir=tmp_path)
-        with pytest.raises(ValueError, match="unknown signal 'graph.nonexistent_signal'"):
+        with pytest.raises(
+            ValueError, match="unknown signal 'graph.nonexistent_signal'"
+        ):
             registry.get_methodology("test_bad")
 
     def test_unknown_technique(self, tmp_path):
@@ -145,7 +145,9 @@ strategies:
 """
         (tmp_path / "test_bad_technique.yaml").write_text(yaml_content)
         registry = MethodologyRegistry(config_dir=tmp_path)
-        with pytest.raises(ValueError, match="unknown technique 'nonexistent_technique'"):
+        with pytest.raises(
+            ValueError, match="unknown technique 'nonexistent_technique'"
+        ):
             registry.get_methodology("test_bad_technique")
 
     def test_unknown_signal_weight_key(self, tmp_path):
@@ -161,7 +163,9 @@ strategies:
 """
         (tmp_path / "test_bad_weight.yaml").write_text(yaml_content)
         registry = MethodologyRegistry(config_dir=tmp_path)
-        with pytest.raises(ValueError, match="unknown signal weight key 'grph.node_count'"):
+        with pytest.raises(
+            ValueError, match="unknown signal weight key 'grph.node_count'"
+        ):
             registry.get_methodology("test_bad_weight")
 
     def test_phase_references_unknown_strategy(self, tmp_path):

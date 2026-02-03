@@ -10,7 +10,8 @@ from src.services.turn_pipeline.stages.strategy_selection_stage import (
     StrategySelectionStage,
 )
 from src.services.turn_pipeline.context import PipelineContext
-from src.domain.models.knowledge_graph import GraphState, DepthMetrics
+from src.services.node_state_tracker import NodeStateTracker
+from src.domain.models.knowledge_graph import GraphState, DepthMetrics, KGNode
 from src.domain.models.pipeline_contracts import (
     ContextLoadingOutput,
     StateComputationOutput,
@@ -22,12 +23,29 @@ class TestMethodologyStrategySelection:
     """Tests for the new methodology-based strategy selection."""
 
     @pytest.fixture
-    def context(self):
+    async def context(self):
         """Create a test pipeline context with contracts."""
         ctx = PipelineContext(
             session_id="test-session",
             user_input="I like oat milk",
         )
+
+        # Set up node tracker with some test nodes
+        tracker = NodeStateTracker()
+        for i in range(5):
+            node = KGNode(
+                id=f"node{i}",
+                session_id="test-session",
+                label=f"Node {i}",
+                node_type="attribute",
+                properties={"depth": i % 3},
+            )
+            await tracker.register_node(node, turn_number=0)
+            if i < 3:
+                await tracker.update_focus(
+                    f"node{i}", turn_number=i + 1, strategy="deepen"
+                )
+        ctx.node_tracker = tracker
 
         # Set ContextLoadingOutput
         graph_state = GraphState(
@@ -117,10 +135,20 @@ class TestMethodologyStrategySelection:
         alternatives = result_context.strategy_alternatives
 
         # Verify descending order
+        # alternatives can be (strategy, score) or (strategy, node_id, score)
+        # score is always the last element
         for i in range(len(alternatives) - 1):
-            assert alternatives[i][1] >= alternatives[i + 1][1], (
-                f"Strategy {alternatives[i][0]} (score={alternatives[i][1]}) should come before "
-                f"{alternatives[i + 1][0]} (score={alternatives[i + 1][1]})"
+            score_i = alternatives[i][-1]
+            score_next = alternatives[i + 1][-1]
+            assert isinstance(score_i, (int, float)), (
+                f"Score {score_i} should be numeric"
+            )
+            assert isinstance(score_next, (int, float)), (
+                f"Score {score_next} should be numeric"
+            )
+            assert score_i >= score_next, (
+                f"Strategy {alternatives[i][0]} (score={score_i}) should come before "
+                f"{alternatives[i + 1][0]} (score={score_next})"
             )
 
     @pytest.mark.asyncio
@@ -144,12 +172,25 @@ class TestStrategySelectionFreshness:
     """Tests for graph state freshness validation."""
 
     @pytest.fixture
-    def context(self):
+    async def context(self):
         """Create a test pipeline context with contracts."""
         ctx = PipelineContext(
             session_id="test-session",
             user_input="I like oat milk",
         )
+
+        # Set up node tracker with some test nodes
+        tracker = NodeStateTracker()
+        for i in range(5):
+            node = KGNode(
+                id=f"node{i}",
+                session_id="test-session",
+                label=f"Node {i}",
+                node_type="attribute",
+                properties={"depth": i % 3},
+            )
+            await tracker.register_node(node, turn_number=0)
+        ctx.node_tracker = tracker
 
         # Set ContextLoadingOutput
         graph_state = GraphState(

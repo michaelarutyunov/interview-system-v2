@@ -476,16 +476,13 @@ class TestCalibrationMetrics:
             if turn.graph_changes:
                 if turn.graph_changes.get("edges_added", 0) > 0:
                     # Check if this was connecting an orphan
-                    if i > 0 and scenario.user_turns[i - 1].graph_changes:
-                        if (
-                            scenario.user_turns[i - 1].graph_changes.get(
-                                "nodes_added", 0
-                            )
-                            > 0
-                        ):
-                            # Previous turn added node but no edges = orphan
-                            orphan_count += 1
-                            connected_count += 1
+                    if i > 0:
+                        prev_graph_changes = scenario.user_turns[i - 1].graph_changes
+                        if prev_graph_changes:
+                            if prev_graph_changes.get("nodes_added", 0) > 0:
+                                # Previous turn added node but no edges = orphan
+                                orphan_count += 1
+                                connected_count += 1
 
         return connected_count / max(orphan_count, 1)
 
@@ -493,6 +490,7 @@ class TestCalibrationMetrics:
     async def test_backtracking_turn_metric(self, calibration_runner):
         """Test that backtracking turn can be calculated."""
         scenario = get_scenario_by_name("exhaustion_detection")
+        assert scenario is not None, "Scenario 'exhaustion_detection' not found"
         result = await calibration_runner.run_scenario(scenario)
 
         backtracking_turn = self.calculate_backtracking_turn(result, scenario)
@@ -503,6 +501,7 @@ class TestCalibrationMetrics:
     async def test_strategy_diversity_metric(self, calibration_runner):
         """Test that strategy diversity can be calculated."""
         scenario = get_scenario_by_name("strategy_repetition")
+        assert scenario is not None, "Scenario 'strategy_repetition' not found"
         result = await calibration_runner.run_scenario(scenario)
 
         diversity = self.calculate_strategy_diversity(result)
@@ -513,6 +512,7 @@ class TestCalibrationMetrics:
     async def test_orphan_connection_metric(self, calibration_runner):
         """Test that orphan connection rate can be calculated."""
         scenario = get_scenario_by_name("orphan_node_priority")
+        assert scenario is not None, "Scenario 'orphan_node_priority' not found"
         result = await calibration_runner.run_scenario(scenario)
 
         connection_rate = self.calculate_orphan_connection_rate(result, scenario)
