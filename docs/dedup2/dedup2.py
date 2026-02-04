@@ -261,19 +261,48 @@ Return ONLY a JSON array. No markdown, no explanation outside the JSON.
     payload = {
         "model": "moonshot-v1-8k",
         "messages": [
-            {"role": "system", "content": "You are a conceptual analysis assistant. Always respond with valid JSON only."},
+            {
+                "role": "system",
+                "content": "You are a conceptual analysis assistant. Always respond with valid JSON only - no markdown, no explanations outside the JSON."
+            },
             {"role": "user", "content": prompt}
         ],
-        "temperature": 0.3,
-        "response_format": {"type": "json_object"}
+        "temperature": 0.3
     }
+
+    # Initialize for exception handlers
+    content = ""
+    result = {}
 
     try:
         response = requests.post(KIMI_API_URL, headers=headers, json=payload, timeout=60)
-        response.raise_for_status()
+
+        # Better error handling - extract error details from response
+        if not response.ok:
+            try:
+                error_detail = response.json()
+                error_msg = error_detail.get("error", {}).get("message", str(error_detail))
+            except Exception:
+                error_msg = response.text
+            raise ValueError(f"KIMI API returned {response.status_code}: {error_msg}")
 
         result = response.json()
+
+        # Handle different response structures
+        if "choices" not in result or not result["choices"]:
+            raise ValueError(f"Unexpected response structure: {result}")
+
         content = result["choices"][0]["message"]["content"]
+
+        # Strip markdown code blocks if present
+        content = content.strip()
+        if content.startswith("```json"):
+            content = content[7:]
+        if content.startswith("```"):
+            content = content[3:]
+        if content.endswith("```"):
+            content = content[:-3]
+        content = content.strip()
 
         # Parse JSON response
         proposed_slots = json.loads(content)
@@ -298,11 +327,11 @@ Return ONLY a JSON array. No markdown, no explanation outside the JSON.
         return proposed_slots
 
     except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON from KIMI: {e}\nContent: {content}")
+        raise ValueError(f"Invalid JSON from KIMI: {e}\n\nRaw content:\n{content}")
     except requests.RequestException as e:
-        raise ValueError(f"KIMI API error: {e}")
+        raise ValueError(f"KIMI API network error: {e}")
     except KeyError as e:
-        raise ValueError(f"Unexpected KIMI response structure: {e}")
+        raise ValueError(f"Unexpected KIMI response structure: {e}\n\nResponse: {result}")
 
 
 # =============================================================================
