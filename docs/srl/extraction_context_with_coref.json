@@ -1,0 +1,229 @@
+{
+  "turn_1": {
+    "original_text": "I always check the ingredient list - I want to make sure there's no added oils or gums if possible. And the sugar content is huge for me, like I try to stick to ones with under 5 grams per serving. Oh, and whether it's fortified with calcium and vitamin D, since I'm not getting those from regular dairy.",
+    "rewritten_text": "I always check the ingredient list - I want to make sure there's no added oils or gums if possible. And the sugar content is huge for me, like I try to stick to ones with under 5 grams per serving. Oh, and whether grams's fortified with calcium and vitamin D, since I'm not getting those from regular dairy.",
+    "replacements": {
+      "it": "grams"
+    },
+    "structural_analysis": {
+      "discourse": [
+        "if (subordination)",
+        "implicit (adverbial_clause)",
+        "like (subordination)",
+        "implicit (adverbial_clause)",
+        "whether (subordination)",
+        "since (subordination)",
+        "implicit (adverbial_clause)"
+      ],
+      "srl": [
+        "check: ARG0=I, ARG1=list",
+        "want: ARG0=I",
+        "try: ARG0=I",
+        "stick: ARGM-TO=ones, ARGM-WITH=grams",
+        "getting: ARG0=I, ARG1=those"
+      ]
+    }
+  },
+  "turn_2": {
+    "original_text": "I mean, I'm just trying to take care of my body, you know? I work out regularly and I want to make sure I'm actually fueling myself properly, not just drinking empty calories. Plus, I've noticed I have more energy throughout the day when I'm getting the right nutrients, so it's kind of become a priority for me.",
+    "rewritten_text": "I mean, I'm just trying to take care of my body, you know? I work out regularly and I want to make sure I'm actually fueling myself properly, not just drinking empty calories. Plus, I've noticed I have more energy throughout the day when I'm getting the right nutrients, so nutrients's kind of become a priority for me.",
+    "replacements": {
+      "it": "nutrients"
+    },
+    "structural_analysis": {
+      "discourse": [
+        "so (subordination)"
+      ],
+      "srl": [
+        "mean: ARG0=I",
+        "trying: ARG0=I",
+        "take: ARG1=care, ARGM-OF=body",
+        "know: ARG0=you",
+        "work: ARG0=I",
+        "want: ARG0=I",
+        "fueling: ARG0=I, ARG1=myself",
+        "drinking: ARG1=calories",
+        "noticed: ARG0=I",
+        "have: ARG0=I, ARG1=energy, ARGM-THROUGHOUT=day",
+        "getting: ARG0=I, ARG1=nutrients",
+        "become: ARG0=kind"
+      ]
+    }
+  },
+  "turn_3": {
+    "original_text": "Yeah, exactly. I mean, the energy part is huge for me - I noticed when I switched from regular milk, I didn't get that sluggish feeling after my morning coffee. And the fact that it's plant-based just feels cleaner for my system, you know? Less inflammation, easier to digest.",
+    "rewritten_text": "Yeah, exactly. I mean, the energy part is huge for me - I noticed when I switched from regular milk, I didn't get fact sluggish feeling after my morning coffee. And the fact fact fact's plant-based just feels cleaner for my system, you know? Less inflammation, easier to digest.",
+    "replacements": {
+      "that": "fact",
+      "it": "fact"
+    },
+    "structural_analysis": {
+      "discourse": [
+        "implicit (adverbial_clause)"
+      ],
+      "srl": [
+        "mean: ARG0=I",
+        "noticed: ARG0=I",
+        "switched: ARG0=I, ARGM-FROM=milk",
+        "get: ARG0=I, ARG1=feeling, ARGM-AFTER=coffee",
+        "feels: ARG0=fact",
+        "know: ARG0=you"
+      ]
+    }
+  },
+  "turn_4": {
+    "original_text": "I'd say it just helps me stay more consistent with my routine, you know? Like when I'm not dealing with that afternoon crash or feeling bloated, I can actually stick to my workout schedule and stay productive at work. It's really about maintaining that baseline energy throughout the day so I'm not constantly fighting against my body.",
+    "rewritten_text": "I'd say it just helps me stay more consistent with my routine, you know? Like when I'm not dealing with work afternoon crash or feeling bloated, I can actually stick to my workout schedule and stay productive at work. work's really about maintaining work baseline energy throughout the day so I'm not constantly fighting against my body.",
+    "replacements": {
+      "that": "work",
+      "It": "work"
+    },
+    "structural_analysis": {
+      "discourse": [
+        "implicit (adverbial_clause)"
+      ],
+      "srl": [
+        "say: ARG0=I",
+        "helps: ARG0=it",
+        "stay: ARG0=me",
+        "know: ARG0=you",
+        "dealing: ARG0=I, ARGM-WITH=crash",
+        "stick: ARG0=I, ARGM-TO=schedule",
+        "stay: ARGM-AT=work",
+        "maintaining: ARG1=energy, ARGM-THROUGHOUT=day",
+        "fighting: ARG0=I, ARGM-AGAINST=body"
+      ]
+    }
+  },
+  "turn_5": {
+    "original_text": "I think it means choosing foods that work with my system rather than against it. Like, I've noticed dairy can make me feel sluggish and bloated, so switching to oat milk just feels... easier on my digestion, you know? My body doesn't have to work as hard to process it. It's about listening to what makes me feel good and energized instead of pushing through discomfort just because that's what I'm used to.",
+    "rewritten_text": "I think body means choosing foods discomfort work with my system rather than against body. Like, I've noticed dairy can make me feel sluggish and bloated, so switching to oat milk just feels... easier on my digestion, you know? My body doesn't have to work as hard to process body. body's about listening to what makes me feel good and energized instead of pushing through discomfort just because discomfort's what I'm used to.",
+    "replacements": {
+      "that": "discomfort",
+      "it": "body",
+      "It": "body"
+    },
+    "structural_analysis": {
+      "discourse": [
+        "implicit (adverbial_clause)",
+        "because (subordination)",
+        "implicit (adverbial_clause)"
+      ],
+      "srl": [
+        "think: ARG0=I",
+        "means: ARG0=body",
+        "choosing: ARG1=work",
+        "noticed: ARG0=I, ARG1=dairy",
+        "feel: ARG0=me",
+        "switching: ARGM-TO=milk",
+        "know: ARG0=you",
+        "have: ARG0=body",
+        "process: ARG1=body",
+        "makes: ARG0=what",
+        "feel: ARG0=me",
+        "pushing: ARGM-THROUGH=discomfort",
+        "used: ARGM-TO=what"
+      ]
+    }
+  },
+  "turn_6": {
+    "original_text": "I mean, I think it's just about respecting what my body's telling me, you know? Like, I used to ignore those signals - feeling bloated after dairy, or that afternoon crash - but now I actually pay attention. And when I listen and make changes, like switching to oat milk, I genuinely feel better. More energy, better digestion. It's kind of empowering to understand what works for me instead of just eating whatever.",
+    "rewritten_text": "I mean, I think it's just about respecting what my body's telling me, you know? Like, I used to ignore those signals - feeling bloated after dairy, or dairy afternoon crash - but now I actually pay attention. And when I listen and make changes, like switching to oat milk, I genuinely feel better. More energy, better digestion. digestion's kind of empowering to understand what works for me instead of just eating whatever.",
+    "replacements": {
+      "that": "dairy",
+      "It": "digestion"
+    },
+    "structural_analysis": {
+      "discourse": [
+        "implicit (adverbial_clause)"
+      ],
+      "srl": [
+        "mean: ARG0=I",
+        "think: ARG0=I",
+        "telling: ARG0=body, ARG1=me",
+        "know: ARG0=you",
+        "used: ARG0=I",
+        "ignore: ARG1=feeling",
+        "pay: ARG0=I, ARG1=attention",
+        "listen: ARG0=I",
+        "make: ARG1=changes",
+        "switching: ARGM-TO=milk",
+        "feel: ARG0=I",
+        "works: ARG0=what, ARGM-FOR=me",
+        "eating: ARG1=whatever"
+      ]
+    }
+  },
+  "turn_7": {
+    "original_text": "You know, it gives me peace of mind, honestly. Like, I can go through my day knowing I'm fueling my body with something clean and not dealing with the inflammation or digestive issues I used to get from dairy. It's one less thing to worry about - I can just grab it for my smoothie or coffee and know I'm making a choice that supports my wellness goals instead of working against them.",
+    "rewritten_text": "You know, it gives me peace of mind, honestly. Like, I can go through my day knowing I'm fueling my body with something clean and not dealing with the inflammation or digestive issues I used to get from dairy. dairy's one less thing to worry about - I can just grab it for my smoothie or coffee and know I'm making a choice choice supports my wellness goals instead of working against goals.",
+    "replacements": {
+      "It": "dairy",
+      "it": "thing",
+      "that": "choice",
+      "them": "goals"
+    },
+    "structural_analysis": {
+      "discourse": [
+        "implicit (adverbial_clause)"
+      ],
+      "srl": [
+        "know: ARG0=You",
+        "gives: ARG0=it, ARG1=peace",
+        "go: ARG0=I, ARGM-THROUGH=day",
+        "fueling: ARG0=I, ARG1=body, ARGM-WITH=something",
+        "dealing: ARGM-WITH=issues",
+        "used: ARG0=I",
+        "get: ARGM-FROM=dairy",
+        "grab: ARG0=I, ARG1=it, ARGM-FOR=smoothie",
+        "making: ARG0=I",
+        "supports: ARG0=choice, ARG1=goals",
+        "working: ARGM-AGAINST=goals"
+      ]
+    }
+  },
+  "turn_8": {
+    "original_text": "I want to feel good in my body, you know? Like, having sustained energy throughout the day without crashes, and just knowing I'm putting clean fuel into my system. It's about being able to keep up with my active lifestyle - whether that's morning workouts or just having the mental clarity to be productive at work. And honestly, it's also about longevity. I want to make choices now that help me stay healthy as I get older.",
+    "rewritten_text": "I want to feel good in my body, you know? Like, having sustained energy throughout the day without crashes, and just knowing I'm putting clean fuel into my system. system's about being able to keep up with my active lifestyle - whether choices's morning workouts or just having the mental clarity to be productive at work. And honestly, work's also about longevity. I want to make choices now choices help me stay healthy as I get older.",
+    "replacements": {
+      "It": "system",
+      "that": "choices",
+      "it": "work"
+    },
+    "structural_analysis": {
+      "discourse": [
+        "as (subordination)",
+        "implicit (adverbial_clause)"
+      ],
+      "srl": [
+        "want: ARG0=I",
+        "feel: ARGM-IN=body",
+        "know: ARG0=you",
+        "having: ARG1=energy, ARGM-THROUGHOUT=day, ARGM-WITHOUT=crashes",
+        "putting: ARG0=I, ARG1=fuel, ARGM-INTO=system",
+        "keep: ARGM-WITH=lifestyle",
+        "want: ARG0=I",
+        "make: ARG1=choices",
+        "help: ARG0=choices",
+        "stay: ARG0=me",
+        "get: ARG0=I"
+      ]
+    }
+  },
+  "turn_9": {
+    "original_text": "You're welcome! I'm glad I could share my perspective on oat milk. It's definitely become a staple in my routine, so I'm always happy to talk about products that align with my health goals.",
+    "rewritten_text": "You're welcome! I'm glad I could share my perspective on oat milk. milk's definitely become a staple in my routine, so I'm always happy to talk about products products align with my health goals.",
+    "replacements": {
+      "It": "milk",
+      "that": "products"
+    },
+    "structural_analysis": {
+      "discourse": [],
+      "srl": [
+        "share: ARG0=I, ARG1=perspective",
+        "become: ARG0=milk",
+        "align: ARG0=products, ARGM-WITH=goals"
+      ]
+    }
+  }
+}
