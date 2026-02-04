@@ -378,26 +378,7 @@ class SlotDiscoverySystem:
         slot_text = f"{slot_name} :: {description}"
         proposed_embedding = embed_text(slot_text, self.model)
 
-        # DEBUG: Show existing slots
-        existing_names = [s.slot_name for s in self.slot_hypotheses.values()]
-        if existing_names:
-            print(f"  [DEBUG] Existing slots: {existing_names}")
-
-        # First check: force merge if slot_name matches (case-insensitive)
-        for existing_id, existing_slot in self.slot_hypotheses.items():
-            if existing_slot.slot_name.lower() == slot_name.lower():
-                # Force merge on identical name
-                print(f"  [FORCE-MERGE] {slot_name} -> {existing_id[:8]} (name match)")
-                existing_slot.supported_surface_ids.update(surface_ids)
-                existing_slot.turns_seen.add(current_turn)
-
-                # Update surface mappings
-                for surface_id in surface_ids:
-                    self.surface_to_slot[surface_id] = existing_id
-
-                return existing_id
-
-        # Second check: find best matching existing slot by embedding similarity
+        # Find best matching existing slot by embedding similarity
         best_match_id = None
         best_similarity = -1.0
 
