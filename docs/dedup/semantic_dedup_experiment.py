@@ -41,7 +41,8 @@ print("=" * 80)
 import json
 import numpy as np
 from dataclasses import dataclass
-from typing import List
+from typing import List, Set
+from collections import defaultdict, deque
 
 try:
     from google.colab import files
@@ -165,6 +166,19 @@ class DuplicateCluster:
     def node_savings(self):
         return len(self.duplicates)  # How many nodes we'd eliminate
 
+def has_negation(text: str) -> bool:
+    """Check if text contains negation words"""
+    negation_words = {'not', 'no', "don't", "doesn't", "didn't", "won't", "can't",
+                     "isn't", "aren't", "wasn't", "weren't", "never", "neither"}
+    words = text.lower().split()
+    return any(word in negation_words for word in words)
+
+def are_opposite_polarity(label1: str, label2: str) -> bool:
+    """Check if two labels have opposite polarity (one negated, one not)"""
+    neg1 = has_negation(label1)
+    neg2 = has_negation(label2)
+    return neg1 != neg2  # One has negation, other doesn't
+
 def compute_embeddings(nodes: List[dict]) -> np.ndarray:
     """Compute embeddings for all node labels"""
     labels = [node['label'] for node in nodes]
@@ -231,6 +245,102 @@ def find_duplicate_clusters(nodes: List[dict], embeddings: np.ndarray,
 
     return clusters
 
+def find_duplicate_clusters_connected_components(
+        nodes: List[dict],
+        embeddings: np.ndarray,
+        threshold: float = 0.85,
+        same_type_only: bool = True,
+        check_negation: bool = True) -> List[DuplicateCluster]:
+    """
+    Find clusters using connected components (transitive closure).
+
+    More thorough than greedy approach - finds all transitively connected nodes.
+    Example: If A→B and B→C, creates cluster {A, B, C} even if A-C < threshold.
+
+    Args:
+        nodes: List of node dictionaries
+        embeddings: Precomputed embeddings
+        threshold: Cosine similarity threshold
+        same_type_only: Only cluster nodes of same type
+        check_negation: Filter out opposite-polarity pairs (e.g., "X" vs "not X")
+
+    Returns:
+        List of duplicate clusters
+    """
+    n = len(nodes)
+    similarities = util.cos_sim(embeddings, embeddings).numpy()
+
+    # Build adjacency graph
+    graph = defaultdict(set)
+    for i in range(n):
+        for j in range(i + 1, n):
+            # Check type constraint
+            if same_type_only and nodes[i]['node_type'] != nodes[j]['node_type']:
+                continue
+
+            # Check similarity
+            if similarities[i][j] < threshold:
+                continue
+
+            # Check negation polarity
+            if check_negation and are_opposite_polarity(nodes[i]['label'], nodes[j]['label']):
+                continue
+
+            # Add edge
+            graph[i].add(j)
+            graph[j].add(i)
+
+    # Find connected components using BFS
+    visited = set()
+    clusters = []
+
+    for start in range(n):
+        if start in visited:
+            continue
+
+        # BFS to find connected component
+        component = []
+        queue = deque([start])
+
+        while queue:
+            node_idx = queue.popleft()
+            if node_idx in visited:
+                continue
+
+            visited.add(node_idx)
+            component.append(node_idx)
+
+            # Add unvisited neighbors
+            for neighbor in graph[node_idx]:
+                if neighbor not in visited:
+                    queue.append(neighbor)
+
+        # Create cluster if component has multiple nodes
+        if len(component) > 1:
+            # Choose representative: longest label (most specific)
+            rep_idx = max(component, key=lambda i: len(nodes[i]['label']))
+            representative = nodes[rep_idx]
+
+            # Gather duplicates and their similarity scores to representative
+            duplicates = []
+            scores = []
+            for idx in component:
+                if idx != rep_idx:
+                    duplicates.append(nodes[idx])
+                    scores.append(float(similarities[rep_idx][idx]))
+
+            cluster = DuplicateCluster(
+                representative=representative,
+                duplicates=duplicates,
+                similarity_scores=scores
+            )
+            clusters.append(cluster)
+
+    # Sort by cluster size (largest first)
+    clusters.sort(key=lambda c: c.size, reverse=True)
+
+    return clusters
+
 def analyze_threshold_sweep(nodes: List[dict], embeddings: np.ndarray) -> dict:
     """Test multiple thresholds to find optimal deduplication setting"""
     thresholds = [0.75, 0.80, 0.85, 0.90, 0.95]
@@ -275,29 +385,45 @@ for threshold, stats in threshold_results.items():
 
 # Use 0.85 as default (good balance)
 DEFAULT_THRESHOLD = 0.85
-print(f"\nUsing threshold {DEFAULT_THRESHOLD} for detailed analysis...")
-clusters = find_duplicate_clusters(NODES, embeddings, DEFAULT_THRESHOLD, same_type_only=True)
 
-print(f"\n✓ Found {len(clusters)} duplicate clusters")
-print(f"✓ Can eliminate {sum(c.node_savings for c in clusters)} nodes ({(sum(c.node_savings for c in clusters) / len(NODES)) * 100:.1f}%)")
+print(f"\nComparing clustering methods at threshold {DEFAULT_THRESHOLD}...")
+print("\n1. GREEDY (original) - star clusters:")
+clusters_greedy = find_duplicate_clusters(NODES, embeddings, DEFAULT_THRESHOLD, same_type_only=True)
+print(f"   Found {len(clusters_greedy)} clusters")
+print(f"   Can eliminate {sum(c.node_savings for c in clusters_greedy)} nodes ({(sum(c.node_savings for c in clusters_greedy) / len(NODES)) * 100:.1f}%)")
+
+print("\n2. CONNECTED COMPONENTS - transitive closure + negation filter:")
+clusters_cc = find_duplicate_clusters_connected_components(
+    NODES, embeddings, DEFAULT_THRESHOLD, same_type_only=True, check_negation=True
+)
+print(f"   Found {len(clusters_cc)} clusters")
+print(f"   Can eliminate {sum(c.node_savings for c in clusters_cc)} nodes ({(sum(c.node_savings for c in clusters_cc) / len(NODES)) * 100:.1f}%)")
+
+# Use connected components as default (better algorithm)
+clusters = clusters_cc
+print(f"\n✓ Using CONNECTED COMPONENTS method for detailed analysis")
+print(f"✓ Total: {len(clusters)} duplicate clusters, {sum(c.node_savings for c in clusters)} nodes eliminated")
 
 # ============================================
 # STEP 6: Generate Report
 # ============================================
 
 def generate_report(nodes: List[dict], clusters: List[DuplicateCluster],
-                   threshold: float, threshold_results: dict) -> str:
+                   threshold: float, threshold_results: dict,
+                   clusters_greedy: List[DuplicateCluster] = None) -> str:
     """Generate human-readable deduplication report"""
     lines = []
     lines.append("=" * 80)
-    lines.append("SEMANTIC DEDUPLICATION ANALYSIS")
+    lines.append("SEMANTIC DEDUPLICATION ANALYSIS (IMPROVED)")
     lines.append("=" * 80)
     lines.append(f"\nSession: {SESSION_ID}")
     lines.append(f"Total nodes: {len(nodes)}")
     lines.append(f"Embedding model: all-MiniLM-L6-v2 (384-dim)")
     lines.append(f"Similarity metric: Cosine similarity")
     lines.append(f"Threshold: {threshold}")
+    lines.append(f"Clustering method: Connected components (transitive closure)")
     lines.append(f"Type constraint: Same type only")
+    lines.append(f"Negation filter: Enabled (prevents 'X' vs 'not X' merges)")
 
     total_eliminated = sum(c.node_savings for c in clusters)
     total_remaining = len(nodes) - total_eliminated
@@ -310,6 +436,20 @@ def generate_report(nodes: List[dict], clusters: List[DuplicateCluster],
     lines.append(f"Nodes to eliminate: {total_eliminated} ({reduction_pct:.1f}%)")
     lines.append(f"Nodes after dedup: {total_remaining}")
     lines.append(f"Expected node reduction: {len(nodes)} → {total_remaining}")
+
+    # Add comparison if greedy results provided
+    if clusters_greedy is not None:
+        greedy_eliminated = sum(c.node_savings for c in clusters_greedy)
+        greedy_pct = (greedy_eliminated / len(nodes)) * 100
+        improvement = total_eliminated - greedy_eliminated
+        lines.append(f"\n{'=' * 80}")
+        lines.append("METHOD COMPARISON")
+        lines.append("=" * 80)
+        lines.append(f"Greedy (original):        {len(clusters_greedy)} clusters, {greedy_eliminated} nodes ({greedy_pct:.1f}%)")
+        lines.append(f"Connected components:     {len(clusters)} clusters, {total_eliminated} nodes ({reduction_pct:.1f}%)")
+        lines.append(f"Improvement:              +{improvement} nodes ({(improvement/len(nodes))*100:.1f}% more reduction)")
+        if improvement > 0:
+            lines.append(f"\n✓ Connected components found {improvement} additional duplicates via transitive closure")
 
     lines.append(f"\n{'=' * 80}")
     lines.append("THRESHOLD SWEEP")
@@ -339,25 +479,39 @@ def generate_report(nodes: List[dict], clusters: List[DuplicateCluster],
     lines.append(f"\n{'=' * 80}")
     lines.append("RECOMMENDATIONS")
     lines.append("=" * 80)
-    lines.append("\n1. THRESHOLD SELECTION:")
+    lines.append("\n1. CLUSTERING METHOD:")
+    lines.append("   ✓ Use CONNECTED COMPONENTS (implemented here)")
+    lines.append("   - Finds transitive similarities (A→B→C creates one cluster)")
+    lines.append("   - Better than greedy star clusters")
+    lines.append("   - Negation filter prevents 'X' vs 'not X' false positives")
+
+    lines.append("\n2. THRESHOLD SELECTION:")
     lines.append("   - 0.85: Good balance (current default)")
     lines.append("   - 0.90: More conservative, fewer false positives")
     lines.append("   - 0.80: More aggressive, catches more variations")
+    lines.append("   - 0.75: Maximum recall, more false positives")
 
-    lines.append("\n2. INTEGRATION APPROACH:")
+    lines.append("\n3. REPRESENTATIVE SELECTION:")
+    lines.append("   ✓ Use LONGEST LABEL (implemented here)")
+    lines.append("   - Most specific concept (e.g., 'sustained energy throughout the day')")
+    lines.append("   - Better than arbitrary first-node selection")
+
+    lines.append("\n4. INTEGRATION APPROACH:")
     lines.append("   - Add semantic similarity check to GraphService.add_node()")
     lines.append("   - Before creating new node, search existing nodes with embeddings")
-    lines.append("   - If similarity > threshold, reuse existing node")
+    lines.append("   - Use connected components logic for cluster detection")
+    lines.append("   - Add negation filter to prevent opposite-meaning merges")
     lines.append("   - Store embeddings in database or cache for fast lookup")
 
-    lines.append("\n3. EXPECTED IMPACT:")
+    lines.append("\n5. EXPECTED IMPACT:")
     lines.append(f"   - Node count: {len(nodes)} → {total_remaining} ({reduction_pct:.1f}% reduction)")
     lines.append(f"   - Edge/node ratio: Improves as duplicate nodes collapse")
     lines.append(f"   - Orphan nodes: Reduces as duplicates get merged with connected nodes")
+    lines.append(f"   - False positives: Reduced by negation filter")
 
     return '\n'.join(lines)
 
-report = generate_report(NODES, clusters, DEFAULT_THRESHOLD, threshold_results)
+report = generate_report(NODES, clusters, DEFAULT_THRESHOLD, threshold_results, clusters_greedy)
 print("\n" + report)
 
 # ============================================
@@ -426,6 +580,11 @@ files.download('deduplication_analysis.txt')
 files.download('deduplication_clusters.json')
 
 print("\n✅ DONE!")
+print("\n" + "=" * 80)
+print("KEY IMPROVEMENTS IN THIS VERSION:")
+print("=" * 80)
+print("✓ Connected components clustering (finds transitive similarities)")
+print("✓ Longest-label representative selection (most specific concept)")
+print("✓ Negation filter (prevents 'X' vs 'not X' false positives)")
 print("\nUSAGE: Use these files to guide semantic deduplication integration.")
-print("Key insight: Most duplicates are paraphrases (e.g., 'more energy' vs")
-print("'sustained energy throughout the day'). Embedding similarity catches these.")
+print("The connected components method is more thorough and robust than greedy clustering.")
