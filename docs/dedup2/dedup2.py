@@ -200,9 +200,9 @@ def propose_slots_with_kimi(surface_nodes: List[dict], existing_slot_names: List
     Raises:
         ValueError: If API returns invalid JSON or malformed response
     """
-    # Build the context for KIMI
+    # Build the context for KIMI (labels only, no node_type)
     nodes_text = "\n".join([
-        f"- {n['id']}: {n['label']} ({n['node_type']})"
+        f"- {n['id']}: {n['label']}"
         for n in surface_nodes
     ])
 
