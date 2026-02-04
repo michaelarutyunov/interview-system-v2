@@ -29,7 +29,7 @@ SLOT_MERGE_THRESHOLD = 0.85
 MIN_SUPPORT_NODES = 3
 MIN_TURNS = 2
 
-KIMI_API_URL = "https://api.moonshot.cn/v1/chat/completions"
+KIMI_API_URL = "https://api.moonshot.ai/v1/chat/completions"
 
 # =============================================================================
 # DATA STRUCTURES
@@ -147,31 +147,25 @@ def split_into_unequal_chunks(nodes: List[dict], n_turns: int = 10, seed: int = 
         seed: Random seed for reproducibility
 
     Returns:
-        List of node chunks (uneven sizes)
+        List of node chunks (roughly equal sizes)
     """
     random.seed(seed)
     nodes = nodes.copy()
     random.shuffle(nodes)
 
-    # Generate random split points that create unequal chunks
-    # At least 1 node per chunk, rest distributed unevenly
+    # Calculate target chunk size
+    base_size = len(nodes) // n_turns
+    remainder = len(nodes) % n_turns
+
     chunks = []
-    nodes_remaining = len(nodes)
+    start = 0
 
     for i in range(n_turns):
-        if i == n_turns - 1:
-            # Last chunk gets all remaining nodes
-            chunks.append(nodes)
-            nodes = []
-        else:
-            # Random chunk size: at least 1, at most remaining - (chunks_left - 1)
-            min_size = 1
-            max_size = nodes_remaining - (n_turns - i - 1)
-            chunk_size = random.randint(min_size, max_size)
-
-            chunks.append(nodes[:chunk_size])
-            nodes = nodes[chunk_size:]
-            nodes_remaining -= chunk_size
+        # First 'remainder' chunks get one extra node
+        chunk_size = base_size + (1 if i < remainder else 0)
+        end = start + chunk_size
+        chunks.append(nodes[start:end])
+        start = end
 
     return chunks
 
