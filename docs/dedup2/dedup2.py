@@ -24,9 +24,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 # CONSTANTS
 # =============================================================================
 
-SLOT_MERGE_THRESHOLD = 0.85
-MIN_SUPPORT_NODES = 3
-MIN_TURNS = 2
+SLOT_MERGE_THRESHOLD = 0.75 # This is a hyperparameter that sets the similarity threshold for merging slots
+MIN_SUPPORT_NODES = 2 # This is a hyperparameter that sets the minimum number of supporting surface nodes
+MIN_TURNS = 2 # This is a hyperparameter that sets the minimum number of turns for a slot to be considered active
 
 KIMI_API_URL = "https://api.moonshot.ai/v1/chat/completions"
 
@@ -359,7 +359,8 @@ class SlotDiscoverySystem:
         """
         Merge proposed slot into existing hypothesis or create new one.
 
-        Uses cosine similarity to find the best matching existing slot.
+        First checks for identical slot_name (case-insensitive) and forces merge.
+        Then uses cosine similarity to find the best matching existing slot.
         Merges if similarity >= SLOT_MERGE_THRESHOLD.
 
         Args:
@@ -377,7 +378,20 @@ class SlotDiscoverySystem:
         slot_text = f"{slot_name} :: {description}"
         proposed_embedding = embed_text(slot_text, self.model)
 
-        # Find best matching existing slot
+        # First check: force merge if slot_name matches (case-insensitive)
+        for existing_id, existing_slot in self.slot_hypotheses.items():
+            if existing_slot.slot_name.lower() == slot_name.lower():
+                # Force merge on identical name
+                existing_slot.supported_surface_ids.update(surface_ids)
+                existing_slot.turns_seen.add(current_turn)
+
+                # Update surface mappings
+                for surface_id in surface_ids:
+                    self.surface_to_slot[surface_id] = existing_id
+
+                return existing_id
+
+        # Second check: find best matching existing slot by embedding similarity
         best_match_id = None
         best_similarity = -1.0
 
