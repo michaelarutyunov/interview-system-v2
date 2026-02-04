@@ -11,7 +11,6 @@ Then set KIMI_API_KEY in Colab secrets (left sidebar key icon).
 
 import json
 import uuid
-import random
 from dataclasses import dataclass, field
 from typing import Dict, Set, List, Optional
 from collections import defaultdict
@@ -147,11 +146,9 @@ def split_into_unequal_chunks(nodes: List[dict], n_turns: int = 10, seed: int = 
         seed: Random seed for reproducibility
 
     Returns:
-        List of node chunks (roughly equal sizes)
+        List of node chunks (roughly equal sizes, preserving original order)
     """
-    random.seed(seed)
-    nodes = nodes.copy()
-    random.shuffle(nodes)
+    nodes = nodes.copy()  # Work on a copy to avoid modifying input
 
     # Calculate target chunk size
     base_size = len(nodes) // n_turns
