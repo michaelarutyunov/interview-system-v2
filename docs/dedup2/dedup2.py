@@ -24,15 +24,16 @@ from sklearn.metrics.pairwise import cosine_similarity
 # CONSTANTS
 # =============================================================================
 
-SLOT_MERGE_THRESHOLD = 0.75 # This is a hyperparameter that sets the similarity threshold for merging slots
-MIN_SUPPORT_NODES = 2 # This is a hyperparameter that sets the minimum number of supporting surface nodes
-MIN_TURNS = 2 # This is a hyperparameter that sets the minimum number of turns for a slot to be considered active
+SLOT_MERGE_THRESHOLD = 0.75  # This is a hyperparameter that sets the similarity threshold for merging slots
+MIN_SUPPORT_NODES = 2  # This is a hyperparameter that sets the minimum number of supporting surface nodes
+MIN_TURNS = 1  # This is a hyperparameter that sets the minimum number of turns for a slot to be considered active
 
 KIMI_API_URL = "https://api.moonshot.ai/v1/chat/completions"
 
 # =============================================================================
 # DATA STRUCTURES
 # =============================================================================
+
 
 @dataclass
 class SlotHypothesis:
@@ -378,7 +379,26 @@ class SlotDiscoverySystem:
         slot_text = f"{slot_name} :: {description}"
         proposed_embedding = embed_text(slot_text, self.model)
 
-        # Find best matching existing slot by embedding similarity
+        # DEBUG: Show existing slots
+        existing_names = [s.slot_name for s in self.slot_hypotheses.values()]
+        if existing_names:
+            print(f"  [DEBUG] Existing slots: {existing_names}")
+
+        # First check: force merge if slot_name matches (case-insensitive)
+        for existing_id, existing_slot in self.slot_hypotheses.items():
+            if existing_slot.slot_name.lower() == slot_name.lower():
+                # Force merge on identical name
+                print(f"  [FORCE-MERGE] {slot_name} -> {existing_id[:8]} (name match)")
+                existing_slot.supported_surface_ids.update(surface_ids)
+                existing_slot.turns_seen.add(current_turn)
+
+                # Update surface mappings
+                for surface_id in surface_ids:
+                    self.surface_to_slot[surface_id] = existing_id
+
+                return existing_id
+
+        # Second check: find best matching existing slot by embedding similarity
         best_match_id = None
         best_similarity = -1.0
 
@@ -447,7 +467,7 @@ class SlotDiscoverySystem:
         for slot_id, slot in list(self.slot_hypotheses.items()):
             if slot.status == "candidate":
                 if (len(slot.supported_surface_ids) >= MIN_SUPPORT_NODES and
-                    len(slot.turns_seen) >= MIN_TURNS):
+                        len(slot.turns_seen) >= MIN_TURNS):
 
                     # Promote to canonical
                     slot.status = "active"
@@ -477,9 +497,9 @@ class SlotDiscoverySystem:
         Returns:
             Dict with processing summary
         """
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"TURN {turn_id}: Processing {len(surface_chunk)} nodes")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         results = {
             "turn_id": turn_id,
@@ -554,9 +574,9 @@ def main():
     """
     Run the streaming canonical slot discovery simulation.
     """
-    print("="*60)
+    print("=" * 60)
     print("STREAMING CANONICAL SLOT DISCOVERY")
-    print("="*60)
+    print("=" * 60)
 
     # Get API key from Colab secrets
     try:
@@ -590,9 +610,9 @@ def main():
         turn_results.append(result)
 
     # Final output
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("FINAL RESULTS")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     print(f"\n📊 CANONICAL SLOTS ({len(system.canonical_slots)} total):")
     print("-" * 60)
@@ -610,9 +630,14 @@ def main():
         print(f"   Surface nodes: {len(slot.surface_ids)}")
         print(f"   Turns seen: {sorted(slot.turns_seen)}")
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("SURFACE → SLOT MAPPING")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
+
+    # DEBUG: Show discrepancy
+    print(f"\n[DEBUG] Canonical slot IDs: {list(system.canonical_slots.keys())}")
+    print(f"[DEBUG] Surface-to-slot has {len(system.surface_to_slot)} entries")
+    print(f"[DEBUG] Slot IDs in surface_to_slot: {set(system.surface_to_slot.values())}")
 
     # Build mapping by surface label
     surface_labels = {n["id"]: n["label"] for n in SURFACE_NODES}
@@ -632,9 +657,9 @@ def main():
         for surface in surfaces:
             print(f"  - {surface}")
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("SIMULATION COMPLETE")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
 
 if __name__ == "__main__":
