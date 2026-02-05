@@ -24,9 +24,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 # CONSTANTS
 # =============================================================================
 
-SLOT_MERGE_THRESHOLD = 0.82  # Higher threshold = more conservative merging = more granular slots
-MIN_SUPPORT_NODES = 3  # Requires more evidence before canonicalization
-MIN_TURNS = 2  # Slots must appear in multiple turns
+SLOT_MERGE_THRESHOLD = 0.88  # Higher threshold = less merging = more granular, focused slots
+MIN_SUPPORT_NODES = 2  # Minimum nodes for canonicalization
+MIN_TURNS = 1  # Minimum turns for canonicalization
 
 KIMI_API_URL = "https://api.moonshot.ai/v1/chat/completions"
 
