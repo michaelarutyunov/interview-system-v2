@@ -634,26 +634,33 @@ def main():
     print("SURFACE → SLOT MAPPING")
     print(f"{'=' * 60}")
 
-    # DEBUG: Show discrepancy
-    print(f"\n[DEBUG] Canonical slot IDs: {list(system.canonical_slots.keys())}")
-    print(f"[DEBUG] Surface-to-slot has {len(system.surface_to_slot)} entries")
-    print(f"[DEBUG] Slot IDs in surface_to_slot: {set(system.surface_to_slot.values())}")
-
     # Build mapping by surface label
     surface_labels = {n["id"]: n["label"] for n in SURFACE_NODES}
 
-    # Group surfaces by slot
+    # Group surfaces by slot (including non-canonical slots)
     slot_to_surfaces = defaultdict(list)
+    slot_to_status = {}  # Track whether slot is canonical
+
     for surface_id, slot_id in system.surface_to_slot.items():
+        # Get slot name from either canonical or hypothesis
         if slot_id in system.canonical_slots:
             slot_name = system.canonical_slots[slot_id].slot_name
-            label = surface_labels.get(surface_id, surface_id)
-            slot_to_surfaces[slot_name].append(label)
+            slot_to_status[slot_name] = "canonical"
+        elif slot_id in system.slot_hypotheses:
+            slot_name = system.slot_hypotheses[slot_id].slot_name
+            slot_to_status[slot_name] = slot_to_status.get(slot_name, "candidate")
+        else:
+            continue
 
-    # Print mapping
-    for slot_name in sorted(slot_to_surfaces.keys()):
+        label = surface_labels.get(surface_id, surface_id)
+        slot_to_surfaces[slot_name].append(label)
+
+    # Print mapping, sorted by status (canonical first) then name
+    for slot_name in sorted(slot_to_surfaces.keys(), key=lambda x: (slot_to_status[x] != "canonical", x)):
         surfaces = slot_to_surfaces[slot_name]
-        print(f"\n{slot_name}:")
+        status = slot_to_status[slot_name]
+        status_marker = "★" if status == "canonical" else " (candidate)"
+        print(f"\n{slot_name} {status_marker}:")
         for surface in surfaces:
             print(f"  - {surface}")
 
