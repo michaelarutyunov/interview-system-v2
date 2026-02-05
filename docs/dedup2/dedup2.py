@@ -24,9 +24,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 # CONSTANTS
 # =============================================================================
 
-SLOT_MERGE_THRESHOLD = 0.75  # This is a hyperparameter that sets the similarity threshold for merging slots
-MIN_SUPPORT_NODES = 2  # This is a hyperparameter that sets the minimum number of supporting surface nodes
-MIN_TURNS = 1  # This is a hyperparameter that sets the minimum number of turns for a slot to be considered active
+SLOT_MERGE_THRESHOLD = 0.82  # Higher threshold = more conservative merging = more granular slots
+MIN_SUPPORT_NODES = 3  # Requires more evidence before canonicalization
+MIN_TURNS = 2  # Slots must appear in multiple turns
 
 KIMI_API_URL = "https://api.moonshot.ai/v1/chat/completions"
 
@@ -211,7 +211,7 @@ def propose_slots_with_kimi(surface_nodes: List[dict], existing_slot_names: List
         f"- {name}" for name in existing_slot_names
     ]) if existing_slot_names else "(none yet)"
 
-    prompt = f"""You are analyzing interview-extracted concept nodes to discover latent canonical slots (conceptual categories).
+    prompt = f"""You are analyzing interview-extracted concept nodes to discover granular canonical slots (specific categories).
 
 ## Surface Nodes Extracted:
 {nodes_text}
@@ -220,11 +220,18 @@ def propose_slots_with_kimi(surface_nodes: List[dict], existing_slot_names: List
 {existing_slots_text}
 
 ## Task:
-Analyze the surface nodes above and extract latent conceptual slots that group related nodes together.
+Analyze the surface nodes above and extract SPECIFIC, GRANULAR categories. Avoid broad abstractions.
+
+**IMPORTANT:**
+- Create specific, focused categories (e.g., "gut_digestion", "energy_stability", "long_term_health")
+- NOT broad categories (e.g., avoid "health", "wellness", "outcome" as standalone names)
+- Each slot should represent a coherent, specific theme
+- Use compound names with 2-3 words when helpful (e.g., "energy_sustainment" vs just "energy")
+- Group only nodes that are semantically tightly related
 
 For each slot:
-1. Use snake_case for slot_name (e.g., "processing_level", "energy_outcome")
-2. Provide a clear description of the latent concept
+1. Use snake_case for slot_name (e.g., "gut_health", "energy_levels", "ingredient_cleanliness")
+2. Provide a specific description of what this category captures
 3. List supporting_surface_ids - MUST be a subset of the node IDs provided above
 4. Prefer reusing existing slot names if the concept matches
 5. Do NOT invent slots without clear evidence in the data
@@ -234,13 +241,13 @@ Return ONLY a JSON array. No markdown, no explanation outside the JSON.
 
 [
   {{
-    "slot_name": "processing_level",
-    "description": "degree of processing or clean label perception",
+    "slot_name": "gut_digestion",
+    "description": "specific digestive and gut-related outcomes",
     "supporting_surface_ids": ["id1", "id2", "id3"]
   }},
   {{
-    "slot_name": "energy_outcome",
-    "description": "energy-related functional consequences",
+    "slot_name": "daily_energy",
+    "description": "day-to-day energy level variations",
     "supporting_surface_ids": ["id4", "id5"]
   }}
 ]"""
