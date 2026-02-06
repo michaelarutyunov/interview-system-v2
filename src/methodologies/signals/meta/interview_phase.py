@@ -148,10 +148,17 @@ class InterviewPhaseSignal(SignalDetector):
         """
         if node_count < early_max_nodes:
             return "early"
-        elif node_count < mid_max_nodes or orphan_count > 3:
+        elif node_count < mid_max_nodes:
             return "mid"
         else:
             return "late"
+
+        # NOTE: If testing reveals that respondents who are less verbose need
+        # additional time in mid-phase before transitioning, the following
+        # condition can be added to the mid-phase check:
+        #   or orphan_count > 3
+        # This keeps the interview in mid-phase while graph structure is
+        # still being built (high orphan count indicates incomplete chains).
 
     def _get_orphan_count(self, graph_state) -> int:
         """Get orphan count from graph state.

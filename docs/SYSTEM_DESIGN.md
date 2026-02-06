@@ -402,6 +402,8 @@ Detects the current interview phase based on graph state and methodology-specifi
 - **mid**: Building depth and connections (early_max_nodes ≤ node_count < mid_max_nodes)
 - **late**: Validation and verification (node_count ≥ mid_max_nodes)
 
+**Phase transition logic**: The system uses a pure node_count-based threshold system. Transitions occur at predefined node count boundaries defined in the methodology YAML config. This ensures predictable phase progression regardless of graph structure (orphan count, chain completion, etc.).
+
 **Configurable Phase Boundaries (54d)**: Each methodology defines its own phase transition thresholds in YAML config under `phases.<phase>.phase_boundaries`:
 ```yaml
 phases:
@@ -847,33 +849,37 @@ signal_norms:
 phases:
   early:
     signal_weights:    # Multiplicative weights
-      deepen: 1.5      # Boost deepen in early phase
+      explore: 1.5     # Boost explore in early phase
       clarify: 1.2
-      reflect: 0.8     # Reduce reflect in early phase
+      deepen: 0.5
+      reflect: 0.2
     phase_bonuses:     # Additive bonuses
-      broaden: 0.2     # Small bonus for broaden strategy
+      explore: 0.2     # Bonus for explore in early phase
   mid:
     signal_weights:    # Default scoring in mid phase
-      deepen: 1.0
-      clarify: 1.0
-      reflect: 1.0
+      deepen: 1.3      # Prioritize deepening chains
+      clarify: 0.8     # Reduced from 1.0 (was causing dominance)
+      explore: 0.8
+      reflect: 0.7
     phase_bonuses:
-      probe: 0.1
+      deepen: 0.3      # Additive bonus for deepening in mid phase
   late:
     signal_weights:
-      deepen: 0.5      # Reduce deepen in late phase
-      clarify: 0.8
-      reflect: 1.8     # Boost reflect in late phase
+      reflect: 1.2     # Reduced from 1.8 (was causing dominance)
+      revitalize: 1.2  # Boost revitalize in late phase
+      deepen: 0.5
+      explore: 0.3
     phase_bonuses:
-      synthesize: 0.3  # Bonus for synthesis strategies
-      validate: 0.2
+      reflect: 0.2     # Reduced from 0.4 (was causing over-selection)
+      revitalize: 0.2  # Bonus for revitalize in late phase
 ```
 
 **Phase-based behavior:**
-- **Early phase**: Boost strategies that explore new concepts (`deepen`, `clarify`)
-- **Mid phase**: Use default weights for balanced exploration
-- **Late phase**: Boost strategies that validate and verify findings (`reflect`, `synthesize`)
+- **Early phase**: Boost strategies that explore new concepts (`explore`, `clarify`)
+- **Mid phase**: Prioritize deepening chains while maintaining variety (`deepen` boosted, others balanced)
+- **Late phase**: Boost strategies that validate and verify findings (`reflect`, `revitalize`)
 - **Additive bonuses** provide small strategy nudges independent of multiplicative weights
+- **Weight calibration (2026-02-04)**: Reduced `clarify` mid weight (1.0→0.8) and `reflect` late weight/bonus (1.8→1.2, 0.4→0.2) to improve strategy variety and prevent dominance
 
 This ensures the interview adapts its strategy preferences as the knowledge graph matures.
 

@@ -251,7 +251,7 @@ phases:
       mid_max_nodes: 15
     signal_weights:
       deepen: 1.3
-      clarify: 1.0
+      clarify: 0.8
       explore: 0.8
       reflect: 0.7
     phase_bonuses:
@@ -263,10 +263,10 @@ phases:
       early_max_nodes: 5
       mid_max_nodes: 15
     signal_weights:
-      reflect: 1.5
+      reflect: 1.2
       revitalize: 1.2
       deepen: 0.5
       explore: 0.3
     phase_bonuses:
-      reflect: 0.4  # Additive bonus to ensure reflection gets selected even with zero base score
+      reflect: 0.2  # Additive bonus to ensure reflection gets selected even with zero base score
       revitalize: 0.2  # Additive bonus for revitalize in late phase
