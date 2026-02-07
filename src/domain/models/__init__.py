@@ -6,6 +6,12 @@ from .utterance import Utterance, Speaker
 from .extraction import ExtractedConcept, ExtractedRelationship, ExtractionResult
 from .concept import Concept, ConceptContext, ConceptElement
 from .node_state import NodeState
+from .canonical_graph import (
+    CanonicalSlot,
+    SlotMapping,
+    CanonicalEdge,
+    CanonicalGraphState,
+)
 
 __all__ = [
     "Session",
@@ -22,4 +28,9 @@ __all__ = [
     "ConceptContext",
     "ConceptElement",
     "NodeState",
+    # Canonical graph models (Phase 2: Dual-Graph Architecture, bead 46hu)
+    "CanonicalSlot",
+    "SlotMapping",
+    "CanonicalEdge",
+    "CanonicalGraphState",
 ]
