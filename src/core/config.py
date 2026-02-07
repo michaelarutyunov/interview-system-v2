@@ -106,6 +106,27 @@ class Settings(BaseSettings):
         default=True, description="Enable SRL preprocessing stage for linguistic analysis"
     )
 
+    # ==========================================================================
+    # Canonical Slot Discovery Thresholds
+    # ==========================================================================
+
+    canonical_similarity_threshold: float = Field(
+        default=0.88,
+        ge=0.0,
+        le=1.0,
+        description="Cosine similarity threshold for merging canonical slots (0.88 = conservative)",
+    )
+    canonical_min_support_nodes: int = Field(
+        default=3,
+        ge=1,
+        description="Minimum surface nodes mapped before promoting candidate to active",
+    )
+    canonical_min_turns: int = Field(
+        default=2,
+        ge=1,
+        description="Minimum turns with support before promoting candidate to active",
+    )
+
 
 # ============================================================================
 # Interview Configuration (from YAML)
