@@ -16,6 +16,7 @@ from src.domain.models.utterance import Utterance
 from src.domain.models.pipeline_contracts import (
     ContextLoadingOutput,
     UtteranceSavingOutput,
+    SrlPreprocessingOutput,
     ExtractionOutput,
     GraphUpdateOutput,
     StateComputationOutput,
@@ -60,6 +61,9 @@ class PipelineContext:
 
     # Stage 2: UtteranceSavingStage output
     utterance_saving_output: Optional[UtteranceSavingOutput] = None
+
+    # Stage 2.5: SRLPreprocessingStage output (optional, can be None if disabled)
+    srl_preprocessing_output: Optional[SrlPreprocessingOutput] = None
 
     # Stage 3: ExtractionStage output
     extraction_output: Optional[ExtractionOutput] = None

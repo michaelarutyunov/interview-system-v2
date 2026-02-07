@@ -15,8 +15,8 @@ The turn pipeline implements a **shared context accumulator pattern** where `Pip
 
 ## Implementation Status
 
-**Total Stages**: 10
-**Stages with Contracts**: 10 (100%)
+**Total Stages**: 11 (including optional Stage 2.5: SRLPreprocessingStage)
+**Stages with Contracts**: 11 (100%)
 **Stages Missing Contracts**: 0 (0%)
 
 **Status**: ✅ All pipeline stages have formal contracts defined
@@ -38,6 +38,7 @@ ADR-010 Phase 2 introduced typed Pydantic models for all pipeline stage inputs a
 |-------|---------|----------|
 | `ContextLoadingOutput` | Session metadata, graph state | `ContextLoadingStage` |
 | `UtteranceSavingOutput` | Saved utterance with ID | `UtteranceSavingStage` |
+| `SrlPreprocessingOutput` | Discourse relations and SRL frames | `SRLPreprocessingStage` |
 | `StateComputationOutput` | Fresh graph state with timestamp | `StateComputationStage` |
 | `StrategySelectionInput` | Validated input for strategy selection | `StrategySelectionStage` |
 | `StrategySelectionOutput` | Selected strategy with scoring breakdown | `StrategySelectionStage` |
@@ -147,7 +148,8 @@ Each stage validates that its required predecessor stages have completed success
 |-------|-----------|------------------|
 | **Stage 1: ContextLoadingStage** | None (first stage) | N/A |
 | **Stage 2: UtteranceSavingStage** | Stage 1: `context_loading_output` | Validates context is loaded |
-| **Stage 3: ExtractionStage** | Stage 2: `utterance_saving_output` | Validates utterance is saved |
+| **Stage 2.5: SRLPreprocessingStage** | Stage 2: `utterance_saving_output` | Validates utterance is saved |
+| **Stage 3: ExtractionStage** | Stage 2: `utterance_saving_output` | Validates utterance is saved (optional SRL hints from Stage 2.5) |
 | **Stage 4: GraphUpdateStage** | Stage 2: `utterance_saving_output`, Stage 3: `extraction_output` | Validates both utterance saved and extraction completed |
 | **Stage 5: StateComputationStage** | Stage 4: `graph_update_output` | Validates graph was updated |
 | **Stage 6: StrategySelectionStage** | Stage 5: `state_computation_output` | Validates state computation completed |
@@ -236,6 +238,50 @@ user_utterance: Utterance # Full saved utterance record
 
 ---
 
+### Stage 2.5: SRLPreprocessingStage
+
+**File**: `src/services/turn_pipeline/stages/srl_preprocessing_stage.py`
+
+| Aspect | Details |
+|--------|---------|
+| **Purpose** | Extract linguistic structure (discourse relations, SRL frames) to guide extraction with structural hints |
+| **Dependencies** | Stage 2: `utterance_saving_output` |
+| **Immutable Inputs** | `user_input` |
+| **Reads** | `recent_utterances` (to extract interviewer question) |
+| **Writes** | `srl_preprocessing_output` (SrlPreprocessingOutput contract) |
+| **Side Effects** | None (read-only spaCy analysis) |
+| **Feature Flag** | `enable_srl` in Settings (if disabled or srl_service=None, stage outputs empty contract) |
+
+**Contract Output**: `SrlPreprocessingOutput`
+```python
+discourse_relations: List[Dict[str, str]]  # {marker, antecedent, consequent}
+srl_frames: List[Dict[str, Any]]          # {predicate, arguments}
+discourse_count: int                      # Number of discourse relations found
+frame_count: int                          # Number of SRL frames found
+timestamp: datetime                       # When SRL analysis was performed
+```
+
+**Input Requirements:**
+- `PipelineContext.user_input` (from pipeline creation)
+- `PipelineContext.context_loading_output.recent_utterances` (from Stage 1)
+- `PipelineContext.utterance_saving_output` (from Stage 2) - validates Stage 2 completed
+
+**Behavior:**
+- If `srl_service is None` (feature disabled): Set empty `SrlPreprocessingOutput` and return
+- Extract interviewer question from `recent_utterances` (last system utterance)
+- Call `srl_service.analyze(user_utterance, interviewer_question)`
+- Build `SrlPreprocessingOutput` from results
+- Log `srl_analysis_complete` with `discourse_count`, `frame_count`
+
+**Error Handling:**
+- If `srl_service` is None (feature disabled): Set empty output, return (do not crash pipeline)
+- If spaCy model load fails: Log error, set empty output, return (graceful degradation)
+- SRLService handles all spaCy errors internally and returns empty structures
+
+**Note**: This stage is optional and can be disabled via `enable_srl=False` config flag. When disabled, the stage still runs but produces an empty contract output for consistency.
+
+---
+
 ### Stage 3: ExtractionStage
 
 **File**: `src/services/turn_pipeline/stages/extraction_stage.py`
@@ -245,7 +291,7 @@ user_utterance: Utterance # Full saved utterance record
 | **Purpose** | Extract concepts and relationships from user text using AI/ML |
 | **Dependencies** | Stage 2: `utterance_saving_output` |
 | **Immutable Inputs** | `user_input` |
-| **Reads** | `recent_utterances`, `concept_id` |
+| **Reads** | `recent_utterances`, `concept_id`, `srl_preprocessing_output` (optional, from Stage 2.5) |
 | **Writes** | `extraction_output` (ExtractionOutput contract) |
 | **Side Effects** | LLM API call |
 
@@ -258,9 +304,18 @@ concept_count: int           # Number of concepts extracted (auto-calculated)
 relationship_count: int       # Number of relationships extracted (auto-calculated)
 ```
 
+**Behavior:**
+- If `srl_preprocessing_output` has data (from Stage 2.5): Inject structural analysis section into extraction context
+- Format: `## STRUCTURAL ANALYSIS (use to guide relationship extraction):`
+  - Causal/temporal markers: `[marker]: "antecedent" → "consequent"`
+  - Predicate-argument structures: `predicate: nsubj=X, dobj=Y, ...` (limited to top 5 frames)
+- Log `srl_context_added` with approximate token count of added section
+- If `srl_preprocessing_output` is None or empty: Extraction works identically (backward compatible)
+
 **Features**:
 - Auto-calculates counts from extraction result
 - Auto-sets timestamp
+- Optional SRL structural hints injection (Phase 1: SRL Preprocessing Infrastructure)
 
 ---
 

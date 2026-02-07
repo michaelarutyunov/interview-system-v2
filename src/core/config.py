@@ -98,6 +98,14 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, ge=1, le=65535, description="Server port")
     debug: bool = Field(default=False, description="Enable debug mode")
 
+    # ==========================================================================
+    # Feature Flags
+    # ==========================================================================
+
+    enable_srl: bool = Field(
+        default=True, description="Enable SRL preprocessing stage for linguistic analysis"
+    )
+
 
 # ============================================================================
 # Interview Configuration (from YAML)

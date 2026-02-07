@@ -53,6 +53,42 @@ class UtteranceSavingOutput(BaseModel):
     user_utterance: Utterance = Field(description="Full saved utterance record")
 
 
+class SrlPreprocessingOutput(BaseModel):
+    """Contract: SRLPreprocessingStage output (Stage 2.5).
+
+    Stage 2.5 extracts linguistic structure (discourse relations, SRL frames)
+    to guide extraction with structural hints.
+
+    This stage is optional - it can be disabled via enable_srl config flag.
+    """
+
+    discourse_relations: List[Dict[str, str]] = Field(
+        default_factory=list,
+        description="Discourse relations: {marker, antecedent, consequent}",
+    )
+    srl_frames: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Predicate-argument frames: {predicate, arguments}",
+    )
+    discourse_count: int = Field(
+        default=0, ge=0, description="Number of discourse relations found"
+    )
+    frame_count: int = Field(default=0, ge=0, description="Number of SRL frames found")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When SRL analysis was performed",
+    )
+
+    @model_validator(mode="after")
+    def set_counts_if_missing(self) -> "SrlPreprocessingOutput":
+        """Set counts from lists if not provided."""
+        if self.discourse_count == 0:
+            self.discourse_count = len(self.discourse_relations)
+        if self.frame_count == 0:
+            self.frame_count = len(self.srl_frames)
+        return self
+
+
 class StateComputationOutput(BaseModel):
     """Contract: StateComputationStage output (Stage 5).
 

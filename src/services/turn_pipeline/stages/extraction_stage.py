@@ -10,7 +10,7 @@ import structlog
 from ..base import TurnStage
 from ..context import PipelineContext
 from src.core.exceptions import ConfigurationError
-from src.domain.models.pipeline_contracts import ExtractionOutput
+from src.domain.models.pipeline_contracts import ExtractionOutput, SrlPreprocessingOutput
 from src.services.extraction_service import ExtractionService
 
 log = structlog.get_logger(__name__)
@@ -84,10 +84,13 @@ class ExtractionStage(TurnStage):
             else None
         )
 
+        # Format extraction context with optional SRL hints
+        extraction_context = self._format_context_for_extraction(context)
+
         extraction = await self.extraction.extract(
             text=context.user_input,
             methodology=context.methodology,
-            context=self._format_context_for_extraction(context),
+            context=extraction_context,
             source_utterance_id=source_utterance_id,
         )
 
@@ -115,14 +118,18 @@ class ExtractionStage(TurnStage):
         P0 Fix: Enhanced to highlight interviewer's most recent question
         for conversational implicit relationship extraction.
 
+        Phase 1: Optionally inject SRL hints if available.
+
         Args:
             context: Turn context
 
         Returns:
-            Context string
+            Context string with optional SRL structural analysis
         """
         if not context.recent_utterances:
-            return ""
+            # Check for SRL hints even without conversation history
+            srl_hints = self._format_srl_hints(context.srl_preprocessing_output)
+            return srl_hints if srl_hints else ""
 
         lines = []
 
@@ -141,5 +148,59 @@ class ExtractionStage(TurnStage):
             lines.append(
                 "[Task] Extract concepts from the Respondent's answer AND create a relationship from the question's topic to the answer concept."
             )
+
+        # Inject SRL hints if available
+        srl_hints = self._format_srl_hints(context.srl_preprocessing_output)
+        if srl_hints:
+            lines.append("")
+            lines.append(srl_hints)
+            log.debug(
+                "srl_context_added",
+                session_id=context.session_id,
+                approximate_token_count=len(srl_hints) // 4,  # Rough estimate
+            )
+
+        return "\n".join(lines)
+
+    def _format_srl_hints(self, srl_output: SrlPreprocessingOutput | None) -> str:
+        """
+        Format SRL preprocessing output into extraction hints.
+
+        Args:
+            srl_output: SRL preprocessing output (may be None or empty)
+
+        Returns:
+            Formatted structural analysis section, or empty string if no data
+        """
+        if not srl_output:
+            return ""
+
+        # Check if there's actually any data
+        if not srl_output.discourse_relations and not srl_output.srl_frames:
+            return ""
+
+        lines = ["## STRUCTURAL ANALYSIS (use to guide relationship extraction):"]
+
+        # Add discourse relations (causal/temporal markers)
+        if srl_output.discourse_relations:
+            lines.append("")
+            lines.append("Causal/temporal markers detected:")
+            for rel in srl_output.discourse_relations:
+                marker = rel.get("marker", "implicit")
+                antecedent = rel.get("antecedent", "")[:60]  # Truncate for readability
+                consequent = rel.get("consequent", "")[:60]
+                lines.append(f"  - [{marker}]: \"{antecedent}\" → \"{consequent}\"")
+
+        # Add SRL frames (predicate-argument structures)
+        # Limit to top 5 to avoid prompt bloat
+        if srl_output.srl_frames:
+            frames_to_show = srl_output.srl_frames[:5]
+            lines.append("")
+            lines.append("Predicate-argument structures:")
+            for frame in frames_to_show:
+                predicate = frame.get("predicate", "")
+                arguments = frame.get("arguments", {})
+                arg_str = ", ".join([f"{k}={v}" for k, v in arguments.items()])
+                lines.append(f"  - {predicate}: {arg_str}")
 
         return "\n".join(lines)
