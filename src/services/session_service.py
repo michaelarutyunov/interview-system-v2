@@ -15,7 +15,8 @@ from uuid import uuid4
 
 import structlog
 
-from src.core.config import interview_config
+from src.core.config import interview_config, settings
+from src.services.srl_service import SRLService
 from src.core.concept_loader import load_concept
 from src.domain.models.extraction import ExtractionResult
 from src.domain.models.knowledge_graph import GraphState, KGNode
@@ -39,6 +40,7 @@ from src.services.turn_pipeline import (
 from src.services.turn_pipeline.stages import (
     ContextLoadingStage,
     UtteranceSavingStage,
+    SRLPreprocessingStage,
     ExtractionStage,
     GraphUpdateStage,
     StateComputationStage,
@@ -158,12 +160,16 @@ class SessionService:
         Returns:
             TurnPipeline configured with all stages
         """
+        # SRL service: lazy-loads spaCy model on first use, None disables gracefully
+        srl_service = SRLService() if settings.enable_srl else None
+
         stages = [
             ContextLoadingStage(
                 session_repo=self.session_repo,
                 graph_service=self.graph,
             ),
             UtteranceSavingStage(),
+            SRLPreprocessingStage(srl_service=srl_service),
             ExtractionStage(
                 extraction_service=self.extraction,
             ),
