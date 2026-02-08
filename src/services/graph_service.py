@@ -375,7 +375,7 @@ class GraphService:
         Args:
             session_id: Session ID
             surface_edges: List of surface edges from GraphUpdateOutput.edges_added
-                         Each edge dict has keys: id, source_id, target_id, edge_type
+                         Each edge dict has keys: id, source_node_id, target_node_id, edge_type
             turn_number: Current turn number (for logging)
 
         Returns:
@@ -409,8 +409,8 @@ class GraphService:
         skipped_self_loops = 0
 
         for edge in surface_edges:
-            source_id = edge.get("source_id")
-            target_id = edge.get("target_id")
+            source_id = edge.get("source_node_id")
+            target_id = edge.get("target_node_id")
             edge_type = edge.get("edge_type")
             surface_edge_id = edge.get("id")
 

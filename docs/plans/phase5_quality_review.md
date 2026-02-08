@@ -12,8 +12,9 @@
 | Total Canonical Slots | 32 (30 candidates, 2 active) | - | - |
 | Active/Candidate Ratio | 2/30 (6.7%) | ~20-30% | ⚠️ Low |
 | Node-to-Slot Ratio | 1.22:1 | ~2:1 | ⚠️ High fragmentation |
-| Canonical Edges | 0 | ~5-10 | ❌ None created |
-| False Merge Rate (estimated) | ~12% (4/32) | <5% | ❌ Above threshold |
+| Canonical Edges | 0 | ~5-10 | ❌ Bug: field name mismatch (fixed) |
+| False Merge Rate | 0% (0/39) | <5% | ✅ No wrong groupings |
+| Missed Merge Rate (fragmentation) | ~28% (9/32) | <10% | ❌ High fragmentation |
 
 ## Key Findings
 
@@ -34,45 +35,61 @@
 - No incentive for LLM to reuse existing slots
 - Similarity threshold too high for effective merging
 
-### 2. False Positive: Similar Concepts Not Merged
+### 2. Missed Merges: Similar Concepts Not Consolidated (~28% Rate)
 
-**Definition:** False positive = Two slots that SHOULD have been merged but weren't.
+**Definition:** Missed merge = Two or more slots that SHOULD have been merged but weren't.
+
+**Note on terminology:** The false merge rate (concepts *wrongly* grouped together) is 0%. This section documents the opposite problem: fragmentation where semantically equivalent concepts remain as separate slots.
 
 **Identified Cases:**
 
-| Slot A | Slot B | Issue | Similarity |
-|--------|--------|-------|------------|
-| `reduce_inflammation` | `reduced_inflammation` | Same concept, different grammatical form | Should merge |
-| `sustained_energy` | `sustained_energy_levels` | Same concept, different wording | Should merge |
-| `cognitive_performance` | `cognitive_focus_enhancement` | Semantically identical | Should merge |
-| `dairy_elimination` | `reducing_dairy_intake` | Same concept, different node_type | Should merge |
+| Slot A | Slot B | Issue |
+|--------|--------|-------|
+| `reduce_inflammation` | `reduced_inflammation` | Same concept, different grammatical form |
+| `sustained_energy` | `sustained_energy_levels` | Same concept, different wording |
+| `cognitive_performance` | `cognitive_focus_enhancement` | Semantically identical |
+| `dairy_elimination` | `reducing_dairy_intake` | Same concept, different node_type |
+| `digestive_comfort` | `reduced_bloating` | Both about absence of bloating |
+| `increased_energy` | `post_meal_alertness` | Both about avoiding post-meal sluggishness |
+| `improved_wellbeing` | `sustained_positive_affect` | Overlapping general wellbeing concepts |
+| `improved_digestion` | `digestive_comfort` / `reduced_bloating` | Digestive improvement cluster (3 slots → 1) |
+| `workout_energy_boost` | `sustained_energy` | Exercise energy overlaps with existing active slot |
 
-**Impact:** These false positives fragment signal and prevent proper exhaustion tracking. For example, "sustained_energy" appears in 3 surface nodes but "sustained_energy_levels" captures a related node, reducing the effective support count for the core concept.
+**Total:** ~9 missed-merge pairs out of 32 slots (~28% fragmentation rate).
 
-### 3. All Similarity Scores are 1.0
+**Impact:** Fragmented slots prevent proper exhaustion tracking and dilute support counts. For example, the "digestive improvement" cluster spans 3 separate slots (`improved_digestion`, `digestive_comfort`, `reduced_bloating`), each with support_count=1, when consolidation would yield a single slot with support_count=3 (promoting it to "active").
+
+### 3. All Similarity Scores are 1.0 (By Design)
 
 **Observation:** Every surface-to-slot mapping has `similarity_score=1.0`.
 
-**Possible Explanations:**
-1. **Exact match finding working:** The `_find_or_create_slot` method finds exact matches first (lines 286-331 in `canonical_slot_service.py`), setting similarity to 1.0.
-2. **Similarity search not running:** The embedding similarity search may not be executing for new slots.
-3. **Embedding model limitation:** spaCy's `en_core_web_md` may produce identical embeddings for semantically similar phrases.
+**Root Cause (confirmed):** This is expected behavior. The `_find_or_create_slot` method in `canonical_slot_service.py` has three code paths:
 
-**Recommendation:** Verify that similarity search is actually being triggered. Add logging to track when exact match vs similarity match occurs.
+1. **Exact match** (lines 286-331): LLM proposes a slot name that already exists → `similarity_score=1.0` (correct: exact match is perfect)
+2. **New slot creation** (lines 371-388): LLM proposes a genuinely new concept → `similarity_score=1.0` (correct: surface nodes define their own slot)
+3. **Embedding similarity** (lines 333-369): LLM proposes a name that doesn't match exactly but embeddings are similar → uses actual cosine similarity score
 
-### 4. Zero Canonical Edges
+Paths 1 and 2 handle all current cases because:
+- The LLM prompt encourages reusing existing slot names (incentivizes exact matches)
+- When the LLM proposes a new name, it's usually for a genuinely distinct concept
+- The embedding similarity threshold (0.88) is conservative, so Path 3 rarely triggers
+
+**Conclusion:** Not a bug. The embedding similarity path is a fallback that will become more relevant as slot density increases in longer interviews. No action needed.
+
+### 4. Zero Canonical Edges (Bug — Fixed)
 
 **Issue:** No canonical edges were created despite 22 surface edges in the graph.
 
-**Root Cause Investigation:**
-1. SlotDiscoveryStage (4.5) has edge aggregation code (lines 153-185)
-2. GraphService.aggregate_surface_edges_to_canonical() exists and is called
-3. Possible causes:
-   - All surface edges are between unmapped nodes (unlikely - 39/39 nodes mapped)
-   - All canonical edges are self-loops (source_slot == target_slot)
-   - Edges are filtered by some other criterion
+**Root Cause (confirmed):** Field name mismatch between pipeline stages.
 
-**Impact:** Canonical graph has no structural information. Signals based on edge density, connectivity, or path analysis will fail.
+- `GraphUpdateStage` produces edge dicts via `KGEdge.model_dump()` with keys `source_node_id` / `target_node_id`
+- `GraphService.aggregate_surface_edges_to_canonical()` (line 412-413) read `edge.get("source_id")` / `edge.get("target_id")`
+- Both returned `None`, failing the `if not all([...])` validation check
+- All 22 surface edges were silently skipped with log: `surface_edge_skipped_missing_fields`
+
+**Fix applied:** Changed `graph_service.py` lines 412-413 to read `source_node_id` / `target_node_id`. Updated docstring to match.
+
+**Impact before fix:** Canonical graph had zero structural information. All signals based on edge density, connectivity, or path analysis returned empty/zero values.
 
 ### 5. Node Type Mismatches
 
@@ -124,20 +141,18 @@ None identified in this sample. All mappings appear semantically coherent.
 
 ### Immediate Actions (Priority 1)
 
-1. **Fix canonical edge creation**
-   - Add debug logging to `aggregate_surface_edges_to_canonical()`
-   - Verify canonical_slot_repo is not None
-   - Check why edges are not being created despite valid surface edges
+1. **~~Fix canonical edge creation~~** ✅ DONE
+   - Root cause: field name mismatch (`source_id` vs `source_node_id`) in `graph_service.py`
+   - Fix: Changed `edge.get("source_id")` → `edge.get("source_node_id")` (and target)
 
-2. **Reduce slot proliferation**
-   - Increase `canonical_min_support_nodes` from 2 to 3
-   - OR modify LLM prompt to favor consolidation over specificity
-   - Add "maximum slots per turn" constraint
+2. **Reduce slot proliferation** (feeds into bead gjb5)
+   - Modify LLM prompt to favor consolidation over specificity
+   - Lower the similarity threshold from 0.88 to ~0.80 to catch near-misses
+   - Consider lemmatization before exact-match lookup (would catch `reduce_inflammation` / `reduced_inflammation`)
 
-3. **Investigate similarity scores**
-   - Add logging to distinguish exact matches vs similarity matches
-   - Verify embedding similarity search is executing
-   - Test with known similar phrases to validate spaCy embeddings
+3. **~~Investigate similarity scores~~** ✅ RESOLVED (by design)
+   - All 1.0 scores are expected: exact match path and new slot creation path both correctly set 1.0
+   - Embedding similarity path is a conservative fallback (0.88 threshold) that activates as slot density grows
 
 ### Medium-Term Improvements (Priority 2)
 
@@ -174,14 +189,15 @@ None identified in this sample. All mappings appear semantically coherent.
 
 ## Next Steps
 
-1. Investigate why canonical edges are not being created
-2. Implement logging to distinguish exact vs similarity matches
-3. Adjust LLM prompt to reduce slot proliferation
-4. Re-run quality review after changes
-5. Document findings in ADR if architectural changes needed
+1. ~~Investigate why canonical edges are not being created~~ ✅ Fixed (field name mismatch)
+2. ~~Investigate similarity scores~~ ✅ Resolved (by design)
+3. Re-run simulation and quality review to verify canonical edges now appear
+4. Address slot fragmentation (~28% missed merge rate) in bead gjb5 (threshold tuning)
+5. Consider lemmatization or fuzzy matching before exact-match lookup
 
 ## Sign-Off
 
-**Reviewed by:** Claude Code (glm-4.7)
-**Date:** 2026-02-08
-**Status:** ✅ Review complete, issues documented
+**Initial review:** Claude Code (glm-4.7) — 2026-02-08
+**Corrected review:** Claude Opus 4.6 — 2026-02-08
+**Corrections:** Fixed misleading false merge rate metric (was 12%, actual 0%), identified 5 additional missed-merge pairs (total ~9), confirmed similarity=1.0 is by design, root-caused and fixed canonical edge bug
+**Status:** ✅ Review complete, critical bug fixed, fragmentation issue documented for gjb5

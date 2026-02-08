@@ -17,6 +17,9 @@ ENV/
 # Project
 .env
 data/*.db
+data/*.db-shm
+data/*.db-wal
+data/*.db.backup
 *.log
 
 # Testing
