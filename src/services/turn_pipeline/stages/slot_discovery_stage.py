@@ -3,9 +3,11 @@ Slot Discovery Stage (Stage 4.5) - Dual-Graph Architecture.
 
 Discovers or updates canonical slots for newly added surface nodes.
 Maps surface KGNodes to abstract canonical slots via LLM proposal and
-embedding similarity matching.
+embedding similarity matching. Also aggregates surface edges to canonical edges.
 
-REFERENCE: Phase 2 (Dual-Graph Architecture), bead yuhv
+REFERENCE:
+- Phase 2 (Dual-Graph Architecture), bead yuhv
+- Phase 3 (Dual-Graph Integration), bead eusq (edge aggregation)
 """
 
 from typing import TYPE_CHECKING
@@ -29,20 +31,29 @@ class SlotDiscoveryStage(TurnStage):
     Implements the dual-graph architecture by mapping surface nodes (user's
     actual language) to abstract canonical slots (latent concepts). Uses
     LLM to propose slot groupings and embedding similarity to merge
-    near-duplicates.
+    near-duplicates. Also aggregates surface edges to canonical edges.
 
     CONTRACT: Requires graph_update_output to exist (Stage 4 complete).
     Raises RuntimeError if contract violated (fail-fast per ADR-009).
     """
 
-    def __init__(self, slot_service: CanonicalSlotService):
+    def __init__(
+        self, slot_service: CanonicalSlotService, graph_service: object = None
+    ):
         """
         Initialize slot discovery stage.
 
         Args:
             slot_service: CanonicalSlotService for slot discovery and mapping
+            graph_service: Optional GraphService for edge aggregation to canonical graph
+
+        IMPLEMENTATION NOTES:
+            Phase 3 (Dual-Graph Integration), bead eusq
+            - graph_service is optional for backward compatibility
+            - If provided, aggregates surface edges to canonical edges after slot mapping
         """
         self.slot_service = slot_service
+        self.graph_service = graph_service
 
     async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
@@ -138,6 +149,40 @@ class SlotDiscoveryStage(TurnStage):
             mappings_created=mappings_created,
             total_slots=len(discovered_slots),
         )
+
+        # Phase 3 (Dual-Graph Integration), bead eusq: Edge aggregation
+        # After slot mappings are created, aggregate surface edges to canonical edges
+        canonical_edges_created = 0
+        if self.graph_service is not None:
+            edges_added = context.graph_update_output.edges_added
+            if edges_added:
+                canonical_edges = await self.graph_service.aggregate_surface_edges_to_canonical(
+                    session_id=context.session_id,
+                    surface_edges=edges_added,
+                    turn_number=turn_number,
+                )
+                canonical_edges_created = len(canonical_edges)
+
+                log.info(
+                    "canonical_edges_created",
+                    session_id=context.session_id,
+                    turn=turn_number,
+                    count=canonical_edges_created,
+                )
+            else:
+                log.debug(
+                    "canonical_edge_aggregation_skipped",
+                    session_id=context.session_id,
+                    turn=turn_number,
+                    reason="no_edges_added",
+                )
+        else:
+            log.debug(
+                "canonical_edge_aggregation_skipped",
+                session_id=context.session_id,
+                turn=turn_number,
+                reason="no_graph_service",
+            )
 
         # Set contract output
         context.slot_discovery_output = SlotDiscoveryOutput(

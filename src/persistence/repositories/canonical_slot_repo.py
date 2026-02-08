@@ -13,7 +13,7 @@ IMPLEMENTATION NOTES:
 """
 
 import json
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from uuid import uuid4
 
 import aiosqlite
@@ -511,6 +511,138 @@ class CanonicalSlotRepository:
             )
             for row in rows
         ]
+
+    # ==================== DUAL-GRAPH REPORTING METHODS ====================
+    # Phase 3 (Dual-Graph Integration), bead 0nl3: JSON schema support
+
+    async def get_slots_with_provenance(
+        self, session_id: str
+    ) -> List[Dict[str, any]]:
+        """
+        Get active canonical slots with their surface node provenance.
+
+        Returns active slots with list of surface_node_ids that map to each slot.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            List of slot dicts with surface_node_ids:
+            {slot_id, slot_name, node_type, support_count, surface_node_ids: [...]}
+
+        IMPLEMENTATION NOTES:
+            Phase 3 (Dual-Graph Integration), bead 0nl3
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                """
+                SELECT
+                    s.id as slot_id,
+                    s.slot_name,
+                    s.node_type,
+                    s.support_count,
+                    s.status,
+                    GROUP_CONCAT(m.surface_node_id) as surface_node_ids
+                FROM canonical_slots s
+                LEFT JOIN surface_to_slot_mapping m ON s.id = m.canonical_slot_id
+                WHERE s.session_id = ? AND s.status = 'active'
+                GROUP BY s.id
+                ORDER BY s.support_count DESC
+                """,
+                (session_id,),
+            )
+            rows = await cursor.fetchall()
+
+        result = []
+        for row in rows:
+            surface_ids = (
+                row["surface_node_ids"].split(",") if row["surface_node_ids"] else []
+            )
+            result.append(
+                {
+                    "slot_id": row["slot_id"],
+                    "slot_name": row["slot_name"],
+                    "node_type": row["node_type"],
+                    "support_count": row["support_count"],
+                    "status": row["status"],
+                    "surface_node_ids": surface_ids,
+                }
+            )
+
+        return result
+
+    async def get_edges_with_metadata(self, session_id: str) -> List[Dict[str, any]]:
+        """
+        Get canonical edges with surface edge metadata.
+
+        Returns canonical edges with surface_edge_ids and computed
+        average confidence from the underlying surface edges.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            List of edge dicts with metadata:
+            {edge_id, source_slot_id, target_slot_id, edge_type, support_count,
+             surface_edge_ids: [...], avg_confidence}
+
+        IMPLEMENTATION NOTES:
+            Phase 3 (Dual-Graph Integration), bead 0nl3
+            - avg_confidence is computed from surface edges in kg_edges table
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                """
+                SELECT
+                    e.id as edge_id,
+                    e.source_slot_id,
+                    e.target_slot_id,
+                    e.edge_type,
+                    e.support_count,
+                    e.surface_edge_ids
+                FROM canonical_edges e
+                WHERE e.session_id = ?
+                ORDER BY e.support_count DESC
+                """,
+                (session_id,),
+            )
+            rows = await cursor.fetchall()
+
+        result = []
+        for row in rows:
+            surface_edge_ids = json.loads(row["surface_edge_ids"])
+            avg_confidence = 0.0
+
+            # Compute avg confidence from surface edges
+            if surface_edge_ids:
+                placeholders = ",".join("?" * len(surface_edge_ids))
+                cursor2 = await db.execute(
+                    f"""
+                    SELECT AVG(confidence) as avg_conf
+                    FROM kg_edges
+                    WHERE id IN ({placeholders})
+                    """,
+                    surface_edge_ids,
+                )
+                conf_row = await cursor2.fetchone()
+                if conf_row and conf_row["avg_conf"]:
+                    avg_confidence = round(conf_row["avg_conf"], 3)
+
+            result.append(
+                {
+                    "edge_id": row["edge_id"],
+                    "source_slot_id": row["source_slot_id"],
+                    "target_slot_id": row["target_slot_id"],
+                    "edge_type": row["edge_type"],
+                    "support_count": row["support_count"],
+                    "surface_edge_ids": surface_edge_ids,
+                    "avg_confidence": avg_confidence,
+                }
+            )
+
+        return result
 
     # ==================== HELPER METHODS ====================
 

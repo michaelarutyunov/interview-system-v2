@@ -10,16 +10,18 @@ Responsibilities:
 Uses GraphRepository for persistence.
 """
 
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import structlog
 
+from src.domain.models.canonical_graph import CanonicalEdge
 from src.domain.models.extraction import (
     ExtractedConcept,
     ExtractedRelationship,
     ExtractionResult,
 )
 from src.domain.models.knowledge_graph import KGNode, KGEdge, GraphState
+from src.persistence.repositories.canonical_slot_repo import CanonicalSlotRepository
 from src.persistence.repositories.graph_repo import GraphRepository
 
 log = structlog.get_logger(__name__)
@@ -35,14 +37,23 @@ class GraphService:
     - Graph state computation
     """
 
-    def __init__(self, repo: GraphRepository):
+    def __init__(
+        self, repo: GraphRepository, canonical_slot_repo: Optional[CanonicalSlotRepository] = None
+    ):
         """
         Initialize graph service.
 
         Args:
             repo: GraphRepository instance
+            canonical_slot_repo: Optional CanonicalSlotRepository for dual-graph edge aggregation
+
+        IMPLEMENTATION NOTES:
+            - canonical_slot_repo is optional for backward compatibility
+            - If None and aggregate_surface_edges_to_canonical() is called, raises AttributeError
+            - Phase 3 (Dual-Graph Integration), bead coxo
         """
         self.repo = repo
+        self.canonical_slot_repo = canonical_slot_repo
 
     async def add_extraction_to_graph(
         self,
@@ -347,3 +358,127 @@ class GraphService:
         )
 
         return new_node, edge
+
+    async def aggregate_surface_edges_to_canonical(
+        self,
+        session_id: str,
+        surface_edges: List[Dict[str, Any]],
+        turn_number: int,
+    ) -> List[CanonicalEdge]:
+        """
+        Aggregate surface edges to canonical edges for dual-graph architecture.
+
+        Maps each surface edge to its canonical equivalent by looking up the
+        canonical slot mappings for source and target nodes. Skips edges where
+        either endpoint is unmapped or forms a self-loop in the canonical graph.
+
+        Args:
+            session_id: Session ID
+            surface_edges: List of surface edges from GraphUpdateOutput.edges_added
+                         Each edge dict has keys: id, source_id, target_id, edge_type
+            turn_number: Current turn number (for logging)
+
+        Returns:
+            List of created/updated CanonicalEdge objects
+
+        Raises:
+            AttributeError: If canonical_slot_repo is None (fail-fast per ADR-009)
+
+        IMPLEMENTATION NOTES:
+            Phase 3 (Dual-Graph Integration), bead coxo
+            - surface_edges are List[Dict[str, Any]] from GraphUpdateOutput
+            - Skips unmapped nodes (logs debug: surface_edge_not_mapped)
+            - Skips self-loops where source_slot == target_slot (logs: canonical_self_loop_prevented)
+            - Uses edge_type unchanged from surface edge (different types create separate canonical edges)
+        """
+        if self.canonical_slot_repo is None:
+            raise AttributeError(
+                "canonical_slot_repo is required for edge aggregation but was None. "
+                "Phase 3: Dual-Graph Architecture not properly initialized."
+            )
+
+        log.info(
+            "canonical_edge_aggregation_started",
+            session_id=session_id,
+            turn=turn_number,
+            surface_edge_count=len(surface_edges),
+        )
+
+        canonical_edges: List[CanonicalEdge] = []
+        skipped_unmapped = 0
+        skipped_self_loops = 0
+
+        for edge in surface_edges:
+            source_id = edge.get("source_id")
+            target_id = edge.get("target_id")
+            edge_type = edge.get("edge_type")
+            surface_edge_id = edge.get("id")
+
+            if not all([source_id, target_id, edge_type, surface_edge_id]):
+                log.warning(
+                    "surface_edge_skipped_missing_fields",
+                    edge_id=edge.get("id"),
+                    source_id=source_id,
+                    target_id=target_id,
+                    edge_type=edge_type,
+                )
+                continue
+
+            # Type narrowing: after the truthy check, these are guaranteed to be strings
+            source_id = cast(str, source_id)
+            target_id = cast(str, target_id)
+            edge_type = cast(str, edge_type)
+            surface_edge_id = cast(str, surface_edge_id)
+
+            # Get canonical slot mappings for source and target
+            source_mapping = await self.canonical_slot_repo.get_mapping_for_node(
+                source_id
+            )
+            target_mapping = await self.canonical_slot_repo.get_mapping_for_node(
+                target_id
+            )
+
+            # Skip if either endpoint is unmapped
+            if source_mapping is None or target_mapping is None:
+                skipped_unmapped += 1
+                log.debug(
+                    "surface_edge_not_mapped",
+                    surface_edge_id=surface_edge_id,
+                    source_mapped=source_mapping is not None,
+                    target_mapped=target_mapping is not None,
+                )
+                continue
+
+            source_slot_id = source_mapping.canonical_slot_id
+            target_slot_id = target_mapping.canonical_slot_id
+
+            # Skip self-loops in canonical graph (source_slot == target_slot)
+            if source_slot_id == target_slot_id:
+                skipped_self_loops += 1
+                log.debug(
+                    "canonical_self_loop_prevented",
+                    surface_edge_id=surface_edge_id,
+                    slot_id=source_slot_id,
+                )
+                continue
+
+            # Add or update canonical edge
+            canonical_edge = await self.canonical_slot_repo.add_or_update_canonical_edge(
+                session_id=session_id,
+                source_slot_id=source_slot_id,
+                target_slot_id=target_slot_id,
+                edge_type=edge_type,
+                surface_edge_id=surface_edge_id,
+            )
+            canonical_edges.append(canonical_edge)
+
+        log.info(
+            "canonical_edges_aggregated",
+            session_id=session_id,
+            turn=turn_number,
+            canonical_edge_count=len(canonical_edges),
+            skipped_unmapped=skipped_unmapped,
+            skipped_self_loops=skipped_self_loops,
+        )
+
+        return canonical_edges

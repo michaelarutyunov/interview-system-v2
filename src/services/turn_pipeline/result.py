@@ -2,6 +2,7 @@
 Result object for turn processing pipeline.
 
 ADR-008 Phase 3: TurnResult is returned by the pipeline.
+Phase 3 (Dual-Graph Integration), bead 0nl3: Added canonical_graph and graph_comparison fields.
 """
 
 from dataclasses import dataclass
@@ -18,6 +19,9 @@ class TurnResult:
     Note: strategy_selected is Optional to support partial pipeline execution
     (e.g., tests that only run early stages). In full pipeline execution,
     it will always be set after StrategySelectionStage (Stage 6).
+
+    Phase 3 (Dual-Graph Integration): Added canonical_graph and graph_comparison
+    for dual-graph architecture observability.
     """
 
     turn_number: int
@@ -33,3 +37,6 @@ class TurnResult:
     strategy_alternatives: Optional[List[Dict[str, Any]]] = None  # Alternative strategies with scores
     # Termination reason (populated by ContinuationStage when should_continue=False)
     termination_reason: Optional[str] = None  # e.g., "max_turns_reached", "graph_saturated", "close_strategy"
+    # Phase 3 (Dual-Graph Integration), bead 0nl3: Dual-graph output fields
+    canonical_graph: Optional[Dict[str, Any]] = None  # {slots, edges, metrics}
+    graph_comparison: Optional[Dict[str, Any]] = None  # {node_reduction_pct, edge_aggregation_ratio, orphan_improvement_pct}

@@ -5,6 +5,7 @@ ADR-008 Phase 3: Refresh graph state after updates.
 ADR-010: Return StateComputationOutput with freshness tracking.
 Phase 6: Output StateComputationOutput contract.
 Domain Encapsulation: Compute saturation metrics here (single source of truth).
+Phase 3: Dual-Graph Integration - Compute canonical graph state alongside surface graph state.
 """
 
 from dataclasses import dataclass
@@ -21,6 +22,8 @@ from src.services.graph_service import GraphService
 
 if TYPE_CHECKING:
     from ..context import PipelineContext
+    from src.services.canonical_graph_service import CanonicalGraphService
+
 log = structlog.get_logger(__name__)
 
 
@@ -58,16 +61,30 @@ class StateComputationStage(TurnStage):
     Domain Encapsulation: Now also computes saturation metrics, centralizing
     all graph state and saturation tracking in one place. ContinuationStage
     reads these metrics instead of maintaining its own tracking.
+
+    Phase 3 (Dual-Graph Integration): Now also computes canonical graph state
+    alongside surface graph state for dual-graph architecture.
     """
 
-    def __init__(self, graph_service: GraphService):
+    def __init__(
+        self,
+        graph_service: GraphService,
+        canonical_graph_service: Optional["CanonicalGraphService"] = None,
+    ):
         """
         Initialize stage.
 
         Args:
             graph_service: GraphService instance
+            canonical_graph_service: Optional CanonicalGraphService for dual-graph state
+
+        IMPLEMENTATION NOTES:
+            Phase 3 (Dual-Graph Integration), bead ty40
+            - canonical_graph_service is optional for backward compatibility
+            - If provided, computes canonical_graph_state alongside surface graph_state
         """
         self.graph = graph_service
+        self.canonical_graph_service = canonical_graph_service
         # Session-scoped saturation tracking (persists across turns)
         self._saturation_tracking: Dict[str, _SaturationTrackingState] = {}
 
@@ -102,6 +119,36 @@ class StateComputationStage(TurnStage):
         # Compute saturation metrics
         saturation = self._compute_saturation_metrics(context, graph_state)
 
+        # Phase 3 (Dual-Graph Integration), bead ty40: Compute canonical graph state
+        canonical_graph_state = None
+        if self.canonical_graph_service is not None:
+            canonical_graph_state = (
+                await self.canonical_graph_service.compute_canonical_state(
+                    context.session_id
+                )
+            )
+
+            # Log surface vs canonical node counts with reduction percentage
+            surface_count = graph_state.node_count if graph_state else 0
+            canonical_count = canonical_graph_state.concept_count
+            if surface_count > 0:
+                reduction_pct = (1 - canonical_count / surface_count) * 100
+                log.info(
+                    "dual_graph_states_computed",
+                    session_id=context.session_id,
+                    surface_count=surface_count,
+                    canonical_count=canonical_count,
+                    reduction_pct=round(reduction_pct, 1),
+                    canonical_edge_count=canonical_graph_state.edge_count,
+                    canonical_orphan_count=canonical_graph_state.orphan_count,
+                )
+            else:
+                log.debug(
+                    "dual_graph_states_computed_empty",
+                    session_id=context.session_id,
+                    canonical_count=canonical_count,
+                )
+
         # ADR-010: Track when graph_state was computed for freshness validation
         computed_at = datetime.now(timezone.utc)
 
@@ -111,6 +158,7 @@ class StateComputationStage(TurnStage):
             recent_nodes=recent_nodes,
             computed_at=computed_at,
             saturation_metrics=saturation,
+            canonical_graph_state=canonical_graph_state,
         )
 
         log.debug(

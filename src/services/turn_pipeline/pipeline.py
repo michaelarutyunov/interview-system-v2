@@ -189,6 +189,54 @@ class TurnPipeline:
                             "score": score
                         })
 
+        # Phase 3 (Dual-Graph Integration), bead 0nl3: Build canonical_graph and graph_comparison
+        canonical_graph = None
+        graph_comparison = None
+
+        if context.canonical_graph_state:
+            cg_state = context.canonical_graph_state
+            canonical_graph = {
+                "slots": {
+                    "concept_count": cg_state.concept_count,
+                    "orphan_count": cg_state.orphan_count,
+                    "avg_support": round(cg_state.avg_support, 2),
+                },
+                "edges": {
+                    "edge_count": cg_state.edge_count,
+                },
+                "metrics": {
+                    "max_depth": cg_state.max_depth,
+                },
+            }
+
+            # Build graph_comparison metrics
+            if context.graph_state:
+                surface_nodes = context.graph_state.node_count
+                canonical_nodes = cg_state.concept_count
+                node_reduction_pct = (
+                    (1 - canonical_nodes / surface_nodes) * 100
+                    if surface_nodes > 0
+                    else 0.0
+                )
+
+                surface_edges = context.graph_state.edge_count
+                canonical_edges = cg_state.edge_count
+                edge_aggregation_ratio = (
+                    canonical_edges / surface_edges
+                    if surface_edges > 0
+                    else 0.0
+                )
+
+                # Orphan improvement: canonical graph has fewer orphans (due to aggregation)
+                # Placeholder value since surface orphan computation is not yet implemented
+                orphan_improvement_pct = 0.0
+
+                graph_comparison = {
+                    "node_reduction_pct": round(node_reduction_pct, 1),
+                    "edge_aggregation_ratio": round(edge_aggregation_ratio, 2),
+                    "orphan_improvement_pct": round(orphan_improvement_pct, 1),
+                }
+
         return TurnResult(
             turn_number=turn_number,
             extracted=extracted,
@@ -205,4 +253,6 @@ class TurnPipeline:
             signals=signals,
             strategy_alternatives=strategy_alternatives,
             termination_reason=termination_reason,
+            canonical_graph=canonical_graph,
+            graph_comparison=graph_comparison,
         )

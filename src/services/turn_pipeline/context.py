@@ -29,6 +29,7 @@ from src.domain.models.pipeline_contracts import (
 )
 
 if TYPE_CHECKING:
+    from src.domain.models.canonical_graph import CanonicalGraphState
     from src.services.node_state_tracker import NodeStateTracker
 
 
@@ -222,6 +223,16 @@ class PipelineContext:
         if self.state_computation_output:
             return self.state_computation_output.recent_nodes
         return []
+
+    @property
+    def canonical_graph_state(self) -> Optional["CanonicalGraphState"]:
+        """Get canonical_graph_state from StateComputationOutput.
+
+        Phase 3 (Dual-Graph Integration), bead ty40.
+        """
+        if self.state_computation_output:
+            return self.state_computation_output.canonical_graph_state
+        return None
 
     @property
     def extraction(self) -> Optional[Any]:

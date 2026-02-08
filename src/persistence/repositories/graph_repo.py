@@ -9,7 +9,7 @@ No business logic - that belongs in GraphService.
 
 import json
 from datetime import datetime
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 from uuid import uuid4
 
 import aiosqlite
@@ -577,6 +577,69 @@ class GraphRepository:
                 max_length = max(max_length, 1 + path_length)
         visited.remove(node)
         return max_length
+
+    # ==================== DUAL-GRAPH REPORTING METHODS ====================
+    # Phase 3 (Dual-Graph Integration), bead 0nl3: JSON schema support
+
+    async def get_nodes_with_canonical_mapping(
+        self, session_id: str
+    ) -> List[Dict[str, any]]:
+        """
+        Get surface nodes with optional canonical slot mapping.
+
+        LEFT JOIN kg_nodes with surface_to_slot_mapping and canonical_slots
+        to include canonical_slot field in results.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            List of node dicts with optional canonical_slot field:
+            {id, label, node_type, confidence, canonical_slot: {slot_id, slot_name, similarity_score}}
+
+        IMPLEMENTATION NOTES:
+            Phase 3 (Dual-Graph Integration), bead 0nl3
+            - canonical_slot is None if no mapping exists
+            - Uses LEFT JOIN to include all nodes even if unmapped
+        """
+        self.db.row_factory = aiosqlite.Row
+        cursor = await self.db.execute(
+            """
+            SELECT
+                n.id,
+                n.label,
+                n.node_type,
+                n.confidence,
+                m.canonical_slot_id,
+                s.slot_name,
+                m.similarity_score
+            FROM kg_nodes n
+            LEFT JOIN surface_to_slot_mapping m ON n.id = m.surface_node_id
+            LEFT JOIN canonical_slots s ON m.canonical_slot_id = s.id
+            WHERE n.session_id = ?
+            ORDER BY n.recorded_at DESC
+            """,
+            (session_id,),
+        )
+        rows = await cursor.fetchall()
+
+        result = []
+        for row in rows:
+            node_dict = {
+                "id": row["id"],
+                "label": row["label"],
+                "node_type": row["node_type"],
+                "confidence": row["confidence"],
+            }
+            if row["canonical_slot_id"]:
+                node_dict["canonical_slot"] = {
+                    "slot_id": row["canonical_slot_id"],
+                    "slot_name": row["slot_name"],
+                    "similarity_score": row["similarity_score"],
+                }
+            result.append(node_dict)
+
+        return result
 
     # ==================== HELPERS ====================
 

@@ -5,12 +5,15 @@ type safety and runtime validation for the turn processing pipeline.
 """
 
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, TYPE_CHECKING
 from pydantic import BaseModel, Field, model_validator
 
 from src.domain.models.knowledge_graph import GraphState, KGNode, SaturationMetrics
 from src.domain.models.utterance import Utterance
 from src.domain.models.extraction import ExtractionResult
+
+if TYPE_CHECKING:
+    from src.domain.models.canonical_graph import CanonicalGraphState
 
 
 class ContextLoadingOutput(BaseModel):
@@ -100,6 +103,8 @@ class StateComputationOutput(BaseModel):
     Domain Encapsulation: Added saturation_metrics computed from graph
     yield and quality signals. ContinuationStage reads this instead of
     maintaining its own tracking state.
+
+    Phase 3 (Dual-Graph Integration), bead ty40: Added canonical_graph_state.
     """
 
     graph_state: GraphState = Field(description="Refreshed knowledge graph state")
@@ -112,6 +117,10 @@ class StateComputationOutput(BaseModel):
     saturation_metrics: Optional[SaturationMetrics] = Field(
         default=None,
         description="Saturation indicators computed from graph state and yield tracking",
+    )
+    canonical_graph_state: Optional["CanonicalGraphState"] = Field(
+        default=None,
+        description="Canonical graph state (deduplicated concepts from Phase 3)",
     )
 
     @model_validator(mode="after")
