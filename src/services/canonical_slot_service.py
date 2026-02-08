@@ -277,7 +277,60 @@ class CanonicalSlotService:
 
         Returns:
             The matched or created CanonicalSlot
+
+        IMPLEMENTATION NOTES:
+            Phase 4, bead f6t8: Added exact match check BEFORE similarity search
+            to prevent UNIQUE constraint violations. Pattern follows
+            GraphRepository.find_node_by_label_and_type().
         """
+        # Phase 4, bead f6t8: Check for exact match first to prevent duplicates
+        existing_slot = await self.slot_repo.find_slot_by_name_and_type(
+            session_id, proposed_name, node_type
+        )
+        if existing_slot is not None:
+            # Exact match found - use existing slot
+            slot = existing_slot
+
+            # Map each surface node to this existing slot
+            for node_id in surface_node_ids:
+                await self.slot_repo.map_surface_to_slot(
+                    surface_node_id=node_id,
+                    slot_id=slot.id,
+                    similarity_score=1.0,  # Perfect match (exact name)
+                    assigned_turn=turn_number,
+                )
+
+            log.info(
+                "slot_found_exact",
+                slot_name=slot.slot_name,
+                slot_id=slot.id,
+                surface_count=len(surface_node_ids),
+            )
+
+            # Check promotion (re-read for updated support_count)
+            updated_slot = await self.slot_repo.get_slot(slot.id)
+            if updated_slot is None:
+                raise RuntimeError(f"Slot {slot.id} not found after mapping")
+
+            if (
+                updated_slot.status == "candidate"
+                and updated_slot.support_count >= settings.canonical_min_support_nodes
+            ):
+                await self.slot_repo.promote_slot(updated_slot.id, turn_number)
+                log.info(
+                    "slot_promoted",
+                    slot_name=updated_slot.slot_name,
+                    slot_id=updated_slot.id,
+                    support_count=updated_slot.support_count,
+                )
+                # Re-read to get promoted status
+                updated_slot = await self.slot_repo.get_slot(slot.id)
+                if updated_slot is None:
+                    raise RuntimeError(f"Slot {slot.id} not found after promotion")
+
+            return updated_slot
+
+        # No exact match - proceed with similarity search
         # Embed the proposed name
         embedding = await self.embedding_service.encode(proposed_name)
 

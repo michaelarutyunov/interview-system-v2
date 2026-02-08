@@ -186,6 +186,45 @@ class CanonicalSlotRepository:
 
         return [self._row_to_slot(row) for row in rows]
 
+    async def find_slot_by_name_and_type(
+        self, session_id: str, slot_name: str, node_type: str
+    ) -> Optional[CanonicalSlot]:
+        """
+        Find a canonical slot by exact slot_name and node_type match.
+
+        This is the recommended method for slot deduplication as it ensures
+        slots of different types (e.g., attribute vs instrumental_value) are not
+        merged incorrectly. Prevents UNIQUE constraint violations by checking
+        existence before attempting to create.
+
+        Args:
+            session_id: Session ID
+            slot_name: Slot name to find (exact match)
+            node_type: Node type to match
+
+        Returns:
+            CanonicalSlot or None if not found
+
+        IMPLEMENTATION NOTES:
+            Phase 4, bead f6t8: Added deduplication check to prevent UNIQUE
+            constraint violations. Pattern follows GraphRepository.find_node_by_label_and_type().
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                """
+                SELECT * FROM canonical_slots
+                WHERE session_id = ? AND slot_name = ? AND node_type = ?
+                """,
+                (session_id, slot_name, node_type),
+            )
+            row = await cursor.fetchone()
+
+        if not row:
+            return None
+
+        return self._row_to_slot(row)
+
     async def find_similar_slots(
         self,
         session_id: str,
