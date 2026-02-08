@@ -106,6 +106,11 @@ class Settings(BaseSettings):
         default=True, description="Enable SRL preprocessing stage for linguistic analysis"
     )
 
+    enable_canonical_slots: bool = Field(
+        default=True,
+        description="Enable canonical slot discovery for deduplication (dual-graph architecture)",
+    )
+
     # ==========================================================================
     # Canonical Slot Discovery Thresholds
     # ==========================================================================

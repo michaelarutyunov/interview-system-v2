@@ -174,34 +174,49 @@ class SessionService:
 
         REFERENCE: Phase 2 (Dual-Graph Architecture), bead yuhv - SlotDiscoveryStage
         REFERENCE: Phase 3 (Dual-Graph Integration), bead ty40 - CanonicalGraphService
+        REFERENCE: Phase 4 (Signal Pool Extensions), bead 3ag1 - enable_canonical_slots flag
         """
         # SRL service: lazy-loads spaCy model on first use, None disables gracefully
         srl_service = SRLService() if settings.enable_srl else None
 
         # Phase 2: Dual-Graph Architecture - Slot discovery dependencies
-        # Follow same pattern as other services: reuse existing db connection
-        if self.generation_llm_client is None:
-            raise ValueError("generation_llm_client is required for SlotDiscoveryStage")
-        canonical_slot_repo = CanonicalSlotRepository(str(self.session_repo.db_path))
-        embedding_service = EmbeddingService()  # lazy loads spaCy en_core_web_md
-        canonical_slot_service = CanonicalSlotService(
-            llm_client=self.generation_llm_client,
-            slot_repo=canonical_slot_repo,
-            embedding_service=embedding_service,
-        )
+        # Conditionally enabled based on enable_canonical_slots flag
+        canonical_slot_repo = None
+        canonical_slot_service = None
+        canonical_graph_service = None
 
-        # Store canonical_slot_repo for NodeStateTracker (Phase 3, bead ht0e)
-        self.canonical_slot_repo = canonical_slot_repo
+        if settings.enable_canonical_slots:
+            # Follow same pattern as other services: reuse existing db connection
+            if self.generation_llm_client is None:
+                raise ValueError(
+                    "generation_llm_client is required for SlotDiscoveryStage "
+                    "when enable_canonical_slots=True"
+                )
+            canonical_slot_repo = CanonicalSlotRepository(
+                str(self.session_repo.db_path)
+            )
+            embedding_service = EmbeddingService()  # lazy loads spaCy en_core_web_md
+            canonical_slot_service = CanonicalSlotService(
+                llm_client=self.generation_llm_client,
+                slot_repo=canonical_slot_repo,
+                embedding_service=embedding_service,
+            )
 
-        # Phase 3 (Dual-Graph Integration), bead ty40: CanonicalGraphService
-        from src.services.canonical_graph_service import CanonicalGraphService
-        canonical_graph_service = CanonicalGraphService(
-            canonical_slot_repo=canonical_slot_repo
-        )
+            # Store canonical_slot_repo for NodeStateTracker (Phase 3, bead ht0e)
+            self.canonical_slot_repo = canonical_slot_repo
 
-        # Update GraphService with canonical_slot_repo for edge aggregation (Phase 3, bead coxo)
-        self.graph.canonical_slot_repo = canonical_slot_repo
+            # Phase 3 (Dual-Graph Integration), bead ty40: CanonicalGraphService
+            from src.services.canonical_graph_service import CanonicalGraphService as CGS
 
+            canonical_graph_service = CGS(canonical_slot_repo=canonical_slot_repo)
+
+            # Update GraphService with canonical_slot_repo for edge aggregation (Phase 3, bead coxo)
+            self.graph.canonical_slot_repo = canonical_slot_repo
+        else:
+            # Canonical slots disabled: set canonical_slot_repo to None
+            self.canonical_slot_repo = None
+
+        # Build stage list
         stages = [
             ContextLoadingStage(
                 session_repo=self.session_repo,
@@ -215,17 +230,28 @@ class SessionService:
             GraphUpdateStage(
                 graph_service=self.graph,
             ),
-            # Stage 4.5: SlotDiscoveryStage (Phase 2: Dual-Graph Architecture, bead yuhv)
-            # Maps surface nodes to canonical slots via LLM proposal + embedding similarity
-            # Phase 3 (Dual-Graph Integration), bead eusq: Also aggregates edges to canonical
-            SlotDiscoveryStage(
-                slot_service=canonical_slot_service, graph_service=self.graph
-            ),
-            # Phase 3 (Dual-Graph Integration), bead ty40: Canonical graph state computation
+        ]
+
+        # Stage 4.5: SlotDiscoveryStage (Phase 2: Dual-Graph Architecture, bead yuhv)
+        # Conditionally included based on enable_canonical_slots flag
+        # Maps surface nodes to canonical slots via LLM proposal + embedding similarity
+        # Phase 3 (Dual-Graph Integration), bead eusq: Also aggregates edges to canonical
+        if settings.enable_canonical_slots:
+            stages.append(
+                SlotDiscoveryStage(
+                    slot_service=canonical_slot_service, graph_service=self.graph
+                )
+            )
+
+        # Phase 3 (Dual-Graph Integration), bead ty40: Canonical graph state computation
+        stages.append(
             StateComputationStage(
                 graph_service=self.graph,
-                canonical_graph_service=canonical_graph_service,
-            ),
+                canonical_graph_service=canonical_graph_service,  # None if disabled
+            )
+        )
+
+        stages.extend([
             StrategySelectionStage(),
             ContinuationStage(
                 question_service=self.question,
@@ -238,7 +264,7 @@ class SessionService:
             ScoringPersistenceStage(
                 session_repo=self.session_repo,
             ),
-        ]
+        ])
 
         return TurnPipeline(stages=stages)
 
