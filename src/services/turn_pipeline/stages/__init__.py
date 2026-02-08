@@ -9,6 +9,7 @@ from .utterance_saving_stage import UtteranceSavingStage
 from .srl_preprocessing_stage import SRLPreprocessingStage
 from .extraction_stage import ExtractionStage
 from .graph_update_stage import GraphUpdateStage
+from .slot_discovery_stage import SlotDiscoveryStage
 from .state_computation_stage import StateComputationStage
 from .strategy_selection_stage import StrategySelectionStage
 from .continuation_stage import ContinuationStage
@@ -22,6 +23,8 @@ __all__ = [
     "SRLPreprocessingStage",
     "ExtractionStage",
     "GraphUpdateStage",
+    # Stage 4.5: SlotDiscoveryStage (Phase 2: Dual-Graph Architecture, bead yuhv)
+    "SlotDiscoveryStage",
     "StateComputationStage",
     "StrategySelectionStage",
     "ContinuationStage",

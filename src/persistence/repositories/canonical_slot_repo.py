@@ -5,6 +5,11 @@ Handles CRUD operations on canonical_slots, surface_to_slot_mapping,
 and canonical_edges tables. Uses aiosqlite for async SQLite access.
 
 Bead: eejs (Phase 2: Dual-Graph Architecture)
+
+IMPLEMENTATION NOTES:
+- Follows SessionRepository pattern: accepts db_path and manages its own connections
+- Each method creates its own connection via async context manager
+- Fail-fast error handling per ADR-009: no try/except around DB operations
 """
 
 import json
@@ -33,16 +38,19 @@ class CanonicalSlotRepository:
     - canonical_slots: Abstract concept slots (candidate → active lifecycle)
     - surface_to_slot_mapping: Maps surface kg_nodes to canonical slots
     - canonical_edges: Aggregated edges between canonical slots
+
+    Follows SessionRepository pattern: accepts db_path and manages its own
+    connections internally using async context managers.
     """
 
-    def __init__(self, db: aiosqlite.Connection):
+    def __init__(self, db_path: str):
         """
         Initialize canonical slot repository.
 
         Args:
-            db: aiosqlite connection (from FastAPI dependency)
+            db_path: Path to SQLite database file
         """
-        self.db = db
+        self.db_path = db_path
 
     # ==================== CANONICAL SLOT OPERATIONS ====================
 
@@ -78,27 +86,28 @@ class CanonicalSlotRepository:
         # Serialize embedding if provided
         embedding_blob = embedding.tobytes() if embedding is not None else None
 
-        await self.db.execute(
-            """
-            INSERT INTO canonical_slots (
-                id, session_id, slot_name, description, node_type,
-                status, support_count, first_seen_turn, promoted_turn, embedding
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                slot_id,
-                session_id,
-                slot_name,
-                description,
-                node_type,
-                status,
-                0,  # support_count starts at 0
-                first_seen_turn,
-                None,  # promoted_turn initially None
-                embedding_blob,
-            ),
-        )
-        await self.db.commit()
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                """
+                INSERT INTO canonical_slots (
+                    id, session_id, slot_name, description, node_type,
+                    status, support_count, first_seen_turn, promoted_turn, embedding
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    slot_id,
+                    session_id,
+                    slot_name,
+                    description,
+                    node_type,
+                    status,
+                    0,  # support_count starts at 0
+                    first_seen_turn,
+                    None,  # promoted_turn initially None
+                    embedding_blob,
+                ),
+            )
+            await db.commit()
 
         log.info(
             "canonical_slot_created",
@@ -125,12 +134,13 @@ class CanonicalSlotRepository:
         Returns:
             CanonicalSlot or None if not found
         """
-        self.db.row_factory = aiosqlite.Row
-        cursor = await self.db.execute(
-            "SELECT * FROM canonical_slots WHERE id = ?",
-            (slot_id,),
-        )
-        row = await cursor.fetchone()
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT * FROM canonical_slots WHERE id = ?",
+                (slot_id,),
+            )
+            row = await cursor.fetchone()
 
         if not row:
             return None
@@ -150,28 +160,30 @@ class CanonicalSlotRepository:
         Returns:
             List of active CanonicalSlot objects
         """
-        self.db.row_factory = aiosqlite.Row
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
 
-        if node_type:
-            cursor = await self.db.execute(
-                """
-                SELECT * FROM canonical_slots
-                WHERE session_id = ? AND status = 'active' AND node_type = ?
-                ORDER BY created_at DESC
-                """,
-                (session_id, node_type),
-            )
-        else:
-            cursor = await self.db.execute(
-                """
-                SELECT * FROM canonical_slots
-                WHERE session_id = ? AND status = 'active'
-                ORDER BY created_at DESC
-                """,
-                (session_id,),
-            )
+            if node_type:
+                cursor = await db.execute(
+                    """
+                    SELECT * FROM canonical_slots
+                    WHERE session_id = ? AND status = 'active' AND node_type = ?
+                    ORDER BY created_at DESC
+                    """,
+                    (session_id, node_type),
+                )
+            else:
+                cursor = await db.execute(
+                    """
+                    SELECT * FROM canonical_slots
+                    WHERE session_id = ? AND status = 'active'
+                    ORDER BY created_at DESC
+                    """,
+                    (session_id,),
+                )
 
-        rows = await cursor.fetchall()
+            rows = await cursor.fetchall()
+
         return [self._row_to_slot(row) for row in rows]
 
     async def find_similar_slots(
@@ -204,15 +216,16 @@ class CanonicalSlotRepository:
             # Read from config, NOT hardcoded (AMBIGUITY RESOLUTION 2026-02-07)
             threshold = settings.canonical_similarity_threshold
 
-        self.db.row_factory = aiosqlite.Row
-        cursor = await self.db.execute(
-            """
-            SELECT * FROM canonical_slots
-            WHERE session_id = ? AND node_type = ? AND status = ? AND embedding IS NOT NULL
-            """,
-            (session_id, node_type, status),
-        )
-        rows = await cursor.fetchall()
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                """
+                SELECT * FROM canonical_slots
+                WHERE session_id = ? AND node_type = ? AND status = ? AND embedding IS NOT NULL
+                """,
+                (session_id, node_type, status),
+            )
+            rows = await cursor.fetchall()
 
         # Compute cosine similarity for each slot
         similar_slots = []
@@ -251,22 +264,23 @@ class CanonicalSlotRepository:
 
         REFERENCE: Phase 2 (Dual-Graph Architecture), bead eejs
         """
-        # Insert mapping (INSERT OR REPLACE handles re-mapping if needed)
-        await self.db.execute(
-            """
-            INSERT OR REPLACE INTO surface_to_slot_mapping
-            (surface_node_id, canonical_slot_id, similarity_score, assigned_turn)
-            VALUES (?, ?, ?, ?)
-            """,
-            (surface_node_id, slot_id, similarity_score, assigned_turn),
-        )
+        async with aiosqlite.connect(self.db_path) as db:
+            # Insert mapping (INSERT OR REPLACE handles re-mapping if needed)
+            await db.execute(
+                """
+                INSERT OR REPLACE INTO surface_to_slot_mapping
+                (surface_node_id, canonical_slot_id, similarity_score, assigned_turn)
+                VALUES (?, ?, ?, ?)
+                """,
+                (surface_node_id, slot_id, similarity_score, assigned_turn),
+            )
 
-        # Increment support_count
-        await self.db.execute(
-            "UPDATE canonical_slots SET support_count = support_count + 1 WHERE id = ?",
-            (slot_id,),
-        )
-        await self.db.commit()
+            # Increment support_count
+            await db.execute(
+                "UPDATE canonical_slots SET support_count = support_count + 1 WHERE id = ?",
+                (slot_id,),
+            )
+            await db.commit()
 
         log.info(
             "surface_node_mapped",
@@ -285,15 +299,16 @@ class CanonicalSlotRepository:
 
         REFERENCE: Phase 2 (Dual-Graph Architecture), bead eejs
         """
-        await self.db.execute(
-            """
-            UPDATE canonical_slots
-            SET status = 'active', promoted_turn = ?, promoted_at = datetime('now')
-            WHERE id = ?
-            """,
-            (turn_number, slot_id),
-        )
-        await self.db.commit()
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                """
+                UPDATE canonical_slots
+                SET status = 'active', promoted_turn = ?, promoted_at = datetime('now')
+                WHERE id = ?
+                """,
+                (turn_number, slot_id),
+            )
+            await db.commit()
 
         log.info("slot_promoted", slot_id=slot_id, turn=turn_number)
 
@@ -311,14 +326,15 @@ class CanonicalSlotRepository:
         Returns:
             SlotMapping or None if not mapped
         """
-        self.db.row_factory = aiosqlite.Row
-        cursor = await self.db.execute(
-            """
-            SELECT * FROM surface_to_slot_mapping WHERE surface_node_id = ?
-            """,
-            (surface_node_id,),
-        )
-        row = await cursor.fetchone()
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                """
+                SELECT * FROM surface_to_slot_mapping WHERE surface_node_id = ?
+                """,
+                (surface_node_id,),
+            )
+            row = await cursor.fetchone()
 
         if not row:
             return None
@@ -362,96 +378,91 @@ class CanonicalSlotRepository:
 
         REFERENCE: AMBIGUITY RESOLUTION 2026-02-07 for full semantics
         """
-        # Check if edge exists
-        self.db.row_factory = aiosqlite.Row
-        cursor = await self.db.execute(
-            """
-            SELECT * FROM canonical_edges
-            WHERE session_id = ? AND source_slot_id = ? AND target_slot_id = ? AND edge_type = ?
-            """,
-            (session_id, source_slot_id, target_slot_id, edge_type),
-        )
-        row = await cursor.fetchone()
-
-        if row:
-            # Edge exists: update
-            edge_id = row["id"]
-            current_count = row["support_count"]
-            current_edges = json.loads(row["surface_edge_ids"])
-
-            # Append new surface edge ID (avoid duplicates)
-            if surface_edge_id not in current_edges:
-                current_edges.append(surface_edge_id)
-
-            await self.db.execute(
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            # Check if edge exists
+            cursor = await db.execute(
                 """
-                UPDATE canonical_edges
-                SET support_count = ?, surface_edge_ids = ?, updated_at = datetime('now')
-                WHERE id = ?
+                SELECT * FROM canonical_edges
+                WHERE session_id = ? AND source_slot_id = ? AND target_slot_id = ? AND edge_type = ?
                 """,
-                (current_count + 1, json.dumps(current_edges), edge_id),
+                (session_id, source_slot_id, target_slot_id, edge_type),
             )
-            await self.db.commit()
+            row = await cursor.fetchone()
 
-            log.debug(
-                "canonical_edge_updated",
-                edge_id=edge_id,
-                support_count=current_count + 1,
-            )
+            if row:
+                # Edge exists: update
+                edge_id = row["id"]
+                current_count = row["support_count"]
+                current_edges = json.loads(row["surface_edge_ids"])
 
-            edge = await self.get_canonical_edge(edge_id)
-            if edge is None:
-                raise RuntimeError(
-                    f"Canonical edge {edge_id} not found after UPDATE"
+                # Append new surface edge ID (avoid duplicates)
+                if surface_edge_id not in current_edges:
+                    current_edges.append(surface_edge_id)
+
+                await db.execute(
+                    """
+                    UPDATE canonical_edges
+                    SET support_count = ?, surface_edge_ids = ?, updated_at = datetime('now')
+                    WHERE id = ?
+                    """,
+                    (current_count + 1, json.dumps(current_edges), edge_id),
                 )
-            return edge
+                await db.commit()
 
-        else:
-            # Create new edge
-            edge_id = f"cedge_{uuid4().hex[:12]}"
-
-            await self.db.execute(
-                """
-                INSERT INTO canonical_edges
-                (id, session_id, source_slot_id, target_slot_id, edge_type,
-                 support_count, surface_edge_ids)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    edge_id,
-                    session_id,
-                    source_slot_id,
-                    target_slot_id,
-                    edge_type,
-                    1,
-                    json.dumps([surface_edge_id]),
-                ),
-            )
-            await self.db.commit()
-
-            log.info(
-                "canonical_edge_created",
-                edge_id=edge_id,
-                source=source_slot_id,
-                target=target_slot_id,
-                type=edge_type,
-            )
-
-            edge = await self.get_canonical_edge(edge_id)
-            if edge is None:
-                raise RuntimeError(
-                    f"Canonical edge {edge_id} not found after INSERT"
+                log.debug(
+                    "canonical_edge_updated",
+                    edge_id=edge_id,
+                    support_count=current_count + 1,
                 )
-            return edge
+
+            else:
+                # Create new edge
+                edge_id = f"cedge_{uuid4().hex[:12]}"
+
+                await db.execute(
+                    """
+                    INSERT INTO canonical_edges
+                    (id, session_id, source_slot_id, target_slot_id, edge_type,
+                     support_count, surface_edge_ids)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        edge_id,
+                        session_id,
+                        source_slot_id,
+                        target_slot_id,
+                        edge_type,
+                        1,
+                        json.dumps([surface_edge_id]),
+                    ),
+                )
+                await db.commit()
+
+                log.info(
+                    "canonical_edge_created",
+                    edge_id=edge_id,
+                    source=source_slot_id,
+                    target=target_slot_id,
+                    type=edge_type,
+                )
+
+        edge = await self.get_canonical_edge(edge_id)
+        if edge is None:
+            raise RuntimeError(
+                f"Canonical edge {edge_id} not found after operation"
+            )
+        return edge
 
     async def get_canonical_edge(self, edge_id: str) -> Optional[CanonicalEdge]:
         """Get a canonical edge by ID."""
-        self.db.row_factory = aiosqlite.Row
-        cursor = await self.db.execute(
-            "SELECT * FROM canonical_edges WHERE id = ?",
-            (edge_id,),
-        )
-        row = await cursor.fetchone()
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT * FROM canonical_edges WHERE id = ?",
+                (edge_id,),
+            )
+            row = await cursor.fetchone()
 
         if not row:
             return None
@@ -478,12 +489,13 @@ class CanonicalSlotRepository:
         Returns:
             List of CanonicalEdge objects
         """
-        self.db.row_factory = aiosqlite.Row
-        cursor = await self.db.execute(
-            "SELECT * FROM canonical_edges WHERE session_id = ?",
-            (session_id,),
-        )
-        rows = await cursor.fetchall()
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT * FROM canonical_edges WHERE session_id = ?",
+                (session_id,),
+            )
+            rows = await cursor.fetchall()
 
         return [
             CanonicalEdge(

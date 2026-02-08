@@ -19,6 +19,7 @@ from src.domain.models.pipeline_contracts import (
     SrlPreprocessingOutput,
     ExtractionOutput,
     GraphUpdateOutput,
+    SlotDiscoveryOutput,
     StateComputationOutput,
     StrategySelectionOutput,
     ContinuationOutput,
@@ -70,6 +71,9 @@ class PipelineContext:
 
     # Stage 4: GraphUpdateStage output
     graph_update_output: Optional[GraphUpdateOutput] = None
+
+    # Stage 4.5: SlotDiscoveryStage output (Phase 2: Dual-Graph Architecture, bead yuhv)
+    slot_discovery_output: Optional[SlotDiscoveryOutput] = None
 
     # Stage 5: StateComputationStage output
     state_computation_output: Optional[StateComputationOutput] = None

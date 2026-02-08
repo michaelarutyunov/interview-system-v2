@@ -15,8 +15,8 @@ The turn pipeline implements a **shared context accumulator pattern** where `Pip
 
 ## Implementation Status
 
-**Total Stages**: 11 (including optional Stage 2.5: SRLPreprocessingStage)
-**Stages with Contracts**: 11 (100%)
+**Total Stages**: 12 (including optional Stage 2.5: SRLPreprocessingStage and Stage 4.5: SlotDiscoveryStage)
+**Stages with Contracts**: 12 (100%)
 **Stages Missing Contracts**: 0 (0%)
 
 **Status**: ✅ All pipeline stages have formal contracts defined
@@ -39,11 +39,12 @@ ADR-010 Phase 2 introduced typed Pydantic models for all pipeline stage inputs a
 | `ContextLoadingOutput` | Session metadata, graph state | `ContextLoadingStage` |
 | `UtteranceSavingOutput` | Saved utterance with ID | `UtteranceSavingStage` |
 | `SrlPreprocessingOutput` | Discourse relations and SRL frames | `SRLPreprocessingStage` |
+| `ExtractionOutput` | Concepts and relationships with counts | `ExtractionStage` |
+| `GraphUpdateOutput` | Graph updates with counts | `GraphUpdateStage` |
+| `SlotDiscoveryOutput` | Canonical slot discovery counts | `SlotDiscoveryStage` (Stage 4.5) |
 | `StateComputationOutput` | Fresh graph state with timestamp | `StateComputationStage` |
 | `StrategySelectionInput` | Validated input for strategy selection | `StrategySelectionStage` |
 | `StrategySelectionOutput` | Selected strategy with scoring breakdown | `StrategySelectionStage` |
-| `ExtractionOutput` | Concepts and relationships with counts | `ExtractionStage` |
-| `GraphUpdateOutput` | Graph updates with counts | `GraphUpdateStage` |
 | `QuestionGenerationOutput` | Generated question with LLM fallback flag | `QuestionGenerationStage` |
 | `ResponseSavingOutput` | Saved system utterance | `ResponseSavingStage` |
 | `ContinuationOutput` | Continuation decision with reason | `ContinuationStage` |
@@ -151,6 +152,7 @@ Each stage validates that its required predecessor stages have completed success
 | **Stage 2.5: SRLPreprocessingStage** | Stage 2: `utterance_saving_output` | Validates utterance is saved |
 | **Stage 3: ExtractionStage** | Stage 2: `utterance_saving_output` | Validates utterance is saved (optional SRL hints from Stage 2.5) |
 | **Stage 4: GraphUpdateStage** | Stage 2: `utterance_saving_output`, Stage 3: `extraction_output` | Validates both utterance saved and extraction completed |
+| **Stage 4.5: SlotDiscoveryStage** | Stage 4: `graph_update_output` | Validates graph was updated |
 | **Stage 5: StateComputationStage** | Stage 4: `graph_update_output` | Validates graph was updated |
 | **Stage 6: StrategySelectionStage** | Stage 5: `state_computation_output` | Validates state computation completed |
 | **Stage 7: ContinuationStage** | Stage 6: `strategy_selection_output` | Validates strategy was selected |
@@ -348,6 +350,36 @@ timestamp: datetime           # When graph update was performed (auto-set)
   - `register_node()` - Registers new nodes when added
   - `update_edge_counts()` - Updates relationship counts for nodes
   - `record_yield()` - Records yield when graph changes occur
+
+---
+
+### Stage 4.5: SlotDiscoveryStage
+
+**File**: `src/services/turn_pipeline/stages/slot_discovery_stage.py`
+
+| Aspect | Details |
+|--------|---------|
+| **Purpose** | Discover or update canonical slots for newly added surface nodes (dual-graph architecture) |
+| **Dependencies** | Stage 4: `graph_update_output` |
+| **Immutable Inputs** | `session_id` |
+| **Reads** | `graph_update_output.nodes_added`, `turn_number`, `methodology` |
+| **Writes** | `slot_discovery_output` (SlotDiscoveryOutput contract) |
+| **Side Effects** | INSERT canonical_slots, INSERT surface_to_slot_mapping, UPDATE canonical_slots.support_count, LLM call for slot proposal |
+
+**Contract Output**: `SlotDiscoveryOutput`
+```python
+slots_created: int           # New canonical slots created this turn
+slots_updated: int           # Existing slots that received new mappings
+mappings_created: int        # Surface nodes mapped to canonical slots
+timestamp: datetime           # When slot discovery was performed (auto-set)
+```
+
+**Error Handling** (fail-fast per ADR-009):
+- No `nodes_added`: skip LLM call, return `SlotDiscoveryOutput` with zeros (only graceful skip)
+- `graph_update_output` is None: raise `RuntimeError` (pipeline contract violation)
+- LLM failure: exception propagates, pipeline fails for this turn
+
+**REFERENCE**: Phase 2 (Dual-Graph Architecture), bead yuhv
 
 ---
 

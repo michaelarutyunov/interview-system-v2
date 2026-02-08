@@ -17,6 +17,9 @@ import structlog
 
 from src.core.config import interview_config, settings
 from src.services.srl_service import SRLService
+from src.services.canonical_slot_service import CanonicalSlotService
+from src.services.embedding_service import EmbeddingService
+from src.persistence.repositories.canonical_slot_repo import CanonicalSlotRepository
 from src.core.concept_loader import load_concept
 from src.domain.models.extraction import ExtractionResult
 from src.domain.models.knowledge_graph import GraphState, KGNode
@@ -43,6 +46,7 @@ from src.services.turn_pipeline.stages import (
     SRLPreprocessingStage,
     ExtractionStage,
     GraphUpdateStage,
+    SlotDiscoveryStage,
     StateComputationStage,
     StrategySelectionStage,
     ContinuationStage,
@@ -111,6 +115,10 @@ class SessionService:
         self.session_repo = session_repo
         self.graph_repo = graph_repo
 
+        # Store LLM clients for use in pipeline stages (Phase 2: SlotDiscoveryStage)
+        self.extraction_llm_client = extraction_llm_client
+        self.generation_llm_client = generation_llm_client
+
         # Create services with graph_repo where needed
         if extraction_service:
             self.extraction = extraction_service
@@ -159,9 +167,23 @@ class SessionService:
 
         Returns:
             TurnPipeline configured with all stages
+
+        REFERENCE: Phase 2 (Dual-Graph Architecture), bead yuhv - SlotDiscoveryStage
         """
         # SRL service: lazy-loads spaCy model on first use, None disables gracefully
         srl_service = SRLService() if settings.enable_srl else None
+
+        # Phase 2: Dual-Graph Architecture - Slot discovery dependencies
+        # Follow same pattern as other services: reuse existing db connection
+        if self.generation_llm_client is None:
+            raise ValueError("generation_llm_client is required for SlotDiscoveryStage")
+        canonical_slot_repo = CanonicalSlotRepository(str(self.session_repo.db_path))
+        embedding_service = EmbeddingService()  # lazy loads spaCy en_core_web_md
+        canonical_slot_service = CanonicalSlotService(
+            llm_client=self.generation_llm_client,
+            slot_repo=canonical_slot_repo,
+            embedding_service=embedding_service,
+        )
 
         stages = [
             ContextLoadingStage(
@@ -176,6 +198,9 @@ class SessionService:
             GraphUpdateStage(
                 graph_service=self.graph,
             ),
+            # Stage 4.5: SlotDiscoveryStage (Phase 2: Dual-Graph Architecture, bead yuhv)
+            # Maps surface nodes to canonical slots via LLM proposal + embedding similarity
+            SlotDiscoveryStage(slot_service=canonical_slot_service),
             StateComputationStage(
                 graph_service=self.graph,
             ),

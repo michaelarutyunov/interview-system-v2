@@ -273,6 +273,30 @@ class GraphUpdateOutput(BaseModel):
         return self
 
 
+class SlotDiscoveryOutput(BaseModel):
+    """Contract: SlotDiscoveryStage output (Stage 4.5).
+
+    Stage 4.5 discovers or updates canonical slots for newly added surface nodes.
+    Implements dual-graph architecture by mapping surface nodes to abstract canonical slots.
+
+    REFERENCE: Phase 2 (Dual-Graph Architecture), bead yuhv
+    """
+
+    slots_created: int = Field(
+        default=0, ge=0, description="New canonical slots created this turn"
+    )
+    slots_updated: int = Field(
+        default=0, ge=0, description="Existing slots that received new mappings"
+    )
+    mappings_created: int = Field(
+        default=0, ge=0, description="Surface nodes mapped to canonical slots"
+    )
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When slot discovery was performed",
+    )
+
+
 class QuestionGenerationOutput(BaseModel):
     """Contract: QuestionGenerationStage output (Stage 7).
 
