@@ -30,8 +30,8 @@ CREATE TABLE IF NOT EXISTS canonical_slots (
     first_seen_turn INTEGER NOT NULL,
     promoted_turn INTEGER,
 
-    -- Embedding: numpy array serialized via tobytes()
-    -- Deserialize with np.frombuffer(blob, dtype=np.float32)
+    -- Embedding: numpy float32 array serialized via tobytes()
+    -- Model: all-MiniLM-L6-v2 (384-dim). Deserialize with np.frombuffer(blob, dtype=np.float32)
     embedding BLOB,
 
     -- Timestamps

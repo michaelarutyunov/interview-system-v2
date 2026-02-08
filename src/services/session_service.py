@@ -186,18 +186,27 @@ class SessionService:
         canonical_graph_service = None
 
         if settings.enable_canonical_slots:
-            # Follow same pattern as other services: reuse existing db connection
-            if self.generation_llm_client is None:
-                raise ValueError(
-                    "generation_llm_client is required for SlotDiscoveryStage "
-                    "when enable_canonical_slots=True"
-                )
+            # Slot discovery uses scoring LLM (KIMI) — cheaper and sufficient
+            # for structured JSON extraction. Falls back to generation client.
+            from src.llm.client import get_scoring_llm_client
+
+            try:
+                slot_llm_client = get_scoring_llm_client()
+            except ValueError:
+                # KIMI_API_KEY not configured — fall back to generation client
+                if self.generation_llm_client is None:
+                    raise ValueError(
+                        "No LLM client available for SlotDiscoveryStage: "
+                        "configure KIMI_API_KEY or provide generation_llm_client"
+                    )
+                slot_llm_client = self.generation_llm_client
+
             canonical_slot_repo = CanonicalSlotRepository(
                 str(self.session_repo.db_path)
             )
-            embedding_service = EmbeddingService()  # lazy loads spaCy en_core_web_md
+            embedding_service = EmbeddingService()  # lazy loads all-MiniLM-L6-v2 + spaCy
             canonical_slot_service = CanonicalSlotService(
-                llm_client=self.generation_llm_client,
+                llm_client=slot_llm_client,
                 slot_repo=canonical_slot_repo,
                 embedding_service=embedding_service,
             )

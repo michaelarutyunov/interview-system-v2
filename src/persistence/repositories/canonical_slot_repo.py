@@ -273,7 +273,7 @@ class CanonicalSlotRepository:
             if slot.embedding is None:
                 continue
 
-            # Deserialize embedding: spaCy en_core_web_md uses float32
+            # Deserialize embedding: all-MiniLM-L6-v2 (384-dim float32)
             slot_embedding = np.frombuffer(slot.embedding, dtype=np.float32)
             similarity = self._cosine_similarity(embedding, slot_embedding)
 

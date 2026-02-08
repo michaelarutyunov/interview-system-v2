@@ -355,8 +355,10 @@ class CanonicalSlotService:
             return updated_slot
 
         # No exact match - proceed with similarity search
-        # Embed the proposed name
-        embedding = await self.embedding_service.encode(proposed_name)
+        # Embed name + description for richer semantic signal (gjb5)
+        embedding = await self.embedding_service.encode(
+            f"{proposed_name} :: {description}"
+        )
 
         # Find similar existing slots (both statuses)
         active_matches = await self.slot_repo.find_similar_slots(
