@@ -260,6 +260,24 @@ class CanonicalSlotService:
 
         return proposals
 
+    def _lemmatize_name(self, name: str) -> str:
+        """
+        Lemmatize a slot name to normalize grammatical variants.
+
+        Processes each underscore-separated word independently to avoid
+        context-sensitive POS tagging (spaCy tags "reduced" as ADJ in
+        "reduced inflammation" but as VERB when standalone, giving
+        different lemmas).
+
+        Uses the spaCy model already loaded by EmbeddingService.
+
+        Bead: 00cw (reduce canonical slot fragmentation)
+        """
+        nlp = self.embedding_service.nlp
+        words = name.split("_")
+        lemmas = [nlp(word)[0].lemma_.lower() for word in words]
+        return "_".join(lemmas)
+
     async def _find_or_create_slot(
         self,
         session_id: str,
@@ -282,7 +300,13 @@ class CanonicalSlotService:
             Phase 4, bead f6t8: Added exact match check BEFORE similarity search
             to prevent UNIQUE constraint violations. Pattern follows
             GraphRepository.find_node_by_label_and_type().
+
+            Bead 00cw: Lemmatize proposed_name before exact-match lookup so
+            grammatical variants (reduce/reduced, sustain/sustained) match.
         """
+        # Bead 00cw: Lemmatize to normalize grammatical variants
+        proposed_name = self._lemmatize_name(proposed_name)
+
         # Phase 4, bead f6t8: Check for exact match first to prevent duplicates
         existing_slot = await self.slot_repo.find_slot_by_name_and_type(
             session_id, proposed_name, node_type
