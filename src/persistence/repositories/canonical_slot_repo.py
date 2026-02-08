@@ -610,37 +610,37 @@ class CanonicalSlotRepository:
             )
             rows = await cursor.fetchall()
 
-        result = []
-        for row in rows:
-            surface_edge_ids = json.loads(row["surface_edge_ids"])
-            avg_confidence = 0.0
+            result = []
+            for row in rows:
+                surface_edge_ids = json.loads(row["surface_edge_ids"])
+                avg_confidence = 0.0
 
-            # Compute avg confidence from surface edges
-            if surface_edge_ids:
-                placeholders = ",".join("?" * len(surface_edge_ids))
-                cursor2 = await db.execute(
-                    f"""
-                    SELECT AVG(confidence) as avg_conf
-                    FROM kg_edges
-                    WHERE id IN ({placeholders})
-                    """,
-                    surface_edge_ids,
+                # Compute avg confidence from surface edges
+                if surface_edge_ids:
+                    placeholders = ",".join("?" * len(surface_edge_ids))
+                    cursor2 = await db.execute(
+                        f"""
+                        SELECT AVG(confidence) as avg_conf
+                        FROM kg_edges
+                        WHERE id IN ({placeholders})
+                        """,
+                        surface_edge_ids,
+                    )
+                    conf_row = await cursor2.fetchone()
+                    if conf_row and conf_row["avg_conf"]:
+                        avg_confidence = round(conf_row["avg_conf"], 3)
+
+                result.append(
+                    {
+                        "edge_id": row["edge_id"],
+                        "source_slot_id": row["source_slot_id"],
+                        "target_slot_id": row["target_slot_id"],
+                        "edge_type": row["edge_type"],
+                        "support_count": row["support_count"],
+                        "surface_edge_ids": surface_edge_ids,
+                        "avg_confidence": avg_confidence,
+                    }
                 )
-                conf_row = await cursor2.fetchone()
-                if conf_row and conf_row["avg_conf"]:
-                    avg_confidence = round(conf_row["avg_conf"], 3)
-
-            result.append(
-                {
-                    "edge_id": row["edge_id"],
-                    "source_slot_id": row["source_slot_id"],
-                    "target_slot_id": row["target_slot_id"],
-                    "edge_type": row["edge_type"],
-                    "support_count": row["support_count"],
-                    "surface_edge_ids": surface_edge_ids,
-                    "avg_confidence": avg_confidence,
-                }
-            )
 
         return result
 
