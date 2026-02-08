@@ -156,6 +156,10 @@ signal_norms:
   graph.orphan_count: 20     # Orphans typically < half of node_count
   graph.max_depth: 8         # MEC chains: attribute(1) → value(5), occasional 6-8
   graph.avg_depth: 6         # Average depth across all chains
+  # Canonical graph signals (Phase 4, bead 3pna)
+  graph.canonical_concept_count: 30     # Canonical slots typically 40-60% of surface nodes
+  graph.canonical_edge_density: 1.0    # Edge-to-concept ratio, max 1.0 (fully connected)
+  graph.canonical_exhaustion_score: 1.0 # Already normalized 0-1
   temporal.strategy_repetition_count: 5  # Last 5 turns tracked
   temporal.turns_since_strategy_change: 5  # Practical max before forced pivot
 

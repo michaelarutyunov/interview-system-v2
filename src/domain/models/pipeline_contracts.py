@@ -11,9 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 from src.domain.models.knowledge_graph import GraphState, KGNode, SaturationMetrics
 from src.domain.models.utterance import Utterance
 from src.domain.models.extraction import ExtractionResult
-
-if TYPE_CHECKING:
-    from src.domain.models.canonical_graph import CanonicalGraphState
+from src.domain.models.canonical_graph import CanonicalGraphState
 
 
 class ContextLoadingOutput(BaseModel):
