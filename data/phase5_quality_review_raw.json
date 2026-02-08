@@ -1,0 +1,928 @@
+{
+  "session_id": "ddc755ec-b286-4448-b7eb-6988a7bcbd52",
+  "canonical_slots": [
+    {
+      "slot_id": "slot_ea425786c819",
+      "slot_name": "brand_comparison_behavior",
+      "node_type": "attribute",
+      "description": "Consumer activity of evaluating different brands against each other",
+      "support_count": 1,
+      "first_seen_turn": 1,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_12ba01364aff",
+      "slot_name": "clean_taste_profile",
+      "node_type": "attribute",
+      "description": "Absence of unpleasant or artificial taste characteristics",
+      "support_count": 1,
+      "first_seen_turn": 2,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_a9d2f31ce81f",
+      "slot_name": "excluded_additives",
+      "node_type": "attribute",
+      "description": "Specific ingredients or additives that are absent from the product",
+      "support_count": 2,
+      "first_seen_turn": 1,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_3eb4859c1298",
+      "slot_name": "nutritional_fiber",
+      "node_type": "attribute",
+      "description": "Fiber content and related nutritional attributes",
+      "support_count": 1,
+      "first_seen_turn": 2,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_7110cf0b35f4",
+      "slot_name": "premium_pricing",
+      "node_type": "attribute",
+      "description": "Product is positioned at a higher price point compared to alternatives",
+      "support_count": 1,
+      "first_seen_turn": 1,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_66e9c807ef41",
+      "slot_name": "blends_smoothly",
+      "node_type": "functional_consequence",
+      "description": "Product mixes or blends well without clumping or separation",
+      "support_count": 1,
+      "first_seen_turn": 2,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_a7034b2bb9d3",
+      "slot_name": "coffee_milk_substitute",
+      "node_type": "functional_consequence",
+      "description": "Product functions as a replacement for regular milk in coffee",
+      "support_count": 1,
+      "first_seen_turn": 2,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_7d93a13c6cfa",
+      "slot_name": "cognitive_focus_enhancement",
+      "node_type": "functional_consequence",
+      "description": "Improves mental clarity and ability to concentrate on work tasks",
+      "support_count": 1,
+      "first_seen_turn": 4,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_35b61728f55e",
+      "slot_name": "cognitive_performance",
+      "node_type": "functional_consequence",
+      "description": "Improved ability to concentrate and focus during work",
+      "support_count": 1,
+      "first_seen_turn": 5,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_b6a666340469",
+      "slot_name": "dairy_elimination",
+      "node_type": "functional_consequence",
+      "description": "Successfully reducing or eliminating dairy consumption",
+      "support_count": 1,
+      "first_seen_turn": 3,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_95006997f9db",
+      "slot_name": "digestive_comfort",
+      "node_type": "functional_consequence",
+      "description": "Absence of digestive discomfort like bloating",
+      "support_count": 1,
+      "first_seen_turn": 5,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_dd87d741713a",
+      "slot_name": "improved_digestion",
+      "node_type": "functional_consequence",
+      "description": "Better digestive health and gut function",
+      "support_count": 1,
+      "first_seen_turn": 3,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_3a8e67ddd2d8",
+      "slot_name": "improved_skin",
+      "node_type": "functional_consequence",
+      "description": "Clearer or healthier skin appearance",
+      "support_count": 1,
+      "first_seen_turn": 3,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_b419aab901f2",
+      "slot_name": "increased_energy",
+      "node_type": "functional_consequence",
+      "description": "Feeling more energetic and less sluggish after eating",
+      "support_count": 1,
+      "first_seen_turn": 3,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_b17b1b8df18e",
+      "slot_name": "post_meal_alertness",
+      "node_type": "functional_consequence",
+      "description": "Avoiding sluggishness or tiredness after eating",
+      "support_count": 1,
+      "first_seen_turn": 5,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_2984b3e13869",
+      "slot_name": "reduce_inflammation",
+      "node_type": "functional_consequence",
+      "description": "Reduces inflammation or inflammatory responses in the body",
+      "support_count": 1,
+      "first_seen_turn": 1,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_ebd06888bb48",
+      "slot_name": "reduced_bloating",
+      "node_type": "functional_consequence",
+      "description": "Experiencing less bloating or abdominal discomfort",
+      "support_count": 1,
+      "first_seen_turn": 3,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_530ccab6d465",
+      "slot_name": "reduced_inflammation",
+      "node_type": "functional_consequence",
+      "description": "Decrease in bodily inflammation",
+      "support_count": 1,
+      "first_seen_turn": 3,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_934bfbe5cca6",
+      "slot_name": "smoothie_compatible",
+      "node_type": "functional_consequence",
+      "description": "Product works well when used in smoothie recipes",
+      "support_count": 1,
+      "first_seen_turn": 2,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_b82bc0c1f6f8",
+      "slot_name": "superior_to_alternatives",
+      "node_type": "functional_consequence",
+      "description": "Product performs better than competing alternative products",
+      "support_count": 1,
+      "first_seen_turn": 2,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_c2bf795602c3",
+      "slot_name": "sustained_energy_levels",
+      "node_type": "functional_consequence",
+      "description": "Maintains consistent energy without afternoon crashes or energy drops",
+      "support_count": 1,
+      "first_seen_turn": 4,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_9e30ae94b67d",
+      "slot_name": "workout_energy_boost",
+      "node_type": "functional_consequence",
+      "description": "Provides energy specifically for physical exercise and workouts",
+      "support_count": 1,
+      "first_seen_turn": 4,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_74be885f37a2",
+      "slot_name": "maintaining_health",
+      "node_type": "instrumental_value",
+      "description": "Actively taking care of one's physical health and wellbeing",
+      "support_count": 1,
+      "first_seen_turn": 1,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_bae447afbd8e",
+      "slot_name": "reducing_dairy_intake",
+      "node_type": "instrumental_value",
+      "description": "Limiting or decreasing consumption of dairy products",
+      "support_count": 1,
+      "first_seen_turn": 2,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_ac7f01915d9d",
+      "slot_name": "effortless_functioning",
+      "node_type": "psychosocial_consequence",
+      "description": "Experiencing life as flowing smoothly without physical or mental resistance",
+      "support_count": 2,
+      "first_seen_turn": 4,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_7e6677a59c9d",
+      "slot_name": "enhanced_presence",
+      "node_type": "psychosocial_consequence",
+      "description": "Being more present and showing up better in daily activities and relationships",
+      "support_count": 2,
+      "first_seen_turn": 4,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_4d35861b2d37",
+      "slot_name": "financial_justification",
+      "node_type": "psychosocial_consequence",
+      "description": "Feeling that a purchase or decision is justified despite higher cost",
+      "support_count": 1,
+      "first_seen_turn": 1,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_a968fade9750",
+      "slot_name": "improved_wellbeing",
+      "node_type": "psychosocial_consequence",
+      "description": "General sense of feeling better or improved overall state",
+      "support_count": 1,
+      "first_seen_turn": 3,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_c6b676da98eb",
+      "slot_name": "sustained_positive_affect",
+      "node_type": "psychosocial_consequence",
+      "description": "Experiencing consistent positive emotional state or well-being throughout the day",
+      "support_count": 1,
+      "first_seen_turn": 5,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_af31873e3024",
+      "slot_name": "holistic_wellness",
+      "node_type": "terminal_value",
+      "description": "Comprehensive well-being encompassing physical, mental, and emotional health as a life goal",
+      "support_count": 1,
+      "first_seen_turn": 3,
+      "status": "candidate"
+    },
+    {
+      "slot_id": "slot_95796ebbd5a7",
+      "slot_name": "minimal_ingredients",
+      "node_type": "attribute",
+      "description": "Product has a short, simple ingredient list with few components",
+      "support_count": 3,
+      "first_seen_turn": 1,
+      "status": "active"
+    },
+    {
+      "slot_id": "slot_3e3fadc98818",
+      "slot_name": "sustained_energy",
+      "node_type": "functional_consequence",
+      "description": "Consistent energy levels without fluctuations throughout the day",
+      "support_count": 3,
+      "first_seen_turn": 5,
+      "status": "active"
+    }
+  ],
+  "mappings": [
+    {
+      "surface_node_id": "9f0680e5-fe07-4d2d-816b-646ace3939dc",
+      "surface_label": "no weird aftertaste",
+      "surface_type": "attribute",
+      "canonical_slot_id": "slot_12ba01364aff",
+      "canonical_name": "clean_taste_profile",
+      "canonical_type": "attribute",
+      "similarity_score": 1.0,
+      "assigned_turn": 2
+    },
+    {
+      "surface_node_id": "ba1ee229-c750-4c59-af7a-f5d42f22d584",
+      "surface_label": "reduce inflammation in body",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_2984b3e13869",
+      "canonical_name": "reduce_inflammation",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 1
+    },
+    {
+      "surface_node_id": "9abf7fb3-192c-425b-a439-c99dc9880d5f",
+      "surface_label": "can focus at work",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_35b61728f55e",
+      "canonical_name": "cognitive_performance",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 5
+    },
+    {
+      "surface_node_id": "ecab26a1-5818-4e85-90cb-ca1bca49d172",
+      "surface_label": "clearer skin",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_3a8e67ddd2d8",
+      "canonical_name": "improved_skin",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 3
+    },
+    {
+      "surface_node_id": "ba24f2ff-87f0-4ea6-a52c-5e6890437f8c",
+      "surface_label": "more energy to do things I want",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_3e3fadc98818",
+      "canonical_name": "sustained_energy",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 5
+    },
+    {
+      "surface_node_id": "9fb9cc3d-aec6-41c6-87a0-85d62c0b9b3d",
+      "surface_label": "have energy for evening workout",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_3e3fadc98818",
+      "canonical_name": "sustained_energy",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 5
+    },
+    {
+      "surface_node_id": "f832b88f-0561-4531-9196-21d0cf3838cb",
+      "surface_label": "not having ups and downs",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_3e3fadc98818",
+      "canonical_name": "sustained_energy",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 5
+    },
+    {
+      "surface_node_id": "fdadc6d1-2268-4b81-b255-ff42266adac7",
+      "surface_label": "good fiber content",
+      "surface_type": "attribute",
+      "canonical_slot_id": "slot_3eb4859c1298",
+      "canonical_name": "nutritional_fiber",
+      "canonical_type": "attribute",
+      "similarity_score": 1.0,
+      "assigned_turn": 2
+    },
+    {
+      "surface_node_id": "9dc5547d-8bad-4dcd-a5ea-3a2929b87007",
+      "surface_label": "worth the extra cost",
+      "surface_type": "psychosocial_consequence",
+      "canonical_slot_id": "slot_4d35861b2d37",
+      "canonical_name": "financial_justification",
+      "canonical_type": "psychosocial_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 1
+    },
+    {
+      "surface_node_id": "256e3398-f6e2-4c91-8f63-817e62cb6d01",
+      "surface_label": "inflammation reduction",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_530ccab6d465",
+      "canonical_name": "reduced_inflammation",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 3
+    },
+    {
+      "surface_node_id": "00a11e11-008a-476a-ba3e-69f235c04f8b",
+      "surface_label": "blends really well",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_66e9c807ef41",
+      "canonical_name": "blends_smoothly",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 2
+    },
+    {
+      "surface_node_id": "02636c81-a5f0-41c9-8d3f-fc9740d7c67a",
+      "surface_label": "more expensive",
+      "surface_type": "attribute",
+      "canonical_slot_id": "slot_7110cf0b35f4",
+      "canonical_name": "premium_pricing",
+      "canonical_type": "attribute",
+      "similarity_score": 1.0,
+      "assigned_turn": 1
+    },
+    {
+      "surface_node_id": "63be3569-25f1-48ac-b491-6c914a6c9d06",
+      "surface_label": "taking care of my health",
+      "surface_type": "instrumental_value",
+      "canonical_slot_id": "slot_74be885f37a2",
+      "canonical_name": "maintaining_health",
+      "canonical_type": "instrumental_value",
+      "similarity_score": 1.0,
+      "assigned_turn": 1
+    },
+    {
+      "surface_node_id": "0971bd1e-efdd-4962-abb6-080a9b12ae43",
+      "surface_label": "mental clarity to focus on work",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_7d93a13c6cfa",
+      "canonical_name": "cognitive_focus_enhancement",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 4
+    },
+    {
+      "surface_node_id": "9ee1fdcd-d6b4-42ca-88f8-6261ca2d5e16",
+      "surface_label": "show up better for everything",
+      "surface_type": "psychosocial_consequence",
+      "canonical_slot_id": "slot_7e6677a59c9d",
+      "canonical_name": "enhanced_presence",
+      "canonical_type": "psychosocial_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 4
+    },
+    {
+      "surface_node_id": "acaef96e-d90f-44f4-b6a5-2a15873dd150",
+      "surface_label": "be more present with friends",
+      "surface_type": "psychosocial_consequence",
+      "canonical_slot_id": "slot_7e6677a59c9d",
+      "canonical_name": "enhanced_presence",
+      "canonical_type": "psychosocial_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 4
+    },
+    {
+      "surface_node_id": "6d15bf82-8e8c-4112-acf3-c17d0eb85dc6",
+      "surface_label": "use in morning smoothies",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_934bfbe5cca6",
+      "canonical_name": "smoothie_compatible",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 2
+    },
+    {
+      "surface_node_id": "2c4410fc-2af4-4274-87ef-fca81517e50a",
+      "surface_label": "not dealing with bloating",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_95006997f9db",
+      "canonical_name": "digestive_comfort",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 5
+    },
+    {
+      "surface_node_id": "802a2005-ca71-498a-aac3-a1dad3570f1a",
+      "surface_label": "minimal ingredient list",
+      "surface_type": "attribute",
+      "canonical_slot_id": "slot_95796ebbd5a7",
+      "canonical_name": "minimal_ingredients",
+      "canonical_type": "attribute",
+      "similarity_score": 1.0,
+      "assigned_turn": 1
+    },
+    {
+      "surface_node_id": "eb189a56-bb4b-49f2-953c-0834cb3d224e",
+      "surface_label": "only oats, water, and sea salt",
+      "surface_type": "attribute",
+      "canonical_slot_id": "slot_95796ebbd5a7",
+      "canonical_name": "minimal_ingredients",
+      "canonical_type": "attribute",
+      "similarity_score": 1.0,
+      "assigned_turn": 1
+    },
+    {
+      "surface_node_id": "d3b7ebce-1fd7-43ff-84b7-c1246411308c",
+      "surface_label": "clean and simple",
+      "surface_type": "attribute",
+      "canonical_slot_id": "slot_95796ebbd5a7",
+      "canonical_name": "minimal_ingredients",
+      "canonical_type": "attribute",
+      "similarity_score": 1.0,
+      "assigned_turn": 1
+    },
+    {
+      "surface_node_id": "a3dba38e-3e66-4913-94ea-63bc53d34dc4",
+      "surface_label": "have energy to enjoy workouts",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_9e30ae94b67d",
+      "canonical_name": "workout_energy_boost",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 4
+    },
+    {
+      "surface_node_id": "74f5187d-da3d-4222-8dd0-90bb1ca02a4c",
+      "surface_label": "use in coffee instead of regular milk",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_a7034b2bb9d3",
+      "canonical_name": "coffee_milk_substitute",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 2
+    },
+    {
+      "surface_node_id": "b1923d1b-1775-44e9-8786-0e09fcc95a1e",
+      "surface_label": "feel better",
+      "surface_type": "psychosocial_consequence",
+      "canonical_slot_id": "slot_a968fade9750",
+      "canonical_name": "improved_wellbeing",
+      "canonical_type": "psychosocial_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 3
+    },
+    {
+      "surface_node_id": "76d31e22-5a14-4bdf-bf67-6733ac0aab12",
+      "surface_label": "no carrageenan",
+      "surface_type": "attribute",
+      "canonical_slot_id": "slot_a9d2f31ce81f",
+      "canonical_name": "excluded_additives",
+      "canonical_type": "attribute",
+      "similarity_score": 1.0,
+      "assigned_turn": 1
+    },
+    {
+      "surface_node_id": "adf4612c-ac80-4d81-871a-203a9ada4d37",
+      "surface_label": "no added oils",
+      "surface_type": "attribute",
+      "canonical_slot_id": "slot_a9d2f31ce81f",
+      "canonical_name": "excluded_additives",
+      "canonical_type": "attribute",
+      "similarity_score": 1.0,
+      "assigned_turn": 1
+    },
+    {
+      "surface_node_id": "ec74ea23-c518-4883-8175-01a50ea31dc6",
+      "surface_label": "everything flows better",
+      "surface_type": "psychosocial_consequence",
+      "canonical_slot_id": "slot_ac7f01915d9d",
+      "canonical_name": "effortless_functioning",
+      "canonical_type": "psychosocial_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 4
+    },
+    {
+      "surface_node_id": "aec74d41-410a-44b1-8375-965f9cd02784",
+      "surface_label": "not fighting against physical feelings",
+      "surface_type": "psychosocial_consequence",
+      "canonical_slot_id": "slot_ac7f01915d9d",
+      "canonical_name": "effortless_functioning",
+      "canonical_type": "psychosocial_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 4
+    },
+    {
+      "surface_node_id": "925aed3c-d7ff-4c38-971e-d2d021e5a731",
+      "surface_label": "overall wellness goals",
+      "surface_type": "terminal_value",
+      "canonical_slot_id": "slot_af31873e3024",
+      "canonical_name": "holistic_wellness",
+      "canonical_type": "terminal_value",
+      "similarity_score": 1.0,
+      "assigned_turn": 3
+    },
+    {
+      "surface_node_id": "49b2dce1-e95b-4144-b177-a80b65ca9e9d",
+      "surface_label": "not having sluggish feeling after breakfast",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_b17b1b8df18e",
+      "canonical_name": "post_meal_alertness",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 5
+    },
+    {
+      "surface_node_id": "d9dbf6d1-6a73-4f10-bd2d-109961142286",
+      "surface_label": "no sluggish feeling after meals",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_b419aab901f2",
+      "canonical_name": "increased_energy",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 3
+    },
+    {
+      "surface_node_id": "13787cf3-da21-4e84-a60c-2e0349d740a7",
+      "surface_label": "reducing dairy",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_b6a666340469",
+      "canonical_name": "dairy_elimination",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 3
+    },
+    {
+      "surface_node_id": "58d68541-b622-493f-968e-7fc76231f591",
+      "surface_label": "better than almond milk",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_b82bc0c1f6f8",
+      "canonical_name": "superior_to_alternatives",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 2
+    },
+    {
+      "surface_node_id": "2788b760-6661-47f9-a417-c74e54e6cb70",
+      "surface_label": "reduce dairy",
+      "surface_type": "instrumental_value",
+      "canonical_slot_id": "slot_bae447afbd8e",
+      "canonical_name": "reducing_dairy_intake",
+      "canonical_type": "instrumental_value",
+      "similarity_score": 1.0,
+      "assigned_turn": 2
+    },
+    {
+      "surface_node_id": "533efdb9-f7f4-4ddf-96f0-786dca516327",
+      "surface_label": "no afternoon crash",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_c2bf795602c3",
+      "canonical_name": "sustained_energy_levels",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 4
+    },
+    {
+      "surface_node_id": "d062083c-9306-4196-be10-a66a77ecb627",
+      "surface_label": "feeling good consistently throughout the day",
+      "surface_type": "psychosocial_consequence",
+      "canonical_slot_id": "slot_c6b676da98eb",
+      "canonical_name": "sustained_positive_affect",
+      "canonical_type": "psychosocial_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 5
+    },
+    {
+      "surface_node_id": "f456f7d9-9fb5-406f-98ac-64eb0960b3f3",
+      "surface_label": "gut health",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_dd87d741713a",
+      "canonical_name": "improved_digestion",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 3
+    },
+    {
+      "surface_node_id": "971b4507-0274-4979-865f-d5f4a50b9e63",
+      "surface_label": "comparing oat milk brands",
+      "surface_type": "attribute",
+      "canonical_slot_id": "slot_ea425786c819",
+      "canonical_name": "brand_comparison_behavior",
+      "canonical_type": "attribute",
+      "similarity_score": 1.0,
+      "assigned_turn": 1
+    },
+    {
+      "surface_node_id": "e62f6b16-028a-492c-9911-650444163496",
+      "surface_label": "less bloated",
+      "surface_type": "functional_consequence",
+      "canonical_slot_id": "slot_ebd06888bb48",
+      "canonical_name": "reduced_bloating",
+      "canonical_type": "functional_consequence",
+      "similarity_score": 1.0,
+      "assigned_turn": 3
+    }
+  ],
+  "canonical_edges": [],
+  "sample_assignments": [
+    {
+      "surface_node_id": "fdadc6d1-2268-4b81-b255-ff42266adac7",
+      "surface_label": "good fiber content",
+      "canonical_name": "nutritional_fiber",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "802a2005-ca71-498a-aac3-a1dad3570f1a",
+      "surface_label": "minimal ingredient list",
+      "canonical_name": "minimal_ingredients",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "e62f6b16-028a-492c-9911-650444163496",
+      "surface_label": "less bloated",
+      "canonical_name": "reduced_bloating",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "533efdb9-f7f4-4ddf-96f0-786dca516327",
+      "surface_label": "no afternoon crash",
+      "canonical_name": "sustained_energy_levels",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "76d31e22-5a14-4bdf-bf67-6733ac0aab12",
+      "surface_label": "no carrageenan",
+      "canonical_name": "excluded_additives",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "9abf7fb3-192c-425b-a439-c99dc9880d5f",
+      "surface_label": "can focus at work",
+      "canonical_name": "cognitive_performance",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "ec74ea23-c518-4883-8175-01a50ea31dc6",
+      "surface_label": "everything flows better",
+      "canonical_name": "effortless_functioning",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "971b4507-0274-4979-865f-d5f4a50b9e63",
+      "surface_label": "comparing oat milk brands",
+      "canonical_name": "brand_comparison_behavior",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "d3b7ebce-1fd7-43ff-84b7-c1246411308c",
+      "surface_label": "clean and simple",
+      "canonical_name": "minimal_ingredients",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "49b2dce1-e95b-4144-b177-a80b65ca9e9d",
+      "surface_label": "not having sluggish feeling after breakfast",
+      "canonical_name": "post_meal_alertness",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "aec74d41-410a-44b1-8375-965f9cd02784",
+      "surface_label": "not fighting against physical feelings",
+      "canonical_name": "effortless_functioning",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "2788b760-6661-47f9-a417-c74e54e6cb70",
+      "surface_label": "reduce dairy",
+      "canonical_name": "reducing_dairy_intake",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "9f0680e5-fe07-4d2d-816b-646ace3939dc",
+      "surface_label": "no weird aftertaste",
+      "canonical_name": "clean_taste_profile",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "9dc5547d-8bad-4dcd-a5ea-3a2929b87007",
+      "surface_label": "worth the extra cost",
+      "canonical_name": "financial_justification",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "adf4612c-ac80-4d81-871a-203a9ada4d37",
+      "surface_label": "no added oils",
+      "canonical_name": "excluded_additives",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "9fb9cc3d-aec6-41c6-87a0-85d62c0b9b3d",
+      "surface_label": "have energy for evening workout",
+      "canonical_name": "sustained_energy",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "9ee1fdcd-d6b4-42ca-88f8-6261ca2d5e16",
+      "surface_label": "show up better for everything",
+      "canonical_name": "enhanced_presence",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "ecab26a1-5818-4e85-90cb-ca1bca49d172",
+      "surface_label": "clearer skin",
+      "canonical_name": "improved_skin",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "acaef96e-d90f-44f4-b6a5-2a15873dd150",
+      "surface_label": "be more present with friends",
+      "canonical_name": "enhanced_presence",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "02636c81-a5f0-41c9-8d3f-fc9740d7c67a",
+      "surface_label": "more expensive",
+      "canonical_name": "premium_pricing",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "256e3398-f6e2-4c91-8f63-817e62cb6d01",
+      "surface_label": "inflammation reduction",
+      "canonical_name": "reduced_inflammation",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "f456f7d9-9fb5-406f-98ac-64eb0960b3f3",
+      "surface_label": "gut health",
+      "canonical_name": "improved_digestion",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "f832b88f-0561-4531-9196-21d0cf3838cb",
+      "surface_label": "not having ups and downs",
+      "canonical_name": "sustained_energy",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "d9dbf6d1-6a73-4f10-bd2d-109961142286",
+      "surface_label": "no sluggish feeling after meals",
+      "canonical_name": "increased_energy",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "63be3569-25f1-48ac-b491-6c914a6c9d06",
+      "surface_label": "taking care of my health",
+      "canonical_name": "maintaining_health",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "eb189a56-bb4b-49f2-953c-0834cb3d224e",
+      "surface_label": "only oats, water, and sea salt",
+      "canonical_name": "minimal_ingredients",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "74f5187d-da3d-4222-8dd0-90bb1ca02a4c",
+      "surface_label": "use in coffee instead of regular milk",
+      "canonical_name": "coffee_milk_substitute",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "00a11e11-008a-476a-ba3e-69f235c04f8b",
+      "surface_label": "blends really well",
+      "canonical_name": "blends_smoothly",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "6d15bf82-8e8c-4112-acf3-c17d0eb85dc6",
+      "surface_label": "use in morning smoothies",
+      "canonical_name": "smoothie_compatible",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "925aed3c-d7ff-4c38-971e-d2d021e5a731",
+      "surface_label": "overall wellness goals",
+      "canonical_name": "holistic_wellness",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "2c4410fc-2af4-4274-87ef-fca81517e50a",
+      "surface_label": "not dealing with bloating",
+      "canonical_name": "digestive_comfort",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "b1923d1b-1775-44e9-8786-0e09fcc95a1e",
+      "surface_label": "feel better",
+      "canonical_name": "improved_wellbeing",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "ba24f2ff-87f0-4ea6-a52c-5e6890437f8c",
+      "surface_label": "more energy to do things I want",
+      "canonical_name": "sustained_energy",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "a3dba38e-3e66-4913-94ea-63bc53d34dc4",
+      "surface_label": "have energy to enjoy workouts",
+      "canonical_name": "workout_energy_boost",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "0971bd1e-efdd-4962-abb6-080a9b12ae43",
+      "surface_label": "mental clarity to focus on work",
+      "canonical_name": "cognitive_focus_enhancement",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "58d68541-b622-493f-968e-7fc76231f591",
+      "surface_label": "better than almond milk",
+      "canonical_name": "superior_to_alternatives",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "d062083c-9306-4196-be10-a66a77ecb627",
+      "surface_label": "feeling good consistently throughout the day",
+      "canonical_name": "sustained_positive_affect",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "13787cf3-da21-4e84-a60c-2e0349d740a7",
+      "surface_label": "reducing dairy",
+      "canonical_name": "dairy_elimination",
+      "similarity_score": 1.0
+    },
+    {
+      "surface_node_id": "ba1ee229-c750-4c59-af7a-f5d42f22d584",
+      "surface_label": "reduce inflammation in body",
+      "canonical_name": "reduce_inflammation",
+      "similarity_score": 1.0
+    }
+  ],
+  "summary": {
+    "total_canonical_slots": 32,
+    "total_mappings": 39,
+    "total_canonical_edges": 0,
+    "total_samples": 39
+  }
+}
