@@ -41,7 +41,7 @@ print("=" * 80)
 import json
 import numpy as np
 from dataclasses import dataclass
-from typing import List, Set
+from typing import List
 from collections import defaultdict, deque
 
 try:
@@ -401,7 +401,7 @@ print(f"   Can eliminate {sum(c.node_savings for c in clusters_cc)} nodes ({(sum
 
 # Use connected components as default (better algorithm)
 clusters = clusters_cc
-print(f"\n✓ Using CONNECTED COMPONENTS method for detailed analysis")
+print("\n✓ Using CONNECTED COMPONENTS method for detailed analysis")
 print(f"✓ Total: {len(clusters)} duplicate clusters, {sum(c.node_savings for c in clusters)} nodes eliminated")
 
 # ============================================
@@ -418,12 +418,12 @@ def generate_report(nodes: List[dict], clusters: List[DuplicateCluster],
     lines.append("=" * 80)
     lines.append(f"\nSession: {SESSION_ID}")
     lines.append(f"Total nodes: {len(nodes)}")
-    lines.append(f"Embedding model: all-MiniLM-L6-v2 (384-dim)")
-    lines.append(f"Similarity metric: Cosine similarity")
+    lines.append("Embedding model: all-MiniLM-L6-v2 (384-dim)")
+    lines.append("Similarity metric: Cosine similarity")
     lines.append(f"Threshold: {threshold}")
-    lines.append(f"Clustering method: Connected components (transitive closure)")
-    lines.append(f"Type constraint: Same type only")
-    lines.append(f"Negation filter: Enabled (prevents 'X' vs 'not X' merges)")
+    lines.append("Clustering method: Connected components (transitive closure)")
+    lines.append("Type constraint: Same type only")
+    lines.append("Negation filter: Enabled (prevents 'X' vs 'not X' merges)")
 
     total_eliminated = sum(c.node_savings for c in clusters)
     total_remaining = len(nodes) - total_eliminated
@@ -505,9 +505,9 @@ def generate_report(nodes: List[dict], clusters: List[DuplicateCluster],
 
     lines.append("\n5. EXPECTED IMPACT:")
     lines.append(f"   - Node count: {len(nodes)} → {total_remaining} ({reduction_pct:.1f}% reduction)")
-    lines.append(f"   - Edge/node ratio: Improves as duplicate nodes collapse")
-    lines.append(f"   - Orphan nodes: Reduces as duplicates get merged with connected nodes")
-    lines.append(f"   - False positives: Reduced by negation filter")
+    lines.append("   - Edge/node ratio: Improves as duplicate nodes collapse")
+    lines.append("   - Orphan nodes: Reduces as duplicates get merged with connected nodes")
+    lines.append("   - False positives: Reduced by negation filter")
 
     return '\n'.join(lines)
 

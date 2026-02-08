@@ -38,7 +38,7 @@ async def main():
     persona_id = sys.argv[2]
     max_turns = int(sys.argv[3]) if len(sys.argv) > 3 else 10
 
-    print(f"Running simulation:")
+    print("Running simulation:")
     print(f"  Concept: {concept_id}")
     print(f"  Persona: {persona_id}")
     print(f"  Max turns: {max_turns}")
@@ -73,11 +73,11 @@ async def main():
 
     # Print summary
     print(f"\n{'='*60}")
-    print(f"SIMULATION COMPLETE")
+    print("SIMULATION COMPLETE")
     print(f"{'='*60}")
     print(f"Total turns: {result.total_turns}")
     print(f"Status: {result.status}")
-    print(f"\nGraph summary:")
+    print("\nGraph summary:")
     total_nodes = len(result.nodes)
     total_edges = len(result.edges)
     print(f"  Nodes: {total_nodes}")
@@ -85,12 +85,12 @@ async def main():
     if total_nodes > 0:
         print(f"  Edge-to-node ratio: {total_edges/total_nodes:.2f}")
 
-    print(f"\nStrategy sequence:")
+    print("\nStrategy sequence:")
     for turn in result.turns:
         term = f" ({turn.termination_reason})" if turn.termination_reason else ""
         print(f"  Turn {turn.turn_number}: {turn.strategy_selected or 'N/A'}{term}")
 
-    print(f"\nJSON saved to: synthetic_interviews/")
+    print("\nJSON saved to: synthetic_interviews/")
 
 
 if __name__ == "__main__":
