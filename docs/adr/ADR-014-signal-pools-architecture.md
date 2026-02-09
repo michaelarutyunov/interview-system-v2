@@ -180,7 +180,8 @@ methodology:
       signal_weights:
         llm.response_depth.surface: 0.8
         graph.max_depth: 0.5
-      focus_preference: shallow
+      # NOTE: focus_preference was planned but not implemented
+      # Focus selection uses joint strategy-node scoring instead
 
   # Signal normalization ranges (optional)
   signal_norms:
@@ -217,16 +218,14 @@ Validation errors are collected and reported together with the config filename a
 
 #### 7. Focus Selection Service
 
-`FocusSelectionService` centralizes focus selection logic:
+**NOTE**: `FocusSelectionService` was planned but not implemented. Focus selection is handled by **joint strategy-node scoring** in `MethodologyStrategyService.rank_strategy_node_pairs()`, which scores all (strategy, node) pairs and selects the best combination.
 
 ```python
-class FocusSelectionService:
-    async def select(self, input_data: FocusSelectionInput) -> Optional[str]:
-        # Maps strategy.focus_preference to actual focus node
-        # shallow: nodes with depth < 2
-        # recent: most recently created nodes
-        # related: nodes with most relationships
-        # deep: nodes with depth >= 3
+# The D1 Architecture uses joint scoring:
+# For each (strategy, node) pair:
+#   base_score = Σ(signal_weight × signal_value)
+#   final_score = (base_score × phase_multiplier) + phase_bonus
+# Select pair with highest final_score
 ```
 
 ### Data Flow

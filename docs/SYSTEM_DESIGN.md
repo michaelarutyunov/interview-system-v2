@@ -33,7 +33,7 @@ The Interview System v2 is a knowledge-graph-based conversational research syste
 
 ```
 User Input → Turn Pipeline → Knowledge Graph → Strategy Selection → Question Generation → User Response
-                ↓ (10 stages)
+                ↓ (12 stages: 10 base + 2 optional)
             Context Accumulation
 ```
 
@@ -50,7 +50,7 @@ The system separates **concepts** (WHAT to explore) from **methodologies** (HOW 
 │                     Application Layer                       │
 │  - FastAPI endpoints                                        │
 │  - TurnPipeline orchestrator                                │
-│  - 10 sequential stages                                     │
+│  - 10 base stages + 2 optional (SRLPreprocessing, SlotDiscovery) │
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ### Dual-Graph Architecture (Phase 2-3, 2026-02-08)
@@ -536,67 +536,6 @@ final_score = (base_score * multiplier) + bonus
 
 ---
 
-## Concept-Driven Coverage
-
-### Concepts vs Methodologies
-
-The system uses a **two-layer architecture**:
-
-1. **Concepts** (`config/concepts/*.yaml`): Define WHAT to explore
-   - Semantic elements (attributes, values, consequences)
-   - Research context (topic, insight, promise, rtb)
-   - Element aliases for fuzzy matching
-
-2. **Methodologies** (`src/methodologies/config/*.yaml`): Define HOW to explore
-   - Node types (attribute, functional, psychosocial, etc.)
-   - Ladder structure (chain length)
-   - Signal definitions
-   - Strategy definitions
-
-### Coverage State Tracking
-
-The system tracks coverage at the **element level** with depth validation:
-
-```python
-coverage_state = {
-    "elements": {
-        1: {  # "Creamy texture"
-            "covered": True,
-            "linked_node_ids": ["node_123", "node_456"],
-            "types_found": ["attribute", "psychosocial_consequence"],
-            "depth_score": 0.5,  # 2/4 levels (chain validation)
-        },
-        2: {  # "Plant-based"
-            "covered": False,
-            "linked_node_ids": [],
-            "types_found": [],
-            "depth_score": 0.0,
-        },
-    },
-    "elements_covered": 1,
-    "elements_total": 6,
-    "overall_depth": 0.25,
-}
-```
-
-### Depth Tracking (Chain Validation)
-
-Depth is calculated via **chain validation** - finding the longest connected path of node types among linked nodes:
-
-**Algorithm:**
-1. Get all nodes linked to an element
-2. Get edges connecting these nodes (treat as undirected)
-3. Build adjacency graph
-4. Find longest connected path
-5. `depth_score = longest_chain_length / methodology_ladder_length`
-
-**Why chain validation matters:**
-- Simply counting types (2/4 = 0.5) doesn't validate connection
-- attribute + psychosocial with no functional might be unrelated thoughts
-- Chain validation confirms actual laddering occurred
-
----
-
 ## Methodology-Centric Design
 
 ### Methodology Registry
@@ -611,7 +550,7 @@ class MethodologyRegistry:
     @classmethod
     def load_all(cls):
         """Load all methodology YAML configs from config directory"""
-        for config_file in glob("src/methodologies/config/*.yaml"):
+        for config_file in glob("config/methodologies/*.yaml"):
             config = MethodologyConfig.from_yaml(config_file)
             cls._methodologies[config.id] = config
 
@@ -627,8 +566,7 @@ The `MethodologyStrategyService` uses methodology configs to:
 
 1. **Detect signals** from all pools (graph, llm, temporal, meta)
 2. **Score strategies** using YAML-defined signal weights
-3. **Select best strategy** based on weighted scores
-4. **Select focus** using strategy.focus_preference
+3. **Select best (strategy, node) pair** using joint strategy-node scoring
 
 This replaces the old two-tier scoring system with a more flexible, YAML-driven approach.
 
@@ -663,10 +601,10 @@ class GraphState:
     node_count: int              # Total nodes in graph
     edge_count: int              # Total edges in graph
     turn_count: int              # Number of completed turns
-    coverage_state: CoverageState # Element-level coverage
     max_depth: int               # Maximum chain depth
     orphan_count: int            # Nodes with no edges
-    coverage_breadth: float      # Breadth of coverage (0-1)
+    current_phase: str           # Interview phase (exploratory/focused/closing)
+    strategy_history: deque      # Recent strategies for diversity tracking
 ```
 
 These metrics drive strategy selection via signal pools.
@@ -922,7 +860,7 @@ Each signal detector runs in isolation with try/except handling. If a detector f
 **YAML Configuration Example:**
 
 ```yaml
-# src/methodologies/config/means_end_chain.yaml
+# config/methodologies/means_end_chain.yaml
 
 # Signal normalization ranges for numeric signals
 signal_norms:
@@ -1086,12 +1024,6 @@ The system uses three specialized LLM clients:
 - `httpx.TimeoutException` → Retry with backoff → `LLMTimeoutError` if exhausted
 - `HTTPStatusError(429)` → Retry with backoff → `LLMError` if exhausted
 - `HTTPStatusError(5xx)` → Retry with backoff → `LLMError` if exhausted
-
-### LLM Fallback
-
-The system implements LLM fallback for reliability:
-- Primary LLM fails → fallback to secondary model
-- Fallback status tracked in `QuestionGenerationOutput.has_llm_fallback`
 
 ---
 

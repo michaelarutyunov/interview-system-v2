@@ -415,9 +415,9 @@ All checks must pass before committing.
 
 **Signal Pools Architecture (ADR-014)**: Methodologies are now defined using YAML-based configuration files that combine signals from shared pools with strategy definitions. This replaces the old folder-per-methodology approach.
 
-1. **Create YAML config in `src/methodologies/config/`:**
+1. **Create YAML config in `config/methodologies/`:**
    ```yaml
-   # src/methodologies/config/my_methodology.yaml
+   # config/methodologies/my_methodology.yaml
    methodology:
      name: my_methodology
      display_name: "My Interview Methodology"
@@ -477,14 +477,12 @@ All checks must pass before committing.
          signal_weights:
            llm.response_depth.surface: 0.8
            graph.max_depth: 0.5
-         focus_preference: shallow
 
        - name: broaden
          technique: elaboration
          signal_weights:
            llm.response_depth.deep: 0.7
-           graph.coverage_breadth: 0.6
-         focus_preference: recent
+           graph.chain_completion.has_complete_chain.false: 0.6
    ```
 
 2. **The methodology is automatically available:**
@@ -757,13 +755,12 @@ SIGNAL_CLASSES = {
 
 4. **Use in methodology YAML config:**
    ```yaml
-   # src/methodologies/config/means_end_chain.yaml
+   # config/methodologies/means_end_chain.yaml
    strategies:
      - name: my_strategy
        technique: my_technique  # Use your new technique
        signal_weights:
          graph.max_depth: 0.5
-       focus_preference: shallow
    ```
 
 5. **Add tests:**

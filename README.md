@@ -431,7 +431,7 @@ strategies:
     signal_weights:
       graph.max_depth.low: 2.0
       llm.response_depth.surface: 1.5
-    focus_preference: deep
+    # Focus selection uses joint strategy-node scoring
     technique: deepen
 
 phases:

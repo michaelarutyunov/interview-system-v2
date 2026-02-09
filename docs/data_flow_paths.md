@@ -132,7 +132,7 @@ graph LR
 
 ### Key Points
 
-- **MethodologyStrategyService** loads YAML configs from `src/methodologies/config/`
+- **MethodologyStrategyService** loads YAML configs from `config/methodologies/`
 - **ComposedSignalDetector** pools signals from all pools (graph, llm, temporal, meta, technique)
 - **Signals are namespaced**: `graph.node_count`, `llm.response_depth`, `temporal.strategy_repetition_count`, `graph.node.exhausted`, `technique.node.strategy_repetition`, etc.
 - **LLM signals are fresh** - computed every response, no cross-response caching

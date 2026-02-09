@@ -4,7 +4,7 @@
 
 ## Project Overview
 
-The Interview System v2 is a knowledge-graph-based conversational **semi-structured** interview system that uses a **10-stage turn processing pipeline** with adaptive strategy selection.
+The Interview System v2 is a knowledge-graph-based conversational **semi-structured** interview system that uses a **12-stage turn processing pipeline** (10 base stages + 2 optional) with adaptive strategy selection.
 
 ---
 
@@ -95,7 +95,6 @@ src/
 ├── methodologies/              # Methodology module (Signal Pools)
 │   ├── signals/                # Shared signal pools (graph, llm, temporal, meta)
 │   ├── techniques/             # Shared technique pool (laddering, elaboration, etc.)
-│   ├── config/                 # YAML methodology definitions
 │   └── registry.py             # MethodologyRegistry (YAML loader)
 ├── domain/
 │   └── models/                 # Domain models (GraphState, Utterance, etc.)
@@ -129,16 +128,15 @@ Signal pools enable flexible strategy selection by collecting signals from multi
 
 | Pool | Namespace | Example Signals |
 |------|-----------|-----------------|
-| **Graph** | `graph.*` | node_count, max_depth, orphan_count, coverage_breadth |
-| **LLM** | `llm.*` | response_depth, sentiment, topics |
-| **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_focus_change |
-| **Meta** | `meta.*` | interview_progress, exploration_score |
+| **Graph** | `graph.*` | node_count, max_depth, orphan_count, chain_completion |
+| **LLM** | `llm.*` | response_depth, sentiment, uncertainty, hedging_language |
+| **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_strategy_change |
+| **Meta** | `meta.*` | interview_progress, interview.phase |
 
 **Key Points:**
 - **LLM signals are fresh** - computed every response, no cross-response caching
-- **YAML configuration** - methodologies defined in `src/methodologies/config/*.yaml`
-- **MethodologyStrategyService** - uses YAML configs for strategy selection
-- **FocusSelectionService** - centralizes focus selection based on strategy.focus_preference
+- **YAML configuration** - methodologies defined in `config/methodologies/*.yaml`
+- **MethodologyStrategyService** - uses YAML configs for strategy selection via joint strategy-node scoring
 
 ---
 
@@ -199,7 +197,7 @@ next_question, scoring, stage_timings
 
 ### Adding a new methodology
 
-1. Create YAML config in `src/methodologies/config/my_methodology.yaml`
+1. Create YAML config in `config/methodologies/my_methodology.yaml`
 2. Define signals (from shared pools) and strategies (with signal_weights)
 3. The methodology is automatically available via MethodologyRegistry
 4. No code changes required - pure YAML configuration
