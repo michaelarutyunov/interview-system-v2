@@ -19,11 +19,11 @@
 
 ## Overview
 
-The Interview System v2 is a knowledge-graph-based conversational research system that conducts semi-structured interviews through adaptive questioning. At its core, the system uses a **10-stage turn processing pipeline** that transforms user input into follow-up questions while building a knowledge graph of the conversation.
+The Interview System v2 is a knowledge-graph-based conversational research system that conducts semi-structured interviews through adaptive questioning. At its core, the system uses a **12-stage turn processing pipeline** (10 base stages + 2 optional stages) that transforms user input into follow-up questions while building a knowledge graph of the conversation.
 
 ### Key Design Principles
 
-1. **Pipeline Pattern**: Each turn flows through 10 sequential stages with well-defined contracts
+1. **Pipeline Pattern**: Each turn flows through 12 stages (10 base + 2 optional) with well-defined contracts
 2. **Signal Pools**: Strategy selection uses namespaced signals from multiple data sources
 3. **Methodology-Centric**: Interview behavior driven by pluggable methodology configurations
 4. **Knowledge Graph**: All extracted concepts and relationships stored as graph structure
@@ -53,6 +53,32 @@ The system separates **concepts** (WHAT to explore) from **methodologies** (HOW 
 │  - 10 sequential stages                                     │
 └─────────────────────────────────────────────────────────────┘
                             ↓
+### Dual-Graph Architecture (Phase 2-3, 2026-02-08)
+
+The system implements a dual-graph architecture to handle respondent paraphrase fragmentation:
+
+**Surface Graph**:
+- Original extraction (respondent's exact language)
+- High fidelity for traceability
+- Stored in `kg_nodes` and `kg_edges` tables
+
+**Canonical Graph**:
+- Deduplicated abstract concepts (canonical slots)
+- Stable signals for exhaustion tracking
+- Stored in `canonical_slots`, `canonical_edges` tables
+
+**Mapping**:
+- Unidirectional: Surface → Canonical only
+- Via `surface_to_slot_mapping` table
+- Uses embedding similarity (all-MiniLM-L6-v2, 384-dim)
+
+**Benefits**:
+1. Cleaner signals: "1 concept discussed 3 times" vs "3 fresh concepts"
+2. Accurate exhaustion tracking across paraphrases
+3. Stable metrics regardless of language variation
+
+**REFERENCE**: ADR-018 for full architecture details
+
 ┌─────────────────────────────────────────────────────────────┐
 │                   Methodology Layer                         │
 │  - YAML-based methodology configs                           │
@@ -76,8 +102,9 @@ The system separates **concepts** (WHAT to explore) from **methodologies** (HOW 
 
 ### Pipeline Overview
 
-The turn pipeline is the heart of the system. Each user response flows through 10 stages in sequence:
+The turn pipeline is the heart of the system. Each user response flows through 10 base stages (plus 2 optional stages):
 
+**Base Stages (always run)**:
 ```
 1. ContextLoading  → Load session metadata and graph state
 2. UtteranceSaving → Save user input to database
@@ -90,6 +117,14 @@ The turn pipeline is the heart of the system. Each user response flows through 1
 9. ResponseSaving  → Save system response
 10. ScoringPersistence → Save scoring and update session
 ```
+
+**Optional Stages (feature-controlled)**:
+```
+2.5. SRLPreprocessing → Linguistic structure extraction (enable_srl flag)
+4.5. SlotDiscovery    → Canonical slot discovery for dual-graph (enable_canonical_slots flag)
+```
+
+**Total**: 12 stages when both optional stages enabled
 
 ### Shared Context Accumulator
 
@@ -164,6 +199,10 @@ class TurnResult:
     strategy_alternatives: Optional[List[Dict[str, Any]]] = None  # All scored alternatives
     termination_reason: Optional[str] = None  # Reason for termination
 
+    # Dual-Graph Observability (Phase 3)
+    canonical_graph: Optional[Dict[str, Any]] = None    # Canonical graph metrics
+    graph_comparison: Optional[Dict[str, Any]] = None   # Surface vs canonical comparison
+
     # Performance
     latency_ms: int = 0                # Pipeline execution time
 ```
@@ -182,6 +221,8 @@ class TurnResult:
 | `signals` | StrategySelectionOutput | Raw signals from signal pools (Phase 6) |
 | `strategy_alternatives` | StrategySelectionOutput | All scored alternatives with node_id |
 | `termination_reason` | ContinuationOutput.reason | Reason for termination |
+| `canonical_graph` | StateComputationOutput | Canonical graph metrics (Phase 3) |
+| `graph_comparison` | StateComputationOutput | Surface vs canonical comparison (Phase 3) |
 | `latency_ms` | Pipeline | Total execution time in milliseconds |
 
 #### Signals and Strategy Alternatives
@@ -207,6 +248,32 @@ These fields enable:
 - Debugging why a strategy was selected
 - Understanding signal influence on scoring
 - Analyzing joint strategy-node selection behavior
+
+#### Canonical Graph Output (Phase 3)
+
+**Phase 3 (2026-02-08)**: Dual-graph architecture adds canonical graph observability fields:
+
+```python
+canonical_graph = {
+    "slots": {
+        "concept_count": int,      # Active canonical slots
+        "orphan_count": int,        # Slots with no edges
+        "avg_support": float,       # Avg support per slot
+    },
+    "edges": {
+        "edge_count": int,          # Canonical edges
+    },
+    "metrics": {
+        "max_depth": int,           # Longest canonical path
+    }
+}
+
+graph_comparison = {
+    "node_reduction_pct": float,     # % reduction from surface → canonical
+    "edge_aggregation_ratio": float, # canonical_edges / surface_edges
+    "orphan_improvement_pct": float, # Orphan reduction from aggregation
+}
+```
 
 ### Continuation and Termination
 
@@ -603,6 +670,25 @@ class GraphState:
 ```
 
 These metrics drive strategy selection via signal pools.
+
+### Canonical Graph State
+
+**Phase 3 (2026-02-08)**: The system maintains a parallel canonical graph for deduplicated concepts.
+
+```python
+@dataclass
+class CanonicalGraphState:
+    concept_count: int           # Number of active canonical slots
+    edge_count: int              # Number of canonical edges
+    orphan_count: int            # Slots with no canonical edges
+    max_depth: int               # Longest path in canonical graph
+    avg_support: float           # Average support_count per slot
+```
+
+**State Computation**:
+- Computed by `CanonicalGraphService` in Stage 5
+- Aggregates surface edges to canonical edges
+- Tracks candidate → active slot lifecycle
 
 ### Node State Tracking
 

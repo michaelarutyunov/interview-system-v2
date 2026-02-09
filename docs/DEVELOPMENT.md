@@ -1100,7 +1100,7 @@ log.info(
 
 ### Key Design Patterns
 
-- **Pipeline Pattern** (ADR-008): Turn processing through 10 independent stages
+- **Pipeline Pattern** (ADR-008): Turn processing through 12 stages (10 base + 2 optional)
 - **Repository Pattern**: Data access abstraction
 - **Service Layer**: Business logic encapsulation
 - **Dependency Injection**: FastAPI Depends for testability
@@ -1109,24 +1109,30 @@ log.info(
 
 ### Pipeline Architecture (ADR-008)
 
-The core turn processing flow uses a pipeline pattern with 10 independent stages:
+The core turn processing flow uses a pipeline pattern with 12 stages (10 base + 2 optional):
 
 ```
 SessionService.process_turn()
     │
-    └─→ TurnPipeline.execute(TurnContext)
+    └─→ TurnPipeline.execute(PipelineContext)
             │
             ├─→ ContextLoadingStage       # Load session metadata
             ├─→ UtteranceSavingStage      # Save user input
+            ├─→ SRLPreprocessingStage     # Linguistic analysis (optional, enable_srl)
             ├─→ ExtractionStage           # Extract concepts
             ├─→ GraphUpdateStage          # Update knowledge graph
-            ├─→ StateComputationStage     # Recompute graph state
+            ├─→ SlotDiscoveryStage        # Canonical slot discovery (optional, enable_canonical_slots)
+            ├─→ StateComputationStage     # Recompute graph state (both graphs)
             ├─→ StrategySelectionStage    # Select strategy (scoring)
             ├─→ ContinuationStage         # Decide to continue
             ├─→ QuestionGenerationStage   # Generate next question
             ├─→ ResponseSavingStage       # Save system response
             └─→ ScoringPersistenceStage   # Save scoring data
 ```
+
+**Optional Stages** (controlled by feature flags):
+- **SRLPreprocessingStage** (Stage 2.5): Enabled via `enable_srl=True`
+- **SlotDiscoveryStage** (Stage 4.5): Enabled via `enable_canonical_slots=True`
 
 **TurnContext** is the data bucket that flows through stages:
 ```python
@@ -1145,6 +1151,32 @@ class TurnContext:
 ```
 
 **Key principle**: Each stage only reads/writes TurnContext. No stage calls another stage directly. This makes changes isolated and safe.
+
+### Feature Flags
+
+The system supports optional features controlled by configuration flags in `src/core/config.py`:
+
+| Flag | Default | Description | Impact |
+|------|---------|-------------|--------|
+| `enable_srl` | `True` | Enable SRL preprocessing for linguistic analysis | Adds Stage 2.5, +15ms latency |
+| `enable_canonical_slots` | `True` | Enable dual-graph canonical slot discovery | Adds Stage 4.5, +2-3s latency |
+
+**Usage**:
+```python
+# In .env file or environment variables
+ENABLE_SRL=true
+ENABLE_CANONICAL_SLOTS=true
+
+# Or in code
+from src.core.config import settings
+if settings.enable_srl:
+    srl_service = SRLService()
+```
+
+**Graceful Degradation**:
+- When disabled, optional stages are skipped entirely
+- No performance overhead when disabled
+- No database schema requirements when disabled
 
 **For more details**:
 - `docs/data_flow_diagram.md` - Complete pipeline flow documentation
@@ -1300,11 +1332,15 @@ src/
 │   ├── migrations/
 │   └── repositories/      # Session, Graph, Utterance repositories
 └── services/              # Business logic
+    ├── canonical_slot_service.py      # Dual-graph: LLM-based slot discovery
+    ├── canonical_graph_service.py     # Dual-graph: Canonical state computation
+    ├── embedding_service.py           # Dual-graph: Text embeddings
+    ├── srl_service.py                 # Linguistic analysis (spaCy)
     ├── depth_calculator.py  # Chain validation for depth (ADR-008)
     ├── methodology_strategy_service.py  # YAML-based strategy selection
     ├── focus_selection_service.py  # Centralized focus selection
     ├── turn_pipeline/     # Pipeline orchestrator (ADR-008)
-    │   ├── stages/        # 10 independent stages
+    │   ├── stages/        # 12 independent stages
     │   ├── base.py        # TurnStage base class
     │   ├── context.py     # PipelineContext dataclass
     │   ├── pipeline.py    # TurnPipeline orchestrator

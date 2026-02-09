@@ -16,6 +16,14 @@ The turn pipeline implements a **shared context accumulator pattern** where `Pip
 ## Implementation Status
 
 **Total Stages**: 12 (including optional Stage 2.5: SRLPreprocessingStage and Stage 4.5: SlotDiscoveryStage)
+
+**Stage Configuration**:
+- **Base stages**: 10 (always run)
+- **Optional stages**: 2 (controlled by feature flags)
+  - Stage 2.5 (SRLPreprocessingStage): `enable_srl=True` (default: True)
+  - Stage 4.5 (SlotDiscoveryStage): `enable_canonical_slots=True` (default: True)
+- **Total when both enabled**: 12 stages
+- **Total when both disabled**: 10 stages
 **Stages with Contracts**: 12 (100%)
 **Stages Missing Contracts**: 0 (0%)
 
@@ -595,6 +603,8 @@ class TurnResult:
     signals: Optional[Dict[str, Any]] = None           # Raw methodology signals (Phase 6)
     strategy_alternatives: Optional[List[Dict[str, Any]]] = None  # Alternative strategies with scores
     termination_reason: Optional[str] = None  # Reason for termination (e.g., "max_turns_reached", "graph_saturated", "depth_plateau")
+    canonical_graph: Optional[Dict[str, Any]] = None    # Canonical graph metrics (Phase 3)
+    graph_comparison: Optional[Dict[str, Any]] = None   # Surface vs canonical comparison (Phase 3)
 ```
 
 ### Field Details
@@ -612,6 +622,8 @@ class TurnResult:
 | `signals` | StrategySelectionOutput | Raw signals from signal pools (Phase 6) |
 | `strategy_alternatives` | StrategySelectionOutput | All scored alternatives with scores |
 | `termination_reason` | ContinuationOutput.reason | Reason for termination when `should_continue=False` |
+| `canonical_graph` | StateComputationOutput | Canonical graph metrics {slots, edges, metrics} (Phase 3) |
+| `graph_comparison` | StateComputationOutput | Surface vs canonical comparison {node_reduction_pct, edge_aggregation_ratio, orphan_improvement_pct} (Phase 3) |
 
 ### Termination Reasons
 
@@ -623,6 +635,36 @@ The `termination_reason` field is populated by `ContinuationStage` when `should_
 | `"depth_plateau"` | Graph max_depth hasn't increased in 6 consecutive turns |
 | `"quality_degraded"` | Consecutive shallow responses detected (saturation) |
 | `"close_strategy"` | Closing strategy was selected |
+
+### Canonical Graph Fields (Phase 3)
+
+**Phase 3 (2026-02-08)**: Dual-graph architecture adds canonical graph observability to TurnResult.
+
+**`canonical_graph`** structure:
+```python
+{
+    "slots": {
+        "concept_count": int,      # Active canonical slots
+        "orphan_count": int,        # Slots with no edges
+        "avg_support": float,       # Average support per slot
+    },
+    "edges": {
+        "edge_count": int,          # Canonical edges
+    },
+    "metrics": {
+        "max_depth": int,           # Longest canonical path
+    }
+}
+```
+
+**`graph_comparison`** structure:
+```python
+{
+    "node_reduction_pct": float,     # % reduction from surface → canonical
+    "edge_aggregation_ratio": float, # canonical_edges / surface_edges
+    "orphan_improvement_pct": float, # Orphan reduction from aggregation
+}
+```
 
 ### Usage
 

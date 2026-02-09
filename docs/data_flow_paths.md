@@ -644,6 +644,106 @@ graph LR
 - Response depth tracking across entire interview
 - Future features: pause/resume interviews, interview replay
 
+## Path 10: Canonical Slot Discovery (Dual-Graph Architecture)
+
+**Why Critical**: Canonical slot discovery is the foundation of the dual-graph architecture, enabling deduplication of paraphrased concepts for stable exhaustion tracking.
+
+**Phase 2 (2026-02-08)**: System now discovers canonical slots via LLM proposal + embedding similarity.
+
+```mermaid
+graph LR
+    A[GraphUpdateStage] -->|nodes_added| B[SlotDiscoveryStage]
+    B -->|has nodes?| C{nodes_added > 0?}
+    C -->|No| D[Skip LLM call, return empty]
+    C -->|Yes| E[CanonicalSlotService.discover_slots]
+
+    E -->|Group by node_type| F[Nodes by type]
+    F -->|LLM call| G[Propose canonical slots]
+    G -->|For each proposal| H{Similar match exists?}
+
+    H -->|Yes, similarity >= threshold| I[Merge into existing slot]
+    H -->|No| J[Create new candidate slot]
+
+    I --> K[Map surface node to slot]
+    J --> K
+
+    K -->|Update mapping| L[surface_to_slot_mapping table]
+    L -->|Aggregate edges| M[CanonicalEdge aggregation]
+
+    M -->|Slot promotion| N{support_count >= threshold?}
+    N -->|Yes| O[candidate to active promotion]
+    N -->|No| P[Remain candidate]
+
+    O -->|Save| Q[canonical_slots table]
+    P --> Q
+
+    Q -->|Output| R[SlotDiscoveryOutput]
+    R -->|Pass| S[StateComputationStage]
+```
+
+### Key Points
+
+- **Feature flag**: Controlled by `enable_canonical_slots` in Settings
+- **Stage 4.5**: Runs after GraphUpdateStage, before StateComputationStage
+- **LLM proposal**: Uses scoring LLM (KIMI) for structured JSON extraction
+- **Embedding similarity**: all-MiniLM-L6-v2 (384-dim) for candidate matching
+- **Candidate lifecycle**:
+  - New slots start as "candidate"
+  - Promoted to "active" when support_count >= canonical_min_support_nodes
+- **Edge aggregation**: Surface edges aggregated to canonical edges (many-to-one)
+- **Output**: SlotDiscoveryOutput with slots_created, slots_updated, mappings_created
+
+### Configuration
+
+From `src/core/config.py`:
+```python
+enable_canonical_slots: bool = True  # Feature flag
+canonical_similarity_threshold: float = 0.83  # Cosine similarity for merging
+canonical_min_support_nodes: int = 1  # Support needed for promotion
+```
+
+### Services
+
+- **CanonicalSlotService**: LLM-based slot discovery and management
+- **EmbeddingService**: Text embeddings via sentence-transformers
+- **CanonicalSlotRepository**: CRUD on slots, mappings, edges
+
+## Path 11: Dual-Graph State Computation
+
+**Why Critical**: Stage 5 now computes both surface and canonical graph states in parallel, enabling dual-graph observability.
+
+**Phase 3 (2026-02-08)**: StateComputationStage now returns both graph states.
+
+```mermaid
+graph LR
+    A[StateComputationStage] -->|compute_state| B[GraphService.get_state]
+    A -->|compute_canonical_state| C{canonical_graph_service?}
+
+    C -->|Yes| D[CanonicalGraphService.compute_canonical_state]
+    C -->|No| E[canonical_graph_state = None]
+
+    B -->|Refresh metrics| F[GraphState]
+    D -->|Aggregate metrics| G[CanonicalGraphState]
+
+    F -->|node_count, edge_count, max_depth| H[StateComputationOutput]
+    G -->|concept_count, edge_count, avg_support| H
+
+    H -->|Return both states| I[context.state_computation_output]
+    I -->|Access properties| J[context.graph_state]
+    I -->|Access properties| K[context.canonical_graph_state]
+
+    J -->|Used by| L[StrategySelectionStage]
+    K -->|Used by| M[TurnResult.canonical_graph]
+```
+
+### Key Points
+
+- **Parallel computation**: Both graphs computed in same stage
+- **Conditional canonical**: If `enable_canonical_slots=False`, canonical_graph_state=None
+- **Service dependency**: CanonicalGraphService injected only when flag enabled
+- **StateComputationOutput**: Now includes optional canonical_graph_state field
+- **Observability**: TurnResult includes canonical_graph and graph_comparison fields
+
 ## Cross-References
 
 | Path | Primary Stages | Secondary Stages | Database Tables |
@@ -656,6 +756,8 @@ graph LR
 | Strategy History (Diversity) | 1, 6, 10 | - | sessions |
 | Traceability Chain (ADR-010) | 2, 3, 4 | 5, 6 | utterances, nodes, edges |
 | Signal Detection | 6 | - | - |
+| Canonical Slot Discovery | 4.5 | 5 | canonical_slots, surface_to_slot_mapping, canonical_edges |
+| Dual-Graph State Computation | 5 | 6, 10 | nodes, canonical_slots |
 
 ## Usage for Development
 

@@ -114,22 +114,48 @@ class Settings(BaseSettings):
     # ==========================================================================
     # Canonical Slot Discovery Thresholds
     # ==========================================================================
+    #
+    # Canonical slots have a two-stage lifecycle:
+    #   1. "candidate" - Newly proposed, not yet trusted
+    #   2. "active" - Promoted after earning sufficient support
+    #
+    # Promotion prevents ephemeral mentions from polluting the canonical graph.
 
     canonical_similarity_threshold: float = Field(
-        default=0.88,
+        default=0.83,
         ge=0.0,
         le=1.0,
-        description="Cosine similarity threshold for merging canonical slots (0.88 = conservative)",
+        description=(
+            "Cosine similarity threshold for merging canonical slots. "
+            "When a new slot is proposed, it's compared against existing slots "
+            "via embedding similarity. If similarity >= this threshold, the new "
+            "slot merges into the existing one instead of creating a duplicate. "
+            "Higher values = more conservative (fewer merges, more slots). "
+            "Lower values = more permissive (more merging, fewer slots). "
+            "Default 0.83 balances precision with recall."
+        ),
     )
     canonical_min_support_nodes: int = Field(
-        default=3,
+        default=1,
         ge=1,
-        description="Minimum surface nodes mapped before promoting candidate to active",
+        description=(
+            "Minimum number of surface nodes that must map to a candidate slot "
+            "before it can be promoted to 'active' status. Each time a surface "
+            "node (user's actual phrase) maps to this slot, supportCount += 1. "
+            "When supportCount >= this threshold, the slot is promoted. "
+            "Default 1 means all slots become active immediately, providing "
+            "maximum discovery. Use 2-3 for more conservative filtering."
+        ),
     )
     canonical_min_turns: int = Field(
         default=2,
         ge=1,
-        description="Minimum turns with support before promoting candidate to active",
+        description=(
+            "NOT YET IMPLEMENTED. Intended: Minimum number of distinct turns "
+            "in which a slot should have support before promotion. This would "
+            "prevent slots from earning promotion via multiple mentions in a "
+            "single long response. Currently, promotion only checks supportCount."
+        ),
     )
 
 
