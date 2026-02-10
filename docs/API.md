@@ -379,6 +379,85 @@ curl -X POST http://localhost:8000/sessions/550e8400-e29b-41d4-a716-446655440000
 
 ---
 
+### Get Turn Scoring
+
+Get scoring data for a specific turn.
+
+**Endpoint:** `GET /sessions/{session_id}/scoring/{turn_number}`
+
+**Parameters:**
+- `session_id` (string, path parameter): Session UUID
+- `turn_number` (integer, path parameter): Turn number (1-indexed)
+
+**Response:** `200 OK`
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "turn_number": 1,
+  "candidates": [
+    {
+      "id": "scoring-001",
+      "strategy_id": "deepen",
+      "strategy_name": "deepen",
+      "focus_type": "selected",
+      "focus_description": null,
+      "final_score": 0.85,
+      "is_selected": true,
+      "vetoed_by": null,
+      "tier1_results": [],
+      "tier2_results": [],
+      "reasoning": "High response depth detected, good opportunity to explore further"
+    }
+  ],
+  "winner_strategy_id": "deepen"
+}
+```
+
+**Note:** Returns scoring data from the `scoring_history` table. Each turn returns a single candidate representing the selected strategy. The `tier1_results` and `tier2_results` fields are legacy fields that are not currently populated.
+
+**Example:**
+```bash
+curl http://localhost:8000/sessions/550e8400-e29b-41d4-a716-446655440000/scoring/1
+```
+
+---
+
+### Get All Scoring
+
+Get scoring data for all turns in a session.
+
+**Endpoint:** `GET /sessions/{session_id}/scoring`
+
+**Parameters:**
+- `session_id` (string, path parameter): Session UUID
+
+**Response:** `200 OK`
+
+Returns an array of turn scoring responses (same format as individual turn scoring above):
+```json
+[
+  {
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "turn_number": 1,
+    "candidates": [...],
+    "winner_strategy_id": "deepen"
+  },
+  {
+    "session_id": "550e8400-e29b-41d4-a716-446655440000",
+    "turn_number": 2,
+    "candidates": [...],
+    "winner_strategy_id": "clarify"
+  }
+]
+```
+
+**Example:**
+```bash
+curl http://localhost:8000/sessions/550e8400-e29b-41d4-a716-446655440000/scoring
+```
+
+---
+
 ### Export Session
 
 Exports session data in various formats.

@@ -271,7 +271,10 @@ class SessionStatusResponse(BaseModel):
 
 
 class Tier1ResultSchema(BaseModel):
-    """Tier 1 scorer result."""
+    """Legacy schema - kept for potential future use.
+
+    Note: Not currently populated by scoring endpoints.
+    """
 
     scorer_id: str
     is_veto: bool
@@ -280,7 +283,10 @@ class Tier1ResultSchema(BaseModel):
 
 
 class Tier2ResultSchema(BaseModel):
-    """Tier 2 scorer result."""
+    """Legacy schema - kept for potential future use.
+
+    Note: Not currently populated by scoring endpoints.
+    """
 
     scorer_id: str
     raw_score: float
@@ -291,7 +297,12 @@ class Tier2ResultSchema(BaseModel):
 
 
 class ScoringCandidateSchema(BaseModel):
-    """A scoring candidate (strategy + focus)."""
+    """Scoring candidate schema.
+
+    Note: tier1_results and tier2_results are legacy fields not currently
+    populated. The primary scoring data comes from strategy_selected and
+    reasoning fields.
+    """
 
     id: str
     strategy_id: str
