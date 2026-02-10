@@ -3,7 +3,6 @@ Stage 10: Persist scoring data and update session state.
 
 ADR-008 Phase 3: Save scoring results and update turn count.
 Phase 6: Output ScoringPersistenceOutput contract.
-Phase 6 Refactor: Removed legacy two-tier scoring, now uses methodology-based signals.
 """
 
 from typing import TYPE_CHECKING
@@ -50,7 +49,7 @@ class ScoringPersistenceStage(TurnStage):
         Returns:
             Modified context with scoring populated
         """
-        # Extract scores from graph state (not from legacy selection_result)
+        # Extract scores from graph state
         depth_score = 0.0
         saturation_score = 0.0
 
@@ -82,7 +81,6 @@ class ScoringPersistenceStage(TurnStage):
             depth_score=depth_score,
             saturation_score=saturation_score,
             has_methodology_signals=has_methodology_signals,
-            has_legacy_scoring=False,  # Legacy scoring removed
             # timestamp auto-set
         )
 
@@ -109,10 +107,7 @@ class ScoringPersistenceStage(TurnStage):
         depth_score: float,
         saturation_score: float,
     ):
-        """Save scoring data to scoring_history table.
-
-        Note: scoring_candidates table is deprecated and no longer used.
-        """
+        """Save scoring data to scoring_history table."""
         scoring_id = str(uuid.uuid4())
 
         async with aiosqlite.connect(str(self.session_repo.db_path)) as db:
@@ -130,11 +125,11 @@ class ScoringPersistenceStage(TurnStage):
                     turn_number,
                     depth_score,
                     saturation_score,
-                    None,  # novelty_score - not computed in methodology-based system
-                    None,  # richness_score - not computed in methodology-based system
+                    None,  # novelty_score
+                    None,  # richness_score
                     strategy,
-                    None,  # strategy_reasoning - methodology signals are saved separately
-                    None,  # scorer_details - deprecated
+                    None,  # strategy_reasoning
+                    None,  # scorer_details
                 ),
             )
             await db.commit()

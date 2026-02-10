@@ -263,7 +263,6 @@ class SessionService:
         stages.extend([
             StrategySelectionStage(),
             ContinuationStage(
-                question_service=self.question,
                 focus_selection_service=self.focus_selection,
             ),
             QuestionGenerationStage(

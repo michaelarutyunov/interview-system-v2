@@ -370,11 +370,9 @@ async def test_continuation_stage_reads_saturation_from_context():
     from src.services.focus_selection_service import FocusSelectionService
 
     # Create mock dependencies
-    mock_question_service = MagicMock()
     focus_selection_service = FocusSelectionService()
 
     stage = ContinuationStage(
-        question_service=mock_question_service,
         focus_selection_service=focus_selection_service,
     )
 

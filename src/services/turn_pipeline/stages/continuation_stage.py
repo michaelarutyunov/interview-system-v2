@@ -21,7 +21,6 @@ from src.services.focus_selection_service import FocusSelectionService
 
 if TYPE_CHECKING:
     from ..context import PipelineContext
-    from src.services.question_service import QuestionService
 log = structlog.get_logger(__name__)
 
 # =============================================================================
@@ -44,17 +43,14 @@ class ContinuationStage(TurnStage):
 
     def __init__(
         self,
-        question_service: "QuestionService",
         focus_selection_service: FocusSelectionService,
     ):
         """
         Initialize stage.
 
         Args:
-            question_service: QuestionService instance (used for legacy compatibility)
             focus_selection_service: FocusSelectionService for focus resolution
         """
-        self.question = question_service
         self.focus_selection = focus_selection_service
 
     async def process(self, context: "PipelineContext") -> "PipelineContext":

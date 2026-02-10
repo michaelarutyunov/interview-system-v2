@@ -550,11 +550,8 @@ strategy: str                  # Strategy that was selected
 depth_score: float             # Depth metric from graph state
 saturation_score: float         # Saturation metric from graph state
 has_methodology_signals: bool   # Whether methodology signals were saved
-has_legacy_scoring: bool        # Legacy two-tier scoring (always False - system removed)
 timestamp: datetime              # When scoring was persisted (auto-set)
 ```
-
-**Note**: The legacy two-tier scoring system has been removed. `has_legacy_scoring` is always `False` and exists for backward compatibility with old data.
 
 ---
 
@@ -576,9 +573,8 @@ The following contract fields exist but are **not currently set** by their respe
 | Stage 9 | `turns_remaining` | Required field - stage must set this |
 | Stage 10 | `timestamp` | Has default factory - works |
 | Stage 10 | `has_methodology_signals` | Has default=False - stage should set this |
-| Stage 10 | `has_legacy_scoring` | Always False (legacy system removed) - no action needed |
 
-**Recommendation**: Stages 7, 9, and 10 should be updated to explicitly set their boolean fields for better observability. Stage 9 must set `turns_remaining`. `has_legacy_scoring` is deprecated.
+**Recommendation**: Stages 7, 9, and 10 should be updated to explicitly set their boolean fields for better observability. Stage 9 must set `turns_remaining`.
 
 ---
 

@@ -5,7 +5,7 @@ type safety and runtime validation for the turn processing pipeline.
 """
 
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional, Union, TYPE_CHECKING
+from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field, model_validator
 
 from src.domain.models.knowledge_graph import GraphState, KGNode, SaturationMetrics
@@ -376,9 +376,6 @@ class ScoringPersistenceOutput(BaseModel):
     )
     has_methodology_signals: bool = Field(
         default=False, description="Whether methodology signals were saved"
-    )
-    has_legacy_scoring: bool = Field(
-        default=False, description="Legacy two-tier scoring (always False now)"
     )
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
