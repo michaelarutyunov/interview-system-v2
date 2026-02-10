@@ -50,7 +50,7 @@ class SimulationTurn:
     strategy_selected: Optional[str] = None
     should_continue: bool = True
     latency_ms: int = 0
-    # Phase 6: Methodology-based signal detection observability
+    # Methodology-based signal detection observability
     signals: Optional[Dict[str, Any]] = None
     strategy_alternatives: Optional[List[Dict[str, Any]]] = None
     # Termination reason (populated when should_continue=False)
@@ -73,9 +73,13 @@ class SimulationResult:
     turns: List[SimulationTurn] = field(default_factory=list)
     status: str = "completed"  # completed, max_turns_reached, error
 
-    # Graph diagnostics
+    # Surface graph diagnostics (kg_nodes, kg_edges)
     nodes: List[Dict[str, Any]] = field(default_factory=list)
     edges: List[Dict[str, Any]] = field(default_factory=list)
+
+    # Canonical graph diagnostics (canonical_slots, canonical_edges)
+    canonical_slots: List[Dict[str, Any]] = field(default_factory=list)
+    canonical_edges: List[Dict[str, Any]] = field(default_factory=list)
 
 
 class SimulationService:
@@ -216,7 +220,9 @@ class SimulationService:
             turns.append(turn_result)
 
         # NEW: Fetch graph data for diagnostics (after loop, before result creation)
-        nodes_data, edges_data = await self._serialize_graph_data(session_id)
+        nodes_data, edges_data, canonical_slots_data, canonical_edges_data = await self._serialize_graph_data(
+            session_id
+        )
 
         # Determine status from termination reason
         if turn_result.should_continue:
@@ -243,6 +249,8 @@ class SimulationService:
             status=status,
             nodes=nodes_data,
             edges=edges_data,
+            canonical_slots=canonical_slots_data,
+            canonical_edges=canonical_edges_data,
         )
 
         log.info(
@@ -322,28 +330,28 @@ class SimulationService:
 
     async def _serialize_graph_data(
         self, session_id: str
-    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        """Fetch and serialize nodes and edges for JSON output.
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+        """Fetch and serialize surface and canonical graph data for JSON output.
 
         Args:
             session_id: Session ID to fetch graph data for
 
         Returns:
-            Tuple of (nodes_list, edges_list) as JSON-compatible dicts
+            Tuple of (nodes_list, edges_list, canonical_slots_list, canonical_edges_list)
+            as JSON-compatible dicts
         """
-        # Fetch from graph repository (SessionService has graph_repo as attribute)
+        # Fetch surface graph from graph repository
         nodes = await self.session.graph_repo.get_nodes_by_session(session_id)
         edges = await self.session.graph_repo.get_edges_by_session(session_id)
 
-        # Serialize nodes to JSON-compatible format
-        # INCLUDE properties dict for diagnostic visibility
+        # Serialize surface nodes to JSON-compatible format
         nodes_data = [
             {
                 "id": n.id,
                 "label": n.label,
                 "node_type": n.node_type,
                 "confidence": n.confidence,
-                "properties": n.properties,  # INCLUDE for diagnostics
+                "properties": n.properties,
                 "source_utterance_ids": n.source_utterance_ids,
                 "stance": n.stance,
                 "recorded_at": n.recorded_at.isoformat(),
@@ -352,7 +360,7 @@ class SimulationService:
             for n in nodes
         ]
 
-        # Serialize edges to JSON-compatible format
+        # Serialize surface edges to JSON-compatible format
         edges_data = [
             {
                 "id": e.id,
@@ -360,14 +368,44 @@ class SimulationService:
                 "target_node_id": e.target_node_id,
                 "edge_type": e.edge_type,
                 "confidence": e.confidence,
-                "properties": e.properties,  # INCLUDE for diagnostics
+                "properties": e.properties,
                 "source_utterance_ids": e.source_utterance_ids,
                 "recorded_at": e.recorded_at.isoformat(),
             }
             for e in edges
         ]
 
-        return nodes_data, edges_data
+        # Fetch canonical graph if available
+        canonical_slots_data = []
+        canonical_edges_data = []
+
+        if self.session.canonical_slot_repo is not None:
+            # Fetch canonical slots with provenance (surface_node_ids)
+            slots_with_provenance = await self.session.canonical_slot_repo.get_slots_with_provenance(
+                session_id
+            )
+            canonical_slots_data = slots_with_provenance  # Already in dict format
+
+            # Fetch canonical edges with metadata
+            edges_with_metadata = await self.session.canonical_slot_repo.get_edges_with_metadata(
+                session_id
+            )
+            canonical_edges_data = edges_with_metadata  # Already in dict format
+
+            log.info(
+                "canonical_graph_serialized",
+                session_id=session_id,
+                canonical_slots=len(canonical_slots_data),
+                canonical_edges=len(canonical_edges_data),
+            )
+        else:
+            log.info(
+                "canonical_graph_skipped",
+                session_id=session_id,
+                reason="canonical_slot_repo is None (feature disabled)",
+            )
+
+        return nodes_data, edges_data, canonical_slots_data, canonical_edges_data
 
     def _count_nodes_by_type(self, nodes: list[dict[str, Any]]) -> dict[str, int]:
         """Count nodes by their type.
@@ -389,6 +427,36 @@ class SimulationService:
 
         Args:
             edges: List of serialized edge dictionaries
+
+        Returns:
+            Dictionary mapping edge_type to count
+        """
+        counts: dict[str, int] = {}
+        for edge in edges:
+            edge_type = edge.get("edge_type", "unknown")
+            counts[edge_type] = counts.get(edge_type, 0) + 1
+        return counts
+
+    def _count_slots_by_type(self, slots: list[dict[str, Any]]) -> dict[str, int]:
+        """Count canonical slots by their node_type.
+
+        Args:
+            slots: List of canonical slot dictionaries
+
+        Returns:
+            Dictionary mapping node_type to count
+        """
+        counts: dict[str, int] = {}
+        for slot in slots:
+            node_type = slot.get("node_type", "unknown")
+            counts[node_type] = counts.get(node_type, 0) + 1
+        return counts
+
+    def _count_canonical_edges_by_type(self, edges: list[dict[str, Any]]) -> dict[str, int]:
+        """Count canonical edges by their edge_type.
+
+        Args:
+            edges: List of canonical edge dictionaries
 
         Returns:
             Dictionary mapping edge_type to count
@@ -471,7 +539,7 @@ class SimulationService:
                 "status": result.status,
                 "saved_at": datetime.now(timezone.utc).isoformat(),
             },
-            # Graph section (inserted between metadata and turns)
+            # Surface graph section (kg_nodes, kg_edges)
             "graph": {
                 "nodes": result.nodes,
                 "edges": result.edges,
@@ -480,7 +548,18 @@ class SimulationService:
                     "total_edges": len(result.edges),
                     "nodes_by_type": self._count_nodes_by_type(result.nodes),
                     "edges_by_type": self._count_edges_by_type(result.edges),
-                }
+                },
+            },
+            # Canonical graph section (canonical_slots, canonical_edges)
+            "canonical_graph": {
+                "slots": result.canonical_slots,
+                "edges": result.canonical_edges,
+                "summary": {
+                    "total_slots": len(result.canonical_slots),
+                    "total_edges": len(result.canonical_edges),
+                    "slots_by_type": self._count_slots_by_type(result.canonical_slots),
+                    "edges_by_type": self._count_canonical_edges_by_type(result.canonical_edges),
+                },
             },
             "turns": [
                 {
@@ -492,7 +571,7 @@ class SimulationService:
                     "strategy_selected": t.strategy_selected,
                     "should_continue": t.should_continue,
                     "latency_ms": t.latency_ms,
-                    # Phase 6: Enhanced diagnostics
+                    # Signal detection observability
                     "signals": t.signals,
                     "strategy_alternatives": t.strategy_alternatives,
                     "termination_reason": t.termination_reason,

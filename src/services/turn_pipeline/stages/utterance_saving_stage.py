@@ -1,8 +1,8 @@
 """
 Stage 2: Save user utterance.
 
-ADR-008 Phase 3: Persist user input to the utterances table.
-Phase 6: Output UtteranceSavingOutput contract.
+Persists user input to the utterances table. Outputs
+UtteranceSavingOutput contract.
 """
 
 from typing import TYPE_CHECKING

@@ -179,7 +179,11 @@ class PhaseConfig(BaseModel):
 
 
 class SessionConfig(BaseModel):
-    """Interview session configuration."""
+    """Configuration settings for interview session boundaries.
+
+    Defines the maximum number of turns before forcing session close
+    and the minimum turns required before early termination is allowed.
+    """
 
     max_turns: int = Field(
         default=20, ge=1, le=100, description="Maximum turns before forcing close"
@@ -190,7 +194,11 @@ class SessionConfig(BaseModel):
 
 
 class SessionServiceConfig(BaseModel):
-    """Session service configuration."""
+    """Configuration for SessionService context window limits.
+
+    Controls how much historical data (utterances, nodes, context) is
+    included when processing turns and generating questions.
+    """
 
     context_utterance_limit: int = Field(
         default=10, ge=1, le=50, description="Number of recent utterances in context"
@@ -204,7 +212,11 @@ class SessionServiceConfig(BaseModel):
 
 
 class PhasesConfig(BaseModel):
-    """All phase configurations."""
+    """Configuration for all interview phases (exploratory, focused, closing).
+
+    Each phase has its own turn limit and transition rules. Phase transitions
+    are determined by turn count in the simplified deterministic model.
+    """
 
     exploratory: PhaseConfig = Field(default_factory=PhaseConfig)
     focused: PhaseConfig = Field(default_factory=PhaseConfig)

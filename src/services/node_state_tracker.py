@@ -1,12 +1,9 @@
 """
 NodeStateTracker service for maintaining per-node state across interview sessions.
 
-This service tracks engagement patterns, yield history, response quality,
-relationships, and strategy usage for each knowledge graph node.
-
-Phase 3 (Dual-Graph Integration), bead ht0e:
-- Modified to track canonical slots instead of surface nodes
-- Uses canonical_slot_id as tracking dict key for aggregation across paraphrases
+Tracks engagement patterns, yield history, response quality, relationships,
+and strategy usage for each knowledge graph node. Supports dual-graph
+architecture by tracking canonical slots that aggregate surface nodes.
 """
 
 from dataclasses import dataclass, asdict
@@ -68,12 +65,12 @@ class NodeStateTracker:
             canonical_slot_repo: Optional CanonicalSlotRepository for resolving
                 surface node IDs to canonical slot IDs. If provided, tracking
                 uses canonical_slot_id as the key for aggregation across paraphrases.
+                When None (enable_canonical_slots=False), uses surface node_id directly.
 
         IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead ht0e
-            - canonical_slot_repo is optional for backward compatibility
-            - If provided, uses canonical_slot_id as tracking dict key
-            - Falls back to surface node_id if no mapping exists (normal behavior, not an error)
+            - canonical_slot_repo is optional based on enable_canonical_slots feature flag
+            - If provided, uses canonical_slot_id as tracking dict key for paraphrase aggregation
+            - Falls back to surface node_id if no mapping exists (normal behavior)
         """
         self.states: Dict[str, NodeState] = {}
         self.previous_focus: Optional[str] = None
@@ -95,9 +92,8 @@ class NodeStateTracker:
             canonical_slot_id if mapping exists, otherwise surface_node_id
 
         IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead ht0e
             - Fallback to surface_node_id is normal behavior (not an error)
-            - Database errors propagate (fail-fast per ADR-009)
+            - Database errors propagate immediately for visibility of issues
         """
         if self.canonical_slot_repo is None:
             return surface_node_id
@@ -176,7 +172,6 @@ class NodeStateTracker:
             strategy: Strategy being used for this focus
 
         IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead ht0e
             - Resolves node_id to canonical_slot_id for tracking dict key
             - Focus selection continues to target surface nodes (for question generation)
             - Tracking key is canonical_slot_id for aggregation across paraphrases
@@ -257,7 +252,6 @@ class NodeStateTracker:
             graph_changes: Summary of graph changes
 
         IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead ht0e
             - Resolves node_id to canonical_slot_id for tracking dict key
         """
         tracking_key = await self._resolve_canonical_slot_id(node_id)
@@ -326,9 +320,8 @@ class NodeStateTracker:
             focus_node_id: ID of the node that was focused when question was asked
             response_depth: Response depth (surface/shallow/deep)
 
-        IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead ht0e
-            - Resolves focus_node_id to canonical_slot_id for tracking dict key
+        Note:
+            Resolves focus_node_id to canonical_slot_id for tracking dict key.
         """
         tracking_key = await self._resolve_canonical_slot_id(focus_node_id)
 
@@ -364,7 +357,6 @@ class NodeStateTracker:
             incoming_delta: Change in incoming edge count (+/-)
 
         IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead ht0e
             - Resolves node_id to canonical_slot_id for tracking dict key
         """
         tracking_key = await self._resolve_canonical_slot_id(node_id)
@@ -407,9 +399,8 @@ class NodeStateTracker:
         Returns:
             NodeState if tracked, None otherwise
 
-        IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead ht0e
-            - Resolves node_id to canonical_slot_id for lookup
+        Note:
+            Resolves node_id to canonical_slot_id for lookup.
         """
         tracking_key = await self._resolve_canonical_slot_id(node_id)
         return self.states.get(tracking_key)

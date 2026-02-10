@@ -2,7 +2,7 @@
 Question generation service.
 
 Generates follow-up questions based on:
-- Strategy (Phase 2: hardcoded "deepen")
+- Selected strategy
 - Recent conversation context
 - Current graph state
 - Focus concept
@@ -49,7 +49,7 @@ class QuestionService:
 
         Args:
             llm_client: LLM client instance (required)
-            default_strategy: Default strategy for Phase 2 (hardcoded "deepen")
+            default_strategy: Default strategy for question generation
             methodology: Methodology name for opening question generation
         """
         self.llm = llm_client

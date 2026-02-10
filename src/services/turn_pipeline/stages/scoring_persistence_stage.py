@@ -1,8 +1,8 @@
 """
 Stage 10: Persist scoring data and update session state.
 
-ADR-008 Phase 3: Save scoring results and update turn count.
-Phase 6: Output ScoringPersistenceOutput contract.
+Saves scoring results and updates turn count. Outputs
+ScoringPersistenceOutput contract.
 """
 
 from typing import TYPE_CHECKING

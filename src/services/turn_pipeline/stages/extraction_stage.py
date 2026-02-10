@@ -1,8 +1,9 @@
 """
 Stage 3: Extract concepts and relationships.
 
-ADR-008 Phase 3: Use ExtractionService to extract knowledge from user input.
-Phase 6: Output ExtractionOutput contract.
+Uses ExtractionService to extract knowledge from user input, producing
+concepts and relationships that will be added to the knowledge graph.
+Outputs ExtractionOutput contract for downstream stages.
 """
 
 import structlog
@@ -77,7 +78,7 @@ class ExtractionStage(TurnStage):
                     f"Failed to load concept '{context.concept_id}': {e}"
                 ) from e
 
-        # Get source utterance ID for traceability (ADR-010 Phase 2)
+        # Get source utterance ID for traceability
         source_utterance_id = (
             context.user_utterance.id
             if hasattr(context, "user_utterance") and context.user_utterance
@@ -115,10 +116,9 @@ class ExtractionStage(TurnStage):
         """
         Format context for extraction prompt.
 
-        P0 Fix: Enhanced to highlight interviewer's most recent question
-        for conversational implicit relationship extraction.
-
-        Phase 1: Optionally inject SRL hints if available.
+        Highlights interviewer's most recent question for conversational
+        implicit relationship extraction. Optionally injects SRL hints
+        if available from preprocessing stage.
 
         Args:
             context: Turn context

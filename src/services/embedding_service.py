@@ -7,9 +7,6 @@ for semantic cosine similarity comparisons.
 
 Also provides access to the spaCy nlp model for lemmatization
 (used by CanonicalSlotService._lemmatize_name).
-
-Bead: lmyr (Phase 2: Dual-Graph Architecture)
-Bead: gjb5 (switched from spaCy word vectors to sentence-transformers)
 """
 
 from typing import Any, Dict, Optional
@@ -61,8 +58,6 @@ class EmbeddingService:
         Args:
             nlp: Optional shared spaCy Language instance (e.g., from SRLService)
                  If provided, reuses the loaded model instead of loading a new one.
-
-        REFERENCE: Phase 2 (Dual-Graph Architecture), bead lmyr
         """
         self._nlp: Optional[Any] = nlp
         self._model: Optional[Any] = None  # SentenceTransformer (lazy)
@@ -79,7 +74,7 @@ class EmbeddingService:
             spaCy Language object (en_core_web_md)
 
         Raises:
-            OSError: If spaCy model is not installed (fail-fast per ADR-009)
+            OSError: If spaCy model is not installed (fail-fast)
         """
         if self._nlp is None:
             import spacy

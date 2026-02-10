@@ -1,4 +1,8 @@
-"""Schema loader for methodology YAML files."""
+"""Schema loader for methodology YAML configuration files.
+
+Loads methodology schemas that define signals, strategies, and node/edge types
+for interview questioning approaches. Schemas are cached after first load.
+"""
 
 import yaml
 from pathlib import Path
@@ -14,18 +18,22 @@ _cache: Dict[str, MethodologySchema] = {}
 
 
 def load_methodology(name: str, schema_dir: Optional[Path] = None) -> MethodologySchema:
-    """Load methodology schema from YAML. Cached after first load.
+    """Load methodology schema from YAML configuration file.
+
+    Reads methodology definition from config/methodologies/{name}.yaml which
+    defines signals, strategies, node types, and edge types for the questioning
+    approach. Results are cached after first load for performance.
 
     Args:
-        name: Methodology name, e.g. "means_end_chain"
-        schema_dir: Override config/methodologies/ path (mainly for testing)
+        name: Methodology identifier (e.g., 'means_end_chain', 'laddering')
+        schema_dir: Override config/methodologies/ path (for testing)
 
     Returns:
-        Loaded and validated MethodologySchema instance
+        Loaded and validated MethodologySchema with signals and strategy definitions
 
     Raises:
-        FileNotFoundError: Schema file missing
-        ValueError: Invalid YAML structure or validation error
+        FileNotFoundError: Methodology YAML file not found
+        ValueError: Invalid YAML structure or missing required fields
     """
     if name in _cache:
         return _cache[name]

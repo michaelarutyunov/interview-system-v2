@@ -1,8 +1,8 @@
 """
 Stage 8: Generate follow-up question.
 
-ADR-008 Phase 3: Use QuestionService to generate next question.
-Phase 6: Output QuestionGenerationOutput contract.
+Uses QuestionService to generate next question. Outputs
+QuestionGenerationOutput contract.
 """
 
 from typing import TYPE_CHECKING

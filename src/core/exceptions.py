@@ -146,13 +146,11 @@ class ScoringError(InterviewSystemError):
 
 
 class ScorerFailureError(ScoringError):
-    """Raised when a scorer fails and interview should terminate (MVP fail-fast).
+    """Raised when a signal detector or scorer fails and interview should terminate.
 
     For MVP single-interview mode, any scorer failure terminates the interview
     immediately with a clear error message. This ensures immediate visibility
-    of scoring issues during testing.
-
-    See ADR-009 for rationale and migration path to production resilience.
+    of scoring issues during testing and debugging.
     """
 
     pass

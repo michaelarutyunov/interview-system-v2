@@ -45,12 +45,12 @@ class GraphService:
 
         Args:
             repo: GraphRepository instance
-            canonical_slot_repo: Optional CanonicalSlotRepository for dual-graph edge aggregation
+            canonical_slot_repo: Optional CanonicalSlotRepository for dual-graph edge aggregation.
+                Required when enable_canonical_slots=True, None when disabled.
 
         IMPLEMENTATION NOTES:
-            - canonical_slot_repo is optional for backward compatibility
+            - canonical_slot_repo is optional based on enable_canonical_slots feature flag
             - If None and aggregate_surface_edges_to_canonical() is called, raises AttributeError
-            - Phase 3 (Dual-Graph Integration), bead coxo
         """
         self.repo = repo
         self.canonical_slot_repo = canonical_slot_repo
@@ -382,10 +382,9 @@ class GraphService:
             List of created/updated CanonicalEdge objects
 
         Raises:
-            AttributeError: If canonical_slot_repo is None (fail-fast per ADR-009)
+            AttributeError: If canonical_slot_repo is None (not initialized for dual-graph mode)
 
         IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead coxo
             - surface_edges are List[Dict[str, Any]] from GraphUpdateOutput
             - Skips unmapped nodes (logs debug: surface_edge_not_mapped)
             - Skips self-loops where source_slot == target_slot (logs: canonical_self_loop_prevented)
@@ -394,7 +393,7 @@ class GraphService:
         if self.canonical_slot_repo is None:
             raise AttributeError(
                 "canonical_slot_repo is required for edge aggregation but was None. "
-                "Phase 3: Dual-Graph Architecture not properly initialized."
+                "Dual-graph mode requires enable_canonical_slots=True setting."
             )
 
         log.info(

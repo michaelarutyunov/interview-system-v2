@@ -1,7 +1,9 @@
 """
 Pipeline stages for turn processing.
 
-ADR-008 Phase 3: Each stage encapsulates one logical step of turn processing.
+Each stage encapsulates one logical step of turn processing, from context
+loading through scoring persistence. Stages execute sequentially in the
+TurnPipeline orchestrator.
 """
 
 from .context_loading_stage import ContextLoadingStage
@@ -23,7 +25,6 @@ __all__ = [
     "SRLPreprocessingStage",
     "ExtractionStage",
     "GraphUpdateStage",
-    # Stage 4.5: SlotDiscoveryStage (Phase 2: Dual-Graph Architecture, bead yuhv)
     "SlotDiscoveryStage",
     "StateComputationStage",
     "StrategySelectionStage",

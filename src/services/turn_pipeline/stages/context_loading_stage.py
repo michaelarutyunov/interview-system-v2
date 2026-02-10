@@ -1,8 +1,8 @@
 """
 Stage 1: Load session context.
 
-ADR-008 Phase 3: Load session metadata and conversation history.
-Phase 6: Output ContextLoadingOutput contract.
+Loads session metadata and conversation history. Outputs
+ContextLoadingOutput contract.
 
 Note: Graph state is NOT loaded here - it comes from StateComputationStage (Stage 5).
 """

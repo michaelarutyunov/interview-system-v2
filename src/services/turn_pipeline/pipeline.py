@@ -1,7 +1,8 @@
 """
 Pipeline orchestrator for turn processing.
 
-ADR-008 Phase 3: TurnPipeline executes stages sequentially with timing and error handling.
+Executes stages sequentially with timing tracking and error handling.
+Provides the main entry point for turn processing through the interview system.
 """
 
 import time
@@ -189,7 +190,7 @@ class TurnPipeline:
                             "score": score
                         })
 
-        # Phase 3 (Dual-Graph Integration), bead 0nl3: Build canonical_graph and graph_comparison
+        # Build canonical_graph and graph_comparison
         canonical_graph = None
         graph_comparison = None
 

@@ -1,8 +1,8 @@
 """
 Stage 9: Save system response.
 
-ADR-008 Phase 3: Persist system utterance to the database.
-Phase 6: Output ResponseSavingOutput contract.
+Persists system utterance to the database. Outputs
+ResponseSavingOutput contract.
 """
 
 from typing import TYPE_CHECKING

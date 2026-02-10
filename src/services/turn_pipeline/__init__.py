@@ -1,7 +1,7 @@
 """
-Turn processing pipeline - ADR-008 Phase 3
+Turn processing pipeline.
 
-This package implements a composable pipeline pattern for processing interview turns,
+Implements a composable pipeline pattern for processing interview turns,
 breaking up the monolithic SessionService.process_turn() method into testable stages.
 """
 

@@ -1,10 +1,9 @@
 """
 Context object for turn processing pipeline.
 
-ADR-008 Phase 3: TurnContext carries state through all pipeline stages.
-ADR-010: Added graph_state_computed_at for freshness validation.
-Phase 4: Added signals and strategy_alternatives for methodology-based selection.
-Phase 6: Enforced contract outputs - contracts are the single source of truth.
+Carries state through all pipeline stages, accumulating contract outputs
+from each stage. Provides the single source of truth for turn data with
+freshness tracking for graph state validation.
 """
 
 from dataclasses import dataclass, field
@@ -38,8 +37,8 @@ class PipelineContext:
     """
     Context object that accumulates state through pipeline stages.
 
-    Phase 6: Contracts are the single source of truth. Each stage produces
-    a contract output that is consumed by subsequent stages.
+    Contracts are the single source of truth. Each stage produces a contract
+    output that is consumed by subsequent stages.
     """
 
     # =============================================================================
@@ -73,7 +72,7 @@ class PipelineContext:
     # Stage 4: GraphUpdateStage output
     graph_update_output: Optional[GraphUpdateOutput] = None
 
-    # Stage 4.5: SlotDiscoveryStage output (Phase 2: Dual-Graph Architecture, bead yuhv)
+    # Stage 4.5: SlotDiscoveryStage output
     slot_discovery_output: Optional[SlotDiscoveryOutput] = None
 
     # Stage 5: StateComputationStage output
@@ -226,10 +225,7 @@ class PipelineContext:
 
     @property
     def canonical_graph_state(self) -> Optional["CanonicalGraphState"]:
-        """Get canonical_graph_state from StateComputationOutput.
-
-        Phase 3 (Dual-Graph Integration), bead ty40.
-        """
+        """Get canonical_graph_state from StateComputationOutput."""
         if self.state_computation_output:
             return self.state_computation_output.canonical_graph_state
         return None

@@ -34,14 +34,10 @@ router = APIRouter(prefix="/simulation", tags=["simulation"])
 async def get_simulation_service(
     db: aiosqlite.Connection = Depends(get_db),
 ) -> SimulationService:
-    """
-    Create SimulationService with dependencies.
+    """FastAPI dependency injection for SimulationService.
 
-    Args:
-        db: Database connection
-
-    Returns:
-        SimulationService instance
+    Creates a service instance with SessionService and LLM clients for
+    AI-to-AI interview simulation and testing.
     """
     session_repo = SessionRepository(str(settings.database_path))
     graph_repo = GraphRepository(db)
@@ -136,7 +132,7 @@ async def simulate_interview(
                     strategy_selected=t.strategy_selected,
                     should_continue=t.should_continue,
                     latency_ms=t.latency_ms,
-                    # Phase 6: Enhanced diagnostics
+                    # Enhanced diagnostics for observability
                     signals=t.signals,
                     strategy_alternatives=t.strategy_alternatives,
                     termination_reason=t.termination_reason,

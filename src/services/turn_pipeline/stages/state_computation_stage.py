@@ -1,11 +1,10 @@
 """
-Stage 5: Compute graph state.
+Stage 5: Compute graph state and saturation metrics.
 
-ADR-008 Phase 3: Refresh graph state after updates.
-ADR-010: Return StateComputationOutput with freshness tracking.
-Phase 6: Output StateComputationOutput contract.
-Domain Encapsulation: Compute saturation metrics here (single source of truth).
-Phase 3: Dual-Graph Integration - Compute canonical graph state alongside surface graph state.
+Refreshes graph state after graph updates, computes saturation metrics for
+interview continuation decisions, and tracks computation timestamp for
+freshness validation. Optionally computes canonical graph state for
+dual-graph architecture.
 """
 
 from dataclasses import dataclass
@@ -53,17 +52,15 @@ class _SaturationTrackingState:
 
 
 class StateComputationStage(TurnStage):
-    """
-    Compute current graph state.
+    """Compute graph state and saturation metrics after graph updates.
 
-    Refreshes PipelineContext.graph_state and PipelineContext.recent_nodes.
+    Centralizes all graph state computation including:
+    - Node and edge counts, depth metrics, orphan detection
+    - Saturation metrics for continuation decisions (zero yield, shallow responses, depth plateau)
+    - Freshness timestamp to prevent stale state bugs in downstream stages
+    - Optional canonical graph state for dual-graph architecture
 
-    Domain Encapsulation: Now also computes saturation metrics, centralizing
-    all graph state and saturation tracking in one place. ContinuationStage
-    reads these metrics instead of maintaining its own tracking.
-
-    Phase 3 (Dual-Graph Integration): Now also computes canonical graph state
-    alongside surface graph state for dual-graph architecture.
+    ContinuationStage consumes saturation_metrics to decide interview termination.
     """
 
     def __init__(
@@ -71,17 +68,12 @@ class StateComputationStage(TurnStage):
         graph_service: GraphService,
         canonical_graph_service: Optional["CanonicalGraphService"] = None,
     ):
-        """
-        Initialize stage.
+        """Initialize state computation stage.
 
         Args:
-            graph_service: GraphService instance
-            canonical_graph_service: Optional CanonicalGraphService for dual-graph state
-
-        IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead ty40
-            - canonical_graph_service is optional for backward compatibility
-            - If provided, computes canonical_graph_state alongside surface graph_state
+            graph_service: GraphService instance for surface graph state computation
+            canonical_graph_service: Optional service for canonical graph state in dual-graph architecture.
+                When provided, computes aggregated canonical state alongside surface state.
         """
         self.graph = graph_service
         self.canonical_graph_service = canonical_graph_service
@@ -89,22 +81,23 @@ class StateComputationStage(TurnStage):
         self._saturation_tracking: Dict[str, _SaturationTrackingState] = {}
 
     async def process(self, context: "PipelineContext") -> "PipelineContext":
-        """
-        Refresh graph state after updates.
+        """Compute graph state and saturation metrics after graph updates.
 
-        ADR-010: Now tracks computed_at timestamp for freshness validation.
-        Domain Encapsulation: Computes saturation metrics for ContinuationStage.
+        Reads from GraphUpdateStage results and produces StateComputationOutput with:
+        - Fresh graph state metrics (node/edge counts, depth, orphans)
+        - Saturation metrics for continuation decisions
+        - Computation timestamp for freshness validation in StrategySelectionStage
+        - Optional canonical graph state for dual-graph architecture
 
         Args:
-            context: Turn context
+            context: Turn context with graph_update_output from GraphUpdateStage
 
         Returns:
-            Modified context with refreshed graph_state, recent_nodes, and saturation
+            Modified context with state_computation_output contract populated
         """
         graph_state = await self.graph.get_graph_state(context.session_id)
         recent_nodes = await self.graph.get_recent_nodes(context.session_id, limit=5)
 
-        # ADR-010: Update GraphState using new typed fields instead of properties dict
         if graph_state:
             # Update turn_count (now a direct field, not in properties)
             graph_state.turn_count = context.turn_number
@@ -119,7 +112,7 @@ class StateComputationStage(TurnStage):
         # Compute saturation metrics
         saturation = self._compute_saturation_metrics(context, graph_state)
 
-        # Phase 3 (Dual-Graph Integration), bead ty40: Compute canonical graph state
+        # Compute canonical graph state (optional, for dual-graph architecture)
         canonical_graph_state = None
         if self.canonical_graph_service is not None:
             canonical_graph_state = (
@@ -149,7 +142,7 @@ class StateComputationStage(TurnStage):
                     canonical_count=canonical_count,
                 )
 
-        # ADR-010: Track when graph_state was computed for freshness validation
+        # Track when graph_state was computed for freshness validation
         computed_at = datetime.now(timezone.utc)
 
         # Create contract output (single source of truth)
@@ -182,18 +175,21 @@ class StateComputationStage(TurnStage):
         context: "PipelineContext",
         graph_state: Optional[GraphState],
     ) -> SaturationMetrics:
-        """
-        Compute saturation metrics for this turn.
+        """Compute interview saturation metrics for continuation decisions.
 
-        Uses session-scoped tracking state to maintain counters across turns.
-        Updates the tracking state and returns computed metrics.
+        Tracks session-scoped counters across turns to detect:
+        - Consecutive zero yield (no new nodes or edges)
+        - Consecutive shallow responses (low depth answers)
+        - Depth plateau (max depth unchanged)
+
+        When thresholds are exceeded, ContinuationStage may terminate the interview.
 
         Args:
-            context: Pipeline context with graph_update_output and node_tracker
-            graph_state: Current graph state
+            context: Pipeline context with graph_update_output for yield detection
+            graph_state: Current graph state for depth metrics
 
         Returns:
-            SaturationMetrics with computed values
+            SaturationMetrics with is_saturated flag and individual metric values
         """
         tracking = self._get_saturation_tracking(context.session_id)
 

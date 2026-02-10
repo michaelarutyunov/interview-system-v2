@@ -1,12 +1,9 @@
 """
 Stage 6: Select strategy.
 
-ADR-008 Phase 3: Use two-tier scoring to select questioning strategy.
-ADR-010: Validate graph_state freshness before strategy selection.
-Phase 4: Use methodology-based strategy selection with direct signal->strategy scoring.
-
-Phase 6 Cleanup (2026-01-28): Removed two-tier scoring fallback code.
-The two-tier scoring system has been replaced by methodology-specific signal detection.
+Selects questioning strategy using methodology-based signal detection with
+direct signal-to-strategy scoring. Validates graph_state freshness before
+selection to prevent stale state bugs.
 """
 
 from typing import TYPE_CHECKING, Optional, Dict, Any, Sequence, Union
@@ -30,7 +27,8 @@ class StrategySelectionStage(TurnStage):
     """
     Select questioning strategy using methodology-based signal detection.
 
-    Phase 4: Uses MethodologyStrategyService for direct signal->strategy scoring.
+    Uses MethodologyStrategyService for direct signal-to-strategy scoring based
+    on graph state, recent nodes, and conversation history.
 
     Populates:
     - PipelineContext.strategy
@@ -44,8 +42,8 @@ class StrategySelectionStage(TurnStage):
         """
         Initialize stage with methodology-based strategy service.
 
-        Note: The old two-tier scoring system has been removed.
-        All strategy selection now uses methodology-specific signal detection.
+        Note: Strategy selection uses methodology-specific signal detection
+        configured in YAML (config/methodologies/*.yaml).
         """
         self.methodology_strategy = MethodologyStrategyService()
 
@@ -53,8 +51,9 @@ class StrategySelectionStage(TurnStage):
         """
         Select strategy using methodology-based signal detection.
 
-        ADR-010: Validates graph_state freshness before selection.
-        Phase 4: Uses methodology-specific signals and direct signal->strategy scoring.
+        Validates graph_state freshness before selection to prevent stale
+        state bugs. Uses methodology-specific signals and direct signal-to-
+        strategy scoring.
 
         Args:
             context: Turn context with graph_state, recent_nodes, recent_utterances
@@ -70,7 +69,7 @@ class StrategySelectionStage(TurnStage):
                 "state_computation_output is None."
             )
 
-        # ADR-010: Validate freshness before using graph_state
+        # Validate freshness before using graph_state
         # This prevents the stale state bug where graph_state from Stage 1
         # (before extraction) was used in Stage 6
         if context.graph_state and context.graph_state_computed_at:
@@ -103,7 +102,6 @@ class StrategySelectionStage(TurnStage):
                 raise
 
         # Select strategy using methodology-based signal detection
-        # Phase 3: Use joint strategy-node scoring
         (
             strategy,
             focus_node_id,
@@ -127,7 +125,6 @@ class StrategySelectionStage(TurnStage):
             context.graph_state.add_strategy_used(strategy)
 
         # Wrap node_id in dict format for ContinuationStage compatibility
-        # Phase 3: focus is now node_id (not label)
         focus_dict = {"focus_node_id": focus_node_id} if focus_node_id else None
 
         # Create contract output (single source of truth)
@@ -163,15 +160,15 @@ class StrategySelectionStage(TurnStage):
         """
         Select strategy and focus node using joint scoring.
 
-        Phase 3: Uses MethodologyStrategyService.select_strategy_and_focus()
-        for joint (strategy, node) scoring.
+        Uses MethodologyStrategyService.select_strategy_and_focus() for
+        joint (strategy, node) scoring.
 
         Args:
             context: Turn context
 
         Returns:
             Tuple of (strategy_name, focus_node_id, alternatives, signals)
-            - alternatives now includes (strategy_name, node_id, score) tuples
+            - alternatives includes (strategy_name, node_id, score) tuples
         """
         # Get last response text
         response_text = context.user_input or ""

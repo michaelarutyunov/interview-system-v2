@@ -15,31 +15,51 @@ from src.llm.client import LLMClient, get_extraction_llm_client, get_generation_
 
 
 def get_session_repository() -> SessionRepository:
-    """Dependency that provides a SessionRepository instance."""
+    """FastAPI dependency injection for SessionRepository.
+
+    Provides a repository instance for session CRUD operations in API routes.
+    Each request gets a new repository with database connection from settings.
+    """
     return SessionRepository(str(settings.database_path))
 
 
 def get_utterance_repository() -> UtteranceRepository:
-    """Dependency that provides an UtteranceRepository instance."""
+    """FastAPI dependency injection for UtteranceRepository.
+
+    Provides a repository instance for utterance CRUD operations in API routes.
+    Each request gets a new repository with database connection from settings.
+    """
     return UtteranceRepository(str(settings.database_path))
 
 
 async def get_graph_repository(
     db: aiosqlite.Connection = Depends(get_db),
 ) -> GraphRepository:
-    """Dependency that provides a GraphRepository instance."""
+    """FastAPI dependency injection for GraphRepository.
+
+    Provides a repository instance for knowledge graph CRUD operations in API routes.
+    Uses the shared database connection from get_db dependency.
+    """
     return GraphRepository(db)
 
 
 @lru_cache(maxsize=1)
 def get_shared_extraction_client() -> LLMClient:
-    """Get or create the shared extraction LLM client."""
+    """Cached LLM client for concept and relationship extraction.
+
+    Shared across all extraction requests to avoid re-initializing the client.
+    Uses LRU cache so the client is created once per process and reused.
+    """
     return get_extraction_llm_client()
 
 
 @lru_cache(maxsize=1)
 def get_shared_generation_client() -> LLMClient:
-    """Get or create the shared generation LLM client."""
+    """Cached LLM client for question generation.
+
+    Shared across all question generation requests to avoid re-initializing the client.
+    Uses LRU cache so the client is created once per process and reused.
+    """
     return get_generation_llm_client()
 
 

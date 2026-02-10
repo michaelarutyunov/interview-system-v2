@@ -3,8 +3,6 @@ Canonical graph service for dual-graph architecture state computation.
 
 Computes aggregate metrics for the canonical graph, including concept count,
 edge count, orphan detection, max depth, and average support.
-
-Phase 3 (Dual-Graph Integration), bead sa6h
 """
 
 import structlog
@@ -62,11 +60,10 @@ class CanonicalGraphService:
         Returns:
             CanonicalGraphState with all metrics
 
-        IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead sa6h
-            - Empty graph returns all zeros (not an error)
-            - max_depth uses iterative BFS with visited set (handles cycles)
-            - Orphan detection uses set operations for efficiency
+        Note:
+            Empty graph returns all zeros (not an error). max_depth uses
+            iterative BFS with visited set (handles cycles). Orphan detection
+            uses set operations for efficiency.
         """
         import time
 
@@ -143,11 +140,10 @@ class CanonicalGraphService:
         Returns:
             Maximum depth (longest path length), 0 if no edges
 
-        IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead sa6h
-            - Iterative BFS (not recursive DFS) to avoid stack overflow
-            - Visited set prevents infinite loops on cycles
-            - Returns longest non-repeating path length
+        Note:
+            Uses iterative BFS (not recursive DFS) to avoid stack overflow.
+            Visited set prevents infinite loops on cycles. Returns longest
+            non-repeating path length.
         """
         if not edges:
             return 0

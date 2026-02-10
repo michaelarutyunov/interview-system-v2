@@ -39,7 +39,8 @@ def get_extraction_system_prompt(
     node_descriptions = schema.get_node_descriptions()
     edge_descriptions = schema.get_edge_descriptions()
 
-    # Load concept elements for element linking
+    # Load concept elements for element linking (LEGACY - exploratory interviews don't use elements)
+    # For exploratory research, elements list is always empty, so this section is not added to prompt
     elements_section = ""
     if concept_id:
         try:

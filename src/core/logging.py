@@ -89,5 +89,10 @@ def bind_context(**kwargs) -> None:
 
 
 def clear_context() -> None:
-    """Clear all bound context variables."""
+    """Clear all bound context variables from the logging context.
+
+    Removes all request-scoped context variables (like session_id, request_id)
+    that were bound via bind_context. Call this after async task completion to
+    prevent context leakage between requests.
+    """
     structlog.contextvars.clear_contextvars()

@@ -51,7 +51,11 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 
 def get_session_repository() -> SessionRepository:
-    """Dependency that provides a SessionRepository instance."""
+    """FastAPI dependency injection for SessionRepository.
+
+    Provides a repository instance for session CRUD operations in session routes.
+    Each request gets a new repository with database connection from settings.
+    """
     return SessionRepository(str(settings.database_path))
 
 
@@ -61,7 +65,11 @@ SessionRepoDep = Annotated[SessionRepository, Depends(get_session_repository)]
 async def get_graph_repository(
     db: aiosqlite.Connection = Depends(get_db),
 ) -> GraphRepository:
-    """Dependency that provides a GraphRepository instance."""
+    """FastAPI dependency injection for GraphRepository.
+
+    Provides a repository instance for knowledge graph CRUD operations in session routes.
+    Uses the shared database connection from get_db dependency.
+    """
     return GraphRepository(db)
 
 
@@ -71,11 +79,10 @@ GraphRepoDep = Annotated[GraphRepository, Depends(get_graph_repository)]
 async def get_session_service(
     db: aiosqlite.Connection = Depends(get_db),
 ) -> SessionService:
-    """
-    Create SessionService with dependencies.
+    """FastAPI dependency injection for SessionService.
 
-    Phase 4: No longer requires StrategyService - uses methodology-based strategy selection.
-    LLM clients are injected via centralized factory functions.
+    Creates a service instance with repositories and LLM clients for session management.
+    LLM clients are shared via centralized factory functions for efficiency.
     """
     session_repo = SessionRepository(str(settings.database_path))
     graph_repo = GraphRepository(db)
@@ -90,7 +97,7 @@ async def get_session_service(
     )
 
 
-# ============ SESSION CRUD (from Phase 1) ============
+# ============ SESSION CRUD ============
 
 
 @router.post(
@@ -102,7 +109,12 @@ async def create_session(
     request: SessionCreate,
     session_repo: SessionRepoDep,
 ):
-    """Create a new interview session."""
+    """Create a new interview session with specified methodology and concept.
+
+    Initializes a session with the given methodology (e.g., 'means_end_chain'),
+    concept ID, and configuration. Returns the session details including the
+    generated session ID and initial state.
+    """
     session_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
 
@@ -165,7 +177,11 @@ async def create_session(
 async def list_sessions(
     session_repo: SessionRepoDep,
 ):
-    """List all sessions."""
+    """List all active interview sessions.
+
+    Returns all sessions with their current status, methodology, concept,
+    turn count, and timestamps. Only active sessions are included.
+    """
     sessions = await session_repo.list_active()
 
     return SessionListResponse(
@@ -192,7 +208,11 @@ async def get_session(
     session_id: str,
     session_repo: SessionRepoDep,
 ):
-    """Get session details by ID."""
+    """Get session details by ID.
+
+    Returns the full session configuration including methodology, concept,
+    current state, turn count, and timestamps. Returns 404 if session not found.
+    """
     session = await session_repo.get(session_id)
 
     if not session:
@@ -220,7 +240,11 @@ async def delete_session(
     session_id: str,
     session_repo: SessionRepoDep,
 ):
-    """Delete/close a session."""
+    """Delete/close an interview session by ID.
+
+    Permanently removes the session and all associated data from the database.
+    Returns 404 if the session does not exist.
+    """
     deleted = await session_repo.delete(session_id)
 
     if not deleted:
@@ -335,7 +359,7 @@ async def get_all_scoring(
     return results
 
 
-# ============ TURN PROCESSING (Phase 2) ============
+# ============ TURN PROCESSING ============
 
 
 @router.post(
@@ -451,16 +475,16 @@ async def process_turn(
         )
 
 
-# ============ EXPORT (Phase 6) ============
+# ============ EXPORT ============
 
 
 async def get_export_service(
     db: aiosqlite.Connection = Depends(get_db),
 ) -> ExportService:
-    """
-    Create ExportService with dependencies.
+    """FastAPI dependency injection for ExportService.
 
-    Injected into route handlers.
+    Creates a service instance for exporting session data to various formats
+    (JSON, Markdown, CSV) with graph repository access.
     """
     graph_repo = GraphRepository(db)
 

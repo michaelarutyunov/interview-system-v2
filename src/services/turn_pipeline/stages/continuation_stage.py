@@ -1,12 +1,13 @@
 """
 Stage 7: Determine continuation.
 
-ADR-008 Phase 3: Decide if interview should continue or end.
-Phase 6: Output ContinuationOutput contract.
+Decides if interview should continue or end. Outputs
+ContinuationOutput contract.
+
 Domain Encapsulation:
 - Focus selection delegated to FocusSelectionService
 - Saturation metrics read from StateComputationOutput (computed by Stage 5)
-  This stage is now a pure consumer of pre-computed metrics.
+  This stage is a pure consumer of pre-computed metrics.
 """
 
 from typing import TYPE_CHECKING

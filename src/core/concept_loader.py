@@ -1,10 +1,8 @@
 """Concept loader for concept YAML files.
 
-Loads concept definitions with optional elements (for evaluative interviews).
-For exploratory research, concepts only need id, name, methodology, and objective.
-
-Elements are legacy feature for evaluative interviews - exploratory concepts
-should not define elements since the goal is discovery without predefined topics.
+Loads concept definitions from YAML configuration files. Each concept defines
+an interview topic with methodology, objective, and optional elements for targeting.
+Concepts are cached after first load for performance.
 """
 
 import yaml
@@ -21,18 +19,22 @@ _cache: Dict[str, Concept] = {}
 
 
 def load_concept(name: str, concepts_dir: Optional[Path] = None) -> Concept:
-    """Load concept from YAML. Cached after first load.
+    """Load concept configuration from YAML file.
+
+    Reads concept definition from config/concepts/{name}.yaml, validates the
+    structure, and returns a Concept instance. Results are cached after first load
+    for performance, so subsequent calls with the same name return instantly.
 
     Args:
-        name: Concept name (e.g., 'oat_milk_v2')
-        concepts_dir: Override config/concepts/ path (mainly for testing)
+        name: Concept identifier (e.g., 'oat_milk_v2', 'smartphone_v3')
+        concepts_dir: Override config/concepts/ path (for testing)
 
     Returns:
-        Loaded and validated Concept instance
+        Loaded and validated Concept instance with methodology, objective, and elements
 
     Raises:
-        FileNotFoundError: Concept file missing
-        ValueError: Invalid YAML structure or validation error
+        FileNotFoundError: Concept YAML file not found
+        ValueError: Invalid YAML structure or missing required fields
     """
     if name in _cache:
         return _cache[name]

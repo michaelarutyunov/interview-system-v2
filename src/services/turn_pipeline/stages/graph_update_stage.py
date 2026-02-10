@@ -1,9 +1,9 @@
 """
 Stage 4: Update knowledge graph.
 
-ADR-008 Phase 3: Add extracted concepts and relationships to the graph.
-Phase 6: Output GraphUpdateOutput contract.
-Phase 7: Integrate NodeStateTracker for per-node state tracking.
+Adds extracted concepts and relationships to the graph. Outputs
+GraphUpdateOutput contract. Integrates with NodeStateTracker for
+per-node state tracking.
 """
 
 from typing import TYPE_CHECKING

@@ -1,7 +1,8 @@
 """
 Base stage class for turn processing pipeline.
 
-ADR-008 Phase 3: All pipeline stages inherit from TurnStage.
+All pipeline stages inherit from TurnStage and must implement the
+process() method to perform their specific operation on the turn context.
 """
 
 from abc import ABC, abstractmethod

@@ -2,7 +2,7 @@
 Strategy selection service using YAML-based methodology configs.
 
 Uses signal pools and YAML configs for methodology-specific strategy selection.
-Phase 3 (D1): Uses joint strategy-node scoring with node exhaustion detection.
+Implements joint strategy-node scoring with node exhaustion detection.
 
 Domain decomposition: Signal detection delegated to dedicated services.
 - GlobalSignalDetectionService: Handles global signal detection
@@ -33,9 +33,6 @@ class MethodologyStrategyService:
     - YAML configs for methodology definitions (signals + strategies)
     - Delegated signal detection services (single responsibility)
     - Joint strategy-node scoring with node exhaustion detection (D1 architecture)
-
-    Phase 3: The legacy select_strategy() method has been removed.
-    All selection now uses select_strategy_and_focus() for joint scoring.
 
     Domain decomposition:
     - Global signal detection delegated to GlobalSignalDetectionService

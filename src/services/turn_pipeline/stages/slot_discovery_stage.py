@@ -4,10 +4,6 @@ Slot Discovery Stage (Stage 4.5) - Dual-Graph Architecture.
 Discovers or updates canonical slots for newly added surface nodes.
 Maps surface KGNodes to abstract canonical slots via LLM proposal and
 embedding similarity matching. Also aggregates surface edges to canonical edges.
-
-REFERENCE:
-- Phase 2 (Dual-Graph Architecture), bead yuhv
-- Phase 3 (Dual-Graph Integration), bead eusq (edge aggregation)
 """
 
 from typing import TYPE_CHECKING
@@ -34,7 +30,7 @@ class SlotDiscoveryStage(TurnStage):
     near-duplicates. Also aggregates surface edges to canonical edges.
 
     CONTRACT: Requires graph_update_output to exist (Stage 4 complete).
-    Raises RuntimeError if contract violated (fail-fast per ADR-009).
+    Raises RuntimeError if contract violated (fail-fast).
     """
 
     def __init__(
@@ -47,10 +43,9 @@ class SlotDiscoveryStage(TurnStage):
             slot_service: CanonicalSlotService for slot discovery and mapping
             graph_service: Optional GraphService for edge aggregation to canonical graph
 
-        IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead eusq
-            - graph_service is optional for backward compatibility
-            - If provided, aggregates surface edges to canonical edges after slot mapping
+        Note:
+            graph_service is optional for backward compatibility. If provided,
+            aggregates surface edges to canonical edges after slot mapping.
         """
         self.slot_service = slot_service
         self.graph_service = graph_service
@@ -78,7 +73,7 @@ class SlotDiscoveryStage(TurnStage):
             - Possible: UPDATE canonical_slots.status='active' (promotion)
             - LLM call for slot proposal (uses generation client)
 
-        ERROR HANDLING (fail-fast per ADR-009):
+        ERROR HANDLING (fail-fast):
             - No nodes_added: skip LLM call, return SlotDiscoveryOutput with zeros
             - graph_update_output is None: raise RuntimeError (contract violation)
             - LLM failure: exception propagates, pipeline fails for this turn
@@ -125,7 +120,6 @@ class SlotDiscoveryStage(TurnStage):
         )
 
         # Call CanonicalSlotService to discover/match slots
-        # REFERENCE: Phase 2 (Dual-Graph Architecture), bead vub0
         discovered_slots = await self.slot_service.discover_slots_for_nodes(
             session_id=context.session_id,
             surface_nodes=surface_nodes,
@@ -150,7 +144,6 @@ class SlotDiscoveryStage(TurnStage):
             total_slots=len(discovered_slots),
         )
 
-        # Phase 3 (Dual-Graph Integration), bead eusq: Edge aggregation
         # After slot mappings are created, aggregate surface edges to canonical edges
         canonical_edges_created = 0
         if self.graph_service is not None:

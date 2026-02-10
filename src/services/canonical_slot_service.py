@@ -4,8 +4,6 @@ Canonical slot discovery service (dual-graph architecture).
 Uses an LLM to propose abstract canonical slots from surface KGNodes,
 then applies embedding similarity to merge near-duplicates. Candidates
 are promoted to active status once they accumulate sufficient support.
-
-Bead: vub0 (Phase 2: Dual-Graph Architecture)
 """
 
 import json
@@ -296,18 +294,15 @@ class CanonicalSlotService:
         Returns:
             The matched or created CanonicalSlot
 
-        IMPLEMENTATION NOTES:
-            Phase 4, bead f6t8: Added exact match check BEFORE similarity search
-            to prevent UNIQUE constraint violations. Pattern follows
-            GraphRepository.find_node_by_label_and_type().
-
-            Bead 00cw: Lemmatize proposed_name before exact-match lookup so
-            grammatical variants (reduce/reduced, sustain/sustained) match.
+        Note:
+            Exact match check BEFORE similarity search prevents UNIQUE constraint
+            violations. Lemmatizes proposed_name before lookup so grammatical
+            variants (reduce/reduced, sustain/sustained) match.
         """
-        # Bead 00cw: Lemmatize to normalize grammatical variants
+        # Lemmatize to normalize grammatical variants
         proposed_name = self._lemmatize_name(proposed_name)
 
-        # Phase 4, bead f6t8: Check for exact match first to prevent duplicates
+        # Check for exact match first to prevent duplicates
         existing_slot = await self.slot_repo.find_slot_by_name_and_type(
             session_id, proposed_name, node_type
         )

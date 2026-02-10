@@ -1,10 +1,9 @@
 """
 Session orchestration service.
 
-ADR-008 Phase 3: Uses TurnPipeline for composable turn processing.
-
-This service provides the main entry point for interview turn processing,
-delegating to a pipeline of stages for actual processing.
+Main entry point for interview turn processing, delegating to a pipeline
+of composable stages for extraction, graph updates, strategy selection,
+and question generation.
 """
 
 import json
@@ -79,11 +78,11 @@ class SessionContext:
 
 
 class SessionService:
-    """
-    Orchestrates interview session turn processing.
+    """Orchestrates interview session turn processing.
 
-    ADR-008 Phase 3: Uses TurnPipeline for composable turn processing.
     Main entry point for processing user input and generating responses.
+    Uses TurnPipeline with composable stages for extraction, graph updates,
+    strategy selection, and question generation.
     """
 
     def __init__(
@@ -115,11 +114,11 @@ class SessionService:
         self.session_repo = session_repo
         self.graph_repo = graph_repo
 
-        # Store LLM clients for use in pipeline stages (Phase 2: SlotDiscoveryStage)
+        # Store LLM clients for use in pipeline stages
         self.extraction_llm_client = extraction_llm_client
         self.generation_llm_client = generation_llm_client
 
-        # Phase 3 (Dual-Graph Integration): Store canonical_slot_repo for NodeStateTracker
+        # Store canonical_slot_repo for NodeStateTracker
         # Will be initialized in _build_pipeline() when pipeline is first constructed
         self.canonical_slot_repo: Optional[CanonicalSlotRepository] = None
 
@@ -131,7 +130,9 @@ class SessionService:
                 raise ValueError("extraction_llm_client is required when extraction_service is not provided")
             self.extraction = ExtractionService(llm_client=extraction_llm_client)
 
-        self.graph = graph_service or GraphService(graph_repo)
+        # Note: GraphService is created in _build_pipeline() after canonical_slot_repo is initialized
+        # This allows us to pass canonical_slot_repo to GraphService.__init__ (no longer optional)
+        self.graph: Optional[GraphService] = graph_service  # Set in _build_pipeline() if None
 
         # Question service needs methodology for opening question generation
         # We'll create it with a default and update it when we have a session
@@ -151,7 +152,7 @@ class SessionService:
         # Create focus selection service (consolidates focus resolution logic)
         self.focus_selection = FocusSelectionService()
 
-        # Load from centralized interview config (Phase 4: ADR-008)
+        # Load from centralized interview configuration
         self.max_turns = (
             max_turns if max_turns is not None else interview_config.session.max_turns
         )
@@ -170,17 +171,12 @@ class SessionService:
         Build the turn processing pipeline with all stages.
 
         Returns:
-            TurnPipeline configured with all stages
-
-        REFERENCE: Phase 2 (Dual-Graph Architecture), bead yuhv - SlotDiscoveryStage
-        REFERENCE: Phase 3 (Dual-Graph Integration), bead ty40 - CanonicalGraphService
-        REFERENCE: Phase 4 (Signal Pool Extensions), bead 3ag1 - enable_canonical_slots flag
+            TurnPipeline configured with 12 stages for turn processing
         """
         # SRL service: lazy-loads spaCy model on first use, None disables gracefully
         srl_service = SRLService() if settings.enable_srl else None
 
-        # Phase 2: Dual-Graph Architecture - Slot discovery dependencies
-        # Conditionally enabled based on enable_canonical_slots flag
+        # Canonical slot discovery dependencies (conditionally enabled)
         canonical_slot_repo = None
         canonical_slot_service = None
         canonical_graph_service = None
@@ -211,19 +207,24 @@ class SessionService:
                 embedding_service=embedding_service,
             )
 
-            # Store canonical_slot_repo for NodeStateTracker (Phase 3, bead ht0e)
+            # Store canonical_slot_repo for NodeStateTracker
             self.canonical_slot_repo = canonical_slot_repo
 
-            # Phase 3 (Dual-Graph Integration), bead ty40: CanonicalGraphService
+            # Import and initialize CanonicalGraphService
             from src.services.canonical_graph_service import CanonicalGraphService as CGS
 
             canonical_graph_service = CGS(canonical_slot_repo=canonical_slot_repo)
 
-            # Update GraphService with canonical_slot_repo for edge aggregation (Phase 3, bead coxo)
-            self.graph.canonical_slot_repo = canonical_slot_repo
+            # Create GraphService with canonical_slot_repo (no longer optional)
+            if self.graph is None:
+                self.graph = GraphService(self.graph_repo, canonical_slot_repo=canonical_slot_repo)
         else:
             # Canonical slots disabled: set canonical_slot_repo to None
             self.canonical_slot_repo = None
+
+            # Create GraphService without canonical_slot_repo (dual-graph features will be unavailable)
+            if self.graph is None:
+                self.graph = GraphService(self.graph_repo, canonical_slot_repo=None)
 
         # Build stage list
         stages = [
@@ -241,10 +242,10 @@ class SessionService:
             ),
         ]
 
-        # Stage 4.5: SlotDiscoveryStage (Phase 2: Dual-Graph Architecture, bead yuhv)
+        # Stage 4.5: SlotDiscoveryStage
         # Conditionally included based on enable_canonical_slots flag
         # Maps surface nodes to canonical slots via LLM proposal + embedding similarity
-        # Phase 3 (Dual-Graph Integration), bead eusq: Also aggregates edges to canonical
+        # Also aggregates surface edges to canonical edges
         if settings.enable_canonical_slots:
             stages.append(
                 SlotDiscoveryStage(
@@ -252,7 +253,7 @@ class SessionService:
                 )
             )
 
-        # Phase 3 (Dual-Graph Integration), bead ty40: Canonical graph state computation
+        # StateComputationStage: Refresh graph state and compute canonical graph state
         stages.append(
             StateComputationStage(
                 graph_service=self.graph,
@@ -281,29 +282,28 @@ class SessionService:
         session_id: str,
         user_input: str,
     ) -> PipelineTurnResult:
-        """
-        Process a single interview turn using the pipeline.
+        """Process a single interview turn using the pipeline.
 
-        ADR-008 Phase 3: Delegates to TurnPipeline with composable stages.
-
-        Pipeline stages:
+        Delegates to TurnPipeline which executes 12 stages sequentially:
         1. ContextLoadingStage - Load session metadata and graph state
         2. UtteranceSavingStage - Save user utterance
-        3. ExtractionStage - Extract concepts/relationships
-        4. GraphUpdateStage - Update knowledge graph
-        5. StateComputationStage - Refresh graph state
-        6. StrategySelectionStage - Select questioning strategy
-        7. ContinuationStage - Determine if should continue
-        8. QuestionGenerationStage - Generate follow-up question
-        9. ResponseSavingStage - Save system utterance
-        10. ScoringPersistenceStage - Save scoring and update turn count
+        3. SRLPreprocessingStage - Preprocess user input for SRL extraction
+        4. ExtractionStage - Extract concepts/relationships
+        5. GraphUpdateStage - Update knowledge graph
+        6. SlotDiscoveryStage - Discover canonical slots (if enabled)
+        7. StateComputationStage - Refresh graph state and saturation metrics
+        8. StrategySelectionStage - Select questioning strategy
+        9. ContinuationStage - Determine if should continue
+        10. QuestionGenerationStage - Generate follow-up question
+        11. ResponseSavingStage - Save system utterance
+        12. ScoringPersistenceStage - Save scoring and update turn count
 
         Args:
             session_id: Session ID
             user_input: User's response text
 
         Returns:
-            TurnResult with extraction, graph state, next question
+            TurnResult with extraction, graph state, next question, and continuation status
 
         Raises:
             ValueError: If session not found
@@ -399,6 +399,9 @@ class SessionService:
         session = await self.session_repo.get(session_id)
         if not session:
             raise ValueError(f"Session {session_id} not found")
+
+        # GraphService is always set after __init__ completes (_build_pipeline creates it)
+        assert self.graph is not None, "GraphService not initialized"
 
         # Get session config to read max_turns
         config = await self.session_repo.get_config(session_id)
@@ -508,8 +511,8 @@ class SessionService:
         """
         Select questioning strategy.
 
-        Phase 2: Always returns "deepen"
-        Phase 3: Full scoring-based selection
+        Simple heuristic strategy selection. The actual strategy selection
+        is handled by StrategySelectionStage in the pipeline.
 
         Args:
             graph_state: Current graph state
@@ -519,8 +522,6 @@ class SessionService:
         Returns:
             Strategy name
         """
-        # Phase 2: Hardcoded deepen
-        # Phase 3 will implement full scoring/arbitration
 
         # Simple heuristics for variety
         if turn_number >= self.max_turns - 2:
@@ -734,7 +735,7 @@ class SessionService:
             session_id=session_id,
             reason="no_persisted_state_or_load_failed",
         )
-        # Phase 3 (Dual-Graph Integration), bead ht0e: Pass canonical_slot_repo to NodeStateTracker
+        # Create fresh tracker with canonical_slot_repo for node aggregation across paraphrases
         return NodeStateTracker(canonical_slot_repo=self.canonical_slot_repo)
 
     async def _save_node_tracker(self, session_id: str, node_tracker) -> None:

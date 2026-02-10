@@ -7,7 +7,8 @@ Pipeline:
 3. Parse and validate results
 4. Return ExtractionResult
 
-Fail-fast behavior: Raises ExtractionError on LLM errors (ADR-009).
+Fail-fast behavior: Raises ExtractionError on LLM errors to make issues
+immediately visible during testing.
 """
 
 import time
@@ -110,13 +111,13 @@ class ExtractionService:
             text: User's response text
             methodology: Methodology schema name (e.g., "means_end_chain", "jobs_to_be_done")
             context: Optional context from previous turns
-            source_utterance_id: Source utterance ID for traceability (ADR-010 Phase 2)
+            source_utterance_id: Source utterance ID for traceability
 
         Returns:
             ExtractionResult with concepts, relationships, and metadata
 
         Raises:
-            ExtractionError: If LLM extraction fails (fail-fast per ADR-009)
+            ExtractionError: If LLM extraction fails or returns invalid data
         """
         # Load methodology schema per-call (cached by load_methodology)
         schema = load_methodology(methodology)
@@ -150,7 +151,7 @@ class ExtractionService:
             raise ExtractionError(f"LLM extraction failed: {e}") from e
 
         # Step 4: Convert to domain models
-        # ADR-010 Phase 2: Pass source_utterance_id for traceability
+        # Pass source_utterance_id for traceability of extracted elements
         concepts = self._parse_concepts(
             extraction_data.get("concepts", []),
             source_utterance_id or "unknown",
@@ -163,9 +164,9 @@ class ExtractionService:
         relationships = self._parse_relationships(
             extraction_data.get("relationships", []),
             concept_types,
-            source_utterance_id or "unknown",  # ADR-010 Phase 2: Traceability
-            schema,
+            source_utterance_id or "unknown",
         )
+
         discourse_markers = extraction_data.get("discourse_markers", [])
 
         latency_ms = int((time.perf_counter() - start_time) * 1000)
@@ -265,7 +266,7 @@ class ExtractionService:
 
         Args:
             raw_concepts: List of concept dicts from LLM
-            source_utterance_id: Source utterance ID for traceability (ADR-010 Phase 2)
+            source_utterance_id: Source utterance ID for traceability
             schema: Methodology schema for validation and metadata
 
         Returns:
@@ -304,7 +305,7 @@ class ExtractionService:
                     node_type=node_type,
                     confidence=float(raw.get("confidence", 0.8)),
                     source_quote=raw.get("source_quote", ""),
-                    source_utterance_id=source_utterance_id,  # ADR-010 Phase 2: Traceability
+                    source_utterance_id=source_utterance_id,  # Links concept to source utterance
                     properties=raw.get("properties", {}),
                     linked_elements=linked_elements,
                     stance=int(raw.get("stance", 0)),  # Default to neutral (0)
@@ -343,7 +344,7 @@ class ExtractionService:
         Args:
             raw_relationships: List of relationship dicts from LLM
             concept_types: Map from concept text (lowercase) to node type
-            source_utterance_id: Source utterance ID for traceability (ADR-010 Phase 2)
+            source_utterance_id: Source utterance ID for traceability
 
         Returns:
             List of ExtractedRelationship models
@@ -356,10 +357,8 @@ class ExtractionService:
                     target_text=raw.get("target_text", ""),
                     relationship_type=raw.get("relationship_type", "leads_to"),
                     confidence=float(raw.get("confidence", 0.7)),
-                    reasoning=raw.get(
-                        "reasoning"
-                    ),  # ADR-010 Phase 2: Why edge was created
-                    source_utterance_id=source_utterance_id,  # ADR-010 Phase 2: Traceability
+                    reasoning=raw.get("reasoning"),  # LLM explanation for why edge exists
+                    source_utterance_id=source_utterance_id,  # Links edge to source utterance
                 )
 
                 # Schema validation: check edge type is valid

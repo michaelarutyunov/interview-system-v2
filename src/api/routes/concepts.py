@@ -22,7 +22,11 @@ router = APIRouter(prefix="/concepts", tags=["concepts"])
 
 # Response Models
 class ConceptElement(BaseModel):
-    """Single element in a concept configuration."""
+    """Element within a concept configuration for interview targeting.
+
+    Represents a specific element (attribute, consequence, etc.) that can be
+    explored during the interview, with priority indicating its importance.
+    """
 
     id: str = Field(description="Element identifier")
     label: str = Field(description="Display label")
@@ -31,14 +35,22 @@ class ConceptElement(BaseModel):
 
 
 class ConceptCompletion(BaseModel):
-    """Completion criteria for a concept."""
+    """Completion criteria that determine when an interview should end.
+
+    Defines the maximum number of turns and the saturation threshold
+    that signals information exhaustion for the concept.
+    """
 
     max_turns: int = Field(description="Maximum turns")
     saturation_threshold: float = Field(description="Saturation threshold")
 
 
 class ConceptConfig(BaseModel):
-    """Concept configuration."""
+    """Configuration for an interview concept including elements and completion criteria.
+
+    Defines the interview topic, methodology to use, elements to explore,
+    and when the interview should be considered complete.
+    """
 
     id: str = Field(description="Concept ID")
     name: str = Field(description="Concept name")
@@ -51,7 +63,11 @@ class ConceptConfig(BaseModel):
 
 
 class ConceptListItem(BaseModel):
-    """Item in concept list."""
+    """Summary item in the concepts list response.
+
+    Contains basic information about each concept for listing,
+    including the methodology used and number of elements.
+    """
 
     id: str
     name: str
@@ -60,7 +76,11 @@ class ConceptListItem(BaseModel):
 
 
 def _load_concepts_from_config() -> List[Dict[str, Any]]:
-    """Load concepts from configuration directory."""
+    """Load all concept configurations from the concepts directory.
+
+    Reads YAML files from config/concepts/ and returns a list of
+    concept configurations. Logs warnings for files that fail to load.
+    """
     concepts_dir = settings.config_dir / "concepts"
 
     if not concepts_dir.exists():
@@ -94,7 +114,11 @@ def _load_concepts_from_config() -> List[Dict[str, Any]]:
     description="Get list of all available concept configurations",
 )
 async def list_concepts() -> List[ConceptListItem]:
-    """List all available concept configurations."""
+    """List all available concept configurations for interview sessions.
+
+    Returns a summary of each concept including ID, name, methodology,
+    and element count. Used for displaying available topics to interviewers.
+    """
     concepts = _load_concepts_from_config()
 
     return [
@@ -115,7 +139,11 @@ async def list_concepts() -> List[ConceptListItem]:
     description="Get full configuration for a specific concept",
 )
 async def get_concept(concept_id: str) -> ConceptConfig:
-    """Get detailed concept configuration."""
+    """Get full concept configuration by ID.
+
+    Returns the complete concept definition including elements, completion
+    criteria, and methodology. Returns 404 if the concept is not found.
+    """
     concepts = _load_concepts_from_config()
     concept_data = next((c for c in concepts if c["id"] == concept_id), None)
 
@@ -137,7 +165,11 @@ async def get_concept(concept_id: str) -> ConceptConfig:
     description="Get elements for a specific concept",
 )
 async def get_concept_elements(concept_id: str) -> List[ConceptElement]:
-    """Get elements for a concept configuration."""
+    """Get all elements for a specific concept configuration.
+
+    Returns the list of elements (attributes, consequences, etc.) that
+    define the interview topic and can be targeted during questioning.
+    """
     concepts = _load_concepts_from_config()
     concept_data = next((c for c in concepts if c.get("id") == concept_id), None)
 
