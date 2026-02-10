@@ -1,5 +1,27 @@
 # ADR 008: Concept-Driven Coverage and Depth Tracking
 
+> **⚠️ SUPERSEDED (2026-02-09)**
+>
+> This ADR describes a coverage tracking system that was **removed** from the codebase.
+>
+> **Replacement:** The system now uses **canonical slot deduplication** (Phase 2-3) instead of element-level coverage tracking. See:
+> - Phase 2: `bead yuhv` - SlotDiscoveryStage
+> - Phase 3: `bead ty40` - CanonicalGraphService
+> - ADR-014: Signal Pools Architecture
+>
+> **What was removed:**
+> - `CoverageState` model and coverage state tracking
+> - `coverage_breadth`, `coverage_score` signals
+> - `concept_elements` table (dropped in migration 002)
+> - Element-level depth validation via chain traversal
+>
+> **What replaced it:**
+> - LLM-proposed canonical slots with embedding similarity clustering
+> - Dual-graph architecture (surface graph + canonical graph)
+> - Signal-based strategy selection (no explicit coverage tracking needed)
+>
+> **Reference:** 20260209_code_review.md - Ghost Features Audit
+
 ## Context
 
 The concept-driven interview system has a fundamental architectural gap: concept elements are structurally disconnected from the interview flow.

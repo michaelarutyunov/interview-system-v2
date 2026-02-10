@@ -39,4 +39,4 @@ class TurnResult:
     termination_reason: Optional[str] = None  # e.g., "max_turns_reached", "graph_saturated", "close_strategy"
     # Phase 3 (Dual-Graph Integration), bead 0nl3: Dual-graph output fields
     canonical_graph: Optional[Dict[str, Any]] = None  # {slots, edges, metrics}
-    graph_comparison: Optional[Dict[str, Any]] = None  # {node_reduction_pct, edge_aggregation_ratio, orphan_improvement_pct}
+    graph_comparison: Optional[Dict[str, Any]] = None  # {node_reduction_pct, edge_aggregation_ratio}

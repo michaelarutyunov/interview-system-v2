@@ -227,14 +227,9 @@ class TurnPipeline:
                     else 0.0
                 )
 
-                # Orphan improvement: canonical graph has fewer orphans (due to aggregation)
-                # Placeholder value since surface orphan computation is not yet implemented
-                orphan_improvement_pct = 0.0
-
                 graph_comparison = {
                     "node_reduction_pct": round(node_reduction_pct, 1),
                     "edge_aggregation_ratio": round(edge_aggregation_ratio, 2),
-                    "orphan_improvement_pct": round(orphan_improvement_pct, 1),
                 }
 
         return TurnResult(
