@@ -46,7 +46,7 @@ class NodeSignalDetector(SignalDetector):
         self.node_tracker = node_tracker
         super().__init__()
 
-    def _get_node_state(self, node_id: str) -> Optional[NodeState]:
+    async def _get_node_state(self, node_id: str) -> Optional[NodeState]:
         """Get NodeState for a node.
 
         Args:
@@ -55,7 +55,7 @@ class NodeSignalDetector(SignalDetector):
         Returns:
             NodeState if tracked, None otherwise
         """
-        return self.node_tracker.get_state(node_id)
+        return await self.node_tracker.get_state(node_id)
 
     def _get_all_node_states(self) -> dict[str, NodeState]:
         """Get all tracked node states.

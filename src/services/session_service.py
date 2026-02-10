@@ -247,6 +247,9 @@ class SessionService:
         # Maps surface nodes to canonical slots via LLM proposal + embedding similarity
         # Also aggregates surface edges to canonical edges
         if settings.enable_canonical_slots:
+            assert canonical_slot_service is not None, (
+                "canonical_slot_service must be set when enable_canonical_slots is True"
+            )
             stages.append(
                 SlotDiscoveryStage(
                     slot_service=canonical_slot_service, graph_service=self.graph

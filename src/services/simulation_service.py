@@ -296,6 +296,7 @@ class SimulationService:
             SimulationTurn with question and response
         """
         # Get graph state to extract previous concepts
+        assert self.session.graph is not None, "SessionService.graph must be initialized"
         graph_state = await self.session.graph.get_graph_state(session_id)
 
         # Build interview context for synthetic service
