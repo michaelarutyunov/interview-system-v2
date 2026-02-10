@@ -29,6 +29,7 @@ from src.domain.models.extraction import (
     ExtractedRelationship,
     ExtractionResult,
 )
+from src.domain.models.methodology_schema import MethodologySchema
 from src.core.schema_loader import load_methodology
 
 log = structlog.get_logger(__name__)
@@ -165,6 +166,7 @@ class ExtractionService:
             extraction_data.get("relationships", []),
             concept_types,
             source_utterance_id or "unknown",
+            schema,
         )
 
         discourse_markers = extraction_data.get("discourse_markers", [])
@@ -259,7 +261,7 @@ class ExtractionService:
         return parse_extraction_response(response.content)
 
     def _parse_concepts(
-        self, raw_concepts: List[dict], source_utterance_id: str, schema
+        self, raw_concepts: List[dict], source_utterance_id: str, schema: MethodologySchema
     ) -> List[ExtractedConcept]:
         """
         Convert raw extraction data to ExtractedConcept models.
@@ -321,8 +323,9 @@ class ExtractionService:
                     continue  # Skip invalid concept
 
                 # Set is_terminal and level from schema
-                concept.is_terminal = schema.is_terminal_node_type(node_type)
-                concept.level = schema.get_level_for_node_type(node_type)
+                # Use defaults if schema returns None (missing ontology data)
+                concept.is_terminal = schema.is_terminal_node_type(node_type) or False
+                concept.level = schema.get_level_for_node_type(node_type) or 0
 
                 if concept.text:  # Skip empty concepts
                     concepts.append(concept)
@@ -336,7 +339,7 @@ class ExtractionService:
         raw_relationships: List[dict],
         concept_types: Dict[str, str],
         source_utterance_id: str,
-        schema,
+        schema: MethodologySchema,
     ) -> List[ExtractedRelationship]:
         """
         Convert raw extraction data to ExtractedRelationship models.
