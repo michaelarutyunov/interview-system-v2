@@ -126,20 +126,7 @@ class MethodologyRegistry:
         with open(config_path) as f:
             data = yaml.safe_load(f)
 
-        # Handle both new unified format and legacy format
-        # New format has 'method' key at top level
-        # Legacy format has 'methodology' key at top level
-        if "method" in data:
-            # New unified format
-            method_data = data["method"]
-        elif "methodology" in data:
-            # Legacy format
-            method_data = data["methodology"]
-        else:
-            raise ValueError(
-                f"Invalid methodology config format: {config_path}. "
-                "Expected 'method' or 'methodology' key."
-            )
+        method_data = data["method"]
 
         # Load phases if present
         phases = None
