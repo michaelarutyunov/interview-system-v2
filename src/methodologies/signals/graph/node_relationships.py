@@ -4,10 +4,6 @@ These signals analyze the structural relationships of nodes
 in the knowledge graph, including orphan detection and edge counts.
 """
 
-from src.methodologies.signals.common import (
-    SignalCostTier,
-    RefreshTrigger,
-)
 from src.methodologies.signals.graph.node_base import NodeSignalDetector
 
 
@@ -23,8 +19,6 @@ class NodeIsOrphanSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.is_orphan"
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Detect orphan status for all nodes.
@@ -52,8 +46,6 @@ class NodeEdgeCountSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.edge_count"
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Detect edge count for all nodes.
@@ -83,8 +75,6 @@ class NodeHasOutgoingSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.has_outgoing"
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Detect outgoing edges for all nodes.

@@ -6,10 +6,6 @@ what action should be taken for each node: exhausted, probe_deeper, or fresh.
 
 from typing import Dict, Optional, TYPE_CHECKING
 
-from src.methodologies.signals.common import (
-    SignalCostTier,
-    RefreshTrigger,
-)
 from src.methodologies.signals.graph.node_base import NodeSignalDetector
 from src.services.node_state_tracker import NodeStateTracker
 
@@ -36,8 +32,6 @@ class NodeOpportunitySignal(NodeSignalDetector):
     """
 
     signal_name = "meta.node.opportunity"
-    cost_tier = SignalCostTier.MEDIUM
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     def __init__(self, node_tracker: NodeStateTracker):
         """Initialize the node opportunity signal detector.

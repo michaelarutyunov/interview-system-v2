@@ -15,11 +15,7 @@ Example usage:
 """
 
 # Base classes
-from src.methodologies.signals.common import (
-    SignalDetector,
-    SignalCostTier,
-    RefreshTrigger,
-)
+from src.methodologies.signals.common import SignalDetector
 
 # Graph signals
 from src.methodologies.signals.graph import (
@@ -52,8 +48,6 @@ from src.methodologies.signals.meta import InterviewProgressSignal
 __all__ = [
     # Base
     "SignalDetector",
-    "SignalCostTier",
-    "RefreshTrigger",
     # Graph
     "GraphNodeCountSignal",
     "GraphEdgeCountSignal",

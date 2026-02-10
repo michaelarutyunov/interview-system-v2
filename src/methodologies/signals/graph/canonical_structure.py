@@ -9,11 +9,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from src.methodologies.signals.common import (
-    SignalDetector,
-    SignalCostTier,
-    RefreshTrigger,
-)
+from src.methodologies.signals.common import SignalDetector
 
 if TYPE_CHECKING:
     from src.services.turn_pipeline.context import PipelineContext
@@ -38,8 +34,6 @@ class CanonicalConceptCountSignal(SignalDetector):
         "Lower than surface node_count because paraphrases are merged. "
         "Counts stable latent concepts rather than surface language variations."
     )
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(
         self, context: "PipelineContext", graph_state, response_text
@@ -92,8 +86,6 @@ class CanonicalEdgeDensitySignal(SignalDetector):
         "Uses deduplicated concepts, so reflects relationship density among stable concepts "
         "rather than surface paraphrases."
     )
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(
         self, context: "PipelineContext", graph_state, response_text
@@ -162,8 +154,6 @@ class CanonicalExhaustionScoreSignal(SignalDetector):
         "Higher values indicate concepts have been thoroughly explored. "
         "Tracks exhaustion of stable concepts rather than surface paraphrases."
     )
-    cost_tier = SignalCostTier.LOW
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(
         self, context: "PipelineContext", graph_state, response_text

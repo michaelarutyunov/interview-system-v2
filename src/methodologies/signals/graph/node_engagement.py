@@ -4,10 +4,6 @@ These signals track how engaged the interview has been with each node,
 including focus streaks, current focus status, and recency.
 """
 
-from src.methodologies.signals.common import (
-    SignalCostTier,
-    RefreshTrigger,
-)
 from src.methodologies.signals.graph.node_base import NodeSignalDetector
 
 
@@ -29,8 +25,6 @@ class NodeFocusStreakSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.focus_streak"
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Detect focus streak for all nodes.
@@ -77,8 +71,6 @@ class NodeIsCurrentFocusSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.is_current_focus"
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Detect current focus for all nodes.
@@ -110,8 +102,6 @@ class NodeRecencyScoreSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.recency_score"
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Detect recency score for all nodes.

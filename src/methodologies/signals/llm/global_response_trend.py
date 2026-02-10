@@ -8,11 +8,7 @@ This signal aggregates response depth across the session to detect:
 """
 
 from typing import Optional, List
-from src.methodologies.signals.common import (
-    SignalDetector,
-    SignalCostTier,
-    RefreshTrigger,
-)
+from src.methodologies.signals.common import SignalDetector
 
 
 class GlobalResponseTrendSignal(SignalDetector):
@@ -34,8 +30,6 @@ class GlobalResponseTrendSignal(SignalDetector):
 
     signal_name = "llm.global_response_trend"
     description = "Trend in response quality over time. 'deepening' = engaged, 'stable' = consistent, 'shallowing' = declining quality, 'fatigued' = disengaged (4+ shallow responses). 'fatigued' suggests need for rapport repair or closing."
-    cost_tier = SignalCostTier.LOW
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     def __init__(self, history_size: int = 10):
         """Initialize signal with response history tracking.

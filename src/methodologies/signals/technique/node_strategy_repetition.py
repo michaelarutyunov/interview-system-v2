@@ -4,10 +4,6 @@ These signals track how often the same strategy is used repeatedly
 on a specific node, helping to avoid repetitive questioning patterns.
 """
 
-from src.methodologies.signals.common import (
-    SignalCostTier,
-    RefreshTrigger,
-)
 from src.methodologies.signals.graph.node_base import NodeSignalDetector
 
 
@@ -29,8 +25,6 @@ class NodeStrategyRepetitionSignal(NodeSignalDetector):
     """
 
     signal_name = "technique.node.strategy_repetition"
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Detect strategy repetition for all nodes.

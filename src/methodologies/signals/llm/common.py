@@ -1,10 +1,6 @@
 """Base class for LLM-based signals."""
 
-from src.methodologies.signals.common import (
-    SignalDetector,
-    SignalCostTier,
-    RefreshTrigger,
-)
+from src.methodologies.signals.common import SignalDetector
 
 
 class BaseLLMSignal(SignalDetector):
@@ -18,9 +14,6 @@ class BaseLLMSignal(SignalDetector):
 
     Subclasses must implement _analyze_with_llm() method.
     """
-
-    cost_tier = SignalCostTier.HIGH
-    refresh_trigger = RefreshTrigger.PER_RESPONSE
 
     async def detect(self, context, graph_state, response_text):
         """Detect signal by analyzing response with LLM.

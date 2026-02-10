@@ -1,10 +1,6 @@
 """Graph depth signals - max depth, average depth, depth by element."""
 
-from src.methodologies.signals.common import (
-    SignalDetector,
-    SignalCostTier,
-    RefreshTrigger,
-)
+from src.methodologies.signals.common import SignalDetector
 
 
 class GraphMaxDepthSignal(SignalDetector):
@@ -20,8 +16,6 @@ class GraphMaxDepthSignal(SignalDetector):
 
     signal_name = "graph.max_depth"
     description = "Depth of the longest causal chain. Low values (0-1) indicate surface-level exploration, moderate (2-3) indicate reaching consequences or values, high (4+) indicate deep value exploration."
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Return max depth from depth metrics."""
@@ -38,8 +32,6 @@ class GraphAvgDepthSignal(SignalDetector):
 
     signal_name = "graph.avg_depth"
     description = "Average depth across all chains. Indicates overall depth of exploration. Values below 2 suggest surface-focused conversation, 2-3 indicate balanced depth, above 3 indicate consistently deep exploration."
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Return average depth from depth metrics."""
@@ -58,8 +50,6 @@ class DepthByElementSignal(SignalDetector):
 
     signal_name = "graph.depth_by_element"
     description = "Depth of each specific element/node. Used to identify which concepts are at surface vs deep levels. Helps select focus concepts for deepening or broadening."
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Return depth by element from depth metrics."""

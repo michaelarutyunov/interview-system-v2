@@ -33,8 +33,6 @@ class NodeSignalDetector(SignalDetector):
     Attributes:
         node_tracker: NodeStateTracker instance for accessing node states
         signal_name: Namespaced signal name (e.g., "graph.node.exhausted")
-        cost_tier: Computation cost tier
-        refresh_trigger: When to refresh this signal
     """
 
     def __init__(self, node_tracker: NodeStateTracker):

@@ -1,10 +1,6 @@
 """Graph structure signals - node count, edge count, orphans."""
 
-from src.methodologies.signals.common import (
-    SignalDetector,
-    SignalCostTier,
-    RefreshTrigger,
-)
+from src.methodologies.signals.common import SignalDetector
 
 
 class GraphNodeCountSignal(SignalDetector):
@@ -17,8 +13,6 @@ class GraphNodeCountSignal(SignalDetector):
 
     signal_name = "graph.node_count"
     description = "Total number of concepts extracted. Indicates breadth of coverage. Low counts (<5) suggest early exploration, higher counts (>10) indicate substantial coverage."
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Return node count from graph state."""
@@ -35,8 +29,6 @@ class GraphEdgeCountSignal(SignalDetector):
 
     signal_name = "graph.edge_count"
     description = "Total number of relationships between concepts. Edge density (edges/nodes) indicates how well-connected concepts are. Low density suggests isolated concepts, high density indicates rich relationships."
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Return edge count from graph state."""
@@ -53,8 +45,6 @@ class OrphanCountSignal(SignalDetector):
 
     signal_name = "graph.orphan_count"
     description = "Number of isolated concepts with no connections to other concepts. High counts suggest opportunities to clarify relationships between mentioned concepts."
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Return orphan count from graph state."""

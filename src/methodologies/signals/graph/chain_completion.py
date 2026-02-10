@@ -5,11 +5,7 @@ from typing import Any, Dict, List, Set
 
 from src.core.exceptions import ConfigurationError, GraphError
 from src.core.schema_loader import load_methodology
-from src.methodologies.signals.common import (
-    SignalDetector,
-    SignalCostTier,
-    RefreshTrigger,
-)
+from src.methodologies.signals.common import SignalDetector
 
 
 class ChainCompletionSignal(SignalDetector):
@@ -38,8 +34,6 @@ class ChainCompletionSignal(SignalDetector):
 
     signal_name = "graph.chain_completion"
     description = "Whether complete causal chains exist from level 1 to terminal nodes. has_complete_chain=true means at least one chain reaches values, false means we're still mid-chain. complete_chain_count shows how many level-1 chains are complete."
-    cost_tier = SignalCostTier.MEDIUM
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context: Any, graph_state: Any, response_text: str):
         """Count complete chains from level 1 to terminal nodes."""

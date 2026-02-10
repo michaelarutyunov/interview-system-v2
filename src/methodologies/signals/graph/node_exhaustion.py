@@ -4,10 +4,6 @@ These signals detect when a node is exhausted (no longer yielding
 new information) based on yield history and response quality.
 """
 
-from src.methodologies.signals.common import (
-    SignalCostTier,
-    RefreshTrigger,
-)
 from src.methodologies.signals.graph.node_base import NodeSignalDetector
 
 
@@ -26,8 +22,6 @@ class NodeExhaustedSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.exhausted"
-    cost_tier = SignalCostTier.LOW
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Detect exhausted nodes.
@@ -87,8 +81,6 @@ class NodeExhaustionScoreSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.exhaustion_score"
-    cost_tier = SignalCostTier.LOW
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Detect exhaustion scores for all nodes.
@@ -144,8 +136,6 @@ class NodeYieldStagnationSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.yield_stagnation"
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     async def detect(self, context, graph_state, response_text):
         """Detect yield stagnation for all nodes.

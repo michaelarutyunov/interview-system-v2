@@ -7,11 +7,7 @@ Detects the current interview phase based on graph state:
 """
 
 from src.core.exceptions import ConfigurationError
-from src.methodologies.signals.common import (
-    SignalDetector,
-    SignalCostTier,
-    RefreshTrigger,
-)
+from src.methodologies.signals.common import SignalDetector
 
 
 class InterviewPhaseSignal(SignalDetector):
@@ -32,8 +28,6 @@ class InterviewPhaseSignal(SignalDetector):
 
     signal_name = "meta.interview.phase"
     description = "Current interview phase: 'early', 'mid', or 'late'. Phase boundaries are configurable per methodology. Used to adjust strategy weights."
-    cost_tier = SignalCostTier.FREE
-    refresh_trigger = RefreshTrigger.PER_TURN
 
     # Default phase boundaries (fallback if not specified in YAML)
     DEFAULT_BOUNDARIES = {
