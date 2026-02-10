@@ -148,11 +148,9 @@ class TurnPipeline:
             if context.context_loading_output
             else 1
         )
-        strategy_selected = (
-            context.strategy_selection_output.strategy
-            if context.strategy_selection_output
-            else None
-        )
+        if not context.strategy_selection_output:
+            raise RuntimeError("StrategySelectionStage must run before building result")
+        strategy_selected = context.strategy_selection_output.strategy
         next_question = (
             context.question_generation_output.question
             if context.question_generation_output

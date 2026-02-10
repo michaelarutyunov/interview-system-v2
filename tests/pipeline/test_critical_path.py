@@ -22,7 +22,6 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.services.turn_pipeline.context import PipelineContext
-from src.services.turn_pipeline.pipeline import TurnPipeline
 from src.domain.models.session import Session, SessionState
 from src.domain.models.interview_state import InterviewMode
 
@@ -91,8 +90,6 @@ async def test_pipeline_critical_path_minimal(session_repo, graph_repo, utteranc
         ExtractionStage(extraction_service=ExtractionService(llm_client=mock_llm)),
     ]
 
-    pipeline = TurnPipeline(stages)
-
     # Create context
     context = PipelineContext(
         session_id=session_id,
@@ -111,8 +108,10 @@ async def test_pipeline_critical_path_minimal(session_repo, graph_repo, utteranc
             is_extractable=True,
         )
 
-        # Execute pipeline (first 3 stages only)
-        await pipeline.execute(context)
+        # Execute stages directly (not pipeline.execute) since this is a
+        # partial pipeline test that skips strategy selection and later stages
+        for stage in stages:
+            context = await stage.process(context)
 
     # Verify context was populated
     assert context.session_id == session_id

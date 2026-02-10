@@ -14,8 +14,7 @@ class TurnResult:
     """Result of processing a single turn.
 
     Contains extraction results, graph state, scoring data, next question,
-    and continuation status. The strategy_selected field is Optional to support
-    partial pipeline execution for testing.
+    and continuation status.
 
     Matches PRD Section 8.6 response structure.
     """
@@ -24,7 +23,7 @@ class TurnResult:
     extracted: dict  # concepts, relationships
     graph_state: dict  # node_count, edge_count, depth_achieved
     scoring: dict  # strategy_id, score, reasoning
-    strategy_selected: Optional[str]
+    strategy_selected: str
     next_question: str
     should_continue: bool
     latency_ms: int = 0
