@@ -95,14 +95,11 @@ class StateComputationOutput(BaseModel):
 
     Stage 5 refreshes graph state metrics after updates.
 
-    ADR-010: Added computed_at for freshness tracking to prevent
-    stale state bug where graph_state from Stage 1 was used in Stage 6.
+    Tracks freshness via computed_at timestamp to prevent stale state bugs.
+    Includes saturation_metrics computed from graph yield and quality signals
+    for ContinuationStage to consume.
 
-    Domain Encapsulation: Added saturation_metrics computed from graph
-    yield and quality signals. ContinuationStage reads this instead of
-    maintaining its own tracking state.
-
-    Phase 3 (Dual-Graph Integration), bead ty40: Added canonical_graph_state.
+    Also includes canonical_graph_state for dual-graph architecture metrics.
     """
 
     graph_state: GraphState = Field(description="Refreshed knowledge graph state")
@@ -118,7 +115,7 @@ class StateComputationOutput(BaseModel):
     )
     canonical_graph_state: Optional["CanonicalGraphState"] = Field(
         default=None,
-        description="Canonical graph state (deduplicated concepts from Phase 3)",
+        description="Canonical graph state (deduplicated concepts)",
     )
 
     @model_validator(mode="after")
@@ -133,12 +130,9 @@ class StrategySelectionInput(BaseModel):
     """Contract: StrategySelectionStage input (Stage 6).
 
     Stage 6 selects questioning strategy using methodology-based signal detection
-    (Phase 4: methodology-specific signals with direct signal->strategy scoring).
+    with direct signal-to-strategy scoring.
 
-    The two-tier scoring system has been removed and replaced by methodology-specific
-    signal detection in each methodology module (MEC, JTBD).
-
-    ADR-010: Added freshness validation to prevent stale state bug.
+    Includes freshness validation to prevent stale state bugs.
     """
 
     # Graph state (must be fresh!)
@@ -186,8 +180,7 @@ class StrategySelectionOutput(BaseModel):
     """Contract: StrategySelectionStage output (Stage 6).
 
     Stage 6 produces selected strategy and focus for question generation.
-
-    Phase 4: Added signals and alternatives for methodology-based selection.
+    Includes signals and alternatives for methodology-based selection observability.
     """
 
     strategy: str = Field(
@@ -201,17 +194,17 @@ class StrategySelectionOutput(BaseModel):
         description="When strategy was selected (for debugging)",
     )
 
-    # Phase 4: Methodology-based selection fields
+    # Methodology-based selection fields
     signals: Optional[Dict[str, Any]] = Field(
         default=None,
-        description="Detected signals from methodology-specific signal detector (Phase 4)",
+        description="Detected signals from methodology-specific signal detector",
     )
-    # Phase 6: Joint strategy-node scoring produces tuples with node_id
+    # Joint strategy-node scoring produces tuples with node_id
     strategy_alternatives: List[Union[tuple[str, float], tuple[str, str, float]]] = (
         Field(
             default_factory=list,
             description=(
-                "Alternative strategies with scores for observability (Phase 4, Phase 6). "
+                "Alternative strategies with scores for observability. "
                 "Format: [(strategy, score)] or [(strategy, node_id, score)] for joint scoring"
             ),
         )
@@ -285,8 +278,6 @@ class SlotDiscoveryOutput(BaseModel):
 
     Stage 4.5 discovers or updates canonical slots for newly added surface nodes.
     Implements dual-graph architecture by mapping surface nodes to abstract canonical slots.
-
-    REFERENCE: Phase 2 (Dual-Graph Architecture), bead yuhv
     """
 
     slots_created: int = Field(

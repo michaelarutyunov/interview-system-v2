@@ -4,12 +4,10 @@ Repository for canonical graph persistence (dual-graph architecture).
 Handles CRUD operations on canonical_slots, surface_to_slot_mapping,
 and canonical_edges tables. Uses aiosqlite for async SQLite access.
 
-Bead: eejs (Phase 2: Dual-Graph Architecture)
-
 IMPLEMENTATION NOTES:
 - Follows SessionRepository pattern: accepts db_path and manages its own connections
 - Each method creates its own connection via async context manager
-- Fail-fast error handling per ADR-009: no try/except around DB operations
+- Fail-fast error handling: no try/except around DB operations
 """
 
 import json
@@ -78,8 +76,6 @@ class CanonicalSlotRepository:
 
         Returns:
             Created CanonicalSlot
-
-        REFERENCE: Phase 2 (Dual-Graph Architecture), bead eejs
         """
         slot_id = f"slot_{uuid4().hex[:12]}"
 
@@ -205,9 +201,9 @@ class CanonicalSlotRepository:
         Returns:
             CanonicalSlot or None if not found
 
-        IMPLEMENTATION NOTES:
-            Phase 4, bead f6t8: Added deduplication check to prevent UNIQUE
-            constraint violations. Pattern follows GraphRepository.find_node_by_label_and_type().
+        Note:
+            Deduplication check prevents UNIQUE constraint violations.
+            Pattern follows GraphRepository.find_node_by_label_and_type().
         """
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -300,8 +296,6 @@ class CanonicalSlotRepository:
             slot_id: ID of the canonical slot (from canonical_slots table)
             similarity_score: Cosine similarity score (0.0-1.0)
             assigned_turn: Turn when this mapping was created
-
-        REFERENCE: Phase 2 (Dual-Graph Architecture), bead eejs
         """
         async with aiosqlite.connect(self.db_path) as db:
             # Insert mapping (INSERT OR REPLACE handles re-mapping if needed)
@@ -335,8 +329,6 @@ class CanonicalSlotRepository:
         Args:
             slot_id: Slot ID to promote
             turn_number: Current turn number (recorded as promoted_turn)
-
-        REFERENCE: Phase 2 (Dual-Graph Architecture), bead eejs
         """
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
@@ -552,7 +544,6 @@ class CanonicalSlotRepository:
         ]
 
     # ==================== DUAL-GRAPH REPORTING METHODS ====================
-    # Phase 3 (Dual-Graph Integration), bead 0nl3: JSON schema support
 
     async def get_slots_with_provenance(
         self, session_id: str
@@ -568,9 +559,6 @@ class CanonicalSlotRepository:
         Returns:
             List of slot dicts with surface_node_ids:
             {slot_id, slot_name, node_type, support_count, surface_node_ids: [...]}
-
-        IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead 0nl3
         """
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -626,9 +614,8 @@ class CanonicalSlotRepository:
             {edge_id, source_slot_id, target_slot_id, edge_type, support_count,
              surface_edge_ids: [...], avg_confidence}
 
-        IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead 0nl3
-            - avg_confidence is computed from surface edges in kg_edges table
+        Note:
+            avg_confidence is computed from surface edges in kg_edges table.
         """
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row

@@ -4,9 +4,6 @@ Qualitative signal models for LLM-based signal extraction.
 These models represent semantic signals extracted from conversation history
 that provide deeper insight into respondent engagement, reasoning quality,
 and knowledge state than rule-based heuristics alone.
-
-ADR-006: Two-tier scoring - Layer 3 of signal architecture.
-ADR-010 Phase 2: Converted to Pydantic for type safety and added metadata fields.
 """
 
 from datetime import datetime, timezone
@@ -50,8 +47,6 @@ class UncertaintySignal(BaseModel):
 
     Distinguishes between productive uncertainty (curiosity, conceptual clarity)
     and terminal uncertainty (knowledge gaps, apathy).
-
-    ADR-010 Phase 2: Added confidence field for standardization.
     """
 
     uncertainty_type: UncertaintyType
@@ -72,8 +67,6 @@ class ReasoningSignal(BaseModel):
 
     Helps assess whether the respondent is engaging in deep causal reasoning
     or providing surface-level associations.
-
-    ADR-010 Phase 2: Added confidence field for standardization.
     """
 
     reasoning_quality: ReasoningQuality
@@ -91,8 +84,6 @@ class EmotionalSignal(BaseModel):
     """Signal capturing emotional engagement and intensity.
 
     Helps distinguish between genuine interest and polite participation.
-
-    ADR-010 Phase 2: Added confidence field for standardization.
     """
 
     intensity: EmotionalIntensity
@@ -166,9 +157,6 @@ class QualitativeSignalSet(BaseModel):
     Extracted via LLM analysis of recent conversation history.
     Designed to be consumed by Tier 1/Tier 2 scorers for more nuanced
     decision-making than rule-based heuristics alone.
-
-    ADR-010 Phase 2: Converted to Pydantic and added metadata fields for
-    traceability and signal provenance tracking.
     """
 
     # Required signals
@@ -179,17 +167,17 @@ class QualitativeSignalSet(BaseModel):
     knowledge_ceiling: Optional[KnowledgeCeilingSignal] = None
     concept_depth: Optional[ConceptDepthSignal] = None
 
-    # Metadata (ADR-010 Phase 2: Enhanced for traceability)
+    # Metadata
     turn_number: int = Field(
         default=0, description="Turn number when signals were extracted"
     )
     source_utterance_id: str = Field(
         default="unknown",
-        description="Source utterance ID for traceability (ADR-010 Phase 2)",
+        description="Source utterance ID for traceability",
     )
     generated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        description="When signals were generated (ADR-010 Phase 2)",
+        description="When signals were generated",
     )
     llm_model: str = Field(
         default="unknown", description="LLM model used (e.g., moonshot-v1-8k)"

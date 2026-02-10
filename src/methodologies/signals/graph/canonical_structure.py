@@ -1,8 +1,6 @@
 """
 Canonical graph structure signals - concept count, edge density, exhaustion.
 
-Phase 4 (Signal Pool Extensions), bead 3pna.
-
 These signals operate on the canonical (deduplicated) graph rather than
 the surface graph, providing more stable metrics for strategy selection.
 """
@@ -57,10 +55,9 @@ class CanonicalConceptCountSignal(SignalDetector):
         Returns:
             {signal_name: concept_count} if canonical_graph_state exists, else {}
 
-        IMPLEMENTATION NOTES:
-            Phase 4 (Signal Pool Extensions), bead 3pna
-            - Reads from context.canonical_graph_state (convenience property)
-            - Returns {} if canonical_graph_state is None (canonical slots disabled)
+        Note:
+            Reads from context.canonical_graph_state (convenience property).
+            Returns {} if canonical_graph_state is None (canonical slots disabled).
             - Logs at DEBUG level (expected when canonical disabled, not a warning)
         """
         cg_state = context.canonical_graph_state
@@ -85,10 +82,8 @@ class CanonicalEdgeDensitySignal(SignalDetector):
     Higher values indicate more connected structure among deduplicated
     concepts. Replaces coverage breadth signal (not relevant for exploration).
 
-    IMPLEMENTATION NOTES:
-        Phase 4 (Signal Pool Extensions), bead 3pna
-        - Designer objection resolved: coverage breadth dropped, replaced with edge density
-        - Computes edge_count / concept_count, capped at 0.0 for empty graphs
+    Note:
+        Computes edge_count / concept_count, capped at 0.0 for empty graphs.
     """
 
     signal_name = "graph.canonical_edge_density"
@@ -114,10 +109,9 @@ class CanonicalEdgeDensitySignal(SignalDetector):
         Returns:
             {signal_name: edge_density} if canonical_graph_state exists, else {}
 
-        IMPLEMENTATION NOTES:
-            Phase 4 (Signal Pool Extensions), bead 3pna
-            - edge_density = edge_count / concept_count if concept_count > 0, else 0.0
-            - Reads from context.canonical_graph_state (convenience property)
+        Note:
+            edge_density = edge_count / concept_count if concept_count > 0, else 0.0.
+            Reads from context.canonical_graph_state (convenience property).
             - Returns {} if canonical_graph_state is None (canonical slots disabled)
         """
         cg_state = context.canonical_graph_state
@@ -145,16 +139,15 @@ class CanonicalExhaustionScoreSignal(SignalDetector):
     Refresh: per_turn
 
     Aggregates exhaustion scores from all tracked canonical slots using
-    the NodeStateTracker. After Phase 3 ht0e, NodeStateTracker tracks by
-    canonical_slot_id, so this reflects exhaustion of deduplicated concepts.
+    the NodeStateTracker. Tracks by canonical_slot_id, so this reflects
+    exhaustion of deduplicated concepts rather than surface paraphrases.
 
     Values range 0.0 (fresh) to 1.0 (fully exhausted).
 
-    IMPLEMENTATION NOTES:
-        Phase 4 (Signal Pool Extensions), bead 3pna
-        - After Phase 3 ht0e, NodeStateTracker keys by canonical_slot_id
-        - Reads average exhaustion from context.node_tracker.states
-        - Returns {} if node_tracker is None or has no states
+    Note:
+        NodeStateTracker keys by canonical_slot_id.
+        Reads average exhaustion from context.node_tracker.states.
+        Returns {} if node_tracker is None or has no states.
         - Exhaustion score computed from NodeState attributes (not a pre-computed field):
           * focus_count: must be > 0 for node to have exhaustion
           * turns_since_last_yield: contributes up to 0.4 to score (capped at 10)
@@ -167,8 +160,7 @@ class CanonicalExhaustionScoreSignal(SignalDetector):
         "Average exhaustion score across canonical slots. "
         "Aggregates exhaustion from deduplicated concepts (canonical slots). "
         "Higher values indicate concepts have been thoroughly explored. "
-        "After Phase 3, NodeStateTracker keys by canonical_slot_id, so this "
-        "reflects exhaustion of stable concepts rather than surface paraphrases."
+        "Tracks exhaustion of stable concepts rather than surface paraphrases."
     )
     cost_tier = SignalCostTier.LOW
     refresh_trigger = RefreshTrigger.PER_TURN
@@ -187,12 +179,10 @@ class CanonicalExhaustionScoreSignal(SignalDetector):
         Returns:
             {signal_name: avg_exhaustion} if node_tracker exists, else {}
 
-        IMPLEMENTATION NOTES:
-            Phase 4 (Signal Pool Extensions), bead 3pna
-            - After Phase 3 ht0e, NodeStateTracker keys by canonical_slot_id
-            - Computes average exhaustion from context.node_tracker.states
-            - Returns {} if node_tracker is None or has no states
-            - Exhaustion calculation follows NodeExhaustionScoreSignal pattern
+        Note:
+            NodeStateTracker keys by canonical_slot_id.
+            Computes average exhaustion from context.node_tracker.states.
+            Returns {} if node_tracker is None or has no states.
         """
         node_tracker = context.node_tracker
 
@@ -225,10 +215,9 @@ class CanonicalExhaustionScoreSignal(SignalDetector):
         Returns:
             Exhaustion score from 0.0 (fresh) to 1.0 (exhausted)
 
-        IMPLEMENTATION NOTES:
-            Phase 4 (Signal Pool Extensions), bead 3pna
-            - Follows NodeExhaustionScoreSignal._calculate_exhaustion_score pattern
-            - If never focused, score is 0.0
+        Note:
+            Follows NodeExhaustionScoreSignal._calculate_exhaustion_score pattern.
+            If never focused, score is 0.0.
             - Factor 1: Turns since last yield (0.0 - 0.4, max at 10 turns)
             - Factor 2: Focus streak (0.0 - 0.3, max at 5 consecutive)
             - Factor 3: Shallow ratio (0.0 - 0.3)
@@ -260,11 +249,10 @@ class CanonicalExhaustionScoreSignal(SignalDetector):
         Returns:
             Ratio of shallow responses (0.0 - 1.0)
 
-        IMPLEMENTATION NOTES:
-            Phase 4 (Signal Pool Extensions), bead 3pna
-            - Follows NodeSignalDetector._calculate_shallow_ratio pattern
-            - Counts "surface" and "shallow" responses
-            - Returns 0.0 if no responses recorded
+        Note:
+            Follows NodeSignalDetector._calculate_shallow_ratio pattern.
+            Counts "surface" and "shallow" responses.
+            Returns 0.0 if no responses recorded.
         """
         if not state.all_response_depths:
             return 0.0

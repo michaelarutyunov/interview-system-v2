@@ -9,9 +9,7 @@ class ExtractedConcept(BaseModel):
     """A concept extracted from user text.
 
     Represents a potential knowledge graph node before deduplication.
-
-    ADR-010 Phase 2: Added source_utterance_id for traceability and
-    made stance optional to handle cases where it's not applicable.
+    Includes source_utterance_id for traceability.
     """
 
     text: str = Field(description="Normalized concept text")
@@ -25,7 +23,7 @@ class ExtractedConcept(BaseModel):
         default="", description="Verbatim text from user response"
     )
     source_utterance_id: str = Field(
-        description="Source utterance ID for traceability (ADR-010 Phase 2)"
+        description="Source utterance ID for traceability"
     )
     linked_elements: List[int] = Field(
         default_factory=list,
@@ -51,9 +49,7 @@ class ExtractedRelationship(BaseModel):
     """A relationship extracted from user text.
 
     Links two extracted concepts.
-
-    ADR-010 Phase 2: Added reasoning and source_utterance_id for
-    traceability and understanding of why edges were created.
+    Includes reasoning and source_utterance_id for traceability.
     """
 
     source_text: str = Field(description="Source concept text")
@@ -67,7 +63,7 @@ class ExtractedRelationship(BaseModel):
         description="Why this edge was created (explicit vs implicit)",
     )
     source_utterance_id: str = Field(
-        description="Source utterance ID for traceability (ADR-010 Phase 2)"
+        description="Source utterance ID for traceability"
     )
 
 
@@ -76,7 +72,7 @@ class ExtractionResult(BaseModel):
 
     Contains all concepts and relationships extracted from user input.
 
-    ADR-010: Added timestamp field for freshness validation in StrategySelectionStage.
+    Includes timestamp field for freshness validation in StrategySelectionStage.
     """
 
     concepts: List[ExtractedConcept] = Field(default_factory=list)
@@ -87,5 +83,5 @@ class ExtractionResult(BaseModel):
     latency_ms: int = 0
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        description="When extraction was performed (ADR-010 freshness tracking)",
+        description="When extraction was performed (for freshness tracking)",
     )

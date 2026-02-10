@@ -3,8 +3,6 @@ Turn processing domain models.
 
 Defines typed models for the turn processing pipeline, replacing
 untyped Dict[str, Any] usage in service interfaces.
-
-Part of ADR-008 Phase 2: Formalize Contracts
 """
 
 from typing import List, Optional, Literal

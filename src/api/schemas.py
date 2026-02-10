@@ -11,7 +11,7 @@ from datetime import datetime
 from src.domain.models.interview_state import InterviewMode
 
 
-# ============ SESSION SCHEMAS (from Phase 1) ============
+# ============ SESSION SCHEMAS ============
 
 
 class SessionCreate(BaseModel):
@@ -47,7 +47,7 @@ class SessionListResponse(BaseModel):
     total: int
 
 
-# ============ TURN SCHEMAS (Phase 2) ============
+# ============ TURN SCHEMAS ============
 
 
 class TurnRequest(BaseModel):
@@ -90,7 +90,7 @@ class GraphStateSchema(BaseModel):
 
 
 class ScoringSchema(BaseModel):
-    """Scoring results in turn response (Phase 3)."""
+    """Scoring results in turn response."""
 
     depth: float = 0.0
     saturation: float = 0.0
@@ -110,7 +110,7 @@ class TurnResponse(BaseModel):
     next_question: str
     should_continue: bool
     latency_ms: int = 0
-    # Phase 6: Methodology-based signal detection observability
+    # Methodology-based signal detection observability
     signals: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Methodology signals from signal pools (graph, llm, temporal, meta)"
@@ -168,7 +168,7 @@ class ErrorResponse(BaseModel):
     error_type: Optional[str] = None
 
 
-# ============ SYNTHETIC SCHEMAS (Phase 4) ============
+# ============ SYNTHETIC SCHEMAS ============
 
 
 class SyntheticRespondRequest(BaseModel):
@@ -329,7 +329,7 @@ class SimulationTurnSchema(BaseModel):
     strategy_selected: Optional[str] = None
     should_continue: bool = True
     latency_ms: float = 0.0
-    # Phase 6: Methodology-based signal detection observability
+    # Methodology-based signal detection observability
     signals: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Methodology signals from signal pools (graph, llm, temporal, meta)"
@@ -368,6 +368,6 @@ class SimulationResponse(BaseModel):
     turns: List[SimulationTurnSchema]
     status: str = "completed"  # completed, max_turns_reached, error
 
-    # Graph diagnostics (Phase 5: nodes and edges for diagnostic visibility)
+    # Graph diagnostics (nodes and edges for diagnostic visibility)
     nodes: List[Dict[str, Any]] = Field(default_factory=list)
     edges: List[Dict[str, Any]] = Field(default_factory=list)

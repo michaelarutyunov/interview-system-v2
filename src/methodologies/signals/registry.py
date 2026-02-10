@@ -54,7 +54,7 @@ class ComposedSignalDetector:
             GraphAvgDepthSignal,
             DepthByElementSignal,
             ChainCompletionSignal,
-            # Canonical graph signals (Phase 4, bead 3pna)
+            # Canonical graph signals
             CanonicalConceptCountSignal,
             CanonicalEdgeDensitySignal,
             CanonicalExhaustionScoreSignal,
@@ -99,7 +99,7 @@ class ComposedSignalDetector:
             GraphAvgDepthSignal,
             DepthByElementSignal,
             ChainCompletionSignal,
-            # Canonical graph (Phase 4, bead 3pna)
+            # Canonical graph
             CanonicalConceptCountSignal,
             CanonicalEdgeDensitySignal,
             CanonicalExhaustionScoreSignal,

@@ -28,7 +28,7 @@ __all__ = [
     "ConceptContext",
     "ConceptElement",
     "NodeState",
-    # Canonical graph models (Phase 2: Dual-Graph Architecture, bead 46hu)
+    # Canonical graph models
     "CanonicalSlot",
     "SlotMapping",
     "CanonicalEdge",

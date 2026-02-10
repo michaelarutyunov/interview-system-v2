@@ -4,9 +4,6 @@ Domain models for canonical graph (dual-graph architecture).
 The canonical graph abstracts surface-level nodes into stable "slots" representing
 latent concepts. Multiple surface nodes map to a single canonical slot via similarity
 matching, enabling robust concept tracking despite respondent language variation.
-
-Architecture Reference: Phase 2 (Dual-Graph Construction)
-Bead: 46hu
 """
 
 from typing import List, Optional

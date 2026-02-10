@@ -10,10 +10,8 @@ Example signals:
 - ChainCompletionSignal: Checks if chains have terminal values
 - NodeExhaustedSignal: Per-node exhaustion detection
 
-IMPLEMENTATION NOTES:
-    Phase 4 (Signal Pool Extensions), bead 3pna
-    - Added canonical_structure module for canonical graph signals
-    - Canonical signals operate on deduplicated graph (stable metrics)
+Also includes canonical_structure module for canonical graph signals
+that operate on deduplicated graph for stable metrics.
 """
 
 from src.methodologies.signals.graph.canonical_structure import (
@@ -51,7 +49,7 @@ from src.methodologies.signals.graph.chain_completion import (
 )
 
 __all__ = [
-    # Canonical structure (Phase 4, bead 3pna)
+    # Canonical structure
     "CanonicalConceptCountSignal",
     "CanonicalEdgeDensitySignal",
     "CanonicalExhaustionScoreSignal",

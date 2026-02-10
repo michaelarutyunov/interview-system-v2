@@ -579,7 +579,6 @@ class GraphRepository:
         return max_length
 
     # ==================== DUAL-GRAPH REPORTING METHODS ====================
-    # Phase 3 (Dual-Graph Integration), bead 0nl3: JSON schema support
 
     async def get_nodes_with_canonical_mapping(
         self, session_id: str
@@ -597,10 +596,9 @@ class GraphRepository:
             List of node dicts with optional canonical_slot field:
             {id, label, node_type, confidence, canonical_slot: {slot_id, slot_name, similarity_score}}
 
-        IMPLEMENTATION NOTES:
-            Phase 3 (Dual-Graph Integration), bead 0nl3
-            - canonical_slot is None if no mapping exists
-            - Uses LEFT JOIN to include all nodes even if unmapped
+        Note:
+            canonical_slot is None if no mapping exists.
+            Uses LEFT JOIN to include all nodes even if unmapped.
         """
         self.db.row_factory = aiosqlite.Row
         cursor = await self.db.execute(
