@@ -9,7 +9,7 @@ No business logic - that belongs in GraphService.
 
 import json
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 import aiosqlite
@@ -582,7 +582,7 @@ class GraphRepository:
 
     async def get_nodes_with_canonical_mapping(
         self, session_id: str
-    ) -> List[Dict[str, any]]:
+    ) -> List[Dict[str, Any]]:
         """
         Get surface nodes with optional canonical slot mapping.
 

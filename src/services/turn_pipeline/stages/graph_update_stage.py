@@ -83,7 +83,7 @@ class GraphUpdateStage(TurnStage):
             if hasattr(edge, "model_dump"):
                 edges_as_dicts.append(edge.model_dump())
             elif hasattr(edge, "to_dict"):
-                edges_as_dicts.append(edge.to_dict())
+                edges_as_dicts.append(edge.to_dict())  # type: ignore[attr-defined]
             elif isinstance(edge, dict):
                 edges_as_dicts.append(edge)
             else:

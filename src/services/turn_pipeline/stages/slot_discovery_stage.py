@@ -6,7 +6,7 @@ Maps surface KGNodes to abstract canonical slots via LLM proposal and
 embedding similarity matching. Also aggregates surface edges to canonical edges.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import structlog
 
@@ -16,6 +16,7 @@ from src.services.canonical_slot_service import CanonicalSlotService
 
 if TYPE_CHECKING:
     from ..context import PipelineContext
+    from src.services.graph_service import GraphService
 
 log = structlog.get_logger(__name__)
 
@@ -34,7 +35,7 @@ class SlotDiscoveryStage(TurnStage):
     """
 
     def __init__(
-        self, slot_service: CanonicalSlotService, graph_service: object = None
+        self, slot_service: CanonicalSlotService, graph_service: Optional["GraphService"] = None
     ):
         """
         Initialize slot discovery stage.

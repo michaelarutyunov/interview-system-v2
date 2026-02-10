@@ -323,6 +323,9 @@ class AnthropicClient(LLMClient):
                     )
                     raise
 
+        # Unreachable: loop either returns LLMResponse or raises an exception
+        assert False, "unreachable"
+
 
 # =============================================================================
 # OpenAI-Compatible Client Base
@@ -541,6 +544,9 @@ class OpenAICompatibleClient(LLMClient):
                         status_code=status_code,
                     )
                     raise
+
+        # Unreachable: loop either returns LLMResponse or raises an exception
+        assert False, "unreachable"
 
 
 # =============================================================================

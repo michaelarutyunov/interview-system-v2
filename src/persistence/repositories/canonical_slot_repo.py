@@ -11,7 +11,7 @@ IMPLEMENTATION NOTES:
 """
 
 import json
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 import aiosqlite
@@ -547,7 +547,7 @@ class CanonicalSlotRepository:
 
     async def get_slots_with_provenance(
         self, session_id: str
-    ) -> List[Dict[str, any]]:
+    ) -> List[Dict[str, Any]]:
         """
         Get active canonical slots with their surface node provenance.
 
@@ -599,7 +599,7 @@ class CanonicalSlotRepository:
 
         return result
 
-    async def get_edges_with_metadata(self, session_id: str) -> List[Dict[str, any]]:
+    async def get_edges_with_metadata(self, session_id: str) -> List[Dict[str, Any]]:
         """
         Get canonical edges with surface edge metadata.
 
