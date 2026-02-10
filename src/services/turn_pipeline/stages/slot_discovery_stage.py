@@ -12,10 +12,10 @@ import structlog
 
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import SlotDiscoveryOutput
-from src.services.canonical_slot_service import CanonicalSlotService
 
 if TYPE_CHECKING:
     from ..context import PipelineContext
+    from src.services.canonical_slot_service import CanonicalSlotService
     from src.services.graph_service import GraphService
 
 log = structlog.get_logger(__name__)
@@ -32,21 +32,24 @@ class SlotDiscoveryStage(TurnStage):
 
     CONTRACT: Requires graph_update_output to exist (Stage 4 complete).
     Raises RuntimeError if contract violated (fail-fast).
+
+    If slot_service is None (feature disabled), this stage skips gracefully
+    by setting an empty SlotDiscoveryOutput.
     """
 
     def __init__(
-        self, slot_service: CanonicalSlotService, graph_service: Optional["GraphService"] = None
+        self, slot_service: Optional[CanonicalSlotService] = None, graph_service: Optional["GraphService"] = None
     ):
         """
         Initialize slot discovery stage.
 
         Args:
-            slot_service: CanonicalSlotService for slot discovery and mapping
+            slot_service: CanonicalSlotService for slot discovery and mapping, or None to disable feature
             graph_service: Optional GraphService for edge aggregation to canonical graph
 
         Note:
-            graph_service is optional for backward compatibility. If provided,
-            aggregates surface edges to canonical edges after slot mapping.
+            Both slot_service and graph_service are optional. If slot_service is None,
+            the stage skips gracefully (feature disabled).
         """
         self.slot_service = slot_service
         self.graph_service = graph_service
@@ -95,6 +98,16 @@ class SlotDiscoveryStage(TurnStage):
                 "GraphUpdateStage (4) to complete first. "
                 f"Session: {context.session_id}"
             )
+
+        # If feature is disabled, set empty output and return gracefully
+        if self.slot_service is None:
+            context.slot_discovery_output = SlotDiscoveryOutput()
+            log.debug(
+                "slot_discovery_skipped",
+                session_id=context.session_id,
+                reason="feature_disabled",
+            )
+            return context
 
         surface_nodes = context.graph_update_output.nodes_added
 
