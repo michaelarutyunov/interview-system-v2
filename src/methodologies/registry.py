@@ -12,9 +12,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from src.methodologies.signals.registry import ComposedSignalDetector
 
-# Known technique names (must match get_technique() lookup)
-KNOWN_TECHNIQUES = frozenset({"laddering", "elaboration", "probing", "validation"})
-
 # Signal weight prefixes that are valid but not in the main signal registry.
 # These are session-scoped signals managed separately (e.g., in
 # MethodologyStrategyService) rather than through ComposedSignalDetector.
@@ -77,17 +74,14 @@ class StrategyConfig:
 
     name: str
     description: str
-    technique: str
     signal_weights: dict[str, float]
 
 
 class MethodologyRegistry:
     """Registry for loading methodology configurations from YAML.
 
-    Replaces the old folder-per-methodology approach with:
-    - YAML configs for methodology definitions
-    - Composed signal detectors from shared pools
-    - Technique instances referenced by name
+    Loads methodology definitions from YAML configs and creates
+    composed signal detectors with signal pools.
 
     Example:
         registry = MethodologyRegistry()
@@ -174,7 +168,6 @@ class MethodologyRegistry:
                 StrategyConfig(
                     name=s["name"],
                     description=s.get("description", ""),
-                    technique=s["technique"],
                     signal_weights=s["signal_weights"],
                 )
                 for s in data.get("strategies", [])
@@ -216,12 +209,6 @@ class MethodologyRegistry:
                     f"strategies[{i}]: duplicate strategy name '{strategy.name}'"
                 )
             strategy_names.add(strategy.name)
-
-            if strategy.technique not in KNOWN_TECHNIQUES:
-                errors.append(
-                    f"strategies[{i}] '{strategy.name}': "
-                    f"unknown technique '{strategy.technique}'"
-                )
 
             for weight_key in strategy.signal_weights:
                 if not _is_valid_signal_weight_key(weight_key, known_signals):
@@ -287,35 +274,3 @@ class MethodologyRegistry:
             signal_names.extend(pool_signals)
 
         return ComposedSignalDetector(signal_names)
-
-    def get_technique(self, technique_name: str):
-        """Get a technique instance by name.
-
-        Args:
-            technique_name: Name of technique (e.g., "laddering")
-
-        Returns:
-            Technique instance
-
-        Raises:
-            ValueError: If technique not found
-        """
-        from src.methodologies.techniques import (
-            LadderingTechnique,
-            ElaborationTechnique,
-            ProbingTechnique,
-            ValidationTechnique,
-        )
-
-        techniques = {
-            "laddering": LadderingTechnique,
-            "elaboration": ElaborationTechnique,
-            "probing": ProbingTechnique,
-            "validation": ValidationTechnique,
-        }
-
-        technique_class = techniques.get(technique_name)
-        if not technique_class:
-            raise ValueError(f"Unknown technique: {technique_name}")
-
-        return technique_class()

@@ -192,7 +192,6 @@ signal_norms:
 strategies:
   - name: explore_incident
     description: "Explore the incident details - what happened, when, where"
-    technique: probing
     signal_weights:
       llm.uncertainty: 0.5
       graph.orphan_count: 0.7
@@ -200,14 +199,12 @@ strategies:
 
   - name: explore_outcomes
     description: "Understand what happened as a result and why it mattered"
-    technique: probing
     signal_weights:
       llm.response_depth.surface: 0.8
       graph.node_count: 0.5
 
   - name: explore_emotions
     description: "Understand the emotional response and feelings"
-    technique: elaboration
     signal_weights:
       llm.sentiment.positive: 0.7
       llm.sentiment.negative: 0.7
@@ -215,21 +212,18 @@ strategies:
 
   - name: explore_attributions
     description: "Understand what they believe caused the outcome"
-    technique: probing
     signal_weights:
       graph.node_count: 0.6
       llm.response_depth.moderate: 0.7
 
   - name: explore_learnings
     description: "Identify insights and how they changed understanding"
-    technique: laddering
     signal_weights:
       graph.max_depth: 0.8
       llm.response_depth.deep: 0.9
 
   - name: explore_behavior_change
     description: "Understand how the incident influenced future behavior"
-    technique: validation
     signal_weights:
       meta.interview_progress: 0.7
       graph.max_depth: 0.6

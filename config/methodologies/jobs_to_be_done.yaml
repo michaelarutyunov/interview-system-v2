@@ -211,7 +211,6 @@ strategies:
   # Strategy 1: Explore the situation (elaboration)
   - name: explore_situation
     description: "Understand the context and circumstances around when jobs arise"
-    technique: elaboration
     signal_weights:
       # Global signals
       graph.node_count: -0.3
@@ -225,7 +224,6 @@ strategies:
   # Strategy 2: Probe alternatives (probing)
   - name: probe_alternatives
     description: "Discover what other solutions or approaches the user has considered"
-    technique: probing
     signal_weights:
       # Global signals
       llm.ambiguity: 0.4
@@ -237,7 +235,6 @@ strategies:
   # Strategy 3: Dig into motivation (laddering)
   - name: dig_motivation
     description: "Probe deeper with 'why' questions to uncover underlying functional and emotional jobs"
-    technique: laddering
     signal_weights:
       # Global signals
       llm.response_depth.surface: 0.7
@@ -251,7 +248,6 @@ strategies:
   # Strategy 4: Validate outcome (validation)
   - name: validate_outcome
     description: "Confirm understanding and check if we've captured the most important aspects"
-    technique: validation
     signal_weights:
       # Global signals
       meta.interview_progress: 0.6
@@ -269,7 +265,6 @@ strategies:
   # Strategy 5: Revitalize engagement (elaboration) - Phase 5
   - name: revitalize
     description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
-    technique: elaboration
     signal_weights:
       # Fatigue detection triggers (Phase 5)
       llm.global_response_trend.fatigued: 1.0  # Trigger on fatigue
@@ -285,7 +280,6 @@ strategies:
   # Strategy 6: Uncover obstacles (probing)
   - name: uncover_obstacles
     description: "Identify pain points and frustrations that prevent jobs from being done well"
-    technique: probing
     signal_weights:
       # Global signals
       graph.orphan_count: 0.5

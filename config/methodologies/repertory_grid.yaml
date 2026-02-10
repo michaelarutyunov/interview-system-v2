@@ -203,35 +203,30 @@ signal_norms:
 strategies:
   - name: triadic_elicitation
     description: "Compare elements to elicit constructs using similarity/difference"
-    technique: probing
     signal_weights:
       graph.node_count: 0.8
       llm.uncertainty: 0.6
 
   - name: explore_constructs
     description: "Explore the meaning and importance of identified constructs"
-    technique: elaboration
     signal_weights:
       graph.edge_count: 0.7
       llm.response_depth.moderate: 0.8
 
   - name: ladder_constructs
     description: "Use 'why does that matter' to reveal higher-level constructs"
-    technique: laddering
     signal_weights:
       graph.max_depth: 0.9
       llm.response_depth.deep: 0.9
 
   - name: explore_ideal
     description: "Understand the ideal product specification and what defines it"
-    technique: validation
     signal_weights:
       graph.node_count: 0.5
       meta.interview_progress: 0.7
 
   - name: explore_similarities
     description: "Identify shared characteristics between elements"
-    technique: probing
     signal_weights:
       graph.orphan_count: 0.6
       llm.uncertainty: 0.4

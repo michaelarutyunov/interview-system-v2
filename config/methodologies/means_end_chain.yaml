@@ -167,7 +167,6 @@ strategies:
   # Strategy 1: Deepen the chain (laddering)
   - name: deepen
     description: "Explore why something matters to understand deeper motivations and values through progressive 'why' questioning"
-    technique: laddering
     signal_weights:
       # Global signals
       llm.response_depth.surface: 0.8
@@ -182,7 +181,6 @@ strategies:
   # Strategy 2: Clarify relationships (probing)
   - name: clarify
     description: "Rephrase the question in simpler, clearer words when user shows confusion or lack of understanding"
-    technique: probing
     signal_weights:
       # Global signals
       graph.orphan_count: 0.7
@@ -195,7 +193,6 @@ strategies:
   # Strategy 3: Explore new areas (elaboration)
   - name: explore
     description: "Find new branches and related concepts by asking 'what else?' to expand breadth"
-    technique: elaboration
     signal_weights:
       # Global signals
       llm.uncertainty: 0.4
@@ -211,7 +208,6 @@ strategies:
   # Strategy 4: Reflect and validate (validation)
   - name: reflect
     description: "Summarize what you've heard and invite correction or addition to validate understanding"
-    technique: validation
     signal_weights:
       # Global signals
       graph.max_depth: 0.7
@@ -229,7 +225,6 @@ strategies:
   # Strategy 5: Revitalize engagement (elaboration) - Phase 5
   - name: revitalize
     description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
-    technique: elaboration
     signal_weights:
       # Fatigue detection triggers (Phase 5)
       llm.global_response_trend.fatigued: 1.0  # Trigger on fatigue
