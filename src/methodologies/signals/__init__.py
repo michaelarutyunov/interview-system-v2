@@ -15,7 +15,7 @@ Example usage:
 """
 
 # Base classes
-from src.methodologies.signals.common import SignalDetector
+from src.methodologies.signals.signal_base import SignalDetector
 
 # Graph signals
 from src.methodologies.signals.graph import (

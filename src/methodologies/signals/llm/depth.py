@@ -1,6 +1,6 @@
 """Response depth signals - how deep the response is."""
 
-from src.methodologies.signals.llm.common import BaseLLMSignal
+from src.methodologies.signals.llm.llm_signal_base import BaseLLMSignal
 
 
 class ResponseDepthSignal(BaseLLMSignal):

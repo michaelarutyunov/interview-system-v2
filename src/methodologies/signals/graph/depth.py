@@ -1,6 +1,6 @@
 """Graph depth signals - max depth, average depth, depth by element."""
 
-from src.methodologies.signals.common import SignalDetector
+from src.methodologies.signals.signal_base import SignalDetector
 
 
 class GraphMaxDepthSignal(SignalDetector):

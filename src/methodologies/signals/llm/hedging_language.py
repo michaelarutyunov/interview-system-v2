@@ -8,7 +8,7 @@ This signal uses LLM analysis to detect:
 Levels: none / low / medium / high
 """
 
-from src.methodologies.signals.llm.common import BaseLLMSignal
+from src.methodologies.signals.llm.llm_signal_base import BaseLLMSignal
 import re
 
 

@@ -6,7 +6,7 @@ per node. These signals enable joint strategy-node scoring.
 
 from typing import Optional
 
-from src.methodologies.signals.common import SignalDetector
+from src.methodologies.signals.signal_base import SignalDetector
 from src.services.node_state_tracker import NodeStateTracker
 from src.domain.models.node_state import NodeState
 

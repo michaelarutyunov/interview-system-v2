@@ -8,7 +8,7 @@ This signal aggregates response depth across the session to detect:
 """
 
 from typing import Optional, List
-from src.methodologies.signals.common import SignalDetector
+from src.methodologies.signals.signal_base import SignalDetector
 
 
 class GlobalResponseTrendSignal(SignalDetector):

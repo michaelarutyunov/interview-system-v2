@@ -1,6 +1,6 @@
 """Response quality signals - sentiment, uncertainty, ambiguity."""
 
-from src.methodologies.signals.llm.common import BaseLLMSignal
+from src.methodologies.signals.llm.llm_signal_base import BaseLLMSignal
 
 
 class SentimentSignal(BaseLLMSignal):

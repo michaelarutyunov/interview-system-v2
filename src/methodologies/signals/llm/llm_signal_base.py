@@ -1,6 +1,6 @@
 """Base class for LLM-based signals."""
 
-from src.methodologies.signals.common import SignalDetector
+from src.methodologies.signals.signal_base import SignalDetector
 
 
 class BaseLLMSignal(SignalDetector):

@@ -1,6 +1,6 @@
 """Graph structure signals - node count, edge count, orphans."""
 
-from src.methodologies.signals.common import SignalDetector
+from src.methodologies.signals.signal_base import SignalDetector
 
 
 class GraphNodeCountSignal(SignalDetector):

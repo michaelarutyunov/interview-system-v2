@@ -1,6 +1,6 @@
 """Meta progress signals - interview progress, completion likelihood."""
 
-from src.methodologies.signals.common import SignalDetector
+from src.methodologies.signals.signal_base import SignalDetector
 
 
 class InterviewProgressSignal(SignalDetector):

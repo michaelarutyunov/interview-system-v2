@@ -7,7 +7,7 @@ Detects the current interview phase based on graph state:
 """
 
 from src.core.exceptions import ConfigurationError
-from src.methodologies.signals.common import SignalDetector
+from src.methodologies.signals.signal_base import SignalDetector
 
 
 class InterviewPhaseSignal(SignalDetector):

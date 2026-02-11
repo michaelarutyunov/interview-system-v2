@@ -1,6 +1,6 @@
 """Strategy history signals - repetition count, turns since change."""
 
-from src.methodologies.signals.common import SignalDetector
+from src.methodologies.signals.signal_base import SignalDetector
 
 
 class StrategyRepetitionCountSignal(SignalDetector):

@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Set
 
 from src.core.exceptions import ConfigurationError, GraphError
 from src.core.schema_loader import load_methodology
-from src.methodologies.signals.common import SignalDetector
+from src.methodologies.signals.signal_base import SignalDetector
 
 
 class ChainCompletionSignal(SignalDetector):

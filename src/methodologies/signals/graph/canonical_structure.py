@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from src.methodologies.signals.common import SignalDetector
+from src.methodologies.signals.signal_base import SignalDetector
 
 if TYPE_CHECKING:
     from src.services.turn_pipeline.context import PipelineContext
