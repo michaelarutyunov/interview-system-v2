@@ -170,8 +170,10 @@ signals:
 
   llm:
     - llm.response_depth
-    - llm.sentiment
-    - llm.uncertainty
+    - llm.valence
+    - llm.certainty
+    - llm.specificity
+    - llm.engagement
 
   temporal:
     - temporal.strategy_repetition_count
@@ -188,39 +190,44 @@ signal_norms:
   graph.max_depth: 6
   temporal.strategy_repetition_count: 5
   temporal.turns_since_strategy_change: 5
+  llm.response_depth: 5
+  llm.valence: 5
+  llm.certainty: 5
+  llm.specificity: 5
+  llm.engagement: 5
 
 strategies:
   - name: explore_incident
     description: "Explore the incident details - what happened, when, where"
     signal_weights:
-      llm.uncertainty: 0.5
+      llm.certainty.low: 0.5
       graph.orphan_count: 0.7
       temporal.strategy_repetition_count: 0.6
 
   - name: explore_outcomes
     description: "Understand what happened as a result and why it mattered"
     signal_weights:
-      llm.response_depth.surface: 0.8
+      llm.response_depth.low: 0.8
       graph.node_count: 0.5
 
   - name: explore_emotions
     description: "Understand the emotional response and feelings"
     signal_weights:
-      llm.sentiment.positive: 0.7
-      llm.sentiment.negative: 0.7
-      llm.response_depth.moderate: 0.5
+      llm.valence.high: 0.7
+      llm.valence.low: 0.7
+      llm.response_depth.mid: 0.5
 
   - name: explore_attributions
     description: "Understand what they believe caused the outcome"
     signal_weights:
       graph.node_count: 0.6
-      llm.response_depth.moderate: 0.7
+      llm.response_depth.mid: 0.7
 
   - name: explore_learnings
     description: "Identify insights and how they changed understanding"
     signal_weights:
       graph.max_depth: 0.8
-      llm.response_depth.deep: 0.9
+      llm.response_depth.high: 0.9
 
   - name: explore_behavior_change
     description: "Understand how the incident influenced future behavior"

@@ -134,9 +134,10 @@ signals:
 
   llm:
     - llm.response_depth
-    - llm.sentiment
-    - llm.uncertainty
-    - llm.hedging_language
+    - llm.valence
+    - llm.certainty
+    - llm.specificity
+    - llm.engagement
     # Note: llm.global_response_trend is session-scoped and managed separately
 
   temporal:
@@ -162,6 +163,11 @@ signal_norms:
   graph.canonical_exhaustion_score: 1.0 # Already normalized 0-1
   temporal.strategy_repetition_count: 5  # Last 5 turns tracked
   temporal.turns_since_strategy_change: 5  # Practical max before forced pivot
+  llm.response_depth: 5
+  llm.valence: 5
+  llm.certainty: 5
+  llm.specificity: 5
+  llm.engagement: 5
 
 strategies:
   # Strategy 1: Deepen the chain (laddering)
@@ -169,8 +175,8 @@ strategies:
     description: "Explore why something matters to understand deeper motivations and values through progressive 'why' questioning"
     signal_weights:
       # Global signals
-      llm.response_depth.surface: 0.8
-      llm.response_depth.moderate: 0.3
+      llm.response_depth.low: 0.8
+      llm.response_depth.mid: 0.3
       graph.max_depth: 0.5
       graph.chain_completion.has_complete_chain.false: 1.0
       # Node-level signals (Phase 3)
@@ -195,7 +201,7 @@ strategies:
     description: "Find new branches and related concepts by asking 'what else?' to expand breadth"
     signal_weights:
       # Global signals
-      llm.uncertainty: 0.4
+      llm.certainty.low: 0.4
       temporal.strategy_repetition_count: 0.5
       # Canonical graph signals (Phase 4, experimental)
       graph.canonical_concept_count: -0.1  # Fewer stable concepts = explore more
@@ -212,10 +218,10 @@ strategies:
       # Global signals
       graph.max_depth: 0.7
       meta.interview_progress: 0.5
-      llm.response_depth.deep: 0.6
+      llm.response_depth.high: 0.6
       # Uncertainty/hedging triggers (Phase 5)
-      llm.hedging_language.high: 1.0  # Trigger on high uncertainty
-      llm.hedging_language.medium: 0.7  # Trigger on medium uncertainty
+      llm.certainty.low: 1.0  # Trigger on high uncertainty
+      llm.certainty.mid: 0.7  # Trigger on medium uncertainty
       meta.node.opportunity.probe_deeper: 0.6  # Extraction opportunity
       # Node-level signals (Phase 3)
       graph.node.edge_count.high: 0.8  # Well-connected nodes

@@ -181,8 +181,10 @@ signals:
 
   llm:
     - llm.response_depth
-    - llm.sentiment
-    - llm.uncertainty
+    - llm.valence
+    - llm.certainty
+    - llm.specificity
+    - llm.engagement
 
   temporal:
     - temporal.strategy_repetition_count
@@ -199,25 +201,30 @@ signal_norms:
   graph.max_depth: 6
   temporal.strategy_repetition_count: 5
   temporal.turns_since_strategy_change: 5
+  llm.response_depth: 5
+  llm.valence: 5
+  llm.certainty: 5
+  llm.specificity: 5
+  llm.engagement: 5
 
 strategies:
   - name: triadic_elicitation
     description: "Compare elements to elicit constructs using similarity/difference"
     signal_weights:
       graph.node_count: 0.8
-      llm.uncertainty: 0.6
+      llm.certainty.low: 0.6
 
   - name: explore_constructs
     description: "Explore the meaning and importance of identified constructs"
     signal_weights:
       graph.edge_count: 0.7
-      llm.response_depth.moderate: 0.8
+      llm.response_depth.mid: 0.8
 
   - name: ladder_constructs
     description: "Use 'why does that matter' to reveal higher-level constructs"
     signal_weights:
       graph.max_depth: 0.9
-      llm.response_depth.deep: 0.9
+      llm.response_depth.high: 0.9
 
   - name: explore_ideal
     description: "Understand the ideal product specification and what defines it"
@@ -229,7 +236,7 @@ strategies:
     description: "Identify shared characteristics between elements"
     signal_weights:
       graph.orphan_count: 0.6
-      llm.uncertainty: 0.4
+      llm.certainty.low: 0.4
 
 phases:
   early:

@@ -90,6 +90,7 @@ class ComposedSignalDetector:
         """Check if a signal name is an LLM signal."""
         try:
             from src.signals.llm.decorator import _registered_llm_signals
+
             signal_cls = _registered_llm_signals.get(signal_name)
             return signal_cls is not None and issubclass(signal_cls, BaseLLMSignal)
         except (AttributeError, ImportError):
@@ -106,7 +107,11 @@ class ComposedSignalDetector:
     @classmethod
     def get_known_signal_names(cls) -> Set[str]:
         """Return set of all registered signal names."""
-        return set(SignalDetector.get_registered_signals().keys())
+        from src.signals.llm.decorator import _registered_llm_signals
+
+        known = set(SignalDetector.get_registered_signals().keys())
+        known.update(_registered_llm_signals.keys())
+        return known
 
     async def detect(
         self,
@@ -130,13 +135,17 @@ class ComposedSignalDetector:
         all_signals: dict[str, Any] = {}
 
         # Detect non-LLM signals using individual calls
-        for signal_name, detector in zip(self.non_llm_detectors, self.non_llm_detectors):
+        for signal_name, detector in zip(
+            self.non_llm_detectors, self.non_llm_detectors
+        ):
             if signal_name not in self.llm_signal_names:
                 # For signals with dependencies, provide context with previous signals
                 if detector.dependencies:
+
                     class _ContextWithSignals:
                         def __init__(self, signals_dict):
                             self.signals = signals_dict
+
                     detect_context = _ContextWithSignals(all_signals)
                 else:
                     detect_context = context
@@ -162,6 +171,7 @@ class ComposedSignalDetector:
             try:
                 # Get LLM signal classes from registry for batch detection
                 from src.signals.llm.decorator import _registered_llm_signals
+
                 llm_signal_classes = [
                     _registered_llm_signals[name]
                     for name in self.llm_signal_names

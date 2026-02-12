@@ -99,6 +99,20 @@ def _get_signal_value(signal_key: str, signals: Dict[str, Any]) -> Any:
 
         if base_signal in signals:
             actual_value = signals[base_signal]
+
+            # Threshold binning for integer signals (1-5 Likert scale)
+            if isinstance(actual_value, int) and expected_value in (
+                "low",
+                "mid",
+                "high",
+            ):
+                if expected_value == "low":
+                    return actual_value <= 2
+                elif expected_value == "mid":
+                    return actual_value == 3
+                elif expected_value == "high":
+                    return actual_value >= 4
+
             # Return True if values match (for boolean scoring)
             return actual_value == expected_value
 
@@ -149,6 +163,9 @@ def rank_strategies(
         final_score = (base_score * multiplier) + bonus
 
         scored.append((strategy_config, final_score))
+
+    # Sort by score descending
+    scored.sort(key=lambda x: x[1], reverse=True)
 
     # Log scores for debugging
     log.info(

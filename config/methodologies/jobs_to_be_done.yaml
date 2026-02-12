@@ -184,9 +184,10 @@ signals:
 
   llm:
     - llm.response_depth
-    - llm.sentiment
-    - llm.ambiguity
-    - llm.hedging_language
+    - llm.valence
+    - llm.certainty
+    - llm.specificity
+    - llm.engagement
     # Note: llm.global_response_trend is session-scoped and managed separately
 
   temporal:
@@ -206,6 +207,11 @@ signal_norms:
   graph.max_depth: 8         # JTBD chains can be deep (situation → outcome)
   temporal.strategy_repetition_count: 5  # Last 5 turns tracked
   temporal.turns_since_strategy_change: 5  # Practical max before forced pivot
+  llm.response_depth: 5
+  llm.valence: 5
+  llm.certainty: 5
+  llm.specificity: 5
+  llm.engagement: 5
 
 strategies:
   # Strategy 1: Explore the situation (elaboration)
@@ -214,7 +220,7 @@ strategies:
     signal_weights:
       # Global signals
       graph.node_count: -0.3
-      llm.sentiment.neutral: 0.5
+      llm.valence.mid: 0.5
       temporal.strategy_repetition_count: 0.4
       # Node-level signals (Phase 3)
       graph.node.focus_streak.none: 1.0  # Fresh nodes
@@ -226,7 +232,7 @@ strategies:
     description: "Discover what other solutions or approaches the user has considered"
     signal_weights:
       # Global signals
-      llm.ambiguity: 0.4
+      llm.specificity.high: 0.4
       # Node-level signals (Phase 3)
       graph.node.is_orphan.true: 1.0  # Boost orphan nodes
       graph.node.edge_count.low: 0.5  # Less connected nodes
@@ -237,7 +243,7 @@ strategies:
     description: "Probe deeper with 'why' questions to uncover underlying functional and emotional jobs"
     signal_weights:
       # Global signals
-      llm.response_depth.surface: 0.7
+      llm.response_depth.low: 0.7
       graph.max_depth: -0.4
       temporal.turns_since_strategy_change: 0.3
       # Node-level signals (Phase 3)
@@ -252,10 +258,10 @@ strategies:
       # Global signals
       meta.interview_progress: 0.6
       graph.max_depth: 0.5
-      llm.response_depth.deep: 0.4
+      llm.response_depth.high: 0.4
       # Uncertainty/hedging triggers (Phase 5)
-      llm.hedging_language.high: 1.0  # Trigger on high uncertainty
-      llm.hedging_language.medium: 0.7  # Trigger on medium uncertainty
+      llm.certainty.low: 1.0  # Trigger on high uncertainty
+      llm.certainty.mid: 0.7  # Trigger on medium uncertainty
       meta.node.opportunity.probe_deeper: 0.6  # Extraction opportunity
       # Node-level signals (Phase 3)
       graph.node.edge_count.high: 0.8  # Well-connected nodes
@@ -283,7 +289,7 @@ strategies:
     signal_weights:
       # Global signals
       graph.orphan_count: 0.5
-      llm.sentiment.negative: 0.3
+      llm.valence.low: 0.3
       temporal.turns_since_strategy_change: 0.2
       # Node-level signals (Phase 3)
       graph.node.is_orphan.true: 1.0  # Boost orphan nodes
