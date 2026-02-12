@@ -180,7 +180,7 @@ class ExtractionOutput(BaseModel):
 
 ### Pipeline Output: TurnResult
 
-**Phase 6 (2026-02-03)**: The `TurnResult` dataclass is the final output returned by the pipeline after all stages complete.
+**Pipeline Output**: The `TurnResult` dataclass is the final output returned by the pipeline after all stages complete.
 
 ```python
 @dataclass
@@ -249,9 +249,9 @@ These fields enable:
 - Understanding signal influence on scoring
 - Analyzing joint strategy-node selection behavior
 
-#### Canonical Graph Output (Phase 3)
+#### Canonical Graph Output
 
-**Phase 3 (2026-02-08)**: Dual-graph architecture adds canonical graph observability fields:
+The dual-graph architecture adds canonical graph observability fields:
 
 ```python
 canonical_graph = {
@@ -277,7 +277,7 @@ graph_comparison = {
 
 ### Continuation and Termination
 
-**Phase 9 (2026-02-03)**: The `ContinuationStage` (Stage 7) decides whether to continue the interview based on multiple termination conditions.
+The `ContinuationStage` (Stage 7) decides whether to continue the interview based on multiple termination conditions.
 
 #### Termination Reasons
 
@@ -311,11 +311,11 @@ If `should_continue=False`, the `termination_reason` field is set to explain why
 
 ## Signal Pools Architecture
 
-### Overview
+### Signal Pool Overview
 
-**Phase 6 (2026-01-28)**: The system now uses methodology-based signal detection with YAML configuration, replacing the old two-tier scoring system.
+The system uses methodology-based signal detection with YAML configuration.
 
-**Phase 6 (2026-01-29)**: Node-level signals enable per-node state tracking and intelligent backtracking.
+Node-level signals enable per-node state tracking and intelligent backtracking.
 
 **D1 Architecture (2026-01-30)**: Joint strategy-node scoring enables the system to select optimal (strategy, node) combinations, with node exhaustion awareness driving automatic backtracking.
 
