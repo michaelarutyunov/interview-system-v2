@@ -154,7 +154,7 @@ class MethodologyStrategyService:
         )
 
         # Detect interview phase
-        from src.methodologies.signals.meta.interview_phase import (
+        from src.signals.meta.interview_phase import (
             InterviewPhaseSignal,
         )
 

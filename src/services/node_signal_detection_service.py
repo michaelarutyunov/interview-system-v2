@@ -54,23 +54,19 @@ class NodeSignalDetectionService:
             Dict mapping node_id to dict of signal_name: value
             Example: {"node-123": {"graph.node.exhausted": True, ...}}
         """
-        # Import node signal detectors
-        from src.methodologies.signals.graph.node_exhaustion import (
+        # Import node signal detectors (consolidated modules)
+        from src.signals.graph.node_signals import (
             NodeExhaustedSignal,
             NodeExhaustionScoreSignal,
             NodeYieldStagnationSignal,
-        )
-        from src.methodologies.signals.graph.node_engagement import (
             NodeFocusStreakSignal,
             NodeIsCurrentFocusSignal,
             NodeRecencyScoreSignal,
-        )
-        from src.methodologies.signals.graph.node_relationships import (
             NodeIsOrphanSignal,
             NodeEdgeCountSignal,
             NodeHasOutgoingSignal,
         )
-        from src.methodologies.signals.technique.node_strategy_repetition import (
+        from src.signals.session.node_strategy_repetition import (
             NodeStrategyRepetitionSignal,
         )
 

@@ -6,7 +6,7 @@ Endpoints for session management and turn processing.
 
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import Response
@@ -29,8 +29,6 @@ from src.api.schemas import (
     EdgeSchema,
     GraphResponse,
     SessionStatusResponse,
-    ScoringCandidateSchema,
-    ScoringTurnResponse,
 )
 from src.api.dependencies import get_shared_extraction_client, get_shared_generation_client
 from src.core.config import settings
@@ -307,56 +305,6 @@ async def get_session_graph(
         node_count=len(nodes),
         edge_count=len(edges),
     )
-
-
-@router.get("/{session_id}/scoring/{turn_number}", response_model=ScoringTurnResponse)
-async def get_turn_scoring(
-    session_id: str,
-    turn_number: int,
-    service: SessionService = Depends(get_session_service),
-):
-    """Get all scoring candidates for a specific turn.
-
-    Returns all (strategy, focus) candidates that were considered,
-    including their Tier 1 veto results, Tier 2 scores, and final ranking.
-    """
-    scoring_data = await service.get_turn_scoring(session_id, turn_number)
-
-    # Convert candidates to schemas
-    candidates = [ScoringCandidateSchema(**c) for c in scoring_data["candidates"]]
-
-    return ScoringTurnResponse(
-        session_id=scoring_data["session_id"],
-        turn_number=scoring_data["turn_number"],
-        candidates=candidates,
-        winner_strategy_id=scoring_data["winner_strategy_id"],
-    )
-
-
-@router.get("/{session_id}/scoring", response_model=List[ScoringTurnResponse])
-async def get_all_scoring(
-    session_id: str,
-    service: SessionService = Depends(get_session_service),
-):
-    """Get all scoring data for all turns in a session.
-
-    Returns a list of turns with their candidates.
-    """
-    scoring_data_list = await service.get_all_scoring(session_id)
-
-    results = []
-    for scoring_data in scoring_data_list:
-        candidates = [ScoringCandidateSchema(**c) for c in scoring_data["candidates"]]
-        results.append(
-            ScoringTurnResponse(
-                session_id=scoring_data["session_id"],
-                turn_number=scoring_data["turn_number"],
-                candidates=candidates,
-                winner_strategy_id=scoring_data["winner_strategy_id"],
-            )
-        )
-
-    return results
 
 
 # ============ TURN PROCESSING ============

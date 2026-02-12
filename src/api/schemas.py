@@ -267,65 +267,6 @@ class SessionStatusResponse(BaseModel):
     phase: str = "unknown"  # Interview phase: exploratory, focused, or closing
 
 
-# ============ SCORING CANDIDATES SCHEMAS ============
-
-
-class Tier1ResultSchema(BaseModel):
-    """Legacy schema - kept for potential future use.
-
-    Note: Not currently populated by scoring endpoints.
-    """
-
-    scorer_id: str
-    is_veto: bool
-    reasoning: str
-    signals: Dict[str, Any] = Field(default_factory=dict)
-
-
-class Tier2ResultSchema(BaseModel):
-    """Legacy schema - kept for potential future use.
-
-    Note: Not currently populated by scoring endpoints.
-    """
-
-    scorer_id: str
-    raw_score: float
-    weight: float
-    contribution: float
-    reasoning: str
-    signals: Dict[str, Any] = Field(default_factory=dict)
-
-
-class ScoringCandidateSchema(BaseModel):
-    """Scoring candidate schema.
-
-    Note: tier1_results and tier2_results are legacy fields not currently
-    populated. The primary scoring data comes from strategy_selected and
-    reasoning fields.
-    """
-
-    id: str
-    strategy_id: str
-    strategy_name: str
-    focus_type: str
-    focus_description: Optional[str] = None
-    final_score: float
-    is_selected: bool
-    vetoed_by: Optional[str] = None
-    tier1_results: List[Tier1ResultSchema] = Field(default_factory=list)
-    tier2_results: List[Tier2ResultSchema] = Field(default_factory=list)
-    reasoning: Optional[str] = None
-
-
-class ScoringTurnResponse(BaseModel):
-    """Scoring candidates for a specific turn."""
-
-    session_id: str
-    turn_number: int
-    candidates: List[ScoringCandidateSchema]
-    winner_strategy_id: Optional[str] = None
-
-
 # ============ SIMULATION SCHEMAS ============
 
 

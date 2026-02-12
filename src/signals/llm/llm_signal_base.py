@@ -1,0 +1,1 @@
+"""Base class for LLM-based signals."""
