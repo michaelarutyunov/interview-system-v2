@@ -7,9 +7,12 @@ one API call to Kimi K2.5 (via scoring LLM client).
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Type
 
 from src.llm.client import LLMClient
+
+if TYPE_CHECKING:
+    from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 log = logging.getLogger(__name__)
 
@@ -121,7 +124,6 @@ class LLMBatchDetector:
 
 """
         for signal_name, signal_data in schema.items():
-            score_example = signal_data.get("score", 3)
             instructions += f'  "{signal_name}": {{"score": <integer 1-5>, "rationale": "<one sentence explanation, max 20 words>}}'
         instructions += "\n}"
         instructions += """

@@ -154,7 +154,7 @@ def llm_signal(
 
         return DynamicSignalClass
 
-    return decorator(cls)
+    return decorator
 
 
 # Ensure backward compatibility - decorator can be used as:
