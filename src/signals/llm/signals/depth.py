@@ -3,7 +3,7 @@
 from src.signals.llm.decorator import llm_signal
 
 
-@llm_signal(
+@llm_signal(  # type: ignore[type-var]
     signal_name="llm.response_depth",
     rubric_key="response_depth",
     description="Assesses quantity of elaboration on a 1-5 scale. 1=surface/minimal, 3=moderate, 5=deep/extensive.",

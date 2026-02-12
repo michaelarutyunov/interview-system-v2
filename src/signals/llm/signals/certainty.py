@@ -3,7 +3,7 @@
 from src.signals.llm.decorator import llm_signal
 
 
-@llm_signal(
+@llm_signal(  # type: ignore[type-var]
     signal_name="llm.certainty",
     rubric_key="certainty",
     description="Assesses epistemic certainty — how confident respondent appears in their knowledge. 1=very uncertain, 5=fully confident.",

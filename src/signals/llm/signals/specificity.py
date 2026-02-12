@@ -3,7 +3,7 @@
 from src.signals.llm.decorator import llm_signal
 
 
-@llm_signal(
+@llm_signal(  # type: ignore[type-var]
     signal_name="llm.specificity",
     rubric_key="specificity",
     description="Assesses referential specificity or concreteness on a 1-5 scale. 1=very specific, 5=highly ambiguous.",

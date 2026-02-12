@@ -3,7 +3,7 @@
 from src.signals.llm.decorator import llm_signal
 
 
-@llm_signal(
+@llm_signal(  # type: ignore[type-var]
     signal_name="llm.valence",
     rubric_key="emotional_valence",
     description="Assesses emotional tone of response. 1=strongly negative, 3=neutral, 5=strongly positive.",

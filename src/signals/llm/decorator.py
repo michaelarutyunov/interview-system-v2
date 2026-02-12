@@ -8,11 +8,15 @@ and handling prompt template loading. Each signal class becomes just:
 """
 
 from pathlib import Path
-from typing import Callable, Type, Any
+from typing import Callable, Dict, Type
 
 from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 PROMPTS_DIR = Path(__file__).parent.parent.parent / "prompts"
+
+# Registry to track all decorated LLM signal classes
+# Populated by the @llm_signal decorator for auto-discovery
+_registered_llm_signals: Dict[str, Type[BaseLLMSignal]] = {}
 
 
 def _load_prompt_template(template_name: str) -> str:
@@ -29,7 +33,7 @@ def _load_prompt_template(template_name: str) -> str:
         raise FileNotFoundError(f"Prompt template not found: {template_path}")
 
     with open(template_path) as f:
-        return f.read_text()
+        return f.read()
 
 
 def _parse_signals_rubrics() -> dict[str, str]:
@@ -44,7 +48,7 @@ def _parse_signals_rubrics() -> dict[str, str]:
         raise FileNotFoundError(f"Signals rubric not found: {signals_md_path}")
 
     with open(signals_md_path) as f:
-        content = f.read_text()
+        content = f.read()
 
     # Parse by signal sections (## signal_name)
     rubrics = {}
@@ -115,22 +119,28 @@ def llm_signal(
     """
 
     def decorator(cls: Type[BaseLLMSignal]) -> Type[BaseLLMSignal]:
+        # Capture outer scope variables for use in class body
+        _signal_name_val = signal_name
+        _description_val = description
+        _rubric_key_val = rubric_key
+        _output_schema_val = output_schema or {}
+
         # Create new class that inherits from BaseLLMSignal
-        class_name_from_attr = signal_name.replace("llm.", "").title().replace("_", "")
+        class_name_from_attr = _signal_name_val.replace("llm.", "").title().replace("_", "")
 
         class DynamicSignalClass(cls):
-            signal_name = signal_name
-            description = description
-            _rubric_key = rubric_key
-            _output_schema = output_schema or {}
+            signal_name = _signal_name_val
+            description = _description_val
+            _rubric_key = _rubric_key_val
+            _output_schema = _output_schema_val
 
             @classmethod
             def _get_prompt_spec(cls) -> str:
                 """Return the signal rubric from signals.md."""
                 rubrics = _parse_signals_rubrics()
-                if rubric_key not in rubrics:
-                    raise ValueError(f"Rubric key '{rubric_key}' not found in signals.md")
-                return rubrics[rubric_key]
+                if cls._rubric_key not in rubrics:
+                    raise ValueError(f"Rubric key '{cls._rubric_key}' not found in signals.md")
+                return rubrics[cls._rubric_key]
 
             @classmethod
             def _get_output_schema(cls) -> dict:
@@ -139,8 +149,8 @@ def llm_signal(
                     return cls._output_schema
                 # Default schema from output_example.json
                 example = _load_output_example()
-                if signal_name in example:
-                    return example[signal_name]
+                if cls.signal_name in example:
+                    return example[cls.signal_name]
                 else:
                     return {"type": "integer", "minimum": 1, "maximum": 5}
 
@@ -152,12 +162,9 @@ def llm_signal(
         DynamicSignalClass.__name__ = f"{cls.__name__}_{class_name_from_attr}"
         DynamicSignalClass.__module__ = cls.__module__
 
+        # Register the signal class for auto-discovery
+        _registered_llm_signals[_signal_name_val] = DynamicSignalClass
+
         return DynamicSignalClass
 
     return decorator
-
-
-# Ensure backward compatibility - decorator can be used as:
-# @llm_signal(...)  OR @llm_signal decorator
-_llm_signal_func: Callable[[Type[BaseLLMSignal]], Type[BaseLLMSignal]] = llm_signal  # type: ignore
-llm_signal: Any = _llm_signal_func  # type: ignore

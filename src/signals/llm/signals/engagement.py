@@ -3,7 +3,7 @@
 from src.signals.llm.decorator import llm_signal
 
 
-@llm_signal(
+@llm_signal(  # type: ignore[type-var]
     signal_name="llm.engagement",
     rubric_key="engagement",
     description="Assesses respondent's willingness to engage. 1=minimal effort, 5=high engagement.",

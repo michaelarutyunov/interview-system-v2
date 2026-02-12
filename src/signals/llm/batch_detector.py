@@ -7,8 +7,9 @@ one API call to Kimi K2.5 (via scoring LLM client).
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
+from src.core.exceptions import ScorerFailureError
 from src.llm.client import LLMClient
 
 if TYPE_CHECKING:
@@ -62,15 +63,38 @@ class LLMBatchDetector:
             raise FileNotFoundError(f"Prompt template not found: {template_path}")
 
         with open(template_path) as f:
-            return f.read_text()
+            return f.read()
 
     def _load_signal_rubrics(self) -> Dict[str, str]:
         """Parse signals.md to extract rubric sections.
 
         Returns:
             Dictionary mapping signal key to its rubric content
+            e.g., {"response_depth": "## response_depth\\n1=...", ...}
         """
-        return self._load_template("signals.md")
+        signals_md_path = self._prompts_dir / "signals.md"
+        if not signals_md_path.exists():
+            raise FileNotFoundError(f"Signals rubric not found: {signals_md_path}")
+
+        with open(signals_md_path) as f:
+            content = f.read()
+
+        # Parse by signal sections (## signal_name)
+        rubrics: Dict[str, List[str]] = {}
+        current_signal = None
+
+        for line in content.split("\n"):
+            line = line.strip()
+            if line.startswith("## ") and not line.startswith("## "):
+                # This is a signal section header
+                current_signal = line[3:].strip().lower()
+                rubrics[current_signal] = []
+            elif current_signal and line and not line.startswith("#") and line.strip():
+                # This is rubric content for current signal
+                rubrics[current_signal].append(line)
+
+        # Join rubric content
+        return {signal: "\n".join(content) for signal, content in rubrics.items()}
 
     def _load_output_example(self) -> Dict[str, Any]:
         """Load output_example.json to show expected format.
@@ -123,7 +147,7 @@ class LLMBatchDetector:
         instructions = """Output a JSON object with these exact keys:
 
 """
-        for signal_name, signal_data in schema.items():
+        for signal_name in schema.keys():
             instructions += f'  "{signal_name}": {{"score": <integer 1-5>, "rationale": "<one sentence explanation, max 20 words>}}'
         instructions += "\n}"
         instructions += """
@@ -138,7 +162,7 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
         self,
         response_text: str,
         question: str | None = None,
-        signal_classes: List[Type] = None,
+        signal_classes: Optional[List[Type]] = None,
     ) -> Dict[str, Any]:
         """Detect all LLM signals in a single batch call.
 
@@ -155,11 +179,9 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
         """
         if signal_classes is None:
             # Auto-discover all BaseLLMSignal subclasses
-            from src.signals.llm.decorator import llm_signal
+            from src.signals.llm.decorator import _registered_llm_signals
             # Collect all registered signal classes
-            signal_classes = []
-            for cls in llm_signal._registered_classes:
-                signal_classes.append(cls)
+            signal_classes = list(_registered_llm_signals.values())
             log.debug(f"Auto-discovered {len(signal_classes)} LLM signal classes")
         else:
             log.debug(f"Using {len(signal_classes)} explicitly provided signal classes")
@@ -172,21 +194,20 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
 
         # Make single LLM call
         try:
-            response = await self.llm_client.generate(
+            response = await self.llm_client.complete(
                 prompt=prompt,
-                response_format={"type": "json_object"},
             )
+            response_text = response.content
 
-            log.debug(f"LLM batch response: {response[:200]}...")
+            log.debug(f"LLM batch response: {response_text[:200]}...")
 
         except Exception as e:
             log.error(f"LLM batch call failed: {e}", exc_info=True)
-            from src.core.exceptions import ScorerFailureError
             raise ScorerFailureError(f"LLM signal detection failed: {e}") from e
 
         # Parse JSON response
         try:
-            result = json.loads(response)
+            result = json.loads(response_text)
         except json.JSONDecodeError as e:
             log.error(f"Failed to parse LLM response as JSON: {e}", exc_info=True)
             raise ScorerFailureError(f"Invalid LLM response: {e}") from e
@@ -229,5 +250,5 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
     @staticmethod
     def _registered_classes() -> List[Type["BaseLLMSignal"]]:
         """Get all registered LLM signal classes."""
-        from src.signals.llm.decorator import llm_signal
-        return list(llm_signal._registered_classes)
+        from src.signals.llm.decorator import _registered_llm_signals
+        return list(_registered_llm_signals.values())

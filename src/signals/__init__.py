@@ -14,7 +14,7 @@ Importing from this module triggers registration of all signals.
 from src.signals.graph import (
     GraphNodeCountSignal,
     GraphEdgeCountSignal,
-    GraphOrphanCountSignal,
+    OrphanCountSignal,
     GraphMaxDepthSignal,
     GraphAvgDepthSignal,
     DepthByElementSignal,
@@ -28,8 +28,6 @@ from src.signals.graph import (
     NodeYieldStagnationSignal,
     NodeFocusStreakSignal,
     NodeIsCurrentFocusSignal,
-    # Graph structure signals
-    GraphDensitySignal,
 )
 
 # LLM signals - imports all LLM signals via llm/__init__.py
@@ -46,7 +44,7 @@ from src.signals.llm.batch_detector import LLMBatchDetector
 
 # Base classes
 from src.signals.signal_base import SignalDetector
-from src.signals.graph.node_base import GraphSignalDetector
+from src.signals.graph.node_base import NodeSignalDetector
 from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 # Session signals - imports all session signals via session/__init__.py
@@ -67,12 +65,12 @@ from src.signals.meta import (
 __all__ = [
     # Base classes
     "SignalDetector",
-    "GraphSignalDetector",
+    "NodeSignalDetector",
     "BaseLLMSignal",
     # Graph signals
     "GraphNodeCountSignal",
     "GraphEdgeCountSignal",
-    "GraphOrphanCountSignal",
+    "OrphanCountSignal",
     "GraphMaxDepthSignal",
     "GraphAvgDepthSignal",
     "DepthByElementSignal",
@@ -86,8 +84,6 @@ __all__ = [
     "NodeYieldStagnationSignal",
     "NodeFocusStreakSignal",
     "NodeIsCurrentFocusSignal",
-    # Graph structure
-    "GraphDensitySignal",
     # LLM signals
     "ResponseDepthSignal",
     "SpecificitySignal",

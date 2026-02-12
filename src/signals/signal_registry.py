@@ -82,15 +82,15 @@ class ComposedSignalDetector:
         self._llm_detector: Optional[LLMBatchDetector] = None
         self.llm_signal_names = llm_signal_names
 
-        # Combine all detectors
-        self.detectors: self.non_llm_detectors
+        # Combine all detectors (will be set after LLM detector is configured)
+        self.detectors: List[SignalDetector] = []
 
     @staticmethod
     def _is_llm_signal(signal_name: str) -> bool:
         """Check if a signal name is an LLM signal."""
         try:
-            from src.signals.llm.decorator import llm_signal
-            signal_cls = llm_signal._registered_classes.get(signal_name)
+            from src.signals.llm.decorator import _registered_llm_signals
+            signal_cls = _registered_llm_signals.get(signal_name)
             return signal_cls is not None and issubclass(signal_cls, BaseLLMSignal)
         except (AttributeError, ImportError):
             return False
@@ -160,9 +160,12 @@ class ComposedSignalDetector:
         # Detect LLM signals using batch detector
         if self.llm_signal_names and self._llm_detector:
             try:
-                # Filter to only LLM detectors
-                llm_detectors = [
-                    d for d in self.detectors if d.signal_name in self.llm_signal_names
+                # Get LLM signal classes from registry for batch detection
+                from src.signals.llm.decorator import _registered_llm_signals
+                llm_signal_classes = [
+                    _registered_llm_signals[name]
+                    for name in self.llm_signal_names
+                    if name in _registered_llm_signals
                 ]
 
                 log.debug(
@@ -172,10 +175,8 @@ class ComposedSignalDetector:
 
                 # Batch all LLM signals in one call
                 llm_signals = await self._llm_detector.detect(
-                    context=context,
-                    graph_state=graph_state,
                     response_text=response_text,
-                    signal_classes=llm_detectors,
+                    signal_classes=llm_signal_classes,
                 )
 
                 # Merge LLM signal results into all_signals
