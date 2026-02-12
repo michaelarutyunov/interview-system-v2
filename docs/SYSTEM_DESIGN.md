@@ -229,7 +229,7 @@ class TurnResult:
 
 - **`signals`**: Raw methodology signals from all signal pools
   - `graph.*`: Global and node-level graph signals
-  - `llm.*`: Response depth, sentiment, uncertainty
+  - `llm.*`: Response depth, valence, certainty, specificity, engagement
   - `temporal.*`: Strategy repetition, turns since change
   - `meta.*`: Interview progress, phase, node opportunity
 
@@ -321,9 +321,9 @@ Signal pools enable flexible strategy selection by collecting signals from multi
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    ComposedSignalDetector                   │
-│  - Orchestrates signal detection from all pools             │
-│  - Two-pass detection (non-meta first, then meta)           │
+│              GlobalSignalDetectionService                   │
+│  - Uses ComposedSignalDetector for global signals           │
+│  - Dependency-ordered detection (topological sort)          │
 └─────────────────────────────────────────────────────────────┘
                             ↓
         ┌───────────────────┼───────────────────┬───────────────┐
@@ -333,10 +333,11 @@ Signal pools enable flexible strategy selection by collecting signals from multi
 │              │   │              │   │              │ │              │
 │Global:       │   │ - response_  │   │ - strategy_  │ │Node-level:   │
 │ - node_count │   │   depth      │   │   repetition │ │ - strategy_  │
-│ - max_depth  │   │ - sentiment  │   │ - turns_     │ │   repetition │
-│ - chain_comp │   │ - uncertainty │   │   since_     │ │              │
-│              │   │ - hedging    │   │   strategy   │ └──────────────┘
-│Node-level:   │   │ - global_    │   │   change     │
+│ - max_depth  │   │ - valence    │   │ - turns_     │ │   repetition │
+│ - chain_comp │   │ - certainty  │   │   since_     │ │              │
+│              │   │ - specificity│   │   strategy   │ └──────────────┘
+│              │   │ - engagement │   │   change     │
+│Node-level:   │   │ - global_    │   │              │
 │ - exhausted  │   │   trend      │   │              │
 │ - yield_stag │   │              │   │              │
 │ - focus_     │   │              │   │              │
@@ -370,7 +371,7 @@ All signals use dot-notation namespacing to prevent collisions:
 |------|-----------|-----------------|
 | **Graph (Global)** | `graph.*` | node_count, max_depth, orphan_count, chain_completion |
 | **Graph (Node)** | `graph.node.*` | exhausted, exhaustion_score, yield_stagnation, focus_streak, recency_score, is_orphan, edge_count |
-| **LLM** | `llm.*` | response_depth, sentiment, uncertainty, ambiguity, hedging_language, global_response_trend |
+| **LLM** | `llm.*` | response_depth, valence, certainty, specificity, engagement, global_response_trend |
 | **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_strategy_change |
 | **Meta (Global)** | `meta.*` | interview_progress, interview.phase |
 | **Meta (Node)** | `meta.node.*` | opportunity (exhausted/probe_deeper/fresh) |
@@ -381,22 +382,22 @@ All signals use dot-notation namespacing to prevent collisions:
 ```mermaid
 graph LR
     A[methodology_config.yaml] -->|MethodologyRegistry.load| B[MethodologyConfig]
-    B -->|config.signals| C[ComposedSignalDetector]
+    B -->|config.signals| C[GlobalSignalDetectionService]
     B -->|config.strategies| D[rank_strategy_node_pairs]
     B -->|config.phases| E[Phase Weights + Bonuses]
 
-    C -->|detect global| F[Global Signals Dict]
-    C -->|detect per-node| G[Node Signals Dict]
+    C -->|ComposedSignalDetector| F[Global Signals Dict]
+    G[NodeSignalDetectionService] -->|hardcoded detectors| H[Node Signals Dict]
 
-    F --> H{phase in config?}
-    G --> H
-    E --> H
+    F --> I{phase in config?}
+    H --> I
+    E --> I
 
-    H -->|Yes| I[Load phase weights + bonuses]
-    H -->|No| J[No phase modifiers]
+    I -->|Yes| J[Load phase weights + bonuses]
+    I -->|No| K[No phase modifiers]
 
-    I --> K[rank_strategy_node_pairs]
-    J --> K
+    J --> L[rank_strategy_node_pairs]
+    K --> L
 
     K --> L[For Each Strategy × Node Pair]
     L --> M[Merge global + node signals]
@@ -580,14 +581,14 @@ The knowledge graph stores:
   - `id`: Unique node identifier
   - `text`: Concept text
   - `node_type`: Type classification (attribute, functional, psychosocial, etc.)
-  - `utterance_id`: Source utterance for traceability
+  - `source_utterance_ids`: Source utterances for traceability (supports multiple sources)
 
 - **Edges**: Relationships between concepts
   - `id`: Unique edge identifier
   - `source_node_id`: Source node
   - `target_node_id`: Target node
   - `relationship_type`: Type of relationship
-  - `utterance_id`: Source utterance for traceability
+  - `source_utterance_ids`: Source utterances for traceability (supports multiple sources)
 
 ### Graph State Metrics
 
@@ -602,7 +603,7 @@ class GraphState:
     max_depth: int               # Maximum chain depth
     orphan_count: int            # Nodes with no edges
     current_phase: str           # Interview phase (exploratory/focused/closing)
-    strategy_history: deque      # Recent strategies for diversity tracking
+    strategy_history: List[str]  # Recent strategies for diversity tracking
 ```
 
 These metrics drive strategy selection via signal pools.
@@ -841,7 +842,7 @@ The `score_strategy()` function normalizes numeric signals to [0, 1] using `sign
 # → normalized value = 25/50 = 0.5
 
 # Signals already in [0, 1] pass through unchanged
-# Example: llm.uncertainty = 0.7 → no normalization needed
+# Example: llm.certainty = 0.7 → no normalization needed
 
 # If a numeric signal > 1 has no norm defined, raises ValueError
 # This forces methodology configs to declare expected ranges explicitly
