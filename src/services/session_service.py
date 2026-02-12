@@ -12,7 +12,6 @@ from datetime import datetime
 from typing import Optional, List, Dict, TYPE_CHECKING
 from uuid import uuid4
 
-import aiosqlite
 import structlog
 
 from src.core.config import interview_config, settings
@@ -608,94 +607,6 @@ class SessionService:
             "strategy_reasoning": reasoning,
             "phase": phase,
         }
-
-    async def get_turn_scoring(self, session_id: str, turn_number: int) -> dict:
-        """
-        Get scoring data for a specific turn from scoring_history.
-
-        Returns a single "candidate" representing the selected strategy.
-
-        Args:
-            session_id: Session ID
-            turn_number: Turn number
-
-        Returns:
-            Dict with session_id, turn_number, candidates list, and winner_strategy_id
-        """
-        # Query scoring_history instead of scoring_candidates
-        async with aiosqlite.connect(self.session_repo.db_path) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                """SELECT * FROM scoring_history
-                   WHERE session_id = ? AND turn_number = ?""",
-                (session_id, turn_number),
-            )
-            row = await cursor.fetchone()
-
-        if not row:
-            return {
-                "session_id": session_id,
-                "turn_number": turn_number,
-                "candidates": [],
-                "winner_strategy_id": None,
-            }
-
-        # Convert scoring_history row to candidate format
-        scorer_details = (
-            json.loads(row["scorer_details"]) if row["scorer_details"] else {}
-        )
-
-        candidate = {
-            "id": row["id"],
-            "strategy_id": row["strategy_selected"],
-            "strategy_name": row["strategy_selected"],  # Same as ID
-            "focus_type": "selected",  # Placeholder since scoring_history doesn't track focus
-            "focus_description": None,
-            "final_score": scorer_details.get(
-                "final_score", 0.0
-            ),  # Extract from JSON if available
-            "is_selected": True,  # Always true since this is the winner
-            "vetoed_by": None,
-            "tier1_results": [],  # Not tracked in scoring_history
-            "tier2_results": [],  # Not tracked in scoring_history
-            "reasoning": row["strategy_reasoning"],
-        }
-
-        return {
-            "session_id": session_id,
-            "turn_number": turn_number,
-            "candidates": [candidate],  # Single candidate (the winner)
-            "winner_strategy_id": row["strategy_selected"],
-        }
-
-    async def get_all_scoring(self, session_id: str) -> list:
-        """
-        Get all scoring data for all turns in a session.
-
-        Args:
-            session_id: Session ID
-
-        Returns:
-            List of turn scoring dicts
-        """
-        # Get all turn numbers from scoring_history
-        async with aiosqlite.connect(self.session_repo.db_path) as db:
-            cursor = await db.execute(
-                """SELECT DISTINCT turn_number
-                   FROM scoring_history
-                   WHERE session_id = ?
-                   ORDER BY turn_number""",
-                (session_id,),
-            )
-            rows = await cursor.fetchall()
-            turn_numbers = [row[0] for row in rows]
-
-        results = []
-        for turn_num in turn_numbers:
-            turn_data = await self.get_turn_scoring(session_id, turn_num)
-            results.append(turn_data)
-
-        return results
 
     # ==================== NODE TRACKER STATE PERSISTENCE ====================
 

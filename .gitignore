@@ -39,6 +39,6 @@ sessions/*
 
 # Synthetic interview results
 synthetic_interviews/
-
+tests_archive_*/
 
 
