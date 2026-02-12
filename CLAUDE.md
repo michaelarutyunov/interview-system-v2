@@ -4,7 +4,7 @@
 
 ## Project Overview
 
-The Interview System v2 is a knowledge-graph-based conversational **semi-structured** interview system that uses a **12-stage turn processing pipeline** (10 base stages + 2 optional) with adaptive strategy selection.
+The Interview System v2 is a knowledge-graph-based conversational **semi-structured** interview system that uses a **12-stage turn processing pipeline** with adaptive strategy selection.
 
 ---
 
@@ -111,8 +111,10 @@ src/
 |-------|------|---------|
 | 1 | `context_loading_stage.py` | Load session context, graph state |
 | 2 | `utterance_saving_stage.py` | Save user input |
+| 2.5 | `srl_preprocessing_stage.py` | Linguistic structure extraction (SRL) |
 | 3 | `extraction_stage.py` | Extract concepts/relationships |
 | 4 | `graph_update_stage.py` | Update knowledge graph |
+| 4.5 | `slot_discovery_stage.py` | Canonical slot discovery (dual-graph) |
 | 5 | `state_computation_stage.py` | Refresh graph state metrics |
 | 6 | `strategy_selection_stage.py` | Select questioning strategy (Signal Pools) |
 | 7 | `continuation_stage.py` | Decide if interview continues |
