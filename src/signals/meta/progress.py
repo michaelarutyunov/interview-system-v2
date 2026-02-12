@@ -1,21 +1,31 @@
-"""Meta progress signals - interview progress, completion likelihood."""
+"""Meta progress signals for interview completion estimation.
+
+Provides interview progress metrics that indicate when the conversation
+has sufficient coverage to begin closing. Progress is computed from
+multiple graph state signals to balance breadth, depth, and structure.
+"""
 
 from src.signals.signal_base import SignalDetector
 
 
 class InterviewProgressSignal(SignalDetector):
-    """Estimates interview progress based on multiple signals.
+    """Estimate overall interview progress from chain completion, depth, and node count.
+
+    Computes a weighted progress score (0.0-1.0) combining three graph
+    health metrics to determine interview maturity. Higher values suggest
+    sufficient coverage for closing strategies.
+
+    Scoring components (weighted average):
+    - Chain completion (40%): Ratio of level-1 nodes with complete chains
+    - Graph depth (40%): Normalized max_depth (depth >= 3 = 1.0)
+    - Node count (20%): Normalized node_count (>= 10 nodes = 1.0)
+
+    This composite signal enables continuation decisions by providing a
+    single metric for interview completeness.
 
     Namespaced signal: meta.interview_progress
-
-    Returns float 0-1:
-    - 0: Just started, minimal depth
-    - 1: Near completion, good depth and chain completion
-
-    Composites:
-    - Chain completion (graph.chain_completion)
-    - Graph depth (graph.max_depth)
-    - Node count (graph.node_count)
+    Cost: low (composes from existing signals in context.signals)
+    Refresh: per_turn (recomputed each turn after signal detection)
     """
 
     signal_name = "meta.interview_progress"
@@ -26,8 +36,21 @@ class InterviewProgressSignal(SignalDetector):
         "graph.node_count",
     ]
 
-    async def detect(self, context, graph_state, response_text):
-        """Calculate interview progress from multiple signals."""
+    async def detect(self, context, graph_state, response_text):  # noqa: ARG001
+        """Calculate interview progress from chain completion, depth, and node count.
+
+        Composes progress score from three graph health metrics using
+        weighted averaging. Requires context.signals to contain dependency
+        signals (chain_completion, max_depth, node_count).
+
+        Args:
+            context: Pipeline context with signals dict containing dependency values
+            graph_state: Current knowledge graph state (unused, composed from signals)
+            response_text: User's response text (unused, composed from signals)
+
+        Returns:
+            Dict with meta.interview_progress: float (0.0-1.0)
+        """
         # Need signals dict to compose from
         if not hasattr(context, "signals") or not context.signals:
             return {self.signal_name: 0.0}

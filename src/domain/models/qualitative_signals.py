@@ -1,9 +1,29 @@
-"""
-Qualitative signal models for LLM-based signal extraction.
+"""Qualitative signal domain models for LLM-based semantic analysis.
 
-These models represent semantic signals extracted from conversation history
-that provide deeper insight into respondent engagement, reasoning quality,
-and knowledge state than rule-based heuristics alone.
+This module defines Pydantic models for LLM-extracted qualitative signals
+that capture semantic patterns beyond rule-based heuristics. These signals
+provide deeper insight into respondent engagement, reasoning quality,
+emotional state, and knowledge boundaries.
+
+Signal Categories:
+    - Uncertainty: Type and depth of uncertainty (knowledge gaps vs curiosity)
+    - Reasoning: Quality of cognitive processing (causal, associative, reactive)
+    - Emotional: Engagement intensity and trajectory
+    - Contradiction: Stance reversals or inconsistent statements
+    - Knowledge Ceiling: Terminal vs exploratory "don't know" responses
+    - Concept Depth: Abstraction level (concrete vs abstract)
+
+Usage Pattern:
+    1. Conversation history analyzed by LLM after each turn
+    2. QualitativeSignalSet produced with multiple signal types
+    3. Signals consumed by Tier 1/Tier 2 scorers for nuanced decisions
+    4. More accurate strategy selection than graph metrics alone
+
+Design Notes:
+    - All signals include LLM confidence scores
+    - Reasoning field explains LLM's interpretation
+    - Examples field provides supporting quotes
+    - Metadata (turn_number, source_utterance_id, model) for traceability
 """
 
 from datetime import datetime, timezone
@@ -13,7 +33,22 @@ from pydantic import BaseModel, Field
 
 
 class UncertaintyType(str, Enum):
-    """Types of uncertainty expressed in responses."""
+    """Classification of uncertainty type expressed in user responses.
+
+    Distinguishes between productive uncertainty (leads to exploration)
+    and terminal uncertainty (indicates topic exhaustion).
+
+    Values:
+        - KNOWLEDGE_GAP: Acknowledged missing information, potential for learning
+        - CONCEPTUAL_CLARITY: Confusion about meaning, needs clarification
+        - CONFIDENCE_QUALIFICATION: Hedging language ("I think", "probably")
+        - EPISTEMIC_HUMILITY: Honest uncertainty about complex topics
+        - APATHY: Disengagement, lack of interest (terminal signal)
+
+    Used by:
+        - UncertaintySignal for classification
+        - Strategy selection to detect knowledge boundaries
+    """
 
     KNOWLEDGE_GAP = "knowledge_gap"  # "I don't know enough about this"
     CONCEPTUAL_CLARITY = "conceptual_clarity"  # "I'm not sure what you mean"
@@ -23,7 +58,22 @@ class UncertaintyType(str, Enum):
 
 
 class ReasoningQuality(str, Enum):
-    """Quality of reasoning exhibited in responses."""
+    """Classification of cognitive reasoning quality in responses.
+
+    Categorizes the depth and structure of respondent's
+    thought processes as revealed through conversation.
+
+    Values:
+        - CAUSAL: Clear cause-effect reasoning chains
+        - COUNTERFACTUAL: "What if" thinking, considers alternatives
+        - ASSOCIATIVE: Loose connections, word associations (shallow)
+        - REACTIVE: Simple responses without elaboration
+        - METACOGNITIVE: Thinking about thinking, self-reflection
+
+    Used by:
+        - ReasoningSignal for quality assessment
+        - Depth detection and strategy selection
+    """
 
     CAUSAL = "causal"  # Clear cause-effect reasoning
     COUNTERFACTUAL = "counterfactual"  # "What if" thinking, alternatives
@@ -33,7 +83,22 @@ class ReasoningQuality(str, Enum):
 
 
 class EmotionalIntensity(str, Enum):
-    """Emotional intensity levels."""
+    """Classification of emotional engagement intensity.
+
+    Tracks respondent's emotional state to distinguish genuine
+    interest from polite participation.
+
+    Values:
+        - HIGH_POSITIVE: Enthusiasm, excitement ("love", "amazing")
+        - MODERATE_POSITIVE: Interest, engagement, affirmation
+        - NEUTRAL: Factual, calm, informational
+        - MODERATE_NEGATIVE: Hesitation, discomfort, uncertainty
+        - HIGH_NEGATIVE: Frustration, hostility, disengagement
+
+    Used by:
+        - EmotionalSignal for intensity classification
+        - Engagement detection and rapport assessment
+    """
 
     HIGH_POSITIVE = "high_positive"  # Enthusiasm, excitement, "love", "amazing"
     MODERATE_POSITIVE = "moderate_positive"  # Interest, engagement
@@ -43,10 +108,22 @@ class EmotionalIntensity(str, Enum):
 
 
 class UncertaintySignal(BaseModel):
-    """Signal capturing type and depth of uncertainty in recent responses.
+    """LLM-detected uncertainty signal with type and severity classification.
 
-    Distinguishes between productive uncertainty (curiosity, conceptual clarity)
-    and terminal uncertainty (knowledge gaps, apathy).
+    Distinguishes between productive uncertainty (curiosity, conceptual
+    clarity needs) and terminal uncertainty (knowledge gaps, apathy).
+
+    Fields:
+        - uncertainty_type: Category from UncertaintyType enum
+        - confidence: LLM confidence in classification (0.0-1.0)
+        - severity: Impact score for decision-making (0.0-1.0)
+        - examples: Supporting quotes from conversation that led to detection
+        - reasoning: LLM explanation for classification
+
+    Strategy Implications:
+        - APATHY/KNOWLEDGE_GAP: Consider closing or topic switch
+        - CONCEPTUAL_CLARITY: Ask clarifying questions
+        - EPISTEMIC_HUMILITY: Can deepen with appropriate scaffolding
     """
 
     uncertainty_type: UncertaintyType

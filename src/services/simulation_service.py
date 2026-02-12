@@ -40,7 +40,11 @@ SYNTHETIC_OUTPUT_DIR = Path("synthetic_interviews")
 
 @dataclass
 class SimulationTurn:
-    """Single turn in simulated interview."""
+    """Single turn in simulated interview.
+
+    Contains the question asked, synthetic response generated, strategy selected,
+    and observability data including signals and alternatives.
+    """
 
     turn_number: int
     question: str
@@ -59,7 +63,12 @@ class SimulationTurn:
 
 @dataclass
 class SimulationResult:
-    """Result of simulated interview."""
+    """Result of simulated interview.
+
+    Contains complete interview transcript with turn-by-turn analysis,
+    knowledge graph diagnostics for both surface and canonical graphs,
+    and session metadata.
+    """
 
     concept_id: str
     concept_name: str
@@ -86,7 +95,7 @@ class SimulationService:
     """Service for AI-to-AI interview simulation.
 
     Orchestrates interviewer AI (SessionService) with synthetic respondent AI
-    to generate complete interview transcripts for testing.
+    to generate complete interview transcripts for testing and validation.
     """
 
     DEFAULT_MAX_TURNS = 10  # Default for simulations (shorter than real interviews)
@@ -97,7 +106,7 @@ class SimulationService:
         session_service: SessionService,
         synthetic_service: Optional[SyntheticService] = None,
     ):
-        """Initialize simulation service.
+        """Initialize simulation service with required dependencies.
 
         Args:
             session_service: Session service for interviewer AI
@@ -128,7 +137,7 @@ class SimulationService:
             session_id: Optional session ID (generates new if None)
 
         Returns:
-            SimulationResult with complete transcript
+            SimulationResult with complete transcript, graph diagnostics, and metadata
 
         Raises:
             ValueError: If concept or persona not found
@@ -280,6 +289,9 @@ class SimulationService:
     ) -> SimulationTurn:
         """Simulate a single interview turn.
 
+        Generates synthetic response to interviewer's question using the specified
+        persona and interview context.
+
         Args:
             session_id: Session ID
             turn_number: Turn number
@@ -339,7 +351,7 @@ class SimulationService:
 
         Returns:
             Tuple of (nodes_list, edges_list, canonical_slots_list, canonical_edges_list)
-            as JSON-compatible dicts
+            as JSON-compatible dicts for simulation result export
         """
         # Fetch surface graph from graph repository
         nodes = await self.session.graph_repo.get_nodes_by_session(session_id)
@@ -409,7 +421,7 @@ class SimulationService:
         return nodes_data, edges_data, canonical_slots_data, canonical_edges_data
 
     def _count_nodes_by_type(self, nodes: list[dict[str, Any]]) -> dict[str, int]:
-        """Count nodes by their type.
+        """Count nodes by their type for summary statistics.
 
         Args:
             nodes: List of serialized node dictionaries
@@ -424,7 +436,7 @@ class SimulationService:
         return counts
 
     def _count_edges_by_type(self, edges: list[dict[str, Any]]) -> dict[str, int]:
-        """Count edges by their type.
+        """Count edges by their type for summary statistics.
 
         Args:
             edges: List of serialized edge dictionaries
@@ -439,7 +451,7 @@ class SimulationService:
         return counts
 
     def _count_slots_by_type(self, slots: list[dict[str, Any]]) -> dict[str, int]:
-        """Count canonical slots by their node_type.
+        """Count canonical slots by their node_type for summary statistics.
 
         Args:
             slots: List of canonical slot dictionaries
@@ -454,7 +466,7 @@ class SimulationService:
         return counts
 
     def _count_canonical_edges_by_type(self, edges: list[dict[str, Any]]) -> dict[str, int]:
-        """Count canonical edges by their edge_type.
+        """Count canonical edges by their edge_type for summary statistics.
 
         Args:
             edges: List of canonical edge dictionaries
@@ -509,7 +521,7 @@ class SimulationService:
         await self.session.session_repo.create(session, config)
 
     async def _save_simulation_result(self, result: SimulationResult) -> Path:
-        """Save simulation result to JSON file.
+        """Save simulation result to JSON file in synthetic_interviews/.
 
         Args:
             result: SimulationResult to save
@@ -598,7 +610,7 @@ def get_simulation_service(
     session_repo: Optional[SessionRepository] = None,
     graph_repo: Optional[GraphRepository] = None,
 ) -> SimulationService:
-    """Factory for simulation service.
+    """Factory for simulation service with repository dependencies.
 
     Args:
         session_repo: Optional session repository (creates default if None)

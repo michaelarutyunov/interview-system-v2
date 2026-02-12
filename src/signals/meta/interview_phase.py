@@ -1,9 +1,13 @@
-"""Interview phase detection signal.
+"""Interview phase detection signal for adaptive strategy selection.
 
-Detects the current interview phase based on graph state:
-- early: Initial exploration, building graph structure
-- mid: Building depth and connections
-- late: Validation and verification
+Detects the current interview phase based on graph state metrics.
+Phase detection enables methodology-specific signal weights and bonuses
+to adjust questioning strategy as the interview progresses.
+
+Phases:
+- early: Initial exploration, building graph structure (node_count < early_max_nodes)
+- mid: Building depth and connections (early_max_nodes <= node_count < mid_max_nodes)
+- late: Validation and verification (node_count >= mid_max_nodes)
 """
 
 from src.core.exceptions import ConfigurationError
@@ -11,17 +15,23 @@ from src.signals.signal_base import SignalDetector
 
 
 class InterviewPhaseSignal(SignalDetector):
-    """Detect interview phase based on graph state.
+    """Detect interview phase from graph state metrics for adaptive strategy weights.
 
-    Uses graph state metrics to determine interview phase:
-    - node_count: Total number of nodes in graph
-    - max_depth: Maximum depth of the graph
-    - orphan_count: Number of orphan nodes (no connections)
+    Uses node count and orphan count to determine interview phase, enabling
+    methodology-specific signal weights and bonuses to adjust questioning
+    strategy as the interview progresses.
 
-    Phase boundaries are configurable per methodology via YAML config.
-    Falls back to default boundaries (5/15) if not specified.
+    Phase detection uses methodology-configurable boundaries:
+    - early_max_nodes: Threshold for early phase (default: 5)
+    - mid_max_nodes: Threshold for mid phase (default: 15)
+
+    Phase outputs drive multiplicative weight adjustments in strategy selection,
+    allowing the system to prioritize different strategies based on interview
+    maturity (e.g., exploration early, deepening mid, validation late).
 
     Namespaced signal: meta.interview.phase
+    Cost: low (reads from graph_state.node_count and graph_state.orphan_count)
+    Refresh: per_turn (recomputed each turn after graph updates)
     """
 
     signal_name = "meta.interview.phase"
@@ -33,7 +43,7 @@ class InterviewPhaseSignal(SignalDetector):
         "mid_max_nodes": 15,
     }
 
-    async def detect(self, context, graph_state, response_text):
+    async def detect(self, context, graph_state, response_text):  # noqa: ARG001
         """Detect interview phase from graph state.
 
         Args:

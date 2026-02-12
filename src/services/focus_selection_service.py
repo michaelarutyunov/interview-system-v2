@@ -1,14 +1,12 @@
-"""
-Focus selection service for interview node targeting.
+"""Focus selection service for interview node targeting.
 
 Consolidates all focus selection logic into a single service that:
 1. Resolves node IDs to labels
 2. Applies strategy-based focus preferences
 3. Provides fallback selection when needed
 
-This service is the single source of truth for "what should we ask about next?"
-
-See plan_2_domain_encapsulation.md Step 1 for background.
+This service is the single source of truth for determining what concept
+to ask about next in the interview.
 """
 
 from typing import Optional, List, Dict, Any
@@ -21,13 +19,12 @@ log = structlog.get_logger(__name__)
 
 
 class FocusSelectionService:
-    """
-    Centralized service for selecting interview focus targets.
+    """Centralized service for selecting interview focus targets.
 
     All focus selection decisions flow through this service to ensure
     consistent behavior across the pipeline.
 
-    Resolution order (documented once, in one place):
+    Resolution order:
     1. If focus_dict has focus_node_id, resolve to node label
     2. If focus_dict has focus_description, use it directly
     3. Fall back to strategy-based heuristic selection
@@ -38,10 +35,9 @@ class FocusSelectionService:
         focus_dict: Optional[Dict[str, Any]],
         recent_nodes: List[KGNode],
         strategy: str,
-        graph_state: Optional[GraphState] = None,
+        graph_state: Optional[GraphState] = None,  # noqa: ARG001
     ) -> str:
-        """
-        Resolve focus from strategy selection output.
+        """Resolve focus from strategy selection output.
 
         This is the primary entry point after StrategySelectionStage.
 
@@ -94,8 +90,7 @@ class FocusSelectionService:
         node_id: str,
         nodes: List[KGNode],
     ) -> Optional[str]:
-        """
-        Find node label by ID.
+        """Find node label by ID.
 
         Args:
             node_id: Node ID to look up
@@ -113,10 +108,9 @@ class FocusSelectionService:
         self,
         recent_nodes: List[KGNode],
         strategy: str,
-        graph_state: Optional[GraphState] = None,
+        graph_state: Optional[GraphState] = None,  # noqa: ARG001
     ) -> str:
-        """
-        Select focus concept using strategy-based heuristics.
+        """Select focus concept using strategy-based heuristics.
 
         This is the fallback when no explicit focus is provided.
 

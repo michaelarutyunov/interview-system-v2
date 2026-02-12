@@ -1,12 +1,19 @@
-"""
-Strategy selection service using YAML-based methodology configs.
+"""Strategy selection service using YAML-based methodology configs with joint scoring.
 
-Uses signal pools and YAML configs for methodology-specific strategy selection.
-Implements joint strategy-node scoring with node exhaustion detection.
+Implements D1 architecture for joint strategy-node scoring with signal pools,
+phase weights, and node exhaustion detection. Delegates signal detection to
+specialized services for single responsibility.
 
-Domain decomposition: Signal detection delegated to dedicated services.
-- GlobalSignalDetectionService: Handles global signal detection
-- NodeSignalDetectionService: Handles node-level signal detection
+Domain decomposition:
+- GlobalSignalDetectionService: Detects graph/LLM/temporal signals from response
+- NodeSignalDetectionService: Detects node-level signals with exhaustion tracking
+
+Key concepts:
+- Joint strategy-node scoring: Scores (strategy, node) pairs using combined signals
+- Phase weights: Multiplicative signal weights per interview phase (early/mid/late)
+- Phase bonuses: Additive strategy bonuses per interview phase
+- Node exhaustion: Penalty for over-probing the same node
+- Signal pools: Shared signal detectors (graph, llm, temporal, meta)
 """
 
 from typing import Tuple, Optional, TYPE_CHECKING, Any, Dict, Union, Sequence
@@ -27,16 +34,19 @@ log = structlog.get_logger(__name__)
 
 
 class MethodologyStrategyService:
-    """Strategy selection using YAML methodology configs.
+    """Joint strategy-node scoring service using methodology YAML configs.
 
-    This service uses:
-    - YAML configs for methodology definitions (signals + strategies)
-    - Delegated signal detection services (single responsibility)
-    - Joint strategy-node scoring with node exhaustion detection (D1 architecture)
+    Orchestrates D1 architecture for strategy selection by combining global
+    signals (graph state, response depth) with node-level signals (exhaustion,
+    opportunity) to score (strategy, node) pairs. Applies phase-based weights
+    (multiplicative) and bonuses (additive) for adaptive interviewing.
 
-    Domain decomposition:
-    - Global signal detection delegated to GlobalSignalDetectionService
-    - Node signal detection delegated to NodeSignalDetectionService
+    Signal detection is delegated to specialized services:
+    - GlobalSignalDetectionService: graph.*, llm.*, temporal.*, meta.* signals
+    - NodeSignalDetectionService: graph.node.*, technique.node.* signals per node
+
+    The service uses methodology configs from YAML files in config/methodologies/
+    which define signals, strategies, and phase-specific weights/bonuses.
     """
 
     def __init__(
@@ -44,11 +54,21 @@ class MethodologyStrategyService:
         global_signal_service: Optional[GlobalSignalDetectionService] = None,
         node_signal_service: Optional[NodeSignalDetectionService] = None,
     ):
-        """Initialize service with registries and signal detection services.
+        """Initialize service with methodology registry and signal detection services.
+
+        Uses dependency injection for signal detection services to support testing
+        and flexible composition. Creates default instances if not provided.
 
         Args:
-            global_signal_service: Optional GlobalSignalDetectionService for dependency injection
-            node_signal_service: Optional NodeSignalDetectionService for dependency injection
+            global_signal_service: Service for detecting global signals (graph,
+                llm, temporal, meta). If None, creates GlobalSignalDetectionService.
+            node_signal_service: Service for detecting node-level signals
+                (exhaustion, opportunity). If None, creates NodeSignalDetectionService.
+
+        Attributes:
+            methodology_registry: Loaded YAML methodology configs from get_registry()
+            global_signal_service: Detects methodology-specific global signals
+            node_signal_service: Detects node-specific signals per tracked node
         """
         self.methodology_registry = get_registry()
         # Use injected services or create defaults
@@ -66,26 +86,39 @@ class MethodologyStrategyService:
         Sequence[Union[Tuple[str, float], Tuple[str, str, float]]],
         Optional[Dict[str, Any]],
     ]:
-        """
-        Select best (strategy, node) pair using joint scoring.
+        """Select best (strategy, node) pair using joint scoring with phase weights.
 
-        This method implements D1 architecture from the node exhaustion design:
-        1. Detect global signals (response depth, graph state, etc.)
-        2. Detect node-level signals for all tracked nodes
-        3. Score all (strategy, node) pairs using combined signals
-        4. Select best pair
+        Implements D1 architecture for strategy selection by combining global
+        signals (response depth, graph metrics) with node-level signals
+        (exhaustion, opportunity) to score all (strategy, node) pairs.
+        Applies phase-based weights (multiplicative) and bonuses (additive)
+        for adaptive interview behavior.
+
+        Detection flow:
+        1. Detect global signals (llm.response_depth, graph.*, temporal.*)
+        2. Detect node-level signals (graph.node.exhausted, meta.node.opportunity)
+        3. Detect interview phase (early/mid/late) for phase weights/bonuses
+        4. Score all (strategy, node) pairs using combined signals
+        5. Select highest-scoring pair
 
         Args:
-            context: Pipeline context with methodology, recent_turns, node_tracker
-            graph_state: Current knowledge graph state
-            response_text: User's response text for signal analysis
+            context: Pipeline context with methodology, node_tracker, recent_utterances
+            graph_state: Current knowledge graph state with node/edge counts
+            response_text: User's response text for LLM signal analysis
 
         Returns:
-            Tuple of (strategy_name, focus_node_id, alternatives, global_signals)
-            - strategy_name: Name of selected strategy
-            - focus_node_id: ID of selected focus node (not label)
-            - alternatives: List of (strategy_name, node_id, score) for observability
-            - global_signals: Dict of global detected signals for observability
+            Tuple of (strategy_name, focus_node_id, alternatives, global_signals):
+            - strategy_name: Name of selected strategy from YAML config
+            - focus_node_id: ID of selected focus node (UUID, not label)
+            - alternatives: List of (strategy_name, node_id, score) tuples for
+                observability and debugging, sorted by score descending
+            - global_signals: Dict of detected global signals (e.g.,
+                {"llm.response_depth": "deep", "graph.node_count": 42})
+
+        Raises:
+            ConfigurationError: If methodology not found or has no strategies defined
+            ValueError: If node_tracker is not available in context
+            ScoringError: If no valid (strategy, node) pairs can be scored
         """
         # Get methodology config from YAML
         methodology_name = (

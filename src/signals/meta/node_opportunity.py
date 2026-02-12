@@ -1,7 +1,12 @@
-"""Node opportunity meta signal.
+"""Node opportunity meta signal for joint strategy-node scoring.
 
-This meta signal combines multiple node-level signals to determine
-what action should be taken for each node: exhausted, probe_deeper, or fresh.
+Combines multiple node-level signals to categorize each node's potential:
+- exhausted: Node has been explored thoroughly without yield (skip)
+- probe_deeper: Deep responses but no new yield (extraction opportunity)
+- fresh: Node has opportunity for exploration (default)
+
+This meta signal enables sophisticated strategy-node pairing by identifying
+which nodes deserve further attention and which should be deprioritized.
 """
 
 from typing import TYPE_CHECKING, Dict, Optional
@@ -13,24 +18,30 @@ if TYPE_CHECKING:
 
 
 class NodeOpportunitySignal(NodeSignalDetector):
-    """Meta signal: what's the best action for this node?
+    """Categorize node exploration potential for joint strategy-node scoring.
 
-    Combines multiple signals to determine node opportunity:
-    - graph.node.exhausted: Is the node exhausted?
-    - graph.node.focus_streak: How long has it been focused?
-    - llm.response_depth: How deep was the last response?
+    Combines exhaustion, focus streak, and response depth signals to
+    determine the best action for each node. This enables sophisticated
+    strategy-node pairing where exhausted nodes are deprioritized and
+    probe-worthy nodes are highlighted.
 
-    Categories:
+    Opportunity categories:
     - exhausted: Node is exhausted (no yield, shallow responses, persistent focus)
     - probe_deeper: Deep responses but no yield (extraction opportunity)
-    - fresh: Node has opportunity for exploration
+    - fresh: Node has opportunity for exploration (default)
+
+    Exhaustion criteria (all must be true):
+    - Has been focused (focus_count > 0)
+    - No recent yield (turns_since_last_yield >= 3)
+    - High shallow ratio (>= 66% of recent 3 responses are shallow)
+
+    Probe_deeper criteria:
+    - High focus streak (4+ consecutive turns)
+    - Current response is deep
 
     Namespaced signal: meta.node.opportunity
-
-    Note: This signal computes its dependencies directly from node state
-    rather than relying on context.signals because node-level signals
-    are computed per-node and reading from context.signals would be
-    inefficient (would require iterating through all signals).
+    Cost: low (reads from NodeStateTracker state, computes dependencies inline)
+    Refresh: per_turn (recomputed each turn after state updates)
     """
 
     signal_name = "meta.node.opportunity"
@@ -39,7 +50,7 @@ class NodeOpportunitySignal(NodeSignalDetector):
     dependencies = []
 
     async def detect(
-        self, context, graph_state, response_text: str
+        self, context, graph_state, response_text: str  # noqa: ARG001, ARG002, ARG003
     ) -> Dict[str, str]:
         """Detect node opportunity for all tracked nodes.
 

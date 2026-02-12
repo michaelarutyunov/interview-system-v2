@@ -1,5 +1,4 @@
-"""
-Export service for converting session data to various formats.
+"""Export service for converting session data to various formats.
 
 Supports export to:
 - JSON: Full session data with all metadata
@@ -20,8 +19,7 @@ log = structlog.get_logger(__name__)
 
 
 def _calculate_phase(turn_number: int) -> str:
-    """
-    Calculate interview phase based on turn number (deterministic).
+    """Calculate interview phase based on turn number.
 
     Phase transition rules:
     - exploratory: turns 0 to exploratory.n_turns (exclusive)
@@ -48,8 +46,10 @@ def _calculate_phase(turn_number: int) -> str:
 
 
 class ExportService:
-    """
-    Service for exporting session data to various formats.
+    """Service for exporting session data to various formats.
+
+    Converts interview session data including utterances, knowledge graph,
+    scoring history, and diagnostics into JSON, Markdown, or CSV formats.
 
     Usage:
         service = ExportService()
@@ -62,8 +62,7 @@ class ExportService:
         session_repo=None,
         graph_repo=None,
     ):
-        """
-        Initialize export service.
+        """Initialize export service with repository dependencies.
 
         Args:
             session_repo: Optional session repository (injected for testing)
@@ -87,8 +86,7 @@ class ExportService:
         session_id: str,
         format: str = "json",
     ) -> str:
-        """
-        Export session data to specified format.
+        """Export session data to specified format.
 
         Args:
             session_id: Session ID to export
@@ -128,14 +126,14 @@ class ExportService:
         return result
 
     async def _collect_session_data(self, session_id: str) -> Dict[str, Any]:
-        """
-        Collect all session data for export.
+        """Collect all session data for export.
 
         Args:
             session_id: Session ID
 
         Returns:
-            Dict with all session data
+            Dict with all session data including metadata, utterances,
+            graph, scoring history, and diagnostics.
         """
         # Get session metadata
         session = await self.session_repo.get(session_id)
@@ -227,11 +225,15 @@ class ExportService:
         }
 
     def _export_json(self, data: Dict[str, Any]) -> str:
-        """Export to JSON format."""
+        """Export session data to JSON format with indentation."""
         return json.dumps(data, indent=2, default=str)
 
     def _export_markdown(self, data: Dict[str, Any]) -> str:
-        """Export to human-readable Markdown format."""
+        """Export session data to human-readable Markdown format.
+
+        Includes session metadata, statistics, conversation transcript,
+        and knowledge graph visualization.
+        """
         lines = []
 
         # Header
@@ -325,7 +327,11 @@ class ExportService:
         return "\n".join(lines)
 
     def _export_csv(self, data: Dict[str, Any]) -> str:
-        """Export to CSV format with multiple sections."""
+        """Export session data to CSV format with multiple sections.
+
+        Output includes three sections: NODES, EDGES, UTTERANCES
+        for spreadsheet analysis.
+        """
         output = StringIO()
 
         # Nodes section

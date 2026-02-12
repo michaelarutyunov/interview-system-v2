@@ -1,13 +1,16 @@
-"""
-Question generation service.
+"""Question generation service for semi-structured interviews.
 
-Generates follow-up questions based on:
-- Selected strategy
-- Recent conversation context
-- Current graph state
-- Focus concept
+Generates natural, conversational follow-up questions using LLM based on:
+- Selected strategy from methodology config (deepen, explore, clarify, etc.)
+- Recent conversation context and utterances
+- Current graph state (depth, node counts, recent concepts)
+- Focus concept or node
 
-Uses LLM for natural language generation.
+Supports two question types:
+- Follow-up questions: Strategy-driven questions during active interview
+- Opening questions: Initial questions to start a new session
+
+Uses methodology configs for strategy descriptions and topic anchoring.
 """
 
 from typing import Optional, List, Dict, Any
@@ -31,11 +34,17 @@ log = structlog.get_logger(__name__)
 
 
 class QuestionService:
-    """
-    Service for generating interview questions.
+    """Service for generating interview questions using LLM.
 
-    Generates natural, conversational questions using LLM
-    based on strategy and conversation context.
+    Generates natural, conversational questions based on:
+    - Selected questioning strategy (deepen, explore, clarify, reflect, revitalize)
+    - Current conversation context and recent utterances
+    - Graph state (depth, node counts, recent concepts)
+    - Focus concept or node ID
+    - Active signals and signal descriptions (for strategy rationale)
+
+    Supports follow-up question generation (during active interview)
+    and opening question generation (for new sessions).
     """
 
     def __init__(
@@ -44,13 +53,13 @@ class QuestionService:
         default_strategy: str = "deepen",
         methodology: str = "means_end_chain",
     ):
-        """
-        Initialize question service.
+        """Initialize question service with LLM client and methodology configuration.
 
         Args:
-            llm_client: LLM client instance (required)
-            default_strategy: Default strategy for question generation
+            llm_client: LLM client instance for question generation (required)
+            default_strategy: Default strategy name when not specified (e.g., "deepen")
             methodology: Methodology name for opening question generation
+                (loaded from config/methodologies/*.yaml)
         """
         self.llm = llm_client
         self.default_strategy = default_strategy
@@ -73,24 +82,29 @@ class QuestionService:
         signals: Optional[Dict[str, Any]] = None,
         signal_descriptions: Optional[Dict[str, str]] = None,
     ) -> str:
-        """
-        Generate a follow-up question.
+        """Generate follow-up question based on strategy, context, and graph state.
+
+        Uses LLM to generate a natural, conversational question that:
+        - Follows the selected questioning strategy (deepen, explore, clarify, etc.)
+        - Anchors to the research topic to prevent drift
+        - Incorporates signal rationale explaining why strategy was selected
+        - References recent conversation context and graph state
 
         Args:
-            focus_concept: Concept to focus the question on
-            recent_utterances: Recent conversation turns
-            graph_state: Current graph state for context
-            recent_nodes: Recently added nodes
-            strategy: Strategy to use (defaults to default_strategy)
-            topic: Research topic to anchor questions to (prevents drift)
-            signals: Active signal values (for strategy rationale in prompt)
-            signal_descriptions: Signal descriptions (for strategy rationale in prompt)
+            focus_concept: Concept or node to focus the question on
+            recent_utterances: Recent conversation turns with speaker/text keys
+            graph_state: Current graph state for depth and coverage context
+            recent_nodes: Recently added nodes (up to 3 shown in summary)
+            strategy: Strategy name from methodology config (defaults to default_strategy)
+            topic: Research topic to anchor questions to (prevents drift to abstract philosophy)
+            signals: Active signal values for strategy rationale (signal_name -> value)
+            signal_descriptions: Signal descriptions for rationale (signal_name -> description)
 
         Returns:
-            Generated question string
+            Generated question string (cleaned, quoted, with appropriate punctuation)
 
         Raises:
-            RuntimeError: If LLM call fails
+            RuntimeError: If LLM call fails or returns invalid response
         """
         strategy = strategy or self.default_strategy
 
@@ -159,13 +173,13 @@ class QuestionService:
             raise RuntimeError(f"Question generation failed: {e}")
 
     def load_methodology_schema(self):
-        """Load methodology schema for opening question generation.
+        """Load methodology schema from YAML config for opening question generation.
 
         Returns:
-            MethodologySchema instance
+            MethodologySchema with method metadata (name, goal, description, opening_bias)
 
         Raises:
-            FileNotFoundError: If methodology schema not found
+            FileNotFoundError: If methodology YAML file not found in config/methodologies/
         """
         return load_methodology(self.methodology)
 
@@ -173,17 +187,20 @@ class QuestionService:
         self,
         objective: str,
     ) -> str:
-        """
-        Generate an opening question for a new session.
+        """Generate opening question for a new interview session.
+
+        Creates an inviting, open-ended question to begin the interview
+        based on the research objective and methodology configuration.
+        Uses methodology-specific opening_bias to guide question style.
 
         Args:
-            objective: Interview objective (what we're studying)
+            objective: Interview objective describing what we're studying
 
         Returns:
-            Opening question string
+            Opening question string (cleaned, with appropriate punctuation)
 
         Raises:
-            RuntimeError: If LLM call fails
+            RuntimeError: If LLM call fails or methodology schema not found
         """
         log.info("generating_opening_question", objective=objective[:100])
 

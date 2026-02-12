@@ -1,9 +1,18 @@
 """
-Context object for turn processing pipeline.
+Turn processing pipeline context for contract-based state accumulation.
 
-Carries state through all pipeline stages, accumulating contract outputs
+Carries state through all pipeline stages, accumulating formal contract outputs
 from each stage. Provides the single source of truth for turn data with
 freshness tracking for graph state validation.
+
+ADR-010: All stage outputs use Pydantic BaseModel contracts. Convenience
+properties provide backward compatibility while keeping contracts as source of truth.
+
+Key responsibilities:
+- Accumulate contract outputs from each pipeline stage
+- Provide typed access to stage results via convenience properties
+- Enforce pipeline ordering through RuntimeError on premature access
+- Track graph state freshness via StateComputationOutput.computed_at
 """
 
 from dataclasses import dataclass, field
@@ -34,11 +43,28 @@ if TYPE_CHECKING:
 
 @dataclass
 class PipelineContext:
-    """
-    Context object that accumulates state through pipeline stages.
+    """Pipeline context for contract-based state accumulation across turn stages.
 
-    Contracts are the single source of truth. Each stage produces a contract
-    output that is consumed by subsequent stages.
+    Accumulates formal Pydantic contract outputs from each pipeline stage.
+    Contracts are the single source of truth for all turn data.
+
+    Pipeline ordering enforcement: Convenience properties raise RuntimeError
+    if accessed before their producing stage completes, preventing bugs from
+    stale or missing state.
+
+    Stage outputs (contracts):
+    - Stage 1: ContextLoadingOutput - session metadata, turn number, history
+    - Stage 2: UtteranceSavingOutput - persisted user utterance
+    - Stage 2.5: SrlPreprocessingOutput - discourse relations, SRL frames (optional)
+    - Stage 3: ExtractionOutput - extracted concepts and relationships
+    - Stage 4: GraphUpdateOutput - nodes and edges added to graph
+    - Stage 4.5: SlotDiscoveryOutput - canonical slot mappings (dual-graph)
+    - Stage 5: StateComputationOutput - graph state metrics, recent nodes, saturation
+    - Stage 6: StrategySelectionOutput - selected strategy, focus, signals
+    - Stage 7: ContinuationOutput - should_continue flag, focus concept
+    - Stage 8: QuestionGenerationOutput - generated next question
+    - Stage 9: ResponseSavingOutput - persisted system utterance
+    - Stage 10: ScoringPersistenceOutput - scoring metrics for observability
     """
 
     # =============================================================================
@@ -100,10 +126,13 @@ class PipelineContext:
 
     @property
     def methodology(self) -> str:
-        """Get methodology from ContextLoadingOutput.
+        """Get methodology identifier (e.g., 'means_end_chain', 'repertory_grid').
+
+        Returns:
+            Methodology identifier from ContextLoadingOutput (Stage 1)
 
         Raises:
-            RuntimeError: If context_loading_output is not set (pipeline contract violation)
+            RuntimeError: If ContextLoadingStage (Stage 1) has not completed
         """
         if self.context_loading_output:
             return self.context_loading_output.methodology
@@ -115,10 +144,13 @@ class PipelineContext:
 
     @property
     def concept_id(self) -> str:
-        """Get concept_id from ContextLoadingOutput.
+        """Get concept identifier for the current session.
+
+        Returns:
+            Concept ID from ContextLoadingOutput (Stage 1)
 
         Raises:
-            RuntimeError: If context_loading_output is not set (pipeline contract violation)
+            RuntimeError: If ContextLoadingStage (Stage 1) has not completed
         """
         if self.context_loading_output:
             return self.context_loading_output.concept_id
@@ -130,10 +162,13 @@ class PipelineContext:
 
     @property
     def concept_name(self) -> str:
-        """Get concept_name from ContextLoadingOutput.
+        """Get human-readable concept name for the current session.
+
+        Returns:
+            Concept name from ContextLoadingOutput (Stage 1)
 
         Raises:
-            RuntimeError: If context_loading_output is not set (pipeline contract violation)
+            RuntimeError: If ContextLoadingStage (Stage 1) has not completed
         """
         if self.context_loading_output:
             return self.context_loading_output.concept_name
@@ -145,10 +180,13 @@ class PipelineContext:
 
     @property
     def turn_number(self) -> int:
-        """Get turn_number from ContextLoadingOutput.
+        """Get current turn number (0-indexed) for this interview turn.
+
+        Returns:
+            Turn number from ContextLoadingOutput (Stage 1)
 
         Raises:
-            RuntimeError: If context_loading_output is not set (pipeline contract violation)
+            RuntimeError: If ContextLoadingStage (Stage 1) has not completed
         """
         if self.context_loading_output:
             return self.context_loading_output.turn_number
@@ -160,10 +198,13 @@ class PipelineContext:
 
     @property
     def mode(self) -> str:
-        """Get mode from ContextLoadingOutput.
+        """Get interview mode (e.g., 'exploratory', 'synthetic').
+
+        Returns:
+            Interview mode from ContextLoadingOutput (Stage 1)
 
         Raises:
-            RuntimeError: If context_loading_output is not set (pipeline contract violation)
+            RuntimeError: If ContextLoadingStage (Stage 1) has not completed
         """
         if self.context_loading_output:
             return self.context_loading_output.mode
@@ -175,10 +216,13 @@ class PipelineContext:
 
     @property
     def max_turns(self) -> int:
-        """Get max_turns from ContextLoadingOutput.
+        """Get maximum number of turns configured for this session.
+
+        Returns:
+            Max turns from ContextLoadingOutput (Stage 1)
 
         Raises:
-            RuntimeError: If context_loading_output is not set (pipeline contract violation)
+            RuntimeError: If ContextLoadingStage (Stage 1) has not completed
         """
         if self.context_loading_output:
             return self.context_loading_output.max_turns
@@ -190,87 +234,161 @@ class PipelineContext:
 
     @property
     def recent_utterances(self) -> List[Dict[str, str]]:
-        """Get recent_utterances from ContextLoadingOutput."""
+        """Get conversation history of recent utterances.
+
+        Returns:
+            List of recent utterance dictionaries from ContextLoadingOutput (Stage 1),
+            or empty list if stage not yet completed.
+        """
         if self.context_loading_output:
             return self.context_loading_output.recent_utterances
         return []
 
     @property
     def strategy_history(self) -> List[str]:
-        """Get strategy_history from ContextLoadingOutput."""
+        """Get history of strategies used in previous turns.
+
+        Returns:
+            List of strategy IDs from ContextLoadingOutput (Stage 1),
+            or empty list if stage not yet completed.
+        """
         if self.context_loading_output:
             return self.context_loading_output.strategy_history
         return []
 
     @property
     def graph_state(self) -> Optional[GraphState]:
-        """Get graph_state from StateComputationOutput."""
+        """Get current knowledge graph state with node/edge metrics.
+
+        Returns:
+            GraphState from StateComputationOutput (Stage 5), or None if
+            stage not yet completed.
+
+        Note:
+            Graph state is only available AFTER StateComputationStage completes.
+            Stages 2-4 should not access this property as state is computed
+            after graph updates in Stage 4.
+        """
         if self.state_computation_output:
             return self.state_computation_output.graph_state
         return None
 
     @property
     def graph_state_computed_at(self) -> Optional[datetime]:
-        """Get computed_at from StateComputationOutput."""
+        """Get timestamp when graph state was computed for freshness validation.
+
+        Returns:
+            Computed timestamp from StateComputationOutput (Stage 5), or None
+            if stage not yet completed.
+
+        Note:
+            Used for freshness validation to prevent stale state bugs in
+            StrategySelectionStage (ADR-010).
+        """
         if self.state_computation_output:
             return self.state_computation_output.computed_at
         return None
 
     @property
     def recent_nodes(self) -> List[KGNode]:
-        """Get recent_nodes from StateComputationOutput."""
+        """Get list of recently added knowledge graph nodes.
+
+        Returns:
+            List of KGNode objects from StateComputationOutput (Stage 5),
+            or empty list if stage not yet completed.
+
+        Note:
+            Recent nodes are only available AFTER StateComputationStage completes.
+        """
         if self.state_computation_output:
             return self.state_computation_output.recent_nodes
         return []
 
     @property
     def canonical_graph_state(self) -> Optional["CanonicalGraphState"]:
-        """Get canonical_graph_state from StateComputationOutput."""
+        """Get canonical (deduplicated) graph state for dual-graph architecture.
+
+        Returns:
+            CanonicalGraphState from StateComputationOutput (Stage 5), or None
+            if stage not yet completed.
+
+        Note:
+            Part of dual-graph architecture (ADR-013). Provides aggregate
+            metrics on canonical slots rather than surface nodes.
+        """
         if self.state_computation_output:
             return self.state_computation_output.canonical_graph_state
         return None
 
     @property
     def extraction(self) -> Optional[Any]:
-        """Get extraction from ExtractionOutput."""
+        """Get extraction result with concepts and relationships.
+
+        Returns:
+            ExtractionResult from ExtractionOutput (Stage 3), or None if
+            stage not yet completed.
+        """
         if self.extraction_output:
             return self.extraction_output.extraction
         return None
 
     @property
     def user_utterance(self) -> Optional[Utterance]:
-        """Get user_utterance from UtteranceSavingOutput."""
+        """Get persisted user utterance record from database.
+
+        Returns:
+            Utterance object from UtteranceSavingOutput (Stage 2), or None if
+            stage not yet completed.
+        """
         if self.utterance_saving_output:
             return self.utterance_saving_output.user_utterance
         return None
 
     @property
     def system_utterance(self) -> Optional[Utterance]:
-        """Get system_utterance from ResponseSavingOutput."""
+        """Get persisted system utterance (generated question) from database.
+
+        Returns:
+            Utterance object from ResponseSavingOutput (Stage 9), or None if
+            stage not yet completed.
+        """
         if self.response_saving_output:
             return self.response_saving_output.system_utterance
         return None
 
     @property
     def nodes_added(self) -> List[KGNode]:
-        """Get nodes_added from GraphUpdateOutput."""
+        """Get list of nodes added to knowledge graph this turn.
+
+        Returns:
+            List of KGNode objects from GraphUpdateOutput (Stage 4), or empty
+            list if stage not yet completed.
+        """
         if self.graph_update_output:
             return self.graph_update_output.nodes_added
         return []
 
     @property
     def edges_added(self) -> List[Dict[str, Any]]:
-        """Get edges_added from GraphUpdateOutput."""
+        """Get list of edges added to knowledge graph this turn.
+
+        Returns:
+            List of edge dictionaries from GraphUpdateOutput (Stage 4), or
+            empty list if stage not yet completed.
+        """
         if self.graph_update_output:
             return self.graph_update_output.edges_added
         return []
 
     @property
     def strategy(self) -> str:
-        """Get strategy from StrategySelectionOutput.
+        """Get selected questioning strategy (e.g., 'deepen', 'broaden', 'ladder_deeper').
+
+        Returns:
+            Strategy ID from StrategySelectionOutput (Stage 6)
 
         Raises:
-            RuntimeError: If strategy_selection_output is not set (pipeline contract violation)
+            RuntimeError: If StrategySelectionStage (Stage 6) has not completed
         """
         if self.strategy_selection_output:
             return self.strategy_selection_output.strategy
@@ -283,31 +401,58 @@ class PipelineContext:
 
     @property
     def focus(self) -> Optional[Dict[str, Any]]:
-        """Get focus from StrategySelectionOutput."""
+        """Get focus target for the next question (node_id, element_id, or description).
+
+        Returns:
+            Focus dictionary from StrategySelectionOutput (Stage 6), or None if
+            stage not yet completed.
+        """
         if self.strategy_selection_output:
             return self.strategy_selection_output.focus
         return None
 
     @property
     def signals(self) -> Optional[Dict[str, Any]]:
-        """Get signals from StrategySelectionOutput."""
+        """Get detected methodology signals for observability and debugging.
+
+        Returns:
+            Signals dictionary from StrategySelectionOutput (Stage 6), or None if
+            stage not yet completed.
+
+        Note:
+            Includes graph.*, llm.*, temporal.*, and meta.* signals used
+            for methodology-based strategy selection.
+        """
         if self.strategy_selection_output:
             return self.strategy_selection_output.signals
         return None
 
     @property
     def strategy_alternatives(self) -> List[tuple[str, float] | tuple[str, str, float]]:
-        """Get strategy_alternatives from StrategySelectionOutput."""
+        """Get ranked alternative strategies with scores for observability.
+
+        Returns:
+            List of tuples from StrategySelectionOutput (Stage 6):
+            - [(strategy, score)] for strategy-only scoring
+            - [(strategy, node_id, score)] for joint strategy-node scoring
+            Returns empty list if stage not yet completed.
+
+        Note:
+            Used for debugging and understanding why a strategy was selected.
+        """
         if self.strategy_selection_output:
             return self.strategy_selection_output.strategy_alternatives
         return []
 
     @property
     def should_continue(self) -> bool:
-        """Get should_continue from ContinuationOutput.
+        """Get whether the interview should continue for another turn.
+
+        Returns:
+            Boolean continuation flag from ContinuationOutput (Stage 7)
 
         Raises:
-            RuntimeError: If continuation_output is not set (pipeline contract violation)
+            RuntimeError: If ContinuationStage (Stage 7) has not completed
         """
         if self.continuation_output:
             return self.continuation_output.should_continue
@@ -319,10 +464,13 @@ class PipelineContext:
 
     @property
     def focus_concept(self) -> str:
-        """Get focus_concept from ContinuationOutput.
+        """Get concept ID to focus on for the next turn.
+
+        Returns:
+            Focus concept ID from ContinuationOutput (Stage 7)
 
         Raises:
-            RuntimeError: If continuation_output is not set (pipeline contract violation)
+            RuntimeError: If ContinuationStage (Stage 7) has not completed
         """
         if self.continuation_output:
             return self.continuation_output.focus_concept
@@ -334,10 +482,13 @@ class PipelineContext:
 
     @property
     def next_question(self) -> str:
-        """Get next_question from QuestionGenerationOutput.
+        """Get generated next interview question.
+
+        Returns:
+            Question text from QuestionGenerationOutput (Stage 8)
 
         Raises:
-            RuntimeError: If question_generation_output is not set (pipeline contract violation)
+            RuntimeError: If QuestionGenerationStage (Stage 8) has not completed
         """
         if self.question_generation_output:
             return self.question_generation_output.question
@@ -349,7 +500,17 @@ class PipelineContext:
 
     @property
     def scoring(self) -> Dict[str, Any]:
-        """Get scoring dict from ScoringPersistenceOutput."""
+        """Get scoring metrics for observability and analysis.
+
+        Returns:
+            Dictionary with depth and saturation scores from
+            ScoringPersistenceOutput (Stage 10), or empty dict if stage
+            not yet completed.
+
+        Note:
+            Legacy two-tier scoring has been removed. Now saves methodology-based
+            signals from StrategySelectionStage.
+        """
         if self.scoring_persistence_output:
             return {
                 "depth": self.scoring_persistence_output.depth_score,

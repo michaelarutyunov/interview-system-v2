@@ -1,5 +1,4 @@
-"""
-NodeStateTracker service for maintaining per-node state across interview sessions.
+"""NodeStateTracker service for maintaining per-node state across interview sessions.
 
 Tracks engagement patterns, yield history, response quality, relationships,
 and strategy usage for each knowledge graph node. Supports dual-graph
@@ -25,8 +24,9 @@ NODE_TRACKER_SCHEMA_VERSION = 1
 
 @dataclass
 class GraphChangeSummary:
-    """
-    Summary of graph changes for yield detection.
+    """Summary of graph changes for yield detection.
+
+    Used to determine if focusing on a node produced new information.
 
     Attributes:
         nodes_added: Number of new nodes added
@@ -40,8 +40,7 @@ class GraphChangeSummary:
 
 
 class NodeStateTracker:
-    """
-    Service for maintaining persistent per-node state across interview sessions.
+    """Service for maintaining persistent per-node state across interview sessions.
 
     NodeStateTracker tracks state for all knowledge graph nodes throughout
     an interview, enabling node-level signal computation and strategy-node
@@ -58,8 +57,7 @@ class NodeStateTracker:
     def __init__(
         self, canonical_slot_repo: Optional["CanonicalSlotRepository"] = None
     ) -> None:
-        """
-        Initialize the NodeStateTracker.
+        """Initialize the NodeStateTracker with optional canonical slot support.
 
         Args:
             canonical_slot_repo: Optional CanonicalSlotRepository for resolving
@@ -67,7 +65,7 @@ class NodeStateTracker:
                 uses canonical_slot_id as the key for aggregation across paraphrases.
                 When None (enable_canonical_slots=False), uses surface node_id directly.
 
-        IMPLEMENTATION NOTES:
+        Implementation notes:
             - canonical_slot_repo is optional based on enable_canonical_slots feature flag
             - If provided, uses canonical_slot_id as tracking dict key for paraphrase aggregation
             - Falls back to surface node_id if no mapping exists (normal behavior)
@@ -78,8 +76,7 @@ class NodeStateTracker:
         self.log = structlog.get_logger(__name__)
 
     async def _resolve_canonical_slot_id(self, surface_node_id: str) -> str:
-        """
-        Resolve a surface node ID to its canonical slot ID.
+        """Resolve a surface node ID to its canonical slot ID.
 
         If canonical_slot_repo is available, queries the surface_to_slot_mapping
         table to find the canonical slot for this surface node. Returns the
@@ -91,7 +88,7 @@ class NodeStateTracker:
         Returns:
             canonical_slot_id if mapping exists, otherwise surface_node_id
 
-        IMPLEMENTATION NOTES:
+        Implementation notes:
             - Fallback to surface_node_id is normal behavior (not an error)
             - Database errors propagate immediately for visibility of issues
         """
@@ -171,7 +168,7 @@ class NodeStateTracker:
             turn_number: Current turn number
             strategy: Strategy being used for this focus
 
-        IMPLEMENTATION NOTES:
+        Implementation notes:
             - Resolves node_id to canonical_slot_id for tracking dict key
             - Focus selection continues to target surface nodes (for question generation)
             - Tracking key is canonical_slot_id for aggregation across paraphrases
@@ -251,7 +248,7 @@ class NodeStateTracker:
             turn_number: Current turn number
             graph_changes: Summary of graph changes
 
-        IMPLEMENTATION NOTES:
+        Implementation notes:
             - Resolves node_id to canonical_slot_id for tracking dict key
         """
         tracking_key = await self._resolve_canonical_slot_id(node_id)
@@ -356,7 +353,7 @@ class NodeStateTracker:
             outgoing_delta: Change in outgoing edge count (+/-)
             incoming_delta: Change in incoming edge count (+/-)
 
-        IMPLEMENTATION NOTES:
+        Implementation notes:
             - Resolves node_id to canonical_slot_id for tracking dict key
         """
         tracking_key = await self._resolve_canonical_slot_id(node_id)
@@ -415,8 +412,7 @@ class NodeStateTracker:
         return self.states.copy()
 
     def _calculate_node_depth(self, node: KGNode) -> int:
-        """
-        Calculate the depth of a node in the knowledge graph.
+        """Calculate the depth of a node in the knowledge graph.
 
         This is a simple heuristic. In a full implementation, this would
         traverse the graph to determine the actual depth.
@@ -438,8 +434,7 @@ class NodeStateTracker:
     # ==================== SERIALIZATION FOR PERSISTENCE ====================
 
     def to_dict(self) -> Dict[str, Any]:
-        """
-        Serialize node tracker state to dictionary for database persistence.
+        """Serialize node tracker state to dictionary for database persistence.
 
         Converts the tracker's state to a JSON-serializable dictionary that
         can be stored in the sessions.node_tracker_state column and loaded
@@ -465,8 +460,7 @@ class NodeStateTracker:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "NodeStateTracker":
-        """
-        Deserialize node tracker state from database-persisted dictionary.
+        """Deserialize node tracker state from database-persisted dictionary.
 
         Reconstructs a NodeStateTracker from previously persisted state,
         restoring all per-node metrics for continuity across turns.
@@ -505,8 +499,7 @@ class NodeStateTracker:
         return tracker
 
     def is_empty(self) -> bool:
-        """
-        Check if the tracker has no tracked state.
+        """Check if tracker has no tracked state.
 
         Returns:
             True if no nodes are tracked, False otherwise

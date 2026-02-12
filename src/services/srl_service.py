@@ -1,11 +1,11 @@
-"""
-Semantic Role Labeling (SRL) service for linguistic structure extraction.
+"""Semantic Role Labeling (SRL) service for linguistic structure extraction.
 
-This service uses spaCy to extract:
+This service uses spaCy to extract discourse relations and SRL frames
+from user utterances to enhance extraction prompts with structural hints.
+
+Extracts:
 - Discourse relations (causal, temporal markers via dependency parsing)
 - SRL frames (predicate-argument structures)
-
-The output is used to enhance extraction prompts with structural hints.
 """
 
 from typing import Dict, List, Optional, Set, Any
@@ -15,11 +15,11 @@ logger = structlog.get_logger(__name__)
 
 
 class SRLService:
-    """
-    Extract linguistic structure using spaCy dependency parsing.
+    """Extract linguistic structure using spaCy dependency parsing.
 
     Uses language-agnostic dependency labels (Universal Dependencies)
-    rather than hardcoded keyword matching.
+    rather than hardcoded keyword matching for discourse relations and
+    predicate-argument structures.
     """
 
     DEFAULT_NOISE_PREDICATES = {
@@ -40,8 +40,7 @@ class SRLService:
         model_name: str = "en_core_web_md",
         noise_predicates: Optional[Set[str]] = None,
     ):
-        """
-        Initialize SRL service with lazy loading.
+        """Initialize SRL service with lazy loading.
 
         Args:
             model_name: spaCy model name (default: en_core_web_md)
@@ -55,7 +54,11 @@ class SRLService:
 
     @property
     def nlp(self):
-        """Lazy-load spaCy model on first access."""
+        """Lazy-load spaCy model on first access.
+
+        Returns:
+            spaCy Language object for dependency parsing.
+        """
         if self._nlp is None:
             import spacy
 
@@ -65,14 +68,13 @@ class SRLService:
         return self._nlp
 
     def analyze(
-        self, user_utterance: str, interviewer_question: Optional[str] = None
+        self, user_utterance: str, interviewer_question: Optional[str] = None  # noqa: ARG001
     ) -> Dict[str, Any]:
-        """
-        Analyze user utterance for discourse relations and SRL frames.
+        """Analyze user utterance for discourse relations and SRL frames.
 
         Args:
             user_utterance: The user's response text
-            interviewer_question: Optional interviewer question for context (not currently used)
+            interviewer_question: Optional interviewer question for context (unused, reserved for future)
 
         Returns:
             Dictionary with:
@@ -107,8 +109,7 @@ class SRLService:
             return {"discourse_relations": [], "srl_frames": []}
 
     def _extract_discourse_relations(self, doc) -> List[Dict[str, str]]:
-        """
-        Extract discourse relations using dependency labels.
+        """Extract discourse relations using dependency labels.
 
         Uses Universal Dependencies:
         - MARK: subordinating conjunctions (because, since, when, if)
@@ -164,8 +165,7 @@ class SRLService:
         return relations
 
     def _extract_srl_frames(self, doc) -> List[Dict[str, Any]]:
-        """
-        Extract predicate-argument structures from dependency tree.
+        """Extract predicate-argument structures from dependency tree.
 
         Maps dependency labels to semantic roles:
         - nsubj -> ARG0 (agent/subject)

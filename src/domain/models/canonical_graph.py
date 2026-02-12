@@ -1,9 +1,23 @@
-"""
-Domain models for canonical graph (dual-graph architecture).
+"""Canonical graph domain models for dual-graph architecture.
 
-The canonical graph abstracts surface-level nodes into stable "slots" representing
-latent concepts. Multiple surface nodes map to a single canonical slot via similarity
-matching, enabling robust concept tracking despite respondent language variation.
+This module defines the canonical graph that abstracts surface-level nodes
+into stable "slots" representing latent concepts. Dual-graph architecture
+enables robust concept tracking despite respondent language variation.
+
+Core Concepts:
+    - Canonical Slots: Stable latent concepts abstracted from surface nodes
+    - Slot Mappings: Many-to-one relationship from surface nodes to slots
+    - Canonical Edges: Aggregate relationships with support counts
+    - CanonicalGraphState: Session-level canonical metrics (parallel to GraphState)
+
+Architecture Rationale:
+    Surface nodes are language-dependent ("fast car", "quick vehicle")
+    while canonical slots represent stable latent concepts ("speed_performance").
+    Similarity matching (spaCy embeddings) maps surface to canonical.
+
+Orphan Definition (AMBIGUITY RESOLUTION 2026-02-07):
+    Only ACTIVE slots (status='active') with zero canonical edges count
+    as orphans. Candidate slots are excluded entirely from orphan counting.
 """
 
 from typing import List, Optional
@@ -14,19 +28,28 @@ logger = structlog.get_logger(__name__)
 
 
 class CanonicalSlot(BaseModel):
-    """A canonical slot in the canonical graph.
+    """Stable latent concept abstracted from multiple surface nodes.
 
-    A slot represents a latent concept abstracted from multiple surface nodes.
-    Surface nodes are mapped to slots via embedding similarity (spaCy en_core_web_md).
+    A canonical slot represents a single concept that may have been mentioned
+    using various surface phrases. Surface nodes map to slots via embedding
+    similarity (spaCy en_core_web_md, 300-dim vectors).
 
     Lifecycle:
-    - Created as 'candidate' when first surface node suggests a new concept
-    - Promoted to 'active' after meeting support_count and turn thresholds
-    - Status changes on promotion, so model is NOT frozen
+        1. Created as 'candidate' when first surface node suggests new concept
+        2. Additional surface nodes increase support_count
+        3. Promoted to 'active' after meeting thresholds
+        4. Status field changes (model is NOT frozen)
 
     Node Type Preservation:
         node_type preserves methodology hierarchy (attribute, consequence, value)
-        to enable type-aware canonical slot discovery and edge aggregation.
+        for type-aware canonical slot discovery and edge aggregation.
+
+    Fields:
+        - slot_name: LLM-generated canonical name (e.g., 'energy_stability')
+        - description: LLM-generated concept explanation
+        - support_count: Number of surface nodes mapped to this slot
+        - first_seen_turn/promoted_turn: Lifecycle tracking
+        - embedding: Serialized numpy float32 vector for similarity matching
     """
 
     id: str
@@ -98,14 +121,26 @@ class CanonicalEdge(BaseModel):
 
 
 class CanonicalGraphState(BaseModel):
-    """Current state of the canonical graph for a session.
+    """Session-level canonical graph state metrics.
 
-    Parallel to GraphState but operates on canonical slots instead of surface nodes.
-    Computed during StateComputationStage (Stage 5) alongside surface graph state.
+    Parallel to GraphState but operates on canonical slots instead of
+    surface nodes. Computed during StateComputationStage (Stage 5)
+    alongside surface graph state metrics.
 
-    Orphan Definition (AMBIGUITY RESOLUTION 2026-02-07):
-        Only ACTIVE slots (status='active') with zero canonical edges are orphans.
-        Candidate slots are excluded from orphan counting entirely.
+    Metrics:
+        - concept_count: Active slots only (candidates excluded)
+        - edge_count: Total canonical edges
+        - orphan_count: Active slots with no edges (candidates excluded)
+        - max_depth: Longest canonical chain for depth analysis
+        - avg_support: Average surface nodes per slot (richness measure)
+
+    Orphan Definition (2026-02-07 RESOLUTION):
+        Only slots with status='active' AND zero canonical edges
+        are counted as orphans. Candidate slots are excluded entirely.
+
+    Used by:
+        - CanonicalOrphanCountSignal (canonical_graph.orphan_count)
+        - Coverage and depth scoring for canonical-level decisions
     """
 
     concept_count: int = Field(

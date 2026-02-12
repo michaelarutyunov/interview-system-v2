@@ -1,4 +1,22 @@
-"""Domain models for knowledge graph nodes and edges."""
+"""Knowledge graph domain models for nodes, edges, and session-level state.
+
+This module defines the core data structures for the knowledge graph that tracks
+concepts and relationships discovered during semi-structured interviews.
+
+Core Models:
+- KGNode: Individual graph nodes with confidence, stance, and provenance
+- KGEdge: Relationships between nodes with source utterance tracking
+- GraphState: Session-level aggregated metrics and state (node_count, phase, depth_metrics)
+- DepthMetrics: Longest chain analysis and average depth per element
+- SaturationMetrics: Information saturation indicators for interview termination
+
+Key Concepts:
+- Single timestamp model (simplified from v1 bi-temporal versioning)
+- Stance tracking: -1 (negative), 0 (neutral), +1 (positive)
+- Source utterance provenance: traceability from node/edge to original utterances
+- Strategy history: deque(maxlen=30) for diversity tracking in scoring
+- Phase tracking: exploratory -> focused -> closing progression
+"""
 
 from collections import deque
 from pydantic import BaseModel, Field, model_validator, field_validator
@@ -10,9 +28,16 @@ logger = structlog.get_logger(__name__)
 
 
 class KGNode(BaseModel):
-    """A node in the knowledge graph.
+    """Knowledge graph node representing a single concept extracted from user input.
 
-    Simplified from v1: Single timestamp instead of bi-temporal versioning.
+    Nodes are the fundamental units of knowledge in the interview system, created
+    during the extraction stage and persisted for session-level tracking.
+
+    Key Attributes:
+        - source_utterance_ids: Traceability chain linking node to original utterances
+        - stance: Sentiment polarity (-1/0/+1) for attitude tracking
+        - superseded_by: REVISES relationship support for node evolution
+        - confidence: LLM extraction confidence (0.0-1.0) for quality filtering
     """
 
     id: str
@@ -34,7 +59,17 @@ class KGNode(BaseModel):
 
 
 class KGEdge(BaseModel):
-    """A relationship in the knowledge graph."""
+    """Directed relationship between two knowledge graph nodes.
+
+    Edges represent causal, hierarchical, or associative relationships
+    discovered during interview. Each edge maintains provenance via
+    source_utterance_ids for traceability back to user responses.
+
+    Edge Types (methodology-specific):
+        - leads_to: Causal or consequential relationship
+        - revises: Correction or refinement of earlier statement
+        - is_a: Hierarchical categorization
+    """
 
     id: str
     session_id: str
@@ -50,9 +85,18 @@ class KGEdge(BaseModel):
 
 
 class DepthMetrics(BaseModel):
-    """Depth analysis of the knowledge graph (ADR-010).
+    """Knowledge graph depth analysis for chain completion scoring.
 
-    Tracks various depth metrics for scoring and analysis.
+    Tracks reasoning chain depth to detect when interview has reached
+    sufficient depth on a topic or needs broadening.
+
+    Metrics:
+        - max_depth: Length of longest reasoning chain (primary depth signal)
+        - avg_depth: Average depth across all nodes
+        - depth_by_element: Per-element depth for targeted exploration
+        - longest_chain_path: Node IDs forming deepest chain for visualization
+
+    Used by: StateComputationStage (Stage 5), strategy selection scoring
     """
 
     max_depth: int = Field(description="Length of longest reasoning chain", ge=0)
@@ -68,11 +112,20 @@ class DepthMetrics(BaseModel):
 
 
 class SaturationMetrics(BaseModel):
-    """Information saturation indicators (ADR-010).
+    """Information saturation indicators for interview termination detection.
 
-    Tracks whether the interview is reaching information saturation.
-    Computed by StateComputationStage (Stage 5) and consumed by
-    ContinuationStage (Stage 7) for termination decisions.
+    Tracks whether the interview has exhausted a topic and should
+    transition or close. Computed by StateComputationStage (Stage 5)
+    and consumed by ContinuationStage (Stage 7).
+
+    Saturation Signals:
+        - consecutive_low_info: Turns since last novel concept (zero yield)
+        - new_info_rate: Rate of novel concept introduction
+        - consecutive_shallow: Turns with only surface-level responses
+        - consecutive_depth_plateau: Turns at same max_depth (no progress)
+
+    Termination Condition: is_saturated derived when multiple indicators
+    suggest topic exhaustion.
     """
 
     # === Core saturation metrics ===
@@ -118,10 +171,20 @@ class SaturationMetrics(BaseModel):
 
 
 class GraphState(BaseModel):
-    """Current state of the knowledge graph for a session.
+    """Session-level knowledge graph state for signal detection and scoring.
 
-    ADR-010: Strengthened data model with typed fields instead of generic
-    properties dict for better type safety and validation.
+    Aggregates metrics computed by StateComputationStage (Stage 5) and
+    consumed by signal detectors in StrategySelectionStage (Stage 6).
+
+    Primary Consumers:
+        - Graph signal detectors (node_count, orphan_count, depth_metrics)
+        - Strategy diversity scoring (strategy_history deque)
+        - Phase detection (current_phase progression)
+        - Continuation decisions (saturation_metrics)
+
+    Validation:
+        - node_count must equal sum of nodes_by_type values
+        - Warns on early closing phase (< 3 turns)
     """
 
     # === Basic Counts ===

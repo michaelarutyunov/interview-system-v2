@@ -1,9 +1,12 @@
 """
-Canonical slot discovery service (dual-graph architecture).
+Canonical slot discovery service for dual-graph architecture.
 
-Uses an LLM to propose abstract canonical slots from surface KGNodes,
-then applies embedding similarity to merge near-duplicates. Candidates
-are promoted to active status once they accumulate sufficient support.
+Abstracts surface-level KGNodes into stable canonical slots via:
+- LLM-proposed slot groupings with granular, specific categories
+- Embedding similarity for merging near-duplicates and grammatical variants
+- Candidate promotion based on support_count thresholds
+
+Preserves node_type for methodology-aware slot discovery and edge aggregation.
 """
 
 import json
@@ -24,17 +27,25 @@ log = structlog.get_logger(__name__)
 
 
 class CanonicalSlotService:
-    """
-    LLM-based canonical slot discovery and management.
+    """LLM-based canonical slot discovery for dual-graph architecture.
 
-    Given surface KGNodes (the user's actual language), proposes abstract
-    canonical slots via LLM, then uses embedding similarity to merge
-    near-duplicates and promote candidates to active status.
+    Abstracts surface KGNodes into stable canonical slots to handle respondent
+    language variation. Uses LLM for slot proposal and embedding similarity
+    for merging near-duplicates and grammatical variants.
 
-    Dependencies (injected via constructor):
-        - LLMClient: For proposing canonical slot groupings
-        - CanonicalSlotRepository: For CRUD on slots, mappings
-        - EmbeddingService: For computing slot name embeddings
+    Lifecycle:
+    - Candidate slots created from LLM proposals
+    - Merged via embedding similarity (spaCy en_core_web_md)
+    - Promoted to active when support_count >= canonical_min_support_nodes
+
+    Node Type Preservation:
+        node_type preserved from surface nodes to enable methodology-aware
+        slot discovery and type-specific edge aggregation.
+
+    Dependencies:
+        LLMClient: Propose canonical slot groupings
+        CanonicalSlotRepository: CRUD operations on slots and mappings
+        EmbeddingService: Compute embeddings for similarity matching
     """
 
     def __init__(
@@ -54,23 +65,23 @@ class CanonicalSlotService:
         turn_number: int,
         methodology: str,
     ) -> List[CanonicalSlot]:
-        """
-        Discover canonical slots for a batch of surface nodes.
+        """Discover canonical slots via node_type grouping and LLM proposal.
 
-        Groups nodes by node_type, then discovers slots per type.
-        Each surface node is mapped to exactly one canonical slot.
+        Groups surface nodes by node_type, then discovers slots per type
+        using LLM proposals and embedding similarity matching. Each surface
+        node maps to exactly one canonical slot (one-to-one relationship).
 
         Args:
-            session_id: Session ID
+            session_id: Session identifier for slot scoping
             surface_nodes: Surface KGNodes extracted this turn
-            turn_number: Current turn number
-            methodology: Methodology name (e.g., 'means_end_chain')
+            turn_number: Current turn number for promotion tracking
+            methodology: Methodology name for node_type descriptions (e.g., 'means_end_chain')
 
         Returns:
-            List of all discovered/matched CanonicalSlot objects
+            List of all discovered or matched CanonicalSlot objects
 
         Raises:
-            ValueError: If any node has empty/missing node_type
+            ValueError: If any surface node has empty or missing node_type
         """
         if not surface_nodes:
             return []
@@ -108,11 +119,23 @@ class CanonicalSlotService:
         turn_number: int,
         methodology: str,
     ) -> List[CanonicalSlot]:
-        """
-        Discover canonical slots for surface nodes of a single type.
+        """Discover canonical slots for surface nodes of a single node_type.
 
-        Calls LLM to propose groupings, then finds or creates each slot
-        via embedding similarity matching.
+        Workflow:
+        1. Load node_type description from methodology schema for LLM context
+        2. Fetch existing active slots to enable reuse
+        3. LLM proposes granular slot groupings for surface nodes
+        4. Find or create each proposed slot via embedding similarity
+
+        Args:
+            session_id: Session identifier for slot scoping
+            node_type: Methodology node type (e.g., 'attribute', 'consequence')
+            surface_nodes: Surface KGNodes of this type to process
+            turn_number: Current turn number for promotion tracking
+            methodology: Methodology name for node_type descriptions
+
+        Returns:
+            List of CanonicalSlot objects (existing matched or newly created)
         """
         # Get node type description from methodology schema
         schema = load_methodology(methodology)
@@ -150,10 +173,20 @@ class CanonicalSlotService:
         node_type_description: str,
         existing_slot_names: List[str],
     ) -> List[Dict]:
-        """
-        Use LLM to propose canonical slot groupings for surface nodes.
+        """Propose canonical slot groupings using LLM analysis.
 
-        Returns list of dicts with keys: slot_name, description, surface_node_ids.
+        Instructs LLM to create granular, specific categories (not broad)
+        and reuse existing slots when applicable. Returns structured JSON
+        with slot names, descriptions, and surface node assignments.
+
+        Args:
+            surface_nodes: Surface KGNodes to group into slots
+            node_type: Methodology node type for categorization
+            node_type_description: Human-readable node type description for LLM context
+            existing_slot_names: Active slot names to encourage reuse
+
+        Returns:
+            List of dicts with keys: slot_name, description, surface_node_ids
 
         Raises:
             ValueError: If LLM returns invalid JSON or unexpected structure
@@ -211,10 +244,17 @@ class CanonicalSlotService:
         return self._parse_slot_proposals(response.content)
 
     def _parse_slot_proposals(self, raw_response: str) -> List[Dict]:
-        """
-        Parse LLM response into slot proposals.
+        """Parse LLM JSON response into structured slot proposals.
 
-        Follows parse_extraction_response pattern from extraction.py.
+        Handles markdown code blocks (```json...```) and validates structure.
+        Follows parse_extraction_response pattern from extraction.py for
+        consistent error handling.
+
+        Args:
+            raw_response: Raw LLM response text containing JSON
+
+        Returns:
+            List of validated proposal dicts with slot_name, description, surface_node_ids
 
         Raises:
             ValueError: If response is not valid JSON or has unexpected structure
@@ -285,19 +325,26 @@ class CanonicalSlotService:
         surface_node_ids: List[str],
         turn_number: int,
     ) -> CanonicalSlot:
-        """
-        Find an existing similar slot or create a new candidate.
+        """Find existing similar slot or create new candidate via embedding similarity.
 
-        Checks both active and candidate slots for embedding similarity.
-        Maps all surface nodes to the resulting slot and checks promotion.
+        Resolution pipeline:
+        1. Lemmatize proposed_name to normalize grammatical variants (reduce/reduced)
+        2. Check for exact lemmatized match to prevent UNIQUE violations
+        3. If no exact match, search by embedding similarity (active + candidate)
+        4. Merge into best match or create new candidate
+        5. Map all surface nodes to resulting slot
+        6. Promote to active if support_count >= canonical_min_support_nodes
+
+        Args:
+            session_id: Session identifier for slot scoping
+            node_type: Methodology node type for slot categorization
+            proposed_name: LLM-proposed slot name (will be lemmatized)
+            description: LLM-proposed slot description
+            surface_node_ids: Surface node IDs to map to this slot
+            turn_number: Current turn number for promotion tracking
 
         Returns:
-            The matched or created CanonicalSlot
-
-        Note:
-            Exact match check BEFORE similarity search prevents UNIQUE constraint
-            violations. Lemmatizes proposed_name before lookup so grammatical
-            variants (reduce/reduced, sustain/sustained) match.
+            Matched existing CanonicalSlot or newly created slot (may be promoted)
         """
         # Lemmatize to normalize grammatical variants
         proposed_name = self._lemmatize_name(proposed_name)

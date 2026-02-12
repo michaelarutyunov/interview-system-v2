@@ -1,8 +1,9 @@
 """
-Pipeline orchestrator for turn processing.
+Turn pipeline orchestrator for sequential stage execution.
 
-Executes stages sequentially with timing tracking and error handling.
-Provides the main entry point for turn processing through the interview system.
+Executes pipeline stages with timing tracking, error handling, and result
+building. Provides main entry point for turn processing through the
+interview system's 12-stage pipeline.
 """
 
 import time
@@ -19,33 +20,40 @@ log = structlog.get_logger(__name__)
 
 class TurnPipeline:
     """
-    Orchestrates execution of pipeline stages.
+    Orchestrates sequential execution of turn processing stages.
 
-    Executes stages sequentially, tracking timing and handling errors.
+    Executes pipeline stages with timing tracking, error handling, and
+    stage contract outputs. Builds TurnResult from context contracts
+    for API response serialization.
     """
 
     def __init__(self, stages: List[TurnStage]):
         """
-        Initialize pipeline with a list of stages.
+        Initialize pipeline with ordered list of stages.
 
         Args:
-            stages: Ordered list of TurnStage instances
+            stages: Ordered list of TurnStage instances to execute sequentially
         """
         self.stages = stages
         self.logger = log
 
     async def execute(self, context: PipelineContext) -> TurnResult:
         """
-        Execute all stages sequentially.
+        Execute all pipeline stages sequentially with timing tracking.
+
+        Iterates through configured stages, logging timing per stage and
+        handling errors by re-raising with context. Total pipeline latency
+        is computed and passed to result builder.
 
         Args:
             context: Initial turn context with session_id and user_input
 
         Returns:
-            TurnResult with extraction, graph state, next question
+            TurnResult with extraction, graph state, strategy, next question,
+            and continuation status
 
         Raises:
-            Exception: If any stage fails
+            Exception: If any stage fails (error logged before re-raising)
         """
         start_time = time.perf_counter()
 
@@ -99,14 +107,23 @@ class TurnPipeline:
 
     def _build_result(self, context: PipelineContext, latency_ms: int) -> TurnResult:
         """
-        Build TurnResult from context.
+        Build TurnResult from stage contract outputs.
+
+        Aggregates data from all stage contracts (ContextLoadingOutput,
+        ExtractionOutput, StrategySelectionOutput, etc.) into a single
+        TurnResult for API response serialization. Includes canonical
+        graph state and comparison metrics when available.
 
         Args:
-            context: Final turn context
-            latency_ms: Total pipeline latency
+            context: Final turn context with populated contract outputs
+            latency_ms: Total pipeline execution latency in milliseconds
 
         Returns:
-            TurnResult
+            TurnResult with extraction, graph state, strategy, question,
+            continuation status, signals, alternatives, and canonical metrics
+
+        Raises:
+            RuntimeError: If StrategySelectionStage has not run (required)
         """
         # Build extracted data
         extracted = {
@@ -179,14 +196,14 @@ class TurnPipeline:
                 for alt in alternatives:
                     if len(alt) == 2:
                         strategy, score = alt
-                        strategy_alternatives.append({"strategy": strategy, "score": score})
+                        strategy_alternatives.append(
+                            {"strategy": strategy, "score": score}
+                        )
                     elif len(alt) == 3:
                         strategy, node_id, score = alt
-                        strategy_alternatives.append({
-                            "strategy": strategy,
-                            "node_id": node_id,
-                            "score": score
-                        })
+                        strategy_alternatives.append(
+                            {"strategy": strategy, "node_id": node_id, "score": score}
+                        )
 
         # Build canonical_graph and graph_comparison
         canonical_graph = None
@@ -221,9 +238,7 @@ class TurnPipeline:
                 surface_edges = context.graph_state.edge_count
                 canonical_edges = cg_state.edge_count
                 edge_aggregation_ratio = (
-                    canonical_edges / surface_edges
-                    if surface_edges > 0
-                    else 0.0
+                    canonical_edges / surface_edges if surface_edges > 0 else 0.0
                 )
 
                 graph_comparison = {

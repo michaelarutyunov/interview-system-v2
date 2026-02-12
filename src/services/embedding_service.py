@@ -1,12 +1,11 @@
-"""
-Text embedding service using sentence-transformers.
+"""Text embedding service using sentence-transformers for semantic similarity.
 
-Computes embeddings for canonical slot similarity matching in the
-dual-graph architecture. Uses all-MiniLM-L6-v2 (384-dim, float32)
-for semantic cosine similarity comparisons.
+Computes embeddings for canonical slot similarity matching in the dual-graph
+architecture. Uses all-MiniLM-L6-v2 (384-dim, float32) for semantic
+cosine similarity comparisons to detect paraphrases and group surface nodes
+into abstract canonical slots.
 
-Also provides access to the spaCy nlp model for lemmatization
-(used by CanonicalSlotService._lemmatize_name).
+Also provides spaCy model access for lemmatization in CanonicalSlotService.
 """
 
 from typing import Any, Dict, Optional
@@ -21,42 +20,39 @@ SPACY_MODEL = "en_core_web_md"
 
 
 class EmbeddingService:
-    """
-    Text embedding via sentence-transformers + spaCy for lemmatization.
+    """Text embedding service using sentence-transformers and spaCy for lemmatization.
+
+    Provides semantic similarity computation for canonical slot matching to detect
+    paraphrases and group surface nodes into abstract canonical slots in the
+    dual-graph architecture.
 
     Embeddings:
-        Uses all-MiniLM-L6-v2 (384-dim float32) for semantic similarity.
-        This is a transformer model trained specifically for sentence similarity,
-        significantly better than spaCy word vectors for catching semantic
-        overlaps like "digestive_comfort" vs "reduced_bloating".
+        Uses all-MiniLM-L6-v2 (384-dim float32) for semantic similarity,
+        a transformer model specifically trained for sentence similarity. This is
+        significantly better than spaCy word vectors for catching semantic overlaps
+        like "digestive_comfort" vs "reduced_bloating".
 
     Lemmatization:
         Exposes spaCy en_core_web_md via the `nlp` property for lemmatization
-        in CanonicalSlotService._lemmatize_name(). Not used for embeddings.
+        in CanonicalSlotService._lemmatize_name().
 
     Lazy Loading:
-        Both models are loaded on first access via properties, avoiding
-        startup penalty for sessions that don't need them.
+        Both models are loaded on first access via properties to avoid startup
+        penalty for sessions that don't need them.
 
     Cache:
-        In-memory dict cache prevents redundant computation. Encoding the
-        same text twice = one model call. Cache lives for the service
-        instance lifetime (sessions are bounded: ~10 turns, ~50-100 unique texts).
-
-    Thread Safety:
-        NOT required. The turn pipeline is async but single-threaded per session.
-        (AMBIGUITY RESOLUTION 2026-02-07)
+        In-memory dict cache prevents redundant computation. Cache lives for the
+        service instance lifetime (sessions are bounded: ~10 turns, ~50-100 unique texts).
     """
 
     def __init__(
         self,
         nlp: Optional[Any] = None,
     ):
-        """
-        Initialize embedding service.
+        """Initialize embedding service with optional shared spaCy model.
 
         Args:
-            nlp: Optional shared spaCy Language instance (e.g., from SRLService)
+            nlp: Optional shared spaCy Language instance (e.g., from SRLService).
                  If provided, reuses the loaded model instead of loading a new one.
         """
         self._nlp: Optional[Any] = nlp
@@ -65,10 +61,9 @@ class EmbeddingService:
 
     @property
     def nlp(self) -> Any:
-        """
-        Lazy-load spaCy model on first access.
+        """Lazy-load spaCy model for lemmatization on first access.
 
-        Used for lemmatization only (not for embeddings).
+        Used by CanonicalSlotService._lemmatize_name() for text normalization.
 
         Returns:
             spaCy Language object (en_core_web_md)
@@ -86,8 +81,7 @@ class EmbeddingService:
 
     @property
     def model(self) -> Any:
-        """
-        Lazy-load sentence-transformers model on first access.
+        """Lazy-load sentence-transformers model on first access.
 
         Returns:
             SentenceTransformer model (all-MiniLM-L6-v2)
@@ -101,10 +95,9 @@ class EmbeddingService:
         return self._model
 
     async def encode(self, text: str) -> np.ndarray:
-        """
-        Encode text to embedding vector using sentence-transformers.
+        """Encode text to embedding vector using sentence-transformers.
 
-        Checks cache first to avoid redundant computation.
+        Checks cache first to avoid redundant computation for duplicate text.
 
         Args:
             text: Input text to encode
@@ -135,11 +128,10 @@ class EmbeddingService:
         return embedding
 
     def clear_cache(self) -> None:
-        """
-        Clear the embedding cache.
+        """Clear the embedding cache.
 
         Optional method - cache lives for the service instance lifetime.
-        Call at session boundaries if memory is a concern (unlikely for POC).
+        Call at session boundaries if memory is a concern.
         """
         cleared_count = len(self._cache)
         self._cache.clear()

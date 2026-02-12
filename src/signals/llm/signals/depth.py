@@ -1,4 +1,9 @@
-"""Response depth signal — assesses elaboration quantity (1-5 scale)."""
+"""Response depth signal — assesses elaboration quantity on 1-5 scale.
+
+Measures how much detail and elaboration the respondent provides
+in their answer. Depth indicates information richness and extraction
+potential for knowledge graph construction.
+"""
 
 from src.signals.llm.decorator import llm_signal
 
@@ -9,11 +14,23 @@ from src.signals.llm.decorator import llm_signal
     description="Assesses quantity of elaboration on a 1-5 scale. 1=surface/minimal, 3=moderate, 5=deep/extensive.",
 )
 class ResponseDepthSignal:
-    """Response depth signal: measures elaboration quantity.
+    """Measure elaboration quantity for extraction potential assessment.
 
-    Depth categories:
-    1 - Minimal/surface: Brief statement without elaboration
+    Assesses how much detail the respondent provides, indicating
+    information richness and opportunities for knowledge graph extraction.
+
+    Depth categories (1-5 rubric):
+    1 - Surface: Minimal response, single phrase, no elaboration
+    2 - Shallow: Brief statement with limited detail
     3 - Moderate: Some elaboration with explanation or context
-    5 - Extensive/deep: Detailed response with reasoning, examples, multiple facets
+    4 - Substantial: Good detail with reasoning or examples
+    5 - Deep: Extensive elaboration with multiple facets, reasoning, examples
+
+    Higher depth scores indicate greater extraction potential and
+    respondent engagement.
+
+    Namespaced signal: llm.response_depth
+    Cost: high (requires LLM analysis or heuristic text processing)
+    Refresh: per_response (always computed fresh)
     """
     pass

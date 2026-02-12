@@ -1,4 +1,19 @@
-"""Domain models for extraction results."""
+"""Extraction domain models for concepts and relationships from user input.
+
+This module defines models for LLM-based extraction results that represent
+structured knowledge discovered from participant responses.
+
+Core Models:
+    - ExtractedConcept: Potential knowledge graph node before deduplication
+    - ExtractedRelationship: Causal or associative link between concepts
+    - ExtractionResult: Complete extraction with metadata for freshness tracking
+
+Key Concepts:
+    - Source utterance provenance: traceability from extraction to original utterance
+    - Stance tracking: -1/0/+1 for negative/neutral/positive concepts
+    - Methodology-specific typing: node_type, edge_type, linked_elements
+    - Freshness validation: timestamp for LLM signal staleness detection
+"""
 
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
@@ -6,10 +21,21 @@ from typing import List, Dict, Any, Optional
 
 
 class ExtractedConcept(BaseModel):
-    """A concept extracted from user text.
+    """Concept extracted from user response, pre-deduplication.
 
-    Represents a potential knowledge graph node before deduplication.
-    Includes source_utterance_id for traceability.
+    Represents a potential knowledge graph node identified by LLM extraction.
+    After deduplication, becomes a KGNode in the knowledge graph.
+
+    Key Attributes:
+        - node_type: Methodology-specific type (attribute, consequence, value)
+        - linked_elements: Element IDs from concept config for coverage tracking
+        - stance: Sentiment polarity (-1/0/+1) for attitude modeling
+        - source_utterance_id: Traceability to original utterance (ADR-010)
+
+    Lifecycle:
+        1. Extracted from user input by ExtractionStage (Stage 3)
+        2. Deduplicated against existing nodes
+        3. Converted to KGNode and persisted in GraphUpdateStage (Stage 4)
     """
 
     text: str = Field(description="Normalized concept text")
@@ -46,10 +72,20 @@ class ExtractedConcept(BaseModel):
 
 
 class ExtractedRelationship(BaseModel):
-    """A relationship extracted from user text.
+    """Relationship extracted between two concepts from user response.
 
-    Links two extracted concepts.
-    Includes reasoning and source_utterance_id for traceability.
+    Represents a causal, hierarchical, or associative connection identified
+    by LLM extraction. After concept deduplication, becomes a KGEdge.
+
+    Relationship Types (methodology-specific):
+        - leads_to: Causal or consequential relationship
+        - revises: Correction or refinement of earlier concept
+        - is_a: Taxonomic or hierarchical classification
+        - relates_to: General associative connection
+
+    Key Attributes:
+        - reasoning: Explanation of why relationship exists (explicit vs implicit)
+        - source_utterance_id: Traceability to original utterance (ADR-010)
     """
 
     source_text: str = Field(description="Source concept text")
@@ -68,11 +104,21 @@ class ExtractedRelationship(BaseModel):
 
 
 class ExtractionResult(BaseModel):
-    """Complete extraction result from a single utterance.
+    """Complete LLM extraction result from a single utterance.
 
-    Contains all concepts and relationships extracted from user input.
+    Container for all concepts and relationships extracted from user input,
+    produced by ExtractionStage (Stage 3) and consumed by
+    GraphUpdateStage (Stage 4).
 
-    Includes timestamp field for freshness validation in StrategySelectionStage.
+    Freshness Tracking:
+        timestamp field enables staleness detection in StrategySelectionStage
+        (Stage 6). Qualitative signals should be from current turn,
+        not recycled from extractions on older utterances.
+
+    Non-extractable Cases:
+        - is_extractable=False: User input too brief, off-topic, or
+          purely conversational (e.g., "I don't know", "sure")
+        - extractability_reason: Explanation for why no extraction occurred
     """
 
     concepts: List[ExtractedConcept] = Field(default_factory=list)
