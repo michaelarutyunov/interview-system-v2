@@ -648,7 +648,7 @@ graph LR
 
 **Why Critical**: Canonical slot discovery is the foundation of the dual-graph architecture, enabling deduplication of paraphrased concepts for stable exhaustion tracking.
 
-**Phase 2 (2026-02-08)**: System now discovers canonical slots via LLM proposal + embedding similarity.
+**Dual-Graph Architecture**: System now discovers canonical slots via LLM proposal + embedding similarity.
 
 ```mermaid
 graph LR
@@ -712,7 +712,7 @@ canonical_min_support_nodes: int = 1  # Support needed for promotion
 
 **Why Critical**: Stage 5 now computes both surface and canonical graph states in parallel, enabling dual-graph observability.
 
-**Phase 3 (2026-02-08)**: StateComputationStage now returns both graph states.
+**Dual-Graph Architecture**: StateComputationStage now returns both graph states.
 
 ```mermaid
 graph LR
