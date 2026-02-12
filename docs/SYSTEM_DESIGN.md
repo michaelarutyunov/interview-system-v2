@@ -369,7 +369,7 @@ All signals use dot-notation namespacing to prevent collisions:
 
 | Pool | Namespace | Example Signals |
 |------|-----------|-----------------|
-| **Graph (Global)** | `graph.*` | node_count, max_depth, orphan_count, chain_completion |
+| **Graph (Global)** | `graph.*` | node_count, max_depth, orphan_count, chain_completion.ratio (float [0,1]), chain_completion.has_complete (bool) |
 | **Graph (Node)** | `graph.node.*` | exhausted, exhaustion_score, yield_stagnation, focus_streak, recency_score, is_orphan, edge_count |
 | **LLM** | `llm.*` | response_depth, valence, certainty, specificity, engagement, global_response_trend |
 | **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_strategy_change |
@@ -428,13 +428,13 @@ Node-level signals use the `graph.node.*` namespace and are computed by `NodeSig
 
 | Signal | Description | Type | Detector |
 |--------|-------------|------|----------|
-| `graph.node.exhausted` | Boolean: is node exhausted | `"true"` / `"false"` | `NodeExhaustedSignal` |
+| `graph.node.exhausted` | Boolean: is node exhausted | bool | `NodeExhaustedSignal` |
 | `graph.node.exhaustion_score` | Continuous: 0.0 (fresh) to 1.0 (exhausted) | float | `NodeExhaustionScoreSignal` |
-| `graph.node.yield_stagnation` | Boolean: 3+ turns without yield | `"true"` / `"false"` | `NodeYieldStagnationSignal` |
+| `graph.node.yield_stagnation` | Boolean: 3+ turns without yield | bool | `NodeYieldStagnationSignal` |
 | `graph.node.focus_streak` | Categorical: none/low/medium/high | str | `NodeFocusStreakSignal` |
-| `graph.node.is_current_focus` | Boolean: is this the current focus | `"true"` / `"false"` | `NodeIsCurrentFocusSignal` |
+| `graph.node.is_current_focus` | Boolean: is this the current focus | bool | `NodeIsCurrentFocusSignal` |
 | `graph.node.recency_score` | Continuous: 1.0 (current) to 0.0 (20+ turns ago) | float | `NodeRecencyScoreSignal` |
-| `graph.node.is_orphan` | Boolean: node has no edges | `"true"` / `"false"` | `NodeIsOrphanSignal` |
+| `graph.node.is_orphan` | Boolean: node has no edges | bool | `NodeIsOrphanSignal` |
 | `graph.node.edge_count` | Integer: total edges (incoming + outgoing) | int | `NodeEdgeCountSignal` |
 | `graph.node.strategy_repetition` | Categorical: none/low/medium/high | str | `NodeStrategyRepetitionSignal` |
 
@@ -463,23 +463,23 @@ Computed by `NodeOpportunitySignal` using:
 
 **Interview Phase Signal (`meta.interview.phase`):**
 
-Detects the current interview phase based on graph state and methodology-specific thresholds:
-- **early**: Initial exploration (node_count < early_max_nodes)
-- **mid**: Building depth and connections (early_max_nodes ≤ node_count < mid_max_nodes)
-- **late**: Validation and verification (node_count ≥ mid_max_nodes)
+Detects the current interview phase based on turn number and methodology-specific thresholds:
+- **early**: Initial exploration (turn_number < early_max_turns)
+- **mid**: Building depth and connections (early_max_turns ≤ turn_number < mid_max_turns)
+- **late**: Validation and verification (turn_number ≥ mid_max_turns)
 
-**Phase transition logic**: The system uses a pure node_count-based threshold system. Transitions occur at predefined node count boundaries defined in the methodology YAML config. This ensures predictable phase progression regardless of graph structure (orphan count, chain completion, etc.).
+**Phase transition logic**: The system uses a turn_number-based threshold system. Transitions occur at predefined turn number boundaries defined in the methodology YAML config. This ensures predictable phase progression based on interview progress.
 
 Each methodology defines its own phase transition thresholds in YAML config under `phases.<phase>.phase_boundaries`:
 ```yaml
 phases:
   early:
     phase_boundaries:
-      early_max_nodes: 5   # Transition to mid at this count
-      mid_max_nodes: 15    # Transition to late at this count
+      early_max_turns: 4   # Transition to mid at this turn
+      mid_max_turns: 12    # Transition to late at this turn
 ```
 
-Computed by `InterviewPhaseSignal` using methodology-specific thresholds from config with fallback to defaults (5/15).
+Computed by `InterviewPhaseSignal` using methodology-specific thresholds from config with fallback to defaults (4/12).
 
 ### Joint Strategy-Node Scoring
 
@@ -495,7 +495,6 @@ def rank_strategy_node_pairs(
     node_tracker: NodeStateTracker,
     phase_weights: Optional[Dict[str, float]] = None,
     phase_bonuses: Optional[Dict[str, float]] = None,
-    signal_norms: Optional[Dict[str, float]] = None,
 ) -> List[Tuple[StrategyConfig, str, float]]:
     """
     Rank (strategy, node) pairs by joint score.
@@ -514,7 +513,7 @@ def rank_strategy_node_pairs(
 **Scoring Formula**:
 ```python
 # Base score from signal weights
-base_score = score_strategy(strategy, combined_signals, signal_norms)
+base_score = score_strategy(strategy, combined_signals)
 
 # Apply phase weight multiplier if available
 multiplier = phase_weights.get(strategy.name, 1.0)
@@ -822,7 +821,7 @@ if config.phases and current_phase in config.phases:
     phase_bonuses = phase_config.phase_bonuses        # Additive
 
 # Base score calculation using signal weights
-base_score = score_strategy(strategy, signals, signal_norms)
+base_score = score_strategy(strategy, signals)
 
 # Apply phase weight multiplier and bonus additively
 multiplier = phase_weights.get(strategy.name, 1.0) if phase_weights else 1.0
@@ -832,21 +831,7 @@ bonus = phase_bonuses.get(strategy.name, 0.0) if phase_bonuses else 0.0
 final_score = (base_score * multiplier) + bonus
 ```
 
-**Signal Normalization**:
-
-The `score_strategy()` function normalizes numeric signals to [0, 1] using `signal_norms` from YAML configs:
-
-```python
-# For numeric signals with values > 1, normalize using max_expected from signal_norms
-# Example: graph.node_count = 25, signal_norms["graph.node_count"] = 50
-# → normalized value = 25/50 = 0.5
-
-# Signals already in [0, 1] pass through unchanged
-# Example: llm.certainty = 0.7 → no normalization needed
-
-# If a numeric signal > 1 has no norm defined, raises ValueError
-# This forces methodology configs to declare expected ranges explicitly
-```
+**Signal Normalization**: All signals are normalized at source to [0, 1] or bool. No additional normalization is needed during scoring.
 
 **Error Handling in Signal Detection:**
 
@@ -860,13 +845,6 @@ Each signal detector runs in isolation with try/except handling. If a detector f
 
 ```yaml
 # config/methodologies/means_end_chain.yaml
-
-# Signal normalization ranges for numeric signals
-signal_norms:
-  graph.node_count: 50         # Expect up to 50 nodes
-  graph.max_depth: 10          # Expect max depth of 10
-  graph.orphan_count: 10       # Expect up to 10 orphans
-  temporal.strategy_repetition_count: 5  # Expect up to 5 repetitions
 
 # Phase-based strategy modifiers
 phases:
@@ -924,7 +902,7 @@ The system uses fundamentally different prompt structures for opening versus fol
 - Goal: Execute a specific strategy based on signals
 - Style: Focused, strategic, signal-aware
 - Context: Strategy description + signal rationale + methodology + graph state
-- Example: "Why does that matter?" (because `graph.chain_completion.has_complete_chain=false`)
+- Example: "Why does that matter?" (because `graph.chain_completion.has_complete=false`)
 
 ### Signal Rationale in Prompts
 
@@ -956,7 +934,7 @@ The follow-up user prompt includes:
   → "Depth of the longest chain. Low values (<2) indicate surface-level exploration"
 - llm.response_depth: moderate
   → "LLM assessment of response depth. 'moderate' means some elaboration"
-- graph.chain_completion.has_complete_chain: false
+- graph.chain_completion.has_complete: false
   → "Whether any complete chains exist from level 1 to terminal nodes"
 
 ## Why This Strategy Was Selected:

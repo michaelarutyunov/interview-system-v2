@@ -131,7 +131,7 @@ graph LR
 - **MethodologyStrategyService** loads YAML configs from `config/methodologies/`
 - **GlobalSignalDetectionService** uses **ComposedSignalDetector** for global signals (graph, llm, temporal, meta) from YAML config
 - **NodeSignalDetectionService** detects node-level signals (graph.node.*, technique.node.*) using hardcoded detector instances
-- **Signals are namespaced**: `graph.node_count`, `llm.response_depth`, `temporal.strategy_repetition_count`, `graph.node.exhausted`, `technique.node.strategy_repetition`, etc.
+- **Signals are namespaced**: `graph.max_depth`, `llm.response_depth`, `temporal.strategy_repetition_count`, `graph.node.exhausted`, `technique.node.strategy_repetition`, etc.
 - **LLM signals are fresh** - computed every response, no cross-response caching
 - **InterviewPhaseSignal** detects current phase (`early`, `mid`, `late`) from `meta.interview.phase` signal
 - **Phase weights and bonuses** are defined in YAML config under `config.phases[phase]`:
@@ -151,13 +151,15 @@ All signals use dot-notation namespacing to prevent collisions:
 
 | Pool | Namespace | Examples |
 |------|-----------|----------|
-| **Graph (Global)** | `graph.*` | node_count, max_depth, orphan_count, chain_completion |
+| **Graph (Global)** | `graph.*` | max_depth, chain_completion.ratio, chain_completion.has_complete, canonical_concept_count, canonical_edge_density, canonical_exhaustion_score |
 | **Graph (Node)** | `graph.node.*` | exhausted, exhaustion_score, yield_stagnation, focus_streak, recency_score, is_orphan, edge_count |
 | **LLM** | `llm.*` | response_depth, valence, certainty, specificity, engagement |
 | **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_strategy_change |
 | **Meta** | `meta.*` | interview_progress, interview.phase |
 | **Meta (Node)** | `meta.node.*` | opportunity (exhausted/probe_deeper/fresh) |
 | **Technique (Node)** | `technique.node.*` | strategy_repetition (consecutive same strategy on node) |
+
+**Note**: Legacy signals `node_count`, `edge_count`, `orphan_count` are still computed in graph state but no longer used in strategy scoring signal weights.
 
 ### YAML Configuration Flow
 
