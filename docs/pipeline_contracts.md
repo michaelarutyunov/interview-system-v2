@@ -13,6 +13,8 @@ The turn pipeline implements a **shared context accumulator pattern** where `Pip
 
 **ADR-010 Phase 2**: Pipeline contracts have been formalized as Pydantic models in `src/domain/models/pipeline_contracts.py`. Each stage now has typed input/output models with enhanced traceability via `source_utterance_id` fields throughout extraction and scoring data.
 
+**Total Pipeline Stages**: 12 (10 base stages + 2 optional stages)
+
 ## Implementation Status
 
 **Total Stages**: 12 (including optional Stage 2.5: SRLPreprocessingStage and Stage 4.5: SlotDiscoveryStage)
@@ -24,8 +26,9 @@ The turn pipeline implements a **shared context accumulator pattern** where `Pip
   - Stage 4.5 (SlotDiscoveryStage): `enable_canonical_slots=True` (default: True)
 - **Total when both enabled**: 12 stages
 - **Total when both disabled**: 10 stages
+
 **Stages with Contracts**: 12 (100%)
-**Stages Missing Contracts**: 0 (0%)
+- **Stages Missing Contracts**: 0 (0%)
 
 **Status**: ✅ All pipeline stages have formal contracts defined
 
@@ -53,9 +56,9 @@ ADR-010 Phase 2 introduced typed Pydantic models for all pipeline stage inputs a
 | `StateComputationOutput` | Fresh graph state with timestamp | `StateComputationStage` |
 | `StrategySelectionInput` | Validated input for strategy selection | `StrategySelectionStage` |
 | `StrategySelectionOutput` | Selected strategy with scoring breakdown | `StrategySelectionStage` |
+| `ContinuationOutput` | Continuation decision with reason | `ContinuationStage` |
 | `QuestionGenerationOutput` | Generated question with LLM fallback flag | `QuestionGenerationStage` |
 | `ResponseSavingOutput` | Saved system utterance | `ResponseSavingStage` |
-| `ContinuationOutput` | Continuation decision with reason | `ContinuationStage` |
 | `ScoringPersistenceOutput` | Scoring data with flag tracking | `ScoringPersistenceStage` |
 
 ### Traceability Pattern
@@ -147,6 +150,12 @@ class PipelineContext:
     stage_timings: Dict[str, float]
 ```
 
+Each stage **reads** from the context and **writes** new information. This pattern ensures:
+- Clear data flow contracts between stages
+- Easy debugging (trace state evolution)
+- Testability (each stage is isolated)
+- Parallel development (stages have clear boundaries)
+
 ---
 
 ## Stage Dependencies (Contract Validation)
@@ -178,9 +187,10 @@ async def process(self, context: "PipelineContext") -> "PipelineContext":
     # Validate Stage N (PredecessorStage) completed first
     if context.predecessor_output is None:
         raise RuntimeError(
-            "Pipeline contract violation: CurrentStage (Stage N+1) requires "
-            "PredecessorStage (Stage N) to complete first."
+            f"Pipeline contract violation: {self.__class__.__name__} (Stage {current_stage_number + 1}) requires "
+            f"{PredecessorStage.__class__.__name__} (Stage N) to complete first. "
         )
+
     # ... rest of stage logic
 ```
 
@@ -188,7 +198,7 @@ async def process(self, context: "PipelineContext") -> "PipelineContext":
 
 1. **Fail-fast**: Errors are detected immediately when stages are called out of order
 2. **Clear error messages**: Each violation identifies both the current stage and the missing predecessor
-3. **Documentation**: The validation checks serve as inline documentation of stage dependencies
+3. **Documentation**: The validation checks serve as inline documentation
 4. **Debugging**: Contract violations are easy to trace through the error messages
 
 ---
@@ -209,6 +219,7 @@ async def process(self, context: "PipelineContext") -> "PipelineContext":
 | **Side Effects** | None (read-only database operations) |
 
 **Contract Output**: `ContextLoadingOutput`
+
 ```python
 methodology: str           # Methodology identifier
 concept_id: str           # Concept identifier
@@ -217,7 +228,7 @@ turn_number: int          # Current turn number
 mode: str                 # Interview mode
 max_turns: int            # Maximum turns
 recent_utterances: List[Dict[str, str]]  # Conversation history
-strategy_history: deque[str]  # Strategy history (auto-trimmed to 30 items)
+strategy_history: deque[str]  # Recent strategies for diversity tracking
 graph_state: GraphState    # Knowledge graph state
 recent_nodes: List[KGNode] # Recent nodes
 ```
@@ -240,15 +251,16 @@ recent_nodes: List[KGNode] # Recent nodes
 | **Side Effects** | INSERT to utterances table |
 
 **Contract Output**: `UtteranceSavingOutput`
+
 ```python
 turn_number: int          # Turn number for this utterance
 user_utterance_id: str    # Database ID of saved utterance
-user_utterance: Utterance # Full saved utterance record
+user_utterance: Utterance  # Full saved utterance record
 ```
 
 ---
 
-### Stage 2.5: SRLPreprocessingStage
+### Stage 2.5: SRLPreprocessingStage (Optional)
 
 **File**: `src/services/turn_pipeline/stages/srl_preprocessing_stage.py`
 
@@ -263,27 +275,28 @@ user_utterance: Utterance # Full saved utterance record
 | **Feature Flag** | `enable_srl` in Settings (if disabled or srl_service=None, stage outputs empty contract) |
 
 **Contract Output**: `SrlPreprocessingOutput`
+
 ```python
 discourse_relations: List[Dict[str, str]]  # {marker, antecedent, consequent}
-srl_frames: List[Dict[str, Any]]          # {predicate, arguments}
+srl_frames: List[Dict[str, Any]]         # {predicate, arguments}
 discourse_count: int                      # Number of discourse relations found
-frame_count: int                          # Number of SRL frames found
-timestamp: datetime                       # When SRL analysis was performed
+frame_count: int                         # Number of SRL frames found
+timestamp: datetime                        # When SRL analysis was performed
 ```
 
 **Input Requirements:**
 - `PipelineContext.user_input` (from pipeline creation)
-- `PipelineContext.context_loading_output.recent_utterances` (from Stage 1)
-- `PipelineContext.utterance_saving_output` (from Stage 2) - validates Stage 2 completed
+- `PipelineContext.context_loading_output.recent_utterances` (from Stage 1) - validates Stage 2 completed
+- `PipelineContext.utterance_saving_output` (from Stage 2)
 
 **Behavior:**
-- If `srl_service is None` (feature disabled): Set empty `SrlPreprocessingOutput` and return
+- If `srl_service` is None (feature disabled): Set empty `SrlPreprocessingOutput` and return
 - Extract interviewer question from `recent_utterances` (last system utterance)
 - Call `srl_service.analyze(user_utterance, interviewer_question)`
 - Build `SrlPreprocessingOutput` from results
 - Log `srl_analysis_complete` with `discourse_count`, `frame_count`
 
-**Error Handling:**
+**Error Handling** (fail-fast per ADR-009):
 - If `srl_service` is None (feature disabled): Set empty output, return (do not crash pipeline)
 - If spaCy model load fails: Log error, set empty output, return (graceful degradation)
 - SRLService handles all spaCy errors internally and returns empty structures
@@ -306,26 +319,28 @@ timestamp: datetime                       # When SRL analysis was performed
 | **Side Effects** | LLM API call |
 
 **Contract Output**: `ExtractionOutput`
+
 ```python
 extraction: ExtractionResult  # Extracted concepts and relationships
 methodology: str               # Methodology used for extraction
-timestamp: datetime           # When extraction was performed (auto-set)
+timestamp: datetime           # When extraction was performed
 concept_count: int           # Number of concepts extracted (auto-calculated)
 relationship_count: int       # Number of relationships extracted (auto-calculated)
 ```
 
-**Behavior:**
-- If `srl_preprocessing_output` has data (from Stage 2.5): Inject structural analysis section into extraction context
-- Format: `## STRUCTURAL ANALYSIS (use to guide relationship extraction):`
-  - Causal/temporal markers: `[marker]: "antecedent" → "consequent"`
-  - Predicate-argument structures: `predicate: nsubj=X, dobj=Y, ...` (limited to top 5 frames)
-- Log `srl_context_added` with approximate token count of added section
-- If `srl_preprocessing_output` is None or empty: Extraction works identically (backward compatible)
+**Input Requirements:**
+- `PipelineContext.user_input` (from pipeline creation)
+- `PipelineContext.context_loading_output.recent_utterances` (from Stage 1) - validates Stage 2 completed
+- `PipelineContext.utterance_saving_output.user_utterance` (from Stage 2)
 
 **Features**:
 - Auto-calculates counts from extraction result
 - Auto-sets timestamp
-- Optional SRL structural hints injection (Phase 1: SRL Preprocessing Infrastructure)
+- Optional SRL structural hints injection (Phase 1: SRL Preprocessing Infrastructure):
+  - Format: `## STRUCTURAL ANALYSIS (use to guide relationship extraction):`
+  - Causal/temporal markers: `[marker]: "antecedent" → "consequent"`
+  - Predicate-argument structures: `predicate: subj=X, dobj=Y, ...` (limited to top 5 frames)
+  - Log `srl_context_added` with approximate token count of added section
 
 ---
 
@@ -343,6 +358,7 @@ relationship_count: int       # Number of relationships extracted (auto-calculat
 | **Side Effects** | INSERT/UPDATE to nodes and edges in graph database; updates NodeStateTracker |
 
 **Contract Output**: `GraphUpdateOutput`
+
 ```python
 nodes_added: List[KGNode]     # Nodes added to graph
 edges_added: List[Dict[str, Any]]  # Edges added to graph
@@ -361,7 +377,7 @@ timestamp: datetime           # When graph update was performed (auto-set)
 
 ---
 
-### Stage 4.5: SlotDiscoveryStage
+### Stage 4.5: SlotDiscoveryStage (Optional)
 
 **File**: `src/services/turn_pipeline/stages/slot_discovery_stage.py`
 
@@ -373,8 +389,10 @@ timestamp: datetime           # When graph update was performed (auto-set)
 | **Reads** | `graph_update_output.nodes_added`, `turn_number`, `methodology` |
 | **Writes** | `slot_discovery_output` (SlotDiscoveryOutput contract) |
 | **Side Effects** | INSERT canonical_slots, INSERT surface_to_slot_mapping, UPDATE canonical_slots.support_count, LLM call for slot proposal |
+| **Feature Flag** | `enable_canonical_slots` in Settings (if disabled, stage is skipped entirely) |
 
 **Contract Output**: `SlotDiscoveryOutput`
+
 ```python
 slots_created: int           # New canonical slots created this turn
 slots_updated: int           # Existing slots that received new mappings
@@ -382,12 +400,16 @@ mappings_created: int        # Surface nodes mapped to canonical slots
 timestamp: datetime           # When slot discovery was performed (auto-set)
 ```
 
+**Input Requirements:**
+- `PipelineContext.graph_update_output.nodes_added` (from Stage 4) - validates Stage 4 completed
+- `PipelineContext.turn_number`, `methodology` - for logging
+
 **Error Handling** (fail-fast per ADR-009):
 - No `nodes_added`: skip LLM call, return `SlotDiscoveryOutput` with zeros (only graceful skip)
 - `graph_update_output` is None: raise `RuntimeError` (pipeline contract violation)
 - LLM failure: exception propagates, pipeline fails for this turn
 
-**REFERENCE**: Phase 2 (Dual-Graph Architecture), bead yuhv
+**Reference**: Phase 2 (Dual-Graph Architecture), bead yuhv
 
 ---
 
@@ -405,13 +427,14 @@ timestamp: datetime           # When slot discovery was performed (auto-set)
 | **Side Effects** | None (read-only database operations) |
 
 **Contract Output**: `StateComputationOutput`
+
 ```python
 graph_state: GraphState       # Refreshed knowledge graph state
 recent_nodes: List[KGNode]    # Refreshed recent nodes
 computed_at: datetime         # When state was computed (freshness tracking)
 ```
 
-**ADR-010**: Includes freshness validation to prevent stale state bug.
+**Note**: `graph_state` is refreshed by querying the database for current metrics, ensuring each stage works with up-to-date information.
 
 ---
 
@@ -429,6 +452,7 @@ computed_at: datetime         # When state was computed (freshness tracking)
 | **Side Effects** | None (pure computation) |
 
 **Contract Input**: `StrategySelectionInput`
+
 ```python
 graph_state: GraphState              # Current knowledge graph state
 recent_nodes: List[KGNode]           # Recent nodes
@@ -436,23 +460,18 @@ extraction: Any                       # ExtractionResult with timestamp
 conversation_history: List[Dict[str, str]]  # Conversation history
 turn_number: int                      # Current turn number
 mode: str                             # Interview mode
-computed_at: datetime                 # When graph_state was computed (freshness validation)
-node_tracker: NodeStateTracker        # Node state tracker for node-level signals
+node_tracker: NodeStateTracker        # Node state tracking for node-level signals
 ```
 
 **Contract Output**: `StrategySelectionOutput`
+
 ```python
-strategy: str                          # Selected strategy ID
-focus: Optional[Dict[str, Any]]        # Focus target with focus_node_id
-selected_at: datetime                   # When strategy was selected (auto-set)
+strategy: str                          # Selected strategy
+focus: Optional[Dict[str, Any]]        # Focus target with focus_node_id when strategy selects a node
+selected_at: datetime                # When strategy was selected (auto-set)
 signals: Optional[Dict[str, Any]]      # Methodology-specific signals (namespaced)
 strategy_alternatives: List[tuple[str, str, float]]  # (strategy, node_id, score) tuples
 ```
-
-**D1 Architecture Update**: Now uses `MethodologyStrategyService.select_strategy_and_focus()` with joint strategy-node scoring:
-- `rank_strategy_node_pairs()` scores all (strategy, node) combinations
-- Returns best (strategy, node_id) pair with alternatives for debugging
-- Node-level signals enable exhaustion-aware backtracking
 
 ---
 
@@ -470,15 +489,14 @@ strategy_alternatives: List[tuple[str, str, float]]  # (strategy, node_id, score
 | **Side Effects** | None (pure computation) |
 
 **Contract Output**: `ContinuationOutput`
+
 ```python
-should_continue: bool     # Whether to continue the interview
+should_continue: bool     # Whether to continue interview
 focus_concept: str       # Concept to focus on next turn
 reason: str              # Reason for continuation decision
 turns_remaining: int     # Number of turns remaining
-timestamp: datetime      # When continuation decision was made (auto-set)
+timestamp: datetime        # When continuation decision was made (auto-set)
 ```
-
-**D1 Architecture**: The `focus` dict contains `focus_node_id` selected jointly with the strategy by `rank_strategy_node_pairs()`.
 
 ---
 
@@ -492,12 +510,12 @@ timestamp: datetime      # When continuation decision was made (auto-set)
 | **Dependencies** | Stage 6: `strategy_selection_output`, Stage 7: `continuation_output` |
 | **Immutable Inputs** | None |
 | **Reads** | `should_continue`, `focus_concept`, `recent_utterances`, `graph_state`, `strategy` |
-| **Writes** | `question_generation_output` (QuestionGenerationOutput contract) |
 | **Side Effects** | LLM API call |
 
 **Contract Output**: `QuestionGenerationOutput`
+
 ```python
-question: str              # Generated question text
+question: str              # Generated question
 strategy: str               # Strategy used to generate question
 focus: Optional[Dict[str, Any]]  # Focus target for question
 has_llm_fallback: bool      # Whether LLM fallback was used
@@ -520,10 +538,11 @@ timestamp: datetime          # When question was generated (auto-set)
 | **Side Effects** | INSERT to utterances table |
 
 **Contract Output**: `ResponseSavingOutput`
+
 ```python
 turn_number: int           # Turn number for this utterance
 system_utterance_id: str   # Database ID of saved utterance
-system_utterance: Utterance # Full saved utterance record
+system_utterance: Utterance  # Full saved utterance record
 question_text: str         # Question text that was saved
 timestamp: datetime         # When response was saved (auto-set)
 ```
@@ -544,6 +563,7 @@ timestamp: datetime         # When response was saved (auto-set)
 | **Side Effects** | UPDATE session state (turn_count, strategy_history), INSERT scoring records |
 
 **Contract Output**: `ScoringPersistenceOutput`
+
 ```python
 turn_number: int                # Turn number for scoring
 strategy: str                  # Strategy that was selected
@@ -552,29 +572,6 @@ saturation_score: float         # Saturation metric from graph state
 has_methodology_signals: bool   # Whether methodology signals were saved
 timestamp: datetime              # When scoring was persisted (auto-set)
 ```
-
----
-
-## Known Issues: Fields Not Set by Stages
-
-The following contract fields exist but are **not currently set** by their respective stages. They have default values or validators that auto-calculate them:
-
-| Stage | Field | Status |
-|-------|-------|--------|
-| Stage 3 | `timestamp` | Has default factory - works |
-| Stage 3 | `concept_count`, `relationship_count` | Has validator - auto-calculates |
-| Stage 4 | `timestamp` | Has default factory - works |
-| Stage 4 | `node_count`, `edge_count` | Has validator - auto-calculates |
-| Stage 6 | `selected_at` | Has default factory - works |
-| Stage 7 | `has_llm_fallback` | Has default=False - stage should set this |
-| Stage 8 | `timestamp` | Has default factory - works |
-| Stage 9 | `timestamp` | Has default factory - works |
-| Stage 9 | `reason` | Has default="" - stage should set this |
-| Stage 9 | `turns_remaining` | Required field - stage must set this |
-| Stage 10 | `timestamp` | Has default factory - works |
-| Stage 10 | `has_methodology_signals` | Has default=False - stage should set this |
-
-**Recommendation**: Stages 7, 9, and 10 should be updated to explicitly set their boolean fields for better observability. Stage 9 must set `turns_remaining`.
 
 ---
 
@@ -590,16 +587,18 @@ class TurnResult:
     turn_number: int
     extracted: dict                    # concepts, relationships
     graph_state: dict                  # node_count, edge_count, depth_achieved
-    scoring: dict                      # strategy_id, score, reasoning (Phase 3)
+    scoring: dict                      # strategy_id, score, reasoning
     strategy_selected: Optional[str]   # Selected strategy name
     next_question: str                  # Generated question
     should_continue: bool              # Whether interview continues
     latency_ms: int = 0                # Pipeline execution time
-    signals: Optional[Dict[str, Any]] = None           # Raw methodology signals (Phase 6)
-    strategy_alternatives: Optional[List[Dict[str, Any]]] = None  # Alternative strategies with scores
-    termination_reason: Optional[str] = None  # Reason for termination (e.g., "max_turns_reached", "graph_saturated", "depth_plateau")
-    canonical_graph: Optional[Dict[str, Any]] = None    # Canonical graph metrics (Phase 3)
-    graph_comparison: Optional[Dict[str, Any]] = None   # Surface vs canonical comparison (Phase 3)
+
+    # Observability (Phase 6)
+    signals: Optional[Dict[str, Any]] = None           # Raw methodology signals
+    strategy_alternatives: Optional[List[Dict[str, Any]]] = None # All scored alternatives
+
+    # Termination (optional)
+    termination_reason: Optional[str] = None  # Reason for termination
 ```
 
 ### Field Details
@@ -614,73 +613,17 @@ class TurnResult:
 | `next_question` | QuestionGenerationOutput | Generated follow-up question |
 | `should_continue` | ContinuationOutput | Whether to continue interview |
 | `latency_ms` | Pipeline | Total execution time in milliseconds |
-| `signals` | StrategySelectionOutput | Raw signals from signal pools (Phase 6) |
-| `strategy_alternatives` | StrategySelectionOutput | All scored alternatives with scores |
-| `termination_reason` | ContinuationOutput.reason | Reason for termination when `should_continue=False` |
-| `canonical_graph` | StateComputationOutput | Canonical graph metrics {slots, edges, metrics} (Phase 3) |
-| `graph_comparison` | StateComputationOutput | Surface vs canonical comparison {node_reduction_pct, edge_aggregation_ratio, orphan_improvement_pct} (Phase 3) |
 
 ### Termination Reasons
 
-The `termination_reason` field is populated by `ContinuationStage` when `should_continue=False`:
+The `termination_reason` field is populated when `should_continue=False`:
 
-| Reason | Description |
-|--------|-------------|
-| `"max_turns_reached"` | Interview reached configured max_turns limit |
-| `"depth_plateau"` | Graph max_depth hasn't increased in 6 consecutive turns |
-| `"quality_degraded"` | Consecutive shallow responses detected (saturation) |
-| `"close_strategy"` | Closing strategy was selected |
-
-### Canonical Graph Fields (Phase 3)
-
-**Phase 3 (2026-02-08)**: Dual-graph architecture adds canonical graph observability to TurnResult.
-
-**`canonical_graph`** structure:
-```python
-{
-    "slots": {
-        "concept_count": int,      # Active canonical slots
-        "orphan_count": int,        # Slots with no edges
-        "avg_support": float,       # Average support per slot
-    },
-    "edges": {
-        "edge_count": int,          # Canonical edges
-    },
-    "metrics": {
-        "max_depth": int,           # Longest canonical path
-    }
-}
-```
-
-**`graph_comparison`** structure:
-```python
-{
-    "node_reduction_pct": float,     # % reduction from surface → canonical
-    "edge_aggregation_ratio": float, # canonical_edges / surface_edges
-    "orphan_improvement_pct": float, # Orphan reduction from aggregation
-}
-```
-
-### Usage
-
-`TurnResult` is returned by:
-- `SessionService.process_turn()` - API endpoint response
-- Simulation endpoints - For testing and diagnostics
-- Tests - For validating pipeline behavior
-
----
-
-## Historical Note: Removed Deprecated Models
-
-The following models were removed as part of the two-tier scoring system cleanup (Phase 6, 2026-01-28):
-
-- `Focus` (old two-tier version - different from `src.domain.models.turn.Focus`)
-- `VetoResult`
-- `WeightedResult`
-- `ScoredStrategy`
-- `StrategySelectionResult`
-
-These were kept only for database compatibility but are no longer needed as the system now uses methodology-based signal detection.
+| Reason | Description | Detection |
+|--------|-------------|-----------|
+| `max_turns_reached` | Interview reached configured `max_turns` limit | `turn_number >= max_turns` |
+| `depth_plateau` | Graph max_depth hasn't increased in 6 consecutive turns | Tracked in `StateComputationStage` |
+| `quality_degraded` | Consecutive shallow responses detected (saturation) | Tracked in node_tracker |
+| `close_strategy` | Closing strategy was selected | `strategy == "close"` |
 
 ---
 
@@ -700,4 +643,3 @@ When modifying pipeline stages, ensure:
 - [Data Flow Paths](./data_flow_paths.md) - Visual diagrams of critical data flows
 - [ADR-008: Internal API Boundaries](./adr/008-internal-api-boundaries-pipeline-pattern.md) - Architecture rationale
 - [ADR-010: Three-Client LLM Architecture](./adr/010-three-client-llm-architecture.md) - LLM service architecture
-- [SYSTEM_DESIGN](./SYSTEM_DESIGN.md) - Narrative system architecture for articles
