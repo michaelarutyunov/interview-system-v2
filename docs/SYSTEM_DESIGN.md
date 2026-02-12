@@ -19,11 +19,11 @@
 
 ## Overview
 
-The Interview System v2 is a knowledge-graph-based conversational research system that conducts semi-structured interviews through adaptive questioning. At its core, the system uses a **12-stage turn processing pipeline** (10 base stages + 2 optional stages) that transforms user input into follow-up questions while building a knowledge graph of the conversation.
+The Interview System v2 is a knowledge-graph-based conversational research system that conducts semi-structured interviews through adaptive questioning. At its core, the system uses a **12-stage turn processing pipeline** that transforms user input into follow-up questions while building a knowledge graph of the conversation.
 
 ### Key Design Principles
 
-1. **Pipeline Pattern**: Each turn flows through 12 stages (10 base + 2 optional) with well-defined contracts
+1. **Pipeline Pattern**: Each turn flows through 12 stages with well-defined contracts
 2. **Signal Pools**: Strategy selection uses namespaced signals from multiple data sources
 3. **Methodology-Centric**: Interview behavior driven by pluggable methodology configurations
 4. **Knowledge Graph**: All extracted concepts and relationships stored as graph structure
@@ -33,7 +33,7 @@ The Interview System v2 is a knowledge-graph-based conversational research syste
 
 ```
 User Input → Turn Pipeline → Knowledge Graph → Strategy Selection → Question Generation → User Response
-                ↓ (12 stages: 10 base + 2 optional)
+                ↓ (12 stages)
             Context Accumulation
 ```
 
@@ -50,7 +50,7 @@ The system separates **concepts** (WHAT to explore) from **methodologies** (HOW 
 │                     Application Layer                       │
 │  - FastAPI endpoints                                        │
 │  - TurnPipeline orchestrator                                │
-│  - 10 base stages + 2 optional (SRLPreprocessing, SlotDiscovery) │
+│  - 12 stages (including SRLPreprocessing, SlotDiscovery) │
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ### Dual-Graph Architecture (Phase 2-3, 2026-02-08)
@@ -118,13 +118,13 @@ The turn pipeline is the heart of the system. Each user response flows through 1
 10. ScoringPersistence → Save scoring and update session
 ```
 
-**Optional Stages (feature-controlled)**:
+**Additional Stages**:
 ```
-2.5. SRLPreprocessing → Linguistic structure extraction (enable_srl flag)
-4.5. SlotDiscovery    → Canonical slot discovery for dual-graph (enable_canonical_slots flag)
+2.5. SRLPreprocessing → Linguistic structure extraction
+4.5. SlotDiscovery    → Canonical slot discovery for dual-graph
 ```
 
-**Total**: 12 stages when both optional stages enabled
+**Total**: 12 stages
 
 ### Shared Context Accumulator
 
@@ -227,7 +227,7 @@ class TurnResult:
 
 #### Signals and Strategy Alternatives
 
-**Phase 6 (2026-02-03)**: Observability fields expose raw signal data for debugging:
+**Observability fields**: Observability fields expose raw signal data for debugging:
 
 - **`signals`**: Raw methodology signals from all signal pools
   - `graph.*`: Global and node-level graph signals
