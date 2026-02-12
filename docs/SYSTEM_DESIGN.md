@@ -1,7 +1,7 @@
 # Interview System v2 - System Design
 
 > **Purpose**: Narrative documentation of the interview system architecture, written for technical articles and comprehensive understanding.
-> **Related**: [Pipeline Contracts](./pipeline_contracts.md) | [Data Flow Paths](./data_flow_paths.md) | [ADR Index](./adr/README.md)
+> **Related**: [Pipeline Contracts](./pipeline_contracts.md) | [Data Flow Paths](./data_flow_paths.md)
 
 ## Table of Contents
 
@@ -53,7 +53,7 @@ The system separates **concepts** (WHAT to explore) from **methodologies** (HOW 
 │  - 12 stages (including SRLPreprocessing, SlotDiscovery) │
 └─────────────────────────────────────────────────────────────┘
                             ↓
-### Dual-Graph Architecture (Phase 2-3, 2026-02-08)
+### Dual-Graph Architecture
 
 The system implements a dual-graph architecture to handle respondent paraphrase fragmentation:
 
@@ -76,8 +76,6 @@ The system implements a dual-graph architecture to handle respondent paraphrase 
 1. Cleaner signals: "1 concept discussed 3 times" vs "3 fresh concepts"
 2. Accurate exhaustion tracking across paraphrases
 3. Stable metrics regardless of language variation
-
-**REFERENCE**: ADR-018 for full architecture details
 
 ┌─────────────────────────────────────────────────────────────┐
 │                   Methodology Layer                         │
@@ -176,7 +174,7 @@ class ExtractionOutput(BaseModel):
     relationship_count: int            # Number of relationships extracted
 ```
 
-**ADR-010 Phase 2** enhanced traceability by adding `source_utterance_id` throughout extraction and scoring data, linking all extracted concepts back to the specific user utterance that produced them.
+Traceability is enhanced by `source_utterance_id` throughout extraction and scoring data, linking all extracted concepts back to the specific user utterance that produced them.
 
 ### Pipeline Output: TurnResult
 
@@ -194,12 +192,12 @@ class TurnResult:
     next_question: str                  # Generated question
     should_continue: bool              # Whether interview continues
 
-    # Observability (Phase 6)
+    # Observability
     signals: Optional[Dict[str, Any]] = None           # Raw methodology signals
     strategy_alternatives: Optional[List[Dict[str, Any]]] = None  # All scored alternatives
     termination_reason: Optional[str] = None  # Reason for termination
 
-    # Dual-Graph Observability (Phase 3)
+    # Dual-Graph Observability
     canonical_graph: Optional[Dict[str, Any]] = None    # Canonical graph metrics
     graph_comparison: Optional[Dict[str, Any]] = None   # Surface vs canonical comparison
 
@@ -218,11 +216,11 @@ class TurnResult:
 | `strategy_selected` | StrategySelectionOutput | Selected strategy name |
 | `next_question` | QuestionGenerationOutput | Generated follow-up question |
 | `should_continue` | ContinuationOutput | Whether to continue interview |
-| `signals` | StrategySelectionOutput | Raw signals from signal pools (Phase 6) |
+| `signals` | StrategySelectionOutput | Raw signals from signal pools |
 | `strategy_alternatives` | StrategySelectionOutput | All scored alternatives with node_id |
 | `termination_reason` | ContinuationOutput.reason | Reason for termination |
-| `canonical_graph` | StateComputationOutput | Canonical graph metrics (Phase 3) |
-| `graph_comparison` | StateComputationOutput | Surface vs canonical comparison (Phase 3) |
+| `canonical_graph` | StateComputationOutput | Canonical graph metrics |
+| `graph_comparison` | StateComputationOutput | Surface vs canonical comparison |
 | `latency_ms` | Pipeline | Total execution time in milliseconds |
 
 #### Signals and Strategy Alternatives
@@ -317,7 +315,7 @@ The system uses methodology-based signal detection with YAML configuration.
 
 Node-level signals enable per-node state tracking and intelligent backtracking.
 
-**D1 Architecture (2026-01-30)**: Joint strategy-node scoring enables the system to select optimal (strategy, node) combinations, with node exhaustion awareness driving automatic backtracking.
+Joint strategy-node scoring enables the system to select optimal (strategy, node) combinations, with node exhaustion awareness driving automatic backtracking.
 
 Signal pools enable flexible strategy selection by collecting signals from multiple data sources:
 
@@ -423,7 +421,7 @@ graph LR
 
 ### Node-Level Signals
 
-**Phase 6 (2026-01-29)**: Node-level signals enable per-node state tracking and joint strategy-node scoring.
+Node-level signals enable per-node state tracking and joint strategy-node scoring.
 
 Node-level signals use the `graph.node.*` namespace and are computed by `NodeSignalDetector` subclasses:
 
@@ -471,7 +469,7 @@ Detects the current interview phase based on graph state and methodology-specifi
 
 **Phase transition logic**: The system uses a pure node_count-based threshold system. Transitions occur at predefined node count boundaries defined in the methodology YAML config. This ensures predictable phase progression regardless of graph structure (orphan count, chain completion, etc.).
 
-**Configurable Phase Boundaries (54d)**: Each methodology defines its own phase transition thresholds in YAML config under `phases.<phase>.phase_boundaries`:
+Each methodology defines its own phase transition thresholds in YAML config under `phases.<phase>.phase_boundaries`:
 ```yaml
 phases:
   early:
@@ -482,9 +480,9 @@ phases:
 
 Computed by `InterviewPhaseSignal` using methodology-specific thresholds from config with fallback to defaults (5/15).
 
-### Joint Strategy-Node Scoring (D1 Architecture)
+### Joint Strategy-Node Scoring
 
-**Phase 6 (2026-01-29)**: The system implements joint strategy-node scoring for focus selection.
+The system implements joint strategy-node scoring for focus selection.
 
 Instead of selecting a strategy first and then a node, the system scores all (strategy, node) pairs:
 
@@ -611,7 +609,7 @@ These metrics drive strategy selection via signal pools.
 
 ### Canonical Graph State
 
-**Phase 3 (2026-02-08)**: The system maintains a parallel canonical graph for deduplicated concepts.
+The system maintains a parallel canonical graph for deduplicated concepts.
 
 ```python
 @dataclass
@@ -630,7 +628,7 @@ class CanonicalGraphState:
 
 ### Node State Tracking
 
-**Phase 6 (2026-01-29)**: The system now includes per-node state tracking via `NodeStateTracker` to enable node exhaustion detection and backtracking.
+The system includes per-node state tracking via `NodeStateTracker` to enable node exhaustion detection and backtracking.
 
 The `NodeState` dataclass tracks for each node:
 
@@ -674,9 +672,9 @@ class NodeState:
         return (self.edge_count_incoming + self.edge_count_outgoing) == 0
 ```
 
-### Node Tracker Persistence (Phase 9)
+### Node Tracker Persistence
 
-**Phase 9 (2026-02-03)**: NodeStateTracker now persists across turns via database storage, enabling `previous_focus` tracking and `all_response_depths` accumulation for saturation detection.
+NodeStateTracker persists across turns via database storage, enabling `previous_focus` tracking and `all_response_depths` accumulation for saturation detection.
 
 #### Persistence Flow
 
@@ -732,7 +730,7 @@ graph LR
 
 ### Node Exhaustion and Backtracking
 
-**Phase 6 (2026-01-29)**: The node exhaustion system enables intelligent backtracking by detecting when nodes are exhausted (no longer yielding new information).
+The node exhaustion system enables intelligent backtracking by detecting when nodes are exhausted (no longer yielding new information).
 
 #### Exhaustion Detection Criteria
 
@@ -833,7 +831,7 @@ bonus = phase_bonuses.get(strategy.name, 0.0) if phase_bonuses else 0.0
 final_score = (base_score * multiplier) + bonus
 ```
 
-**Signal Normalization** (t19):
+**Signal Normalization**:
 
 The `score_strategy()` function normalizes numeric signals to [0, 1] using `signal_norms` from YAML configs:
 
@@ -903,7 +901,7 @@ phases:
 - **Mid phase**: Prioritize deepening chains while maintaining variety (`deepen` boosted, others balanced)
 - **Late phase**: Boost strategies that validate and verify findings (`reflect`, `revitalize`)
 - **Additive bonuses** provide small strategy nudges independent of multiplicative weights
-- **Weight calibration (2026-02-04)**: Reduced `clarify` mid weight (1.0→0.8) and `reflect` late weight/bonus (1.8→1.2, 0.4→0.2) to improve strategy variety and prevent dominance
+- **Weight calibration**: Reduced `clarify` mid weight (1.0→0.8) and `reflect` late weight/bonus (1.8→1.2, 0.4→0.2) to improve strategy variety and prevent dominance
 
 This ensures the interview adapts its strategy preferences as the knowledge graph matures.
 
@@ -929,7 +927,7 @@ The system uses fundamentally different prompt structures for opening versus fol
 
 ### Signal Rationale in Prompts
 
-**Phase 6 (2026-01-29)**: Follow-up prompts now include active signals with descriptions to explain WHY each strategy was selected.
+Follow-up prompts include active signals with descriptions to explain WHY each strategy was selected.
 
 #### Signal Descriptions
 
@@ -1000,7 +998,7 @@ This provides the LLM with methodology-specific context for generating appropria
 
 ## LLM Integration
 
-### Three-Client Architecture (ADR-010)
+### Three-Client Architecture
 
 The system uses three specialized LLM clients:
 
@@ -1010,9 +1008,9 @@ The system uses three specialized LLM clients:
 | `SignalClient` | Qualitative signal extraction | Claude (high quality) |
 | `QuestionClient` | Question generation | Claude/Moonshot (cost-optimized) |
 
-### LLM Timeout and Retry (wqo)
+### LLM Timeout and Retry
 
-**Phase 6 (2026-02-03)**: LLM clients implement timeout with exponential backoff retry for resilience.
+LLM clients implement timeout with exponential backoff retry for resilience.
 
 **Behavior**:
 - **Timeout**: Configurable per-client (default 30s for extraction/scoring, 60s for generation)
@@ -1031,6 +1029,5 @@ The system uses three specialized LLM clients:
 
 - [Pipeline Contracts](./pipeline_contracts.md) - Stage read/write specifications
 - [Data Flow Paths](./data_flow_paths.md) - Critical data flow visualizations
-- [ADR Index](./adr/README.md) - Architecture decision records
 - [API Documentation](./API.md) - Complete API reference
 - [DEVELOPMENT](./DEVELOPMENT.md) - Development guide
