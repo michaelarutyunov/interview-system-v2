@@ -304,21 +304,21 @@ Node-level signals provide **per-node** assessments for joint strategy-node scor
 
 | Namespace | Description | Example Signals |
 |-----------|-------------|-----------------|
-| `graph.node.*` | Graph-derived per-node signals | exhausted, focus_streak, edge_count |
+| `graph.node.*` | Graph-derived per-node signals | exhaustion_score, focus_streak, has_outgoing |
 | `technique.node.*` | Technique-specific signals | strategy_repetition |
 
 ### Available Node Signals
 
 | Signal | Type | Description |
 |--------|------|-------------|
-| `graph.node.exhausted` | bool | Binary exhaustion flag |
-| `graph.node.exhaustion_score` | float | Continuous exhaustion 0.0-1.0 |
+| `graph.node.exhaustion_score` | float | Continuous exhaustion 0.0-1.0 (preferred over binary `exhausted`) |
+| `graph.node.exhausted` | bool | Binary exhaustion flag (strict 4-way conjunction, rarely fires) |
 | `graph.node.yield_stagnation` | bool | No yield for 3+ turns |
 | `graph.node.focus_streak` | str | `none`, `low`, `medium`, `high` |
 | `graph.node.is_current_focus` | bool | Currently focused node |
 | `graph.node.recency_score` | float | 0.0-1.0 recency |
 | `graph.node.is_orphan` | bool | No connected edges |
-| `graph.node.edge_count` | int | Total edges |
+| `graph.node.edge_count` | int | Total edges (**unbounded** - do NOT use with threshold binning) |
 | `graph.node.has_outgoing` | bool | Has outgoing edges |
 | `technique.node.strategy_repetition` | int | Times same strategy used on node |
 
@@ -382,7 +382,8 @@ signal_weights:
 - `.high` matches values >= 0.75 (internally derived from Likert 4-5)
 - `.mid` matches values in (0.25, 0.75) exclusive (internally derived from Likert 3)
 - `.low` matches values <= 0.25 (internally derived from Likert 1-2)
-- Works with both float and int signals (bool excluded from binning)
+- **Important**: Only use with signals normalized to [0, 1]. Unbounded signals (e.g., `graph.node.edge_count`, `graph.canonical_concept_count`) will produce incorrect results with threshold binning
+- Works with float signals normalized to [0, 1] (bool excluded from binning)
 
 ### Phase Weights and Bonuses
 
@@ -535,7 +536,7 @@ strategies:
     description: "Explore why something matters (laddering up)"
     signal_weights:
       llm.response_depth.low: 0.8
-      graph.max_depth: 0.5
+      graph.max_depth: -0.3
       # Engagement & valence safety checks
       llm.engagement.high: 0.7        # Engaged = safe to deepen
       llm.engagement.low: -0.5        # Disengaged = avoid deepening
@@ -543,7 +544,7 @@ strategies:
       # Diversity
       temporal.strategy_repetition_count: -0.3
       # Node-level signals
-      graph.node.exhausted.false: 1.0
+      graph.node.exhaustion_score.low: 1.0
       graph.node.focus_streak.low: 0.5
 
   - name: clarify
@@ -732,15 +733,15 @@ Each time `deepen` is used consecutively, its score drops. The temporal signal i
 ```yaml
 signals:
   graph:
-    - graph.node.exhausted
+    - graph.node.exhaustion_score
 
 strategies:
   - name: deepen
     signal_weights:
-      graph.node.exhausted.false: 2.0  # High weight for non-exhausted nodes
+      graph.node.exhaustion_score.low: 1.0  # Boost nodes with low exhaustion (score <= 0.25)
 ```
 
-The D1 architecture will score each (deepen, node) pair, preferring nodes where `exhausted=false`.
+The D1 architecture will score each (deepen, node) pair, preferring nodes with low exhaustion scores.
 
 ---
 

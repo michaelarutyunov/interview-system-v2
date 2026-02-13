@@ -211,7 +211,7 @@ strategies:
       # Node-level signals (Phase 3)
       graph.node.focus_streak.none: 1.0  # Fresh nodes
       graph.node.yield_stagnation.false: 0.8  # Nodes that yield
-      graph.node.exhausted.false: 0.7
+      graph.node.exhaustion_score.low: 0.7  # Avoid exhausted nodes
 
   # Strategy 2: Probe alternatives (probing)
   - name: probe_alternatives
@@ -225,8 +225,7 @@ strategies:
       temporal.strategy_repetition_count: -0.3
       # Node-level signals (Phase 3)
       graph.node.is_orphan.true: 1.0  # Boost orphan nodes
-      graph.node.edge_count.low: 0.5  # Less connected nodes
-      graph.node.exhausted.false: 0.6
+      graph.node.exhaustion_score.low: 0.6  # Avoid exhausted nodes
 
   # Strategy 3: Dig into motivation (laddering)
   - name: dig_motivation
@@ -235,7 +234,6 @@ strategies:
       # Global signals
       llm.response_depth.low: 0.7
       graph.max_depth: -0.4
-      temporal.turns_since_strategy_change: 0.3
       # Engagement & valence safety checks
       llm.engagement.high: 0.7              # Engaged = safe to dig deeper
       llm.engagement.low: -0.5              # Disengaged = avoid deepening
@@ -243,9 +241,8 @@ strategies:
       # Diversity
       temporal.strategy_repetition_count: -0.3
       # Node-level signals (Phase 3)
-      graph.node.exhausted.false: 1.0  # Boost non-exhausted nodes
+      graph.node.exhaustion_score.low: 1.0  # Boost non-exhausted nodes
       graph.node.focus_streak.low: 0.5  # Prefer fresh nodes
-      graph.node.exhaustion_score.low: 0.7  # Avoid exhausted nodes
 
   # Strategy 4: Validate outcome (validation)
   - name: validate_outcome
@@ -264,7 +261,7 @@ strategies:
       # Diversity (lighter penalty — OK to repeat validation)
       temporal.strategy_repetition_count: -0.2
       # Node-level signals (Phase 3)
-      graph.node.edge_count.high: 0.8  # Well-connected nodes
+      graph.node.has_outgoing.true: 0.8  # Well-connected nodes
       graph.node.focus_streak.high: 0.5  # Often-focused nodes
       technique.node.strategy_repetition.low: 0.3  # Avoid overusing same strategy
 
@@ -284,15 +281,14 @@ strategies:
       temporal.strategy_repetition_count: -0.3  # Penalize repetition (was +0.4 bug)
       # Node-level signals (Phase 3)
       graph.node.focus_streak.none: 0.8  # Fresh nodes
-      graph.node.exhausted.false: 0.5
+      graph.node.exhaustion_score.low: 0.5  # Avoid exhausted nodes
 
   # Strategy 6: Uncover obstacles (probing)
   - name: uncover_obstacles
     description: "Identify pain points and frustrations that prevent jobs from being done well"
     signal_weights:
       # Global signals
-      llm.valence.low: 0.3
-      temporal.turns_since_strategy_change: 0.2
+      llm.valence.low: 0.7
       # Engagement
       llm.engagement.mid: 0.4               # Moderate engagement = probing OK
       # Diversity
@@ -300,7 +296,7 @@ strategies:
       # Node-level signals (Phase 3)
       graph.node.is_orphan.true: 1.0  # Boost orphan nodes
       graph.node.yield_stagnation.false: 0.7  # Nodes that yield
-      graph.node.exhausted.false: 0.6
+      graph.node.exhaustion_score.low: 0.6  # Avoid exhausted nodes
 
 phases:
   early:
@@ -314,6 +310,8 @@ phases:
       dig_motivation: 0.5
       validate_outcome: 0.2
       uncover_obstacles: 0.3
+    phase_bonuses:
+      explore_situation: 0.2  # Additive bonus to encourage exploration even with zero base score
 
   mid:
     description: "Building depth and connections"
@@ -326,6 +324,8 @@ phases:
       uncover_obstacles: 1.0
       explore_situation: 0.8
       validate_outcome: 0.5
+    phase_bonuses:
+      dig_motivation: 0.3  # Additive bonus to prioritize digging in mid-phase
 
   late:
     description: "Validation and verification"
@@ -337,3 +337,5 @@ phases:
       uncover_obstacles: 1.2
       dig_motivation: 0.5
       explore_situation: 0.3
+    phase_bonuses:
+      validate_outcome: 0.2  # Additive bonus to ensure validation gets selected

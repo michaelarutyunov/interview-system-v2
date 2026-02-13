@@ -156,7 +156,7 @@ strategies:
       # Global signals
       llm.response_depth.low: 0.8
       llm.response_depth.mid: 0.3
-      graph.max_depth: 0.5
+      graph.max_depth: -0.3
       graph.chain_completion.has_complete.false: 1.0
       # Engagement & valence safety checks
       llm.engagement.high: 0.7              # Engaged = safe to deepen
@@ -165,9 +165,8 @@ strategies:
       # Diversity
       temporal.strategy_repetition_count: -0.3
       # Node-level signals (Phase 3)
-      graph.node.exhausted.false: 1.0  # Boost non-exhausted nodes
+      graph.node.exhaustion_score.low: 1.0  # Boost non-exhausted nodes
       graph.node.focus_streak.low: 0.5  # Prefer fresh nodes
-      graph.node.exhaustion_score.low: 0.7  # Avoid exhausted nodes
 
   # Strategy 2: Clarify relationships (probing)
   - name: clarify
@@ -181,7 +180,7 @@ strategies:
       temporal.strategy_repetition_count: -0.3
       # Node-level signals (Phase 3)
       graph.node.is_orphan.true: 1.0  # Boost orphan nodes
-      graph.node.exhausted.false: 0.5
+      graph.node.exhaustion_score.low: 0.5
       graph.node.focus_streak.none: 0.3
 
   # Strategy 3: Explore new areas (elaboration)
@@ -194,13 +193,10 @@ strategies:
       # Engagement & valence
       llm.engagement.mid: 0.4               # Moderate engagement = breadth OK
       llm.valence.low: 0.3                  # Negative emotion = change topic
-      # Canonical graph signals (Phase 4, experimental)
-      graph.canonical_concept_count: -0.1  # Fewer stable concepts = explore more
-      graph.canonical_edge_density: 0.1    # Higher density = explore connections
       # Node-level signals (Phase 3)
       graph.node.focus_streak.none: 1.0  # Fresh nodes
       graph.node.yield_stagnation.false: 0.8  # Nodes that yield
-      graph.node.exhausted.false: 0.7
+      graph.node.exhaustion_score.low: 0.7  # Avoid exhausted nodes
 
   # Strategy 4: Reflect and validate (validation)
   - name: reflect
@@ -211,7 +207,7 @@ strategies:
       meta.interview_progress: 0.5
       llm.response_depth.high: 0.6
       # Uncertainty/hedging triggers (Phase 5)
-      llm.certainty.low: 1.0  # Trigger on high uncertainty
+      llm.certainty.low: 0.7  # Trigger on high uncertainty
       llm.certainty.mid: 0.7  # Trigger on medium uncertainty
       meta.node.opportunity.probe_deeper: 0.6  # Extraction opportunity
       # Engagement trigger
@@ -219,7 +215,7 @@ strategies:
       # Diversity (lighter penalty — OK to repeat reflection)
       temporal.strategy_repetition_count: -0.2
       # Node-level signals (Phase 3)
-      graph.node.edge_count.high: 0.8  # Well-connected nodes
+      graph.node.has_outgoing.true: 0.8  # Well-connected nodes
       graph.node.focus_streak.high: 0.5  # Often-focused nodes
       technique.node.strategy_repetition.low: 0.3  # Avoid overusing same strategy
 
@@ -239,7 +235,7 @@ strategies:
       temporal.strategy_repetition_count: -0.3  # Penalize repetition (was +0.5 bug)
       # Node-level signals (Phase 3)
       graph.node.focus_streak.none: 0.8  # Fresh nodes
-      graph.node.exhausted.false: 0.5
+      graph.node.exhaustion_score.low: 0.5  # Avoid exhausted nodes
 
 phases:
   early:
