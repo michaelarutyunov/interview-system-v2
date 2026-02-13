@@ -6,6 +6,7 @@ potential for knowledge graph construction.
 """
 
 from src.signals.llm.decorator import llm_signal
+from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 
 @llm_signal(  # type: ignore[type-var]
@@ -13,7 +14,7 @@ from src.signals.llm.decorator import llm_signal
     rubric_key="response_depth",
     description="Assesses quantity of elaboration on a 1-5 scale. 1=surface/minimal, 3=moderate, 5=deep/extensive.",
 )
-class ResponseDepthSignal:
+class ResponseDepthSignal(BaseLLMSignal):
     """Measure elaboration quantity for extraction potential assessment.
 
     Assesses how much detail the respondent provides, indicating

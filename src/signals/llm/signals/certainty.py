@@ -6,6 +6,7 @@ guide question probing strategies.
 """
 
 from src.signals.llm.decorator import llm_signal
+from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 
 @llm_signal(  # type: ignore[type-var]
@@ -13,7 +14,7 @@ from src.signals.llm.decorator import llm_signal
     rubric_key="certainty",
     description="Assesses epistemic certainty — how confident respondent appears in their knowledge. 1=very uncertain, 5=fully confident.",
 )
-class CertaintySignal:
+class CertaintySignal(BaseLLMSignal):
     """Measure epistemic certainty for knowledge confidence assessment.
 
     Assesses how confident the respondent appears in their knowledge

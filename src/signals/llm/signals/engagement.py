@@ -6,6 +6,7 @@ quality. Engagement indicates interview health and rapport.
 """
 
 from src.signals.llm.decorator import llm_signal
+from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 
 @llm_signal(  # type: ignore[type-var]
@@ -13,7 +14,7 @@ from src.signals.llm.decorator import llm_signal
     rubric_key="engagement",
     description="Assesses respondent's willingness to engage. 1=minimal effort, 5=high engagement.",
 )
-class EngagementSignal:
+class EngagementSignal(BaseLLMSignal):
     """Measure respondent engagement and willingness to participate.
 
     Assesses interview participation quality through response elaboration,

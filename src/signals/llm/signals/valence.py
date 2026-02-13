@@ -6,6 +6,7 @@ topic sensitivity, or respondent comfort.
 """
 
 from src.signals.llm.decorator import llm_signal
+from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 
 @llm_signal(  # type: ignore[type-var]
@@ -13,7 +14,7 @@ from src.signals.llm.decorator import llm_signal
     rubric_key="emotional_valence",
     description="Assesses emotional tone of response. 1=strongly negative, 3=neutral, 5=strongly positive.",
 )
-class ValenceSignal:
+class ValenceSignal(BaseLLMSignal):
     """Measure emotional tone for affective state assessment.
 
     Assesses the emotional polarity of the respondent's language.

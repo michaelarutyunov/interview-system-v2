@@ -6,6 +6,7 @@ for clarification prompts.
 """
 
 from src.signals.llm.decorator import llm_signal
+from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 
 @llm_signal(  # type: ignore[type-var]
@@ -13,7 +14,7 @@ from src.signals.llm.decorator import llm_signal
     rubric_key="specificity",
     description="Assesses referential specificity or concreteness on a 1-5 scale. 1=very specific, 5=highly ambiguous.",
 )
-class SpecificitySignal:
+class SpecificitySignal(BaseLLMSignal):
     """Measure referential specificity for concept clarity assessment.
 
     Assesses how concrete or vague the respondent's language is.

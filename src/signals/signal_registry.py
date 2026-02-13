@@ -16,9 +16,9 @@ from src.signals.signal_base import SignalDetector
 
 # LLM batch detection (added for LLM signal support)
 from src.signals.llm.batch_detector import LLMBatchDetector
+from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 if TYPE_CHECKING:
-    from src.signals.llm.llm_signal_base import BaseLLMSignal
     from src.services.turn_pipeline.context import PipelineContext
 
 log = structlog.get_logger(__name__)
@@ -135,9 +135,8 @@ class ComposedSignalDetector:
         all_signals: dict[str, Any] = {}
 
         # Detect non-LLM signals using individual calls
-        for signal_name, detector in zip(
-            self.non_llm_detectors, self.non_llm_detectors
-        ):
+        for detector in self.non_llm_detectors:
+            signal_name = detector.signal_name
             if signal_name not in self.llm_signal_names:
                 # For signals with dependencies, provide context with previous signals
                 if detector.dependencies:
