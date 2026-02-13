@@ -4,7 +4,6 @@ import pytest
 
 from src.methodologies.scoring import (
     _get_signal_value,
-    _normalize_numeric,
     score_strategy,
     rank_strategies,
     rank_strategy_node_pairs,
@@ -26,47 +25,47 @@ class TestGetSignalValue:
         signals = {"graph.node_count": 10}
         assert _get_signal_value("llm.response_depth", signals) is None
 
-    def test_integer_threshold_low_boundary(self):
-        """Test low threshold matches values 1 and 2."""
-        signals = {"llm.response_depth": 1}
+    def test_threshold_low_boundary(self):
+        """Test low threshold matches values <= 0.25."""
+        signals = {"llm.response_depth": 0.0}
         assert _get_signal_value("llm.response_depth.low", signals) is True
 
-        signals = {"llm.response_depth": 2}
+        signals = {"llm.response_depth": 0.25}
         assert _get_signal_value("llm.response_depth.low", signals) is True
 
-    def test_integer_threshold_low_non_match(self):
-        """Test low threshold does not match values 3, 4, 5."""
-        signals = {"llm.response_depth": 3}
+    def test_threshold_low_non_match(self):
+        """Test low threshold does not match values > 0.25."""
+        signals = {"llm.response_depth": 0.5}
         assert _get_signal_value("llm.response_depth.low", signals) is False
 
-        signals = {"llm.response_depth": 4}
+        signals = {"llm.response_depth": 0.75}
         assert _get_signal_value("llm.response_depth.low", signals) is False
 
-        signals = {"llm.response_depth": 5}
+        signals = {"llm.response_depth": 1.0}
         assert _get_signal_value("llm.response_depth.low", signals) is False
 
-    def test_integer_threshold_mid_boundary(self):
-        """Test mid threshold matches value 3 only."""
-        signals = {"llm.response_depth": 3}
+    def test_threshold_mid_boundary(self):
+        """Test mid threshold matches values in (0.25, 0.75)."""
+        signals = {"llm.response_depth": 0.5}
         assert _get_signal_value("llm.response_depth.mid", signals) is True
 
-    def test_integer_threshold_mid_non_match(self):
-        """Test mid threshold does not match values 1, 2, 4, 5."""
-        for value in [1, 2, 4, 5]:
+    def test_threshold_mid_non_match(self):
+        """Test mid threshold does not match boundary or extreme values."""
+        for value in [0.0, 0.25, 0.75, 1.0]:
             signals = {"llm.response_depth": value}
             assert _get_signal_value("llm.response_depth.mid", signals) is False
 
-    def test_integer_threshold_high_boundary(self):
-        """Test high threshold matches values 4 and 5."""
-        signals = {"llm.response_depth": 4}
+    def test_threshold_high_boundary(self):
+        """Test high threshold matches values >= 0.75."""
+        signals = {"llm.response_depth": 0.75}
         assert _get_signal_value("llm.response_depth.high", signals) is True
 
-        signals = {"llm.response_depth": 5}
+        signals = {"llm.response_depth": 1.0}
         assert _get_signal_value("llm.response_depth.high", signals) is True
 
-    def test_integer_threshold_high_non_match(self):
-        """Test high threshold does not match values 1, 2, 3."""
-        for value in [1, 2, 3]:
+    def test_threshold_high_non_match(self):
+        """Test high threshold does not match values < 0.75."""
+        for value in [0.0, 0.25, 0.5]:
             signals = {"llm.response_depth": value}
             assert _get_signal_value("llm.response_depth.high", signals) is False
 
@@ -80,52 +79,41 @@ class TestGetSignalValue:
         signals = {"llm.global_response_trend": "engaged"}
         assert _get_signal_value("llm.global_response_trend.fatigued", signals) is False
 
-    def test_deep_compound_key_not_found(self):
-        """Test deeply nested compound keys when base signal not found."""
-        signals = {"graph.chain_completion": {"has_complete_chain": True}}
-        # The compound key "graph.chain_completion.has_complete_chain.true" has base
-        # "graph.chain_completion.has_complete_chain" which is not in signals
+    def test_deep_compound_key_float_threshold(self):
+        """Test deeply nested compound keys with float threshold binning."""
+        signals = {"graph.chain_completion.ratio": 0.5}
+        # The compound key "graph.chain_completion.ratio.high" has base
+        # "graph.chain_completion.ratio" which is a float (0.5),
+        # threshold binning applies: 0.5 < 0.75 → not high → False
         result = _get_signal_value(
-            "graph.chain_completion.has_complete_chain.true", signals
+            "graph.chain_completion.ratio.high", signals
         )
-        assert result is None  # Base signal not found
+        assert result is False  # 0.5 < 0.75, not high
+
+    def test_bool_compound_key_true_match(self):
+        """Test Python bool True matches compound key .true."""
+        signals = {"graph.node.is_orphan": True}
+        assert _get_signal_value("graph.node.is_orphan.true", signals) is True
+
+    def test_bool_compound_key_true_no_match(self):
+        """Test Python bool False does not match compound key .true."""
+        signals = {"graph.node.is_orphan": False}
+        assert _get_signal_value("graph.node.is_orphan.true", signals) is False
+
+    def test_bool_compound_key_false_match(self):
+        """Test Python bool False matches compound key .false."""
+        signals = {"graph.node.exhausted": False}
+        assert _get_signal_value("graph.node.exhausted.false", signals) is True
+
+    def test_bool_compound_key_false_no_match(self):
+        """Test Python bool True does not match compound key .false."""
+        signals = {"graph.node.exhausted": True}
+        assert _get_signal_value("graph.node.exhausted.false", signals) is False
 
     def test_compound_key_base_not_found(self):
         """Test compound key returns None when base signal not present."""
         signals = {"graph.node_count": 10}
         assert _get_signal_value("llm.response_depth.low", signals) is None
-
-
-class TestNormalizeNumeric:
-    """Tests for _normalize_numeric function."""
-
-    def test_value_already_normalized(self):
-        """Test values in [0, 1] range pass through."""
-        assert _normalize_numeric("test", 0.5, None) == 0.5
-        assert _normalize_numeric("test", 0.0, None) == 0.0
-        assert _normalize_numeric("test", 1.0, None) == 1.0
-
-    def test_value_already_normalized_negative(self):
-        """Test negative values in [-1, 0] range pass through."""
-        assert _normalize_numeric("test", -0.5, None) == -0.5
-        assert _normalize_numeric("test", -1.0, None) == -1.0
-
-    def test_normalization_with_norm(self):
-        """Test normalization using signal_norms."""
-        norms = {"graph.node_count": 50.0}
-        assert _normalize_numeric("graph.node_count", 25, norms) == 0.5
-        assert _normalize_numeric("graph.node_count", 50, norms) == 1.0
-
-    def test_normalization_clamped(self):
-        """Test normalized values are clamped to [0, 1]."""
-        norms = {"graph.node_count": 50.0}
-        assert _normalize_numeric("graph.node_count", 100, norms) == 1.0
-
-    def test_missing_norm_raises(self):
-        """Test ValueError raised when norm missing for value > 1."""
-        with pytest.raises(ValueError) as exc_info:
-            _normalize_numeric("unknown.signal", 5, None)
-        assert "no signal_norm defined" in str(exc_info.value)
 
 
 class TestScoreStrategy:
@@ -138,7 +126,7 @@ class TestScoreStrategy:
             description="Test strategy",
             signal_weights={"llm.response_depth.low": 0.8},
         )
-        signals = {"llm.response_depth": 2}
+        signals = {"llm.response_depth": 0.25}  # Normalized: low (<= 0.25)
         score = score_strategy(strategy, signals)
         assert score == 0.8
 
@@ -149,21 +137,20 @@ class TestScoreStrategy:
             description="Test strategy",
             signal_weights={"llm.response_depth.low": 0.8},
         )
-        signals = {"llm.response_depth": 4}
+        signals = {"llm.response_depth": 0.75}  # Normalized: high (>= 0.75)
         score = score_strategy(strategy, signals)
         assert score == 0.0
 
     def test_score_with_numeric_normalized(self):
-        """Test scoring with numeric signal using normalization."""
+        """Test scoring with numeric signal already in [0,1]."""
         strategy = StrategyConfig(
             name="test",
             description="Test strategy",
             signal_weights={"graph.node_count": 0.5},
         )
-        signals = {"graph.node_count": 25}
-        norms = {"graph.node_count": 50.0}
-        score = score_strategy(strategy, signals, signal_norms=norms)
-        assert score == 0.25  # 0.5 * (25/50)
+        signals = {"graph.node_count": 0.5}  # Pre-normalized to [0,1]
+        score = score_strategy(strategy, signals)
+        assert score == 0.25  # 0.5 * 0.5
 
     def test_score_with_multiple_signals(self):
         """Test scoring with multiple signal weights."""
@@ -176,8 +163,8 @@ class TestScoreStrategy:
             },
         )
         signals = {
-            "llm.response_depth": 5,
-            "llm.valence": 4,
+            "llm.response_depth": 1.0,   # Normalized: high (>= 0.75)
+            "llm.valence": 0.75,          # Normalized: high (>= 0.75)
         }
         score = score_strategy(strategy, signals)
         assert score == pytest.approx(1.0)  # 0.7 + 0.3
@@ -192,7 +179,7 @@ class TestScoreStrategy:
                 "missing.signal": 0.5,
             },
         )
-        signals = {"llm.response_depth": 5}
+        signals = {"llm.response_depth": 1.0}  # Normalized: high (>= 0.75)
         score = score_strategy(strategy, signals)
         assert score == 0.7  # Only counts the matching signal
 
@@ -203,7 +190,7 @@ class TestScoreStrategy:
             description="Test strategy",
             signal_weights={"llm.response_depth.low": -0.5},
         )
-        signals = {"llm.response_depth": 1}
+        signals = {"llm.response_depth": 0.0}  # Normalized: low (<= 0.25)
         score = score_strategy(strategy, signals)
         assert score == -0.5
 
@@ -230,13 +217,13 @@ class TestRankStrategies:
                 signal_weights={"llm.response_depth.high": 0.5},
             ),
         ]
-        signals = {"llm.response_depth": 5}
+        signals = {"llm.response_depth": 1.0}  # Normalized: high (>= 0.75)
         ranked = rank_strategies(strategies, signals)
 
         assert len(ranked) == 3
         assert ranked[0][0].name == "high"  # 0.8
         assert ranked[1][0].name == "mid"  # 0.5
-        assert ranked[2][0].name == "low"  # 0.0 (low threshold doesn't match 5)
+        assert ranked[2][0].name == "low"  # 0.0 (low threshold doesn't match 1.0)
 
     def test_rank_with_phase_weights(self):
         """Test phase weights are applied as multipliers."""
@@ -245,7 +232,7 @@ class TestRankStrategies:
             description="Test strategy",
             signal_weights={"llm.response_depth.high": 0.5},
         )
-        signals = {"llm.response_depth": 5, "meta.interview.phase": "explore"}
+        signals = {"llm.response_depth": 1.0, "meta.interview.phase": "explore"}  # high
         ranked = rank_strategies(
             [strategy],
             signals,
@@ -261,7 +248,7 @@ class TestRankStrategies:
             description="Test strategy",
             signal_weights={"llm.response_depth.high": 0.5},
         )
-        signals = {"llm.response_depth": 5}
+        signals = {"llm.response_depth": 1.0}  # high
         ranked = rank_strategies(
             [strategy],
             signals,
@@ -277,7 +264,7 @@ class TestRankStrategies:
             description="Test strategy",
             signal_weights={"llm.response_depth.high": 0.5},
         )
-        signals = {"llm.response_depth": 5}
+        signals = {"llm.response_depth": 1.0}  # high
         ranked = rank_strategies(
             [strategy],
             signals,
@@ -303,8 +290,8 @@ class TestRankStrategyNodePairs:
         ]
         global_signals = {"meta.interview.phase": "explore"}
         node_signals = {
-            "node_1": {"llm.response_depth": 2},  # Not high
-            "node_2": {"llm.response_depth": 5},  # High
+            "node_1": {"llm.response_depth": 0.25},  # Not high (low)
+            "node_2": {"llm.response_depth": 1.0},   # High
         }
 
         ranked = rank_strategy_node_pairs(strategies, global_signals, node_signals)
@@ -325,7 +312,7 @@ class TestRankStrategyNodePairs:
                 signal_weights={"llm.response_depth.high": 1.0},
             ),
         ]
-        global_signals = {"llm.response_depth": 5}  # High
+        global_signals = {"llm.response_depth": 1.0}  # High (>= 0.75)
         node_signals = {
             "node_1": {},  # No override, uses global
         }
@@ -343,9 +330,9 @@ class TestRankStrategyNodePairs:
                 signal_weights={"llm.response_depth.high": 1.0},
             ),
         ]
-        global_signals = {"llm.response_depth": 5}  # High
+        global_signals = {"llm.response_depth": 1.0}  # High (>= 0.75)
         node_signals = {
-            "node_1": {"llm.response_depth": 2},  # Override to low
+            "node_1": {"llm.response_depth": 0.25},  # Override to low
         }
 
         ranked = rank_strategy_node_pairs(strategies, global_signals, node_signals)
@@ -361,7 +348,7 @@ class TestRankStrategyNodePairs:
                 signal_weights={"llm.response_depth.high": 0.5},
             ),
         ]
-        global_signals = {"llm.response_depth": 5}
+        global_signals = {"llm.response_depth": 1.0}  # High (>= 0.75)
         node_signals = {"node_1": {}}
 
         ranked = rank_strategy_node_pairs(
@@ -382,24 +369,24 @@ class TestLLMSignalThresholdsIntegration:
     @pytest.mark.parametrize(
         "signal_value,qualifier,expected",
         [
-            # Low threshold (1-2)
-            (1, "low", True),
-            (2, "low", True),
-            (3, "low", False),
-            (4, "low", False),
-            (5, "low", False),
-            # Mid threshold (3)
-            (1, "mid", False),
-            (2, "mid", False),
-            (3, "mid", True),
-            (4, "mid", False),
-            (5, "mid", False),
-            # High threshold (4-5)
-            (1, "high", False),
-            (2, "high", False),
-            (3, "high", False),
-            (4, "high", True),
-            (5, "high", True),
+            # Low threshold (<= 0.25)
+            (0.0, "low", True),
+            (0.25, "low", True),
+            (0.5, "low", False),
+            (0.75, "low", False),
+            (1.0, "low", False),
+            # Mid threshold (0.25 < x < 0.75)
+            (0.0, "mid", False),
+            (0.25, "mid", False),
+            (0.5, "mid", True),
+            (0.75, "mid", False),
+            (1.0, "mid", False),
+            # High threshold (>= 0.75)
+            (0.0, "high", False),
+            (0.25, "high", False),
+            (0.5, "high", False),
+            (0.75, "high", True),
+            (1.0, "high", True),
         ],
     )
     def test_all_llm_signals_threshold_combinations(
@@ -438,21 +425,21 @@ class TestLLMSignalThresholdsIntegration:
         )
 
         # Test low valence (negative sentiment)
-        signals = {"llm.valence": 1}
+        signals = {"llm.valence": 0.0}  # Normalized: low (<= 0.25)
         score = score_strategy(strategy, signals)
         assert score == pytest.approx(0.6)
 
         # Test high valence (positive sentiment)
-        signals = {"llm.valence": 5}
+        signals = {"llm.valence": 1.0}  # Normalized: high (>= 0.75)
         score = score_strategy(strategy, signals)
         assert score == pytest.approx(0.6)
 
         # Test high engagement
-        signals = {"llm.engagement": 5}
+        signals = {"llm.engagement": 1.0}  # Normalized: high (>= 0.75)
         score = score_strategy(strategy, signals)
         assert score == pytest.approx(0.8)
 
         # Test low certainty (previously high uncertainty/hedging)
-        signals = {"llm.certainty": 1}
+        signals = {"llm.certainty": 0.0}  # Normalized: low (<= 0.25)
         score = score_strategy(strategy, signals)
         assert score == pytest.approx(0.4)

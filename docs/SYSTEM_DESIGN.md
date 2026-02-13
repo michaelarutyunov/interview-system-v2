@@ -833,6 +833,8 @@ final_score = (base_score * multiplier) + bonus
 
 **Signal Normalization**: All signals are normalized at source to [0, 1] or bool. No additional normalization is needed during scoring.
 
+**Threshold Binning**: Strategy weights use compound keys (`.low`, `.mid`, `.high`) to convert continuous [0,1] signals into categorical boolean triggers. This models how a moderator thinks categorically ("that was shallow → clarify") rather than linearly. Boundaries: `low ≤ 0.25`, `0.25 < mid < 0.75`, `high ≥ 0.75`.
+
 **Error Handling in Signal Detection:**
 
 Each signal detector runs in isolation with try/except handling. If a detector fails (e.g., database timeout, LLM error):

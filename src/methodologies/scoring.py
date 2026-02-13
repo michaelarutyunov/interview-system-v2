@@ -1,7 +1,8 @@
 """Strategy scoring using signal weights from YAML configs.
 
 Scores strategies based on detected signals and strategy weights
-defined in methodology YAML configs.
+defined in methodology YAML configs. All signals are expected to be
+normalized at source to [0, 1] or bool.
 """
 
 from typing import List, Tuple, Dict, Any, Optional
@@ -11,27 +12,21 @@ from src.methodologies.registry import StrategyConfig
 def score_strategy(
     strategy_config: StrategyConfig,
     signals: Dict[str, Any],
-    signal_norms: Optional[Dict[str, float]] = None,
 ) -> float:
     """
     Score a strategy based on current signals using YAML weights.
 
     Args:
         strategy_config: Strategy config with signal_weights from YAML
-        signals: Dict of detected signals (namespaced)
-        signal_norms: Optional dict of signal_key -> max_expected value
-                     for normalizing numeric signals. E.g.,
-                     {"graph.node_count": 50, "graph.max_depth": 8}
+        signals: Dict of detected signals (namespaced, normalized to [0,1] or bool)
 
     Returns:
-        Score in range [0, 1] (unbounded if multiple weights add up > 1)
+        Weighted score (can be negative or > 1 depending on weights)
     """
     weights = strategy_config.signal_weights
     score = 0.0
 
     for signal_key, weight in weights.items():
-        # Parse signal key (e.g., "llm.response_depth.surface")
-        # and match against detected signals
         signal_value = _get_signal_value(signal_key, signals)
 
         if signal_value is None:
@@ -40,43 +35,13 @@ def score_strategy(
         if isinstance(signal_value, bool):
             contribution = weight if signal_value else 0.0
         elif isinstance(signal_value, (int, float)):
-            normalized = _normalize_numeric(signal_key, signal_value, signal_norms)
-            contribution = weight * normalized
+            contribution = weight * signal_value  # Already [0,1]
         else:
             contribution = 0.0
 
         score += contribution
 
-    # Return raw score (can be negative or > 1 depending on weights)
-    # The comparison matters more than absolute value
     return score
-
-
-def _normalize_numeric(
-    signal_key: str,
-    value: float,
-    signal_norms: Optional[Dict[str, float]],
-) -> float:
-    """Normalize a numeric signal value to [0, 1].
-
-    Uses signal_norms max_expected value. Raises ValueError if a numeric
-    signal >1 has no norm defined — this forces methodology YAML configs
-    to explicitly declare expected ranges for all numeric signals.
-    """
-    # Already in [0, 1] range — pass through
-    if abs(value) <= 1:
-        return value
-
-    # Use per-signal max_expected if available
-    if signal_norms and signal_key in signal_norms:
-        max_expected = signal_norms[signal_key]
-        return min(max(value / max_expected, 0.0), 1.0)
-
-    raise ValueError(
-        f"Numeric signal '{signal_key}' has value {value} (>1) but no "
-        f"signal_norm defined. Add '{signal_key}' to signal_norms in "
-        f"the methodology YAML config."
-    )
 
 
 def _get_signal_value(signal_key: str, signals: Dict[str, Any]) -> Any:
@@ -100,20 +65,28 @@ def _get_signal_value(signal_key: str, signals: Dict[str, Any]) -> Any:
         if base_signal in signals:
             actual_value = signals[base_signal]
 
-            # Threshold binning for integer signals (1-5 Likert scale)
-            if isinstance(actual_value, int) and expected_value in (
+            # Bool coercion: match Python bool against "true"/"false" strings
+            if isinstance(actual_value, bool) and expected_value in (
+                "true",
+                "false",
+            ):
+                return actual_value == (expected_value == "true")
+
+            # Threshold binning for normalized [0,1] signals
+            # Note: bool check must come first since bool is a subclass of int
+            if isinstance(actual_value, (int, float)) and not isinstance(actual_value, bool) and expected_value in (
                 "low",
                 "mid",
                 "high",
             ):
                 if expected_value == "low":
-                    return actual_value <= 2
+                    return actual_value <= 0.25
                 elif expected_value == "mid":
-                    return actual_value == 3
+                    return 0.25 < actual_value < 0.75
                 elif expected_value == "high":
-                    return actual_value >= 4
+                    return actual_value >= 0.75
 
-            # Return True if values match (for boolean scoring)
+            # Return True if values match (for string enum scoring)
             return actual_value == expected_value
 
     return None
@@ -124,7 +97,6 @@ def rank_strategies(
     signals: Dict[str, Any],
     phase_weights: Optional[Dict[str, float]] = None,
     phase_bonuses: Optional[Dict[str, float]] = None,
-    signal_norms: Optional[Dict[str, float]] = None,
 ) -> List[Tuple[StrategyConfig, float]]:
     """
     Rank all strategies by score.
@@ -146,7 +118,7 @@ def rank_strategies(
     scored = []
     for strategy_config in strategy_configs:
         # Score strategy using signal weights
-        base_score = score_strategy(strategy_config, signals, signal_norms=signal_norms)
+        base_score = score_strategy(strategy_config, signals)
 
         # Apply phase weight multiplier if available
         if phase_weights and strategy_config.name in phase_weights:
@@ -186,7 +158,6 @@ def rank_strategy_node_pairs(
     node_tracker=None,
     phase_weights: Optional[Dict[str, float]] = None,
     phase_bonuses: Optional[Dict[str, float]] = None,
-    signal_norms: Optional[Dict[str, float]] = None,
 ) -> List[Tuple[StrategyConfig, str, float]]:
     """
     Rank (strategy, node) pairs by joint score.
@@ -219,9 +190,7 @@ def rank_strategy_node_pairs(
             combined_signals = {**global_signals, **node_signal_dict}
 
             # Score strategy for this specific node
-            base_score = score_strategy(
-                strategy, combined_signals, signal_norms=signal_norms
-            )
+            base_score = score_strategy(strategy, combined_signals)
 
             # Apply phase weight multiplier if available
             multiplier = 1.0

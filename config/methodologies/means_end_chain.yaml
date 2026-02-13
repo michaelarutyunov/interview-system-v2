@@ -148,27 +148,6 @@ signals:
     - meta.interview_progress
     - meta.interview.phase
 
-# Per-signal normalization: max_expected values for numeric signals.
-# Numeric signal values are divided by max_expected and clipped to [0, 1].
-# Signals not listed here fall back to the legacy /10 heuristic.
-signal_norms:
-  graph.node_count: 50       # MEC interviews rarely exceed 50 nodes
-  graph.edge_count: 100      # ~2x node_count in connected chains
-  graph.orphan_count: 20     # Orphans typically < half of node_count
-  graph.max_depth: 8         # MEC chains: attribute(1) → value(5), occasional 6-8
-  graph.avg_depth: 6         # Average depth across all chains
-  # Canonical graph signals (Phase 4, bead 3pna)
-  graph.canonical_concept_count: 30     # Canonical slots typically 40-60% of surface nodes
-  graph.canonical_edge_density: 1.0    # Edge-to-concept ratio, max 1.0 (fully connected)
-  graph.canonical_exhaustion_score: 1.0 # Already normalized 0-1
-  temporal.strategy_repetition_count: 5  # Last 5 turns tracked
-  temporal.turns_since_strategy_change: 5  # Practical max before forced pivot
-  llm.response_depth: 5
-  llm.valence: 5
-  llm.certainty: 5
-  llm.specificity: 5
-  llm.engagement: 5
-
 strategies:
   # Strategy 1: Deepen the chain (laddering)
   - name: deepen
@@ -178,7 +157,13 @@ strategies:
       llm.response_depth.low: 0.8
       llm.response_depth.mid: 0.3
       graph.max_depth: 0.5
-      graph.chain_completion.has_complete_chain.false: 1.0
+      graph.chain_completion.has_complete.false: 1.0
+      # Engagement & valence safety checks
+      llm.engagement.high: 0.7              # Engaged = safe to deepen
+      llm.engagement.low: -0.5              # Disengaged = avoid deepening
+      llm.valence.high: 0.4                 # Positive emotion = safe to go deeper
+      # Diversity
+      temporal.strategy_repetition_count: -0.3
       # Node-level signals (Phase 3)
       graph.node.exhausted.false: 1.0  # Boost non-exhausted nodes
       graph.node.focus_streak.low: 0.5  # Prefer fresh nodes
@@ -188,9 +173,12 @@ strategies:
   - name: clarify
     description: "Rephrase the question in simpler, clearer words when user shows confusion or lack of understanding"
     signal_weights:
-      # Global signals
-      graph.orphan_count: 0.7
-      graph.edge_count: 0.6
+      # LLM-based clarification triggers
+      llm.specificity.low: 0.8              # Vague language = needs clarification
+      llm.certainty.low: 0.5                # Uncertainty = needs validation
+      llm.engagement.mid: 0.3               # Moderate engagement = clarify OK
+      # Diversity
+      temporal.strategy_repetition_count: -0.3
       # Node-level signals (Phase 3)
       graph.node.is_orphan.true: 1.0  # Boost orphan nodes
       graph.node.exhausted.false: 0.5
@@ -202,7 +190,10 @@ strategies:
     signal_weights:
       # Global signals
       llm.certainty.low: 0.4
-      temporal.strategy_repetition_count: 0.5
+      temporal.strategy_repetition_count: -0.3  # Penalize repetition (was +0.5 bug)
+      # Engagement & valence
+      llm.engagement.mid: 0.4               # Moderate engagement = breadth OK
+      llm.valence.low: 0.3                  # Negative emotion = change topic
       # Canonical graph signals (Phase 4, experimental)
       graph.canonical_concept_count: -0.1  # Fewer stable concepts = explore more
       graph.canonical_edge_density: 0.1    # Higher density = explore connections
@@ -223,6 +214,10 @@ strategies:
       llm.certainty.low: 1.0  # Trigger on high uncertainty
       llm.certainty.mid: 0.7  # Trigger on medium uncertainty
       meta.node.opportunity.probe_deeper: 0.6  # Extraction opportunity
+      # Engagement trigger
+      llm.engagement.low: 0.6               # Low engagement = validate & wrap
+      # Diversity (lighter penalty — OK to repeat reflection)
+      temporal.strategy_repetition_count: -0.2
       # Node-level signals (Phase 3)
       graph.node.edge_count.high: 0.8  # Well-connected nodes
       graph.node.focus_streak.high: 0.5  # Often-focused nodes
@@ -236,8 +231,12 @@ strategies:
       llm.global_response_trend.fatigued: 1.0  # Trigger on fatigue
       llm.global_response_trend.shallowing: 0.5  # Prevent fatigue
       meta.node.opportunity.exhausted: 0.3  # Try exhausted nodes with new angle
+      # Engagement & valence triggers
+      llm.engagement.low: 1.2               # Low engagement = PRIORITY trigger
+      llm.engagement.high: -0.4             # Already engaged = not needed
+      llm.valence.low: 0.5                  # Negative valence = shift gears
       # Global signals
-      temporal.strategy_repetition_count: 0.5
+      temporal.strategy_repetition_count: -0.3  # Penalize repetition (was +0.5 bug)
       # Node-level signals (Phase 3)
       graph.node.focus_streak.none: 0.8  # Fresh nodes
       graph.node.exhausted.false: 0.5
@@ -246,8 +245,8 @@ phases:
   early:
     description: "Initial exploration, building graph structure"
     phase_boundaries:
-      early_max_nodes: 5
-      mid_max_nodes: 15
+      early_max_turns: 4
+      mid_max_turns: 12
     signal_weights:
       explore: 1.5
       clarify: 1.2
@@ -259,8 +258,8 @@ phases:
   mid:
     description: "Building depth and connections"
     phase_boundaries:
-      early_max_nodes: 5
-      mid_max_nodes: 15
+      early_max_turns: 4
+      mid_max_turns: 12
     signal_weights:
       deepen: 1.3
       clarify: 0.8
@@ -272,8 +271,8 @@ phases:
   late:
     description: "Validation and verification"
     phase_boundaries:
-      early_max_nodes: 5
-      mid_max_nodes: 15
+      early_max_turns: 4
+      mid_max_turns: 12
     signal_weights:
       reflect: 1.2
       revitalize: 1.2

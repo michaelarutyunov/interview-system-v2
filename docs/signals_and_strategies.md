@@ -376,10 +376,13 @@ signal_weights:
 ```yaml
 signal_weights:
   llm.response_depth.high: 0.8   # True if value >= 0.75
+  llm.response_depth.mid: 0.3    # True if 0.25 < value < 0.75
   llm.response_depth.low: 0.3    # True if value <= 0.25
 ```
 - `.high` matches values >= 0.75 (internally derived from Likert 4-5)
+- `.mid` matches values in (0.25, 0.75) exclusive (internally derived from Likert 3)
 - `.low` matches values <= 0.25 (internally derived from Likert 1-2)
+- Works with both float and int signals (bool excluded from binning)
 
 ### Phase Weights and Bonuses
 
@@ -531,16 +534,25 @@ strategies:
   - name: deepen
     description: "Explore why something matters (laddering up)"
     signal_weights:
-      llm.response_depth.high: 0.8
+      llm.response_depth.low: 0.8
       graph.max_depth: 0.5
+      # Engagement & valence safety checks
+      llm.engagement.high: 0.7        # Engaged = safe to deepen
+      llm.engagement.low: -0.5        # Disengaged = avoid deepening
+      llm.valence.high: 0.4           # Positive emotion = safe to probe
+      # Diversity
+      temporal.strategy_repetition_count: -0.3
+      # Node-level signals
       graph.node.exhausted.false: 1.0
       graph.node.focus_streak.low: 0.5
 
   - name: clarify
     description: "Get more detail on vague responses"
     signal_weights:
-      llm.specificity.low: 1.0
-      llm.certainty.low: 0.5
+      llm.specificity.low: 0.8        # Vague language = clarify
+      llm.certainty.low: 0.5          # Uncertainty = clarify
+      llm.engagement.mid: 0.3         # Moderate engagement = safe to clarify
+      temporal.strategy_repetition_count: -0.3
 
   - name: bridge
     description: "Connect isolated concepts"
@@ -552,6 +564,8 @@ strategies:
     signal_weights:
       meta.interview.phase.late: 1.0
       graph.chain_completion.high: 0.8
+      llm.engagement.low: 0.6         # Low engagement = validate & wrap
+      temporal.strategy_repetition_count: -0.2
 
 phases:
   early:
@@ -836,6 +850,8 @@ logger.info(f"Strategy config: {strategy_config}")
 | Pattern | Matches When |
 |---------|--------------|
 | `signal.name` | Signal value (pre-normalized at source [0,1]) |
-| `signal.name.value` | Signal equals "value" |
+| `signal.name.value` | Signal equals "value" (string enum match) |
+| `signal.name.true` / `signal.name.false` | Boolean signal matches |
 | `signal.name.high` | Numeric signal >= 0.75 |
+| `signal.name.mid` | Numeric signal in (0.25, 0.75) exclusive |
 | `signal.name.low` | Numeric signal <= 0.25 |
