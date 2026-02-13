@@ -37,6 +37,17 @@ deflection_patterns:
 
 ## Available Personas
 
+| Persona ID | Name | Description |
+|------------|------|-------------|
+| `health_conscious` | Health-Conscious Millennial | Prioritizes health and wellness, reads nutrition labels, values organic ingredients |
+| `price_sensitive` | Budget-Conscious Shopper | Compares prices, looks for sales, seeks cost-effective alternatives |
+| `convenience_seeker` | Busy Professional | Values time over cost, prioritizes convenience and ease of use |
+| `quality_focused` | Quality Enthusiast | Appreciates premium quality, seeks the best products regardless of price |
+| `sustainability_minded` | Environmentally Conscious Consumer | Prioritizes environmental impact, values sustainable packaging and sourcing |
+| `skeptical_analyst` | Skeptical Analyst | Questions marketing claims, demands evidence, researches extensively |
+| `social_conscious` | Socially Conscious Consumer | Influenced by peers, follows trends, cares about social values and identity |
+| `minimalist` | Minimalist Pragmatist | Values simplicity, avoids unnecessary complexity, wants essential features only |
+
 To see available personas, use the API:
 
 ```
