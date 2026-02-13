@@ -237,7 +237,6 @@ class MethodologyStrategyService:
             node_tracker=node_tracker,
             phase_weights=phase_weights,
             phase_bonuses=phase_bonuses,
-            signal_norms=config.signal_norms,
         )
 
         if not scored_pairs:

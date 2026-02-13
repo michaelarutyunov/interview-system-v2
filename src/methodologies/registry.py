@@ -24,7 +24,7 @@ def _is_valid_signal_weight_key(key: str, known_signals: set[str]) -> bool:
     Signal weight keys can be:
     - Exact signal name: "graph.max_depth"
     - Compound key: "llm.response_depth.surface" (base signal + value qualifier)
-    - Deep compound: "graph.chain_completion.has_complete_chain.false"
+    - Deep compound: "graph.chain_completion.has_complete.false"
 
     Tries progressively shorter prefixes until one matches a known signal
     or an allowed extra prefix.
@@ -65,7 +65,6 @@ class MethodologyConfig:
     signals: dict[str, list[str]]  # graph, llm, temporal, meta
     strategies: list["StrategyConfig"]  # List of strategy definitions
     phases: dict[str, PhaseConfig] | None = None  # phase_name -> config
-    signal_norms: dict[str, float] | None = None  # signal_key -> max_expected
 
 
 @dataclass
@@ -141,12 +140,6 @@ class MethodologyRegistry:
                     phase_boundaries=phase_data.get("phase_boundaries"),
                 )
 
-        # Load signal_norms if present
-        raw_norms = data.get("signal_norms", None)
-        signal_norms = (
-            {k: float(v) for k, v in raw_norms.items()} if raw_norms else None
-        )
-
         config = MethodologyConfig(
             name=method_data["name"],
             description=method_data.get("description", ""),
@@ -160,7 +153,6 @@ class MethodologyRegistry:
                 for s in data.get("strategies", [])
             ],
             phases=phases,
-            signal_norms=signal_norms,
         )
 
         self._validate_config(config, config_path)
@@ -221,12 +213,6 @@ class MethodologyRegistry:
                             f"unknown strategy '{key}' "
                             f"(defined: {sorted(strategy_names)})"
                         )
-
-        # 4. Validate signal_norms keys
-        if config.signal_norms:
-            for norm_key in config.signal_norms:
-                if norm_key not in known_signals:
-                    errors.append(f"signal_norms: unknown signal '{norm_key}'")
 
         if errors:
             error_list = "\n  - ".join(errors)

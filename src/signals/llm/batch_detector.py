@@ -241,7 +241,11 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
                 log.warning(
                     f"Signal '{signal_name}' has out-of-range score: {score}"
                 )
-                detected_signals[signal_name] = max(1, min(5, score))
+                score = max(1, min(5, score))
+
+            # Normalize Likert 1-5 to [0, 1]: (value - 1) / 4
+            if isinstance(score, int):
+                detected_signals[signal_name] = (score - 1) / 4
 
         log.info(f"LLM batch detection complete: {detected_signals}")
 

@@ -183,32 +183,18 @@ signals:
     - meta.interview_progress
     - meta.interview.phase
 
-signal_norms:
-  graph.node_count: 30
-  graph.edge_count: 60
-  graph.orphan_count: 15
-  graph.max_depth: 6
-  temporal.strategy_repetition_count: 5
-  temporal.turns_since_strategy_change: 5
-  llm.response_depth: 5
-  llm.valence: 5
-  llm.certainty: 5
-  llm.specificity: 5
-  llm.engagement: 5
-
 strategies:
   - name: explore_incident
     description: "Explore the incident details - what happened, when, where"
     signal_weights:
       llm.certainty.low: 0.5
-      graph.orphan_count: 0.7
+      graph.node.is_orphan.true: 0.7
       temporal.strategy_repetition_count: 0.6
 
   - name: explore_outcomes
     description: "Understand what happened as a result and why it mattered"
     signal_weights:
       llm.response_depth.low: 0.8
-      graph.node_count: 0.5
 
   - name: explore_emotions
     description: "Understand the emotional response and feelings"
@@ -220,7 +206,6 @@ strategies:
   - name: explore_attributions
     description: "Understand what they believe caused the outcome"
     signal_weights:
-      graph.node_count: 0.6
       llm.response_depth.mid: 0.7
 
   - name: explore_learnings
@@ -239,8 +224,8 @@ phases:
   early:
     description: "Initial incident exploration"
     phase_boundaries:
-      early_max_nodes: 5
-      mid_max_nodes: 12
+      early_max_turns: 4
+      mid_max_turns: 10
     signal_weights:
       explore_incident: 1.5
       explore_outcomes: 1.2
@@ -251,8 +236,8 @@ phases:
   mid:
     description: "Deepening understanding of causes and emotions"
     phase_boundaries:
-      early_max_nodes: 5
-      mid_max_nodes: 12
+      early_max_turns: 4
+      mid_max_turns: 10
     signal_weights:
       explore_outcomes: 1.3
       explore_attributions: 1.3
@@ -264,8 +249,8 @@ phases:
   late:
     description: "Extracting learnings and behavior changes"
     phase_boundaries:
-      early_max_nodes: 5
-      mid_max_nodes: 12
+      early_max_turns: 4
+      mid_max_turns: 10
     signal_weights:
       explore_learnings: 1.5
       explore_behavior_change: 1.3

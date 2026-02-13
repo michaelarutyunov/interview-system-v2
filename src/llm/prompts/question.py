@@ -242,8 +242,8 @@ def _build_strategy_rationale(signals: Dict[str, Any], strategy: str) -> str:
         elif depth >= 4:
             rationale_parts.append("- High depth indicates we've reached deep values")
 
-    if "graph.chain_completion.has_complete_chain" in signals:
-        has_chain = signals["graph.chain_completion.has_complete_chain"]
+    if "graph.chain_completion.has_complete" in signals:
+        has_chain = signals["graph.chain_completion.has_complete"]
         if not has_chain:
             rationale_parts.append(
                 "- No complete chains exist - need to reach terminal values"

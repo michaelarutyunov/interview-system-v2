@@ -33,11 +33,13 @@ class StrategyRepetitionCountSignal(SignalDetector):
         if not current:
             return {self.signal_name: 0}
 
-        # Count occurrences in last 5 entries
-        recent_history = strategy_history[-5:]
+        # Count occurrences in last 5 entries (window size = 5)
+        window_size = 5
+        recent_history = strategy_history[-window_size:]
         repetition_count = sum(1 for s in recent_history if s == current)
 
-        return {self.signal_name: repetition_count}
+        # Normalize to [0, 1] by dividing by window size
+        return {self.signal_name: repetition_count / window_size}
 
 
 class TurnsSinceChangeSignal(SignalDetector):
@@ -74,4 +76,6 @@ class TurnsSinceChangeSignal(SignalDetector):
             else:
                 break
 
-        return {self.signal_name: turns_since_change}
+        # Normalize to [0, 1] by dividing by practical max (5)
+        practical_max = 5
+        return {self.signal_name: min(turns_since_change / practical_max, 1.0)}

@@ -1,13 +1,13 @@
 """Interview phase detection signal for adaptive strategy selection.
 
-Detects the current interview phase based on graph state metrics.
+Detects the current interview phase based on turn number progression.
 Phase detection enables methodology-specific signal weights and bonuses
 to adjust questioning strategy as the interview progresses.
 
 Phases:
-- early: Initial exploration, building graph structure (node_count < early_max_nodes)
-- mid: Building depth and connections (early_max_nodes <= node_count < mid_max_nodes)
-- late: Validation and verification (node_count >= mid_max_nodes)
+- early: Initial exploration (turn_number < early_max_turns)
+- mid: Building depth and connections (early_max_turns <= turn_number < mid_max_turns)
+- late: Validation and verification (turn_number >= mid_max_turns)
 """
 
 from src.core.exceptions import ConfigurationError
@@ -15,23 +15,23 @@ from src.signals.signal_base import SignalDetector
 
 
 class InterviewPhaseSignal(SignalDetector):
-    """Detect interview phase from graph state metrics for adaptive strategy weights.
+    """Detect interview phase from turn number for adaptive strategy weights.
 
-    Uses node count and orphan count to determine interview phase, enabling
+    Uses turn number to determine interview phase, enabling
     methodology-specific signal weights and bonuses to adjust questioning
     strategy as the interview progresses.
 
     Phase detection uses methodology-configurable boundaries:
-    - early_max_nodes: Threshold for early phase (default: 5)
-    - mid_max_nodes: Threshold for mid phase (default: 15)
+    - early_max_turns: Threshold for early phase (default: 4)
+    - mid_max_turns: Threshold for mid phase (default: 12)
 
     Phase outputs drive multiplicative weight adjustments in strategy selection,
     allowing the system to prioritize different strategies based on interview
     maturity (e.g., exploration early, deepening mid, validation late).
 
     Namespaced signal: meta.interview.phase
-    Cost: low (reads from graph_state.node_count and graph_state.orphan_count)
-    Refresh: per_turn (recomputed each turn after graph updates)
+    Cost: low (reads context.turn_number)
+    Refresh: per_turn (recomputed each turn)
     """
 
     signal_name = "meta.interview.phase"
@@ -39,16 +39,16 @@ class InterviewPhaseSignal(SignalDetector):
 
     # Default phase boundaries (fallback if not specified in YAML)
     DEFAULT_BOUNDARIES = {
-        "early_max_nodes": 5,
-        "mid_max_nodes": 15,
+        "early_max_turns": 4,
+        "mid_max_turns": 12,
     }
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
-        """Detect interview phase from graph state.
+        """Detect interview phase from turn number.
 
         Args:
-            context: Pipeline context
-            graph_state: Current knowledge graph state
+            context: Pipeline context (provides turn_number)
+            graph_state: Current knowledge graph state (not used)
             response_text: User's response text (not used)
 
         Returns:
@@ -62,23 +62,21 @@ class InterviewPhaseSignal(SignalDetector):
         # Get phase boundaries from methodology config
         boundaries = self._get_phase_boundaries(context)
 
-        # Extract graph state metrics
-        node_count = getattr(graph_state, "node_count", 0)
-        orphan_count = self._get_orphan_count(graph_state)
+        # Extract turn number from pipeline context
+        turn_number = getattr(context, "turn_number", 0)
 
         # Determine phase using methodology-specific boundaries
         phase = self._determine_phase(
-            node_count,
-            orphan_count,
-            boundaries["early_max_nodes"],
-            boundaries["mid_max_nodes"],
+            turn_number,
+            boundaries["early_max_turns"],
+            boundaries["mid_max_turns"],
         )
 
         # Build phase reason for logging/debugging
         phase_reason = (
-            f"node_count={node_count}, orphan_count={orphan_count}, "
-            f"phase={phase}, boundaries=early<{boundaries['early_max_nodes']}, "
-            f"mid<{boundaries['mid_max_nodes']}"
+            f"turn_number={turn_number}, "
+            f"phase={phase}, boundaries=early<{boundaries['early_max_turns']}, "
+            f"mid<{boundaries['mid_max_turns']}"
         )
 
         return {
@@ -90,19 +88,21 @@ class InterviewPhaseSignal(SignalDetector):
     def _get_phase_boundaries(self, context) -> dict:
         """Get phase boundaries from methodology config.
 
+        Supports both new turn-based keys (early_max_turns/mid_max_turns) and
+        legacy node-based keys (early_max_nodes/mid_max_nodes) for backwards
+        compatibility during the transition. Turn-based keys take precedence.
+
         Args:
             context: Pipeline context with methodology property
 
         Returns:
-            Dict with 'early_max_nodes' and 'mid_max_nodes' keys
+            Dict with 'early_max_turns' and 'mid_max_turns' keys
 
         Raises:
             ConfigurationError: If methodology config fails to load due to
                 malformed YAML, missing methodology, or registry errors.
                 Does NOT raise for valid configs with missing phase_boundaries.
         """
-        # Get boundaries from the first phase that has them defined
-        # (all phases should have the same boundaries, but we check in order)
         from src.methodologies.registry import MethodologyRegistry
 
         methodology = getattr(context, "methodology", None)
@@ -117,7 +117,9 @@ class InterviewPhaseSignal(SignalDetector):
             if config.phases:
                 for phase_config in config.phases.values():
                     if phase_config.phase_boundaries:
-                        return phase_config.phase_boundaries
+                        return self._normalize_boundaries(
+                            phase_config.phase_boundaries
+                        )
 
             # Config loaded successfully, but no phase boundaries defined
             # This is valid - use defaults
@@ -130,45 +132,51 @@ class InterviewPhaseSignal(SignalDetector):
                 f"methodology '{methodology}': {e}"
             ) from e
 
-    def _determine_phase(
-        self,
-        node_count: int,
-        orphan_count: int,
-        early_max_nodes: int,
-        mid_max_nodes: int,
-    ) -> str:
-        """Determine interview phase from graph metrics.
+    def _normalize_boundaries(self, boundaries: dict) -> dict:
+        """Normalize phase boundaries to turn-based keys.
+
+        Supports both new turn-based keys and legacy node-based keys.
+        Turn-based keys take precedence over node-based keys.
 
         Args:
-            node_count: Total number of nodes
-            orphan_count: Number of orphan nodes
-            early_max_nodes: Node count threshold for early phase
-            mid_max_nodes: Node count threshold for mid phase
+            boundaries: Raw phase boundaries from YAML config
+
+        Returns:
+            Dict with 'early_max_turns' and 'mid_max_turns' keys
+        """
+        early = boundaries.get(
+            "early_max_turns",
+            boundaries.get(
+                "early_max_nodes", self.DEFAULT_BOUNDARIES["early_max_turns"]
+            ),
+        )
+        mid = boundaries.get(
+            "mid_max_turns",
+            boundaries.get(
+                "mid_max_nodes", self.DEFAULT_BOUNDARIES["mid_max_turns"]
+            ),
+        )
+        return {"early_max_turns": early, "mid_max_turns": mid}
+
+    def _determine_phase(
+        self,
+        turn_number: int,
+        early_max_turns: int,
+        mid_max_turns: int,
+    ) -> str:
+        """Determine interview phase from turn number.
+
+        Args:
+            turn_number: Current turn number in the interview
+            early_max_turns: Turn threshold for early phase
+            mid_max_turns: Turn threshold for mid phase
 
         Returns:
             Phase: "early" | "mid" | "late"
         """
-        if node_count < early_max_nodes:
+        if turn_number < early_max_turns:
             return "early"
-        elif node_count < mid_max_nodes:
+        elif turn_number < mid_max_turns:
             return "mid"
         else:
             return "late"
-
-        # NOTE: If testing reveals that respondents who are less verbose need
-        # additional time in mid-phase before transitioning, the following
-        # condition can be added to the mid-phase check:
-        #   or orphan_count > 3
-        # This keeps the interview in mid-phase while graph structure is
-        # still being built (high orphan count indicates incomplete chains).
-
-    def _get_orphan_count(self, graph_state) -> int:
-        """Get orphan count from graph state.
-
-        Args:
-            graph_state: Current knowledge graph state
-
-        Returns:
-            Number of orphan nodes (nodes with no connections)
-        """
-        return getattr(graph_state, "orphan_count", 0)

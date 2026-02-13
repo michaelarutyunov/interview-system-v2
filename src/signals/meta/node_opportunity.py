@@ -106,6 +106,12 @@ class NodeOpportunitySignal(NodeSignalDetector):
     def _get_focus_streak_category(self, state) -> str:
         """Get focus streak category for a node.
 
+        Bins aligned with NodeFocusStreakSignal._categorize_streak():
+        - none: 0 consecutive turns
+        - low: 1 consecutive turn
+        - medium: 2-3 consecutive turns
+        - high: 4+ consecutive turns
+
         Args:
             state: NodeState for the node
 
@@ -115,9 +121,9 @@ class NodeOpportunitySignal(NodeSignalDetector):
         streak = state.current_focus_streak
         if streak == 0:
             return "none"
-        elif streak <= 2:
+        elif streak == 1:
             return "low"
-        elif streak <= 4:
+        elif streak <= 3:
             return "medium"
         else:
             return "high"

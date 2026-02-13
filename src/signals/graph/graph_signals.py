@@ -75,21 +75,47 @@ class OrphanCountSignal(SignalDetector):
 # =============================================================================
 
 class GraphMaxDepthSignal(SignalDetector):
-    """Maximum chain depth in the graph.
+    """Maximum chain depth in the graph, normalized by ontology level count.
 
     Namespaced signal: graph.max_depth
 
+    Returns a float in [0.0, 1.0] where 1.0 means the graph has reached
+    full ontology depth (e.g., depth 5 in a 5-level MEC ontology = 1.0).
+    Normalization uses the number of ontology node types as the structural
+    maximum, eliminating arbitrary max_expected constants.
+
     Example:
-        A → B → C has depth 2 (2 edges from root to leaf)
+        MEC ontology has 5 levels. Depth 3 → 3/5 = 0.6
     """
 
     signal_name = "graph.max_depth"
-    description = "Depth of the longest causal chain. Low values (0-1) indicate surface-level exploration, moderate (2-3) indicate reaching consequences or values, high (4+) indicate deep value exploration."
+    description = "Normalized depth of the longest causal chain (0.0-1.0). Normalized by ontology level count. 0.0 = no depth, 1.0 = full ontology chain depth reached."
     dependencies = []
 
     async def detect(self, context, graph_state, response_text):
-        """Return max depth from depth metrics."""
-        return {self.signal_name: graph_state.depth_metrics.max_depth}
+        """Return max depth normalized by ontology level count."""
+        raw_depth = graph_state.depth_metrics.max_depth
+        ontology_levels = self._get_ontology_level_count(context)
+        normalized = min(max(raw_depth / ontology_levels, 0.0), 1.0)
+        return {self.signal_name: normalized}
+
+    def _get_ontology_level_count(self, context) -> float:
+        """Get the number of ontology levels from methodology config.
+
+        Falls back to 5 (common for MEC-style chains with 5 node types).
+        """
+        methodology = getattr(context, "methodology", None)
+        if not methodology:
+            return 5.0
+
+        try:
+            schema = load_methodology(methodology)
+            if schema.ontology and schema.ontology.nodes:
+                return float(len(schema.ontology.nodes))
+        except Exception:
+            pass
+
+        return 5.0
 
 
 class GraphAvgDepthSignal(SignalDetector):
@@ -129,29 +155,28 @@ class DepthByElementSignal(SignalDetector):
 # =============================================================================
 
 class ChainCompletionSignal(SignalDetector):
-    """Count complete causal chains from level 1 nodes to terminal nodes.
+    """Chain completion ratio and presence from level 1 nodes to terminal nodes.
 
-    Namespaced signal: graph.chain_completion
+    Namespaced signals (flat):
+        - graph.chain_completion.ratio: float [0,1] — fraction of level-1
+          nodes that have a complete path to a terminal node.
+        - graph.chain_completion.has_complete: bool — True if at least one
+          complete chain exists.
 
     Uses BFS to find paths from level 1 nodes to terminal nodes.
-    Returns dict with:
-        - complete_chain_count: Number of level 1 nodes that reach terminal
-        - has_complete_chain: Boolean indicating if any complete chain exists
-        - level_1_node_count: Total number of level 1 nodes
 
     Example:
         Level 1 nodes: [A, B, C]
         Terminal nodes: [X, Y, Z]
         Chains: A→...→X, B→...→Y (C doesn't reach terminal)
         Result: {
-            "complete_chain_count": 2,
-            "has_complete_chain": True,
-            "level_1_node_count": 3
+            "graph.chain_completion.ratio": 0.667,
+            "graph.chain_completion.has_complete": True,
         }
     """
 
     signal_name = "graph.chain_completion"
-    description = "Whether complete causal chains exist from level 1 to terminal nodes. has_complete_chain=true means at least one chain reaches values, false means we're still mid-chain. complete_chain_count shows how many level-1 chains are complete."
+    description = "Chain completion metrics. graph.chain_completion.ratio is the fraction of level-1 nodes with complete chains (0.0-1.0). graph.chain_completion.has_complete is True when at least one chain reaches terminal values."
     dependencies = []
 
     async def detect(self, context: Any, graph_state: Any, response_text: str):
@@ -181,11 +206,8 @@ class ChainCompletionSignal(SignalDetector):
         # If no terminal or level 1 types defined, return zeros
         if not terminal_types or not level_1_types:
             return {
-                self.signal_name: {
-                    "complete_chain_count": 0,
-                    "has_complete_chain": False,
-                    "level_1_node_count": 0,
-                }
+                "graph.chain_completion.ratio": 0.0,
+                "graph.chain_completion.has_complete": False,
             }
 
         # Get nodes and edges from graph
@@ -194,11 +216,8 @@ class ChainCompletionSignal(SignalDetector):
 
         if not nodes or not edges:
             return {
-                self.signal_name: {
-                    "complete_chain_count": 0,
-                    "has_complete_chain": False,
-                    "level_1_node_count": 0,
-                }
+                "graph.chain_completion.ratio": 0.0,
+                "graph.chain_completion.has_complete": False,
             }
 
         # Build adjacency list for BFS
@@ -215,13 +234,11 @@ class ChainCompletionSignal(SignalDetector):
                 complete_chain_count += 1
 
         has_complete_chain = complete_chain_count > 0
+        ratio = complete_chain_count / max(level_1_node_count, 1)
 
         return {
-            self.signal_name: {
-                "complete_chain_count": complete_chain_count,
-                "has_complete_chain": has_complete_chain,
-                "level_1_node_count": level_1_node_count,
-            }
+            "graph.chain_completion.ratio": ratio,
+            "graph.chain_completion.has_complete": has_complete_chain,
         }
 
     async def _get_session_nodes(self, context: Any) -> List[Any]:

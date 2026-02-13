@@ -33,7 +33,7 @@ class NodeExhaustedSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.exhausted"
-    description = "Binary exhaustion indicator. 'true' if node is exhausted (no yield, shallow responses, persistent focus), 'false' otherwise."
+    description = "Binary exhaustion indicator. True if node is exhausted (no yield, shallow responses, persistent focus), False otherwise."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
         """Detect exhausted nodes for joint strategy-node scoring.
@@ -48,13 +48,13 @@ class NodeExhaustedSignal(NodeSignalDetector):
             response_text: User's response text (not directly used)
 
         Returns:
-            Dict mapping node_id -> "true" if exhausted, "false" otherwise
+            Dict mapping node_id -> True if exhausted, False otherwise
         """
         results = {}
 
         for node_id, state in self._get_all_node_states().items():
             is_exhausted = self._is_exhausted(state)
-            results[node_id] = "true" if is_exhausted else "false"
+            results[node_id] = is_exhausted
 
         return results
 
@@ -185,7 +185,7 @@ class NodeYieldStagnationSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.yield_stagnation"
-    description = "Whether node has yield stagnation (no yield for 3+ consecutive turns). 'true' if stagnated, 'false' otherwise."
+    description = "Whether node has yield stagnation (no yield for 3+ consecutive turns). True if stagnated, False otherwise."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
         """Detect yield stagnation for all tracked nodes.
@@ -201,13 +201,13 @@ class NodeYieldStagnationSignal(NodeSignalDetector):
             response_text: User's response text (not directly used)
 
         Returns:
-            Dict mapping node_id -> "true" if stagnated, "false" otherwise
+            Dict mapping node_id -> True if stagnated, False otherwise
         """
         results = {}
 
         for node_id, state in self._get_all_node_states().items():
             has_stagnation = self._has_yield_stagnation(state)
-            results[node_id] = "true" if has_stagnation else "false"
+            results[node_id] = has_stagnation
 
         return results
 
@@ -305,8 +305,8 @@ class NodeIsCurrentFocusSignal(NodeSignalDetector):
     """Identify which node is currently the system focus.
 
     Returns a boolean flag indicating whether each node is the current
-    focus node. Exactly one node returns "true" (the previous turn's
-    focus), all others return "false". Used for strategy selection
+    focus node. Exactly one node returns True (the previous turn's
+    focus), all others return False. Used for strategy selection
     rules that need to know the active focus.
 
     Namespaced signal: graph.node.is_current_focus
@@ -315,7 +315,7 @@ class NodeIsCurrentFocusSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.is_current_focus"
-    description = "Whether this node is the current focus. 'true' for focused node, 'false' for others."
+    description = "Whether this node is the current focus. True for focused node, False for others."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
         """Detect which node is the current focus for all tracked nodes.
@@ -329,14 +329,14 @@ class NodeIsCurrentFocusSignal(NodeSignalDetector):
             response_text: User's response text (not directly used)
 
         Returns:
-            Dict mapping node_id -> "true" if current focus, "false" otherwise
+            Dict mapping node_id -> True if current focus, False otherwise
         """
         results = {}
         current_focus = self.node_tracker.previous_focus
 
         for node_id in self._get_all_node_states().keys():
             is_current = node_id == current_focus
-            results[node_id] = "true" if is_current else "false"
+            results[node_id] = is_current
 
         return results
 
@@ -420,7 +420,7 @@ class NodeIsOrphanSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.is_orphan"
-    description = "Whether node is an orphan (no edges). 'true' if isolated, 'false' if connected."
+    description = "Whether node is an orphan (no edges). True if isolated, False if connected."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
         """Detect orphan status for all tracked nodes.
@@ -434,13 +434,13 @@ class NodeIsOrphanSignal(NodeSignalDetector):
             response_text: User's response text (not directly used)
 
         Returns:
-            Dict mapping node_id -> "true" if orphan (no edges), "false" if connected
+            Dict mapping node_id -> True if orphan (no edges), False if connected
         """
         results = {}
 
         for node_id, state in self._get_all_node_states().items():
             is_orphan = state.is_orphan
-            results[node_id] = "true" if is_orphan else "false"
+            results[node_id] = is_orphan
 
         return results
 
@@ -498,7 +498,7 @@ class NodeHasOutgoingSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.has_outgoing"
-    description = "Whether node has outgoing edges. 'true' if node has been explored and has connections, 'false' otherwise."
+    description = "Whether node has outgoing edges. True if node has been explored and has connections, False otherwise."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
         """Detect outgoing edge presence for all tracked nodes.
@@ -512,13 +512,13 @@ class NodeHasOutgoingSignal(NodeSignalDetector):
             response_text: User's response text (not directly used)
 
         Returns:
-            Dict mapping node_id -> "true" if has outgoing edges, "false" otherwise
+            Dict mapping node_id -> True if has outgoing edges, False otherwise
         """
         results = {}
 
         for node_id, state in self._get_all_node_states().items():
             has_outgoing = state.edge_count_outgoing > 0
-            results[node_id] = "true" if has_outgoing else "false"
+            results[node_id] = has_outgoing
 
         return results
 
