@@ -1,6 +1,9 @@
--- Interview System v2 - Initial Schema (Consolidated)
--- Supports: sessions, conversational graph (utterances), knowledge graph (nodes/edges),
---            scoring candidates, qualitative signals
+-- Interview System v2 - Consolidated Schema
+-- This file represents the final state after all migrations.
+-- Replaces the migration-based approach with a single schema definition.
+--
+-- To apply: sqlite3 interview.db < schema.sql
+-- Or delete migrations/ and this becomes init_database schema
 
 PRAGMA foreign_keys = ON;
 
@@ -17,6 +20,9 @@ CREATE TABLE IF NOT EXISTS sessions (
 
     -- Configuration
     config JSON NOT NULL DEFAULT '{}',
+
+    -- Node state tracker (persisted across turns)
+    node_tracker_state TEXT,
 
     -- Timestamps
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -104,7 +110,16 @@ CREATE TABLE IF NOT EXISTS kg_edges (
     -- Relationship
     source_node_id TEXT NOT NULL REFERENCES kg_nodes(id) ON DELETE CASCADE,
     target_node_id TEXT NOT NULL REFERENCES kg_nodes(id) ON DELETE CASCADE,
-    edge_type TEXT NOT NULL CHECK (edge_type IN ('leads_to', 'revises')),
+    edge_type TEXT NOT NULL CHECK (
+        edge_type IN (
+            -- Generic types (used across methodologies)
+            'leads_to', 'revises',
+            -- JTBD (Jobs to be Done) methodology types
+            'occurs_in', 'triggered_by', 'addresses', 'conflicts_with', 'enables', 'supports',
+            -- Means-End Chain methodology types
+            'means_to', 'ends_to'
+        )
+    ),
 
     -- Confidence and properties
     confidence REAL NOT NULL DEFAULT 0.8 CHECK (confidence >= 0.0 AND confidence <= 1.0),
@@ -123,6 +138,82 @@ CREATE TABLE IF NOT EXISTS kg_edges (
 CREATE INDEX IF NOT EXISTS idx_kg_edges_session ON kg_edges(session_id);
 CREATE INDEX IF NOT EXISTS idx_kg_edges_source ON kg_edges(source_node_id);
 CREATE INDEX IF NOT EXISTS idx_kg_edges_target ON kg_edges(target_node_id);
+
+-- =============================================================================
+-- Canonical Slots (Dual-Graph Architecture - Phase 2)
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS canonical_slots (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+
+    -- Identity
+    slot_name TEXT NOT NULL,
+    description TEXT,
+    node_type TEXT NOT NULL,
+
+    -- Lifecycle
+    status TEXT NOT NULL DEFAULT 'candidate' CHECK (status IN ('candidate', 'active')),
+    support_count INTEGER NOT NULL DEFAULT 0,
+    first_seen_turn INTEGER NOT NULL,
+    promoted_turn INTEGER,
+
+    -- Embedding: numpy float32 array serialized via tobytes()
+    -- Model: all-MiniLM-L6-v2 (384-dim). Deserialize with np.frombuffer(blob, dtype=np.float32)
+    embedding BLOB,
+
+    -- Timestamps
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    promoted_at TEXT,
+
+    UNIQUE(session_id, slot_name, node_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_canonical_slots_session ON canonical_slots(session_id);
+CREATE INDEX IF NOT EXISTS idx_canonical_slots_status ON canonical_slots(session_id, status);
+CREATE INDEX IF NOT EXISTS idx_canonical_slots_type ON canonical_slots(session_id, node_type);
+
+-- =============================================================================
+-- Surface-to-Slot Mapping (Dual-Graph Architecture)
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS surface_to_slot_mapping (
+    surface_node_id TEXT PRIMARY KEY REFERENCES kg_nodes(id) ON DELETE CASCADE,
+    canonical_slot_id TEXT NOT NULL REFERENCES canonical_slots(id) ON DELETE CASCADE,
+    similarity_score REAL NOT NULL,
+    assigned_turn INTEGER NOT NULL,
+    assigned_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_surface_mapping_slot ON surface_to_slot_mapping(canonical_slot_id);
+
+-- =============================================================================
+-- Canonical Edges (Dual-Graph Architecture)
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS canonical_edges (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+
+    -- Relationship between canonical slots
+    source_slot_id TEXT NOT NULL REFERENCES canonical_slots(id) ON DELETE CASCADE,
+    target_slot_id TEXT NOT NULL REFERENCES canonical_slots(id) ON DELETE CASCADE,
+    edge_type TEXT NOT NULL,
+
+    -- Aggregation
+    support_count INTEGER NOT NULL DEFAULT 1,
+    surface_edge_ids TEXT NOT NULL DEFAULT '[]',
+
+    -- Timestamps
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+
+    UNIQUE(session_id, source_slot_id, target_slot_id, edge_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_canonical_edges_session ON canonical_edges(session_id);
+CREATE INDEX IF NOT EXISTS idx_canonical_edges_source ON canonical_edges(source_slot_id);
+CREATE INDEX IF NOT EXISTS idx_canonical_edges_target ON canonical_edges(target_slot_id);
 
 -- =============================================================================
 -- Scoring History (for diagnostics and debugging)
@@ -153,46 +244,6 @@ CREATE TABLE IF NOT EXISTS scoring_history (
 );
 
 CREATE INDEX IF NOT EXISTS idx_scoring_session ON scoring_history(session_id);
-
--- =============================================================================
--- Scoring Candidates (for transparency UI)
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS scoring_candidates (
-    id TEXT PRIMARY KEY,
-    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-    turn_number INTEGER NOT NULL,
-
-    -- Candidate identification
-    strategy_id TEXT NOT NULL,
-    strategy_name TEXT NOT NULL,
-    focus_type TEXT NOT NULL,
-    focus_description TEXT,
-
-    -- Scoring results
-    final_score REAL NOT NULL,
-    is_selected INTEGER NOT NULL DEFAULT 0,
-    vetoed_by TEXT,
-
-    -- Tier 1 veto results (JSON)
-    tier1_results JSON DEFAULT '[]',
-
-    -- Tier 2 scorer breakdown (JSON)
-    tier2_results JSON DEFAULT '[]',
-
-    -- Reasoning trace
-    reasoning TEXT,
-
-    -- Timestamp
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-
-    -- Ensure uniqueness per turn
-    UNIQUE(session_id, turn_number, strategy_id, focus_type)
-);
-
-CREATE INDEX IF NOT EXISTS idx_scoring_candidates_session ON scoring_candidates(session_id);
-CREATE INDEX IF NOT EXISTS idx_scoring_candidates_turn ON scoring_candidates(session_id, turn_number);
-CREATE INDEX IF NOT EXISTS idx_scoring_candidates_selected ON scoring_candidates(session_id, turn_number, is_selected);
 
 -- =============================================================================
 -- Qualitative Signals (LLM-extracted diagnostic signals)

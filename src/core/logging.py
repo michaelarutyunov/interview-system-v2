@@ -5,9 +5,11 @@ Provides consistent, structured logging across the application with:
 - JSON output in production
 - Pretty console output in development
 - Context binding for request tracing
+- File output to logs/ directory
 """
 
 import logging
+from pathlib import Path
 from typing import List
 
 import structlog
@@ -21,7 +23,13 @@ def configure_logging() -> None:
     Configure structlog for the application.
 
     Call this once at application startup, before any logging.
+
+    Outputs to both console and logs/interview.log
     """
+
+    # Ensure logs directory exists
+    logs_dir = Path("logs")
+    logs_dir.mkdir(exist_ok=True)
 
     # Shared processors for all outputs
     shared_processors: List[Processor] = [
@@ -47,11 +55,23 @@ def configure_logging() -> None:
             structlog.processors.JSONRenderer(),
         ]
 
+    # Configure stdlib logging for file output
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[
+            # Console handler (collected by structlog)
+            logging.StreamHandler(),
+            # File handler (appends to logs/interview.log)
+            logging.FileHandler(logs_dir / "interview.log", mode="a"),
+        ],
+    )
+
     structlog.configure(
         processors=processors,
         wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
         context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(),
+        logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
 

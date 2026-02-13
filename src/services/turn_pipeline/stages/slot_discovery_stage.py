@@ -38,7 +38,7 @@ class SlotDiscoveryStage(TurnStage):
     """
 
     def __init__(
-        self, slot_service: Optional[CanonicalSlotService] = None, graph_service: Optional["GraphService"] = None
+        self, slot_service: Optional["CanonicalSlotService"] = None, graph_service: Optional["GraphService"] = None
     ):
         """
         Initialize slot discovery stage.

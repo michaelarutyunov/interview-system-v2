@@ -14,6 +14,10 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Configure logging first (before importing other modules)
+from src.core.logging import configure_logging
+configure_logging()
+
 from src.services.simulation_service import SimulationService
 from src.services.session_service import SessionService
 from src.persistence.repositories.session_repo import SessionRepository
