@@ -128,8 +128,8 @@ class LLMBatchDetector:
         """
         # Start with high-level system prompt
         prompt = self._high_level_prompt.format(
-            response=response_text[:100] + "..." if len(response_text) > 100 else response_text,
-            question=question[:100] + "..." if question and len(question) > 100 else (question or "N/A"),
+            response=response_text[:500] + "..." if len(response_text) > 500 else response_text,
+            question=question[:200] + "..." if question and len(question) > 200 else (question or "N/A"),
         )
 
         # Inject signal rubrics for specified signal classes using rubric_key

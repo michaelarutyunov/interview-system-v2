@@ -30,7 +30,7 @@ log = structlog.get_logger(__name__)
 # Saturation thresholds (centralized here, consumed by ContinuationStage)
 # =============================================================================
 CONSECUTIVE_ZERO_YIELD_THRESHOLD = 5  # Turns with 0 new nodes+edges
-CONSECUTIVE_SHALLOW_THRESHOLD = 4  # Turns with only shallow responses
+CONSECUTIVE_SHALLOW_THRESHOLD = 6  # Turns with only shallow responses (was 4)
 DEPTH_PLATEAU_THRESHOLD = 6  # Turns at same max_depth
 
 
@@ -229,7 +229,7 @@ class StateComputationStage(TurnStage):
             for ns in context.node_tracker.states.values():
                 if ns.all_response_depths:
                     has_any_depth_data = True
-                    if ns.all_response_depths[-1] == "deep":
+                    if ns.all_response_depths[-1] in ("moderate", "deep"):
                         has_any_deep = True
                         break
             # Only assess quality if we have response depth data

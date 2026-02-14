@@ -118,6 +118,7 @@ class ComposedSignalDetector:
         context: "PipelineContext",
         graph_state: Any,
         response_text: str,
+        question: str | None = None,
     ) -> dict[str, Any]:
         """Detect all signals in dependency order.
 
@@ -125,6 +126,7 @@ class ComposedSignalDetector:
             context: Pipeline context
             graph_state: Current knowledge graph state
             response_text: User's response text
+            question: The question that prompted this response (for LLM scoring context)
 
         Returns:
             Dictionary of all detected signals
@@ -185,6 +187,7 @@ class ComposedSignalDetector:
                 # Batch all LLM signals in one call
                 llm_signals = await self._llm_detector.detect(
                     response_text=response_text,
+                    question=question,
                     signal_classes=llm_signal_classes,
                 )
 

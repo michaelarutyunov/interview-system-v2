@@ -156,12 +156,16 @@ strategies:
       # Global signals
       llm.response_depth.low: 0.8
       llm.response_depth.mid: 0.3
+      llm.response_depth.moderate: 0.15  # Even moderate answers can benefit from deepening
       graph.max_depth: -0.3
       graph.chain_completion.has_complete.false: 1.0
-      # Engagement & valence safety checks
-      llm.engagement.high: 0.7              # Engaged = safe to deepen
+      # Engagement & valence safety checks — mid-engagement now contributes
+      llm.engagement.high: 0.5              # Engaged = safe to deepen (was 0.7)
+      llm.engagement.mid: 0.3               # Moderate engagement = still OK to deepen (NEW)
       llm.engagement.low: -0.5              # Disengaged = avoid deepening
       llm.valence.high: 0.4                 # Positive emotion = safe to go deeper
+      # Response quality trend — deepen when quality is declining
+      llm.global_response_trend.shallowing: 0.4  # Shallow trend → try deepening (NEW)
       # Diversity
       temporal.strategy_repetition_count: -0.3
       # Node-level signals (Phase 3)
@@ -178,9 +182,10 @@ strategies:
       llm.engagement.mid: 0.3               # Moderate engagement = clarify OK
       # Diversity
       temporal.strategy_repetition_count: -0.3
-      # Node-level signals (Phase 3)
-      graph.node.is_orphan.true: 1.0  # Boost orphan nodes
-      graph.node.exhaustion_score.low: 0.5
+      temporal.turns_since_strategy_change: -0.3  # Break strategy lock
+      # Node-level signals (Phase 3) — reduced to prevent node dominance
+      graph.node.is_orphan.true: 0.7  # Boost orphan nodes (was 1.0)
+      graph.node.exhaustion_score.low: 0.4  # (was 0.5)
       graph.node.focus_streak.none: 0.3
 
   # Strategy 3: Explore new areas (elaboration)
@@ -189,14 +194,17 @@ strategies:
     signal_weights:
       # Global signals
       llm.certainty.low: 0.4
-      temporal.strategy_repetition_count: -0.3  # Penalize repetition (was +0.5 bug)
+      temporal.strategy_repetition_count: -0.8  # Strong repetition penalty (was -0.3)
       # Engagement & valence
       llm.engagement.mid: 0.4               # Moderate engagement = breadth OK
       llm.valence.low: 0.3                  # Negative emotion = change topic
-      # Node-level signals (Phase 3)
-      graph.node.focus_streak.none: 1.0  # Fresh nodes
-      graph.node.yield_stagnation.false: 0.8  # Nodes that yield
-      graph.node.exhaustion_score.low: 0.7  # Avoid exhausted nodes
+      # Response quality awareness — suppress exploration during declining quality
+      llm.global_response_trend.shallowing: -0.4  # Don't explore when answers declining
+      llm.global_response_trend.fatigued: -0.6    # Strongly suppress during fatigue
+      # Node-level signals (Phase 3) — reduced weights to prevent node dominance
+      graph.node.focus_streak.none: 0.6  # Fresh nodes (was 1.0)
+      graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.8)
+      graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.7)
 
   # Strategy 4: Reflect and validate (validation)
   - name: reflect
@@ -227,8 +235,9 @@ strategies:
       llm.global_response_trend.fatigued: 1.0  # Trigger on fatigue
       llm.global_response_trend.shallowing: 0.5  # Prevent fatigue
       meta.node.opportunity.exhausted: 0.3  # Try exhausted nodes with new angle
-      # Engagement & valence triggers
-      llm.engagement.low: 1.2               # Low engagement = PRIORITY trigger
+      # Engagement & valence triggers — mid-engagement now contributes
+      llm.engagement.low: 0.8               # Low engagement = strong trigger (was 1.2)
+      llm.engagement.mid: 0.4               # Moderate engagement + fatigue = still revitalize (NEW)
       llm.engagement.high: -0.4             # Already engaged = not needed
       llm.valence.low: 0.5                  # Negative valence = shift gears
       # Global signals
@@ -259,7 +268,8 @@ phases:
     signal_weights:
       deepen: 1.3
       clarify: 0.8
-      explore: 0.8
+      revitalize: 1.0             # Explicit mid-phase weight (was missing)
+      explore: 0.6                # Reduced from 0.8 — mid phase should deepen, not explore
       reflect: 0.7
     phase_bonuses:
       deepen: 0.3  # Additive bonus to prioritize deepening in mid-phase

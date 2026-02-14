@@ -100,7 +100,18 @@ class GlobalSignalDetectionService:
                     exc_info=True,
                 )
 
-        global_signals = await signal_detector.detect(context, graph_state, response_text)
+        # Extract the previous question (the one that prompted this response)
+        # so the LLM scorer can assess response adequacy in context
+        last_question = None
+        if context.recent_utterances:
+            for utt in reversed(context.recent_utterances):
+                if utt.get("role") == "system":
+                    last_question = utt.get("content")
+                    break
+
+        global_signals = await signal_detector.detect(
+            context, graph_state, response_text, question=last_question
+        )
 
         log.debug(
             "global_signals_detected",
