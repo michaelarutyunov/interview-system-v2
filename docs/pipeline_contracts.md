@@ -622,7 +622,7 @@ The `termination_reason` field is populated when `should_continue=False`:
 |--------|-------------|-----------|
 | `max_turns_reached` | Interview reached configured `max_turns` limit | `turn_number >= max_turns` |
 | `depth_plateau` | Graph max_depth hasn't increased in 6 consecutive turns | Tracked in `StateComputationStage` |
-| `quality_degraded` | Consecutive shallow responses detected (saturation) | Tracked in node_tracker |
+| `quality_degraded` | 6+ consecutive shallow responses detected (saturation) | Tracked in node_tracker; "moderate" or "deep" responses reset the counter |
 | `close_strategy` | Closing strategy was selected | `strategy == "close"` |
 
 ---

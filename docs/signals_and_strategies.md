@@ -209,36 +209,53 @@ async def execute(self, context: PipelineContext) -> PipelineContext:
 
 ### 2. LLM Signals (`llm.*`)
 
-**Source**: LLM analysis of user response
+**Source**: LLM analysis of user response using rubric-based prompts
 **Cost**: High (1 API call per response, batched)
 **Location**: `src/signals/llm/`
 
-| Signal | Type | Scale | Description |
-|--------|------|-------|-------------|
-| `llm.response_depth` | float | 0.0-1.0 | Elaboration quantity |
+| Signal | Type | Values | Description |
+|--------|------|--------|-------------|
+| `llm.response_depth` | categorical | surface, shallow, moderate, deep, comprehensive | Elaboration quantity |
 | `llm.specificity` | float | 0.0-1.0 | Concreteness of language |
 | `llm.certainty` | float | 0.0-1.0 | Epistemic confidence |
 | `llm.valence` | float | 0.0-1.0 | Emotional tone (negative-positive) |
 | `llm.engagement` | float | 0.0-1.0 | Willingness to engage |
 
-**Scale Interpretation**:
+**Rubric-Based Detection**: The LLM batch detector loads rubric definitions from `src/signals/llm/prompts/signals.md` using indentation-based parsing. Each signal's rubric defines the scoring criteria and scale anchors that guide the LLM's assessment.
+
+**Scale Interpretation (Float Signals)**:
 ```
-0.0 = Very low / minimal / negative (was 1)
-0.25 = Low / somewhat vague / uncertain (was 2)
-0.5 = Moderate / neutral (was 3)
-0.75 = High / fairly concrete / confident (was 4)
-1.0 = Very high / detailed / positive / certain (was 5)
+0.0 = Very low / minimal / negative
+0.25 = Low / somewhat vague / uncertain
+0.5 = Moderate / neutral
+0.75 = High / fairly concrete / confident
+1.0 = Very high / detailed / positive / certain
 ```
+
+**Categorical Signal (response_depth)**:
+```
+surface = Minimal or single-word answer
+shallow = Brief statement with no supporting detail
+moderate = Moderate elaboration with some explanation
+deep = Detailed response with reasoning or examples
+comprehensive = Rich, layered response exploring multiple angles
+```
+
+**Question Context**: The LLM scorer receives both the respondent's answer and the preceding interviewer question for context-aware assessment. The question is extracted from `recent_utterances` (last system utterance) and threaded through the signal detection chain:
+```
+GlobalSignalDetectionService → ComposedSignalDetector → LLMBatchDetector
+```
+The prompt template uses `{question}` and `{response}` placeholders. Response text is truncated to 500 characters (~75 words) and question text to 200 characters to balance scoring accuracy with token costs.
 
 **Batch Detection**: All LLM signals are detected in a single API call:
 ```python
 # One API call returns all signals:
 {
-    "llm.response_depth": 0.75,    # Detailed response (was 4)
-    "llm.specificity": 0.5,        # Moderately concrete (was 3)
-    "llm.certainty": 1.0,          # Very confident (was 5)
-    "llm.valence": 0.75,           # Positive tone (was 4)
-    "llm.engagement": 1.0          # Highly engaged (was 5)
+    "llm.response_depth": "deep",  # Categorical string
+    "llm.specificity": 0.5,        # Float [0,1]
+    "llm.certainty": 1.0,          # Float [0,1]
+    "llm.valence": 0.75,           # Float [0,1]
+    "llm.engagement": 1.0          # Float [0,1]
 }
 ```
 
@@ -372,18 +389,24 @@ signal_weights:
 ```
 - Value is 1.0 if signal equals the suffix, 0.0 otherwise
 
-#### 3. Threshold Binning
+#### 3. Threshold Binning (Float Signals Only)
 ```yaml
 signal_weights:
-  llm.response_depth.high: 0.8   # True if value >= 0.75
-  llm.response_depth.mid: 0.3    # True if 0.25 < value < 0.75
-  llm.response_depth.low: 0.3    # True if value <= 0.25
+  llm.specificity.high: 0.8   # True if value >= 0.75
+  llm.specificity.mid: 0.3    # True if 0.25 < value < 0.75
+  llm.specificity.low: 0.3    # True if value <= 0.25
 ```
-- `.high` matches values >= 0.75 (internally derived from Likert 4-5)
-- `.mid` matches values in (0.25, 0.75) exclusive (internally derived from Likert 3)
-- `.low` matches values <= 0.25 (internally derived from Likert 1-2)
-- **Important**: Only use with signals normalized to [0, 1]. Unbounded signals (e.g., `graph.node.edge_count`, `graph.canonical_concept_count`) will produce incorrect results with threshold binning
-- Works with float signals normalized to [0, 1] (bool excluded from binning)
+- `.high` matches values >= 0.75
+- `.mid` matches values in (0.25, 0.75) exclusive
+- `.low` matches values <= 0.25
+- **Important**: Only use with float signals normalized to [0, 1]. Unbounded signals (e.g., `graph.node.edge_count`, `graph.canonical_concept_count`) will produce incorrect results with threshold binning
+- **Categorical signals**: `llm.response_depth` is categorical (surface/shallow/moderate/deep/comprehensive) and uses string equality matching (pattern #2), not threshold binning:
+  ```yaml
+  signal_weights:
+    llm.response_depth.deep: 0.8      # True if response_depth == "deep"
+    llm.response_depth.moderate: 0.3  # True if response_depth == "moderate"
+    llm.response_depth.shallow: 0.3   # True if response_depth == "shallow"
+  ```
 
 ### Phase Weights and Bonuses
 
@@ -529,13 +552,15 @@ strategies:
   - name: explore
     description: "Find new attributes/branches"
     signal_weights:
-      llm.response_depth.low: 0.8
+      llm.response_depth.shallow: 0.8    # Categorical match (not .low)
+      llm.response_depth.surface: 0.5    # Even more brief = boost explore
       temporal.strategy_repetition_count: -0.5
 
   - name: deepen
     description: "Explore why something matters (laddering up)"
     signal_weights:
-      llm.response_depth.low: 0.8
+      llm.response_depth.shallow: 0.8    # Categorical match
+      llm.response_depth.surface: 0.4    # Surface answers = opportunity to deepen
       graph.max_depth: -0.3
       # Engagement & valence safety checks
       llm.engagement.high: 0.7        # Engaged = safe to deepen

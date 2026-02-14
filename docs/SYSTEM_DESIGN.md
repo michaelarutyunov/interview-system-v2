@@ -285,7 +285,7 @@ The `termination_reason` field is populated when `should_continue=False`:
 |--------|-------------|-----------|
 | `"max_turns_reached"` | Interview reached configured `max_turns` limit | `turn_number >= max_turns` |
 | `"depth_plateau"` | Graph max_depth hasn't increased in 6 consecutive turns | Tracked in `StateComputationStage` |
-| `"quality_degraded"` | Consecutive shallow responses detected (saturation) | `consecutive_shallow` threshold in node_tracker |
+| `"quality_degraded"` | 6+ consecutive shallow responses detected (saturation) | `consecutive_shallow` threshold in node_tracker; "moderate" or "deep" resets counter |
 | `"close_strategy"` | Closing strategy was selected | Strategy-based termination |
 
 #### Continuation Logic
@@ -371,7 +371,7 @@ All signals use dot-notation namespacing to prevent collisions:
 |------|-----------|-----------------|
 | **Graph (Global)** | `graph.*` | node_count, max_depth, orphan_count, chain_completion.ratio (float [0,1]), chain_completion.has_complete (bool) |
 | **Graph (Node)** | `graph.node.*` | exhausted, exhaustion_score, yield_stagnation, focus_streak, recency_score, is_orphan, edge_count |
-| **LLM** | `llm.*` | response_depth, valence, certainty, specificity, engagement, global_response_trend |
+| **LLM** | `llm.*` | response_depth (categorical: surface/shallow/moderate/deep/comprehensive), valence (float [0,1]), certainty (float [0,1]), specificity (float [0,1]), engagement (float [0,1]), global_response_trend |
 | **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_strategy_change |
 | **Meta (Global)** | `meta.*` | interview_progress, interview.phase |
 | **Meta (Node)** | `meta.node.*` | opportunity (exhausted/probe_deeper/fresh) |
@@ -419,6 +419,42 @@ graph LR
 - Signals reflect the current conversation state
 - No stale signals from previous responses
 - Accurate strategy selection
+
+### Rubric-Based LLM Detection
+
+LLM signals use rubric-based prompts to guide the LLM's assessment. The `LLMBatchDetector` loads rubric definitions from `src/signals/llm/prompts/signals.md` using indentation-based parsing:
+
+**Rubric Structure**:
+```markdown
+response_depth: How much elaboration does the response provide?
+    1 = Minimal or single-word answer, no development
+    2 = Brief statement with no supporting detail
+    3 = Moderate elaboration with some explanation or context
+    4 = Detailed response with reasoning, examples, or multiple facets
+    5 = Rich, layered response exploring the topic from multiple angles
+```
+
+**Parsing Method**:
+- Signal headers: Start at column 0, contain `:`, not a comment
+- Content lines: Indented, appended to current signal's rubric
+- Example: `response_depth:` header followed by indented scale definitions
+
+**Batch Detection**:
+All 5 LLM signals (response_depth, specificity, certainty, valence, engagement) are detected in a single API call. The prompt includes the interviewer's question (for context) and the respondent's answer, with rubrics injected to guide the LLM's scoring. The LLM returns structured JSON:
+
+```json
+{
+  "response_depth": {"score": "deep", "rationale": "Detailed response with examples"},
+  "specificity": {"score": 0.75, "rationale": "Concrete details and named entities"},
+  "certainty": {"score": 1.0, "rationale": "Confident statements with no hedging"},
+  "valence": {"score": 0.75, "rationale": "Positive tone throughout"},
+  "engagement": {"score": 1.0, "rationale": "Volunteered additional context unprompted"}
+}
+```
+
+**Signal Type Handling**:
+- **Categorical** (response_depth): Returns string values (surface/shallow/moderate/deep/comprehensive), matched via string equality in strategy weights
+- **Continuous** (others): Returns float [0,1], matched via threshold binning (.low/.mid/.high) in strategy weights
 
 ### Node-Level Signals
 
@@ -835,6 +871,11 @@ final_score = (base_score * multiplier) + bonus
 
 **Threshold Binning**: Strategy weights use compound keys (`.low`, `.mid`, `.high`) to convert continuous [0,1] signals into categorical boolean triggers. This models how a moderator thinks categorically ("that was shallow → clarify") rather than linearly. Boundaries: `low ≤ 0.25`, `0.25 < mid < 0.75`, `high ≥ 0.75`.
 
+**Note**: Only applies to float signals. Categorical signals like `llm.response_depth` (surface/shallow/moderate/deep/comprehensive) use string equality matching instead:
+```yaml
+llm.response_depth.shallow: 0.8  # Matches when response_depth == "shallow"
+```
+
 **Error Handling in Signal Detection:**
 
 Each signal detector runs in isolation with try/except handling. If a detector fails (e.g., database timeout, LLM error):
@@ -986,8 +1027,10 @@ The system uses three specialized LLM clients:
 | Client | Purpose | Model |
 |--------|---------|-------|
 | `ExtractionClient` | Concept/relationship extraction | Claude (high quality) |
-| `SignalClient` | Qualitative signal extraction | Claude (high quality) |
-| `QuestionClient` | Question generation | Claude/Moonshot (cost-optimized) |
+| `ScoringClient` | Qualitative signal scoring | Kimi moonshot-v1-8k (cost-optimized) |
+| `GenerationClient` | Question generation | Claude/Moonshot (cost-optimized) |
+
+**Scoring Client Details**: The scoring client uses rubric-based prompts to assess response quality. It receives both the interviewer's question (up to 200 chars) and the respondent's answer (up to 500 chars) for context-aware scoring. Question context is extracted from `recent_utterances` by `GlobalSignalDetectionService` and threaded through `ComposedSignalDetector` → `LLMBatchDetector`.
 
 ### LLM Timeout and Retry
 

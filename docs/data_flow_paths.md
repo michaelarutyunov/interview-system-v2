@@ -132,7 +132,9 @@ graph LR
 - **GlobalSignalDetectionService** uses **ComposedSignalDetector** for global signals (graph, llm, temporal, meta) from YAML config
 - **NodeSignalDetectionService** detects node-level signals (graph.node.*, technique.node.*) using hardcoded detector instances
 - **Signals are namespaced**: `graph.max_depth`, `llm.response_depth`, `temporal.strategy_repetition_count`, `graph.node.exhausted`, `technique.node.strategy_repetition`, etc.
-- **LLM signals are fresh** - computed every response, no cross-response caching
+- **LLM signals are fresh** - computed every response via rubric-based prompts, no cross-response caching
+- **LLM batch detection** - All 5 signals (response_depth, specificity, certainty, valence, engagement) detected in single API call using rubrics loaded from `src/signals/llm/prompts/signals.md`
+- **Rubric parsing** - Rubric definitions use indentation-based structure (signal_name: description, with indented content for scoring criteria)
 - **InterviewPhaseSignal** detects current phase (`early`, `mid`, `late`) from `meta.interview.phase` signal
 - **Phase weights and bonuses** are defined in YAML config under `config.phases[phase]`:
   - `signal_weights`: Multiplicative strategy weights (e.g., `deepen: 1.5`)
@@ -428,14 +430,26 @@ graph LR
 ### Key Points
 
 - **Detection flow**:
-  1. `GlobalSignalDetectionService` detects global signals via `ComposedSignalDetector` (created from YAML config)
-  2. `NodeSignalDetectionService` detects node-level signals via hardcoded detector instances
-  3. `InterviewPhaseSignal` is called explicitly (not via ComposedSignalDetector) to detect phase
+  1. `GlobalSignalDetectionService` extracts last question from `recent_utterances` (last system utterance) and passes it to `ComposedSignalDetector` for context-aware LLM scoring
+  2. `ComposedSignalDetector.detect()` accepts optional `question` parameter and threads it to `LLMBatchDetector`
+  3. `NodeSignalDetectionService` detects node-level signals via hardcoded detector instances
+  4. `InterviewPhaseSignal` is called explicitly (not via ComposedSignalDetector) to detect phase
+- **LLM batch detection**:
+  - `LLMBatchDetector` loads rubrics from `src/signals/llm/prompts/signals.md` using indentation-based parsing
+  - Rubric structure: `signal_name: description` (no indent) followed by indented scoring criteria
+  - All 5 LLM signals (response_depth, specificity, certainty, valence, engagement) detected in single API call
+  - **Question context**: Receives the preceding interviewer question for context-aware scoring (extracted from `recent_utterances` by `GlobalSignalDetectionService`)
+  - **Truncation**: Response text truncated to 500 chars (~75 words), question text to 200 chars — balances scoring accuracy with token costs
+  - Rubrics injected into prompt to guide LLM scoring
+  - Returns structured JSON: `{"response_depth": {"score": "deep", "rationale": "..."}, ...}`
+- **Signal types**:
+  - `llm.response_depth`: Categorical string (surface/shallow/moderate/deep/comprehensive)
+  - `llm.specificity`, `llm.certainty`, `llm.valence`, `llm.engagement`: Float [0,1]
 - **Dependency ordering**: Signals are ordered via topological sort (Kahn's algorithm) based on declared dependencies, not strict two-pass
 - **Two detection modes**:
   - **Global signals**: Single value per interview (graph.*, llm.*, temporal.*, meta.*)
   - **Node-level signals**: Per-node values (graph.node.*, technique.node.*, meta.node.*)
-- **Fresh LLM signals**: Always computed per response (no cross-response caching)
+- **Fresh LLM signals**: Always computed per response using rubrics (no cross-response caching)
 - **Namespaced output**: All signals returned as `{pool.signal_name: value}` dict
 - **Node signals format**: `{node_id: {signal_name: value}}` for per-node signals
 - **Phase detection**: `InterviewPhaseSignal` determines current phase from `meta.interview.phase`
