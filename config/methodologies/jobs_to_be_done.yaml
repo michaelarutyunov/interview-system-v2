@@ -91,39 +91,50 @@ ontology:
         - [job_statement, job_context]
         - [emotional_job, job_context]
         - [social_job, job_context]
+        - [pain_point, job_context]      # Pain arises in a context
+        - [gain_point, job_context]      # Gain matters in a context
 
     - name: triggered_by
-      description: "Causal relationship where a stimulus initiates the job"
+      description: "Causal relationship where a stimulus initiates or causes something"
       permitted_connections:
         - [job_statement, job_trigger]
         - [emotional_job, job_trigger]
         - [social_job, job_trigger]
+        - [pain_point, pain_point]       # Pain cascades (clutter → distraction)
+        - [pain_point, job_trigger]      # Pain triggered by event
 
     - name: addresses
       description: "Solution approach resolves a pain point or enables a gain point"
       permitted_connections:
         - [solution_approach, pain_point]
         - [solution_approach, gain_point]
+        - [solution_approach, job_statement]  # Solution accomplishes a job
         - [job_statement, emotional_job]
         - [job_statement, social_job]
 
     - name: conflicts_with
-      description: "Pain point that prevents the job from being done well"
+      description: "Something that prevents or undermines something else"
       permitted_connections:
         - [solution_approach, pain_point]
         - [pain_point, job_statement]
+        - [pain_point, gain_point]       # Pain undermines a gain
+        - [pain_point, solution_approach] # Pain blocks a solution
 
     - name: enables
-      description: "Gain point that makes the job more achievable or satisfying"
+      description: "Something that makes something else more achievable or satisfying"
       permitted_connections:
         - [solution_approach, gain_point]
         - [gain_point, job_statement]
+        - [gain_point, gain_point]       # Gain chains (saves time → productive)
+        - [gain_point, emotional_job]    # Gain enables emotional outcome
 
     - name: supports
-      description: "Functional job that supports an emotional or social job"
+      description: "Something that contributes to or reinforces something else"
       permitted_connections:
         - [job_statement, emotional_job]
         - [job_statement, social_job]
+        - [solution_approach, gain_point]  # Solution contributes to a gain
+        - [solution_approach, job_statement] # Solution supports a job
 
     - name: revises
       description: "Contradiction - newer belief or approach supersedes older one"

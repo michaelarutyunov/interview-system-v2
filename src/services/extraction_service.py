@@ -442,7 +442,7 @@ class ExtractionService:
                 rel = ExtractedRelationship(
                     source_text=raw.get("source_text", ""),
                     target_text=raw.get("target_text", ""),
-                    relationship_type=raw.get("relationship_type", "leads_to"),
+                    relationship_type=raw.get("relationship_type", ""),
                     confidence=float(raw.get("confidence", 0.7)),
                     reasoning=raw.get(
                         "reasoning"

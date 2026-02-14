@@ -80,6 +80,15 @@ Important:
         f"  - {name}: {desc}" for name, desc in edge_descriptions.items()
     )
 
+    # Determine primary edge type for this methodology's conversational examples
+    # (avoids hardcoding MEC-specific "leads_to" which doesn't exist in JTBD etc.)
+    valid_edge_types = schema.get_valid_edge_types()
+    primary_edge_type = next(
+        (et for et in valid_edge_types if et != "revises"),
+        valid_edge_types[0] if valid_edge_types else "leads_to",
+    )
+    edge_type_list = ", ".join(valid_edge_types)
+
     # Methodology-specific content from schema
     methodology_guidelines = schema.get_extraction_guidelines()
     methodology_examples = schema.get_relationship_examples()
@@ -140,19 +149,19 @@ Examples:
 When the interviewer asks a question and the respondent answers:
 - **Identify the topic in the interviewer's question** (e.g., "Why does X matter?")
 - **Extract the concept from the respondent's answer** (e.g., "Because it Y")
-- **Create a relationship from question topic → answer concept** (X leads_to Y)
+- **Create a relationship from question topic → answer concept** using a valid edge type
 - Even if no explicit causal markers are present, the Q&A structure implies causality
-- Use the methodology's appropriate relationship type (usually "leads_to")
+- Use the methodology's appropriate relationship type (commonly "{primary_edge_type}")
 - Set confidence slightly lower (0.7-0.8) since it's implicit, not explicit
 
 Examples:
 - Interviewer: "Why does that nice sensation matter?"
   Respondent: "It feels like a good start of the day"
-  → Extract relationship: "nice sensation" leads_to "good start of the day"
+  → Extract relationship: "nice sensation" {primary_edge_type} "good start of the day"
 
 - Interviewer: "What does having that uninterrupted time do for you?"
   Respondent: "It helps me feel accomplished"
-  → Extract relationship: "uninterrupted time" leads_to "feel accomplished"
+  → Extract relationship: "uninterrupted time" {primary_edge_type} "feel accomplished"
 {methodology_section}
 ## Output Format:
 Return valid JSON with this structure:
@@ -171,7 +180,7 @@ Return valid JSON with this structure:
     {{
       "source_text": "source concept label",
       "target_text": "target concept label",
-      "relationship_type": "leads_to or revises",
+      "relationship_type": "one of: {edge_type_list}",
       "confidence": 0.0-1.0,
       "source_quote": "verbatim text showing relationship"
     }}
