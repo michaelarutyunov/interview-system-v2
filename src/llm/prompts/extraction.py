@@ -138,7 +138,7 @@ Examples:
 - "I hate the aftertaste" → stance: -1
 {elements_section}
 ## Universal Extraction Principles:
-1. Only extract concepts EXPLICITLY mentioned or clearly implied
+1. Only extract concepts EXPLICITLY mentioned or clearly implied. When multiple concepts co-occur in a response, create relationships between them using the methodology's edge types—even if the connection is implicit—with confidence proportional to your certainty.
 2. Use the respondent's own language for concept labels
 3. Classify each concept into the most appropriate node type
 4. Assign confidence based on how explicit the concept/relationship is

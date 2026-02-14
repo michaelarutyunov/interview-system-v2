@@ -305,7 +305,7 @@ class ExtractionService:
         response = await self.llm.complete(
             prompt=user_prompt,
             system=system_prompt,
-            temperature=0.3,  # Lower temperature for more consistent extraction
+            temperature=0.4,  # Balanced temperature for relationship inference
             max_tokens=2000,
         )
 

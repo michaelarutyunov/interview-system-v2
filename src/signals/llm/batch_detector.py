@@ -43,7 +43,7 @@ class LLMBatchDetector:
     @property
     def _prompts_dir(self) -> Path:
         """Path to prompts directory."""
-        return Path(__file__).parent.parent / "prompts"
+        return Path(__file__).parent / "prompts"
 
     def _load_high_level_prompt(self) -> str:
         """Load high_level.md base prompt template."""
@@ -79,22 +79,26 @@ class LLMBatchDetector:
         with open(signals_md_path) as f:
             content = f.read()
 
-        # Parse by signal sections (## signal_name)
+        # Parse by signal sections (signal_name: description at column 0)
+        # signals.md uses indentation-based structure:
+        #   response_depth: How much elaboration...   <- header (no indent)
+        #       1 = Minimal or single-word answer     <- content (indented)
         rubrics: Dict[str, List[str]] = {}
         current_signal = None
 
         for line in content.split("\n"):
-            line = line.strip()
-            if line.startswith("## ") and not line.startswith("## "):
-                # This is a signal section header
-                current_signal = line[3:].strip().lower()
-                rubrics[current_signal] = []
-            elif current_signal and line and not line.startswith("#") and line.strip():
-                # This is rubric content for current signal
-                rubrics[current_signal].append(line)
+            stripped = line.strip()
+            # Signal header: starts at column 0, contains ":", not a comment
+            if line and not line[0].isspace() and ":" in stripped and not stripped.startswith("#"):
+                current_signal = stripped.split(":")[0].strip().lower()
+                # Include the description after the colon as first line of rubric
+                description = ":".join(stripped.split(":")[1:]).strip()
+                rubrics[current_signal] = [description] if description else []
+            elif current_signal and stripped and not stripped.startswith("#"):
+                rubrics[current_signal].append(stripped)
 
         # Join rubric content
-        return {signal: "\n".join(content) for signal, content in rubrics.items()}
+        return {signal: "\n".join(lines) for signal, lines in rubrics.items()}
 
     def _load_output_example(self) -> Dict[str, Any]:
         """Load output_example.json to show expected format.
@@ -113,12 +117,14 @@ class LLMBatchDetector:
         self,
         response_text: str,
         question: str | None = None,
+        signal_classes: Optional[List[Type]] = None,
     ) -> str:
         """Build the complete prompt with all signal rubrics.
 
         Args:
             response_text: User's response to analyze
             question: Question that was asked (optional context)
+            signal_classes: List of signal classes to include (for rubric_key mapping)
         """
         # Start with high-level system prompt
         prompt = self._high_level_prompt.format(
@@ -126,29 +132,48 @@ class LLMBatchDetector:
             question=question[:100] + "..." if question and len(question) > 100 else (question or "N/A"),
         )
 
-        # Inject signal rubrics for all registered LLM signals
+        # Inject signal rubrics for specified signal classes using rubric_key
+        # (non-namespaced key for LLM communication)
         rubrics = self._signal_rubrics
-        for signal_key, rubric_content in rubrics.items():
-            prompt += f"\n\n## {signal_key.replace('llm.', '').title().replace('_', ' ')}\n"
-            prompt += rubric_content
+        if signal_classes:
+            for signal_cls in signal_classes:
+                rubric_key = getattr(signal_cls, '_rubric_key', None)
+                if rubric_key and rubric_key in rubrics:
+                    prompt += f"\n\n## {rubric_key.replace('_', ' ').title()}\n"
+                    prompt += rubrics[rubric_key]
+        else:
+            # Fallback: use all rubrics (legacy behavior)
+            for signal_key, rubric_content in rubrics.items():
+                prompt += f"\n\n## {signal_key.replace('llm.', '').title().replace('_', ' ')}\n"
+                prompt += rubric_content
 
         # Add output format instructions
-        prompt += "\n\n" + self._output_format_instructions()
+        prompt += "\n\n" + self._output_format_instructions(signal_classes)
 
         return prompt
 
-    def _output_format_instructions(self) -> str:
-        """Generate output format instructions from example."""
-        example = self._output_example
+    def _output_format_instructions(self, signal_classes: Optional[List[Type]] = None) -> str:
+        """Generate output format instructions from example.
 
-        # Build schema from example
-        schema = {signal: data.get("score", {}) for signal, data in example.items()}
-
+        Args:
+            signal_classes: List of signal classes to include (for rubric_key mapping)
+        """
         instructions = """Output a JSON object with these exact keys:
 
 """
-        for signal_name in schema.keys():
-            instructions += f'  "{signal_name}": {{"score": <integer 1-5>, "rationale": "<one sentence explanation, max 20 words>}}'
+        # Use signal classes to get correct rubric_key (non-namespaced) for output format
+        if signal_classes:
+            for signal_cls in signal_classes:
+                rubric_key = getattr(signal_cls, '_rubric_key', None)
+                if rubric_key:
+                    instructions += f'  "{rubric_key}": {{"score": <integer 1-5>, "rationale": "<one sentence explanation, max 20 words>}}'
+        else:
+            # Fallback: use example keys (legacy behavior)
+            example = self._output_example
+            schema = {signal: data.get("score", {}) for signal, data in example.items()}
+            for signal_name in schema.keys():
+                instructions += f'  "{signal_name}": {{"score": <integer 1-5>, "rationale": "<one sentence explanation, max 20 words>}}'
+
         instructions += "\n}"
         instructions += """
 
@@ -188,7 +213,7 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
 
         # Collect prompt specs from each signal class
         # Each signal class has _get_prompt_spec() classmethod from decorator
-        prompt = self._build_prompt(response_text, question)
+        prompt = self._build_prompt(response_text, question, signal_classes)
 
         log.debug(f"Built batch prompt ({len(prompt)} chars) for {len(signal_classes)} signals")
 
@@ -216,13 +241,23 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
         # Ensure all expected signal keys are present
         detected_signals = {}
         for signal_cls in signal_classes:
-            signal_name = signal_cls.signal_name
-            if signal_name not in result:
+            signal_name = signal_cls.signal_name  # namespaced: "llm.response_depth"
+            rubric_key = getattr(signal_cls, '_rubric_key', None)  # non-namespaced: "response_depth"
+
+            # Look up by rubric_key (what LLM returns), store by signal_name (internal)
+            lookup_key = rubric_key if rubric_key else signal_name.replace('llm.', '')
+            if lookup_key not in result:
                 log.warning(
-                    f"Signal '{signal_name}' not found in LLM response",
+                    f"Signal '{lookup_key}' (maps to '{signal_name}') not found in LLM response",
                 )
                 continue
-            detected_signals[signal_name] = result[signal_name]
+            raw_value = result[lookup_key]
+
+            # Handle dict format {"score": N, "rationale": "..."} or just integer
+            if isinstance(raw_value, dict) and "score" in raw_value:
+                detected_signals[signal_name] = raw_value["score"]
+            else:
+                detected_signals[signal_name] = raw_value
 
             # Validate score is integer 1-5
             if not isinstance(detected_signals[signal_name], int):
@@ -243,9 +278,26 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
                 )
                 score = max(1, min(5, score))
 
-            # Normalize Likert 1-5 to [0, 1]: (value - 1) / 4
-            if isinstance(score, int):
-                detected_signals[signal_name] = (score - 1) / 4
+            # Normalize based on signal type
+            # Categorical signals: keep as string categories
+            # Continuous signals: normalize to [0, 1]
+            CATEGORICAL_SIGNALS = {"llm.response_depth"}  # Add others as needed
+
+            if signal_name in CATEGORICAL_SIGNALS:
+                # Map 1-5 to categorical strings for downstream compatibility
+                score_to_category = {
+                    1: "surface",
+                    2: "shallow",
+                    3: "moderate",
+                    4: "deep",
+                    5: "deep",
+                }
+                if isinstance(score, int):
+                    detected_signals[signal_name] = score_to_category.get(score, "moderate")
+            else:
+                # Normalize Likert 1-5 to [0, 1]: (value - 1) / 4
+                if isinstance(score, int):
+                    detected_signals[signal_name] = (score - 1) / 4
 
         log.info(f"LLM batch detection complete: {detected_signals}")
 

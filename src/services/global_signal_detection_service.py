@@ -76,6 +76,30 @@ class GlobalSignalDetectionService:
 
         # Detect global signals via methodology's signal detector
         signal_detector = self.methodology_registry.create_signal_detector(config)
+
+        # Set up LLM batch detector for LLM signals (response_depth, engagement, etc.)
+        llm_signal_names = signal_detector.llm_signal_names
+        if llm_signal_names:
+            from src.signals.llm.batch_detector import LLMBatchDetector
+            from src.llm.client import get_scoring_llm_client
+
+            try:
+                scoring_client = get_scoring_llm_client()
+                llm_detector = LLMBatchDetector(scoring_client)
+                signal_detector.set_llm_detector(llm_detector)
+                log.debug(
+                    "llm_detector_set",
+                    methodology=methodology_name,
+                    llm_signals=list(llm_signal_names),
+                )
+            except Exception as e:
+                log.error(
+                    "llm_detector_setup_failed",
+                    methodology=methodology_name,
+                    error=str(e),
+                    exc_info=True,
+                )
+
         global_signals = await signal_detector.detect(context, graph_state, response_text)
 
         log.debug(

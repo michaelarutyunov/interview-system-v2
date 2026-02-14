@@ -122,7 +122,7 @@ class Settings(BaseSettings):
     # Promotion prevents ephemeral mentions from polluting the canonical graph.
 
     canonical_similarity_threshold: float = Field(
-        default=0.83,
+        default=0.75,
         ge=0.0,
         le=1.0,
         description=(
@@ -132,7 +132,7 @@ class Settings(BaseSettings):
             "slot merges into the existing one instead of creating a duplicate. "
             "Higher values = more conservative (fewer merges, more slots). "
             "Lower values = more permissive (more merging, fewer slots). "
-            "Default 0.83 balances precision with recall."
+            "Default 0.75 allows tighter canonical graph with fewer duplicates."
         ),
     )
     canonical_min_support_nodes: int = Field(

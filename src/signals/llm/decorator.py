@@ -12,7 +12,7 @@ from typing import Callable, Dict, Type
 
 from src.signals.llm.llm_signal_base import BaseLLMSignal
 
-PROMPTS_DIR = Path(__file__).parent.parent.parent / "prompts"
+PROMPTS_DIR = Path(__file__).parent / "prompts"
 
 # Registry to track all decorated LLM signal classes
 # Populated by the @llm_signal decorator for auto-discovery
@@ -50,25 +50,25 @@ def _parse_signals_rubrics() -> dict[str, str]:
     with open(signals_md_path) as f:
         content = f.read()
 
-    # Parse by signal sections (## signal_name)
-    rubrics = {}
+    # Parse by signal sections (signal_name: description at column 0)
+    # signals.md uses indentation-based structure:
+    #   response_depth: How much elaboration...   <- header (no indent)
+    #       1 = Minimal or single-word answer     <- content (indented)
+    rubrics: dict[str, list[str]] = {}
     current_signal = None
 
     for line in content.split("\n"):
-        line = line.strip()
-        if line.startswith("## ") and not line.startswith("## "):
-            # This is a signal section header
-            current_signal = line[3:].strip().lower()
-            rubrics[current_signal] = []
-        elif current_signal and line and not line.startswith("#") and line.strip():
-            # This is rubric content for current signal
-            rubrics[current_signal].append(line)
+        stripped = line.strip()
+        # Signal header: starts at column 0, contains ":", not a comment
+        if line and not line[0].isspace() and ":" in stripped and not stripped.startswith("#"):
+            current_signal = stripped.split(":")[0].strip().lower()
+            description = ":".join(stripped.split(":")[1:]).strip()
+            rubrics[current_signal] = [description] if description else []
+        elif current_signal and stripped and not stripped.startswith("#"):
+            rubrics[current_signal].append(stripped)
 
     # Join rubric content
-    for signal in rubrics:
-        rubrics[signal] = "\n".join(rubrics[signal])
-
-    return rubrics
+    return {signal: "\n".join(lines) for signal, lines in rubrics.items()}
 
 
 def _load_output_example() -> dict:
