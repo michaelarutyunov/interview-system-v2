@@ -1,74 +1,40 @@
 # Claude Code Quick Reference - Interview System v2
 
-> **Purpose**: This file serves as a quick index for Claude Code to find key project documentation and architecture references.
-
-## Project Overview
-
-The Interview System v2 is a knowledge-graph-based conversational **semi-structured** interview system that uses a **12-stage turn processing pipeline** with adaptive strategy selection.
+Knowledge-graph-based conversational interview system with adaptive strategy selection via Signal Pools.
 
 ---
 
-## Beads Workflow (Critical!)
-
-This project uses **bd** (beads) for issue tracking. Beads lives in `.beads/` directory and only reads that directory (does NOT read agents.md or claude.md).
-
-### Quick Commands
+## Beads Workflow
 
 ```bash
-bd ready              # Find available work (no blockers)
-bd show <id>          # View issue details
-bd update <id> --status in_progress  # Claim work
-bd close <id>         # Complete work
-bd sync               # Sync with git remote
+bd ready              # Available work (no blockers)
+bd show <id>          # Issue details
+bd update <id> --status in_progress  # Claim
+bd close <id>         # Complete
+bd sync               # Sync with remote
 ```
 
-### Session Completion Protocol (MANDATORY)
+### Session Close Protocol (MANDATORY)
 
-**When ending a work session, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd sync
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
+```bash
+git status && git add <files> && bd sync
+git commit -m "..." && bd sync && git push
+git status  # MUST show "up to date"
+```
 
 ---
 
-## Essential Architecture Documentation
+## Essential Documentation
 
-### Pipeline & Data Flow (START HERE)
-
-When working on the turn pipeline, always reference:
-
-| Document | Location | When to Use |
-|----------|----------|-------------|
-| **Pipeline Stage Contracts** | `docs/pipeline_contracts.md` | Understanding what each stage reads/writes |
-| **Data Flow Paths** | `docs/data_flow_paths.md` | Visualizing critical data flows through the pipeline |
-| **System Design** | `docs/SYSTEM_DESIGN.md` | Narrative architecture for articles |
-
-
-
-### Operational Standards
-
-| Document | Purpose | Location |
-|----------|---------|----------|
-| **Development Guide** | Setup, testing, code style, error handling, logging | `docs/DEVELOPMENT.md` |
-| **API Documentation** | Complete API reference with endpoints, schemas, examples | `docs/API.md` |
-| **Performance Guidelines** | Performance optimization and monitoring | `docs/PERFORMANCE.md` |
+| Document | Purpose |
+|----------|---------|
+| `docs/data_flow_paths.md` | 15 critical data flow diagrams |
+| `docs/pipeline_contracts.md` | Stage input/output contracts |
+| `docs/SYSTEM_DESIGN.md` | System architecture |
+| `docs/DEVELOPMENT.md` | Setup, testing, standards |
+| `docs/canonical_extraction.md` | Dual-graph deduplication |
+| `docs/signals_and_strategies.md` | Signal Pools configuration |
+| `docs/adr/` | Architecture Decision Records |
 
 ---
 
@@ -76,179 +42,138 @@ When working on the turn pipeline, always reference:
 
 ```
 src/
+├── services/turn_pipeline/stages/    # 12 pipeline stages
 ├── services/
-│   └── turn_pipeline/          # Core pipeline implementation
-│       ├── context.py          # PipelineContext dataclass
-│       ├── pipeline.py         # TurnPipeline orchestrator
-│       └── stages/             # Individual stage implementations
-├── methodologies/              # Methodology module (Signal Pools)
-│   ├── signals/                # Shared signal pools (graph, llm, temporal, meta)
-│   ├── techniques/             # Shared technique pool (laddering, elaboration, etc.)
-│   └── registry.py             # MethodologyRegistry (YAML loader)
-├── domain/
-│   └── models/                 # Domain models (GraphState, Utterance, etc.)
-└── api/
-    └── routes/
-        └── sessions.py         # API entry point
+│   ├── graph_service.py              # Surface graph + dedup
+│   ├── canonical_slot_service.py     # Canonical graph
+│   ├── extraction_service.py         # LLM extraction
+│   ├── methodology_strategy_service.py  # Strategy selection
+│   ├── global_signal_detection_service.py
+│   └── node_signal_detection_service.py
+├── signals/                          # Signal pools
+│   ├── graph/                        # graph.* signals
+│   ├── llm/                          # llm.* signals
+│   ├── session/                      # temporal.* signals
+│   ├── meta/                         # meta.* signals
+│   └── signal_base.py                # Base classes
+├── methodologies/
+│   ├── registry.py                   # YAML loader
+│   └── scoring.py                    # Strategy scoring
+└── persistence/repositories/         # DB access
 ```
 
 ---
 
-## Quick Reference: Pipeline Stages
+## Pipeline Stages
 
 | Stage | File | Purpose |
 |-------|------|---------|
-| 1 | `context_loading_stage.py` | Load session context, graph state |
+| 1 | `context_loading_stage.py` | Load session, graph state |
 | 2 | `utterance_saving_stage.py` | Save user input |
-| 2.5 | `srl_preprocessing_stage.py` | Linguistic structure extraction (SRL) |
+| 2.5 | `srl_preprocessing_stage.py` | Linguistic parsing |
 | 3 | `extraction_stage.py` | Extract concepts/relationships |
-| 4 | `graph_update_stage.py` | Update knowledge graph |
-| 4.5 | `slot_discovery_stage.py` | Canonical slot discovery (dual-graph) |
-| 5 | `state_computation_stage.py` | Refresh graph state metrics |
-| 6 | `strategy_selection_stage.py` | Select questioning strategy (Signal Pools) |
-| 7 | `continuation_stage.py` | Decide if interview continues |
+| 4 | `graph_update_stage.py` | Update KG with dedup |
+| 4.5 | `slot_discovery_stage.py` | Canonical slot mapping |
+| 5 | `state_computation_stage.py` | Refresh graph metrics |
+| 6 | `strategy_selection_stage.py` | Signal Pools → strategy |
+| 7 | `continuation_stage.py` | Continue or stop |
 | 8 | `question_generation_stage.py` | Generate next question |
 | 9 | `response_saving_stage.py` | Save system response |
-| 10 | `scoring_persistence_stage.py` | Save scoring, update session |
+| 10 | `scoring_persistence_stage.py` | Save scoring, update state |
 
 ---
 
-## Quick Reference: Signal Pools Architecture (Phase 6)
+## Signal Pools
 
-Signal pools enable flexible strategy selection by collecting signals from multiple data sources:
+| Pool | Namespace | Signals |
+|------|-----------|---------|
+| Graph | `graph.*` | max_depth, chain_completion, node_count, orphan_count |
+| LLM | `llm.*` | response_depth, specificity, certainty, valence, engagement |
+| Temporal | `temporal.*` | strategy_repetition_count, turns_since_strategy_change |
+| Meta | `meta.*` | interview_progress, interview.phase, node.opportunity |
+| Node | `graph.node.*` | exhaustion_score, focus_streak, is_orphan |
+| Technique | `technique.node.*` | strategy_repetition |
 
-| Pool | Namespace | Example Signals |
-|------|-----------|-----------------|
-| **Graph** | `graph.*` | node_count, max_depth, orphan_count, chain_completion |
-| **LLM** | `llm.*` | response_depth, sentiment, uncertainty, hedging_language |
-| **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_strategy_change |
-| **Meta** | `meta.*` | interview_progress, interview.phase |
-
-**Key Points:**
-- **LLM signals are fresh** - computed every response, no cross-response caching
-- **YAML configuration** - methodologies defined in `config/methodologies/*.yaml`
-- **MethodologyStrategyService** - uses YAML configs for strategy selection via joint strategy-node scoring
+**Scoring**: `final_score = (base_score × phase_multiplier) + phase_bonus`
 
 ---
 
-## Quick Reference: PipelineContext Fields
+## Key Configuration
 
 ```python
-# Inputs (immutable)
-session_id, user_input
+# Deduplication
+surface_similarity_threshold: float = 0.80
+canonical_similarity_threshold: float = 0.83
+canonical_min_support_nodes: int = 1
 
-# Session metadata
-methodology, concept_id, concept_name, turn_number, mode, max_turns
-recent_utterances, strategy_history
+# Features
+enable_srl: bool = True
+enable_canonical_slots: bool = True
 
-# Graph state
-graph_state, recent_nodes
-
-# Extraction
-extraction (concepts, relationships)
-
-# Utterances
-user_utterance, system_utterance
-
-# Graph updates
-nodes_added, edges_added
-
-# Strategy selection (Phase 6: Signal Pools)
-strategy, focus, signals, strategy_alternatives
-
-# Continuation
-should_continue, focus_concept
-
-# Output
-next_question, scoring, stage_timings
+# Interview
+phase_boundaries:
+  early_max_turns: 4
+  mid_max_turns: 12
 ```
 
 ---
 
-## Quick Reference: Critical Data Flows
+## Critical Data Flows
 
-1. **Turn Count**: Session.state → ContextLoading → turn_number → ... → ScoringPersistence → Session.state += 1
-2. **Strategy Selection (Signal Pools)**: graph_state + recent_nodes → MethodologyStrategyService → signal detection → strategy ranking → best strategy
-3. **Graph Mutation**: extraction → GraphUpdate → database → StateComputation → graph_state
-4. **Strategy History (Diversity)**: Session.state.strategy_history → ContextLoading → temporal.strategy_repetition_count → penalty → ScoringPersistence → append
-5. **Traceability Chain (ADR-010)**: user_input → UtteranceSaving → utterance.id → Extraction (source_utterance_id) → GraphUpdate (node.utterance_id)
+See `docs/data_flow_paths.md` for full diagrams. Key paths:
+
+1. **Turn Count Evolution** (Path 1): Session.state → ContextLoading → turn_number → ... → ScoringPersistence → Session.state updated
+2. **Strategy Selection** (Path 2): graph_state + signals → MethodologyStrategyService → ranked strategies
+3. **Graph State Mutation** (Path 3): extraction → GraphUpdate (dedup) → DB → StateComputation → graph_state
+4. **Traceability Chain** (Path 5): user_input → UtteranceSaving → utterance.id → Extraction → GraphUpdate
+5. **Canonical Slot Discovery** (Path 10): surface_nodes → slot_service → canonical_slots + mappings
 
 ---
 
 ## Common Tasks
 
-### Adding a new pipeline stage
+```bash
+# Run simulation
+uv run python scripts/run_simulation.py coffee_jtbd_v2 skeptical_analyst 10
 
-1. Read `docs/pipeline_contracts.md` for the contract format
-2. Read `docs/data_flow_paths.md` to understand which paths you intersect
-3. Create stage file in `src/services/turn_pipeline/stages/`
-4. Add stage to `TurnPipeline` in `src/services/turn_pipeline/pipeline.py`
-5. Update `docs/pipeline_contracts.md` with new stage contract
-6. Update `docs/data_flow_paths.md` if introducing new data flow
+# Analyze similarity distribution
+uv run python scripts/analyze_similarity_distribution.py <session_id>
 
-### Adding a new methodology
+# Lint and format
+ruff check . --fix && ruff format .
 
-1. Create YAML config in `config/methodologies/my_methodology.yaml`
-2. Define signals (from shared pools) and strategies (with signal_weights)
-3. The methodology is automatically available via MethodologyRegistry
-4. No code changes required - pure YAML configuration
+# Check type diagnostics (via LSP)
+# Use: LSP(operation: "getDiagnostics", filePath: "src/...")
+```
 
-### Adding a new signal
+---
 
-1. Determine signal pool (graph/, llm/, temporal/, meta/)
-2. Create signal class in appropriate pool directory
-3. Export from pool `__init__.py`
-4. Register in signal registry
-5. Add to methodology YAML config
-6. Add tests
+## Debugging Quick Reference
 
-### Debugging state issues
+| Issue | Check |
+|-------|-------|
+| Wrong strategy selected | `strategies_ranked` in logs, signal values, phase weights |
+| Node signals ignored | Verify D1 scoring in `rank_strategy_node_pairs()` |
+| Duplicate nodes | Surface dedup threshold, canonical threshold |
+| Edges not connecting | Cross-turn resolution, label_to_node population |
+| Phase detection | `meta.interview.phase` signal, `phase_boundaries` config |
 
-1. Check `docs/data_flow_paths.md` for the relevant path
+---
+
+## Methodology YAML Location
+
+```bash
+config/methodologies/
+├── jobs_to_be_done.yaml
+├── means_end_chain.yaml
+└── critical_incident.yaml
+```
+
+---
+
+## When in Doubt
+
+1. Check `docs/data_flow_paths.md` for the relevant path number
 2. Check `docs/pipeline_contracts.md` for stage contracts
-3. Trace through the specific stages that handle that state
-
----
-
-## Development Tools
-
-- **Package management**: `uv` (not pip)
-- **Linting/Formatting**: `ruff`
-- **Type checking**: `pyright` (via LSP)
-- **Issue tracking**: `bd` (beads)
-
----
-
-## Documents that should be updated after codebase changes
-
-- `docs/pipeline_contracts.md`
-- `docs/data_flow_paths.md`
-- `docs/SYSTEM_DESIGN.md`
-  
-  optionally, if relevant for the implemented changes:
-- `docs/DEVELOPMENT.md`
-- `docs/API.md`
-- `docs/syntheric_personas.md`
-
----
-
-## Project Files Reference
-
-| File | Purpose |
-|------|---------|
-| `PRD.md` | Product Requirements Document |
-| `ENGINEERING_GUIDE.md` | Engineering guidelines |
-| `IMPLEMENTATION_PLAN.md` | Implementation phases |
-| `AGENTS.md` | Agent task specifications (legacy - beads in .beads/) |
-
----
-
-## When in doubt...
-
-1. Check `docs/pipeline_contracts.md` for stage contracts
-2. Check `docs/data_flow_paths.md` for data flow
-3. Check `docs/SYSTEM_DESIGN.md` for narrative architecture
-4. Check `docs/DEVELOPMENT.md` for error handling and logging standards
-5. Check relevant ADR in `docs/adr/` for architectural rationale
-6. Check `src/services/turn_pipeline/context.py` for PipelineContext schema
-7. Check `.beads/` for issue tracking (bd ready)
+3. Check `src/services/turn_pipeline/context.py` for PipelineContext
+4. Run `bd ready` for available work

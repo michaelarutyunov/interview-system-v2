@@ -231,9 +231,15 @@ recent_utterances: List[Dict[str, str]]  # Conversation history
 strategy_history: deque[str]  # Recent strategies for diversity tracking
 graph_state: GraphState    # Knowledge graph state
 recent_nodes: List[KGNode] # Recent nodes
+recent_node_labels: List[str]  # Labels of existing nodes for cross-turn edge bridging
 ```
 
 **Note**: `graph_state` is refreshed by `StateComputationStage` (Stage 5), not this stage.
+
+**Cross-Turn Edge Resolution (Phase 4)**:
+- Loads all session nodes via `get_nodes_by_session()`
+- Extracts node labels into `recent_node_labels`
+- These labels are injected into extraction context to enable cross-turn relationship detection
 
 ---
 
@@ -370,6 +376,15 @@ timestamp: datetime           # When graph update was performed (auto-set)
 **Features**:
 - Auto-calculates counts from lists
 - Auto-sets timestamp
+- **Surface Semantic Deduplication (Phase 3)**:
+  - 3-step dedup: exact match → semantic similarity (0.80) → create new
+  - Embeddings stored in `kg_nodes.embedding` for similarity search
+  - Same node_type required for semantic matches
+  - Reduces over-extraction, improves NodeStateTracker accuracy
+- **Cross-Turn Edge Resolution (Phase 4)**:
+  - Expands `label_to_node` with all session nodes (not just current turn)
+  - Enables edges to reference nodes from previous turns
+  - Dramatically improves graph connectivity (+72% edges in testing)
 - **NodeStateTracker integration**:
   - `register_node()` - Registers new nodes when added
   - `update_edge_counts()` - Updates relationship counts for nodes

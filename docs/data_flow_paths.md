@@ -711,6 +711,266 @@ graph LR
 - **StateComputationOutput**: Now includes optional canonical_graph_state field
 - **Observability**: TurnResult includes canonical_graph and graph_comparison fields
 
+---
+
+## Path 12: Surface Semantic Deduplication (Phase 3 Optimization)
+
+**Why Critical**: Surface semantic deduplication merges near-duplicate surface nodes before they reach canonical slot discovery, reducing graph clutter and improving NodeStateTracker accuracy.
+
+**Three-Step Deduplication**: Exact match → Semantic similarity → Create new node.
+
+```mermaid
+graph LR
+    A[GraphUpdateStage] -->|new concept| B[_add_or_get_node]
+
+    B -->|Step 1| C{Exact label match?}
+    C -->|Yes| D[Return existing node]
+    C -->|No| E[Compute embedding]
+
+    E -->|Step 2| F{Similar node exists?<br/>similarity >= 0.80}
+    F -->|Yes| G[Return similar node]
+    F -->|No| H[Create new node]
+
+    H -->|Step 3| I[Store embedding in kg_nodes]
+    I --> J[Return new node]
+
+    D --> K[label_to_node map]
+    G --> K
+    J --> K
+
+    K -->|Cross-turn| L[Include all session nodes]
+```
+
+### Key Points
+
+- **Threshold**: `surface_similarity_threshold = 0.80` (vs 0.60 for canonical slots)
+- **Same node_type required**: Only merge nodes of the same type (attribute, consequence, value)
+- **Embedding storage**: Embeddings stored in `kg_nodes.embedding` BLOB column
+- **NodeStateTracker benefit**: Accurate exhaustion tracking when duplicates are merged
+- **Source preservation**: `source_quote` retains original respondent language even when merged
+
+### Configuration
+
+From `src/core/config.py`:
+```python
+surface_similarity_threshold: float = 0.80  # Cosine similarity for surface dedup
+canonical_similarity_threshold: float = 0.60  # Lower threshold for canonical slots
+```
+
+---
+
+## Path 13: Cross-Turn Edge Resolution (Phase 4 Optimization)
+
+**Why Critical**: Cross-turn edge resolution allows edges to reference nodes from previous turns, dramatically improving graph connectivity.
+
+**Problem**: Previously, `label_to_node` only contained current-turn concepts, so edges referencing previous-turn nodes failed silently.
+
+```mermaid
+graph LR
+    A[ContextLoadingStage] -->|Load session| B[get_nodes_by_session]
+    B --> C[recent_node_labels]
+
+    C -->|Inject| D[ExtractionStage]
+    D -->|Context| E[Extraction Prompt]
+
+    E -->|"Reference existing concepts"| F[ExtractedRelationship]
+
+    F -->|source/target| G[GraphUpdateStage]
+    G -->|Expand| H[label_to_node dict]
+
+    H -->|All session nodes| I[Resolve edge endpoints]
+    I -->|Previous-turn node| J[Edge created!]
+```
+
+### Key Points
+
+- **ContextLoadingStage**: Loads existing node labels via `get_nodes_by_session()`
+- **ExtractionStage**: Injects up to 30 recent node labels into extraction context
+- **GraphUpdateStage**: Expands `label_to_node` with all session nodes (not just current turn)
+- **Result**: Edges can connect across turns instead of failing with "edge_skipped_missing_node"
+- **Dramatic improvement**: Edge/node ratio improved from 0.54 to 1.18 (+118%)
+
+### Implementation Details
+
+**Context Loading** (`context_loading_stage.py`):
+```python
+all_nodes = await self.graph.repo.get_nodes_by_session(session_id)
+recent_node_labels = [n.label for n in all_nodes]
+```
+
+**Extraction Context** (`extraction_stage.py`):
+```python
+existing_labels = _format_node_labels(context.recent_node_labels)
+# Injected into prompt: "EXISTING CONCEPTS (reference but don't re-extract): ..."
+```
+
+**Graph Update** (`graph_service.py`):
+```python
+# Step 1.5: Expand label_to_node with all session nodes
+all_session_nodes = await self.repo.get_nodes_by_session(session_id)
+for node in all_session_nodes:
+    if node.label.lower() not in label_to_node:
+        label_to_node[node.label.lower()] = node
+```
+
+---
+
+## Path 14: Methodology-Aware Concept Naming (Phase 2 Optimization)
+
+**Why Critical**: Methodology-specific naming conventions guide the LLM to produce more consistent, analysis-ready concept labels.
+
+```mermaid
+graph LR
+    A[ExtractionStage] -->|Load| B[MethodologySchema]
+    B -->|ontology.concept_naming_convention| C[Naming Guidance]
+
+    C -->|Inject| D[System Prompt]
+    D -->|"Use verb-object format..."| E[LLM Extraction]
+
+    E -->|Better labels| F[Concept Labels]
+    F -->|Examples:| G["get reliable quality coffee"<br/>"avoid wasting money"]
+```
+
+### Key Points
+
+- **YAML Configuration**: Each methodology defines `concept_naming_convention` under `ontology:`
+- **Dynamic injection**: Naming guidance inserted into extraction system prompt
+- **JTBD Example**: "Use verb-object format (e.g., 'get coffee', 'avoid waste')"
+- **MEC Example**: "Use attribute/consequence/value categories"
+- **Result**: More consistent labeling → better canonical slot mapping → higher connectivity
+
+### YAML Configuration
+
+```yaml
+# config/methodologies/jobs_to_be_done.yaml
+ontology:
+  concept_naming_convention: |
+    Use VERB-OBJECT format for job statements:
+    - "get reliable coffee" not "reliable coffee"
+    - "avoid wasting money" not "waste avoidance"
+```
+
+### Critical Bug Fix
+
+**Issue**: `extraction_guidelines`, `relationship_examples`, `extractability_criteria`, and `concept_naming_convention` were nested under `ontology:` in YAML but `MethodologySchema` read them at top level, so they were always `None`.
+
+**Fix**: Added fields to `OntologySpec` class with delegation getters in `MethodologySchema`:
+```python
+class OntologySpec(BaseModel):
+    extraction_guidelines: Optional[List[str]] = None
+    relationship_examples: Optional[Dict[str, Any]] = None
+    extractability_criteria: Optional[Dict[str, Any]] = None
+    concept_naming_convention: Optional[str] = None
+```
+
+---
+
+## Path 15: SRL Preprocessing (Phase 1 Infrastructure)
+
+**Why Critical**: Semantic Role Labeling (SRL) provides structural hints that improve relationship extraction quality.
+
+```mermaid
+graph LR
+    A[User Input] -->|spaCy analysis| B[SRLPreprocessingStage]
+
+    B -->|discourse markers| C[Discourse Relations]
+    B -->|predicate-args| D[SRL Frames]
+
+    C -->|"because X, Y"| E[ExtractionStage]
+    D -->|"want: subj=I, dobj=coffee"| E
+
+    E -->|Structural hints| F[Improved Relationships]
+```
+
+### Key Points
+
+- **Stage 2.5**: Runs after UtteranceSavingStage, before ExtractionStage
+- **Feature flag**: `enable_srl` in Settings (default: True)
+- **spaCy model**: `en_core_web_md` for SRL and discourse parsing
+- **Discourse relations**: Causal/temporal markers (because, when, before)
+- **SRL frames**: Predicate-argument structures (who did what to whom)
+- **Graceful degradation**: Empty output if spaCy model unavailable
+
+### Configuration
+
+```python
+# src/core/config.py
+enable_srl: bool = True  # Feature flag for SRL preprocessing
+```
+
+---
+
+## Optimization Results Summary
+
+The 4-phase optimization (2025-02-16) produced dramatic improvements:
+
+| Metric | Baseline | After 4 Phases | Change |
+|--------|----------|----------------|--------|
+| Surface Nodes | 93 | 73 | **-21.5%** |
+| Surface Edges | 50 | 86 | **+72%** |
+| Canonical Slots | 19 | 56 | +194% |
+| Unmapped | 46 (49%) | 1 (1.4%) | **-97%** |
+| Edge/Node | 0.54 | 1.18 | **+118%** |
+
+### Key Wins
+
+1. **Surface Semantic Dedup (Phase 3)**: Reduced over-extraction by merging near-duplicates
+2. **Cross-Turn Edge Resolution (Phase 4)**: Biggest impact — edges now resolve across turns
+3. **Methodology-Aware Naming (Phase 2)**: Better labels → better slot mapping
+4. **SRL Infrastructure (Phase 1)**: Foundation for relationship extraction improvements
+
+---
+
+## Cross-References
+
+| Path | Primary Stages | Secondary Stages | Database Tables |
+|------|---------------|------------------|-----------------|
+| Turn Count Evolution | 1, 5, 6, 7, 10 | 2, 3, 4, 8, 9 | sessions |
+| Joint Strategy-Node Selection | 4, 6 | 1, 5, 10 | nodes |
+| Graph State Mutation | 3, 4, 5 | 6, 7 | nodes, edges |
+| Node State Tracking (Exhaustion) | 3, 4, 6 | - | - |
+| Node Tracker Persistence | SessionService | 6, 10 | sessions |
+| Strategy History (Diversity) | 1, 6, 10 | - | sessions |
+| Traceability Chain | 2, 3, 4 | 5, 6 | utterances, nodes, edges |
+| Signal Detection | 6 | - | - |
+| Canonical Slot Discovery | 4.5 | 5 | canonical_slots, surface_to_slot_mapping, canonical_edges |
+| Dual-Graph State Computation | 5 | 6, 10 | nodes, canonical_slots |
+| **Surface Semantic Dedup** | **4** | **-** | **kg_nodes** |
+| **Cross-Turn Edge Resolution** | **1, 3, 4** | **-** | **kg_nodes, kg_edges** |
+| **Methodology Naming** | **3** | **-** | **methodology YAML** |
+
+**Dual-Graph Architecture**: StateComputationStage now returns both graph states.
+
+```mermaid
+graph LR
+    A[StateComputationStage] -->|compute_state| B[GraphService.get_state]
+    A -->|compute_canonical_state| C{canonical_graph_service?}
+
+    C -->|Yes| D[CanonicalGraphService.compute_canonical_state]
+    C -->|No| E[canonical_graph_state = None]
+
+    B -->|Refresh metrics| F[GraphState]
+    D -->|Aggregate metrics| G[CanonicalGraphState]
+
+    F -->|node_count, edge_count, max_depth| H[StateComputationOutput]
+    G -->|concept_count, edge_count, avg_support| H
+
+    H -->|Return both states| I[context.state_computation_output]
+    I -->|Access properties| J[context.graph_state]
+    I -->|Access properties| K[context.canonical_graph_state]
+
+    J -->|Used by| L[StrategySelectionStage]
+    K -->|Used by| M[TurnResult.canonical_graph]
+```
+
+### Key Points
+
+- **Parallel computation**: Both graphs computed in same stage
+- **Conditional canonical**: If `enable_canonical_slots=False`, canonical_graph_state=None
+- **Service dependency**: CanonicalGraphService injected only when flag enabled
+- **StateComputationOutput**: Now includes optional canonical_graph_state field
+- **Observability**: TurnResult includes canonical_graph and graph_comparison fields
+
 ## Cross-References
 
 | Path | Primary Stages | Secondary Stages | Database Tables |

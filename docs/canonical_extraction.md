@@ -24,6 +24,37 @@
 
 Canonical slot discovery is a **deduplication system** that maps user's actual language (surface nodes) to abstract, reusable categories (canonical slots).
 
+### Dual-Layer Deduplication Architecture
+
+The system performs deduplication at **two layers**:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    DUAL-LAYER DEDUPLICATION                         │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  LAYER 1: SURFACE SEMANTIC DEDUP (GraphService)                    │
+│  ───────────────────────────────────────────────                   │
+│  • Threshold: 0.80 (higher = more conservative)                    │
+│  • Purpose: Merge similar verbatim concepts within session         │
+│  • Scope: Session-local only                                       │
+│  • Requirement: Same node_type required                            │
+│  • Pattern: Exact match → Semantic match → Create new             │
+│                                                                     │
+│  LAYER 2: CANONICAL SLOT DEDUP (CanonicalSlotService)              │
+│  ─────────────────────────────────────────────────                 │
+│  • Threshold: 0.83 default (configurable)                          │
+│  • Purpose: Map surface nodes to abstract, reusable categories     │
+│  • Scope: Cross-session (canonical slots are reusable)             │
+│  • Pattern: LLM propose → Exact match → Similarity match → Create │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Why Two Layers?**
+- **Surface layer**: Prevents immediate fragmentation within a session (e.g., "avoid sugar" and "reducing sugar" merged at extraction time)
+- **Canonical layer**: Enables cross-session aggregation and analysis (e.g., all sugar-related concepts map to `reduce_sugar` slot)
+
 ### The Problem It Solves
 
 Users express the same concept in different ways:
@@ -61,6 +92,80 @@ Without canonical slots, each variation would create a separate node, fragmentin
 │  • Used for aggregation, reporting                                 │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Surface Semantic Deduplication
+
+Surface semantic deduplication prevents the creation of nearly-identical nodes within a session by applying similarity matching at the moment of node creation.
+
+### How It Works
+
+```python
+# Three-step deduplication in graph_service.py:_add_or_get_node()
+
+Step 1: Exact label+type match
+  - Check: (label.lower(), node_type) in existing_nodes
+  - If match: Add source_utterance to existing node, return it
+  - Fast path - no embedding computation needed
+
+Step 2: Semantic similarity match (if no exact match)
+  - Compute embedding via EmbeddingService (all-MiniLM-L6-v2)
+  - Query: find_similar_nodes(session_id, node_type, embedding, threshold=0.80)
+  - Return matches sorted by similarity (descending)
+  - If match found: Add source_utterance to existing node, return it
+
+Step 3: Create new node
+  - No match found (exact or semantic)
+  - Create new KGNode with embedding stored for future dedup
+  - Return new node
+```
+
+### Configuration
+
+| Parameter | Default | Range | Description |
+|-----------|---------|-------|-------------|
+| `surface_similarity_threshold` | 0.80 | 0.0-1.0 | Cosine similarity threshold for surface dedup |
+
+**Higher than canonical (0.80 vs 0.83)**: Preserves concept granularity. We want canonical slots to be more aggressive in merging (broader categories) while surface nodes preserve more nuance (specific respondent language).
+
+### Comparison with Canonical Slots
+
+| Aspect | Surface Dedup | Canonical Slots |
+|--------|---------------|-----------------|
+| **When** | At node creation time | After extraction, in SlotDiscoveryStage |
+| **Scope** | Single session | Cross-session |
+| **Threshold** | 0.80 | 0.83 (configurable) |
+| **Embedding** | Stored on KGNode.embedding | Stored on CanonicalSlot.embedding |
+| **Service** | GraphService | CanonicalSlotService |
+| **Purpose** | Prevent session fragmentation | Enable cross-session aggregation |
+| **Output** | Fewer surface nodes | Abstract canonical categories |
+
+### Database Schema
+
+```sql
+-- Surface layer: kg_nodes table
+CREATE TABLE kg_nodes (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    label TEXT NOT NULL,
+    node_type TEXT NOT NULL,
+    embedding BLOB,  -- 384-dim float32, nullable for backward compat
+    -- ... other fields
+);
+
+-- Canonical layer: canonical_slots table
+CREATE TABLE canonical_slots (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    slot_name TEXT NOT NULL,
+    description TEXT,
+    embedding BLOB NOT NULL,  -- Required for canonical slots
+    status TEXT DEFAULT 'candidate',  -- 'candidate' or 'active'
+    support_count INTEGER DEFAULT 1,
+    -- ... other fields
+);
 ```
 
 ---

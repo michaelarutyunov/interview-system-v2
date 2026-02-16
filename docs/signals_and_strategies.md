@@ -497,6 +497,100 @@ phases:
 
 ---
 
+## Methodology-Aware Concept Naming
+
+Methodologies can define their own concept naming conventions via YAML configuration. This guides the LLM to produce consistent, methodology-appropriate concept labels rather than verbatim user language.
+
+### YAML Configuration
+
+```yaml
+method:
+  name: jobs_to_be_done
+  description: "Jobs-to-be-Done interviews"
+
+ontology:
+  # ... node type definitions ...
+
+  concept_naming_convention: >
+    Name each concept according to its node type role:
+    phrase job_statements as jobs to be done,
+    pain_points as frustrations or obstacles,
+    gain_points as desired outcomes or benefits,
+    solution_approaches as methods or actions,
+    job_contexts as situations or circumstances,
+    emotional_jobs as emotional states sought,
+    social_jobs as social outcomes desired,
+    job_triggers as initiating events.
+    Use the examples in each node type description as naming models.
+```
+
+### How It Works
+
+1. **YAML Loading**: `MethodologySchema` includes `concept_naming_convention: Optional[str]` field
+2. **Prompt Injection**: ExtractionService loads convention from schema and passes to prompt builder
+3. **Dynamic Prompt**: If convention provided, replaces generic naming guidance in system prompt
+4. **Output**: LLM produces concepts like "maintain morning focus" instead of "i just need to stay focused in the mornings"
+
+### Benefits
+
+- **Consistency**: Concepts follow methodology conventions (e.g., JTBD uses job-statement phrasing)
+- **Clarity**: Abstract labels are easier to connect in the graph
+- **Analysis**: Canonical slot mapping works better with normalized language
+
+---
+
+## Cross-Turn Edge Resolution
+
+By default, extracted edges could only reference concepts from the current turn because `label_to_node` only contained nodes extracted from the current response.
+
+### The Problem
+
+```
+Turn 1: "I want to avoid sugar"
+  → Extracted: ["avoid_sugar"] node
+
+Turn 2: "It helps reduce inflammation"
+  → Extracted: ["reduce_inflammation"] node
+  → Edge: "avoid_sugar" → "reduce_inflammation"  # ❌ FAILED - "avoid_sugar" not in current turn
+```
+
+### The Solution
+
+**Expand label_to_node with all session nodes**:
+
+```python
+# In graph_service.py:add_extraction_to_graph()
+all_session_nodes = await self.repo.get_nodes_by_session(session_id)
+for node in all_session_nodes:
+    key = node.label.lower()
+    if key not in label_to_node:  # Current-turn concepts take precedence
+        label_to_node[key] = node
+```
+
+**Inject recent node labels into extraction context**:
+
+```
+[Existing graph concepts from previous turns]
+  - "avoid_sugar"
+  - "maintain_energy"
+
+[Task] When creating relationships, reference these exact labels as source_text
+or target_text to connect new concepts to existing ones. Do NOT re-extract these.
+```
+
+### Result
+
+```
+Turn 1: "I want to avoid sugar"
+  → Extracted: ["avoid_sugar"] node
+
+Turn 2: "It helps reduce inflammation"
+  → Extracted: ["reduce_inflammation"] node
+  → Edge: "avoid_sugar" → "reduce_inflammation"  # ✅ RESOLVED - "avoid_sugar" found in session nodes
+```
+
+---
+
 ## YAML Configuration Guide
 
 ### Minimal Configuration Example
