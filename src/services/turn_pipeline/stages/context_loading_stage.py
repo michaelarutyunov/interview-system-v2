@@ -100,6 +100,14 @@ class ContextLoadingStage(TurnStage):
             context.session_id, limit=5
         )
 
+        # Load existing node labels for cross-turn relationship bridging
+        recent_node_labels = []
+        try:
+            all_nodes = await self.graph.repo.get_nodes_by_session(context.session_id)
+            recent_node_labels = [node.label for node in all_nodes]
+        except Exception as e:
+            log.warning("node_labels_load_failed", error=str(e))
+
         # Create contract output (single source of truth)
         # Note: graph_state and recent_nodes are NOT included here - they come
         # from StateComputationStage (Stage 5) after graph updates
@@ -113,6 +121,7 @@ class ContextLoadingStage(TurnStage):
             max_turns=max_turns,
             recent_utterances=recent_utterances,
             strategy_history=strategy_history,
+            recent_node_labels=recent_node_labels,
         )
 
         log.info(

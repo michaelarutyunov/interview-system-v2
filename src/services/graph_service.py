@@ -10,9 +10,14 @@ Responsibilities:
 Uses GraphRepository for persistence.
 """
 
-from typing import Any, Dict, List, Optional, Tuple, cast
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING, cast
 
 import structlog
+
+if TYPE_CHECKING:
+    from src.services.embedding_service import EmbeddingService
 
 from src.domain.models.canonical_graph import CanonicalEdge
 from src.domain.models.extraction import (
@@ -38,7 +43,10 @@ class GraphService:
     """
 
     def __init__(
-        self, repo: GraphRepository, canonical_slot_repo: Optional[CanonicalSlotRepository] = None
+        self,
+        repo: GraphRepository,
+        canonical_slot_repo: Optional[CanonicalSlotRepository] = None,
+        embedding_service: Optional["EmbeddingService"] = None,
     ):
         """
         Initialize graph service.
@@ -47,13 +55,17 @@ class GraphService:
             repo: GraphRepository instance
             canonical_slot_repo: Optional CanonicalSlotRepository for dual-graph edge aggregation.
                 Required when enable_canonical_slots=True, None when disabled.
+            embedding_service: Optional EmbeddingService for surface semantic dedup.
+                When provided, enables 3-step dedup: exact match → semantic → create new.
 
         IMPLEMENTATION NOTES:
             - canonical_slot_repo is optional based on enable_canonical_slots feature flag
             - If None and aggregate_surface_edges_to_canonical() is called, raises AttributeError
+            - embedding_service enables surface semantic dedup independently of canonical slots
         """
         self.repo = repo
         self.canonical_slot_repo = canonical_slot_repo
+        self.embedding_service = embedding_service
 
     async def add_extraction_to_graph(
         self,
@@ -89,7 +101,7 @@ class GraphService:
         )
 
         # Step 1: Process concepts into nodes
-        label_to_node = {}  # Map concept text to node for edge creation
+        label_to_node: dict[str, KGNode] = {}
         added_nodes = []
 
         for concept in extraction.concepts:
@@ -101,6 +113,24 @@ class GraphService:
             if node:
                 label_to_node[concept.text.lower()] = node
                 added_nodes.append(node)
+
+        # Step 1.5: Expand label_to_node with all session nodes for cross-turn edge resolution
+        # Current-turn concepts take precedence (already in dict)
+        all_session_nodes = await self.repo.get_nodes_by_session(session_id)
+        cross_turn_count = 0
+        for node in all_session_nodes:
+            key = node.label.lower()
+            if key not in label_to_node:
+                label_to_node[key] = node
+                cross_turn_count += 1
+
+        if cross_turn_count > 0:
+            log.debug(
+                "cross_turn_nodes_loaded",
+                session_id=session_id,
+                cross_turn_count=cross_turn_count,
+                total_label_map=len(label_to_node),
+            )
 
         # Step 2: Process relationships into edges
         added_edges = []
@@ -133,10 +163,10 @@ class GraphService:
         """
         Add a concept as node, or get existing node if duplicate.
 
-        Deduplication strategy (v2 simplified):
-        1. Exact label match AND node_type match (case-insensitive label)
-        2. If match found, add utterance to provenance
-        3. If no match, create new node
+        Three-step deduplication:
+        1. Exact label + node_type match (case-insensitive, fast path)
+        2. Semantic similarity match (same node_type, threshold 0.80)
+        3. Create new node (with embedding if computed)
 
         Args:
             session_id: Session ID
@@ -146,7 +176,9 @@ class GraphService:
         Returns:
             KGNode (existing or newly created)
         """
-        # Try to find existing node with matching label AND node_type
+        from src.core.config import settings
+
+        # Step 1: Exact label match (fast path)
         existing = await self.repo.find_node_by_label_and_type(
             session_id, concept.text, concept.node_type
         )
@@ -157,16 +189,41 @@ class GraphService:
                 label=concept.text,
                 node_type=concept.node_type,
                 existing_id=existing.id,
+                method="exact",
             )
-            # Add this utterance to provenance
             return await self.repo.add_source_utterance(existing.id, utterance_id)
 
-        # Prepare node properties with linked_elements
+        # Step 2: Semantic similarity match (if embedding_service available)
+        embedding_bytes = None
+        if self.embedding_service is not None:
+            embedding = await self.embedding_service.encode(concept.text)
+            embedding_bytes = embedding.tobytes()
+
+            similar = await self.repo.find_similar_nodes(
+                session_id=session_id,
+                node_type=concept.node_type,
+                embedding=embedding,
+                threshold=settings.surface_similarity_threshold,
+            )
+
+            if similar:
+                best_node, similarity = similar[0]
+                log.info(
+                    "node_deduplicated",
+                    label=concept.text,
+                    node_type=concept.node_type,
+                    existing_id=best_node.id,
+                    existing_label=best_node.label,
+                    similarity=round(similarity, 3),
+                    method="semantic",
+                )
+                return await self.repo.add_source_utterance(best_node.id, utterance_id)
+
+        # Step 3: Create new node (with embedding if computed)
         node_properties = dict(concept.properties)
         if concept.linked_elements:
             node_properties["linked_elements"] = concept.linked_elements
 
-        # Create new node
         return await self.repo.create_node(
             session_id=session_id,
             label=concept.text,
@@ -175,6 +232,7 @@ class GraphService:
             properties=node_properties,
             source_utterance_ids=[utterance_id],
             stance=concept.stance if concept.stance is not None else 0,
+            embedding=embedding_bytes,
         )
 
     async def _add_edge_from_relationship(
@@ -462,12 +520,14 @@ class GraphService:
                 continue
 
             # Add or update canonical edge
-            canonical_edge = await self.canonical_slot_repo.add_or_update_canonical_edge(
-                session_id=session_id,
-                source_slot_id=source_slot_id,
-                target_slot_id=target_slot_id,
-                edge_type=edge_type,
-                surface_edge_id=surface_edge_id,
+            canonical_edge = (
+                await self.canonical_slot_repo.add_or_update_canonical_edge(
+                    session_id=session_id,
+                    source_slot_id=source_slot_id,
+                    target_slot_id=target_slot_id,
+                    edge_type=edge_type,
+                    surface_edge_id=surface_edge_id,
+                )
             )
             canonical_edges.append(canonical_edge)
 

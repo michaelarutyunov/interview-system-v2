@@ -52,6 +52,14 @@ async def init_database(db_path: Path | None = None) -> None:
         schema_sql = SCHEMA_FILE.read_text()
         await db.executescript(schema_sql)
 
+        # Migrations for existing databases (idempotent)
+        # Add embedding column to kg_nodes (surface semantic dedup)
+        try:
+            await db.execute("ALTER TABLE kg_nodes ADD COLUMN embedding BLOB")
+            log.info("migration_applied", migration="kg_nodes_add_embedding")
+        except Exception:
+            pass  # Column already exists
+
         await db.commit()
 
     log.info("database_initialized", path=str(db_path))

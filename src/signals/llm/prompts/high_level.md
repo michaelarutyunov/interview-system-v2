@@ -16,5 +16,11 @@ Interview context:
 Question asked: {question}
 Respondent's answer: {response}
 
-Score each requested dimension as a JSON object with "score" (integer 
+Score each requested dimension as a JSON object with "score" (integer
 1-5) and "rationale" (one sentence justification, max 20 words).
+
+Output format - valid JSON with commas between properties:
+{{
+  "signal_name": {{"score": 3, "rationale": "Brief justification here"}},
+  "another_signal": {{"score": 4, "rationale": "Another brief justification"}}
+}}

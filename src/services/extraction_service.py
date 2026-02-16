@@ -296,9 +296,12 @@ class ExtractionService:
             - Max tokens 2000 for multiple concepts/relationships
             - Response parsed by parse_extraction_response() utility
         """
+        schema = load_methodology(methodology)
+        naming_convention = schema.get_concept_naming_convention()
         system_prompt = get_extraction_system_prompt(
             methodology=methodology,
             concept_id=self.concept_id,
+            concept_naming_convention=naming_convention,
         )
         user_prompt = get_extraction_user_prompt(text, context)
 
@@ -306,10 +309,20 @@ class ExtractionService:
             prompt=user_prompt,
             system=system_prompt,
             temperature=0.4,  # Balanced temperature for relationship inference
-            max_tokens=2000,
+            max_tokens=4000,  # Increased from 2000 to handle long responses
         )
 
-        return parse_extraction_response(response.content)
+        try:
+            return parse_extraction_response(response.content)
+        except ValueError as e:
+            # Log the raw response for debugging JSON parsing errors
+            log.error(
+                "extraction_json_parse_failed",
+                error=str(e),
+                response_preview=response.content[:1000],
+                response_length=len(response.content),
+            )
+            raise
 
     def _parse_concepts(
         self,
@@ -379,7 +392,9 @@ class ExtractionService:
                     source_utterance_id=source_utterance_id,  # Links concept to source utterance
                     properties=raw.get("properties", {}),
                     linked_elements=linked_elements,
-                    stance=int(raw.get("stance", 0)),  # Default to neutral (0)
+                    stance=raw.get(
+                        "stance"
+                    ),  # Deprecated: no longer extracted; llm.valence covers sentiment
                 )
 
                 # Schema validation: check node type is valid

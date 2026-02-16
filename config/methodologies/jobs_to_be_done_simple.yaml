@@ -1,43 +1,39 @@
-# Jobs-to-be-Done Methodology Configuration
+# Jobs-to-be-Done Simplified Methodology Configuration
 #
-# JTBD explores what job users are trying to do, what triggers them,
-# what alternatives they consider, and what obstacles they face.
+# Simplified ontology: 5 node types (vs 8), 4 edge types (vs 7).
+# Merges job_statement/emotional_job/social_job → job,
+# job_context/job_trigger → circumstance,
+# addresses/enables/supports → leads_to.
+# Reduces LLM classification ambiguity and edge rejection.
 
 method:
-  name: jobs_to_be_done
-  version: "2.0"
+  name: jobs_to_be_done_simple
+  version: "3.0"
   goal: "Understand what jobs users are trying to accomplish and what motivates them"
   opening_bias: "Ask about a specific recent time they made a decision or change related to the topic."
-  description: "Framework for understanding customer motivation and needs through job statements"
+  description: "Simplified JTBD framework with fewer node/edge types for higher extraction accuracy"
 
 ontology:
   nodes:
-    - name: job_statement
+    - name: job
       level: 0
       terminal: false
-      description: "Core functional or emotional job a customer is trying to accomplish"
+      description: "A functional, emotional, or social job the customer is trying to accomplish"
       examples:
         - "get my daily caffeine fix"
         - "feel productive in the morning"
-        - "socialize with colleagues"
+        - "fit in with health-conscious peers"
+        - "project a professional image"
 
-    - name: job_context
+    - name: circumstance
       level: 0
       terminal: false
-      description: "Situation or circumstances when the job arises"
+      description: "Situation, context, or trigger that causes the job to arise"
       examples:
         - "when I'm rushing to work"
-        - "when I'm working from home"
-        - "when meeting clients"
-
-    - name: job_trigger
-      level: 0
-      terminal: false
-      description: "Event or stimulus that initiates the job"
-      examples:
         - "feeling tired in the morning"
         - "anticipating a long meeting"
-        - "hosting a gathering"
+        - "when meeting clients"
 
     - name: pain_point
       level: 0
@@ -57,7 +53,7 @@ ontology:
         - "quick and convenient"
         - "feeling energized without jitters"
 
-    - name: solution_approach
+    - name: solution
       level: 0
       terminal: false
       description: "Current or potential method for accomplishing the job"
@@ -66,84 +62,37 @@ ontology:
         - "buying coffee at a cafe"
         - "meal prepping"
 
-    - name: emotional_job
-      level: 1
-      terminal: true
-      description: "Emotional state or identity the customer seeks to achieve"
-      examples:
-        - "feel healthy and conscientious"
-        - "project a professional image"
-        - "treat myself with care"
-
-    - name: social_job
-      level: 1
-      terminal: true
-      description: "Social impression or relationship the customer wants to influence"
-      examples:
-        - "fit in with health-conscious peers"
-        - "signal environmental values"
-        - "avoid social awkwardness"
-
   edges:
-    - name: occurs_in
-      description: "Temporal or situational relationship between job and context"
+    - name: leads_to
+      description: "Positive relationship: one thing contributes to, enables, or addresses another"
       permitted_connections:
-        - [job_statement, job_context]
-        - [emotional_job, job_context]
-        - [social_job, job_context]
-        - [pain_point, job_context]      # Pain arises in a context
-        - [gain_point, job_context]      # Gain matters in a context
-        - [job_trigger, job_context]     # Triggers happen in contexts
-        - [solution_approach, job_context]  # Solutions used in contexts
-
-    - name: triggered_by
-      description: "Causal relationship where a stimulus initiates or causes something"
-      permitted_connections:
-        - [job_statement, job_trigger]
-        - [emotional_job, job_trigger]
-        - [social_job, job_trigger]
-        - [pain_point, pain_point]       # Pain cascades (clutter → distraction)
-        - [pain_point, job_trigger]      # Pain triggered by event
-        - [gain_point, job_trigger]      # Gain triggered by event
-
-    - name: addresses
-      description: "Solution approach resolves a pain point or enables a gain point"
-      permitted_connections:
-        - [solution_approach, pain_point]
-        - [solution_approach, gain_point]
-        - [solution_approach, job_statement]  # Solution accomplishes a job
-        - [job_statement, emotional_job]
-        - [job_statement, social_job]
+        - [job, gain_point]            # Job seeks a gain
+        - [job, pain_point]            # Job encounters a pain
+        - [job, job]                   # Functional job leads to emotional/social job
+        - [solution, job]              # Solution accomplishes a job
+        - [solution, pain_point]       # Solution addresses a pain
+        - [solution, gain_point]       # Solution enables a gain
+        - [pain_point, job]            # Pain motivates a job
+        - [gain_point, job]            # Gain satisfies a job
+        - [gain_point, gain_point]     # Gain chains (saves time → feel productive)
 
     - name: conflicts_with
-      description: "Something that prevents or undermines something else"
+      description: "Negative relationship: one thing prevents, undermines, or blocks another"
       permitted_connections:
-        - [solution_approach, pain_point]
-        - [pain_point, job_statement]
-        - [pain_point, gain_point]       # Pain undermines a gain
-        - [pain_point, solution_approach] # Pain blocks a solution
-        - [solution_approach, solution_approach]  # Solutions can conflict with each other
+        - [pain_point, job]            # Pain blocks a job
+        - [pain_point, gain_point]     # Pain undermines a gain
+        - [pain_point, solution]       # Pain blocks a solution
+        - [solution, pain_point]       # Solution creates a pain (side effect)
+        - [solution, solution]         # Solutions conflict with each other
 
-    - name: enables
-      description: "Something that makes something else more achievable or satisfying"
+    - name: occurs_in
+      description: "Temporal, situational, or causal context relationship"
       permitted_connections:
-        - [solution_approach, gain_point]
-        - [gain_point, job_statement]
-        - [gain_point, gain_point]       # Gain chains (saves time → productive)
-        - [gain_point, emotional_job]    # Gain enables emotional outcome
-        - [gain_point, social_job]       # Gain enables social outcome
-
-    - name: supports
-      description: "Something that contributes to or reinforces something else"
-      permitted_connections:
-        - [job_statement, emotional_job]
-        - [job_statement, social_job]
-        - [solution_approach, gain_point]    # Solution contributes to a gain
-        - [solution_approach, job_statement] # Solution supports a job
-        - [solution_approach, emotional_job] # Solution directly supports emotional outcome
-        - [solution_approach, social_job]    # Solution directly supports social outcome
-        - [gain_point, emotional_job]        # Gain supports emotional outcome
-        - [gain_point, social_job]           # Gain supports social outcome
+        - [job, circumstance]          # Job arises in a circumstance
+        - [pain_point, circumstance]   # Pain arises in a circumstance
+        - [gain_point, circumstance]   # Gain matters in a circumstance
+        - [solution, circumstance]     # Solution used in a circumstance
+        - [circumstance, circumstance] # Context nesting (morning → weekday routine)
 
     - name: revises
       description: "Contradiction - newer belief or approach supersedes older one"
@@ -152,34 +101,34 @@ ontology:
 
   extraction_guidelines:
     - "Listen for phrases indicating what the user is trying to accomplish ('I need to...', 'I want to...', 'The goal is...')"
-    - "Identify the circumstances when the job becomes important ('when...', 'especially when...', 'in situations like...')"
+    - "Identify circumstances — both situations ('when...', 'in situations like...') and triggers ('feeling...', 'after...')"
     - "Extract pain points directly expressed ('frustrating that...', 'hate it when...', 'problem is...')"
     - "Extract gain points as positive outcomes ('love that...', 'great because...', 'important that...')"
-    - "Distinguish between functional, emotional, and social jobs - often all three coexist"
+    - "A single 'job' type covers functional, emotional, and social jobs — classify all as 'job'"
     - "Map the current solution approach even if not explicitly stated"
-    - "Connect jobs to their underlying emotional and social drivers"
-    - "Look for trade-offs users make between competing jobs"
+    - "Prioritize creating edges between co-occurring concepts — a connected graph is more valuable than isolated nodes"
+    - "Look for trade-offs users make between competing jobs or solutions"
 
   relationship_examples:
-    explicit_job_statement:
+    job_addresses_pain:
       description: "Direct statement of what needs to be accomplished"
       example: "I need something that wakes me up but doesn't make me jittery"
-      extraction: "job_statement('wake up without jitters') → addresses → pain_point('caffeine jitters')"
+      extraction: "job('wake up without jitters') → leads_to → pain_point('caffeine jitters')"
 
-    implicit_context:
+    job_in_context:
       description: "Context revealed through situation description"
       example: "When I have 8am meetings, I can't wait in line at the cafe"
-      extraction: "job_statement('get morning coffee') → occurs_in → job_context('early morning meetings')"
+      extraction: "job('get morning coffee quickly') → occurs_in → circumstance('early morning meetings')"
 
-    pain_trigger_chain:
-      description: "Trigger reveals the pain point and the job together"
+    pain_conflicts_solution:
+      description: "Pain point blocks a current solution"
       example: "Dairy makes me feel bloated, especially before presentations"
-      extraction: "job_trigger('before presentations') → triggered_by → job_statement('feel comfortable') conflicts_with pain_point('dairy bloating')"
+      extraction: "pain_point('dairy bloating') → conflicts_with → solution('regular milk in coffee'), pain_point('dairy bloating') → occurs_in → circumstance('before presentations')"
 
-    functional_supports_emotional:
+    solution_leads_to_job:
       description: "Functional choice enables emotional outcome"
       example: "I choose oat milk because it aligns with my values"
-      extraction: "solution_approach('oat milk') → supports → emotional_job('feel environmentally responsible')"
+      extraction: "solution('oat milk') → leads_to → job('feel environmentally responsible')"
 
   extractability_criteria:
     extractable_contains:
@@ -195,18 +144,6 @@ ontology:
       - "Questions back to the interviewer"
       - "Purely factual product descriptions without user context"
       - "Irrelevant tangents"
-
-  concept_naming_convention: >
-    Name each concept according to its node type role:
-    phrase job_statements as jobs to be done,
-    pain_points as frustrations or obstacles,
-    gain_points as desired outcomes or benefits,
-    solution_approaches as methods or actions,
-    job_contexts as situations or circumstances,
-    emotional_jobs as emotional states sought,
-    social_jobs as social outcomes desired,
-    job_triggers as initiating events.
-    Use the examples in each node type description as naming models.
 
 signals:
   graph:

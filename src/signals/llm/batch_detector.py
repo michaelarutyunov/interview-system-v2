@@ -158,22 +158,21 @@ class LLMBatchDetector:
         Args:
             signal_classes: List of signal classes to include (for rubric_key mapping)
         """
-        instructions = """Output a JSON object with these exact keys:
-
-"""
+        instructions = "Output a JSON object with these exact keys:\n{\n"
         # Use signal classes to get correct rubric_key (non-namespaced) for output format
+        entries = []
         if signal_classes:
             for signal_cls in signal_classes:
                 rubric_key = getattr(signal_cls, '_rubric_key', None)
                 if rubric_key:
-                    instructions += f'  "{rubric_key}": {{"score": <integer 1-5>, "rationale": "<one sentence explanation, max 20 words>}}'
+                    entries.append(f'  "{rubric_key}": {{"score": <integer 1-5>, "rationale": "<max 20 words>"}}')
         else:
             # Fallback: use example keys (legacy behavior)
             example = self._output_example
-            schema = {signal: data.get("score", {}) for signal, data in example.items()}
-            for signal_name in schema.keys():
-                instructions += f'  "{signal_name}": {{"score": <integer 1-5>, "rationale": "<one sentence explanation, max 20 words>}}'
+            for signal_name in example.keys():
+                entries.append(f'  "{signal_name}": {{"score": <integer 1-5>, "rationale": "<max 20 words>"}}')
 
+        instructions += ",\n".join(entries)
         instructions += "\n}"
         instructions += """
 
@@ -182,6 +181,47 @@ Each score MUST be an integer from 1 to 5. Use the full range. Do not default to
 The rationale field should briefly justify the score in one sentence (max 20 words).
 """
         return instructions
+
+    @staticmethod
+    def _parse_json_response(text: str) -> dict:
+        """Parse JSON from LLM response, with repair for common errors.
+
+        Handles markdown fences, missing/trailing commas, and truncation.
+        """
+        import re
+
+        # Strip markdown fences
+        text = text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        elif text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        # Repair: missing commas between properties
+        repaired = re.sub(r'(\")\s*\n\s*(\")', r'\1,\n\2', text)
+        repaired = re.sub(r'(\d)\s*\n\s*(\")', r'\1,\n\2', repaired)
+        repaired = re.sub(r'(\})\s*\n\s*(\")', r'\1,\n\2', repaired)
+        # Trailing commas
+        repaired = re.sub(r',\s*\}', '}', repaired)
+        repaired = re.sub(r',\s*\]', ']', repaired)
+        # Truncation
+        open_braces = repaired.count('{') - repaired.count('}')
+        open_brackets = repaired.count('[') - repaired.count(']')
+        if open_braces > 0 or open_brackets > 0:
+            repaired = repaired.rstrip().rstrip(',')
+            repaired += ']' * open_brackets + '}' * open_braces
+
+        result = json.loads(repaired)
+        log.warning("Scoring JSON repaired before parsing (original had syntax errors)")
+        return result
 
     async def detect(
         self,
@@ -230,11 +270,15 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
             log.error(f"LLM batch call failed: {e}", exc_info=True)
             raise ScorerFailureError(f"LLM signal detection failed: {e}") from e
 
-        # Parse JSON response
+        # Parse JSON response (with repair for common LLM errors)
         try:
-            result = json.loads(response_text)
-        except json.JSONDecodeError as e:
-            log.error(f"Failed to parse LLM response as JSON: {e}", exc_info=True)
+            result = self._parse_json_response(response_text)
+        except (json.JSONDecodeError, ValueError) as e:
+            log.error(
+                f"Failed to parse LLM response as JSON: {e}. "
+                f"Response content: {repr(response_text[:500])}",
+                exc_info=True,
+            )
             raise ScorerFailureError(f"Invalid LLM response: {e}") from e
 
         # Validate and normalize results

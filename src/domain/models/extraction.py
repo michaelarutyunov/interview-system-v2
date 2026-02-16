@@ -10,7 +10,7 @@ Core Models:
 
 Key Concepts:
     - Source utterance provenance: traceability from extraction to original utterance
-    - Stance tracking: -1/0/+1 for negative/neutral/positive concepts
+    - Stance tracking: deprecated (llm.valence covers sentiment); kept for backward compat
     - Methodology-specific typing: node_type, edge_type, linked_elements
     - Freshness validation: timestamp for LLM signal staleness detection
 """
@@ -59,7 +59,8 @@ class ExtractedConcept(BaseModel):
         default=None,
         ge=-1,
         le=1,
-        description="Stance: -1 (negative), 0 (neutral), +1 (positive), or null if N/A",
+        description="Deprecated: no longer extracted. llm.valence covers sentiment. "
+                    "Kept for backward compat. Values: -1 (negative), 0 (neutral), +1 (positive).",
     )
     properties: Dict[str, Any] = Field(
         default_factory=dict,

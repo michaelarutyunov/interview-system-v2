@@ -87,6 +87,11 @@ CREATE TABLE IF NOT EXISTS kg_nodes (
     -- Temporal (single timestamp, not bi-temporal)
     recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
 
+    -- Embedding: numpy float32 array serialized via tobytes()
+    -- Model: all-MiniLM-L6-v2 (384-dim). Deserialize with np.frombuffer(blob, dtype=np.float32)
+    -- Used for surface semantic dedup (threshold 0.80, same node_type required)
+    embedding BLOB,
+
     -- Contradiction handling: if this node supersedes another
     superseded_by TEXT REFERENCES kg_nodes(id),
 

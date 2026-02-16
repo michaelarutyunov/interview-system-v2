@@ -9,10 +9,11 @@ No business logic - that belongs in GraphService.
 
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 import aiosqlite
+import numpy as np
 import structlog
 
 from src.domain.models.knowledge_graph import (
@@ -53,7 +54,8 @@ class GraphRepository:
         confidence: float = 0.8,
         properties: Optional[dict] = None,
         source_utterance_ids: Optional[List[str]] = None,
-        stance: int = 0,
+        stance: int = 0,  # Deprecated: no longer extracted. Kept for backward compat.
+        embedding: Optional[bytes] = None,
     ) -> KGNode:
         """
         Create a new knowledge graph node.
@@ -65,7 +67,8 @@ class GraphRepository:
             confidence: Extraction confidence (0.0-1.0)
             properties: Additional properties
             source_utterance_ids: IDs of source utterances
-            stance: Stance value (-1, 0, or +1)
+            stance: Deprecated — no longer extracted. Kept for backward compat.
+            embedding: Optional embedding bytes for surface semantic dedup
 
         Returns:
             Created KGNode
@@ -79,8 +82,8 @@ class GraphRepository:
             """
             INSERT INTO kg_nodes (
                 id, session_id, label, node_type, confidence,
-                properties, source_utterance_ids, recorded_at, superseded_by, stance
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                properties, source_utterance_ids, recorded_at, superseded_by, stance, embedding
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 node_id,
@@ -93,6 +96,7 @@ class GraphRepository:
                 now,
                 None,
                 stance,
+                embedding,
             ),
         )
         await self.db.commit()
@@ -638,6 +642,59 @@ class GraphRepository:
             result.append(node_dict)
 
         return result
+
+    # ==================== SURFACE SEMANTIC DEDUP ====================
+
+    async def find_similar_nodes(
+        self,
+        session_id: str,
+        node_type: str,
+        embedding: np.ndarray,
+        threshold: float = 0.80,
+    ) -> List[Tuple[KGNode, float]]:
+        """
+        Find nodes similar to the given embedding via cosine similarity.
+
+        O(N) brute-force search: loads all nodes of matching session+type
+        with non-null embeddings and computes cosine similarity in Python.
+        N~100 max per session, so this is acceptable.
+
+        Args:
+            session_id: Session ID
+            node_type: Node type filter (only compare nodes of same type)
+            embedding: Query embedding (numpy float32 array)
+            threshold: Similarity threshold (default: 0.80)
+
+        Returns:
+            List of (KGNode, similarity_score) tuples above threshold,
+            sorted descending by similarity
+        """
+        self.db.row_factory = aiosqlite.Row
+        cursor = await self.db.execute(
+            """
+            SELECT * FROM kg_nodes
+            WHERE session_id = ? AND node_type = ? AND superseded_by IS NULL
+              AND embedding IS NOT NULL
+            """,
+            (session_id, node_type),
+        )
+        rows = await cursor.fetchall()
+
+        similar_nodes = []
+        for row in rows:
+            node_embedding = np.frombuffer(row["embedding"], dtype=np.float32)
+            similarity = self._cosine_similarity(embedding, node_embedding)
+
+            if similarity >= threshold:
+                similar_nodes.append((self._row_to_node(row), similarity))
+
+        similar_nodes.sort(key=lambda x: x[1], reverse=True)
+        return similar_nodes
+
+    @staticmethod
+    def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+        """Compute cosine similarity between two numpy arrays."""
+        return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-8))
 
     # ==================== HELPERS ====================
 

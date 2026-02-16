@@ -46,10 +46,10 @@ EXTRACTION_DEFAULTS = dict(
 
 SCORING_DEFAULTS = dict(
     provider="kimi",
-    model="moonshot-v1-8k",
+    model="kimi-k2-0905-preview",
     temperature=0.3,
     max_tokens=512,
-    timeout=15.0,
+    timeout=30.0,  # K2 is larger model, needs more time
 )
 
 GENERATION_DEFAULTS = dict(
@@ -706,7 +706,7 @@ def get_llm_client(client_type: LLMClientType) -> LLMClient:
 
 def get_extraction_llm_client() -> LLMClient:
     """
-    Factory for extraction LLM client (nodes/edges/stance).
+    Factory for extraction LLM client (nodes/edges).
 
     Returns:
         LLMClient instance configured for extraction tasks

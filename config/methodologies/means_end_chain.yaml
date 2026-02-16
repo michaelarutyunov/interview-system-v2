@@ -120,6 +120,13 @@ ontology:
       - "Off-topic tangents"
       - "Very short responses with no substance"
 
+  concept_naming_convention: >
+    Name each concept according to its level in the means-end chain:
+    attributes as concrete product features or characteristics,
+    consequences as functional or psychosocial outcomes,
+    values as abstract personal values or life goals.
+    Use the examples in each node type description as naming models.
+
 signals:
   graph:
     - graph.node_count

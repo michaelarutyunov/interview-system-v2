@@ -60,18 +60,7 @@ When working on the turn pipeline, always reference:
 | **Data Flow Paths** | `docs/data_flow_paths.md` | Visualizing critical data flows through the pipeline |
 | **System Design** | `docs/SYSTEM_DESIGN.md` | Narrative architecture for articles |
 
-### ADRs (Architecture Decision Records)
 
-Key ADRs that define the system architecture:
-
-| ADR | Topic | Location |
-|-----|-------|----------|
-| ADR-008 | Pipeline Pattern & Internal API Boundaries | `docs/adr/008-internal-api-boundaries-pipeline-pattern.md` |
-| ADR-010 | Three-Client LLM Architecture | `docs/adr/010-three-client-llm-architecture.md` |
-| ADR-013 | Methodology-Centric Architecture | `docs/adr/0013-methodology-centric-architecture.md` |
-| ADR-014 | Signal Pools Architecture | `docs/adr/ADR-014-signal-pools-architecture.md` |
-| ADR-008 (alt) | Concept-Driven Coverage System | `docs/adr/008-concept-element-coverage-system.md` |
-| ADR-009 | Fail-Fast Error Handling (MVP) | `docs/adr/009-fail-fast-error-handling-mvp.md` |
 
 ### Operational Standards
 

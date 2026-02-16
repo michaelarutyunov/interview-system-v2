@@ -127,12 +127,16 @@ class SessionService:
             self.extraction = extraction_service
         else:
             if extraction_llm_client is None:
-                raise ValueError("extraction_llm_client is required when extraction_service is not provided")
+                raise ValueError(
+                    "extraction_llm_client is required when extraction_service is not provided"
+                )
             self.extraction = ExtractionService(llm_client=extraction_llm_client)
 
         # Note: GraphService is created in _build_pipeline() after canonical_slot_repo is initialized
         # This allows us to pass canonical_slot_repo to GraphService.__init__ (no longer optional)
-        self.graph: Optional[GraphService] = graph_service  # Set in _build_pipeline() if None
+        self.graph: Optional[GraphService] = (
+            graph_service  # Set in _build_pipeline() if None
+        )
 
         # Question service needs methodology for opening question generation
         # We'll create it with a default and update it when we have a session
@@ -140,9 +144,13 @@ class SessionService:
             self.question = question_service
         else:
             if generation_llm_client is None:
-                raise ValueError("generation_llm_client is required when question_service is not provided")
+                raise ValueError(
+                    "generation_llm_client is required when question_service is not provided"
+                )
             # Create with default methodology, will be updated per session
-            self.question = QuestionService(llm_client=generation_llm_client, methodology="means_end_chain")
+            self.question = QuestionService(
+                llm_client=generation_llm_client, methodology="means_end_chain"
+            )
 
         # Create utterance repo if not provided
         if utterance_repo is None:
@@ -181,6 +189,10 @@ class SessionService:
         canonical_slot_service = None
         canonical_graph_service = None
 
+        # EmbeddingService: shared between surface dedup and canonical slots
+        # Created unconditionally — surface dedup is independent of canonical slots
+        embedding_service = EmbeddingService()  # lazy loads all-MiniLM-L6-v2 + spaCy
+
         if settings.enable_canonical_slots:
             # Slot discovery uses scoring LLM (KIMI) — cheaper and sufficient
             # for structured JSON extraction. Falls back to generation client.
@@ -200,7 +212,6 @@ class SessionService:
             canonical_slot_repo = CanonicalSlotRepository(
                 str(self.session_repo.db_path)
             )
-            embedding_service = EmbeddingService()  # lazy loads all-MiniLM-L6-v2 + spaCy
             canonical_slot_service = CanonicalSlotService(
                 llm_client=slot_llm_client,
                 slot_repo=canonical_slot_repo,
@@ -211,20 +222,30 @@ class SessionService:
             self.canonical_slot_repo = canonical_slot_repo
 
             # Import and initialize CanonicalGraphService
-            from src.services.canonical_graph_service import CanonicalGraphService as CGS
+            from src.services.canonical_graph_service import (
+                CanonicalGraphService as CGS,
+            )
 
             canonical_graph_service = CGS(canonical_slot_repo=canonical_slot_repo)
 
-            # Create GraphService with canonical_slot_repo (no longer optional)
+            # Create GraphService with canonical_slot_repo and embedding_service
             if self.graph is None:
-                self.graph = GraphService(self.graph_repo, canonical_slot_repo=canonical_slot_repo)
+                self.graph = GraphService(
+                    self.graph_repo,
+                    canonical_slot_repo=canonical_slot_repo,
+                    embedding_service=embedding_service,
+                )
         else:
             # Canonical slots disabled: set canonical_slot_repo to None
             self.canonical_slot_repo = None
 
-            # Create GraphService without canonical_slot_repo (dual-graph features will be unavailable)
+            # Create GraphService with embedding_service for surface dedup (independent of canonical)
             if self.graph is None:
-                self.graph = GraphService(self.graph_repo, canonical_slot_repo=None)
+                self.graph = GraphService(
+                    self.graph_repo,
+                    canonical_slot_repo=None,
+                    embedding_service=embedding_service,
+                )
 
         # Build stage list
         stages = [
@@ -256,19 +277,21 @@ class SessionService:
             )
         )
 
-        stages.extend([
-            StrategySelectionStage(),
-            ContinuationStage(
-                focus_selection_service=self.focus_selection,
-            ),
-            QuestionGenerationStage(
-                question_service=self.question,
-            ),
-            ResponseSavingStage(),
-            ScoringPersistenceStage(
-                session_repo=self.session_repo,
-            ),
-        ])
+        stages.extend(
+            [
+                StrategySelectionStage(),
+                ContinuationStage(
+                    focus_selection_service=self.focus_selection,
+                ),
+                QuestionGenerationStage(
+                    question_service=self.question,
+                ),
+                ResponseSavingStage(),
+                ScoringPersistenceStage(
+                    session_repo=self.session_repo,
+                ),
+            ]
+        )
 
         return TurnPipeline(stages=stages)
 
@@ -623,9 +646,7 @@ class SessionService:
         from src.services.node_state_tracker import NodeStateTracker
 
         # Try to load persisted state
-        tracker_state_json = await self.session_repo.get_node_tracker_state(
-            session_id
-        )
+        tracker_state_json = await self.session_repo.get_node_tracker_state(session_id)
 
         if tracker_state_json:
             try:

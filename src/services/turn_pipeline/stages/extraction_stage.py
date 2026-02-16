@@ -11,7 +11,10 @@ import structlog
 from ..base import TurnStage
 from ..context import PipelineContext
 from src.core.exceptions import ConfigurationError
-from src.domain.models.pipeline_contracts import ExtractionOutput, SrlPreprocessingOutput
+from src.domain.models.pipeline_contracts import (
+    ExtractionOutput,
+    SrlPreprocessingOutput,
+)
 from src.services.extraction_service import ExtractionService
 
 log = structlog.get_logger(__name__)
@@ -160,7 +163,46 @@ class ExtractionStage(TurnStage):
                 approximate_token_count=len(srl_hints) // 4,  # Rough estimate
             )
 
+        # Inject existing node labels for cross-turn relationship bridging
+        node_labels = self._format_node_labels(context)
+        if node_labels:
+            lines.append("")
+            lines.append(node_labels)
+
         return "\n".join(lines)
+
+    def _format_node_labels(self, context: "PipelineContext") -> str:
+        """
+        Format existing node labels for cross-turn relationship bridging.
+
+        Provides the LLM with labels of concepts already in the graph
+        so it can reference them in relationship source_text/target_text
+        fields, enabling cross-turn edge creation.
+
+        Args:
+            context: Turn context with recent_node_labels
+
+        Returns:
+            Formatted node labels section, or empty string if no nodes
+        """
+        labels = (
+            context.context_loading_output.recent_node_labels
+            if context.context_loading_output
+            else []
+        )
+        if not labels:
+            return ""
+
+        # Limit to most recent 30 labels to avoid prompt bloat
+        labels_to_show = labels[-30:]
+        label_items = "\n".join(f'  - "{label}"' for label in labels_to_show)
+
+        return (
+            f"[Existing graph concepts from previous turns]\n"
+            f"{label_items}\n"
+            f"[Task] When creating relationships, you may reference these exact labels as source_text "
+            f"or target_text to connect new concepts to existing ones. Do NOT re-extract these as new concepts."
+        )
 
     def _format_srl_hints(self, srl_output: SrlPreprocessingOutput | None) -> str:
         """
@@ -189,7 +231,7 @@ class ExtractionStage(TurnStage):
                 marker = rel.get("marker", "implicit")
                 antecedent = rel.get("antecedent", "")[:60]  # Truncate for readability
                 consequent = rel.get("consequent", "")[:60]
-                lines.append(f"  - [{marker}]: \"{antecedent}\" → \"{consequent}\"")
+                lines.append(f'  - [{marker}]: "{antecedent}" → "{consequent}"')
 
         # Add SRL frames (predicate-argument structures)
         # Limit to top 5 to avoid prompt bloat

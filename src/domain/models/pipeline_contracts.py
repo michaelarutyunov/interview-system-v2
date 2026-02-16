@@ -42,6 +42,12 @@ class ContextLoadingOutput(BaseModel):
         default_factory=list, description="History of strategies used"
     )
 
+    # Graph context for cross-turn relationship bridging
+    recent_node_labels: List[str] = Field(
+        default_factory=list,
+        description="Labels of existing graph nodes for cross-turn relationship bridging",
+    )
+
 
 class UtteranceSavingOutput(BaseModel):
     """Contract: UtteranceSavingStage output (Stage 2).

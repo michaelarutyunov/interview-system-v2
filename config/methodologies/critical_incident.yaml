@@ -162,6 +162,18 @@ extractability_criteria:
     - "Second-hand stories ('my friend said...')"
     - "Factual product descriptions without personal experience"
 
+  concept_naming_convention: >
+    Name each concept according to its role in the critical incident:
+    incidents as specific memorable events or experiences,
+    situations as contextual circumstances,
+    actions as concrete behaviors taken,
+    outcomes as results or consequences of actions,
+    emotions as emotional responses or feelings,
+    attributions as perceived causes or explanations,
+    learnings as insights or takeaways,
+    behavior_changes as subsequent changes in behavior.
+    Use the examples in each node type description as naming models.
+
 signals:
   graph:
     - graph.node_count

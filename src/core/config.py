@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     # ==========================================================================
     #
     # Three-client architecture for task-optimized LLM selection:
-    # - extraction: Extract nodes/edges/stance from user responses
+    # - extraction: Extract nodes/edges from user responses
     # - scoring: Extract diagnostic signals for strategy scoring
     # - generation: Generate interview questions
     #
@@ -103,7 +103,8 @@ class Settings(BaseSettings):
     # ==========================================================================
 
     enable_srl: bool = Field(
-        default=True, description="Enable SRL preprocessing stage for linguistic analysis"
+        default=True,
+        description="Enable SRL preprocessing stage for linguistic analysis",
     )
 
     enable_canonical_slots: bool = Field(
@@ -121,8 +122,20 @@ class Settings(BaseSettings):
     #
     # Promotion prevents ephemeral mentions from polluting the canonical graph.
 
+    surface_similarity_threshold: float = Field(
+        default=0.80,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Cosine similarity threshold for surface node semantic dedup. "
+            "When a new concept is extracted, it's compared against existing nodes "
+            "of the same type via embedding similarity. If >= threshold, the concept "
+            "merges into the existing node instead of creating a duplicate. "
+            "Higher than canonical (0.60) to preserve concept granularity at surface layer."
+        ),
+    )
     canonical_similarity_threshold: float = Field(
-        default=0.75,
+        default=0.60,
         ge=0.0,
         le=1.0,
         description=(
@@ -132,19 +145,19 @@ class Settings(BaseSettings):
             "slot merges into the existing one instead of creating a duplicate. "
             "Higher values = more conservative (fewer merges, more slots). "
             "Lower values = more permissive (more merging, fewer slots). "
-            "Default 0.75 allows tighter canonical graph with fewer duplicates."
+            "Default 0.60 balances deduplication with semantic precision."
         ),
     )
     canonical_min_support_nodes: int = Field(
-        default=1,
+        default=2,
         ge=1,
         description=(
             "Minimum number of surface nodes that must map to a candidate slot "
             "before it can be promoted to 'active' status. Each time a surface "
             "node (user's actual phrase) maps to this slot, supportCount += 1. "
             "When supportCount >= this threshold, the slot is promoted. "
-            "Default 1 means all slots become active immediately, providing "
-            "maximum discovery. Use 2-3 for more conservative filtering."
+            "Default 2 requires confirmation from a second mention before "
+            "promoting, filtering out ephemeral single-mention concepts."
         ),
     )
     canonical_min_turns: int = Field(
