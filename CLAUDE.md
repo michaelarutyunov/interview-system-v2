@@ -28,13 +28,11 @@ git status  # MUST show "up to date"
 
 | Document | Purpose |
 |----------|---------|
+| `docs/SYSTEM_DESIGN.md` | System architecture |
 | `docs/data_flow_paths.md` | 15 critical data flow diagrams |
 | `docs/pipeline_contracts.md` | Stage input/output contracts |
-| `docs/SYSTEM_DESIGN.md` | System architecture |
-| `docs/DEVELOPMENT.md` | Setup, testing, standards |
 | `docs/canonical_extraction.md` | Dual-graph deduplication |
 | `docs/signals_and_strategies.md` | Signal Pools configuration |
-| `docs/adr/` | Architecture Decision Records |
 
 ---
 
@@ -68,7 +66,7 @@ src/
 
 | Stage | File | Purpose |
 |-------|------|---------|
-| 1 | `context_loading_stage.py` | Load session, graph state |
+| 1 | `context_loading_stage.py` | Load session, conversation history |
 | 2 | `utterance_saving_stage.py` | Save user input |
 | 2.5 | `srl_preprocessing_stage.py` | Linguistic parsing |
 | 3 | `extraction_stage.py` | Extract concepts/relationships |
@@ -103,8 +101,8 @@ src/
 ```python
 # Deduplication
 surface_similarity_threshold: float = 0.80
-canonical_similarity_threshold: float = 0.83
-canonical_min_support_nodes: int = 1
+canonical_similarity_threshold: float = 0.60
+canonical_min_support_nodes: int = 2
 
 # Features
 enable_srl: bool = True
