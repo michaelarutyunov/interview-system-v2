@@ -23,22 +23,23 @@ The turn pipeline has several critical data flow paths that are essential to und
 graph LR
     A[Session.state.turn_count] -->|load| B[ContextLoadingStage]
     B -->|current = turn_count + 1| C[context.turn_number]
-    C -->|pass through| D[UtteranceSavingStage]
-    D --> E[ExtractionStage]
-    E --> F[GraphUpdateStage]
-    F --> G[StateComputationStage]
-    G -->|refresh| H[graph_state.turn_count]
-    H -->|read| I[StrategySelectionStage]
-    I --> J[MethodologyStrategyService.select_strategy_and_focus]
-    J --> K[focus + strategy]
-    K --> L[ContinuationStage]
-    L --> M{turn_number >= max_turns?}
-    M -->|No| N[should_continue = True]
-    M -->|Yes| O[should_continue = False]
-    N --> P[ScoringPersistenceStage]
-    O --> P
-    P -->|store| Q[Session.state.turn_count = context.turn_number]
-    Q --> R[Next Turn]
+    C -->|pass through| D[SRLPreprocessingStage]
+    D --> E[UtteranceSavingStage]
+    E --> F[ExtractionStage]
+    F --> G[GraphUpdateStage]
+    G --> H[StateComputationStage]
+    H -->|sync| I[graph_state.turn_count]
+    I -->|read| J[StrategySelectionStage]
+    J --> K[MethodologyStrategyService.select_strategy_and_focus]
+    K --> L[focus + strategy]
+    L --> M[ContinuationStage]
+    M --> N{turn_number >= max_turns?}
+    N -->|No| O[should_continue = True]
+    N -->|Yes| P[should_continue = False]
+    O --> Q[ScoringPersistenceStage]
+    P --> Q
+    Q -->|store| R[Session.state.turn_count = context.turn_number]
+    R --> S[Next Turn]
 ```
 
 ### Key Points
@@ -46,8 +47,8 @@ graph LR
 - **`turn_count`** (stored in database) = number of *completed* turns
 - **`turn_number`** (in context) = current turn being processed = `turn_count + 1`
 - Turn count is **loaded** from database in ContextLoadingStage
-- Turn count is **refreshed** from graph state in StateComputationStage
-- Turn count is **checked** against max_turns in ContinuationStage
+- Turn count is **synced** to graph state in StateComputationStage
+- Turn count is **checked** against max_turns in ContinuationStage (also considers strategy termination and saturation)
 - Turn count is **updated** to the current turn number and saved back in ScoringPersistenceStage (represents completed turns after this turn)
 
 ### Implementation Note
@@ -55,7 +56,11 @@ graph LR
 In `ContextLoadingStage`, the turn number is calculated as:
 ```python
 # turn_count is completed turns, so current turn is turn_count + 1
-context.turn_number = (session.state.turn_count or 0) + 1
+context_loading_output = ContextLoadingOutput(
+    turn_number=(session.state.turn_count or 0) + 1,
+    ...
+)
+# Accessed via context.turn_number property (reads from context_loading_output)
 ```
 
 This ensures that:
@@ -134,6 +139,7 @@ graph LR
 - **Signals are namespaced**: `graph.max_depth`, `llm.response_depth`, `temporal.strategy_repetition_count`, `graph.node.exhausted`, `technique.node.strategy_repetition`, etc.
 - **LLM signals are fresh** - computed every response via rubric-based prompts, no cross-response caching
 - **LLM batch detection** - All 5 signals (response_depth, specificity, certainty, valence, engagement) detected in single API call using rubrics loaded from `src/signals/llm/prompts/signals.md`
+- **Signal normalization**: Non-categorical LLM signals (specificity, certainty, valence, engagement) normalized to [0,1] from Likert 1-5 scale
 - **Rubric parsing** - Rubric definitions use indentation-based structure (signal_name: description, with indented content for scoring criteria)
 - **InterviewPhaseSignal** detects current phase (`early`, `mid`, `late`) from `meta.interview.phase` signal
 - **Phase weights and bonuses** are defined in YAML config under `config.phases[phase]`:
@@ -268,6 +274,7 @@ graph LR
 
 - Extraction produces concepts and relationships
 - GraphUpdateStage persists to database AND tracks in context
+- **Surface deduplication**: GraphUpdateStage performs 3-step deduplication (exact → semantic → create) before persistence (see Path 12)
 - **NodeStateTracker integration**:
   - `register_node()` - Registers new nodes when added
   - `update_edge_counts()` - Updates relationship counts
@@ -275,6 +282,7 @@ graph LR
 - StateComputationStage refreshes to get accurate metrics (node_count, coverage, depth)
 - NodeStateTracker provides per-node state for node-level signals in StrategySelectionStage
 - Multiple downstream stages read the refreshed graph state
+- **Repository**: GraphRepository class in `graph_repo.py` (note: file name uses short form)
 
 ## Path 4: Strategy History Tracking (Diversity)
 
@@ -295,11 +303,12 @@ graph LR
     G --> I[context.signals]
     H --> I
 
-    I --> J[ScoringPersistenceStage]
-    J -->|append| K[Session.state.strategy_history]
-    K -->|limit 5| L[recent strategies]
-    L -->|save| M[(Database)]
-    M -->|load next turn| N[ContextLoadingStage]
+    I -->|append strategy| J[graph_state.strategy_history]
+    J -->|deque limit 30| K[recent strategies]
+
+    I --> L[ScoringPersistenceStage]
+    L -->|save to scoring_history| M[(Database)]
+    M -->|load next turn limit 5| N[ContextLoadingStage]
 ```
 
 ### Key Points
@@ -307,8 +316,9 @@ graph LR
 - History is loaded at start of each turn as `List[str]` (limited to 5 recent strategies by `SessionRepository.get_recent_strategies()`)
 - **Temporal signals** track strategy repetition (`temporal.strategy_repetition_count`)
 - Signal weights in YAML configs automatically penalize repetition
-- History is appended and saved at end of turn
-- Creates a feedback loop for diversity with bounded memory usage
+- History append happens in StrategySelectionStage after strategy selection; stored in GraphState deque (maxlen=30)
+- History persistence to database happens in ScoringPersistenceStage via `scoring_history` table
+- Creates a feedback loop for diversity with bounded memory usage (DB query limit: 5, deque limit: 30)
 
 ## Path 5: Traceability Chain
 
@@ -317,7 +327,7 @@ graph LR
 ```mermaid
 graph LR
     A[User Input] -->|create| B[UtteranceSavingStage]
-    B -->|utterance.id| C[context.user_utterance]
+    B -->|utterance.id UUID4| C[context.user_utterance]
     C -->|save| D[(utterances table)]
     C -->|utterance.id| E[ExtractionStage]
 
@@ -325,8 +335,8 @@ graph LR
     F -->|concepts| G[GraphUpdateStage]
     F -->|relationships| G
 
-    G -->|node.utterance_id| H[(nodes table)]
-    G -->|edge.utterance_id| I[(edges table)]
+    G -->|node.source_utterance_ids| H[(nodes table)]
+    G -->|edge.source_utterance_ids| I[(edges table)]
 
     D -->|query| J[ContextLoadingStage]
     J --> K[context.recent_utterances]
@@ -335,12 +345,12 @@ graph LR
 ### Key Points
 
 **Enhanced Traceability:**
-- `UtteranceSavingStage` generates `utterance.id` (e.g., "utter_123")
+- `UtteranceSavingStage` generates `utterance.id` as UUID4 (e.g., "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
 - `ExtractionStage` passes `source_utterance_id` to all extracted data:
   - `ExtractedConcept.source_utterance_id` - Links concept to utterance
   - `ExtractedRelationship.source_utterance_id` - Links edge to utterance
 - `GraphUpdateStage` stores provenance in database:
-  - `node.source_utterance_ids` - Which utterances created this node (supports multiple sources)
+  - `node.source_utterance_ids` - Which utterances created this node (supports multiple sources for deduplication)
   - `edge.source_utterance_ids` - Which utterances created this edge (supports multiple sources)
 
 **Debugging Benefits:**
@@ -371,12 +381,14 @@ graph LR
 
     K --> L[Sort all pairs by score]
     L --> M[Select best pair]
-    M --> N[context strategy focus node id signals]
+    M --> N[Append response_depth to previous_focus]
+    N --> O[node_tracker.update_focus new focus]
+    O --> P[context strategy focus node id signals]
 
-    N --> O[ContinuationStage]
-    O --> P[Validate focus_node_id exists]
-    P --> Q[context.focus_concept]
-    Q --> R[QuestionGenerationStage]
+    P --> Q[ContinuationStage]
+    Q --> R[FocusSelectionService resolve focus]
+    R --> S[context.focus_concept]
+    S --> T[QuestionGenerationStage]
 ```
 
 ### Key Points
@@ -392,7 +404,9 @@ graph LR
   - Automatically backtracks to fresh nodes
 - **Phase-aware scoring**: Applies both multiplicative weights and additive bonuses
 - **Output**: Returns best (strategy, node_id, score) with alternatives list for debugging
-- **FocusSelectionService** now receives focus_node_id directly from joint selection
+- **Response depth tracking**: `llm.response_depth` appended to `previous_focus` node BEFORE `update_focus()` (critical ordering)
+- **FocusSelectionService**: Resolves focus_node_id with graceful fallback if node not found
+- **NodeTracker integration**: `update_focus()` called after response depth append to set `previous_focus` for next turn
 
 ## Path 7: Signal Detection Flow
 
@@ -441,11 +455,11 @@ graph LR
   - **Question context**: Receives the preceding interviewer question for context-aware scoring (extracted from `recent_utterances` by `GlobalSignalDetectionService`)
   - **Truncation**: Response text truncated to 500 chars (~75 words), question text to 200 chars — balances scoring accuracy with token costs
   - Rubrics injected into prompt to guide LLM scoring
-  - Returns structured JSON: `{"response_depth": {"score": "deep", "rationale": "..."}, ...}`
+  - LLM returns structured JSON with scores and rationales; stored signal value is score only (rationales logged but not persisted)
 - **Signal types**:
-  - `llm.response_depth`: Categorical string (surface/shallow/moderate/deep/comprehensive)
-  - `llm.specificity`, `llm.certainty`, `llm.valence`, `llm.engagement`: Float [0,1]
-- **Dependency ordering**: Signals are ordered via topological sort (Kahn's algorithm) based on declared dependencies, not strict two-pass
+  - `llm.response_depth`: Categorical string (surface/shallow/moderate/deep)
+  - `llm.specificity`, `llm.certainty`, `llm.valence`, `llm.engagement`: Float [0,1] (normalized from Likert 1-5)
+- **Dependency ordering**: Signals with dependencies receive accumulated signals via context wrapper; detection proceeds sequentially
 - **Two detection modes**:
   - **Global signals**: Single value per interview (graph.*, llm.*, temporal.*, meta.*)
   - **Node-level signals**: Per-node values (graph.node.*, technique.node.*, meta.node.*)
@@ -665,8 +679,9 @@ graph LR
 From `src/core/config.py`:
 ```python
 enable_canonical_slots: bool = True  # Feature flag
-canonical_similarity_threshold: float = 0.83  # Cosine similarity for merging
-canonical_min_support_nodes: int = 1  # Support needed for promotion
+surface_similarity_threshold: float = 0.80  # Cosine similarity for surface dedup
+canonical_similarity_threshold: float = 0.60  # Lower threshold for canonical slot merging
+canonical_min_support_nodes: int = 2  # Support needed for promotion
 ```
 
 ### Services
@@ -683,7 +698,7 @@ canonical_min_support_nodes: int = 1  # Support needed for promotion
 
 ```mermaid
 graph LR
-    A[StateComputationStage] -->|compute_state| B[GraphService.get_state]
+    A[StateComputationStage] -->|compute_state| B[GraphService.get_graph_state]
     A -->|compute_canonical_state| C{canonical_graph_service?}
 
     C -->|Yes| D[CanonicalGraphService.compute_canonical_state]
@@ -713,7 +728,7 @@ graph LR
 
 ---
 
-## Path 12: Surface Semantic Deduplication (Phase 3 Optimization)
+## Path 12: Surface Semantic Deduplication
 
 **Why Critical**: Surface semantic deduplication merges near-duplicate surface nodes before they reach canonical slot discovery, reducing graph clutter and improving NodeStateTracker accuracy.
 
@@ -759,7 +774,7 @@ canonical_similarity_threshold: float = 0.60  # Lower threshold for canonical sl
 
 ---
 
-## Path 13: Cross-Turn Edge Resolution (Phase 4 Optimization)
+## Path 13: Cross-Turn Edge Resolution
 
 **Why Critical**: Cross-turn edge resolution allows edges to reference nodes from previous turns, dramatically improving graph connectivity.
 
@@ -815,7 +830,7 @@ for node in all_session_nodes:
 
 ---
 
-## Path 14: Methodology-Aware Concept Naming (Phase 2 Optimization)
+## Path 14: Methodology-Aware Concept Naming
 
 **Why Critical**: Methodology-specific naming conventions guide the LLM to produce more consistent, analysis-ready concept labels.
 
@@ -865,7 +880,7 @@ class OntologySpec(BaseModel):
 
 ---
 
-## Path 15: SRL Preprocessing (Phase 1 Infrastructure)
+## Path 15: SRL Preprocessing
 
 **Why Critical**: Semantic Role Labeling (SRL) provides structural hints that improve relationship extraction quality.
 
@@ -902,22 +917,22 @@ enable_srl: bool = True  # Feature flag for SRL preprocessing
 
 ## Optimization Results Summary
 
-The 4-phase optimization (2025-02-16) produced dramatic improvements:
+Optimizations to surface and canonical graph processing produced dramatic improvements in graph quality and connectivity:
 
-| Metric | Baseline | After 4 Phases | Change |
-|--------|----------|----------------|--------|
+| Metric | Before Optimizations | After Optimizations | Change |
+|--------|---------------------|-------------------|--------|
 | Surface Nodes | 93 | 73 | **-21.5%** |
 | Surface Edges | 50 | 86 | **+72%** |
 | Canonical Slots | 19 | 56 | +194% |
 | Unmapped | 46 (49%) | 1 (1.4%) | **-97%** |
 | Edge/Node | 0.54 | 1.18 | **+118%** |
 
-### Key Wins
+### Key Improvements
 
-1. **Surface Semantic Dedup (Phase 3)**: Reduced over-extraction by merging near-duplicates
-2. **Cross-Turn Edge Resolution (Phase 4)**: Biggest impact — edges now resolve across turns
-3. **Methodology-Aware Naming (Phase 2)**: Better labels → better slot mapping
-4. **SRL Infrastructure (Phase 1)**: Foundation for relationship extraction improvements
+1. **Surface Semantic Dedup**: Reduced over-extraction by merging near-duplicates
+2. **Cross-Turn Edge Resolution**: Biggest impact — edges now resolve across turns
+3. **Methodology-Aware Naming**: Better labels → better slot mapping
+4. **SRL Infrastructure**: Foundation for relationship extraction improvements
 
 ---
 
@@ -925,66 +940,20 @@ The 4-phase optimization (2025-02-16) produced dramatic improvements:
 
 | Path | Primary Stages | Secondary Stages | Database Tables |
 |------|---------------|------------------|-----------------|
-| Turn Count Evolution | 1, 5, 6, 7, 10 | 2, 3, 4, 8, 9 | sessions |
-| Joint Strategy-Node Selection | 4, 6 | 1, 5, 10 | nodes |
-| Graph State Mutation | 3, 4, 5 | 6, 7 | nodes, edges |
-| Node State Tracking (Exhaustion) | 3, 4, 6 | - | - |
+| Turn Count Evolution | 1, 2.5, 5, 6, 7, 10 | 3, 4, 8, 9 | sessions |
+| Joint Strategy-Node Selection | 6 | 1, 5, 10 | nodes |
+| Graph State Mutation | 4, 5 | 6, 7 | nodes, edges |
+| Node State Tracking (Exhaustion) | 4, 6 | 9 | - |
 | Node Tracker Persistence | SessionService | 6, 10 | sessions |
-| Strategy History (Diversity) | 1, 6, 10 | - | sessions |
-| Traceability Chain | 2, 3, 4 | 5, 6 | utterances, nodes, edges |
+| Strategy History (Diversity) | 1, 6, 10 | - | sessions, scoring_history |
+| Traceability Chain | 2, 3, 4 | 1, 5, 6 | utterances, nodes, edges |
 | Signal Detection | 6 | - | - |
 | Canonical Slot Discovery | 4.5 | 5 | canonical_slots, surface_to_slot_mapping, canonical_edges |
 | Dual-Graph State Computation | 5 | 6, 10 | nodes, canonical_slots |
-| **Surface Semantic Dedup** | **4** | **-** | **kg_nodes** |
-| **Cross-Turn Edge Resolution** | **1, 3, 4** | **-** | **kg_nodes, kg_edges** |
-| **Methodology Naming** | **3** | **-** | **methodology YAML** |
-
-**Dual-Graph Architecture**: StateComputationStage now returns both graph states.
-
-```mermaid
-graph LR
-    A[StateComputationStage] -->|compute_state| B[GraphService.get_state]
-    A -->|compute_canonical_state| C{canonical_graph_service?}
-
-    C -->|Yes| D[CanonicalGraphService.compute_canonical_state]
-    C -->|No| E[canonical_graph_state = None]
-
-    B -->|Refresh metrics| F[GraphState]
-    D -->|Aggregate metrics| G[CanonicalGraphState]
-
-    F -->|node_count, edge_count, max_depth| H[StateComputationOutput]
-    G -->|concept_count, edge_count, avg_support| H
-
-    H -->|Return both states| I[context.state_computation_output]
-    I -->|Access properties| J[context.graph_state]
-    I -->|Access properties| K[context.canonical_graph_state]
-
-    J -->|Used by| L[StrategySelectionStage]
-    K -->|Used by| M[TurnResult.canonical_graph]
-```
-
-### Key Points
-
-- **Parallel computation**: Both graphs computed in same stage
-- **Conditional canonical**: If `enable_canonical_slots=False`, canonical_graph_state=None
-- **Service dependency**: CanonicalGraphService injected only when flag enabled
-- **StateComputationOutput**: Now includes optional canonical_graph_state field
-- **Observability**: TurnResult includes canonical_graph and graph_comparison fields
-
-## Cross-References
-
-| Path | Primary Stages | Secondary Stages | Database Tables |
-|------|---------------|------------------|-----------------|
-| Turn Count Evolution | 1, 5, 6, 7, 10 | 2, 3, 4, 8, 9 | sessions |
-| Joint Strategy-Node Selection | 4, 6 | 1, 5, 10 | nodes |
-| Graph State Mutation | 3, 4, 5 | 6, 7 | nodes, edges |
-| Node State Tracking (Exhaustion) | 3, 4, 6 | - | - |
-| Node Tracker Persistence | SessionService | 6, 10 | sessions |
-| Strategy History (Diversity) | 1, 6, 10 | - | sessions |
-| Traceability Chain | 2, 3, 4 | 5, 6 | utterances, nodes, edges |
-| Signal Detection | 6 | - | - |
-| Canonical Slot Discovery | 4.5 | 5 | canonical_slots, surface_to_slot_mapping, canonical_edges |
-| Dual-Graph State Computation | 5 | 6, 10 | nodes, canonical_slots |
+| Surface Semantic Dedup | 4 | - | kg_nodes |
+| Cross-Turn Edge Resolution | 1, 3, 4 | - | kg_nodes, kg_edges |
+| Methodology-Aware Naming | 3 | - | methodology YAML |
+| SRL Preprocessing | 2.5 | 3 | - |
 
 ## Usage for Development
 

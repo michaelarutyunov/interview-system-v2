@@ -92,7 +92,16 @@ This traceability chain enables debugging and analysis:
 
 ## Pipeline Context Schema
 
-The `PipelineContext` class (defined in `src/services/turn_pipeline/context.py`) contains all state that flows through the pipeline:
+The `PipelineContext` class (defined in `src/services/turn_pipeline/context.py`) contains all state that flows through the pipeline using a **contract-based architecture** (ADR-010 Phase 2).
+
+### Architecture Pattern
+
+Instead of direct fields, `PipelineContext` stores:
+1. **Stage output contracts** - Optional Pydantic models from each stage
+2. **Convenience properties** - Read from contract outputs for easy access
+3. **Service references** - Injected dependencies (node_tracker, etc.)
+
+### Schema Structure
 
 ```python
 @dataclass
@@ -101,54 +110,81 @@ class PipelineContext:
     session_id: str
     user_input: str
 
-    # Session metadata (loaded in ContextLoadingStage)
-    methodology: str
-    concept_id: str
-    concept_name: str
-    turn_number: int
-    mode: str
-    max_turns: int
-    recent_utterances: List[Dict[str, str]]
-    strategy_history: deque[str]  # Auto-trimmed to 30 items
+    # Service references
+    node_tracker: Optional["NodeStateTracker"] = None
 
-    # Graph state (loaded in ContextLoadingStage, updated in StateComputationStage)
-    graph_state: Optional[GraphState]
-    recent_nodes: List[KGNode]
+    # Stage output contracts (accumulated by each stage)
+    # The single source of truth for pipeline state
 
-    # Node state tracking (persisted across turns via SessionService)
-    # Phase 9 (2026-02-03): Now persisted to sessions.node_tracker_state
-    node_tracker: NodeStateTracker
+    # Stage 1: ContextLoadingStage
+    context_loading_output: Optional[ContextLoadingOutput] = None
 
-    # Extraction results (computed in ExtractionStage)
-    extraction: Optional[ExtractionResult]
+    # Stage 2: UtteranceSavingStage
+    utterance_saving_output: Optional[UtteranceSavingOutput] = None
 
-    # Utterances (saved in UtteranceSavingStage, ResponseSavingStage)
-    user_utterance: Optional[Utterance]
-    system_utterance: Optional[Utterance]
+    # Stage 2.5: SRLPreprocessingStage (optional)
+    srl_preprocessing_output: Optional[SrlPreprocessingOutput] = None
 
-    # Graph updates (computed in GraphUpdateStage)
-    nodes_added: List[KGNode]
-    edges_added: List[Dict[str, Any]]
+    # Stage 3: ExtractionStage
+    extraction_output: Optional[ExtractionOutput] = None
 
-    # Strategy selection (computed in StrategySelectionStage)
-    strategy: str
-    focus: Optional[Dict[str, Any]]  # Contains focus_node_id when strategy selects a node
-    signals: Optional[Dict[str, Any]]  # Phase 4: Methodology signals (namespaced)
-    strategy_alternatives: List[tuple[str, float]]  # Phase 4: Scored alternatives
+    # Stage 4: GraphUpdateStage
+    graph_update_output: Optional[GraphUpdateOutput] = None
 
-    # Continuation decision (computed in ContinuationStage)
-    should_continue: bool
-    focus_concept: str
+    # Stage 4.5: SlotDiscoveryStage (optional)
+    slot_discovery_output: Optional[SlotDiscoveryOutput] = None
 
-    # Generated question (computed in QuestionGenerationStage)
-    next_question: str
+    # Stage 5: StateComputationStage
+    state_computation_output: Optional[StateComputationOutput] = None
 
-    # Scoring data (computed in ScoringPersistenceStage)
-    scoring: Dict[str, Any]
+    # Stage 6: StrategySelectionStage
+    strategy_selection_output: Optional[StrategySelectionOutput] = None
 
-    # Performance tracking
-    stage_timings: Dict[str, float]
+    # Stage 7: ContinuationStage
+    continuation_output: Optional[ContinuationOutput] = None
+
+    # Stage 8: QuestionGenerationStage
+    question_generation_output: Optional[QuestionGenerationOutput] = None
+
+    # Stage 9: ResponseSavingStage
+    response_saving_output: Optional[ResponseSavingOutput] = None
+
+    # Stage 10: ScoringPersistenceStage
+    scoring_persistence_output: Optional[ScoringPersistenceOutput] = None
 ```
+
+### Convenience Properties
+
+Each commonly-accessed field is exposed via a `@property` that derives from the appropriate contract:
+
+```python
+# Examples (not exhaustive):
+@property
+def methodology(self) -> str:
+    """From context_loading_output.methodology"""
+    return self.context_loading_output.methodology
+
+@property
+def turn_number(self) -> int:
+    """From context_loading_output.turn_number"""
+    return self.context_loading_output.turn_number
+
+@property
+def graph_state(self) -> GraphState:
+    """From state_computation_output.graph_state"""
+    return self.state_computation_output.graph_state
+
+@property
+def strategy_history(self) -> List[str]:
+    """From context_loading_output.strategy_history"""
+    return self.context_loading_output.strategy_history
+```
+
+This pattern ensures:
+- **Single source of truth**: Stage contracts contain the data
+- **Type safety**: Pydantic models validate all data
+- **Traceability**: Each field can be traced to its producing stage
+- **Testability**: Contracts can be inspected and tested independently
 
 Each stage **reads** from the context and **writes** new information. This pattern ensures:
 - Clear data flow contracts between stages
@@ -162,20 +198,20 @@ Each stage **reads** from the context and **writes** new information. This patte
 
 Each stage validates that its required predecessor stages have completed successfully by checking for the presence of their contract outputs. This ensures pipeline execution order is maintained and prevents silent failures.
 
-| Stage | Depends On | Validation Check |
-|-------|-----------|------------------|
-| **Stage 1: ContextLoadingStage** | None (first stage) | N/A |
-| **Stage 2: UtteranceSavingStage** | Stage 1: `context_loading_output` | Validates context is loaded |
-| **Stage 2.5: SRLPreprocessingStage** | Stage 2: `utterance_saving_output` | Validates utterance is saved |
-| **Stage 3: ExtractionStage** | Stage 2: `utterance_saving_output` | Validates utterance is saved (optional SRL hints from Stage 2.5) |
-| **Stage 4: GraphUpdateStage** | Stage 2: `utterance_saving_output`, Stage 3: `extraction_output` | Validates both utterance saved and extraction completed |
-| **Stage 4.5: SlotDiscoveryStage** | Stage 4: `graph_update_output` | Validates graph was updated |
-| **Stage 5: StateComputationStage** | Stage 4: `graph_update_output` | Validates graph was updated |
-| **Stage 6: StrategySelectionStage** | Stage 5: `state_computation_output` | Validates state computation completed |
-| **Stage 7: ContinuationStage** | Stage 6: `strategy_selection_output` | Validates strategy was selected |
-| **Stage 8: QuestionGenerationStage** | Stage 6: `strategy_selection_output`, Stage 7: `continuation_output` | Validates both strategy selected and continuation determined |
-| **Stage 9: ResponseSavingStage** | Stage 8: `question_generation_output` | Validates question was generated |
-| **Stage 10: ScoringPersistenceStage** | Stage 6: `strategy_selection_output` | Validates strategy was selected |
+| Stage | Depends On | Validates | Notes |
+|-------|-----------|-----------|-------|
+| **Stage 1: ContextLoadingStage** | None (first stage) | N/A | First stage in pipeline |
+| **Stage 2: UtteranceSavingStage** | Stage 1: `context_loading_output` | No | Assumes context loaded |
+| **Stage 2.5: SRLPreprocessingStage** | Stage 2: `utterance_saving_output` | Yes | Validates utterance saved |
+| **Stage 3: ExtractionStage** | Stage 2: `utterance_saving_output` | Yes | Validates utterance saved |
+| **Stage 4: GraphUpdateStage** | Stage 2: `utterance_saving_output`, Stage 3: `extraction_output` | Yes | Validates both utterance saved and extraction completed |
+| **Stage 4.5: SlotDiscoveryStage** | Stage 4: `graph_update_output` | Yes | Validates graph was updated |
+| **Stage 5: StateComputationStage** | Stage 4: `graph_update_output` | No | Assumes graph updated |
+| **Stage 6: StrategySelectionStage** | Stage 5: `state_computation_output` | Yes | Validates graph_state set |
+| **Stage 7: ContinuationStage** | Stage 6: `strategy_selection_output` | Yes | Validates strategy selected |
+| **Stage 8: QuestionGenerationStage** | Stage 6: `strategy_selection_output`, Stage 7: `continuation_output` | Yes | Validates both strategy selected and continuation determined |
+| **Stage 9: ResponseSavingStage** | Stage 8: `question_generation_output` | No | Assumes question generated |
+| **Stage 10: ScoringPersistenceStage** | Stage 6: `strategy_selection_output` | No | Assumes strategy selected |
 
 ### Implementation Pattern
 
@@ -211,7 +247,7 @@ async def process(self, context: "PipelineContext") -> "PipelineContext":
 
 | Aspect | Details |
 |--------|---------|
-| **Purpose** | Load session metadata, conversation history, and current graph state from database |
+| **Purpose** | Load session metadata and conversation history from database |
 | **Dependencies** | None (first stage) |
 | **Immutable Inputs** | `session_id`, `user_input` |
 | **Reads** | Database (Session, Utterance, GraphRepository) |
@@ -228,13 +264,11 @@ turn_number: int          # Current turn number
 mode: str                 # Interview mode
 max_turns: int            # Maximum turns
 recent_utterances: List[Dict[str, str]]  # Conversation history
-strategy_history: deque[str]  # Recent strategies for diversity tracking
-graph_state: GraphState    # Knowledge graph state
-recent_nodes: List[KGNode] # Recent nodes
+strategy_history: List[str]  # History of strategies used (not deque)
 recent_node_labels: List[str]  # Labels of existing nodes for cross-turn edge bridging
 ```
 
-**Note**: `graph_state` is refreshed by `StateComputationStage` (Stage 5), not this stage.
+**Note**: `graph_state` and `recent_nodes` are NOT loaded here - they come from `StateComputationStage` (Stage 5) after graph updates.
 
 **Cross-Turn Edge Resolution (Phase 4)**:
 - Loads all session nodes via `get_nodes_by_session()`
@@ -447,9 +481,11 @@ timestamp: datetime           # When slot discovery was performed (auto-set)
 graph_state: GraphState       # Refreshed knowledge graph state
 recent_nodes: List[KGNode]    # Refreshed recent nodes
 computed_at: datetime         # When state was computed (freshness tracking)
+saturation_metrics: Optional[SaturationMetrics]  # Saturation indicators (yield, quality signals)
+canonical_graph_state: Optional[CanonicalGraphState]  # Canonical graph state (deduplicated concepts)
 ```
 
-**Note**: `graph_state` is refreshed by querying the database for current metrics, ensuring each stage works with up-to-date information.
+**Note**: `graph_state` is refreshed by querying the database for current metrics. `saturation_metrics` are computed from graph yield and quality signals for ContinuationStage. `canonical_graph_state` provides dual-graph architecture metrics.
 
 ---
 
@@ -603,17 +639,21 @@ class TurnResult:
     extracted: dict                    # concepts, relationships
     graph_state: dict                  # node_count, edge_count, depth_achieved
     scoring: dict                      # strategy_id, score, reasoning
-    strategy_selected: Optional[str]   # Selected strategy name
-    next_question: str                  # Generated question
+    strategy_selected: str             # Selected strategy name
+    next_question: str                 # Generated question
     should_continue: bool              # Whether interview continues
     latency_ms: int = 0                # Pipeline execution time
 
-    # Observability (Phase 6)
+    # Observability
     signals: Optional[Dict[str, Any]] = None           # Raw methodology signals
     strategy_alternatives: Optional[List[Dict[str, Any]]] = None # All scored alternatives
 
     # Termination (optional)
     termination_reason: Optional[str] = None  # Reason for termination
+
+    # Dual-graph output (optional)
+    canonical_graph: Optional[Dict[str, Any]] = None  # {slots, edges, metrics}
+    graph_comparison: Optional[Dict[str, Any]] = None  # {node_reduction_pct, edge_aggregation_ratio}
 ```
 
 ### Field Details
@@ -628,6 +668,11 @@ class TurnResult:
 | `next_question` | QuestionGenerationOutput | Generated follow-up question |
 | `should_continue` | ContinuationOutput | Whether to continue interview |
 | `latency_ms` | Pipeline | Total execution time in milliseconds |
+| `signals` | StrategySelectionOutput | Raw methodology signals from signal pools |
+| `strategy_alternatives` | StrategySelectionOutput | All scored strategy alternatives |
+| `termination_reason` | ContinuationOutput | Reason for termination when should_continue=False |
+| `canonical_graph` | StateComputationOutput | Canonical/deduplicated graph {slots, edges, metrics} |
+| `graph_comparison` | Pipeline | Surface vs canonical comparison {node_reduction_pct, edge_aggregation_ratio} |
 
 ### Termination Reasons
 
@@ -635,10 +680,13 @@ The `termination_reason` field is populated when `should_continue=False`:
 
 | Reason | Description | Detection |
 |--------|-------------|-----------|
-| `max_turns_reached` | Interview reached configured `max_turns` limit | `turn_number >= max_turns` |
-| `depth_plateau` | Graph max_depth hasn't increased in 6 consecutive turns | Tracked in `StateComputationStage` |
-| `quality_degraded` | 6+ consecutive shallow responses detected (saturation) | Tracked in node_tracker; "moderate" or "deep" responses reset the counter |
-| `close_strategy` | Closing strategy was selected | `strategy == "close"` |
+| `Maximum turns reached` | Interview reached configured `max_turns` limit | `turn_number >= max_turns` |
+| `Closing strategy selected` | Closing strategy was explicitly selected | `strategy == "close"` |
+| `graph_saturated` | 6+ consecutive turns with zero yield (no new nodes/edges) | `saturation.consecutive_low_info >= 6` |
+| `quality_degraded` | 6+ consecutive shallow responses detected | `saturation.consecutive_shallow >= 6` |
+| `depth_plateau` | Graph max_depth hasn't increased in 6 consecutive turns | `saturation.consecutive_depth_plateau >= 6` |
+| `all_nodes_exhausted` | All explored nodes have no more content to yield | All nodes have `turns_since_last_yield >= 3` |
+| `saturated` | Generic saturation (fallback when is_saturated=True but no specific condition met) | `saturation.is_saturated == True` |
 
 ---
 
