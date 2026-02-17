@@ -31,7 +31,7 @@ git status  # MUST show "up to date"
 | `docs/SYSTEM_DESIGN.md` | System architecture |
 | `docs/data_flow_paths.md` | 15 critical data flow diagrams |
 | `docs/pipeline_contracts.md` | Stage input/output contracts |
-| `docs/canonical_extraction.md` | Dual-graph deduplication |
+| `docs/extraction_and_graphs.md` | Extraction and Graphs configuration |
 | `docs/signals_and_strategies.md` | Signal Pools configuration |
 
 ---
@@ -83,14 +83,56 @@ src/
 
 ## Signal Pools
 
-| Pool | Namespace | Signals |
-|------|-----------|---------|
-| Graph | `graph.*` | max_depth, chain_completion, node_count, orphan_count |
-| LLM | `llm.*` | response_depth, specificity, certainty, valence, engagement |
-| Temporal | `temporal.*` | strategy_repetition_count, turns_since_strategy_change |
-| Meta | `meta.*` | interview_progress, interview.phase, node.opportunity |
-| Node | `graph.node.*` | exhaustion_score, focus_streak, is_orphan |
-| Technique | `technique.node.*` | strategy_repetition |
+**Location**: `src/signals/`
+
+### `graph/` — Knowledge graph structure and node-level signals
+
+**Graph-level (`graph.*`):**
+- `max_depth` - Longest causal chain depth (normalized 0-1)
+- `avg_depth` - Average depth across all chains
+- `depth_by_element` - Depth of each specific element/node
+- `node_count` - Total number of concepts extracted
+- `edge_count` - Total number of relationships
+- `orphan_count` - Isolated concepts with no connections
+- `chain_completion` - Produces `chain_completion.ratio` and `chain_completion.has_complete`
+- `canonical_concept_count` - Number of deduplicated canonical concepts
+- `canonical_edge_density` - Edge-to-concept ratio in canonical graph
+- `canonical_exhaustion_score` - Average exhaustion across canonical slots
+
+**Node-level (`graph.node.*`):**
+- `exhausted` - Binary exhaustion flag
+- `exhaustion_score` - Continuous exhaustion (0-1)
+- `yield_stagnation` - No yield for 3+ consecutive turns
+- `focus_streak` - Current focus streak: none/low/medium/high
+- `is_current_focus` - Whether this node is the active focus
+- `recency_score` - Time-decay score (0-1, higher = more recent)
+- `is_orphan` - Node has no connections
+- `edge_count` - Total edges (incoming + outgoing)
+- `has_outgoing` - Node has outgoing relationships
+
+### `llm/` — Response quality analysis via Kimi K2.5
+
+**Signals (`llm.*`):**
+- `response_depth` - Elaboration quantity (1-5 scale)
+- `specificity` - Concreteness of language (1-5 scale)
+- `certainty` - Epistemic confidence (1-5 scale)
+- `valence` - Emotional tone (1-5 scale)
+- `engagement` - Willingness to engage (1-5 scale)
+
+### `meta/` — Composite signals (depend on multiple sources)
+
+**Signals (`meta.*`):**
+- `interview_progress` - Overall interview completion (0-1)
+- `interview.phase` - Current phase: early/mid/late (+ phase_reason, is_late_stage)
+- `node.opportunity` - Node category: exhausted/probe_deeper/fresh
+
+### `session/` — Conversation history and strategy patterns
+
+**Signals (mixed namespaces):**
+- `llm.global_response_trend` - Session trend: deepening/stable/shallowing/fatigued
+- `temporal.strategy_repetition_count` - Times current strategy used in last 5 turns (normalized 0-1)
+- `temporal.turns_since_strategy_change` - Consecutive turns using current strategy (normalized 0-1)
+- `technique.node.strategy_repetition` - Consecutive same strategy on node: none/low/medium/high
 
 **Scoring**: `final_score = (base_score × phase_multiplier) + phase_bonus`
 
