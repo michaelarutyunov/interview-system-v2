@@ -135,6 +135,12 @@ Queries specific to this codebase's domain.
 | `update graph without creating provenance record` | Find missing provenance |
 | `strategy scoring without phase weights` | Find missing phase weight application |
 | `utterance processing without source tracking` | Find traceability violations |
+| `canonical slot mapping without provenance record` | Find missing provenance in deduplication |
+| `SRL frame extraction without discourse relation handling` | Find incomplete SRL processing |
+| `node exhaustion check without NodeStateTracker` | Find direct exhaustion checks bypassing tracker |
+| `strategy configuration without phase_weights` | Find incomplete methodology YAMLs |
+| `surface node update without canonical sync` | Find surface/canonical graph sync issues |
+| `extraction without cross-turn resolution` | Find missing cross-turn edge resolution |
 
 ---
 
