@@ -191,6 +191,14 @@ class GraphService:
                 existing_id=existing.id,
                 method="exact",
             )
+            log.debug(
+                "node_dedup_result",
+                new_label=concept.text,
+                matched_label=existing.label,
+                similarity_score=None,
+                threshold=None,
+                outcome="exact_match",
+            )
             return await self.repo.add_source_utterance(existing.id, utterance_id)
 
         # Step 2: Semantic similarity match (if embedding_service available)
@@ -217,6 +225,14 @@ class GraphService:
                     similarity=round(similarity, 3),
                     method="semantic",
                 )
+                log.debug(
+                    "node_dedup_result",
+                    new_label=concept.text,
+                    matched_label=best_node.label,
+                    similarity_score=round(similarity, 4),
+                    threshold=settings.surface_similarity_threshold,
+                    outcome="semantic_merge",
+                )
                 return await self.repo.add_source_utterance(best_node.id, utterance_id)
 
         # Step 3: Create new node (with embedding if computed)
@@ -224,6 +240,14 @@ class GraphService:
         if concept.linked_elements:
             node_properties["linked_elements"] = concept.linked_elements
 
+        log.debug(
+            "node_dedup_result",
+            new_label=concept.text,
+            matched_label=None,
+            similarity_score=None,
+            threshold=settings.surface_similarity_threshold if self.embedding_service is not None else None,
+            outcome="new_node",
+        )
         return await self.repo.create_node(
             session_id=session_id,
             label=concept.text,
@@ -257,6 +281,28 @@ class GraphService:
         # Find source and target nodes
         source_node = label_to_node.get(relationship.source_text.lower())
         target_node = label_to_node.get(relationship.target_text.lower())
+
+        # Detect cross-turn resolution: node is cross-turn if current utterance_id
+        # is not in its source_utterance_ids (i.e. it was created in a prior turn)
+        source_is_cross_turn = (
+            source_node is not None
+            and utterance_id not in source_node.source_utterance_ids
+        )
+        target_is_cross_turn = (
+            target_node is not None
+            and utterance_id not in target_node.source_utterance_ids
+        )
+        is_cross_turn = source_is_cross_turn or target_is_cross_turn
+
+        log.debug(
+            "edge_resolution",
+            source_label=relationship.source_text,
+            target_label=relationship.target_text,
+            source_found=source_node is not None,
+            target_found=target_node is not None,
+            is_cross_turn=is_cross_turn,
+            outcome="created" if (source_node and target_node) else "failed",
+        )
 
         if not source_node or not target_node:
             log.warning(

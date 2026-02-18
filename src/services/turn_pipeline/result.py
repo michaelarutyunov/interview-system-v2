@@ -5,7 +5,7 @@ Returned by the pipeline after all stages complete, containing extraction
 results, graph state, scoring data, and the generated response.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List
 
 
@@ -35,3 +35,6 @@ class TurnResult:
     # Dual-graph output fields
     canonical_graph: Optional[Dict[str, Any]] = None  # {slots, edges, metrics}
     graph_comparison: Optional[Dict[str, Any]] = None  # {node_reduction_pct, edge_aggregation_ratio}
+    # Per-turn graph changes for simulation observability
+    nodes_added: List[Dict[str, Any]] = field(default_factory=list)  # [{"id": ..., "label": ...}]
+    edges_added: List[Dict[str, Any]] = field(default_factory=list)   # [{"source_node_id": ..., "target_node_id": ..., "edge_type": ...}]

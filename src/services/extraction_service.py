@@ -305,6 +305,13 @@ class ExtractionService:
         )
         user_prompt = get_extraction_user_prompt(text, context)
 
+        log.debug(
+            "extraction_llm_prompt",
+            context_length=len(context),
+            prompt_length=len(user_prompt),
+            has_context=bool(context),
+        )
+
         response = await self.llm.complete(
             prompt=user_prompt,
             system=system_prompt,

@@ -343,6 +343,17 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
                 if isinstance(score, int):
                     detected_signals[signal_name] = (score - 1) / 4
 
+            # Log raw score vs normalized for observability (cu72.1)
+            # Enables distinguishing 'LLM defaulting to 3' vs 'genuinely neutral'
+            rationale = raw_value.get("rationale") if isinstance(raw_value, dict) else None
+            log.debug(
+                "llm_signal_scored signal=%s raw_score=%s normalized=%s rationale=%s",
+                signal_name,
+                score,
+                detected_signals.get(signal_name),
+                rationale,
+            )
+
         log.info(f"LLM batch detection complete: {detected_signals}")
 
         return detected_signals

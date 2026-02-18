@@ -246,6 +246,13 @@ class TurnPipeline:
                     "edge_aggregation_ratio": round(edge_aggregation_ratio, 2),
                 }
 
+        # Build per-turn graph change lists for simulation observability
+        nodes_added = [
+            {"id": n.id, "label": n.label}
+            for n in context.nodes_added
+        ]
+        edges_added = list(context.edges_added)  # already List[Dict[str, Any]]
+
         return TurnResult(
             turn_number=turn_number,
             extracted=extracted,
@@ -264,4 +271,6 @@ class TurnPipeline:
             termination_reason=termination_reason,
             canonical_graph=canonical_graph,
             graph_comparison=graph_comparison,
+            nodes_added=nodes_added,
+            edges_added=edges_added,
         )

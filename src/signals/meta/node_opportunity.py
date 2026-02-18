@@ -11,10 +11,14 @@ which nodes deserve further attention and which should be deprioritized.
 
 from typing import TYPE_CHECKING, Dict, Optional
 
+import structlog
+
 from src.signals.graph.node_base import NodeSignalDetector
 
 if TYPE_CHECKING:
     pass
+
+log = structlog.get_logger(__name__)
 
 
 class NodeOpportunitySignal(NodeSignalDetector):
@@ -76,6 +80,21 @@ class NodeOpportunitySignal(NodeSignalDetector):
             opportunity = self._determine_opportunity(
                 is_exhausted, streak, state, response_depth
             )
+
+            # Detect and log state transitions
+            prev_opportunity = self._get_previous_opportunity(context, node_id)
+            if prev_opportunity is not None and prev_opportunity != opportunity:
+                log.info(
+                    "node_opportunity_transition",
+                    node_id=node_id,
+                    node_label=state.label,
+                    old_opportunity=prev_opportunity,
+                    new_opportunity=opportunity,
+                    focus_count=state.focus_count,
+                    turns_since_last_yield=state.turns_since_last_yield,
+                    current_focus_streak=state.current_focus_streak,
+                )
+
             results[node_id] = opportunity
 
         return results
@@ -156,6 +175,26 @@ class NodeOpportunitySignal(NodeSignalDetector):
 
         # Default: fresh opportunity
         return "fresh"
+
+    def _get_previous_opportunity(self, context, node_id: str) -> Optional[str]:
+        """Get the previous turn's opportunity value for a node from context signals.
+
+        Context signals come from the previous turn's strategy_selection_output,
+        so this reliably reflects the state before the current turn's computation.
+
+        Args:
+            context: Pipeline context (holds previous turn's strategy_selection_output)
+            node_id: Node identifier
+
+        Returns:
+            Previous opportunity string or None if unavailable
+        """
+        if not hasattr(context, "signals") or not context.signals:
+            return None
+        prev_opportunities = context.signals.get("meta.node.opportunity", {})
+        if not isinstance(prev_opportunities, dict):
+            return None
+        return prev_opportunities.get(node_id)
 
     def _get_response_depth(self, context) -> Optional[str]:
         """Get response depth from context signals.

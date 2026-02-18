@@ -1,6 +1,10 @@
 """Strategy history signals - repetition count, turns since change."""
 
+import structlog
+
 from src.signals.signal_base import SignalDetector
+
+log = structlog.get_logger(__name__)
 
 
 class StrategyRepetitionCountSignal(SignalDetector):
@@ -39,7 +43,17 @@ class StrategyRepetitionCountSignal(SignalDetector):
         repetition_count = sum(1 for s in recent_history if s == current)
 
         # Normalize to [0, 1] by dividing by window size
-        return {self.signal_name: repetition_count / window_size}
+        penalty_applied = repetition_count / window_size
+
+        log.debug(
+            "strategy_diversity_penalty",
+            strategy_name=current,
+            repetition_count=repetition_count,
+            penalty_applied=round(penalty_applied, 4),
+            recent_5_strategies=recent_history,
+        )
+
+        return {self.signal_name: penalty_applied}
 
 
 class TurnsSinceChangeSignal(SignalDetector):

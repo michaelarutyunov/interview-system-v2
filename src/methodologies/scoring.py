@@ -5,8 +5,11 @@ defined in methodology YAML configs. All signals are expected to be
 normalized at source to [0, 1] or bool.
 """
 
+import structlog
 from typing import List, Tuple, Dict, Any, Optional
 from src.methodologies.registry import StrategyConfig
+
+log = structlog.get_logger(__name__)
 
 
 def score_strategy(
@@ -181,6 +184,8 @@ def rank_strategy_node_pairs(
     Returns:
         List of (strategy_config, node_id, score) sorted descending by score
     """
+    current_phase = global_signals.get("meta.interview.phase", "unknown")
+
     scored_pairs: List[Tuple[StrategyConfig, str, float]] = []
 
     for strategy in strategies:
@@ -207,5 +212,29 @@ def rank_strategy_node_pairs(
 
             scored_pairs.append((strategy, node_id, final_score))
 
+            log.debug(
+                "strategy_node_pair_scored",
+                strategy=strategy.name,
+                node_id=node_id,
+                base_score=round(base_score, 4),
+                phase_multiplier=multiplier,
+                phase_bonus=bonus,
+                final_score=round(final_score, 4),
+                phase=current_phase,
+            )
+
     # Sort by score descending
-    return sorted(scored_pairs, key=lambda x: x[2], reverse=True)
+    ranked = sorted(scored_pairs, key=lambda x: x[2], reverse=True)
+
+    log.info(
+        "joint_scoring_top5",
+        phase=current_phase,
+        phase_weights=phase_weights,
+        phase_bonuses=phase_bonuses,
+        top5=[
+            {"strategy": s.name, "node_id": nid, "score": round(sc, 4)}
+            for s, nid, sc in ranked[:5]
+        ],
+    )
+
+    return ranked

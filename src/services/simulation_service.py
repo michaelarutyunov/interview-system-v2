@@ -59,6 +59,10 @@ class SimulationTurn:
     strategy_alternatives: Optional[List[Dict[str, Any]]] = None
     # Termination reason (populated when should_continue=False)
     termination_reason: Optional[str] = None
+    # Graph changes this turn for turn-by-turn evolution analysis (cu72.2)
+    nodes_added: Optional[List[Dict[str, Any]]] = None
+    edges_added: Optional[List[Dict[str, Any]]] = None
+    extraction_summary: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -225,6 +229,8 @@ class SimulationService:
                 signals=turn_result_session.signals,
                 strategy_alternatives=turn_result_session.strategy_alternatives,
                 termination_reason=turn_result_session.termination_reason,
+                context_nodes_added=turn_result_session.nodes_added,
+                context_edges_added=turn_result_session.edges_added,
             )
             turns.append(turn_result)
 
@@ -286,6 +292,8 @@ class SimulationService:
         signals: Optional[Dict[str, Any]] = None,
         strategy_alternatives: Optional[List[Dict[str, Any]]] = None,
         termination_reason: Optional[str] = None,
+        context_nodes_added: Optional[List[Any]] = None,
+        context_edges_added: Optional[List[Dict[str, Any]]] = None,
     ) -> SimulationTurn:
         """Simulate a single interview turn.
 
@@ -327,6 +335,28 @@ class SimulationService:
             use_deflection=None,  # Use default deflection chance
         )
 
+        # Serialize graph changes for turn-by-turn evolution analysis (cu72.2)
+        nodes_added_data = None
+        edges_added_data = None
+        extraction_summary_data = None
+        if context_nodes_added is not None or context_edges_added is not None:
+            nodes_added_data = [
+                {"id": n.id, "label": n.label, "node_type": n.node_type}
+                for n in (context_nodes_added or [])
+            ]
+            edges_added_data = [
+                {
+                    "source_node_id": e.get("source_node_id"),
+                    "target_node_id": e.get("target_node_id"),
+                    "edge_type": e.get("edge_type"),
+                }
+                for e in (context_edges_added or [])
+            ]
+            extraction_summary_data = {
+                "nodes_added": len(nodes_added_data),
+                "edges_added": len(edges_added_data),
+            }
+
         return SimulationTurn(
             turn_number=turn_number,
             question=question,
@@ -339,6 +369,9 @@ class SimulationService:
             signals=signals,
             strategy_alternatives=strategy_alternatives,
             termination_reason=termination_reason,
+            nodes_added=nodes_added_data,
+            edges_added=edges_added_data,
+            extraction_summary=extraction_summary_data,
         )
 
     async def _serialize_graph_data(
@@ -588,6 +621,10 @@ class SimulationService:
                     "signals": t.signals,
                     "strategy_alternatives": t.strategy_alternatives,
                     "termination_reason": t.termination_reason,
+                    # Graph evolution observability (cu72.2)
+                    "nodes_added": t.nodes_added,
+                    "edges_added": t.edges_added,
+                    "extraction_summary": t.extraction_summary,
                 }
                 for t in result.turns
             ],

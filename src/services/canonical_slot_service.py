@@ -347,6 +347,7 @@ class CanonicalSlotService:
             Matched existing CanonicalSlot or newly created slot (may be promoted)
         """
         # Lemmatize to normalize grammatical variants
+        original_proposed_name = proposed_name
         proposed_name = self._lemmatize_name(proposed_name)
 
         # Check for exact match first to prevent duplicates
@@ -365,6 +366,16 @@ class CanonicalSlotService:
                     similarity_score=1.0,  # Perfect match (exact name)
                     assigned_turn=turn_number,
                 )
+
+            log.debug(
+                "canonical_slot_discovery",
+                proposed_slot=original_proposed_name,
+                matched_slot=slot.slot_name,
+                similarity=1.0,
+                threshold=settings.canonical_similarity_threshold,
+                outcome="exact_match",
+                surface_node_count=len(surface_node_ids),
+            )
 
             log.info(
                 "slot_found_exact",
@@ -428,6 +439,16 @@ class CanonicalSlotService:
                     assigned_turn=turn_number,
                 )
 
+            log.debug(
+                "canonical_slot_discovery",
+                proposed_slot=original_proposed_name,
+                matched_slot=slot.slot_name,
+                similarity=round(best_similarity, 4),
+                threshold=settings.canonical_similarity_threshold,
+                outcome="merged",
+                surface_node_count=len(surface_node_ids),
+            )
+
             log.info(
                 "slot_merged",
                 slot_name=slot.slot_name,
@@ -454,6 +475,16 @@ class CanonicalSlotService:
                     similarity_score=1.0,  # Perfect match (slot created from these nodes)
                     assigned_turn=turn_number,
                 )
+
+            log.debug(
+                "canonical_slot_discovery",
+                proposed_slot=original_proposed_name,
+                matched_slot=None,
+                similarity=None,
+                threshold=settings.canonical_similarity_threshold,
+                outcome="new_candidate",
+                surface_node_count=len(surface_node_ids),
+            )
 
             log.info(
                 "slot_created",

@@ -168,6 +168,22 @@ class ExtractionStage(TurnStage):
         if node_labels:
             lines.append("")
             lines.append(node_labels)
+            log.info(
+                "cross_turn_node_context_injected",
+                session_id=context.session_id,
+                node_label_count=len(
+                    context.context_loading_output.recent_node_labels
+                    if context.context_loading_output
+                    else []
+                ),
+                context_length=len(node_labels),
+            )
+        else:
+            log.debug(
+                "cross_turn_node_context_skipped",
+                session_id=context.session_id,
+                reason="no_existing_nodes",
+            )
 
         return "\n".join(lines)
 
