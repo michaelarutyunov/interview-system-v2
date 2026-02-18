@@ -54,8 +54,8 @@ class ScoringPersistenceStage(TurnStage):
         saturation_score = 0.0
 
         if context.graph_state:
-            depth_score = getattr(context.graph_state, 'max_depth', 0.0)
-            saturation_score = 1.0 - getattr(context.graph_state, 'yield_score', 0.0)
+            depth_score = getattr(context.graph_state, "max_depth", 0.0)
+            saturation_score = 1.0 - getattr(context.graph_state, "yield_score", 0.0)
 
         # Save scoring data
         await self._save_scoring(
@@ -271,7 +271,9 @@ class ScoringPersistenceStage(TurnStage):
         current_surface = context.graph_state.node_count
         prev_surface = clo.prev_surface_node_count
         surface_delta = max(current_surface - prev_surface, 0)
-        new_surface_ewma = alpha * surface_delta + (1 - alpha) * clo.surface_velocity_ewma
+        new_surface_ewma = (
+            alpha * surface_delta + (1 - alpha) * clo.surface_velocity_ewma
+        )
         new_surface_peak = max(clo.surface_velocity_peak, float(surface_delta))
 
         # Canonical graph velocity computation (may be None if disabled)
@@ -280,8 +282,12 @@ class ScoringPersistenceStage(TurnStage):
             current_canonical = cg_state.concept_count
             prev_canonical = clo.prev_canonical_node_count
             canonical_delta = max(current_canonical - prev_canonical, 0)
-            new_canonical_ewma = alpha * canonical_delta + (1 - alpha) * clo.canonical_velocity_ewma
-            new_canonical_peak = max(clo.canonical_velocity_peak, float(canonical_delta))
+            new_canonical_ewma = (
+                alpha * canonical_delta + (1 - alpha) * clo.canonical_velocity_ewma
+            )
+            new_canonical_peak = max(
+                clo.canonical_velocity_peak, float(canonical_delta)
+            )
         else:
             # Canonical slots disabled — preserve zeros
             current_canonical = 0
@@ -290,7 +296,7 @@ class ScoringPersistenceStage(TurnStage):
 
         # Preserve fields that were previously lost
         last_strategy = context.strategy
-        mode = getattr(context, 'mode', 'exploratory')
+        mode = getattr(context, "mode", "exploratory")
 
         updated_state = SessionState(
             methodology=context.methodology,

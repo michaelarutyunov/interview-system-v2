@@ -38,7 +38,9 @@ class SlotDiscoveryStage(TurnStage):
     """
 
     def __init__(
-        self, slot_service: Optional["CanonicalSlotService"] = None, graph_service: Optional["GraphService"] = None
+        self,
+        slot_service: Optional["CanonicalSlotService"] = None,
+        graph_service: Optional["GraphService"] = None,
     ):
         """
         Initialize slot discovery stage.
@@ -143,7 +145,9 @@ class SlotDiscoveryStage(TurnStage):
 
         # Count slots_created vs slots_updated
         # Slots with first_seen_turn == current turn were created this turn
-        current_turn_slots = [s for s in discovered_slots if s.first_seen_turn == turn_number]
+        current_turn_slots = [
+            s for s in discovered_slots if s.first_seen_turn == turn_number
+        ]
         slots_created = len(current_turn_slots)
         slots_updated = len(discovered_slots) - slots_created
         mappings_created = len(surface_nodes)  # Each node maps to exactly one slot
@@ -163,10 +167,12 @@ class SlotDiscoveryStage(TurnStage):
         if self.graph_service is not None:
             edges_added = context.graph_update_output.edges_added
             if edges_added:
-                canonical_edges = await self.graph_service.aggregate_surface_edges_to_canonical(
-                    session_id=context.session_id,
-                    surface_edges=edges_added,
-                    turn_number=turn_number,
+                canonical_edges = (
+                    await self.graph_service.aggregate_surface_edges_to_canonical(
+                        session_id=context.session_id,
+                        surface_edges=edges_added,
+                        turn_number=turn_number,
+                    )
                 )
                 canonical_edges_created = len(canonical_edges)
 

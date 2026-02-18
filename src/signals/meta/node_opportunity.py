@@ -54,7 +54,10 @@ class NodeOpportunitySignal(NodeSignalDetector):
     dependencies = []
 
     async def detect(
-        self, context, graph_state, response_text: str  # noqa: ARG001, ARG002, ARG003
+        self,
+        context,
+        graph_state,
+        response_text: str,  # noqa: ARG001, ARG002, ARG003
     ) -> Dict[str, str]:
         """Detect node opportunity for all tracked nodes.
 
@@ -213,9 +216,7 @@ class NodeOpportunitySignal(NodeSignalDetector):
         # This is a simplified fallback - in production would use LLM
         return None
 
-    def _calculate_shallow_ratio(
-        self, state, recent_count: int = 3
-    ) -> float:
+    def _calculate_shallow_ratio(self, state, recent_count: int = 3) -> float:
         """Calculate ratio of shallow responses in recent N responses.
 
         Args:

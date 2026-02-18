@@ -49,12 +49,24 @@ class ContextLoadingOutput(BaseModel):
     )
 
     # Velocity state loaded from SessionState (used by saturation signals)
-    surface_velocity_ewma: float = Field(default=0.0, description="Loaded from SessionState")
-    surface_velocity_peak: float = Field(default=0.0, description="Loaded from SessionState")
-    prev_surface_node_count: int = Field(default=0, description="Loaded from SessionState")
-    canonical_velocity_ewma: float = Field(default=0.0, description="Loaded from SessionState")
-    canonical_velocity_peak: float = Field(default=0.0, description="Loaded from SessionState")
-    prev_canonical_node_count: int = Field(default=0, description="Loaded from SessionState")
+    surface_velocity_ewma: float = Field(
+        default=0.0, description="Loaded from SessionState"
+    )
+    surface_velocity_peak: float = Field(
+        default=0.0, description="Loaded from SessionState"
+    )
+    prev_surface_node_count: int = Field(
+        default=0, description="Loaded from SessionState"
+    )
+    canonical_velocity_ewma: float = Field(
+        default=0.0, description="Loaded from SessionState"
+    )
+    canonical_velocity_peak: float = Field(
+        default=0.0, description="Loaded from SessionState"
+    )
+    prev_canonical_node_count: int = Field(
+        default=0, description="Loaded from SessionState"
+    )
 
 
 class UtteranceSavingOutput(BaseModel):

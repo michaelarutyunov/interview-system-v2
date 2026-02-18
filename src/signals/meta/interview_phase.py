@@ -117,9 +117,7 @@ class InterviewPhaseSignal(SignalDetector):
             if config.phases:
                 for phase_config in config.phases.values():
                     if phase_config.phase_boundaries:
-                        return self._normalize_boundaries(
-                            phase_config.phase_boundaries
-                        )
+                        return self._normalize_boundaries(phase_config.phase_boundaries)
 
             # Config loaded successfully, but no phase boundaries defined
             # This is valid - use defaults
@@ -152,9 +150,7 @@ class InterviewPhaseSignal(SignalDetector):
         )
         mid = boundaries.get(
             "mid_max_turns",
-            boundaries.get(
-                "mid_max_nodes", self.DEFAULT_BOUNDARIES["mid_max_turns"]
-            ),
+            boundaries.get("mid_max_nodes", self.DEFAULT_BOUNDARIES["mid_max_turns"]),
         )
         return {"early_max_turns": early, "mid_max_turns": mid}
 

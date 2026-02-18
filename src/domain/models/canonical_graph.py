@@ -54,7 +54,9 @@ class CanonicalSlot(BaseModel):
 
     id: str
     session_id: str
-    slot_name: str = Field(description="LLM-generated canonical name (e.g., 'energy_stability')")
+    slot_name: str = Field(
+        description="LLM-generated canonical name (e.g., 'energy_stability')"
+    )
     description: str = Field(description="LLM-generated description of the concept")
     node_type: str = Field(
         description="Preserves methodology hierarchy - same types as KGNode.node_type"
@@ -69,7 +71,8 @@ class CanonicalSlot(BaseModel):
         description="Turn when slot was promoted to active (None if still candidate)",
     )
     embedding: Optional[bytes] = Field(
-        default=None, description="Serialized numpy embedding (float32, 300-dim for en_core_web_md)"
+        default=None,
+        description="Serialized numpy embedding (float32, 300-dim for en_core_web_md)",
     )
 
     model_config = {"from_attributes": True}
@@ -82,8 +85,12 @@ class SlotMapping(BaseModel):
     (KGNode instances) map to a single CanonicalSlot via similarity scoring.
     """
 
-    surface_node_id: str = Field(description="ID of the surface node (from kg_nodes table)")
-    canonical_slot_id: str = Field(description="ID of the canonical slot (from canonical_slots table)")
+    surface_node_id: str = Field(
+        description="ID of the surface node (from kg_nodes table)"
+    )
+    canonical_slot_id: str = Field(
+        description="ID of the canonical slot (from canonical_slots table)"
+    )
     similarity_score: float = Field(
         ge=0.0, le=1.0, description="Cosine similarity score (0.0-1.0)"
     )

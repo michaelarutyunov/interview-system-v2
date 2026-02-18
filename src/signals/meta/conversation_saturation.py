@@ -73,6 +73,8 @@ class ConversationSaturationSignal(SignalDetector):
         # Prevents early saturation signal on turn 1-2
         turn_floor = min(context.turn_number / 15.0, 1.0)
 
-        saturation = 0.60 * velocity_decay + 0.25 * edge_density_norm + 0.15 * turn_floor
+        saturation = (
+            0.60 * velocity_decay + 0.25 * edge_density_norm + 0.15 * turn_floor
+        )
 
         return {self.signal_name: round(saturation, 4)}

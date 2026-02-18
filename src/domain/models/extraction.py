@@ -48,9 +48,7 @@ class ExtractedConcept(BaseModel):
     source_quote: str = Field(
         default="", description="Verbatim text from user response"
     )
-    source_utterance_id: str = Field(
-        description="Source utterance ID for traceability"
-    )
+    source_utterance_id: str = Field(description="Source utterance ID for traceability")
     linked_elements: List[int] = Field(
         default_factory=list,
         description="Element IDs from concept config this concept relates to",
@@ -60,7 +58,7 @@ class ExtractedConcept(BaseModel):
         ge=-1,
         le=1,
         description="Deprecated: no longer extracted. llm.valence covers sentiment. "
-                    "Kept for backward compat. Values: -1 (negative), 0 (neutral), +1 (positive).",
+        "Kept for backward compat. Values: -1 (negative), 0 (neutral), +1 (positive).",
     )
     properties: Dict[str, Any] = Field(
         default_factory=dict,
@@ -99,9 +97,7 @@ class ExtractedRelationship(BaseModel):
         default=None,
         description="Why this edge was created (explicit vs implicit)",
     )
-    source_utterance_id: str = Field(
-        description="Source utterance ID for traceability"
-    )
+    source_utterance_id: str = Field(description="Source utterance ID for traceability")
 
 
 class ExtractionResult(BaseModel):

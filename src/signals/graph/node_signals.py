@@ -10,7 +10,7 @@ from src.signals.graph.node_base import NodeSignalDetector
 
 
 # =============================================================================
-# Exhaustion Signals (from node_exhaustion.py)
+# Exhaustion Signals
 # =============================================================================
 
 
@@ -232,7 +232,7 @@ class NodeYieldStagnationSignal(NodeSignalDetector):
 
 
 # =============================================================================
-# Engagement Signals (from node_engagement.py)
+# Engagement Signals
 # =============================================================================
 
 
@@ -402,7 +402,7 @@ class NodeRecencyScoreSignal(NodeSignalDetector):
 
 
 # =============================================================================
-# Relationship Signals (from node_relationships.py)
+# Relationship Signals
 # =============================================================================
 
 

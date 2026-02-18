@@ -450,6 +450,7 @@ src.services.turn_pipeline.stages.extraction_stage.log
 src.services.turn_pipeline.stages.extraction_stage.ExtractionStage
 src.services.turn_pipeline.stages.extraction_stage.ExtractionStage.__init__
 src.services.turn_pipeline.stages.extraction_stage.ExtractionStage._format_context_for_extraction
+src.services.turn_pipeline.stages.extraction_stage.ExtractionStage._format_node_labels
 src.services.turn_pipeline.stages.extraction_stage.ExtractionStage._format_srl_hints
 src.services.turn_pipeline.stages.utterance_saving_stage.log
 src.services.turn_pipeline.stages.utterance_saving_stage.UtteranceSavingStage
@@ -506,6 +507,7 @@ src.signals.llm.batch_detector.LLMBatchDetector._load_signal_rubrics
 src.signals.llm.batch_detector.LLMBatchDetector._load_output_example
 src.signals.llm.batch_detector.LLMBatchDetector._build_prompt
 src.signals.llm.batch_detector.LLMBatchDetector._output_format_instructions
+src.signals.llm.batch_detector.LLMBatchDetector._parse_json_response
 src.signals.llm.batch_detector.LLMBatchDetector._registered_classes
 src.signals.llm.__all__
 src.signals.llm.decorator.PROMPTS_DIR
@@ -701,7 +703,9 @@ src.domain.models.methodology_schema.MethodologySchema.is_terminal_node_type
 src.domain.models.methodology_schema.MethodologySchema.is_valid_connection
 src.domain.models.methodology_schema.MethodologySchema.get_node_descriptions
 src.domain.models.methodology_schema.MethodologySchema.get_edge_descriptions
+src.domain.models.methodology_schema.MethodologySchema.get_edge_descriptions_with_connections
 src.domain.models.methodology_schema.MethodologySchema.get_extraction_guidelines
+src.domain.models.methodology_schema.MethodologySchema.get_concept_naming_convention
 src.domain.models.methodology_schema.MethodologySchema.get_relationship_examples
 src.domain.models.methodology_schema.MethodologySchema.get_extractability_criteria
 src.domain.models.node_state.NodeState
@@ -712,6 +716,7 @@ src.persistence.repositories.graph_repo.GraphRepository.__init__
 src.persistence.repositories.graph_repo.GraphRepository._build_undirected_adjacency
 src.persistence.repositories.graph_repo.GraphRepository._find_longest_path
 src.persistence.repositories.graph_repo.GraphRepository._dfs_longest_path
+src.persistence.repositories.graph_repo.GraphRepository._cosine_similarity
 src.persistence.repositories.graph_repo.GraphRepository._row_to_node
 src.persistence.repositories.graph_repo.GraphRepository._row_to_edge
 src.persistence.repositories.__all__

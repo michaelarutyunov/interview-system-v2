@@ -59,7 +59,10 @@ class QuestionGenerationStage(TurnStage):
                 "ContinuationStage (Stage 7) to complete first."
             )
 
-        if context.should_continue or context.strategy_selection_output.generates_closing_question:
+        if (
+            context.should_continue
+            or context.strategy_selection_output.generates_closing_question
+        ):
             # Add current utterance to recent for context
             updated_utterances = context.recent_utterances + [
                 {"speaker": "user", "text": context.user_input}

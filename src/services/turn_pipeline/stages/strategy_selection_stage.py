@@ -128,8 +128,10 @@ class StrategySelectionStage(TurnStage):
         focus_dict = {"focus_node_id": focus_node_id} if focus_node_id else None
 
         # Look up generates_closing_question flag for the selected strategy
-        methodology_config = self.methodology_strategy.methodology_registry.get_methodology(
-            context.methodology
+        methodology_config = (
+            self.methodology_strategy.methodology_registry.get_methodology(
+                context.methodology
+            )
         )
         generates_closing_question = next(
             (
@@ -214,14 +216,14 @@ class StrategySelectionStage(TurnStage):
             "response_depth_append_check",
             has_signals=bool(signals),
             has_node_tracker=bool(context.node_tracker),
-            has_previous_focus=bool(context.node_tracker and context.node_tracker.previous_focus),
-            previous_focus=context.node_tracker.previous_focus if context.node_tracker else None,
+            has_previous_focus=bool(
+                context.node_tracker and context.node_tracker.previous_focus
+            ),
+            previous_focus=context.node_tracker.previous_focus
+            if context.node_tracker
+            else None,
         )
-        if (
-            signals
-            and context.node_tracker
-            and context.node_tracker.previous_focus
-        ):
+        if signals and context.node_tracker and context.node_tracker.previous_focus:
             response_depth = signals.get("llm.response_depth")
             if response_depth:
                 await context.node_tracker.append_response_signal(
