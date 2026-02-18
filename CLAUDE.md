@@ -9,10 +9,27 @@ Includes simulation service to generate sample interviews with YAML-paramterized
 
 ## Code Design Principles
 
-Any codebase change should follow these principles
-- no hardcoded keywords
-- no fallbacks, no placeholders, no defaults, no heuristics without explicit concent
-- no code outside of the scope of the task at hand
+Any codebase change should follow these principles:
+
+### Core Principles
+- **No hardcoded keywords** — All configurable values live in YAML, not code
+- **No implicit fallbacks** — No placeholders, defaults, or heuristics without explicit consent
+- **Scope discipline** — No code outside the scope of the task at hand
+- **Fail-fast for visibility** — Errors raise immediately rather than degrading silently
+
+### Architectural Principles
+- **Separation of mechanism and domain** — Core pipeline stays agnostic to specific methodologies, concepts, or personas; domain content lives in YAML modules, not embedded in code
+- **Type-safe contracts** — Pydantic BaseModel defines stage boundaries, not markdown docs
+- **Freshness guarantees** — State computed after extraction is validated as fresh before use
+- **Methodology-centric organization** — Each methodology self-contained with signals/strategies
+- **Direct signal→strategy scoring** — Simplicity preferred over multi-tier complexity
+- **Traceability** — Every data point links back to its source utterance
+
+### Data Principles
+- **Dual-graph architecture** — Surface preserves fidelity, canonical provides stable signals
+- **Feature flags for graceful skip** — Use `enable_*` flags, not try/except for optional features
+- **Lazy-loading for resources** — Expensive resources (spaCy) load on first use via property pattern
+- **Extended properties escape hatch** — New metrics added without breaking changes 
 
 ---
 
@@ -108,6 +125,9 @@ See `docs/data_flow_paths.md` for full diagrams. Key paths:
 ## Common Tasks
 
 ```bash
+# Start API server locally
+uv run uvicorn src.main:app --reload
+
 # Run simulation
 uv run python scripts/run_simulation.py coffee_jtbd_v2 skeptical_analyst 10
 
@@ -115,12 +135,44 @@ uv run python scripts/run_simulation.py coffee_jtbd_v2 skeptical_analyst 10
 uv run python scripts/analyze_similarity_distribution.py <session_id>
 
 # Run CodeGrapher architectural queries and generate report:
-# 1. Read queries from arch_queries.md (in backticks within tables)
-# 2. Run each query via MCP: mcp__codegrapher__codegraph_query with query="..."
-# 3. Aggregate results and sort by PageRank (descending)
-# 4. Generate markdown report with format: YYYYMMDD_HHMMSS_codegrapher_report.md
-# 5. Report sections: Summary table, Detailed findings by category, PageRank guide
-# Note: Prioritize issues with PageRank >= 0.10 (core components) for fixes
+1. Read queries from arch_queries.md (in backticks within tables)
+2. Check CodeGrapher index status via MCP: mcp__codegrapher__codegraph_status; refresh if stale (full mode)
+3. Run each query via MCP: mcp__codegrapher__codegraph_query with query="..."
+4. Aggregate results and sort by PageRank (descending)
+5. Generate markdown report with format: YYYYMMDD_HHMMSS_codegrapher_report.md
+6. Report sections: Summary table, Detailed findings by category, PageRank guide
+
+Note: Prioritize issues with PageRank >= 0.10 (core components) for fixes
+
+# Fix diagnostics with categorization
+/skill deep-code-quality  # Use before applying ruff/pyright fixes
+
+# Create a new node signal (per-node analysis from NodeStateTracker)
+1. Create detector class in `src/signals/graph/node_signals.py`:
+   - Inherit from `NodeSignalDetector` (not `SignalDetector`)
+   - Set `signal_name = "graph.node.your_signal"` (namespaced)
+   - Set `description` for YAML documentation
+   - Implement `async def detect(self, context, graph_state, response_text)`
+   - Return `dict[node_id, value]` for all tracked nodes
+   - Use `self._get_all_node_states()` to access NodeState data
+2. Add class to `__all__` export list in `src/signals/graph/__init__.py`
+3. (Optional) Add to methodology YAML under `signals:` section
+4. (Optional) Add signal_weights in strategy configs
+5. Run tests: `uv run pytest tests/signals/`
+
+# Create a new LLM signal (response quality analysis via Kimi K2.5)
+1. Add rubric to `src/signals/llm/prompts/signals.md`:
+   - Format: `your_signal: How would you phrase the question?`
+   - Define 1-5 scale with clear anchors
+2. Create detector class in `src/signals/llm/signals/your_signal.py`:
+   - Use `@llm_signal()` decorator with metadata
+   - Set `rubric_key` matching signals.md key
+   - Class body: `pass` (decorator handles everything)
+3. Add import to `src/signals/llm/signals/__init__.py`
+4. Add class to `__all__` export list in `src/signals/llm/signals/__init__.py`
+5. Add to methodology YAML under `signals: llm:` section
+6. Add signal_weights in strategy configs (e.g., `llm.your_signal.high: 0.5`)
+7. Run tests: `uv run pytest tests/signals/`
 
 ```
 
@@ -182,7 +234,9 @@ tail -f /tmp/uvicorn_phase_test.log
 
 ---
 
-## Methodology YAML Location
+## YAML configuration locations
+
+### Methodology Schemas
 
 ```bash
 config/methodologies/
@@ -191,7 +245,7 @@ config/methodologies/
 └── critical_incident.yaml
 ```
 
-## Synthetic Personas YAML Location
+### Synthetic Personas
 
 ```bash
 config/personas/
@@ -205,7 +259,7 @@ config/personas/
 └── sustainability_minded.yaml
 ```
 
-## Concept YAML Location
+### Concepts
 
 ```bash
 config/concepts/
