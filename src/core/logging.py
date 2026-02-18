@@ -5,10 +5,12 @@ Provides consistent, structured logging across the application with:
 - JSON output in production
 - Pretty console output in development
 - Context binding for request tracing
-- File output to logs/ directory
+- File output to logs/ directory (session-based rotation)
 """
 
 import logging
+import os
+from datetime import datetime
 from pathlib import Path
 from typing import List
 
@@ -18,18 +20,54 @@ from structlog.typing import Processor
 from src.core.config import settings
 
 
-def configure_logging() -> None:
+def _cull_old_logs(logs_dir: Path, keep: int) -> None:
+    """Delete old log files, keeping only the N most recent.
+
+    Args:
+        logs_dir: Directory containing log files
+        keep: Number of recent log files to retain
     """
-    Configure structlog for the application.
+    # Find all interview_*.log files
+    log_files = sorted(
+        logs_dir.glob("interview_*.log"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+
+    # Remove old files beyond the keep limit
+    for old_file in log_files[keep:]:
+        try:
+            os.remove(old_file)
+        except OSError:
+            pass  # Ignore permission errors, etc.
+
+
+def configure_logging(log_sessions_to_keep: int = 2) -> None:
+    """Configure structlog for the application.
 
     Call this once at application startup, before any logging.
 
-    Outputs to both console and logs/interview.log
+    Creates a new timestamped log file per session and automatically
+    culls old logs, keeping only the most recent N sessions.
+
+    Args:
+        log_sessions_to_keep: Number of recent session logs to retain (default: 2)
+
+    Outputs:
+        - Console (colored in dev, plain in production)
+        - File: logs/interview_YYYYMMDD_HHMMSS.log
     """
 
     # Ensure logs directory exists
     logs_dir = Path("logs")
     logs_dir.mkdir(exist_ok=True)
+
+    # Cull old logs before creating new one (keep-1 to make room for new file)
+    _cull_old_logs(logs_dir, keep=log_sessions_to_keep - 1)
+
+    # Create timestamped log file for this session
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = logs_dir / f"interview_{timestamp}.log"
 
     # Shared processors for all outputs
     shared_processors: List[Processor] = [
@@ -56,16 +94,23 @@ def configure_logging() -> None:
         ]
 
     # Configure stdlib logging for file output
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(message)s",
-        handlers=[
-            # Console handler (collected by structlog)
-            logging.StreamHandler(),
-            # File handler (appends to logs/interview.log)
-            logging.FileHandler(logs_dir / "interview.log", mode="a"),
-        ],
-    )
+    # Clear any existing handlers first (needed for reconfiguration in tests/long-running processes)
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        handler.close()
+        root_logger.removeHandler(handler)
+
+    root_logger.setLevel(logging.INFO)
+
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter("%(message)s"))
+    root_logger.addHandler(console_handler)
+
+    # File handler (new file per session)
+    file_handler = logging.FileHandler(log_file, mode="w")
+    file_handler.setFormatter(logging.Formatter("%(message)s"))
+    root_logger.addHandler(file_handler)
 
     structlog.configure(
         processors=processors,
