@@ -154,6 +154,8 @@ signals:
   meta:
     - meta.interview_progress
     - meta.interview.phase
+    - meta.conversation.saturation
+    - meta.canonical.saturation
 
 strategies:
   # Strategy 1: Deepen the chain (laddering)

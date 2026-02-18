@@ -194,6 +194,8 @@ signals:
   meta:
     - meta.interview_progress
     - meta.interview.phase
+    - meta.conversation.saturation
+    - meta.canonical.saturation
 
 strategies:
   - name: explore_incident
