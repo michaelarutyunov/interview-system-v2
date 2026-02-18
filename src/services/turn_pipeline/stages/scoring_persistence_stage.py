@@ -250,7 +250,10 @@ class ScoringPersistenceStage(TurnStage):
             )
 
     async def _update_turn_count(self, context: "PipelineContext") -> None:
-        """Update session turn count.
+        """Update session turn count and velocity state.
+
+        Computes EWMA velocity for surface and canonical graphs.
+        Velocity = new nodes discovered this turn.
 
         Note: context.turn_number already represents the current turn number
         (equal to the number of user turns completed so far). We store it
@@ -258,10 +261,50 @@ class ScoringPersistenceStage(TurnStage):
         """
         from src.domain.models.session import SessionState
 
+        # EWMA smoothing factor (hardcoded, matches theoretical saturation research)
+        alpha = 0.4
+
+        # Load current velocity state from ContextLoadingOutput
+        clo = context.context_loading_output
+
+        # Surface graph velocity computation
+        current_surface = context.graph_state.node_count
+        prev_surface = clo.prev_surface_node_count
+        surface_delta = max(current_surface - prev_surface, 0)
+        new_surface_ewma = alpha * surface_delta + (1 - alpha) * clo.surface_velocity_ewma
+        new_surface_peak = max(clo.surface_velocity_peak, float(surface_delta))
+
+        # Canonical graph velocity computation (may be None if disabled)
+        cg_state = context.canonical_graph_state
+        if cg_state is not None:
+            current_canonical = cg_state.concept_count
+            prev_canonical = clo.prev_canonical_node_count
+            canonical_delta = max(current_canonical - prev_canonical, 0)
+            new_canonical_ewma = alpha * canonical_delta + (1 - alpha) * clo.canonical_velocity_ewma
+            new_canonical_peak = max(clo.canonical_velocity_peak, float(canonical_delta))
+        else:
+            # Canonical slots disabled — preserve zeros
+            current_canonical = 0
+            new_canonical_ewma = 0.0
+            new_canonical_peak = 0.0
+
+        # Preserve fields that were previously lost
+        last_strategy = context.strategy
+        mode = getattr(context, 'mode', 'exploratory')
+
         updated_state = SessionState(
             methodology=context.methodology,
             concept_id=context.concept_id,
             concept_name=context.concept_name,
             turn_count=context.turn_number,
+            last_strategy=last_strategy,
+            mode=mode,
+            # Velocity fields (NEW)
+            surface_velocity_ewma=new_surface_ewma,
+            surface_velocity_peak=new_surface_peak,
+            prev_surface_node_count=current_surface,
+            canonical_velocity_ewma=new_canonical_ewma,
+            canonical_velocity_peak=new_canonical_peak,
+            prev_canonical_node_count=current_canonical,
         )
         await self.session_repo.update_state(context.session_id, updated_state)
