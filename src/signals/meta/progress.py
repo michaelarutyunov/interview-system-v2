@@ -24,6 +24,13 @@ class InterviewProgressSignal(SignalDetector):
     Depth is normalized using the ontology structure: a depth equal to the
     number of ontology levels means full chain depth has been reached.
 
+    DEPRECATED for JTBD: Replaced by meta.conversation.saturation and
+    meta.canonical.saturation signals which are methodology-agnostic and
+    based on information velocity rather than structural completeness.
+
+    Retained in means_end_chain.yaml where chain_completion is meaningful
+    for Means-End Chain methodology.
+
     Namespaced signal: meta.interview_progress
     Cost: low (composes from existing signals in context.signals)
     Refresh: per_turn (recomputed each turn after signal detection)
