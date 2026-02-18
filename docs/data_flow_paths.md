@@ -983,6 +983,98 @@ enable_srl: bool = True  # Feature flag for SRL preprocessing
 
 ---
 
+## Path 16: Saturation Signal Computation (Information Velocity)
+
+**Why Critical**: Saturation signals measure interview completion using information velocity (rate of new concept discovery), replacing the broken `meta.interview_progress` signal. The EWMA-based approach detects when the interview reaches theoretical saturation—when new turns stop producing new concepts.
+
+```mermaid
+graph LR
+    A[Session State] -->|velocity_ewma, peak, prev_count| B[ContextLoadingStage]
+    B -->|load velocity| C[ContextLoadingOutput]
+    C -->|read velocity state| D[ConversationSaturationSignal]
+    C -->|read velocity state| E[CanonicalSaturationSignal]
+
+    D -->|compute| F[meta.conversation.saturation]
+    E -->|compute| G[meta.canonical.saturation]
+
+    F -->|0.5 weight| H[validate_outcome strategy]
+    G -->|0.3 weight| H
+
+    H -->|saturation high| I[Closing Question]
+
+    D -->|velocity decay| J[0.60 primary]
+    D -->|edge density| K[0.25 richness]
+    D -->|turn floor| L[0.15 minimum]
+
+    J --> M[ScoringPersistenceStage]
+    K --> M
+    L --> M
+
+    M -->|compute new EWMA| N[Session State Updated]
+    N -->|next turn| C
+```
+
+### Key Points
+
+- **EWMA Formula**: `new_ewma = α × delta + (1-α) × old_ewma` where α=0.4 (hardcoded)
+- **Velocity Delta**: `max(current_count - prev_count, 0)` — never decreases
+- **Peak Tracking**: Peak velocity observed in session enables normalization
+- **Velocity Decay**: `1 - (ewma / max(peak, 1.0))` — 0 when at peak, 1 when stalled
+- **Saturation Score**: `0.60 × velocity_decay + 0.25 × edge_density_norm + 0.15 × turn_floor`
+- **Graceful Degradation**: `CanonicalSaturationSignal` returns empty dict if canonical slots disabled
+
+### Component Breakdown
+
+| Component | Weight | Description |
+|-----------|--------|-------------|
+| velocity_decay | 60% | Primary indicator — slows as discovery rate decreases |
+| edge_density_norm | 25% | Graph richness — edges/nodes normalized to 2.0 |
+| turn_floor | 15% | Minimum duration — turn_number/15 prevents early saturation |
+
+### Data Model
+
+**SessionState fields** (persisted to DB):
+```python
+surface_velocity_ewma: float = 0.0      # EWMA of surface node delta per turn
+surface_velocity_peak: float = 0.0     # Peak surface node delta observed
+prev_surface_node_count: int = 0        # Surface node count at end of previous turn
+canonical_velocity_ewma: float = 0.0    # EWMA of canonical node delta per turn
+canonical_velocity_peak: float = 0.0   # Peak canonical node delta observed
+prev_canonical_node_count: int = 0       # Canonical node count at end of previous turn
+```
+
+### Flow Summary
+
+1. **Turn Start**: ContextLoadingStage loads velocity state from SessionState → ContextLoadingOutput
+2. **Signal Detection**: Saturation signals read velocity via `context.context_loading_output`
+3. **Strategy Selection**: validate_outcome uses saturation scores (0.5 conversation, 0.3 canonical)
+4. **Turn End**: ScoringPersistenceStage computes new EWMA and updates SessionState
+
+### Configuration
+
+**Methodology YAML** (jobs_to_be_done.yaml):
+```yaml
+signals:
+  meta:
+    - meta.conversation.saturation
+    - meta.canonical.saturation
+
+strategies:
+  - name: validate_outcome
+    signal_weights:
+      meta.conversation.saturation: 0.5
+      meta.canonical.saturation: 0.3
+```
+
+### Related
+
+- **Replaces**: `meta.interview_progress` (had double-normalization bug, MEC-specific)
+- **Theoretical Basis**: Theoretical saturation from qualitative research methodology
+- **Design Document**: `docs/plans/2026-02-18-interview-saturation-signals-design.md`
+- **Implementation Plan**: `docs/plans/2026-02-18-interview-saturation-signals-implementation.md`
+
+---
+
 ## Optimization Results Summary
 
 Optimizations to surface and canonical graph processing produced dramatic improvements in graph quality and connectivity:
@@ -1021,6 +1113,7 @@ Optimizations to surface and canonical graph processing produced dramatic improv
 | Cross-Turn Edge Resolution | 1, 3, 4 | - | kg_nodes, kg_edges |
 | Methodology-Aware Naming | 3 | - | methodology YAML |
 | SRL Preprocessing | 2.5 | 3 | - |
+| Saturation Signal Computation | 1, 6, 10 | - | sessions |
 
 ## Usage for Development
 

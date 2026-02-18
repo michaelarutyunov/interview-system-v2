@@ -54,8 +54,9 @@ Result: Dynamic, context-aware conversation flow
 │  │ max_depth   │  │specificity  │  │turns_since  │  │phase       │ │
 │  │ chain_comp  │  │certainty    │  │last_change  │  │node_opp    │ │
 │  │ ...         │  │valence      │  │response_trend│ │            │ │
-│  │             │  │engagement   │  │             │  │            │ │
+│  │             │  │engagement   │  │             │  │conv_sat    │ │
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └─────┬──────┘ │
+│  │             │  │engagement   │  │             │  │can_sat     │ │
 │         └─────────────────┴─────────────────┴──────────────┘       │
 │                                    │                                │
 │                                    ▼                                │
@@ -299,9 +300,45 @@ signal_weights:
 
 | Signal | Type | Description |
 |--------|------|-------------|
-| `meta.interview_progress` | float | 0.0-1.0 progress through interview |
+| `meta.interview_progress` | float | 0.0-1.0 progress through interview (**DEPRECATED** for JTBD, retained for MEC) |
 | `meta.interview.phase` | str | `early`, `mid`, or `late` |
 | `meta.node.opportunity` | str | `exhausted`, `probe_deeper`, or `fresh` |
+| `meta.conversation.saturation` | float | 0.0-1.0 interview saturation from surface graph velocity (NEW) |
+| `meta.canonical.saturation` | float | 0.0-1.0 interview saturation from canonical graph velocity (NEW) |
+
+#### Saturation Signals (New in Phase 6)
+
+**Purpose**: Replace `meta.interview_progress` with methodology-agnostic saturation detection based on information velocity (EWMA of new concept discovery rate).
+
+**Formula**:
+```
+velocity_decay = 1 - (ewma / max(peak, 1.0))
+edge_density_norm = min(edge_count / node_count / 2.0, 1.0)
+turn_floor = min(turn_number / 15.0, 1.0)
+saturation = 0.60 × velocity_decay + 0.25 × edge_density_norm + 0.15 × turn_floor
+```
+
+**Component Weights**:
+| Component | Weight | Description |
+|-----------|--------|-------------|
+| velocity_decay | 60% | Primary indicator — slows as discovery rate decreases |
+| edge_density_norm | 25% | Graph richness — edges/nodes normalized to 2.0 |
+| turn_floor | 15% | Minimum duration — prevents early saturation on turn 1-2 |
+
+**Usage in validate_outcome strategy**:
+```yaml
+signal_weights:
+  meta.conversation.saturation: 0.5  # High saturation → validate & wrap
+  meta.canonical.saturation: 0.3     # Supportive metric
+```
+
+**Data Model** (velocity state tracked in SessionState):
+- `surface_velocity_ewma`: EWMA of surface node delta per turn (α=0.4)
+- `surface_velocity_peak`: Peak surface node delta observed
+- `canonical_velocity_ewma`: EWMA of canonical node delta per turn
+- `canonical_velocity_peak`: Peak canonical node delta observed
+
+**See Also**: [Path 16: Saturation Signal Computation](./data_flow_paths.md#path-16-saturation-signal-computation-information-velocity)
 
 **Phase Boundaries** (configurable):
 ```yaml
