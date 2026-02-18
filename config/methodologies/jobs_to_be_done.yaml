@@ -230,6 +230,8 @@ signals:
 
   meta:
     - meta.interview.phase
+    - meta.conversation.saturation
+    - meta.canonical.saturation
 
 strategies:
   # Strategy 1: Explore the situation (elaboration)
