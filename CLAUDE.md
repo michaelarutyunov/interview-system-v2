@@ -1,6 +1,9 @@
 # Claude Code Quick Reference - Interview System v2
 
-Knowledge-graph-based conversational interview system with adaptive strategy selection via Signal Pools.
+A graph-led conversational interview system with adaptive strategy selection via Signal Pools.
+Features a dual graph architecture with conversaion (surface) and canonical graphs with semantically deduplicated nodes.
+Plug-in methodology configuration based on YAML files.
+Includes simulation service to generate sample interviews with YAML-paramterized synthetic personas
 
 ---
 
@@ -10,26 +13,6 @@ Any codebase change should follow these principles
 - no hardcoded keywords
 - no fallbacks, no placeholders, no defaults, no heuristics without explicit concent
 - no code outside of the scope of the task at hand
-
----
-
-## Beads Workflow
-
-```bash
-bd ready              # Available work (no blockers)
-bd show <id>          # Issue details
-bd update <id> --status in_progress  # Claim
-bd close <id>         # Complete
-bd sync               # Sync with remote
-```
-
-### Session Close Protocol (MANDATORY)
-
-```bash
-git status && git add <files> && bd sync
-git commit -m "..." && bd sync && git push
-git status  # MUST show "up to date"
-```
 
 ---
 
@@ -90,63 +73,6 @@ src/
 
 ---
 
-## Signal Pools
-
-**Location**: `src/signals/`
-
-### `graph/` — Knowledge graph structure and node-level signals
-
-**Graph-level (`graph.*`):**
-- `max_depth` - Longest causal chain depth (normalized 0-1)
-- `avg_depth` - Average depth across all chains
-- `depth_by_element` - Depth of each specific element/node
-- `node_count` - Total number of concepts extracted
-- `edge_count` - Total number of relationships
-- `orphan_count` - Isolated concepts with no connections
-- `chain_completion` - Produces `chain_completion.ratio` and `chain_completion.has_complete`
-- `canonical_concept_count` - Number of deduplicated canonical concepts
-- `canonical_edge_density` - Edge-to-concept ratio in canonical graph
-- `canonical_exhaustion_score` - Average exhaustion across canonical slots
-
-**Node-level (`graph.node.*`):**
-- `exhausted` - Binary exhaustion flag
-- `exhaustion_score` - Continuous exhaustion (0-1)
-- `yield_stagnation` - No yield for 3+ consecutive turns
-- `focus_streak` - Current focus streak: none/low/medium/high
-- `is_current_focus` - Whether this node is the active focus
-- `recency_score` - Time-decay score (0-1, higher = more recent)
-- `is_orphan` - Node has no connections
-- `edge_count` - Total edges (incoming + outgoing)
-- `has_outgoing` - Node has outgoing relationships
-
-### `llm/` — Response quality analysis via Kimi K2.5
-
-**Signals (`llm.*`):**
-- `response_depth` - Elaboration quantity (1-5 scale)
-- `specificity` - Concreteness of language (1-5 scale)
-- `certainty` - Epistemic confidence (1-5 scale)
-- `valence` - Emotional tone (1-5 scale)
-- `engagement` - Willingness to engage (1-5 scale)
-
-### `meta/` — Composite signals (depend on multiple sources)
-
-**Signals (`meta.*`):**
-- `interview_progress` - Overall interview completion (0-1)
-- `interview.phase` - Current phase: early/mid/late (+ phase_reason, is_late_stage)
-- `node.opportunity` - Node category: exhausted/probe_deeper/fresh
-
-### `session/` — Conversation history and strategy patterns
-
-**Signals (mixed namespaces):**
-- `llm.global_response_trend` - Session trend: deepening/stable/shallowing/fatigued
-- `temporal.strategy_repetition_count` - Times current strategy used in last 5 turns (normalized 0-1)
-- `temporal.turns_since_strategy_change` - Consecutive turns using current strategy (normalized 0-1)
-- `technique.node.strategy_repetition` - Consecutive same strategy on node: none/low/medium/high
-
-**Scoring**: `final_score = (base_score × phase_multiplier) + phase_bonus`
-
----
-
 ## Key Configuration
 
 ```python
@@ -188,24 +114,71 @@ uv run python scripts/run_simulation.py coffee_jtbd_v2 skeptical_analyst 10
 # Analyze similarity distribution
 uv run python scripts/analyze_similarity_distribution.py <session_id>
 
-# Lint and format
-ruff check . --fix && ruff format .
+# Run CodeGrapher architectural queries and generate report:
+# 1. Read queries from arch_queries.md (in backticks within tables)
+# 2. Run each query via MCP: mcp__codegrapher__codegraph_query with query="..."
+# 3. Aggregate results and sort by PageRank (descending)
+# 4. Generate markdown report with format: YYYYMMDD_HHMMSS_codegrapher_report.md
+# 5. Report sections: Summary table, Detailed findings by category, PageRank guide
+# Note: Prioritize issues with PageRank >= 0.10 (core components) for fixes
 
-# Check type diagnostics (via LSP)
-# Use: LSP(operation: "getDiagnostics", filePath: "src/...")
 ```
 
 ---
 
-## Debugging Quick Reference
+## Debugging Patterns
 
-| Issue | Check |
-|-------|-------|
-| Wrong strategy selected | `strategies_ranked` in logs, signal values, phase weights |
-| Node signals ignored | Verify D1 scoring in `rank_strategy_node_pairs()` |
-| Duplicate nodes | Surface dedup threshold, canonical threshold |
-| Edges not connecting | Cross-turn resolution, label_to_node population |
-| Phase detection | `meta.interview.phase` signal, `phase_boundaries` config |
+### Strategy Selection Issues
+When investigating why a strategy was selected:
+1. Check logs for `strategy_selected` or `strategies_ranked` entries
+2. Look for phase weight and bonus application in logs
+3. Verify signals detected match YAML config expectations
+4. Check `src/methodologies/scoring.py` for scoring logic
+5. Use synthetic interviews to reproduce patterns
+
+### Joint Strategy-Node Scoring Debugging (D1 Architecture)
+When debugging joint scoring:
+- Check `rank_strategy_node_pairs()` output for score breakdown
+- Look at `strategy_alternatives` list in logs: `[(strategy, node_id, score), ...]`
+- Verify global and node signals are merged correctly (node signals take precedence)
+- Check for negative weights from `graph.node.exhausted.true` signals
+- Verify phase weights (multiplicative) and bonuses (additive) are applied
+
+### Signal Detection Debugging
+- Enable debug logging: Check `signals_detected` log entries
+- Verify signal namespacing: `graph.*`, `llm.*`, `temporal.*`, `meta.*`, `graph.node.*`, `technique.node.*`
+- Check YAML config for signal_weights definitions
+- Look for phase weight and bonus application in scoring logs
+
+### Phase Weights and Bonuses Debugging
+- Phase detection happens in `InterviewPhaseSignal` → `meta.interview.phase`
+- Phase weights retrieved from `config.phases[phase].signal_weights` (multiplicative)
+- Phase bonuses retrieved from `config.phases[phase].phase_bonuses` (additive)
+- Applied in `rank_strategies()` and `rank_strategy_node_pairs()` as:
+  ```python
+  multiplier = phase_weights.get(strategy.name, 1.0)
+  bonus = phase_bonuses.get(strategy.name, 0.0)
+  final_score = (base_score * multiplier) + bonus
+  ```
+- Check logs for `interview_phase_detected`, `phase_weights_loaded`, `phase_bonuses_loaded`
+
+### Node Exhaustion Debugging
+- Check `graph.node.exhausted` signal for exhausted nodes
+- Check `meta.node.opportunity` for node opportunity status (exhausted/probe_deeper/fresh)
+- Look at `graph.node.exhaustion_score` for continuous exhaustion score (0.0-1.0)
+- Check `graph.node.focus_streak` for persistent focus patterns
+- Verify NodeStateTracker state for focus_count, turns_since_last_yield, current_focus_streak
+
+### Uvicorn Logging
+For debugging API/pipeline issues:
+```bash
+# Enable uvicorn debug logging
+uvicorn src.main:app --reload --log-level debug
+
+# Check specific log files
+tail -f /tmp/uvicorn_debug.log
+tail -f /tmp/uvicorn_phase_test.log
+```
 
 ---
 
@@ -216,6 +189,28 @@ config/methodologies/
 ├── jobs_to_be_done.yaml
 ├── means_end_chain.yaml
 └── critical_incident.yaml
+```
+
+## Synthetic Personas YAML Location
+
+```bash
+config/personas/
+├── convenience_seeker.yaml
+├── health_conscious.yaml
+├── minimalist.yaml
+├── price_sensitive.yaml
+├── quality_focused.yaml
+├── skeptical_analyst.yaml
+├── social_conscious.yaml
+└── sustainability_minded.yaml
+```
+
+## Concept YAML Location
+
+```bash
+config/concepts/
+├── coffee_jtbd_v2.yaml
+└── oat_milk_v2.yaml
 ```
 
 ---
