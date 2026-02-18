@@ -229,7 +229,6 @@ signals:
     - temporal.turns_since_strategy_change
 
   meta:
-    - meta.interview_progress
     - meta.interview.phase
 
 strategies:
@@ -297,7 +296,6 @@ strategies:
     generates_closing_question: true
     signal_weights:
       # Global signals
-      meta.interview_progress: 0.6
       graph.max_depth: 0.5
       llm.response_depth.deep: 0.3       # Deep responses → validate
       llm.response_depth.moderate: 0.2   # Moderate responses → validate
