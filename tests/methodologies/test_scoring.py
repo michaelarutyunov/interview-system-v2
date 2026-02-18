@@ -85,9 +85,7 @@ class TestGetSignalValue:
         # The compound key "graph.chain_completion.ratio.high" has base
         # "graph.chain_completion.ratio" which is a float (0.5),
         # threshold binning applies: 0.5 < 0.75 → not high → False
-        result = _get_signal_value(
-            "graph.chain_completion.ratio.high", signals
-        )
+        result = _get_signal_value("graph.chain_completion.ratio.high", signals)
         assert result is False  # 0.5 < 0.75, not high
 
     def test_bool_compound_key_true_match(self):
@@ -163,8 +161,8 @@ class TestScoreStrategy:
             },
         )
         signals = {
-            "llm.response_depth": 1.0,   # Normalized: high (>= 0.75)
-            "llm.valence": 0.75,          # Normalized: high (>= 0.75)
+            "llm.response_depth": 1.0,  # Normalized: high (>= 0.75)
+            "llm.valence": 0.75,  # Normalized: high (>= 0.75)
         }
         score = score_strategy(strategy, signals)
         assert score == pytest.approx(1.0)  # 0.7 + 0.3
@@ -291,7 +289,7 @@ class TestRankStrategyNodePairs:
         global_signals = {"meta.interview.phase": "explore"}
         node_signals = {
             "node_1": {"llm.response_depth": 0.25},  # Not high (low)
-            "node_2": {"llm.response_depth": 1.0},   # High
+            "node_2": {"llm.response_depth": 1.0},  # High
         }
 
         ranked = rank_strategy_node_pairs(strategies, global_signals, node_signals)

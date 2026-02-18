@@ -161,9 +161,7 @@ class TestSignalRegistryLoopLogic:
             assert hasattr(det, "signal_name"), (
                 "Detector should have signal_name attribute"
             )
-            assert hasattr(det, "detect"), (
-                "Detector should have detect method"
-            )
+            assert hasattr(det, "detect"), "Detector should have detect method"
 
 
 class TestImportCorrectness:
@@ -178,6 +176,7 @@ class TestImportCorrectness:
         # This should not raise ImportError or NameError
         try:
             from src.signals.llm.llm_signal_base import BaseLLMSignal as BLS
+
             assert BLS is not None
             assert isinstance(BLS, type), "BaseLLMSignal should be a class"
         except (ImportError, NameError) as e:

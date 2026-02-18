@@ -41,8 +41,12 @@ async def test_pipeline_critical_path_minimal(session_repo, graph_repo, utteranc
     - Correctness of strategy selection logic
     - Graph updates (uses empty graph)
     """
-    from src.services.turn_pipeline.stages.context_loading_stage import ContextLoadingStage
-    from src.services.turn_pipeline.stages.utterance_saving_stage import UtteranceSavingStage
+    from src.services.turn_pipeline.stages.context_loading_stage import (
+        ContextLoadingStage,
+    )
+    from src.services.turn_pipeline.stages.utterance_saving_stage import (
+        UtteranceSavingStage,
+    )
     from src.services.turn_pipeline.stages.extraction_stage import ExtractionStage
     from src.services.extraction_service import ExtractionService
     from src.services.graph_service import GraphService
@@ -101,6 +105,7 @@ async def test_pipeline_critical_path_minimal(session_repo, graph_repo, utteranc
         stages[2].extraction, "extract", new_callable=AsyncMock
     ) as mock_extract:
         from src.domain.models.extraction import ExtractionResult
+
         mock_extract.return_value = ExtractionResult(
             concepts=[],
             relationships=[],
@@ -184,15 +189,15 @@ async def test_phase_boundaries_configurable():
     assert mec_config.phases is not None
     assert "early" in mec_config.phases
     assert mec_config.phases["early"].phase_boundaries is not None
-    assert mec_config.phases["early"].phase_boundaries.get("early_max_nodes") == 5
-    assert mec_config.phases["early"].phase_boundaries.get("mid_max_nodes") == 15
+    assert mec_config.phases["early"].phase_boundaries.get("early_max_turns") == 4
+    assert mec_config.phases["early"].phase_boundaries.get("mid_max_turns") == 12
 
     # Check JTBD has different boundaries
     jtbd_config = registry.get_methodology("jobs_to_be_done")
     assert jtbd_config.phases is not None
     assert "early" in jtbd_config.phases
-    assert jtbd_config.phases["early"].phase_boundaries.get("early_max_nodes") == 3
-    assert jtbd_config.phases["early"].phase_boundaries.get("mid_max_nodes") == 8
+    assert jtbd_config.phases["early"].phase_boundaries.get("early_max_turns") == 3
+    assert jtbd_config.phases["early"].phase_boundaries.get("mid_max_turns") == 10
 
 
 @pytest.mark.asyncio
@@ -317,7 +322,11 @@ async def test_state_computation_output_has_saturation():
     Validates the 8yko fix: saturation computed by StateComputationStage.
     """
     from src.domain.models.pipeline_contracts import StateComputationOutput
-    from src.domain.models.knowledge_graph import GraphState, DepthMetrics, SaturationMetrics
+    from src.domain.models.knowledge_graph import (
+        GraphState,
+        DepthMetrics,
+        SaturationMetrics,
+    )
 
     # Create state computation output with saturation
     graph_state = GraphState(
@@ -365,7 +374,11 @@ async def test_continuation_stage_reads_saturation_from_context():
         StateComputationOutput,
         StrategySelectionOutput,
     )
-    from src.domain.models.knowledge_graph import GraphState, DepthMetrics, SaturationMetrics
+    from src.domain.models.knowledge_graph import (
+        GraphState,
+        DepthMetrics,
+        SaturationMetrics,
+    )
     from src.services.focus_selection_service import FocusSelectionService
 
     # Create mock dependencies
@@ -475,5 +488,5 @@ async def test_saturation_thresholds_in_state_computation():
 
     # Verify thresholds are defined
     assert CONSECUTIVE_ZERO_YIELD_THRESHOLD == 5
-    assert CONSECUTIVE_SHALLOW_THRESHOLD == 4
+    assert CONSECUTIVE_SHALLOW_THRESHOLD == 6
     assert DEPTH_PLATEAU_THRESHOLD == 6

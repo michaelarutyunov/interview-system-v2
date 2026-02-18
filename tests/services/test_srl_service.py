@@ -116,9 +116,18 @@ class TestDiscourseRelationExtraction:
         mock_token_because.text = "because"
 
         mock_head = MagicMock()
-        mock_head.subtree = [MagicMock(text="I"), MagicMock(text="like"), MagicMock(text="it")]
+        mock_head.subtree = [
+            MagicMock(text="I"),
+            MagicMock(text="like"),
+            MagicMock(text="it"),
+        ]
         mock_head.head = MagicMock()
-        mock_head.head.subtree = [MagicMock(text="I"), MagicMock(text="buy"), MagicMock(text="oat"), MagicMock(text="milk")]
+        mock_head.head.subtree = [
+            MagicMock(text="I"),
+            MagicMock(text="buy"),
+            MagicMock(text="oat"),
+            MagicMock(text="milk"),
+        ]
 
         mock_token_because.head = mock_head
 

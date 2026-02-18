@@ -302,7 +302,11 @@ class ScoringPersistenceStage(TurnStage):
         mode = getattr(context, "mode", "exploratory")
 
         # Build focus entry for this turn
-        focus = context.strategy_selection_output.focus if context.strategy_selection_output else None
+        focus = (
+            context.strategy_selection_output.focus
+            if context.strategy_selection_output
+            else None
+        )
         focus_node_id = focus.get("focus_node_id") if focus else None
 
         # Look up node label from node_tracker if node_id is available

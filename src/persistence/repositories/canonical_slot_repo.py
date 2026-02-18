@@ -345,9 +345,7 @@ class CanonicalSlotRepository:
 
     # ==================== MAPPING OPERATIONS ====================
 
-    async def get_mapping_for_node(
-        self, surface_node_id: str
-    ) -> Optional[SlotMapping]:
+    async def get_mapping_for_node(self, surface_node_id: str) -> Optional[SlotMapping]:
         """
         Get the canonical slot mapping for a surface node.
 
@@ -480,9 +478,7 @@ class CanonicalSlotRepository:
 
         edge = await self.get_canonical_edge(edge_id)
         if edge is None:
-            raise RuntimeError(
-                f"Canonical edge {edge_id} not found after operation"
-            )
+            raise RuntimeError(f"Canonical edge {edge_id} not found after operation")
         return edge
 
     async def get_canonical_edge(self, edge_id: str) -> Optional[CanonicalEdge]:
@@ -545,9 +541,7 @@ class CanonicalSlotRepository:
 
     # ==================== DUAL-GRAPH REPORTING METHODS ====================
 
-    async def get_slots_with_provenance(
-        self, session_id: str
-    ) -> List[Dict[str, Any]]:
+    async def get_slots_with_provenance(self, session_id: str) -> List[Dict[str, Any]]:
         """
         Get active canonical slots with their surface node provenance.
 
@@ -684,9 +678,7 @@ class CanonicalSlotRepository:
         Returns:
             Float similarity score (0.0-1.0, higher = more similar)
         """
-        return float(
-            np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-8)
-        )
+        return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-8))
 
     def _row_to_slot(self, row: aiosqlite.Row) -> CanonicalSlot:
         """Convert database row to CanonicalSlot."""

@@ -15,7 +15,10 @@ from src.api.schemas import (
     SimulationResponse,
     SimulationTurnSchema,
 )
-from src.api.dependencies import get_shared_extraction_client, get_shared_generation_client
+from src.api.dependencies import (
+    get_shared_extraction_client,
+    get_shared_generation_client,
+)
 from src.core.config import settings
 from src.persistence.database import get_db
 from src.persistence.repositories.session_repo import SessionRepository

@@ -28,13 +28,25 @@ class TurnResult:
     should_continue: bool
     latency_ms: int = 0
     # Methodology-based signal detection observability
-    signals: Optional[Dict[str, Any]] = None  # Raw methodology signals from signal pools
-    strategy_alternatives: Optional[List[Dict[str, Any]]] = None  # Alternative strategies with scores
+    signals: Optional[Dict[str, Any]] = (
+        None  # Raw methodology signals from signal pools
+    )
+    strategy_alternatives: Optional[List[Dict[str, Any]]] = (
+        None  # Alternative strategies with scores
+    )
     # Termination reason (populated by ContinuationStage when should_continue=False)
-    termination_reason: Optional[str] = None  # e.g., "max_turns_reached", "graph_saturated", "close_strategy"
+    termination_reason: Optional[str] = (
+        None  # e.g., "max_turns_reached", "graph_saturated", "close_strategy"
+    )
     # Dual-graph output fields
     canonical_graph: Optional[Dict[str, Any]] = None  # {slots, edges, metrics}
-    graph_comparison: Optional[Dict[str, Any]] = None  # {node_reduction_pct, edge_aggregation_ratio}
+    graph_comparison: Optional[Dict[str, Any]] = (
+        None  # {node_reduction_pct, edge_aggregation_ratio}
+    )
     # Per-turn graph changes for simulation observability
-    nodes_added: List[Dict[str, Any]] = field(default_factory=list)  # [{"id": ..., "label": ...}]
-    edges_added: List[Dict[str, Any]] = field(default_factory=list)   # [{"source_node_id": ..., "target_node_id": ..., "edge_type": ...}]
+    nodes_added: List[Dict[str, Any]] = field(
+        default_factory=list
+    )  # [{"id": ..., "label": ...}]
+    edges_added: List[Dict[str, Any]] = field(
+        default_factory=list
+    )  # [{"source_node_id": ..., "target_node_id": ..., "edge_type": ...}]

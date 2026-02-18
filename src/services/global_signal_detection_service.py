@@ -34,6 +34,7 @@ class GlobalSignalDetectionService:
         """Lazy import and cache the trend signal."""
         if self._global_trend_signal is None:
             from src.signals.session.llm_response_trend import GlobalResponseTrendSignal
+
             self._global_trend_signal = GlobalResponseTrendSignal()
         return self._global_trend_signal
 

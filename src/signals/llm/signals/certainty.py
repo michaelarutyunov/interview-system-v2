@@ -35,4 +35,5 @@ class CertaintySignal(BaseLLMSignal):
     Cost: high (requires LLM analysis or heuristic pattern matching)
     Refresh: per_response (always computed fresh)
     """
+
     pass

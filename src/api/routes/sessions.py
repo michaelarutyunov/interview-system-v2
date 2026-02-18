@@ -30,7 +30,10 @@ from src.api.schemas import (
     GraphResponse,
     SessionStatusResponse,
 )
-from src.api.dependencies import get_shared_extraction_client, get_shared_generation_client
+from src.api.dependencies import (
+    get_shared_extraction_client,
+    get_shared_generation_client,
+)
 from src.core.config import settings
 from src.core.exceptions import SessionNotFoundError, SessionCompletedError
 from src.domain.models.session import Session, SessionState

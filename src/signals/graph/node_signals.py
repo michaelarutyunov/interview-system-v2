@@ -420,7 +420,9 @@ class NodeIsOrphanSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.is_orphan"
-    description = "Whether node is an orphan (no edges). True if isolated, False if connected."
+    description = (
+        "Whether node is an orphan (no edges). True if isolated, False if connected."
+    )
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
         """Detect orphan status for all tracked nodes.

@@ -113,11 +113,11 @@ class TurnResponse(BaseModel):
     # Methodology-based signal detection observability
     signals: Optional[Dict[str, Any]] = Field(
         default=None,
-        description="Methodology signals from signal pools (graph, llm, temporal, meta)"
+        description="Methodology signals from signal pools (graph, llm, temporal, meta)",
     )
     strategy_alternatives: Optional[List[Dict[str, Any]]] = Field(
         default=None,
-        description="Alternative strategies with scores (including node_id for joint scoring)"
+        description="Alternative strategies with scores (including node_id for joint scoring)",
     )
 
     class Config:
@@ -288,15 +288,15 @@ class SimulationTurnSchema(BaseModel):
     # Methodology-based signal detection observability
     signals: Optional[Dict[str, Any]] = Field(
         default=None,
-        description="Methodology signals from signal pools (graph, llm, temporal, meta)"
+        description="Methodology signals from signal pools (graph, llm, temporal, meta)",
     )
     strategy_alternatives: Optional[List[Dict[str, Any]]] = Field(
         default=None,
-        description="Alternative strategies with scores (including node_id for joint scoring)"
+        description="Alternative strategies with scores (including node_id for joint scoring)",
     )
     termination_reason: Optional[str] = Field(
         default=None,
-        description="Reason for termination (e.g., 'max_turns_reached', 'graph_saturated', 'close_strategy')"
+        description="Reason for termination (e.g., 'max_turns_reached', 'graph_saturated', 'close_strategy')",
     )
 
 

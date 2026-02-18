@@ -60,7 +60,12 @@ def _parse_signals_rubrics() -> dict[str, str]:
     for line in content.split("\n"):
         stripped = line.strip()
         # Signal header: starts at column 0, contains ":", not a comment
-        if line and not line[0].isspace() and ":" in stripped and not stripped.startswith("#"):
+        if (
+            line
+            and not line[0].isspace()
+            and ":" in stripped
+            and not stripped.startswith("#")
+        ):
             current_signal = stripped.split(":")[0].strip().lower()
             description = ":".join(stripped.split(":")[1:]).strip()
             rubrics[current_signal] = [description] if description else []
@@ -82,6 +87,7 @@ def _load_output_example() -> dict:
         raise FileNotFoundError(f"Output example not found: {example_path}")
 
     import json
+
     with open(example_path) as f:
         return json.load(f)
 
@@ -126,7 +132,9 @@ def llm_signal(
         _output_schema_val = output_schema or {}
 
         # Create new class that inherits from BaseLLMSignal
-        class_name_from_attr = _signal_name_val.replace("llm.", "").title().replace("_", "")
+        class_name_from_attr = (
+            _signal_name_val.replace("llm.", "").title().replace("_", "")
+        )
 
         class DynamicSignalClass(cls):
             signal_name = _signal_name_val
@@ -139,7 +147,9 @@ def llm_signal(
                 """Return the signal rubric from signals.md."""
                 rubrics = _parse_signals_rubrics()
                 if cls._rubric_key not in rubrics:
-                    raise ValueError(f"Rubric key '{cls._rubric_key}' not found in signals.md")
+                    raise ValueError(
+                        f"Rubric key '{cls._rubric_key}' not found in signals.md"
+                    )
                 return rubrics[cls._rubric_key]
 
             @classmethod

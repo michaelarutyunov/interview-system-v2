@@ -17,23 +17,24 @@ from src.signals.llm.llm_signal_base import BaseLLMSignal
 class SpecificitySignal(BaseLLMSignal):
     """Measure referential specificity for concept clarity assessment.
 
-    Assesses how concrete or vague the respondent's language is.
-High specificity indicates clear, tangible concepts. Low specificity
-suggests abstract or ambiguous language that may require clarification.
+        Assesses how concrete or vague the respondent's language is.
+    High specificity indicates clear, tangible concepts. Low specificity
+    suggests abstract or ambiguous language that may require clarification.
 
-    Specificity categories (1-5 rubric):
-    1 - Very specific: Concrete, tangible concepts named explicitly
-    2 - Specific: Mostly concrete with some general terms
-    3 - Mixed: Balance of abstract and concrete elements
-    4 - Vague: General terms, some ambiguity
-    5 - Highly ambiguous: Dominated by vague, non-specific language
+        Specificity categories (1-5 rubric):
+        1 - Very specific: Concrete, tangible concepts named explicitly
+        2 - Specific: Mostly concrete with some general terms
+        3 - Mixed: Balance of abstract and concrete elements
+        4 - Vague: General terms, some ambiguity
+        5 - Highly ambiguous: Dominated by vague, non-specific language
 
-    Low specificity (4-5) may trigger clarification strategies to
-    improve concept extraction precision. High specificity (1-2) suggests
-    clear, actionable concepts for graph construction.
+        Low specificity (4-5) may trigger clarification strategies to
+        improve concept extraction precision. High specificity (1-2) suggests
+        clear, actionable concepts for graph construction.
 
-    Namespaced signal: llm.specificity
-    Cost: high (requires LLM analysis or heuristic pattern matching)
-    Refresh: per_response (always computed fresh)
+        Namespaced signal: llm.specificity
+        Cost: high (requires LLM analysis or heuristic pattern matching)
+        Refresh: per_response (always computed fresh)
     """
+
     pass

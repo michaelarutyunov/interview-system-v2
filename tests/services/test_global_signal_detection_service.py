@@ -38,7 +38,8 @@ async def test_global_signal_service_instantiation(global_signal_service):
     """Test that GlobalSignalDetectionService can be instantiated."""
     assert global_signal_service is not None
     assert global_signal_service.methodology_registry is not None
-    assert global_signal_service.global_trend_signal is not None
+    # Trend signal is lazy-loaded; verify the getter returns a non-None instance
+    assert global_signal_service._get_global_trend_signal() is not None
 
 
 @pytest.mark.asyncio
@@ -65,15 +66,14 @@ async def test_detect_returns_dict_with_expected_keys(
             }
             mock_create_detector.return_value = mock_detector
 
-            # Mock the global trend signal
+            # Force lazy init then patch the trend signal detect method
+            global_signal_service._get_global_trend_signal()
             with patch.object(
-                global_signal_service.global_trend_signal,
+                global_signal_service._global_trend_signal,
                 "detect",
                 new_callable=AsyncMock,
             ) as mock_trend_detect:
-                mock_trend_detect.return_value = {
-                    "llm.global_response_trend": "stable"
-                }
+                mock_trend_detect.return_value = {"llm.global_response_trend": "stable"}
 
                 # Call detect
                 result = await global_signal_service.detect(

@@ -95,9 +95,7 @@ class NodeStateTracker:
         if self.canonical_slot_repo is None:
             return surface_node_id
 
-        mapping = await self.canonical_slot_repo.get_mapping_for_node(
-            surface_node_id
-        )
+        mapping = await self.canonical_slot_repo.get_mapping_for_node(surface_node_id)
 
         if mapping is None:
             # No mapping exists - use surface node_id as tracking key
@@ -491,7 +489,9 @@ class NodeStateTracker:
         states_data = data.get("states", {})
         for node_id, state_dict in states_data.items():
             # Convert list back to Set for connected_node_ids
-            state_dict["connected_node_ids"] = set(state_dict.get("connected_node_ids", []))
+            state_dict["connected_node_ids"] = set(
+                state_dict.get("connected_node_ids", [])
+            )
 
             # Reconstruct NodeState from dict
             tracker.states[node_id] = NodeState(**state_dict)

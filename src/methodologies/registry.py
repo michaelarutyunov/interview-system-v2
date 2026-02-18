@@ -150,7 +150,9 @@ class MethodologyRegistry:
                     name=s["name"],
                     description=s.get("description", ""),
                     signal_weights=s["signal_weights"],
-                    generates_closing_question=s.get("generates_closing_question", False),
+                    generates_closing_question=s.get(
+                        "generates_closing_question", False
+                    ),
                 )
                 for s in data.get("strategies", [])
             ],

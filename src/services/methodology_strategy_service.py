@@ -72,7 +72,9 @@ class MethodologyStrategyService:
         """
         self.methodology_registry = get_registry()
         # Use injected services or create defaults
-        self.global_signal_service = global_signal_service or GlobalSignalDetectionService()
+        self.global_signal_service = (
+            global_signal_service or GlobalSignalDetectionService()
+        )
         self.node_signal_service = node_signal_service or NodeSignalDetectionService()
 
     async def select_strategy_and_focus(

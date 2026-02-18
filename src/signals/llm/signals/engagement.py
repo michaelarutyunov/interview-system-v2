@@ -35,4 +35,5 @@ class EngagementSignal(BaseLLMSignal):
     Cost: high (requires LLM analysis or heuristic text processing)
     Refresh: per_response (always computed fresh)
     """
+
     pass

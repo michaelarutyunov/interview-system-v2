@@ -77,10 +77,15 @@ def _get_signal_value(signal_key: str, signals: Dict[str, Any]) -> Any:
 
             # Threshold binning for normalized [0,1] signals
             # Note: bool check must come first since bool is a subclass of int
-            if isinstance(actual_value, (int, float)) and not isinstance(actual_value, bool) and expected_value in (
-                "low",
-                "mid",
-                "high",
+            if (
+                isinstance(actual_value, (int, float))
+                and not isinstance(actual_value, bool)
+                and expected_value
+                in (
+                    "low",
+                    "mid",
+                    "high",
+                )
             ):
                 if expected_value == "low":
                     return actual_value <= 0.25

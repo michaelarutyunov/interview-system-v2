@@ -25,6 +25,7 @@ log = structlog.get_logger(__name__)
 # Structure Signals (from structure.py)
 # =============================================================================
 
+
 class GraphNodeCountSignal(SignalDetector):
     """Number of nodes in the graph.
 
@@ -73,6 +74,7 @@ class OrphanCountSignal(SignalDetector):
 # =============================================================================
 # Depth Signals (from depth.py)
 # =============================================================================
+
 
 class GraphMaxDepthSignal(SignalDetector):
     """Maximum chain depth in the graph, normalized by ontology level count.
@@ -153,6 +155,7 @@ class DepthByElementSignal(SignalDetector):
 # =============================================================================
 # Chain Completion Signal (from chain_completion.py)
 # =============================================================================
+
 
 class ChainCompletionSignal(SignalDetector):
     """Chain completion ratio and presence from level 1 nodes to terminal nodes.
@@ -325,6 +328,7 @@ class ChainCompletionSignal(SignalDetector):
 # =============================================================================
 # Canonical Graph Signals (from canonical_structure.py)
 # =============================================================================
+
 
 class CanonicalConceptCountSignal(SignalDetector):
     """Number of deduplicated canonical concepts (active slots).

@@ -11,7 +11,11 @@ from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.utterance_repo import UtteranceRepository
 from src.persistence.database import get_db
 from src.persistence.repositories.graph_repo import GraphRepository
-from src.llm.client import LLMClient, get_extraction_llm_client, get_generation_llm_client
+from src.llm.client import (
+    LLMClient,
+    get_extraction_llm_client,
+    get_generation_llm_client,
+)
 
 
 def get_session_repository() -> SessionRepository:

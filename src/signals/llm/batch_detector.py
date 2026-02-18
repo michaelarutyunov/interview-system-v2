@@ -38,7 +38,9 @@ class LLMBatchDetector:
         self._signal_rubrics = self._load_signal_rubrics()
         self._output_example = self._load_output_example()
 
-        log.debug("LLMBatchDetector initialized with prompts from %s", self._prompts_dir)
+        log.debug(
+            "LLMBatchDetector initialized with prompts from %s", self._prompts_dir
+        )
 
     @property
     def _prompts_dir(self) -> Path:
@@ -89,7 +91,12 @@ class LLMBatchDetector:
         for line in content.split("\n"):
             stripped = line.strip()
             # Signal header: starts at column 0, contains ":", not a comment
-            if line and not line[0].isspace() and ":" in stripped and not stripped.startswith("#"):
+            if (
+                line
+                and not line[0].isspace()
+                and ":" in stripped
+                and not stripped.startswith("#")
+            ):
                 current_signal = stripped.split(":")[0].strip().lower()
                 # Include the description after the colon as first line of rubric
                 description = ":".join(stripped.split(":")[1:]).strip()
@@ -128,8 +135,12 @@ class LLMBatchDetector:
         """
         # Start with high-level system prompt
         prompt = self._high_level_prompt.format(
-            response=response_text[:500] + "..." if len(response_text) > 500 else response_text,
-            question=question[:200] + "..." if question and len(question) > 200 else (question or "N/A"),
+            response=response_text[:500] + "..."
+            if len(response_text) > 500
+            else response_text,
+            question=question[:200] + "..."
+            if question and len(question) > 200
+            else (question or "N/A"),
         )
 
         # Inject signal rubrics for specified signal classes using rubric_key
@@ -137,7 +148,7 @@ class LLMBatchDetector:
         rubrics = self._signal_rubrics
         if signal_classes:
             for signal_cls in signal_classes:
-                rubric_key = getattr(signal_cls, '_rubric_key', None)
+                rubric_key = getattr(signal_cls, "_rubric_key", None)
                 if rubric_key and rubric_key in rubrics:
                     prompt += f"\n\n## {rubric_key.replace('_', ' ').title()}\n"
                     prompt += rubrics[rubric_key]
@@ -152,7 +163,9 @@ class LLMBatchDetector:
 
         return prompt
 
-    def _output_format_instructions(self, signal_classes: Optional[List[Type]] = None) -> str:
+    def _output_format_instructions(
+        self, signal_classes: Optional[List[Type]] = None
+    ) -> str:
         """Generate output format instructions from example.
 
         Args:
@@ -163,14 +176,18 @@ class LLMBatchDetector:
         entries = []
         if signal_classes:
             for signal_cls in signal_classes:
-                rubric_key = getattr(signal_cls, '_rubric_key', None)
+                rubric_key = getattr(signal_cls, "_rubric_key", None)
                 if rubric_key:
-                    entries.append(f'  "{rubric_key}": {{"score": <integer 1-5>, "rationale": "<max 20 words>"}}')
+                    entries.append(
+                        f'  "{rubric_key}": {{"score": <integer 1-5>, "rationale": "<max 20 words>"}}'
+                    )
         else:
             # Fallback: use example keys (legacy behavior)
             example = self._output_example
             for signal_name in example.keys():
-                entries.append(f'  "{signal_name}": {{"score": <integer 1-5>, "rationale": "<max 20 words>"}}')
+                entries.append(
+                    f'  "{signal_name}": {{"score": <integer 1-5>, "rationale": "<max 20 words>"}}'
+                )
 
         instructions += ",\n".join(entries)
         instructions += "\n}"
@@ -206,18 +223,18 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
             pass
 
         # Repair: missing commas between properties
-        repaired = re.sub(r'(\")\s*\n\s*(\")', r'\1,\n\2', text)
-        repaired = re.sub(r'(\d)\s*\n\s*(\")', r'\1,\n\2', repaired)
-        repaired = re.sub(r'(\})\s*\n\s*(\")', r'\1,\n\2', repaired)
+        repaired = re.sub(r"(\")\s*\n\s*(\")", r"\1,\n\2", text)
+        repaired = re.sub(r"(\d)\s*\n\s*(\")", r"\1,\n\2", repaired)
+        repaired = re.sub(r"(\})\s*\n\s*(\")", r"\1,\n\2", repaired)
         # Trailing commas
-        repaired = re.sub(r',\s*\}', '}', repaired)
-        repaired = re.sub(r',\s*\]', ']', repaired)
+        repaired = re.sub(r",\s*\}", "}", repaired)
+        repaired = re.sub(r",\s*\]", "]", repaired)
         # Truncation
-        open_braces = repaired.count('{') - repaired.count('}')
-        open_brackets = repaired.count('[') - repaired.count(']')
+        open_braces = repaired.count("{") - repaired.count("}")
+        open_brackets = repaired.count("[") - repaired.count("]")
         if open_braces > 0 or open_brackets > 0:
-            repaired = repaired.rstrip().rstrip(',')
-            repaired += ']' * open_brackets + '}' * open_braces
+            repaired = repaired.rstrip().rstrip(",")
+            repaired += "]" * open_brackets + "}" * open_braces
 
         result = json.loads(repaired)
         log.warning("Scoring JSON repaired before parsing (original had syntax errors)")
@@ -245,6 +262,7 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
         if signal_classes is None:
             # Auto-discover all BaseLLMSignal subclasses
             from src.signals.llm.decorator import _registered_llm_signals
+
             # Collect all registered signal classes
             signal_classes = list(_registered_llm_signals.values())
             log.debug(f"Auto-discovered {len(signal_classes)} LLM signal classes")
@@ -255,7 +273,9 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
         # Each signal class has _get_prompt_spec() classmethod from decorator
         prompt = self._build_prompt(response_text, question, signal_classes)
 
-        log.debug(f"Built batch prompt ({len(prompt)} chars) for {len(signal_classes)} signals")
+        log.debug(
+            f"Built batch prompt ({len(prompt)} chars) for {len(signal_classes)} signals"
+        )
 
         # Make single LLM call
         try:
@@ -286,10 +306,12 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
         detected_signals = {}
         for signal_cls in signal_classes:
             signal_name = signal_cls.signal_name  # namespaced: "llm.response_depth"
-            rubric_key = getattr(signal_cls, '_rubric_key', None)  # non-namespaced: "response_depth"
+            rubric_key = getattr(
+                signal_cls, "_rubric_key", None
+            )  # non-namespaced: "response_depth"
 
             # Look up by rubric_key (what LLM returns), store by signal_name (internal)
-            lookup_key = rubric_key if rubric_key else signal_name.replace('llm.', '')
+            lookup_key = rubric_key if rubric_key else signal_name.replace("llm.", "")
             if lookup_key not in result:
                 log.warning(
                     f"Signal '{lookup_key}' (maps to '{signal_name}') not found in LLM response",
@@ -312,14 +334,14 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
                 try:
                     detected_signals[signal_name] = int(detected_signals[signal_name])
                 except (ValueError, TypeError):
-                    log.error(f"Invalid score for '{signal_name}': {detected_signals[signal_name]}")
+                    log.error(
+                        f"Invalid score for '{signal_name}': {detected_signals[signal_name]}"
+                    )
 
             # Validate score range
             score = detected_signals[signal_name]
             if isinstance(score, int) and not (1 <= score <= 5):
-                log.warning(
-                    f"Signal '{signal_name}' has out-of-range score: {score}"
-                )
+                log.warning(f"Signal '{signal_name}' has out-of-range score: {score}")
                 score = max(1, min(5, score))
 
             # Normalize based on signal type
@@ -337,7 +359,9 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
                     5: "deep",
                 }
                 if isinstance(score, int):
-                    detected_signals[signal_name] = score_to_category.get(score, "moderate")
+                    detected_signals[signal_name] = score_to_category.get(
+                        score, "moderate"
+                    )
             else:
                 # Normalize Likert 1-5 to [0, 1]: (value - 1) / 4
                 if isinstance(score, int):
@@ -345,7 +369,9 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
 
             # Log raw score vs normalized for observability (cu72.1)
             # Enables distinguishing 'LLM defaulting to 3' vs 'genuinely neutral'
-            rationale = raw_value.get("rationale") if isinstance(raw_value, dict) else None
+            rationale = (
+                raw_value.get("rationale") if isinstance(raw_value, dict) else None
+            )
             log.debug(
                 "llm_signal_scored signal=%s raw_score=%s normalized=%s rationale=%s",
                 signal_name,
@@ -362,4 +388,5 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
     def _registered_classes() -> List[Type["BaseLLMSignal"]]:
         """Get all registered LLM signal classes."""
         from src.signals.llm.decorator import _registered_llm_signals
+
         return list(_registered_llm_signals.values())

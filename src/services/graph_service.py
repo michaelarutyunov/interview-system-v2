@@ -245,7 +245,9 @@ class GraphService:
             new_label=concept.text,
             matched_label=None,
             similarity_score=None,
-            threshold=settings.surface_similarity_threshold if self.embedding_service is not None else None,
+            threshold=settings.surface_similarity_threshold
+            if self.embedding_service is not None
+            else None,
             outcome="new_node",
         )
         return await self.repo.create_node(

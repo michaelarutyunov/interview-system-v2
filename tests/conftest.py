@@ -23,6 +23,7 @@ async def test_db():
         await init_database(db_path)
 
         from src.core import config
+
         original_path = config.settings.database_path
         config.settings.database_path = db_path
 
@@ -36,6 +37,7 @@ async def test_db():
 async def db_connection(test_db):
     """Create a database connection for testing."""
     import aiosqlite
+
     async with aiosqlite.connect(str(test_db)) as db:
         db.row_factory = aiosqlite.Row
         yield db
