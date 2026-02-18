@@ -19,10 +19,23 @@ State Transition:
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field
 
 from src.domain.models.interview_state import InterviewMode
+
+
+class FocusEntry(BaseModel):
+    """Single entry in focus history tracking strategy-node decisions.
+
+    Records the strategy and optional node focus for each turn, enabling
+    post-hoc analysis of the exploration path through the knowledge graph.
+    """
+
+    turn: int = Field(description="Turn number (1-indexed)")
+    node_id: str = Field(default="", description="Target node ID, empty if no node focus")
+    label: str = Field(default="", description="Human-readable node label")
+    strategy: str = Field(description="Strategy selected for this turn")
 
 
 class SessionState(BaseModel):
@@ -67,6 +80,12 @@ class SessionState(BaseModel):
     )
     prev_canonical_node_count: int = Field(
         default=0, description="Canonical node count at end of previous turn"
+    )
+
+    # Focus history for tracing strategy-node decisions across turns
+    focus_history: List[FocusEntry] = Field(
+        default_factory=list,
+        description="Ordered sequence of strategy-node decisions across turns",
     )
 
 

@@ -265,6 +265,10 @@ class SessionStatusResponse(BaseModel):
     strategy_selected: str = "unknown"
     strategy_reasoning: Optional[str] = None
     phase: str = "unknown"  # Interview phase: exploratory, focused, or closing
+    focus_tracing: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Ordered sequence of strategy-node decisions across turns for post-hoc analysis",
+    )
 
 
 # ============ SIMULATION SCHEMAS ============

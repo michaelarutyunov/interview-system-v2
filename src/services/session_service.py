@@ -629,6 +629,7 @@ class SessionService:
             "strategy_selected": strategy,
             "strategy_reasoning": reasoning,
             "phase": phase,
+            "focus_tracing": [entry.model_dump() for entry in session.state.focus_history],
         }
 
     # ==================== NODE TRACKER STATE PERSISTENCE ====================

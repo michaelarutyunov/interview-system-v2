@@ -13,9 +13,13 @@ Example signals:
 from src.signals.meta.progress import InterviewProgressSignal
 from src.signals.meta.interview_phase import InterviewPhaseSignal
 from src.signals.meta.node_opportunity import NodeOpportunitySignal
+from src.signals.meta.conversation_saturation import ConversationSaturationSignal
+from src.signals.meta.canonical_saturation import CanonicalSaturationSignal
 
 __all__ = [
     "InterviewProgressSignal",
     "InterviewPhaseSignal",
     "NodeOpportunitySignal",
+    "ConversationSaturationSignal",
+    "CanonicalSaturationSignal",
 ]

@@ -250,16 +250,19 @@ class ScoringPersistenceStage(TurnStage):
             )
 
     async def _update_turn_count(self, context: "PipelineContext") -> None:
-        """Update session turn count and velocity state.
+        """Update session turn count, velocity state, and focus history.
 
         Computes EWMA velocity for surface and canonical graphs.
         Velocity = new nodes discovered this turn.
+
+        Appends a FocusEntry for each turn to track the strategy-node
+        decision sequence for post-hoc analysis.
 
         Note: context.turn_number already represents the current turn number
         (equal to the number of user turns completed so far). We store it
         directly without incrementing.
         """
-        from src.domain.models.session import SessionState
+        from src.domain.models.session import SessionState, FocusEntry
 
         # EWMA smoothing factor (hardcoded, matches theoretical saturation research)
         alpha = 0.4
@@ -298,6 +301,27 @@ class ScoringPersistenceStage(TurnStage):
         last_strategy = context.strategy
         mode = getattr(context, "mode", "exploratory")
 
+        # Build focus entry for this turn
+        focus = context.strategy_selection_output.focus if context.strategy_selection_output else None
+        focus_node_id = focus.get("focus_node_id") if focus else None
+
+        # Look up node label from node_tracker if node_id is available
+        node_label = ""
+        if focus_node_id and context.node_tracker:
+            node_state = await context.node_tracker.get_state(focus_node_id)
+            if node_state:
+                node_label = node_state.label
+
+        entry = FocusEntry(
+            turn=context.turn_number,
+            node_id=focus_node_id or "",
+            label=node_label,
+            strategy=context.strategy,
+        )
+
+        # Append to existing history loaded at turn start
+        updated_history = list(clo.focus_history) + [entry]
+
         updated_state = SessionState(
             methodology=context.methodology,
             concept_id=context.concept_id,
@@ -305,12 +329,14 @@ class ScoringPersistenceStage(TurnStage):
             turn_count=context.turn_number,
             last_strategy=last_strategy,
             mode=mode,
-            # Velocity fields (NEW)
+            # Velocity fields
             surface_velocity_ewma=new_surface_ewma,
             surface_velocity_peak=new_surface_peak,
             prev_surface_node_count=current_surface,
             canonical_velocity_ewma=new_canonical_ewma,
             canonical_velocity_peak=new_canonical_peak,
             prev_canonical_node_count=current_canonical,
+            # Focus history for tracing strategy-node decisions
+            focus_history=updated_history,
         )
         await self.session_repo.update_state(context.session_id, updated_state)

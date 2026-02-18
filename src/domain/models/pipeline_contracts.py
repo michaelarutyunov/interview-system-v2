@@ -12,6 +12,7 @@ from src.domain.models.knowledge_graph import GraphState, KGNode, SaturationMetr
 from src.domain.models.utterance import Utterance
 from src.domain.models.extraction import ExtractionResult
 from src.domain.models.canonical_graph import CanonicalGraphState
+from src.domain.models.session import FocusEntry
 
 
 class ContextLoadingOutput(BaseModel):
@@ -66,6 +67,12 @@ class ContextLoadingOutput(BaseModel):
     )
     prev_canonical_node_count: int = Field(
         default=0, description="Loaded from SessionState"
+    )
+
+    # Focus history for tracing strategy-node decisions
+    focus_history: List[FocusEntry] = Field(
+        default_factory=list,
+        description="Focus history loaded from SessionState for persistence stage",
     )
 
 

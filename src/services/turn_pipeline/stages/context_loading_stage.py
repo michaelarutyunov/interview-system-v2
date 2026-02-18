@@ -129,6 +129,8 @@ class ContextLoadingStage(TurnStage):
             canonical_velocity_ewma=session.state.canonical_velocity_ewma,
             canonical_velocity_peak=session.state.canonical_velocity_peak,
             prev_canonical_node_count=session.state.prev_canonical_node_count,
+            # Focus history from SessionState
+            focus_history=session.state.focus_history,
         )
 
         log.info(
