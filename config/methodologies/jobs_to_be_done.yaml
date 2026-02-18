@@ -313,6 +313,9 @@ strategies:
       graph.node.has_outgoing.true: 0.8  # Well-connected nodes
       graph.node.focus_streak.high: 0.5  # Often-focused nodes
       technique.node.strategy_repetition.low: 0.3  # Avoid overusing same strategy
+      # Saturation triggers (Phase 6)
+      meta.conversation.saturation: 0.5  # High saturation = validate
+      meta.canonical.saturation: 0.3     # Supportive metric
 
   # Strategy 5: Revitalize engagement (elaboration) - Phase 5
   - name: revitalize
