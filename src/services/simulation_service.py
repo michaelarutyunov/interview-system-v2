@@ -16,11 +16,13 @@ Key Design:
     - Session service controls max_turns (NOT synthetic service)
 """
 
-from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
-from dataclasses import dataclass, field
-from pathlib import Path
+import asyncio
 import json
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+
 import structlog
 
 from src.core.concept_loader import load_concept
@@ -237,6 +239,10 @@ class SimulationService:
             )
             turns.append(turn_result)
 
+            # Rate limit pacing: small delay between turns to avoid hitting
+            # Kimi rate limits (simulation runs faster than human-paced interviews)
+            await asyncio.sleep(0.5)
+
         # NEW: Fetch graph data for diagnostics (after loop, before result creation)
         (
             nodes_data,
@@ -349,7 +355,7 @@ class SimulationService:
         extraction_summary_data = None
         if context_nodes_added is not None or context_edges_added is not None:
             nodes_added_data = [
-                {"id": n.id, "label": n.label, "node_type": n.node_type}
+                {"id": n["id"], "label": n["label"], "node_type": n["node_type"]}
                 for n in (context_nodes_added or [])
             ]
             edges_added_data = [

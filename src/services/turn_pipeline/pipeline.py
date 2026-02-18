@@ -247,7 +247,7 @@ class TurnPipeline:
                 }
 
         # Build per-turn graph change lists for simulation observability
-        nodes_added = [{"id": n.id, "label": n.label} for n in context.nodes_added]
+        nodes_added = [{"id": n.id, "label": n.label, "node_type": n.node_type} for n in context.nodes_added]
         edges_added = list(context.edges_added)  # already List[Dict[str, Any]]
 
         return TurnResult(

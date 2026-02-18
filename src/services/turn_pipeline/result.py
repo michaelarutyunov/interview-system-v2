@@ -46,7 +46,7 @@ class TurnResult:
     # Per-turn graph changes for simulation observability
     nodes_added: List[Dict[str, Any]] = field(
         default_factory=list
-    )  # [{"id": ..., "label": ...}]
+    )  # [{"id": ..., "label": ..., "node_type": ...}]
     edges_added: List[Dict[str, Any]] = field(
         default_factory=list
     )  # [{"source_node_id": ..., "target_node_id": ..., "edge_type": ...}]

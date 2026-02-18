@@ -38,10 +38,11 @@ LLMClientType = Literal["extraction", "scoring", "generation"]
 
 EXTRACTION_DEFAULTS = dict(
     provider="anthropic",
-    model="claude-sonnet-4-5-20250929",
+    model="claude-sonnet-4-6",
     temperature=0.3,  # Lower for structured, consistent extraction
     max_tokens=2048,  # Higher for complex graph outputs
     timeout=30.0,
+    effort="medium",  # Complex agentic reasoning (coding/agentics)
 )
 
 SCORING_DEFAULTS = dict(
@@ -54,10 +55,11 @@ SCORING_DEFAULTS = dict(
 
 GENERATION_DEFAULTS = dict(
     provider="anthropic",
-    model="claude-sonnet-4-5-20250929",
+    model="claude-sonnet-4-6",
     temperature=0.7,  # Higher for creative question variations
     max_tokens=1024,
     timeout=30.0,
+    effort="low",  # Conversational, speed matters (non-coding)
 )
 
 # Map client types to their defaults
@@ -94,6 +96,7 @@ class LLMClient(ABC):
         system: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        effort: Optional[str] = None,
     ) -> LLMResponse:
         """
         Generate a completion from the LLM.
@@ -103,6 +106,7 @@ class LLMClient(ABC):
             system: Optional system prompt
             temperature: Sampling temperature (0.0-2.0)
             max_tokens: Maximum tokens in response
+            effort: Effort level for Sonnet 4.6 ("low", "medium", "high")
 
         Returns:
             LLMResponse with content and metadata
@@ -129,17 +133,19 @@ class AnthropicClient(LLMClient):
         timeout: float,
         client_type: LLMClientType,
         api_key: Optional[str] = None,
+        effort: Optional[str] = None,
     ):
         """
         Initialize Anthropic client.
 
         Args:
-            model: Model ID (e.g., claude-sonnet-4-5-20250929)
+            model: Model ID (e.g., claude-sonnet-4-6)
             temperature: Sampling temperature
             max_tokens: Maximum tokens in response
             timeout: Request timeout in seconds
             client_type: Client type for logging
             api_key: API key (defaults to settings.anthropic_api_key)
+            effort: Default effort level ("low", "medium", "high")
 
         Raises:
             ValueError: If API key is not configured
@@ -150,6 +156,7 @@ class AnthropicClient(LLMClient):
         self.max_tokens = max_tokens
         self.timeout = timeout
         self.client_type = client_type
+        self.effort = effort
         self.base_url = "https://api.anthropic.com/v1"
 
         if not self.api_key:
@@ -168,6 +175,7 @@ class AnthropicClient(LLMClient):
         system: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        effort: Optional[str] = None,
     ) -> LLMResponse:
         """
         Call Anthropic Messages API with automatic retry on timeout/rate-limit.
@@ -177,6 +185,7 @@ class AnthropicClient(LLMClient):
             system: Optional system prompt
             temperature: Sampling temperature (defaults to init value)
             max_tokens: Max tokens (defaults to init value)
+            effort: Effort level for Sonnet 4.6 ("low", "medium", "high")
 
         Returns:
             LLMResponse with content and usage stats
@@ -197,6 +206,8 @@ class AnthropicClient(LLMClient):
             max_tokens = self.max_tokens
         if temperature is None:
             temperature = self.temperature
+        if effort is None:
+            effort = getattr(self, "effort", None)
 
         headers = {
             "x-api-key": self.api_key,
@@ -214,6 +225,21 @@ class AnthropicClient(LLMClient):
         if system:
             payload["system"] = system
 
+        # Add effort parameter for Sonnet 4.6 (controls output token budget)
+        # See: https://platform.claude.com/docs/en/about-claude/models/migration-guide
+        if effort is not None:
+            # Validate effort values
+            valid_efforts = {"low", "medium", "high"}
+            if effort not in valid_efforts:
+                log.warning(
+                    "invalid_effort_value",
+                    effort=effort,
+                    valid_efforts=valid_efforts,
+                    defaulting_to="medium",
+                )
+                effort = "medium"
+            payload["output_config"] = {"effort": effort}
+
         for attempt in range(max_retries + 1):
             start = time.perf_counter()
 
@@ -226,6 +252,7 @@ class AnthropicClient(LLMClient):
                 system_length=len(system) if system else 0,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                effort=effort,  # Log effort level for observability
                 attempt=attempt + 1,
                 max_retries=max_retries,
             )
@@ -388,6 +415,7 @@ class OpenAICompatibleClient(LLMClient):
         system: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        effort: Optional[str] = None,  # Ignored for OpenAI-compatible APIs
     ) -> LLMResponse:
         """
         Call OpenAI-compatible API with automatic retry on timeout/rate-limit.
@@ -397,6 +425,7 @@ class OpenAICompatibleClient(LLMClient):
             system: Optional system prompt
             temperature: Sampling temperature (defaults to init value)
             max_tokens: Max tokens (defaults to init value)
+            effort: Ignored for OpenAI-compatible APIs (no effort parameter support)
 
         Returns:
             LLMResponse with content and usage stats
@@ -417,6 +446,15 @@ class OpenAICompatibleClient(LLMClient):
             max_tokens = self.max_tokens
         if temperature is None:
             temperature = self.temperature
+
+        # Log if effort was provided but will be ignored
+        if effort is not None:
+            log.debug(
+                "effort_parameter_ignored",
+                provider=self.provider_name,
+                effort=effort,
+                reason="OpenAI-compatible APIs do not support effort parameter",
+            )
 
         # Build messages array
         messages = []
@@ -671,6 +709,7 @@ def get_llm_client(client_type: LLMClientType) -> LLMClient:
     temperature = defaults["temperature"]
     max_tokens = defaults["max_tokens"]
     timeout = defaults["timeout"]
+    effort = defaults.get("effort")  # Optional effort parameter for Sonnet 4.6
 
     # Create client based on provider
     if provider == "anthropic":
@@ -680,6 +719,7 @@ def get_llm_client(client_type: LLMClientType) -> LLMClient:
             max_tokens=max_tokens,
             timeout=timeout,
             client_type=client_type,
+            effort=effort,
         )
     elif provider == "kimi":
         return KimiClient(
