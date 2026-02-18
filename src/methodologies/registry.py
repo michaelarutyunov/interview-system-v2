@@ -74,6 +74,7 @@ class StrategyConfig:
     name: str
     description: str
     signal_weights: dict[str, float]
+    generates_closing_question: bool = False
 
 
 class MethodologyRegistry:
@@ -149,6 +150,7 @@ class MethodologyRegistry:
                     name=s["name"],
                     description=s.get("description", ""),
                     signal_weights=s["signal_weights"],
+                    generates_closing_question=s.get("generates_closing_question", False),
                 )
                 for s in data.get("strategies", [])
             ],

@@ -127,6 +127,19 @@ class StrategySelectionStage(TurnStage):
         # Wrap node_id in dict format for ContinuationStage compatibility
         focus_dict = {"focus_node_id": focus_node_id} if focus_node_id else None
 
+        # Look up generates_closing_question flag for the selected strategy
+        methodology_config = self.methodology_strategy.methodology_registry.get_methodology(
+            context.methodology
+        )
+        generates_closing_question = next(
+            (
+                s.generates_closing_question
+                for s in methodology_config.strategies
+                if s.name == strategy
+            ),
+            False,
+        )
+
         # Create contract output (single source of truth)
         # No need to set individual fields - they're derived from the contract
         context.strategy_selection_output = StrategySelectionOutput(
@@ -135,6 +148,7 @@ class StrategySelectionStage(TurnStage):
             # selected_at auto-set
             signals=signals,
             strategy_alternatives=list(alternatives) if alternatives else [],
+            generates_closing_question=generates_closing_question,
         )
 
         log.info(

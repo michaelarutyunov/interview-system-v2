@@ -215,6 +215,10 @@ class StrategySelectionOutput(BaseModel):
             ),
         )
     )
+    generates_closing_question: bool = Field(
+        default=False,
+        description="Whether this strategy generates a closing question (interview conclusion)",
+    )
 
 
 class ExtractionOutput(BaseModel):

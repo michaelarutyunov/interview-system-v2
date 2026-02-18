@@ -4,6 +4,15 @@ Knowledge-graph-based conversational interview system with adaptive strategy sel
 
 ---
 
+## Code Design Principles
+
+Any codebase change should follow these principles
+- no hardcoded keywords
+- no fallbacks, no placeholders, no defaults, no heuristics without explicit concent
+- no code outside of the scope of the task at hand
+
+---
+
 ## Beads Workflow
 
 ```bash

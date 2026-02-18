@@ -159,6 +159,8 @@ ontology:
     - "Map the current solution approach even if not explicitly stated"
     - "Connect jobs to their underlying emotional and social drivers"
     - "Look for trade-offs users make between competing jobs"
+    - "Actively extract emotional jobs: look for identity statements, feeling words, aspirational language"
+    - "Actively extract social jobs: look for peer references, social signals, reputation concerns"
 
   relationship_examples:
     explicit_job_statement:
@@ -257,11 +259,15 @@ strategies:
       llm.specificity.high: 0.4
       # Engagement
       llm.engagement.mid: 0.3               # Moderate engagement = probing OK
-      # Diversity
-      temporal.strategy_repetition_count: -0.3
+      # Response depth — shallow answers suggest surface-level exploration still in play
+      llm.response_depth.surface: 0.3       # Surface answers → probe alternatives
+      llm.response_depth.shallow: 0.2       # Shallow answers → probe alternatives
+      # Diversity (stronger penalty than before)
+      temporal.strategy_repetition_count: -0.5
       # Node-level signals (Phase 3)
       graph.node.is_orphan.true: 1.0  # Boost orphan nodes
       graph.node.exhaustion_score.low: 0.6  # Avoid exhausted nodes
+      graph.node.focus_streak.none: 0.5     # Fresh nodes without prior focus
 
   # Strategy 3: Dig into motivation (laddering)
   - name: dig_motivation
@@ -288,6 +294,7 @@ strategies:
   # Strategy 4: Validate outcome (validation)
   - name: validate_outcome
     description: "Confirm understanding and check if we've captured the most important aspects"
+    generates_closing_question: true
     signal_weights:
       # Global signals
       meta.interview_progress: 0.6
@@ -358,7 +365,8 @@ phases:
       validate_outcome: 0.2
       uncover_obstacles: 0.3
     phase_bonuses:
-      explore_situation: 0.2  # Additive bonus to encourage exploration even with zero base score
+      explore_situation: 0.2    # Additive bonus to encourage exploration even with zero base score
+      probe_alternatives: 0.15  # Bonus to surface orphan alternatives early
 
   mid:
     description: "Building depth and connections"
@@ -367,13 +375,14 @@ phases:
       mid_max_turns: 10
     signal_weights:
       dig_motivation: 1.3
-      probe_alternatives: 1.0
+      probe_alternatives: 1.15   # Increased from 1.0 — more weight to surface alternatives mid-interview
       uncover_obstacles: 1.0
       revitalize: 1.0             # Explicit mid-phase weight (was missing)
       explore_situation: 0.6      # Reduced from 0.8 — mid phase should deepen, not explore
       validate_outcome: 0.5
     phase_bonuses:
-      dig_motivation: 0.3  # Additive bonus to prioritize digging in mid-phase
+      dig_motivation: 0.3    # Additive bonus to prioritize digging in mid-phase
+      probe_alternatives: 0.15  # Bonus to break out of single-node focus
 
   late:
     description: "Validation and verification"

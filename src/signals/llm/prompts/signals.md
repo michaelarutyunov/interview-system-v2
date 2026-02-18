@@ -1,12 +1,17 @@
-response_depth: How much elaboration does the response provide?
-    1 = Minimal or single-word answer, no development
-    2 = Brief statement with no supporting detail
-    3 = Moderate elaboration with some explanation or context
-    4 = Detailed response with reasoning, examples, or multiple facets
-    5 = Rich, layered response exploring the topic from multiple angles
+response_depth: How many distinct pieces of information does the response contribute?
+    1 = Single phrase or restated fact only; nothing new introduced
+        (includes all closing pleasantries: "you're welcome", "glad I could help", "thanks")
+    2 = One main point stated plainly; no supporting context, reasoning, or consequences
+    3 = Two to three distinct informational propositions
+        (e.g., a goal + a constraint, or a behaviour + a reason why)
+    4 = Four or more distinct propositions, or a chain of reasoning with intermediate steps,
+        or concrete examples that add new content beyond what was asked
+    5 = Multiple independent threads of content, each contributing new extractable concepts;
+        introduces angles not implied by the question
 
-    Score the QUANTITY of elaboration, not its quality or accuracy.
-    A long but repetitive response is 2-3, not 4-5.
+    Score the NUMBER OF DISTINCT CONCEPTS introduced, not the word count or verbal style.
+    A terse 20-word answer with three distinct propositions scores 3, not 1.
+    A 100-word answer that repeats one idea in many ways scores 2, not 4.
 
 specificity: How concrete and specific is the response?
     1 = Entirely abstract or generic ("it's just better")
@@ -25,11 +30,18 @@ certainty: How confident does the respondent appear in their statement?
   3 = Moderate confidence, some qualifications but generally committed
   4 = Confident with minor caveats
   5 = Fully committed, unqualified, no hedging or doubt expressed
-  
-  Score the respondent's EXPRESSED confidence, not whether their 
-  claim is objectively true. Distinguish from politeness — "I think" 
-  used as a social softener in an otherwise assertive statement is 
-  still 4, not 2.
+
+  Score the respondent's EXPRESSED confidence, not whether their
+  claim is objectively true. Distinguish genuine uncertainty from
+  social softeners: "mostly", "kind of", "I guess", "sort of" are
+  genuine hedges that reduce the score; "I think" or "I feel" used
+  as sentence openers in otherwise assertive statements are not.
+
+  Calibration examples:
+  - "Work, mostly" → 2 (explicit hedge "mostly" limits commitment)
+  - "It's kind of good, I guess" → 1-2 (multiple hedges)
+  - "I think it's pretty good" → 4 (social softener, otherwise assertive)
+  - "That's exactly what I need" → 5 (unqualified assertion)
 
 emotional_valence: What is the emotional tone of the response?
   1 = Strongly negative (frustration, anger, disappointment)
