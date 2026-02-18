@@ -1068,10 +1068,74 @@ strategies:
 
 ### Related
 
-- **Replaces**: `meta.interview_progress` (had double-normalization bug, MEC-specific)
+- **Replaces**: `meta.interview.progress` (had double-normalization bug, MEC-specific)
 - **Theoretical Basis**: Theoretical saturation from qualitative research methodology
 - **Design Document**: `docs/plans/2026-02-18-interview-saturation-signals-design.md`
 - **Implementation Plan**: `docs/plans/2026-02-18-interview-saturation-signals-implementation.md`
+
+---
+
+## Path 17: Focus Tracing for Post-Hoc Analysis
+
+**Why Critical**: Focus tracing records the sequence of strategy-node decisions across turns, enabling post-hoc analysis of the exploration path through the knowledge graph.
+
+```mermaid
+graph LR
+    A[Session.state.focus_history] -->|load| B[ContextLoadingStage]
+    B -->|carry forward| C[ContextLoadingOutput.focus_history]
+
+    C -->|read existing| D[ScoringPersistenceStage._update_turn_count]
+    D -->|build FocusEntry| E{strategy_selection_output.focus}
+
+    E -->|extract node_id| F[focus_node_id or ""]
+    F -->|lookup label| G[NodeStateTracker.get_state]
+    G -->|get node.label| H[node_label or ""]
+
+    H -->|create entry| I[FocusEntry:<br/>turn, node_id, label, strategy]
+    I -->|append| J[updated_history = existing + [entry]]
+
+    J -->|persist| K[SessionState.focus_history]
+    K -->|save to DB| L[sessions.state]
+
+    L -->|GET /status| M[SessionService.get_status]
+    M -->|model_dump| N[focus_tracing array]
+    N -->|API response| O[SessionStatusResponse]
+```
+
+### Key Points
+
+- **Stage 1**: Loads `focus_history` from `SessionState` into `ContextLoadingOutput`
+- **Stage 10**: Appends `FocusEntry` with current turn's strategy and optional node focus
+- **Turn 1 handling**: Empty `node_id`/`label` (graph was empty) — entry still created
+- **No gaps**: Every turn creates an entry, enabling accurate trace reading
+- **API exposure**: `GET /sessions/{id}/status` returns `focus_tracing` array
+
+### FocusEntry Model
+
+```python
+class FocusEntry(BaseModel):
+    turn: int        # Turn number (1-indexed)
+    node_id: str     # Target node ID (empty if no node focus)
+    label: str       # Human-readable node label
+    strategy: str    # Strategy selected for this turn
+```
+
+### Example Output
+
+```json
+"focus_tracing": [
+  {"turn": 1, "node_id": "", "label": "", "strategy": "explore_situation"},
+  {"turn": 2, "node_id": "abc123", "label": "morning coffee ritual", "strategy": "dig_motivation"},
+  {"turn": 3, "node_id": "def456", "label": "caffeine sensitivity", "strategy": "explore_situation"}
+]
+```
+
+### Use Cases
+
+- **Debugging**: Understand why the system explored certain concepts
+- **Analysis**: Evaluate exploration coverage and node selection patterns
+- **Evaluation**: Compare strategy selection across different personas
+- **Research**: Study interview dynamics and knowledge graph evolution
 
 ---
 
@@ -1114,6 +1178,7 @@ Optimizations to surface and canonical graph processing produced dramatic improv
 | Methodology-Aware Naming | 3 | - | methodology YAML |
 | SRL Preprocessing | 2.5 | 3 | - |
 | Saturation Signal Computation | 1, 6, 10 | - | sessions |
+| Focus Tracing for Post-Hoc Analysis | 1, 10 | - | sessions |
 
 ## Usage for Development
 

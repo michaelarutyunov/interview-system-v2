@@ -266,9 +266,29 @@ max_turns: int            # Maximum turns
 recent_utterances: List[Dict[str, str]]  # Conversation history
 strategy_history: List[str]  # History of strategies used (not deque)
 recent_node_labels: List[str]  # Labels of existing nodes for cross-turn edge bridging
+
+# Velocity state loaded from SessionState (used by saturation signals)
+surface_velocity_ewma: float
+surface_velocity_peak: float
+prev_surface_node_count: int
+canonical_velocity_ewma: float
+canonical_velocity_peak: float
+prev_canonical_node_count: int
+
+# Focus history for tracing strategy-node decisions across turns
+focus_history: List[FocusEntry]  # Loaded from SessionState.focus_history
 ```
 
 **Note**: `graph_state` and `recent_nodes` are NOT loaded here - they come from `StateComputationStage` (Stage 5) after graph updates.
+
+**FocusEntry Model**:
+```python
+class FocusEntry(BaseModel):
+    turn: int        # Turn number (1-indexed)
+    node_id: str     # Target node ID (empty if no node focus)
+    label: str       # Human-readable node label
+    strategy: str    # Strategy selected for this turn
+```
 
 **Cross-Turn Edge Resolution (Phase 4)**:
 - Loads all session nodes via `get_nodes_by_session()`
@@ -606,12 +626,12 @@ timestamp: datetime         # When response was saved (auto-set)
 
 | Aspect | Details |
 |--------|---------|
-| **Purpose** | Save scoring results to database and update session state |
+| **Purpose** | Save scoring results to database and update session state (including focus history) |
 | **Dependencies** | Stage 6: `strategy_selection_output` |
 | **Immutable Inputs** | `turn_number` |
-| **Reads** | `strategy_selection_output` |
+| **Reads** | `strategy_selection_output`, `context_loading_output` (for focus_history), `node_tracker` |
 | **Writes** | `scoring_persistence_output` (ScoringPersistenceOutput contract) |
-| **Side Effects** | UPDATE session state (turn_count, strategy_history), INSERT scoring records |
+| **Side Effects** | UPDATE session state (turn_count, velocity, focus_history), INSERT scoring records |
 
 **Contract Output**: `ScoringPersistenceOutput`
 
@@ -623,6 +643,38 @@ saturation_score: float         # Saturation metric from graph state
 has_methodology_signals: bool   # Whether methodology signals were saved
 timestamp: datetime              # When scoring was persisted (auto-set)
 ```
+
+**Focus History Appending**:
+
+Each turn, `ScoringPersistenceStage._update_turn_count()` appends a `FocusEntry` to the session's `focus_history`:
+
+```python
+# Build focus entry for this turn
+focus = context.strategy_selection_output.focus  # dict or None
+focus_node_id = focus.get("focus_node_id") if focus else None
+
+# Look up node label from node_tracker if node_id is available
+node_label = ""
+if focus_node_id and context.node_tracker:
+    node_state = await context.node_tracker.get_state(focus_node_id)
+    if node_state:
+        node_label = node_state.label
+
+entry = FocusEntry(
+    turn=context.turn_number,
+    node_id=focus_node_id or "",
+    label=node_label,
+    strategy=context.strategy,
+)
+
+# Append to existing history loaded at turn start
+updated_history = list(context.context_loading_output.focus_history) + [entry]
+
+# Include updated_history in SessionState constructor
+updated_state = SessionState(..., focus_history=updated_history)
+```
+
+**Important**: Turns with no node focus (empty graph, turn 1) still create an entry with empty `node_id`/`label`. The strategy column alone is informative, and gaps in the sequence make the trace harder to read.
 
 ---
 

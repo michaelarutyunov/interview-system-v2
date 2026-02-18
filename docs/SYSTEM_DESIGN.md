@@ -638,6 +638,56 @@ class MethodologyStrategyService:
 
 ## Knowledge Graph State
 
+### Session State
+
+The `SessionState` object tracks mutable interview state across conversation turns (Pydantic BaseModel):
+
+```python
+class SessionState(BaseModel):
+    # Core session metadata
+    methodology: str
+    concept_id: str
+    concept_name: str
+    turn_count: int = 0
+    last_strategy: Optional[str] = None
+    mode: InterviewMode = InterviewMode.EXPLORATORY
+
+    # Velocity tracking for saturation signals
+    surface_velocity_ewma: float = 0.0
+    surface_velocity_peak: float = 0.0
+    prev_surface_node_count: int = 0
+    canonical_velocity_ewma: float = 0.0
+    canonical_velocity_peak: float = 0.0
+    prev_canonical_node_count: int = 0
+
+    # Focus history for tracing strategy-node decisions
+    focus_history: List[FocusEntry] = Field(
+        default_factory=list,
+        description="Ordered sequence of strategy-node decisions across turns"
+    )
+```
+
+**FocusEntry Model**:
+
+```python
+class FocusEntry(BaseModel):
+    """Single entry in focus history tracking strategy-node decisions."""
+    turn: int                     # Turn number (1-indexed)
+    node_id: str                  # Target node ID (empty if no node focus)
+    label: str                    # Human-readable node label
+    strategy: str                 # Strategy selected for this turn
+```
+
+**Focus Tracing Flow**:
+1. **ContextLoadingStage** (Stage 1): Loads `focus_history` from `SessionState` into `ContextLoadingOutput`
+2. **ScoringPersistenceStage** (Stage 10): Appends new `FocusEntry` with current turn's strategy and node focus
+3. **API**: `GET /sessions/{id}/status` returns `focus_tracing` array from `session.state.focus_history`
+
+**Post-Hoc Analysis**:
+- Enables reconstruction of exploration path through knowledge graph
+- Turn 1 has empty `node_id`/`label` (graph was empty, no node to target)
+- Empty turns are preserved (no gaps in sequence) for accurate trace reading
+
 ### Graph Structure
 
 The knowledge graph stores:
