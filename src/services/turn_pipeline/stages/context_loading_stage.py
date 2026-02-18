@@ -122,6 +122,13 @@ class ContextLoadingStage(TurnStage):
             recent_utterances=recent_utterances,
             strategy_history=strategy_history,
             recent_node_labels=recent_node_labels,
+            # Velocity state from SessionState
+            surface_velocity_ewma=session.state.surface_velocity_ewma,
+            surface_velocity_peak=session.state.surface_velocity_peak,
+            prev_surface_node_count=session.state.prev_surface_node_count,
+            canonical_velocity_ewma=session.state.canonical_velocity_ewma,
+            canonical_velocity_peak=session.state.canonical_velocity_peak,
+            prev_canonical_node_count=session.state.prev_canonical_node_count,
         )
 
         log.info(
