@@ -2,15 +2,15 @@
 Canonical slot discovery service for dual-graph architecture.
 
 Abstracts surface-level KGNodes into stable canonical slots via:
-- LLM-proposed slot groupings with granular, specific categories
+- LLM-proposed slot groupings with granular, specific categories (batched per turn)
 - Embedding similarity for merging near-duplicates and grammatical variants
 - Candidate promotion based on support_count thresholds
 
 Preserves node_type for methodology-aware slot discovery and edge aggregation.
 """
 
+import asyncio
 import json
-from collections import defaultdict
 from typing import List, Dict
 
 import structlog
@@ -65,17 +65,17 @@ class CanonicalSlotService:
         turn_number: int,
         methodology: str,
     ) -> List[CanonicalSlot]:
-        """Discover canonical slots via node_type grouping and LLM proposal.
+        """Discover canonical slots via a single batched LLM call across all node types.
 
-        Groups surface nodes by node_type, then discovers slots per type
-        using LLM proposals and embedding similarity matching. Each surface
-        node maps to exactly one canonical slot (one-to-one relationship).
+        Groups surface nodes by node_type, fetches existing slots per type in
+        parallel, then issues ONE LLM call covering all types. Proposals are
+        processed per type via embedding similarity matching.
 
         Args:
             session_id: Session identifier for slot scoping
             surface_nodes: Surface KGNodes extracted this turn
             turn_number: Current turn number for promotion tracking
-            methodology: Methodology name for node_type descriptions (e.g., 'means_end_chain')
+            methodology: Methodology name for node_type descriptions
 
         Returns:
             List of all discovered or matched CanonicalSlot objects
@@ -87,19 +87,51 @@ class CanonicalSlotService:
             return []
 
         # Group by node_type
-        groups: Dict[str, List[KGNode]] = defaultdict(list)
+        groups: Dict[str, List[KGNode]] = {}
         for node in surface_nodes:
             if not node.node_type:
                 raise ValueError(f"Surface node {node.id} has empty node_type")
-            groups[node.node_type].append(node)
+            groups.setdefault(node.node_type, []).append(node)
 
-        # Discover slots per type
+        # Load schema once for all types
+        schema = load_methodology(methodology)
+        node_descriptions = schema.get_node_descriptions()
+
+        # Fetch existing active slots per type concurrently (cheap DB queries)
+        node_types = list(groups.keys())
+        slot_lists = await asyncio.gather(
+            *[self.slot_repo.get_active_slots(session_id, nt) for nt in node_types]
+        )
+        existing_slots_per_type = {
+            nt: [s.slot_name for s in slots]
+            for nt, slots in zip(node_types, slot_lists)
+        }
+
+        # Single batched LLM call for all node types
+        proposals_per_type = await self._llm_propose_slots_batched(
+            groups, node_descriptions, existing_slots_per_type
+        )
+
+        # Find or create slots for each type's proposals
         all_slots: List[CanonicalSlot] = []
-        for node_type, nodes in groups.items():
-            slots = await self._discover_slots_for_type(
-                session_id, node_type, nodes, turn_number, methodology
-            )
-            all_slots.extend(slots)
+        for node_type, proposals in proposals_per_type.items():
+            valid_node_ids = {n.id for n in groups.get(node_type, [])}
+            for proposal in proposals:
+                # Guard against LLM returning IDs from other types
+                surface_ids = [
+                    nid for nid in proposal["surface_node_ids"] if nid in valid_node_ids
+                ]
+                if not surface_ids:
+                    continue
+                slot = await self._find_or_create_slot(
+                    session_id=session_id,
+                    node_type=node_type,
+                    proposed_name=proposal["slot_name"],
+                    description=proposal["description"],
+                    surface_node_ids=surface_ids,
+                    turn_number=turn_number,
+                )
+                all_slots.append(slot)
 
         log.info(
             "slots_discovered",
@@ -111,122 +143,67 @@ class CanonicalSlotService:
 
         return all_slots
 
-    async def _discover_slots_for_type(
+    async def _llm_propose_slots_batched(
         self,
-        session_id: str,
-        node_type: str,
-        surface_nodes: List[KGNode],
-        turn_number: int,
-        methodology: str,
-    ) -> List[CanonicalSlot]:
-        """Discover canonical slots for surface nodes of a single node_type.
+        groups: Dict[str, List[KGNode]],
+        node_descriptions: Dict[str, str],
+        existing_slots_per_type: Dict[str, List[str]],
+    ) -> Dict[str, List[Dict]]:
+        """Single LLM call proposing slot groupings for all node types.
 
-        Workflow:
-        1. Load node_type description from methodology schema for LLM context
-        2. Fetch existing active slots to enable reuse
-        3. LLM proposes granular slot groupings for surface nodes
-        4. Find or create each proposed slot via embedding similarity
+        Combines all node types and their surface nodes into one prompt,
+        reducing N sequential LLM calls (one per type) to a single round-trip.
 
         Args:
-            session_id: Session identifier for slot scoping
-            node_type: Methodology node type (e.g., 'attribute', 'consequence')
-            surface_nodes: Surface KGNodes of this type to process
-            turn_number: Current turn number for promotion tracking
-            methodology: Methodology name for node_type descriptions
+            groups: Map of node_type → List[KGNode]
+            node_descriptions: Map of node_type → human-readable description
+            existing_slots_per_type: Map of node_type → existing active slot names
 
         Returns:
-            List of CanonicalSlot objects (existing matched or newly created)
-        """
-        # Get node type description from methodology schema
-        schema = load_methodology(methodology)
-        node_descriptions = schema.get_node_descriptions()
-        node_type_description = node_descriptions.get(node_type, node_type)
-
-        # Get existing slot names for LLM context (helps reuse)
-        active_slots = await self.slot_repo.get_active_slots(session_id, node_type)
-        existing_slot_names = [s.slot_name for s in active_slots]
-
-        # LLM proposes slot groupings
-        proposals = await self._llm_propose_slots(
-            surface_nodes, node_type, node_type_description, existing_slot_names
-        )
-
-        # Find or create each proposed slot
-        slots: List[CanonicalSlot] = []
-        for proposal in proposals:
-            slot = await self._find_or_create_slot(
-                session_id=session_id,
-                node_type=node_type,
-                proposed_name=proposal["slot_name"],
-                description=proposal["description"],
-                surface_node_ids=proposal["surface_node_ids"],
-                turn_number=turn_number,
-            )
-            slots.append(slot)
-
-        return slots
-
-    async def _llm_propose_slots(
-        self,
-        surface_nodes: List[KGNode],
-        node_type: str,
-        node_type_description: str,
-        existing_slot_names: List[str],
-    ) -> List[Dict]:
-        """Propose canonical slot groupings using LLM analysis.
-
-        Instructs LLM to create granular, specific categories (not broad)
-        and reuse existing slots when applicable. Returns structured JSON
-        with slot names, descriptions, and surface node assignments.
-
-        Args:
-            surface_nodes: Surface KGNodes to group into slots
-            node_type: Methodology node type for categorization
-            node_type_description: Human-readable node type description for LLM context
-            existing_slot_names: Active slot names to encourage reuse
-
-        Returns:
-            List of dicts with keys: slot_name, description, surface_node_ids
+            Map of node_type → List[proposal dicts] (slot_name, description, surface_node_ids)
 
         Raises:
             ValueError: If LLM returns invalid JSON or unexpected structure
         """
-        # Build surface nodes list
-        nodes_text = "\n".join(f"- {node.id}: {node.label}" for node in surface_nodes)
+        # Build concepts section grouped by type
+        concepts_section = ""
+        for node_type, nodes in groups.items():
+            desc = node_descriptions.get(node_type, node_type)
+            concepts_section += f"\n### {node_type} ({desc}):\n"
+            concepts_section += "\n".join(f"- {n.id}: {n.label}" for n in nodes) + "\n"
 
-        # Build existing slots context
-        if existing_slot_names:
-            existing_text = "\n".join(f"- {name}" for name in existing_slot_names)
-            existing_section = (
-                f"\n## Existing Canonical Slots (reuse if applicable):\n"
-                f"{existing_text}\n"
-            )
-        else:
-            existing_section = ""
+        # Build existing slots context (only if any exist)
+        existing_lines = [
+            f"### {nt}: {', '.join(names)}"
+            for nt, names in existing_slots_per_type.items()
+            if names
+        ]
+        existing_section = (
+            "\n## Existing Canonical Slots (reuse if applicable):\n"
+            + "\n".join(existing_lines)
+            + "\n"
+            if existing_lines
+            else ""
+        )
+
+        # Build example JSON structure for the response format
+        type_entries = ",\n    ".join(
+            f'"{nt}": {{"proposed_slots": [...]}}' for nt in groups
+        )
 
         prompt = (
-            f"You are analyzing interview-extracted concepts of type "
-            f'"{node_type}" ({node_type_description}).\n\n'
-            f"## Surface Nodes:\n{nodes_text}\n"
+            f"You are analyzing interview-extracted concepts grouped by type.\n\n"
+            f"## Concepts by Type:\n{concepts_section}"
             f"{existing_section}\n"
             f"## Task:\n"
-            f"Group the surface nodes into SPECIFIC, GRANULAR canonical slots.\n\n"
+            f"Group each type's concepts into SPECIFIC, GRANULAR canonical slots.\n\n"
             f"Rules:\n"
-            f"- Create specific, focused categories\n"
-            f"- NOT broad categories\n"
+            f"- Create specific, focused categories (NOT broad)\n"
             f"- Use snake_case for slot names (2-3 words)\n"
-            f"- Each surface node should be assigned to exactly one slot\n"
+            f"- Each surface node assigned to exactly one slot within its type\n"
             f"- Reuse existing slots when a surface node matches them\n\n"
             f"Respond with ONLY valid JSON:\n"
-            f"{{\n"
-            f'  "proposed_slots": [\n'
-            f"    {{\n"
-            f'      "slot_name": "example_slot",\n'
-            f'      "description": "Brief description of the concept",\n'
-            f'      "surface_node_ids": ["id1", "id2"]\n'
-            f"    }}\n"
-            f"  ]\n"
-            f"}}"
+            f'{{\n  "groupings": {{\n    {type_entries}\n  }}\n}}'
         )
 
         system = (
@@ -241,20 +218,18 @@ class CanonicalSlotService:
             max_tokens=2000,
         )
 
-        return self._parse_slot_proposals(response.content)
+        return self._parse_batched_proposals(response.content)
 
-    def _parse_slot_proposals(self, raw_response: str) -> List[Dict]:
-        """Parse LLM JSON response into structured slot proposals.
+    def _parse_batched_proposals(self, raw_response: str) -> Dict[str, List[Dict]]:
+        """Parse batched LLM JSON response into per-type proposal lists.
 
-        Handles markdown code blocks (```json...```) and validates structure.
-        Follows parse_extraction_response pattern from extraction.py for
-        consistent error handling.
+        Handles markdown code blocks and validates structure.
 
         Args:
-            raw_response: Raw LLM response text containing JSON
+            raw_response: Raw LLM response containing JSON
 
         Returns:
-            List of validated proposal dicts with slot_name, description, surface_node_ids
+            Map of node_type → List[proposal dicts] (slot_name, description, surface_node_ids)
 
         Raises:
             ValueError: If response is not valid JSON or has unexpected structure
@@ -274,29 +249,40 @@ class CanonicalSlotService:
             data = json.loads(text)
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON from slot discovery LLM: {e}\n"
+                f"Invalid JSON from batched slot discovery LLM: {e}\n"
                 f"Raw response: {raw_response[:500]}"
             )
 
-        if not isinstance(data, dict) or "proposed_slots" not in data:
+        if not isinstance(data, dict) or "groupings" not in data:
             raise ValueError(
-                f"Expected {{'proposed_slots': [...]}} structure, "
+                f'Expected {{"groupings": {{...}}}} structure, '
                 f"got: {list(data.keys()) if isinstance(data, dict) else type(data).__name__}"
             )
 
-        proposals = data["proposed_slots"]
-        if not isinstance(proposals, list):
+        groupings = data["groupings"]
+        if not isinstance(groupings, dict):
             raise ValueError(
-                f"proposed_slots must be a list, got {type(proposals).__name__}"
+                f"groupings must be a dict, got {type(groupings).__name__}"
             )
 
-        # Validate each proposal
-        for i, proposal in enumerate(proposals):
-            for key in ("slot_name", "description", "surface_node_ids"):
-                if key not in proposal:
-                    raise ValueError(f"Proposal {i} missing required key '{key}'")
+        result: Dict[str, List[Dict]] = {}
+        for node_type, type_data in groupings.items():
+            if not isinstance(type_data, dict) or "proposed_slots" not in type_data:
+                raise ValueError(
+                    f"node_type '{node_type}' missing 'proposed_slots' key"
+                )
+            proposals = type_data["proposed_slots"]
+            if not isinstance(proposals, list):
+                raise ValueError(f"proposed_slots for '{node_type}' must be a list")
+            for i, proposal in enumerate(proposals):
+                for key in ("slot_name", "description", "surface_node_ids"):
+                    if key not in proposal:
+                        raise ValueError(
+                            f"Proposal {i} for '{node_type}' missing required key '{key}'"
+                        )
+            result[node_type] = proposals
 
-        return proposals
+        return result
 
     def _lemmatize_name(self, name: str) -> str:
         """
