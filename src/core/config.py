@@ -84,6 +84,43 @@ class Settings(BaseSettings):
     )
 
     # ==========================================================================
+    # LLM Pricing (per million tokens)
+    # ==========================================================================
+    # Prices as of 2026-02. Source: provider pricing pages
+    # Format: cost per 1M tokens (input and output separate)
+
+    # Anthropic: https://platform.claude.com/docs/en/about-claude/pricing
+    anthropic_sonnet_input: float = Field(
+        default=3.00,
+        description="Claude Sonnet input price per million tokens (USD)",
+    )
+    anthropic_sonnet_output: float = Field(
+        default=15.00,
+        description="Claude Sonnet output price per million tokens (USD)",
+    )
+
+    # Kimi: https://platform.moonshot.ai/docs/pricing
+    kimi_k2_input: float = Field(
+        default=0.60,
+        description="Kimi K2 input price per million tokens (USD)",
+    )
+    kimi_k2_output: float = Field(
+        default=2.50,
+        description="Kimi K2 output price per million tokens (USD)",
+    )
+
+    # DeepSeek: https://platform.deepseek.com/api-docs/#/pricelist
+    # Note: Not currently used by default in any client type
+    deepseek_chat_input: float = Field(
+        default=0.14,
+        description="DeepSeek Chat input price per million tokens (USD)",
+    )
+    deepseek_chat_output: float = Field(
+        default=0.28,
+        description="DeepSeek Chat output price per million tokens (USD)",
+    )
+
+    # ==========================================================================
     # Interview Defaults
     # ==========================================================================
 
@@ -171,6 +208,34 @@ class Settings(BaseSettings):
             "single long response. Currently, promotion only checks supportCount."
         ),
     )
+
+    def get_pricing_for_model(self, model_name: str) -> tuple[float, float]:
+        """
+        Get input and output pricing for a given model.
+
+        Args:
+            model_name: Model identifier (e.g., "claude-sonnet-4-6", "kimi-k2-0905-preview")
+
+        Returns:
+            Tuple of (input_price_per_million, output_price_per_million) in USD
+
+        Raises:
+            ValueError: If model_name is not recognized
+        """
+        # Normalize model name to lowercase for case-insensitive matching
+        model_lower = model_name.lower()
+
+        if "sonnet" in model_lower or "claude" in model_lower:
+            return (self.anthropic_sonnet_input, self.anthropic_sonnet_output)
+        elif "kimi" in model_lower or "moonshot" in model_lower or "k2" in model_lower:
+            return (self.kimi_k2_input, self.kimi_k2_output)
+        elif "deepseek" in model_lower:
+            return (self.deepseek_chat_input, self.deepseek_chat_output)
+        else:
+            raise ValueError(
+                f"Unknown model '{model_name}' for pricing lookup. "
+                f"Supported models: claude-sonnet-4-6, kimi-k2-0905-preview, deepseek-chat"
+            )
 
 
 # ============================================================================

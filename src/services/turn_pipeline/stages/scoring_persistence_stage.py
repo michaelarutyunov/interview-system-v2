@@ -87,6 +87,9 @@ class ScoringPersistenceStage(TurnStage):
         # Update session turn count
         await self._update_turn_count(context)
 
+        # Persist LLM usage tracking
+        await self._persist_llm_usage(context)
+
         log.info(
             "scoring_persisted",
             session_id=context.session_id,
@@ -356,3 +359,32 @@ class ScoringPersistenceStage(TurnStage):
             focus_history=updated_history,
         )
         await self.session_repo.update_state(context.session_id, updated_state)
+
+    async def _persist_llm_usage(self, context: "PipelineContext") -> None:
+        """
+        Persist LLM token usage and costs to session metadata.
+
+        Aggregates usage from TokenUsageService and saves to
+        session.config["metadata"]["llm_usage"].
+        """
+        from src.services.token_usage_service import get_token_usage_service
+
+        token_service = get_token_usage_service()
+        usage_data = token_service.get_session_usage(context.session_id)
+
+        if usage_data:
+            # Build metadata structure
+            metadata = {"metadata": {"llm_usage": usage_data}}
+
+            # Persist to session config
+            await self.session_repo.update_metadata(
+                session_id=context.session_id,
+                metadata=metadata,
+            )
+
+            log.debug(
+                "llm_usage_persisted",
+                session_id=context.session_id,
+                turn_number=context.turn_number,
+                models=list(usage_data.keys()),
+            )

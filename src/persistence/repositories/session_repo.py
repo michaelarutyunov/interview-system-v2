@@ -128,6 +128,46 @@ class SessionRepository:
                 return json.loads(row["config"]) if row["config"] else {}
             return {}
 
+    async def update_metadata(self, session_id: str, metadata: Dict[str, Any]) -> None:
+        """
+        Merge metadata into session config.
+
+        Args:
+            session_id: Session identifier
+            metadata: Dict to merge into config (e.g., {"metadata": {"llm_usage": {...}}})
+
+        Note:
+            This performs a deep merge at the top level only. Nested keys are
+            replaced, not merged recursively.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            # Get existing config
+            cursor = await db.execute(
+                "SELECT config FROM sessions WHERE id = ?", (session_id,)
+            )
+            row = await cursor.fetchone()
+            existing_config = {}
+            if row and row["config"]:
+                existing_config = json.loads(row["config"])
+
+            # Merge new metadata
+            existing_config.update(metadata)
+
+            # Update the config
+            await db.execute(
+                "UPDATE sessions SET config = ?, updated_at = datetime('now') "
+                "WHERE id = ?",
+                (json.dumps(existing_config), session_id),
+            )
+            await db.commit()
+
+            log.info(
+                "session_metadata_updated",
+                session_id=session_id,
+                keys_updated=list(metadata.keys()),
+            )
+
     async def save_scoring_history(
         self,
         scoring_id: str,

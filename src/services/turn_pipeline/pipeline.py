@@ -11,6 +11,7 @@ from typing import List
 
 import structlog
 
+from src.llm.client import set_llm_session_id
 from .base import TurnStage
 from .context import PipelineContext
 from .result import TurnResult
@@ -56,6 +57,9 @@ class TurnPipeline:
             Exception: If any stage fails (error logged before re-raising)
         """
         start_time = time.perf_counter()
+
+        # Set session_id context for LLM usage tracking
+        set_llm_session_id(context.session_id)
 
         self.logger.info(
             "pipeline_started",

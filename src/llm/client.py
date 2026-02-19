@@ -14,6 +14,7 @@ Supported providers:
 """
 
 from abc import ABC, abstractmethod
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, Literal
 import time
@@ -27,6 +28,19 @@ log = structlog.get_logger(__name__)
 
 
 LLMClientType = Literal["extraction", "scoring", "generation"]
+
+# Context variable for implicitly passing session_id through async call chain
+_session_id_ctx: ContextVar[Optional[str]] = ContextVar("_session_id_ctx", default=None)
+
+
+def set_llm_session_id(session_id: str) -> None:
+    """Set the session_id context for LLM usage tracking."""
+    _session_id_ctx.set(session_id)
+
+
+def get_llm_session_id() -> Optional[str]:
+    """Get the current session_id from context."""
+    return _session_id_ctx.get()
 
 
 # =============================================================================
@@ -98,6 +112,7 @@ class LLMClient(ABC):
         max_tokens: Optional[int] = None,
         effort: Optional[str] = None,
         timeout: Optional[float] = None,
+        session_id: Optional[str] = None,
     ) -> LLMResponse:
         """
         Generate a completion from the LLM.
@@ -109,6 +124,7 @@ class LLMClient(ABC):
             max_tokens: Maximum tokens in response
             effort: Effort level for Sonnet 4.6 ("low", "medium", "high")
             timeout: Optional timeout override in seconds (uses default if None)
+            session_id: Optional session ID for usage tracking
 
         Returns:
             LLMResponse with content and metadata
@@ -179,6 +195,7 @@ class AnthropicClient(LLMClient):
         max_tokens: Optional[int] = None,
         effort: Optional[str] = None,
         timeout: Optional[float] = None,
+        session_id: Optional[str] = None,
     ) -> LLMResponse:
         """
         Call Anthropic Messages API with automatic retry on timeout/rate-limit.
@@ -190,6 +207,7 @@ class AnthropicClient(LLMClient):
             max_tokens: Max tokens (defaults to init value)
             effort: Effort level for Sonnet 4.6 ("low", "medium", "high")
             timeout: Optional timeout override in seconds (uses default if None)
+            session_id: Optional session ID for usage tracking
 
         Returns:
             LLMResponse with content and usage stats
@@ -214,6 +232,9 @@ class AnthropicClient(LLMClient):
             effort = getattr(self, "effort", None)
         if timeout is None:
             timeout = self.timeout
+
+        # Get session_id from parameter or context
+        effective_session_id = session_id or get_llm_session_id()
 
         headers = {
             "x-api-key": self.api_key,
@@ -295,6 +316,20 @@ class AnthropicClient(LLMClient):
                     output_tokens=usage["output_tokens"],
                     attempt=attempt + 1,
                 )
+
+                # Record token usage if session_id provided
+                if effective_session_id:
+                    from src.services.token_usage_service import (
+                        get_token_usage_service,
+                    )
+                    token_service = get_token_usage_service()
+                    token_service.record_llm_call(
+                        session_id=effective_session_id,
+                        model=self.model,
+                        input_tokens=usage["input_tokens"],
+                        output_tokens=usage["output_tokens"],
+                        client_type=self.client_type,
+                    )
 
                 return LLMResponse(
                     content=content,
@@ -423,6 +458,7 @@ class OpenAICompatibleClient(LLMClient):
         max_tokens: Optional[int] = None,
         effort: Optional[str] = None,  # Ignored for OpenAI-compatible APIs
         timeout: Optional[float] = None,
+        session_id: Optional[str] = None,
     ) -> LLMResponse:
         """
         Call OpenAI-compatible API with automatic retry on timeout/rate-limit.
@@ -434,6 +470,7 @@ class OpenAICompatibleClient(LLMClient):
             max_tokens: Max tokens (defaults to init value)
             effort: Ignored for OpenAI-compatible APIs (no effort parameter support)
             timeout: Optional timeout override in seconds (uses default if None)
+            session_id: Optional session ID for usage tracking
 
         Returns:
             LLMResponse with content and usage stats
@@ -456,6 +493,9 @@ class OpenAICompatibleClient(LLMClient):
             temperature = self.temperature
         if timeout is None:
             timeout = self.timeout
+
+        # Get session_id from parameter or context
+        effective_session_id = session_id or get_llm_session_id()
 
         # Log if effort was provided but will be ignored
         if effort is not None:
@@ -532,6 +572,20 @@ class OpenAICompatibleClient(LLMClient):
                     output_tokens=usage["output_tokens"],
                     attempt=attempt + 1,
                 )
+
+                # Record token usage if session_id provided
+                if effective_session_id:
+                    from src.services.token_usage_service import (
+                        get_token_usage_service,
+                    )
+                    token_service = get_token_usage_service()
+                    token_service.record_llm_call(
+                        session_id=effective_session_id,
+                        model=self.model,
+                        input_tokens=usage["input_tokens"],
+                        output_tokens=usage["output_tokens"],
+                        client_type=self.client_type,
+                    )
 
                 return LLMResponse(
                     content=content,
