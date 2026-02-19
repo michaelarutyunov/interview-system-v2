@@ -133,13 +133,30 @@ principle, and the real fix is algorithmic, not a band-aid.
 - Implementation mirrors `canonical_graph_service._compute_max_depth` — one canonical pattern
   across both graphs
 
-**Trade-off:**
-- BFS-from-roots gives the longest path reachable *following edge direction from root nodes*.
-  This is slightly different from the absolute longest simple path (which could start from
-  a mid-chain node). In practice this distinction doesn't matter: reasoning chains in MEC
-  always start at attributes (root nodes) and terminate at values (leaf nodes). A path that
-  starts mid-chain would be a subchain of a longer root-anchored path.
+**Counting semantics preserved (important):**
+The BFS counts nodes (depth starts at 1 for the root node, increments by 1 per edge), matching
+the original algorithm's node-count semantics. A chain A→B→C returns 3. This matters because
+`graph.max_depth` is normalized by `ontology_levels` (typically 5 for MEC): a full 5-node chain
+must return 5 to normalize cleanly to 1.0. Starting BFS at 0 (edge count) would have caused
+the signal to cap at 4/5 = 0.8 for a complete chain, permanently suppressing depth progress
+detection and depth plateau tracking.
+
+**One genuine semantic change — diamond convergence:**
+The original undirected algorithm could traverse edges in both directions. For a diamond graph
+where two attributes A and C both lead to consequence B (A→B, C→B), the old algorithm would
+report depth 3 (A→B→C, traversing the C→B edge backward). The new directed algorithm correctly
+reports depth 2 (either A→B or C→B — the same single-hop chain from each root). This is
+semantically correct: A and C are both one step from B, not three steps apart through B.
+In practice, convergence patterns are uncommon in MEC graphs and the old inflated value
+was misleading for depth plateau detection.
+
+**Trade-off (path anchoring):**
+BFS-from-roots gives the longest path reachable following edge direction from root nodes. A
+path that starts mid-chain would be a subchain of a longer root-anchored path, so no
+reachable depth is lost by anchoring at roots.
 
 **Future maintenance note:**
 Do not revert to exact DFS "for accuracy". The semantic model (longest chain from source
 attribute) matches BFS-from-roots exactly, and the runtime difference is O(V×V!) vs O(V×(V+E)).
+Do not change BFS starting depth from 1 to 0 — that switches from node-count to edge-count
+semantics and breaks the `graph.max_depth` normalization contract.

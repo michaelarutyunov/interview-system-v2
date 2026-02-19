@@ -573,6 +573,11 @@ class GraphRepository:
     ) -> int:
         """Find longest reasoning chain using BFS from root nodes.
 
+        Counts nodes (not edges) to match the original algorithm's semantics.
+        A chain A→B→C returns 3 (three nodes), not 2. This preserves the
+        normalization contract: a full 5-node MEC chain returns 5, which
+        divides cleanly by the 5-level ontology to give a depth signal of 1.0.
+
         Roots are nodes with no incoming edges (chain entry points). BFS
         tracks visited nodes per traversal to handle cycles without
         backtracking. Complexity: O(V × (V+E)) — polynomial.
@@ -583,11 +588,11 @@ class GraphRepository:
             has_incoming: Nodes that have at least one incoming edge
 
         Returns:
-            Length of longest chain, or 0 if no edges exist
+            Length of longest chain in nodes (≥ 1 if any nodes exist, 0 if empty)
         """
         from collections import deque
 
-        if not any(adjacency.values()):
+        if not node_ids:
             return 0
 
         roots = node_ids - has_incoming
@@ -599,7 +604,7 @@ class GraphRepository:
 
         for root in roots:
             visited: set = set()
-            queue: deque = deque([(root, 0)])
+            queue: deque = deque([(root, 1)])  # depth=1: count nodes, not edges
 
             while queue:
                 node, depth = queue.popleft()
