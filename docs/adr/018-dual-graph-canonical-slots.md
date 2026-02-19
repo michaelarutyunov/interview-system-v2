@@ -89,6 +89,8 @@ Stage 5: StateComputation (both graphs)
 - Latency acceptable within 200ms budget (confirmed in Phase 1 SRL testing)
 - Graceful degradation via `enable_canonical_slots` flag for testing/A-B
 - Clear separation: surface for fidelity, canonical for signals
+- **Batch size limiting:** `MAX_SLOT_DISCOVERY_BATCH_SIZE=8` prevents oversized LLM calls
+- **Extended timeout:** 60s timeout for slot discovery vs 30s default (complex JSON generation)
 
 ## Alternatives Considered
 
@@ -111,6 +113,28 @@ Stage 5: StateComputation (both graphs)
 - **Bead yuhv:** `SlotDiscoveryStage` (Stage 4.5) - Maps surface → canonical
 - **Bead ht0e:** `NodeStateTracker` - Keys by `canonical_slot_id` after Phase 3
 - **Bead 3pna:** Canonical graph signals for strategy selection
+
+### LLM Call Configuration
+
+Slot discovery uses the scoring client (Kimi K2 by default) with special configuration:
+
+```python
+# Batch size limiting prevents timeouts
+MAX_SLOT_DISCOVERY_BATCH_SIZE = 8
+
+# Extended timeout for complex reasoning + JSON generation
+response = await self.llm.complete(
+    prompt=prompt,
+    temperature=0.3,
+    max_tokens=2000,
+    timeout=60.0,  # Extended from default 30s
+)
+```
+
+**Prompt requirements:** The LLM must return JSON with specific fields for each slot:
+- `slot_name`: snake_case identifier (2-3 words)
+- `description`: Brief explanation of the concept
+- `surface_node_ids`: Array of surface node IDs assigned to this slot
 
 ## Terminology
 

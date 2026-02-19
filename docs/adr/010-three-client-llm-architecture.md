@@ -162,6 +162,26 @@ class QuestionService:
         self.llm = llm_client or get_generation_llm_client()
 ```
 
+### Per-Call Timeout Override
+
+The `complete()` method supports per-call timeout overrides for operations that need more time than the default:
+
+```python
+# Default timeout (30s for most clients)
+response = await llm.complete(prompt="...")
+
+# Extended timeout for complex operations
+response = await llm.complete(
+    prompt="...",
+    timeout=60.0,  # Override default timeout
+)
+```
+
+**Use case:** Slot discovery uses the scoring client (Kimi) with extended timeout (60s) because:
+- Complex reasoning: Grouping nodes into canonical slots
+- JSON generation: Structured output with multiple fields
+- Variable API latency: Kimi API occasionally slower than 30s default
+
 ## References
 - Spec: `specs/phase-2/2.2-llm-client.md`
 - Implementation: `src/llm/client.py`
