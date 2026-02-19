@@ -108,11 +108,9 @@ class CanonicalSlotService:
                 turn=turn_number,
             )
             # Flatten, truncate, and regroup
-            all_nodes = [
-                node
-                for nodes in groups.values()
-                for node in nodes
-            ][:MAX_SLOT_DISCOVERY_BATCH_SIZE]
+            all_nodes = [node for nodes in groups.values() for node in nodes][
+                :MAX_SLOT_DISCOVERY_BATCH_SIZE
+            ]
             groups = {}
             for node in all_nodes:
                 groups.setdefault(node.node_type, []).append(node)
@@ -210,10 +208,24 @@ class CanonicalSlotService:
             else ""
         )
 
-        # Build example JSON structure for the response format
-        type_entries = ",\n    ".join(
-            f'"{nt}": {{"proposed_slots": [...]}}' for nt in groups
+        # Build example JSON — show concrete slot structure for first type,
+        # collapsed placeholder for the rest (prevents LLM from guessing field names)
+        slot_example = (
+            '{"slot_name": "example_slot", '
+            '"description": "Brief description of the concept", '
+            '"surface_node_ids": ["id1", "id2"]}'
         )
+        type_entries_parts = []
+        for i, nt in enumerate(groups):
+            if i == 0:
+                type_entries_parts.append(
+                    f'"{nt}": {{\n      "proposed_slots": [\n        {slot_example}\n      ]\n    }}'
+                )
+            else:
+                type_entries_parts.append(
+                    f'"{nt}": {{"proposed_slots": [...same structure...]}}'
+                )
+        type_entries = ",\n    ".join(type_entries_parts)
 
         prompt = (
             f"You are analyzing interview-extracted concepts grouped by type.\n\n"
@@ -226,11 +238,6 @@ class CanonicalSlotService:
             f"- Use snake_case for slot names (2-3 words)\n"
             f"- Each surface node assigned to exactly one slot within its type\n"
             f"- Reuse existing slots when a surface node matches them\n\n"
-            f"Each slot in proposed_slots must have these fields:\n"
-            f'- "slot_name": snake_case name (2-3 words, e.g., "reduce_inflammation")\n'
-            f'- "description": brief description of what this slot represents\n'
-            f'- "surface_node_ids": array of node IDs assigned to this slot\n'
-            f"\n"
             f"Respond with ONLY valid JSON:\n"
             f'{{\n  "groupings": {{\n    {type_entries}\n  }}\n}}'
         )
