@@ -513,13 +513,13 @@ class GraphRepository:
         orphan_count = row[0] if row else 0
 
         # Max depth via graph traversal (chain validation)
-        # Build undirected adjacency and find longest connected chain via DFS.
+        # Build directed adjacency and find longest chain via BFS from roots.
         all_nodes = await self.get_nodes_by_session(session_id)
         all_edges = await self.get_edges_by_session(session_id)
 
         all_node_ids = {node.id for node in all_nodes}
-        adjacency = self._build_undirected_adjacency(all_node_ids, all_edges)
-        max_depth = self._find_longest_path(adjacency)
+        adjacency, has_incoming = self._build_directed_adjacency(all_node_ids, all_edges)
+        max_depth = self._find_longest_path_bfs(adjacency, all_node_ids, has_incoming)
 
         # Create DepthMetrics (ADR-010)
         depth_metrics = DepthMetrics(
@@ -540,47 +540,79 @@ class GraphRepository:
 
     # ==================== GRAPH TRAVERSAL HELPERS ====================
 
-    def _build_undirected_adjacency(
+    def _build_directed_adjacency(
         self,
         node_ids: set,
         edges: List[KGEdge],
-    ) -> Dict[str, set]:
-        """Build undirected adjacency graph from edges.
+    ) -> tuple[Dict[str, List[str]], set]:
+        """Build directed adjacency list and incoming-edge tracker from edges.
 
-        Only includes edges that connect nodes in the node_ids set.
+        Preserves edge directionality (source → target) for meaningful depth
+        computation. Only includes edges connecting nodes within node_ids.
+
+        Returns:
+            (adjacency, has_incoming) where:
+            - adjacency: dict mapping node_id → list of neighbor node_ids
+            - has_incoming: set of node_ids that have at least one incoming edge
         """
-        adjacency: Dict[str, set] = {node_id: set() for node_id in node_ids}
+        adjacency: Dict[str, List[str]] = {node_id: [] for node_id in node_ids}
+        has_incoming: set = set()
         for edge in edges:
             source = edge.source_node_id
             target = edge.target_node_id
             if source in node_ids and target in node_ids:
-                adjacency[source].add(target)
-                adjacency[target].add(source)
-        return adjacency
+                adjacency[source].append(target)
+                has_incoming.add(target)
+        return adjacency, has_incoming
 
-    def _find_longest_path(self, adjacency: Dict[str, set]) -> int:
-        """Find longest simple path in undirected graph using DFS."""
-        if not adjacency:
-            return 0
-        longest = 1
-        for start_node in adjacency:
-            visited: set = set()
-            path_length = self._dfs_longest_path(start_node, adjacency, visited)
-            longest = max(longest, path_length)
-        return longest
-
-    def _dfs_longest_path(
-        self, node: str, adjacency: Dict[str, set], visited: set
+    def _find_longest_path_bfs(
+        self,
+        adjacency: Dict[str, List[str]],
+        node_ids: set,
+        has_incoming: set,
     ) -> int:
-        """DFS to find longest path starting from node."""
-        visited.add(node)
-        max_length = 1
-        for neighbor in adjacency[node]:
-            if neighbor not in visited:
-                path_length = self._dfs_longest_path(neighbor, adjacency, visited)
-                max_length = max(max_length, 1 + path_length)
-        visited.remove(node)
-        return max_length
+        """Find longest reasoning chain using BFS from root nodes.
+
+        Roots are nodes with no incoming edges (chain entry points). BFS
+        tracks visited nodes per traversal to handle cycles without
+        backtracking. Complexity: O(V × (V+E)) — polynomial.
+
+        Args:
+            adjacency: Directed adjacency list
+            node_ids: Full set of node IDs (for root detection)
+            has_incoming: Nodes that have at least one incoming edge
+
+        Returns:
+            Length of longest chain, or 0 if no edges exist
+        """
+        from collections import deque
+
+        if not any(adjacency.values()):
+            return 0
+
+        roots = node_ids - has_incoming
+        if not roots:
+            # All nodes in cycles — use every node as a potential start
+            roots = node_ids
+
+        max_depth = 0
+
+        for root in roots:
+            visited: set = set()
+            queue: deque = deque([(root, 0)])
+
+            while queue:
+                node, depth = queue.popleft()
+                if node in visited:
+                    continue
+                visited.add(node)
+                max_depth = max(max_depth, depth)
+
+                for neighbor in adjacency.get(node, []):
+                    if neighbor not in visited:
+                        queue.append((neighbor, depth + 1))
+
+        return max_depth
 
     # ==================== DUAL-GRAPH REPORTING METHODS ====================
 
