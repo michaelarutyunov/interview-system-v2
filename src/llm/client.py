@@ -97,6 +97,7 @@ class LLMClient(ABC):
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         effort: Optional[str] = None,
+        timeout: Optional[float] = None,
     ) -> LLMResponse:
         """
         Generate a completion from the LLM.
@@ -107,6 +108,7 @@ class LLMClient(ABC):
             temperature: Sampling temperature (0.0-2.0)
             max_tokens: Maximum tokens in response
             effort: Effort level for Sonnet 4.6 ("low", "medium", "high")
+            timeout: Optional timeout override in seconds (uses default if None)
 
         Returns:
             LLMResponse with content and metadata
@@ -176,6 +178,7 @@ class AnthropicClient(LLMClient):
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         effort: Optional[str] = None,
+        timeout: Optional[float] = None,
     ) -> LLMResponse:
         """
         Call Anthropic Messages API with automatic retry on timeout/rate-limit.
@@ -186,6 +189,7 @@ class AnthropicClient(LLMClient):
             temperature: Sampling temperature (defaults to init value)
             max_tokens: Max tokens (defaults to init value)
             effort: Effort level for Sonnet 4.6 ("low", "medium", "high")
+            timeout: Optional timeout override in seconds (uses default if None)
 
         Returns:
             LLMResponse with content and usage stats
@@ -208,6 +212,8 @@ class AnthropicClient(LLMClient):
             temperature = self.temperature
         if effort is None:
             effort = getattr(self, "effort", None)
+        if timeout is None:
+            timeout = self.timeout
 
         headers = {
             "x-api-key": self.api_key,
@@ -258,7 +264,7 @@ class AnthropicClient(LLMClient):
             )
 
             try:
-                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                async with httpx.AsyncClient(timeout=timeout) as client:
                     response = await client.post(
                         f"{self.base_url}/messages",
                         headers=headers,
@@ -416,6 +422,7 @@ class OpenAICompatibleClient(LLMClient):
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         effort: Optional[str] = None,  # Ignored for OpenAI-compatible APIs
+        timeout: Optional[float] = None,
     ) -> LLMResponse:
         """
         Call OpenAI-compatible API with automatic retry on timeout/rate-limit.
@@ -426,6 +433,7 @@ class OpenAICompatibleClient(LLMClient):
             temperature: Sampling temperature (defaults to init value)
             max_tokens: Max tokens (defaults to init value)
             effort: Ignored for OpenAI-compatible APIs (no effort parameter support)
+            timeout: Optional timeout override in seconds (uses default if None)
 
         Returns:
             LLMResponse with content and usage stats
@@ -446,6 +454,8 @@ class OpenAICompatibleClient(LLMClient):
             max_tokens = self.max_tokens
         if temperature is None:
             temperature = self.temperature
+        if timeout is None:
+            timeout = self.timeout
 
         # Log if effort was provided but will be ignored
         if effort is not None:
@@ -491,7 +501,7 @@ class OpenAICompatibleClient(LLMClient):
             )
 
             try:
-                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                async with httpx.AsyncClient(timeout=timeout) as client:
                     response = await client.post(
                         f"{self.base_url}/chat/completions",
                         headers=headers,

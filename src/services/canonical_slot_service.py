@@ -25,6 +25,10 @@ from src.services.embedding_service import EmbeddingService
 
 log = structlog.get_logger(__name__)
 
+# Max surface nodes to process in a single LLM call to avoid timeouts
+# Remaining nodes will be processed in subsequent turns
+MAX_SLOT_DISCOVERY_BATCH_SIZE = 8
+
 
 class CanonicalSlotService:
     """LLM-based canonical slot discovery for dual-graph architecture.
@@ -92,6 +96,26 @@ class CanonicalSlotService:
             if not node.node_type:
                 raise ValueError(f"Surface node {node.id} has empty node_type")
             groups.setdefault(node.node_type, []).append(node)
+
+        # Limit batch size to avoid LLM timeouts - process remaining nodes in subsequent turns
+        total_nodes = sum(len(nodes) for nodes in groups.values())
+        if total_nodes > MAX_SLOT_DISCOVERY_BATCH_SIZE:
+            log.warning(
+                "slot_discovery_batch_limited",
+                total_nodes=total_nodes,
+                batch_size=MAX_SLOT_DISCOVERY_BATCH_SIZE,
+                session_id=session_id,
+                turn=turn_number,
+            )
+            # Flatten, truncate, and regroup
+            all_nodes = [
+                node
+                for nodes in groups.values()
+                for node in nodes
+            ][:MAX_SLOT_DISCOVERY_BATCH_SIZE]
+            groups = {}
+            for node in all_nodes:
+                groups.setdefault(node.node_type, []).append(node)
 
         # Load schema once for all types
         schema = load_methodology(methodology)
@@ -202,6 +226,11 @@ class CanonicalSlotService:
             f"- Use snake_case for slot names (2-3 words)\n"
             f"- Each surface node assigned to exactly one slot within its type\n"
             f"- Reuse existing slots when a surface node matches them\n\n"
+            f"Each slot in proposed_slots must have these fields:\n"
+            f'- "slot_name": snake_case name (2-3 words, e.g., "reduce_inflammation")\n'
+            f'- "description": brief description of what this slot represents\n'
+            f'- "surface_node_ids": array of node IDs assigned to this slot\n'
+            f"\n"
             f"Respond with ONLY valid JSON:\n"
             f'{{\n  "groupings": {{\n    {type_entries}\n  }}\n}}'
         )
@@ -211,11 +240,13 @@ class CanonicalSlotService:
             "concepts into canonical categories. Respond with valid JSON only."
         )
 
+        # Use extended timeout for slot discovery (complex reasoning + JSON generation)
         response = await self.llm.complete(
             prompt=prompt,
             system=system,
             temperature=0.3,
             max_tokens=2000,
+            timeout=60.0,
         )
 
         return self._parse_batched_proposals(response.content)
