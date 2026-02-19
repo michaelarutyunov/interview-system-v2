@@ -16,7 +16,6 @@ Pipeline Integration:
 """
 
 from pydantic import BaseModel, Field
-from typing import List
 from datetime import datetime, timezone  # noqa: F401 (imported for datetime.now(timezone.utc))
 from enum import Enum
 
@@ -50,7 +49,6 @@ class Utterance(BaseModel):
     Key Attributes:
         - speaker: USER or SYSTEM for role identification
         - turn_number: Sequential position in conversation (1-indexed)
-        - discourse_markers: Linguistic cues (because, so, but) for reasoning signals
         - created_at: Timestamp for temporal ordering and staleness detection
 
     Provenance Chain:
@@ -65,7 +63,6 @@ class Utterance(BaseModel):
     turn_number: int
     speaker: str  # "user" or "system"
     text: str
-    discourse_markers: List[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"from_attributes": True}

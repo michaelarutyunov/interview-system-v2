@@ -476,7 +476,6 @@ class SessionService:
             turn_number=turn_number,
             speaker=speaker,
             text=text,
-            discourse_markers=[],
             created_at=datetime.utcnow(),
         )
 

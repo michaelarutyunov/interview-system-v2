@@ -49,9 +49,6 @@ CREATE TABLE IF NOT EXISTS utterances (
     -- Content
     text TEXT NOT NULL,
 
-    -- Extracted metadata
-    discourse_markers JSON DEFAULT '[]',
-
     -- Timestamps
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
 

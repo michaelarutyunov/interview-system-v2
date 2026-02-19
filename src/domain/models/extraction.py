@@ -120,7 +120,6 @@ class ExtractionResult(BaseModel):
 
     concepts: List[ExtractedConcept] = Field(default_factory=list)
     relationships: List[ExtractedRelationship] = Field(default_factory=list)
-    discourse_markers: List[str] = Field(default_factory=list)  # "because", "so", etc.
     is_extractable: bool = True
     extractability_reason: Optional[str] = None
     latency_ms: int = 0

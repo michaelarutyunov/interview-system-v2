@@ -138,7 +138,6 @@ class ExtractionService:
             ExtractionResult containing:
                 - concepts: List of ExtractedConcept with node types and confidence
                 - relationships: List of ExtractedRelationship with edge types
-                - discourse_markers: Optional discourse analysis from SRL
                 - is_extractable: Whether text contained extractable content
                 - latency_ms: Extraction time in milliseconds
 
@@ -200,8 +199,6 @@ class ExtractionService:
             schema,
         )
 
-        discourse_markers = extraction_data.get("discourse_markers", [])
-
         latency_ms = int((time.perf_counter() - start_time) * 1000)
 
         log.info(
@@ -214,7 +211,6 @@ class ExtractionService:
         return ExtractionResult(
             concepts=concepts,
             relationships=relationships,
-            discourse_markers=discourse_markers,
             is_extractable=True,
             latency_ms=latency_ms,
         )
@@ -286,7 +282,6 @@ class ExtractionService:
             Parsed extraction data dict with:
                 - concepts: List of concept dicts with text, node_type, confidence
                 - relationships: List of relationship dicts with source, target, type
-                - discourse_markers: Optional discourse analysis
 
         Raises:
             ValueError: If LLM response is not valid JSON or missing required fields

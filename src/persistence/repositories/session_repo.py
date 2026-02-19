@@ -407,9 +407,6 @@ class SessionRepository:
             turn_number=row["turn_number"],
             speaker=row["speaker"],
             text=row["text"],
-            discourse_markers=json.loads(row["discourse_markers"])
-            if row["discourse_markers"]
-            else [],
             created_at=datetime.fromisoformat(row["created_at"]),
         )
 

@@ -180,12 +180,11 @@ Return valid JSON with this structure:
       "confidence": 0.0-1.0,
       "source_quote": "verbatim text showing relationship"
     }}
-  ],
-  "discourse_markers": ["because", "so", ...]
+  ]
 }}
 
 If the text contains no extractable concepts, return:
-{{"concepts": [], "relationships": [], "discourse_markers": []}}"""
+{{"concepts": [], "relationships": []}}"""
 
 
 def get_extraction_user_prompt(text: str, context: str = "") -> str:
@@ -318,7 +317,7 @@ def parse_extraction_response(response_text: str) -> Dict[str, Any]:
         response_text: Raw LLM response (should be JSON)
 
     Returns:
-        Parsed dict with concepts, relationships, discourse_markers
+        Parsed dict with concepts, relationships
 
     Raises:
         ValueError: If response is not valid JSON even after repair
@@ -353,7 +352,6 @@ def parse_extraction_response(response_text: str) -> Dict[str, Any]:
     return {
         "concepts": data.get("concepts", []),
         "relationships": data.get("relationships", []),
-        "discourse_markers": data.get("discourse_markers", []),
     }
 
 

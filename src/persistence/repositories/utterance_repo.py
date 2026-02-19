@@ -1,6 +1,5 @@
 """Utterance repository for database operations."""
 
-import json
 from datetime import datetime
 from typing import List
 
@@ -27,21 +26,16 @@ class UtteranceRepository:
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
 
-            # Convert discourse_markers to JSON
-            discourse_markers_json = json.dumps(utterance.discourse_markers or [])
-
             await db.execute(
                 """INSERT INTO utterances (
-                    id, session_id, turn_number, speaker, text,
-                    discourse_markers, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    id, session_id, turn_number, speaker, text, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)""",
                 (
                     utterance.id,
                     utterance.session_id,
                     utterance.turn_number,
                     utterance.speaker,
                     utterance.text,
-                    discourse_markers_json,
                     utterance.created_at.isoformat(),
                 ),
             )
@@ -114,8 +108,5 @@ class UtteranceRepository:
             turn_number=row["turn_number"],
             speaker=row["speaker"],
             text=row["text"],
-            discourse_markers=json.loads(row["discourse_markers"])
-            if row["discourse_markers"]
-            else [],
             created_at=datetime.fromisoformat(row["created_at"]),
         )
