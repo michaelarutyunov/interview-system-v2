@@ -69,22 +69,30 @@ class CanonicalGraphService:
 
         start_time = time.time()
 
-        # Get active slots and canonical edges
+        # Get active slots and all canonical edges
         active_slots = await self.repo.get_active_slots(session_id)
-        canonical_edges = await self.repo.get_canonical_edges(session_id)
+        all_canonical_edges = await self.repo.get_canonical_edges(session_id)
+
+        # Scope edges to active slots only — edges involving candidate slots are
+        # excluded so concept_count and edge_count describe the same graph.
+        active_slot_ids: Set[str] = {slot.id for slot in active_slots}
+        canonical_edges = [
+            e
+            for e in all_canonical_edges
+            if e.source_slot_id in active_slot_ids
+            and e.target_slot_id in active_slot_ids
+        ]
 
         concept_count = len(active_slots)
         edge_count = len(canonical_edges)
 
-        # Build slot_id sets for orphan detection
-        all_slot_ids: Set[str] = {slot.id for slot in active_slots}
+        # Build slot_id sets for orphan detection (both sets already active-scoped)
         slots_in_edges: Set[str] = set()
-
         for edge in canonical_edges:
             slots_in_edges.add(edge.source_slot_id)
             slots_in_edges.add(edge.target_slot_id)
 
-        orphan_count = len(all_slot_ids - slots_in_edges)
+        orphan_count = len(active_slot_ids - slots_in_edges)
 
         # Compute max depth using iterative BFS (handles cycles)
         max_depth = self._compute_max_depth(active_slots, canonical_edges)
