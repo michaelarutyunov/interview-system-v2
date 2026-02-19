@@ -68,6 +68,8 @@ class SimulationTurn:
     nodes_added: Optional[List[Dict[str, Any]]] = None
     edges_added: Optional[List[Dict[str, Any]]] = None
     extraction_summary: Optional[Dict[str, Any]] = None
+    # Saturation tracking metrics from StateComputationStage
+    saturation_metrics: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -236,6 +238,7 @@ class SimulationService:
                 termination_reason=turn_result_session.termination_reason,
                 context_nodes_added=turn_result_session.nodes_added,
                 context_edges_added=turn_result_session.edges_added,
+                saturation_metrics=turn_result_session.saturation_metrics,
             )
             turns.append(turn_result)
 
@@ -306,6 +309,7 @@ class SimulationService:
         termination_reason: Optional[str] = None,
         context_nodes_added: Optional[List[Any]] = None,
         context_edges_added: Optional[List[Dict[str, Any]]] = None,
+        saturation_metrics: Optional[Dict[str, Any]] = None,
     ) -> SimulationTurn:
         """Simulate a single interview turn.
 
@@ -386,6 +390,7 @@ class SimulationService:
             nodes_added=nodes_added_data,
             edges_added=edges_added_data,
             extraction_summary=extraction_summary_data,
+            saturation_metrics=saturation_metrics,
         )
 
     async def _serialize_graph_data(
@@ -652,6 +657,8 @@ class SimulationService:
                     "nodes_added": t.nodes_added,
                     "edges_added": t.edges_added,
                     "extraction_summary": t.extraction_summary,
+                    # Saturation tracking metrics (is_saturated, consecutive counters)
+                    "saturation_metrics": t.saturation_metrics,
                 }
                 for t in result.turns
             ],

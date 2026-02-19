@@ -50,3 +50,5 @@ class TurnResult:
     edges_added: List[Dict[str, Any]] = field(
         default_factory=list
     )  # [{"source_node_id": ..., "target_node_id": ..., "edge_type": ...}]
+    # Saturation tracking metrics from StateComputationStage (Stage 5)
+    saturation_metrics: Optional[Dict[str, Any]] = None

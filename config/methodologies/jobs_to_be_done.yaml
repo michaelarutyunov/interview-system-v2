@@ -263,10 +263,10 @@ strategies:
       # Response depth — shallow answers suggest surface-level exploration still in play
       llm.response_depth.surface: 0.3       # Surface answers → probe alternatives
       llm.response_depth.shallow: 0.2       # Shallow answers → probe alternatives
-      # Diversity (stronger penalty than before)
-      temporal.strategy_repetition_count: -0.5
+      # Diversity — strong penalty to prevent probe_alternatives monoculture
+      temporal.strategy_repetition_count: -0.8  # was -0.5; must overcome orphan node boost
       # Node-level signals (Phase 3)
-      graph.node.is_orphan.true: 1.0  # Boost orphan nodes
+      graph.node.is_orphan.true: 0.5   # was 1.0; reduced to prevent orphan boost dominance
       graph.node.exhaustion_score.low: 0.6  # Avoid exhausted nodes
       graph.node.focus_streak.none: 0.5     # Fresh nodes without prior focus
 
@@ -278,7 +278,8 @@ strategies:
       llm.response_depth.surface: 0.5    # Surface answers → dig deeper
       llm.response_depth.shallow: 0.4    # Shallow answers → dig deeper
       llm.response_depth.moderate: 0.15  # Even moderate answers can benefit from deepening
-      graph.max_depth: -0.4
+      llm.response_depth.deep: 0.3       # Deep answers → keep digging (chain is open)
+      # graph.max_depth removed: maxes out at turn 2 in JTBD, creating permanent -0.4 drag
       # Engagement & valence safety checks — mid-engagement now contributes
       llm.engagement.high: 0.5              # Engaged = safe to dig deeper (was 0.7)
       llm.engagement.mid: 0.3               # Moderate engagement = still OK to dig (NEW)
@@ -377,11 +378,11 @@ phases:
       early_max_turns: 3
       mid_max_turns: 10
     signal_weights:
-      dig_motivation: 1.3
-      probe_alternatives: 1.15   # Increased from 1.0 — more weight to surface alternatives mid-interview
+      dig_motivation: 1.5        # was 1.3 — widen gap vs probe_alternatives in mid-phase
+      probe_alternatives: 0.9    # was 1.15 — below 1.0: mid-phase should deepen, not probe
       uncover_obstacles: 1.0
-      revitalize: 1.0             # Explicit mid-phase weight (was missing)
-      explore_situation: 0.6      # Reduced from 0.8 — mid phase should deepen, not explore
+      revitalize: 1.0
+      explore_situation: 0.6
       validate_outcome: 0.5
     phase_bonuses:
       dig_motivation: 0.3    # Additive bonus to prioritize digging in mid-phase
