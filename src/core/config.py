@@ -172,7 +172,7 @@ class Settings(BaseSettings):
         ),
     )
     canonical_similarity_threshold: float = Field(
-        default=0.70,
+        default=0.60,
         ge=0.0,
         le=1.0,
         description=(
@@ -182,7 +182,8 @@ class Settings(BaseSettings):
             "slot merges into the existing one instead of creating a duplicate. "
             "Higher values = more conservative (fewer merges, more slots). "
             "Lower values = more permissive (more merging, fewer slots). "
-            "0.70 targets 10-25% compression for JTBD interviews (all-MiniLM-L6-v2). "
+            "0.60 targets 10-25% compression for JTBD interviews (all-MiniLM-L6-v2). "
+            "0.70 produced 5.4% compression (4/74 slots promoted, still below target). "
             "0.80 was too conservative: produced 2.5% compression (only 2/80 slots promoted)."
         ),
     )

@@ -287,8 +287,8 @@ strategies:
       llm.valence.high: 0.4                 # Positive emotion = safe to probe
       # Response quality trend — dig when quality is declining
       llm.global_response_trend.shallowing: 0.4  # Shallow trend → try digging (NEW)
-      # Diversity
-      temporal.strategy_repetition_count: -0.3
+      # Diversity — stronger penalty to break 7-turn streaks
+      temporal.strategy_repetition_count: -0.5  # was -0.3; must erode lead faster
       # Node-level signals (Phase 3)
       graph.node.exhaustion_score.low: 1.0  # Boost non-exhausted nodes
       graph.node.focus_streak.low: 0.5  # Prefer fresh nodes
@@ -356,6 +356,23 @@ strategies:
       graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.7)
       graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.6)
 
+  # Strategy 7: Clarify assumption (challenging)
+  - name: clarify_assumption
+    description: "Challenge a confident or specific claim to expose unstated assumptions or overgeneralizations"
+    signal_weights:
+      # Primary triggers — high certainty + high specificity = confident claim worth probing
+      llm.certainty.high: 0.8        # Confident respondent = safe to push back
+      llm.specificity.high: 0.5      # Concrete claim = clear target to examine
+      llm.response_depth.deep: 0.3   # Deep certain answer = assumption worth surfacing
+      # Engagement safety check — need engagement to handle a challenge
+      llm.engagement.high: 0.3       # Engaged = will respond constructively
+      llm.engagement.low: -0.5       # Disengaged = don't challenge
+      # Diversity — should be rare; not a replacement for laddering
+      temporal.strategy_repetition_count: -0.6
+      # Node-level — prefer nodes the respondent has spoken confidently about
+      graph.node.exhaustion_score.low: 0.5   # Fresh node = still something to challenge
+      graph.node.focus_streak.low: 0.4       # Not yet over-focused
+
 phases:
   early:
     description: "Initial exploration, building graph structure"
@@ -380,13 +397,15 @@ phases:
     signal_weights:
       dig_motivation: 1.5        # was 1.3 — widen gap vs probe_alternatives in mid-phase
       probe_alternatives: 0.9    # was 1.15 — below 1.0: mid-phase should deepen, not probe
-      uncover_obstacles: 1.0
+      uncover_obstacles: 1.2     # was 1.0 — boost to compete with dig_motivation on high-certainty turns
+      clarify_assumption: 1.2    # Mid-phase only — challenge confident claims
       revitalize: 1.0
       explore_situation: 0.6
       validate_outcome: 0.5
     phase_bonuses:
       dig_motivation: 0.3    # Additive bonus to prioritize digging in mid-phase
       probe_alternatives: 0.15  # Bonus to break out of single-node focus
+      uncover_obstacles: 0.15   # Bonus to surface when engagement+valence are mid
 
   late:
     description: "Validation and verification"
