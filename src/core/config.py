@@ -135,7 +135,7 @@ class Settings(BaseSettings):
         ),
     )
     canonical_similarity_threshold: float = Field(
-        default=0.60,
+        default=0.80,
         ge=0.0,
         le=1.0,
         description=(
@@ -145,7 +145,7 @@ class Settings(BaseSettings):
             "slot merges into the existing one instead of creating a duplicate. "
             "Higher values = more conservative (fewer merges, more slots). "
             "Lower values = more permissive (more merging, fewer slots). "
-            "Default 0.60 balances deduplication with semantic precision."
+            "Default 0.80 requires high semantic similarity for merging."
         ),
     )
     canonical_min_support_nodes: int = Field(
