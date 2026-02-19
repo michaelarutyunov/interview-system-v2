@@ -42,6 +42,10 @@ certainty: How confident does the respondent appear in their statement?
   - "It's kind of good, I guess" → 1-2 (multiple hedges)
   - "I think it's pretty good" → 4 (social softener, otherwise assertive)
   - "That's exactly what I need" → 5 (unqualified assertion)
+  - "Honestly, I'm not sure I ever get there completely. Maybe X, I feel less Y, I guess." → 2
+    (multiple genuine hedges mid-sentence override the assertive opener; score by the hedges, not the opener)
+  - "Consistency, mainly. I can actually measure it." → 4
+    ("mainly" is a genuine qualification that caps the score; "I can actually" is assertive — balance at 4)
 
 emotional_valence: What is the emotional tone of the response?
   1 = Strongly negative (frustration, anger, disappointment)
@@ -49,30 +53,24 @@ emotional_valence: What is the emotional tone of the response?
   3 = Neutral, factual, no discernible emotional charge
   4 = Mildly positive (satisfaction, mild enthusiasm)
   5 = Strongly positive (excitement, delight, strong advocacy)
-  
-  Score the EMOTIONAL TONE, not the factual content. A calm 
-  description of a negative event is 3, not 1. A frustrated 
-  description of a positive outcome is 2, not 4. Mixed emotions 
+
+  Score the EMOTIONAL TONE, not the factual content. A calm
+  description of a negative event is 3, not 1. A frustrated
+  description of a positive outcome is 2, not 4. Mixed emotions
   should be scored by the dominant tone.
 
 engagement: How willing is the respondent to engage with this topic?
-  1 = Minimal effort: single words, "I don't know", deflection, 
+  1 = Minimal effort: single words, "I don't know", deflection,
       or restating the question back
-  2 = Compliant but passive: answers the literal question with 
+  2 = Compliant but passive: answers the literal question with
       no voluntary extension
-  3 = Adequate engagement: answers fully but does not volunteer 
+  3 = Adequate engagement: answers fully but does not volunteer
       additional information
-  4 = Active engagement: extends beyond the question, offers 
+  4 = Active engagement: extends beyond the question, offers
       unsolicited detail or examples
-  5 = High engagement: enthusiastic elaboration, introduces new 
+  5 = High engagement: enthusiastic elaboration, introduces new
       related points, or signals wanting to say more
-  
-  Score the respondent's WILLINGNESS to engage, not their 
-  articulateness. A poorly worded but effortful answer is 4-5. 
+
+  Score the respondent's WILLINGNESS to engage, not their
+  articulateness. A poorly worded but effortful answer is 4-5.
   A polished but minimal answer is 2.
-
-
-# Comments:
-The "distinguish from" guidance is embedded implicitly. Rather than a separate "Distinct From" field, each signal's anchor definitions contain boundary-setting language (e.g., depth says "quantity of elaboration, not quality"; valence says "emotional tone, not factual content"; engagement says "willingness, not articulateness"). This is more effective than explicit "this is not X" statements because it operates at the point of decision.
-
-The certainty prompt handles the hedging-as-politeness problem. The explicit instruction about "I think" as a social softener addresses the main case where certainty and hedging would diverge — without requiring a separate hedging signal. If you later add the hedging module, you'd want to remove that line from certainty and let the two signals capture the distinction independently.
