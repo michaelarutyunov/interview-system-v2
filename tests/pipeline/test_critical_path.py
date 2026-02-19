@@ -196,6 +196,7 @@ async def test_phase_boundaries_configurable():
     jtbd_config = registry.get_methodology("jobs_to_be_done")
     assert jtbd_config.phases is not None
     assert "early" in jtbd_config.phases
+    assert jtbd_config.phases["early"].phase_boundaries is not None
     assert jtbd_config.phases["early"].phase_boundaries.get("early_max_turns") == 3
     assert jtbd_config.phases["early"].phase_boundaries.get("mid_max_turns") == 10
 
@@ -411,7 +412,6 @@ async def test_continuation_stage_reads_saturation_from_context():
         turn_number=6,
         mode="exploratory",
         max_turns=15,
-        graph_state=graph_state,
     )
 
     context.state_computation_output = StateComputationOutput(
@@ -446,7 +446,6 @@ async def test_continuation_stage_reads_saturation_from_context():
         turn_number=10,
         mode="exploratory",
         max_turns=15,
-        graph_state=graph_state,
     )
 
     context2.state_computation_output = StateComputationOutput(

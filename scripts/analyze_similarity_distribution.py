@@ -32,6 +32,7 @@ from typing import Dict, List, Tuple
 import aiosqlite
 
 # Statistics
+np = None
 try:
     import numpy as np
 
@@ -118,6 +119,7 @@ def analyze_distribution(
 
     if non_exact_scores:
         if HAS_NUMPY:
+            assert np is not None
             result["non_exact_stats"] = {
                 "min": float(np.min(non_exact_scores)),
                 "max": float(np.max(non_exact_scores)),

@@ -263,15 +263,27 @@ class ScoringPersistenceStage(TurnStage):
         directly without incrementing.
         """
         from src.domain.models.session import SessionState, FocusEntry
+        from src.domain.models.interview_state import InterviewMode
 
         # EWMA smoothing factor (hardcoded, matches theoretical saturation research)
         alpha = 0.4
 
         # Load current velocity state from ContextLoadingOutput
         clo = context.context_loading_output
+        if clo is None:
+            raise RuntimeError(
+                "Pipeline contract violation: ContextLoadingOutput not available in "
+                "ScoringPersistenceStage (Stage 10). Stage 1 must complete first."
+            )
 
         # Surface graph velocity computation
-        current_surface = context.graph_state.node_count
+        graph_state = context.graph_state
+        if graph_state is None:
+            raise RuntimeError(
+                "Pipeline contract violation: graph_state not available in "
+                "ScoringPersistenceStage (Stage 10). Stage 5 must complete first."
+            )
+        current_surface = graph_state.node_count
         prev_surface = clo.prev_surface_node_count
         surface_delta = max(current_surface - prev_surface, 0)
         new_surface_ewma = (
@@ -299,7 +311,7 @@ class ScoringPersistenceStage(TurnStage):
 
         # Preserve fields that were previously lost
         last_strategy = context.strategy
-        mode = getattr(context, "mode", "exploratory")
+        mode = InterviewMode(context.mode)
 
         # Build focus entry for this turn
         focus = (
