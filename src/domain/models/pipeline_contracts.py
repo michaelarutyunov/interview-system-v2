@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional, Union, TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 if TYPE_CHECKING:
-    from src.methodologies.scoring import ScoredCandidate
+    pass
 
 from src.domain.models.knowledge_graph import GraphState, KGNode, SaturationMetrics
 from src.domain.models.utterance import Utterance

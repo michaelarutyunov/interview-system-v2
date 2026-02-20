@@ -66,15 +66,17 @@ async def review_canonical_slots(session_id: str) -> Dict[str, Any]:
 
     canonical_slots = []
     for row in rows:
-        canonical_slots.append({
-            "slot_id": row["slot_id"],
-            "slot_name": row["slot_name"],
-            "node_type": row["node_type"],
-            "description": row["description"] or "",
-            "support_count": row["support_count"],
-            "first_seen_turn": row["first_seen_turn"],
-            "status": row["status"],
-        })
+        canonical_slots.append(
+            {
+                "slot_id": row["slot_id"],
+                "slot_name": row["slot_name"],
+                "node_type": row["node_type"],
+                "description": row["description"] or "",
+                "support_count": row["support_count"],
+                "first_seen_turn": row["first_seen_turn"],
+                "status": row["status"],
+            }
+        )
 
     results["canonical_slots"] = canonical_slots
 
@@ -105,16 +107,18 @@ async def review_canonical_slots(session_id: str) -> Dict[str, Any]:
 
     mappings = []
     for row in rows:
-        mappings.append({
-            "surface_node_id": row["surface_node_id"],
-            "surface_label": row["surface_label"],
-            "surface_type": row["surface_type"],
-            "canonical_slot_id": row["canonical_slot_id"],
-            "canonical_name": row["canonical_name"],
-            "canonical_type": row["canonical_type"],
-            "similarity_score": row["similarity_score"],
-            "assigned_turn": row["assigned_turn"],
-        })
+        mappings.append(
+            {
+                "surface_node_id": row["surface_node_id"],
+                "surface_label": row["surface_label"],
+                "surface_type": row["surface_type"],
+                "canonical_slot_id": row["canonical_slot_id"],
+                "canonical_name": row["canonical_name"],
+                "canonical_type": row["canonical_type"],
+                "similarity_score": row["similarity_score"],
+                "assigned_turn": row["assigned_turn"],
+            }
+        )
 
     results["mappings"] = mappings
 
@@ -143,15 +147,17 @@ async def review_canonical_slots(session_id: str) -> Dict[str, Any]:
 
     canonical_edges = []
     for row in rows:
-        canonical_edges.append({
-            "edge_id": row["edge_id"],
-            "source_slot_id": row["source_slot_id"],
-            "source_name": row["source_name"],
-            "target_slot_id": row["target_slot_id"],
-            "target_name": row["target_name"],
-            "edge_type": row["edge_type"],
-            "support_count": row["support_count"],
-        })
+        canonical_edges.append(
+            {
+                "edge_id": row["edge_id"],
+                "source_slot_id": row["source_slot_id"],
+                "source_name": row["source_name"],
+                "target_slot_id": row["target_slot_id"],
+                "target_name": row["target_name"],
+                "edge_type": row["edge_type"],
+                "support_count": row["support_count"],
+            }
+        )
 
     results["canonical_edges"] = canonical_edges
 
@@ -179,12 +185,14 @@ async def review_canonical_slots(session_id: str) -> Dict[str, Any]:
 
     sample_assignments = []
     for row in rows:
-        sample_assignments.append({
-            "surface_node_id": row["surface_node_id"],
-            "surface_label": row["surface_label"],
-            "canonical_name": row["canonical_name"],
-            "similarity_score": row["similarity_score"],
-        })
+        sample_assignments.append(
+            {
+                "surface_node_id": row["surface_node_id"],
+                "surface_label": row["surface_label"],
+                "canonical_name": row["canonical_name"],
+                "similarity_score": row["similarity_score"],
+            }
+        )
 
     results["sample_assignments"] = sample_assignments
 
@@ -203,7 +211,9 @@ async def main():
     """Main entry point."""
     if len(sys.argv) < 2:
         print("Usage: python review_canonical_slots.py <session_id>")
-        print("Example: uv run python scripts/review_canonical_slots.py ddc755ec-b286-4448-b7eb-6988a7bcbd52")
+        print(
+            "Example: uv run python scripts/review_canonical_slots.py ddc755ec-b286-4448-b7eb-6988a7bcbd52"
+        )
         sys.exit(1)
 
     session_id = sys.argv[1]

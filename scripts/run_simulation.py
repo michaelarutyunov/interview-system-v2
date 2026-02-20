@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Configure logging first (before importing other modules)
 from src.core.logging import configure_logging
+
 configure_logging()
 
 from pathlib import Path
@@ -23,7 +24,10 @@ from src.services.simulation_service import SimulationService
 from src.services.session_service import SessionService
 from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
-from src.api.dependencies import get_shared_extraction_client, get_shared_generation_client
+from src.api.dependencies import (
+    get_shared_extraction_client,
+    get_shared_generation_client,
+)
 from src.core.config import settings
 
 
@@ -35,6 +39,7 @@ async def main():
         print("  - coffee_jtbd_v2 (jobs_to_be_done)")
         print("\nAvailable personas:")
         from src.llm.prompts.synthetic import get_available_personas
+
         for pid, pname in get_available_personas().items():
             print(f"  - {pid}: {pname}")
         sys.exit(1)
@@ -51,6 +56,7 @@ async def main():
 
     # Initialize repositories (need DB connection for GraphRepository)
     import aiosqlite
+
     db = await aiosqlite.connect(str(settings.database_path))
     session_repo = SessionRepository(str(settings.database_path))
     graph_repo = GraphRepository(db)
@@ -77,9 +83,9 @@ async def main():
     await db.close()
 
     # Print summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("SIMULATION COMPLETE")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Total turns: {result.total_turns}")
     print(f"Status: {result.status}")
     print("\nGraph summary:")
@@ -88,7 +94,7 @@ async def main():
     print(f"  Nodes: {total_nodes}")
     print(f"  Edges: {total_edges}")
     if total_nodes > 0:
-        print(f"  Edge-to-node ratio: {total_edges/total_nodes:.2f}")
+        print(f"  Edge-to-node ratio: {total_edges / total_nodes:.2f}")
 
     print("\nStrategy sequence:")
     for turn in result.turns:
@@ -107,6 +113,7 @@ async def main():
     )
     if json_files:
         from scripts.generate_scoring_csv import generate_scoring_csv
+
         csv_path = generate_scoring_csv(json_files[0])
         print(f"Scoring CSV saved to: {csv_path}")
 

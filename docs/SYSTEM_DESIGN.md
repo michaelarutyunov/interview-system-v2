@@ -202,6 +202,10 @@ class TurnResult:
     canonical_graph: Optional[Dict[str, Any]] = None    # Canonical graph metrics
     graph_comparison: Optional[Dict[str, Any]] = None   # Surface vs canonical comparison
 
+    # Scoring Observability (simulation-only)
+    node_signals: Optional[Dict[str, Dict[str, Any]]] = None   # Per-node signals keyed by node_id
+    score_decomposition: Optional[List[ScoredCandidate]] = None  # Per-candidate decomposition from joint scoring
+
     # Performance
     latency_ms: int = 0                # Pipeline execution time
 ```
@@ -544,18 +548,19 @@ def rank_strategy_node_pairs(
     node_tracker: NodeStateTracker,
     phase_weights: Optional[Dict[str, float]] = None,
     phase_bonuses: Optional[Dict[str, float]] = None,
-) -> List[Tuple[StrategyConfig, str, float]]:
+) -> tuple[List[Tuple[StrategyConfig, str, float]], List[ScoredCandidate]]:
     """
     Rank (strategy, node) pairs by joint score.
 
     For each (strategy, node) pair:
     1. Merge global + node signals (node signals take precedence)
-    2. Score strategy using combined signals
+    2. Score strategy using combined signals (with per-signal decomposition)
     3. Apply phase weight multiplier if available
     4. Apply phase bonus additively if available
     5. Sort all pairs by score descending
 
-    Returns: List of (StrategyConfig, node_id, score) tuples
+    Returns: (ranked_pairs, decomposition) where decomposition contains
+    per-signal contribution breakdown for every candidate (simulation observability)
     """
 ```
 

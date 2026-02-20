@@ -12,7 +12,7 @@ import asyncio
 import sys
 
 # Add project root to path
-sys.path.insert(0, str(__import__('pathlib').Path(__file__).parent.parent))
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent))
 
 from src.services.extraction_service import ExtractionService
 from src.core.schema_loader import load_methodology
@@ -39,7 +39,7 @@ async def test_extraction():
     # Initialize extraction service with LLM client
     llm_client = get_extraction_llm_client()
     print(f"LLM Client: {type(llm_client).__name__}")
-    if hasattr(llm_client, 'model'):
+    if hasattr(llm_client, "model"):
         print(f"Model: {llm_client.model}")
     print()
 
@@ -86,7 +86,9 @@ async def test_extraction():
         if result.relationships:
             print("\n  Relationships:")
             for r in result.relationships[:5]:  # Show first 5
-                print(f"    - {r.source_text} --[{r.relationship_type}]--> {r.target_text}")
+                print(
+                    f"    - {r.source_text} --[{r.relationship_type}]--> {r.target_text}"
+                )
             if len(result.relationships) > 5:
                 print(f"    ... and {len(result.relationships) - 5} more")
 

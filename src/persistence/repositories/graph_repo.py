@@ -518,7 +518,9 @@ class GraphRepository:
         all_edges = await self.get_edges_by_session(session_id)
 
         all_node_ids = {node.id for node in all_nodes}
-        adjacency, has_incoming = self._build_directed_adjacency(all_node_ids, all_edges)
+        adjacency, has_incoming = self._build_directed_adjacency(
+            all_node_ids, all_edges
+        )
         max_depth = self._find_longest_path_bfs(adjacency, all_node_ids, has_incoming)
 
         # Create DepthMetrics (ADR-010)

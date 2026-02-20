@@ -322,6 +322,7 @@ class AnthropicClient(LLMClient):
                     from src.services.token_usage_service import (
                         get_token_usage_service,
                     )
+
                     token_service = get_token_usage_service()
                     token_service.record_llm_call(
                         session_id=effective_session_id,
@@ -578,6 +579,7 @@ class OpenAICompatibleClient(LLMClient):
                     from src.services.token_usage_service import (
                         get_token_usage_service,
                     )
+
                     token_service = get_token_usage_service()
                     token_service.record_llm_call(
                         session_id=effective_session_id,

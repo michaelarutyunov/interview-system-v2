@@ -1139,6 +1139,81 @@ class FocusEntry(BaseModel):
 
 ---
 
+## Path 18: Score Decomposition for Simulation Observability
+
+**Why Critical**: `rank_strategy_node_pairs()` computes joint (strategy × node) scores using merged global + node signals, but previously returned only the final float. Post-hoc recomputation from stored signal values misses node-level adjustments, producing inaccurate CSV output. The decomposition path captures the per-signal breakdown at compute time and serializes it into the simulation JSON.
+
+```mermaid
+graph LR
+    A[rank_strategy_node_pairs] -->|score_strategy_with_decomposition| B[ScoredCandidate per pair]
+    B -->|rank + selected flag| C[List[ScoredCandidate]]
+
+    C -->|6th return element| D[select_strategy_and_focus]
+    D -->|score_decomposition| E[StrategySelectionOutput]
+    E -->|context.score_decomposition| F[PipelineContext]
+
+    F -->|TurnResult.score_decomposition| G[TurnResult]
+    G -->|_serialize_decomposition| H[List[Dict]]
+    H -->|SimulationTurn.score_decomposition| I[SimulationTurn]
+    I -->|_save_simulation_result| J[JSON turn.score_decomposition]
+
+    J -->|generate_scoring_csv.py| K[Scoring CSV]
+```
+
+### ScoredCandidate Structure
+
+```python
+@dataclass
+class ScoredCandidate:
+    strategy: str
+    node_id: str
+    signal_contributions: list[SignalContribution]  # Per-signal breakdown
+    base_score: float        # Sum of signal contributions
+    phase_multiplier: float  # From phase config (default 1.0)
+    phase_bonus: float       # From phase config (default 0.0)
+    final_score: float       # (base_score × multiplier) + bonus
+    rank: int                # 1 = best candidate
+    selected: bool           # True for the winning candidate
+
+@dataclass
+class SignalContribution:
+    name: str          # e.g. "llm.valence.low"
+    value: Any         # Resolved value (True/False/float)
+    weight: float      # From YAML signal_weights
+    contribution: float  # Effective contribution to base_score
+```
+
+### Key Points
+
+- **Capture time**: Decomposition is captured inside `rank_strategy_node_pairs()` — the only place where global + node signals are merged and scored together
+- **Accuracy**: CSV scores now match pipeline scores exactly (previously diverged due to missing node-level adjustments)
+- **Simulation-only**: `score_decomposition` is `Optional` in `TurnResult` and `StrategySelectionOutput`; the live API pipeline sets it to `None`
+- **Backward-compatible**: `generate_scoring_csv.py` emits a placeholder N/A row for old JSON files without `score_decomposition`
+- **Scale**: ~70 candidates per turn (7 strategies × 10 nodes) → ~700 rows per turn in CSV for a 10-turn simulation
+
+### JSON Schema (per turn)
+
+```json
+"score_decomposition": [
+  {
+    "strategy": "uncover_obstacles",
+    "node_id": "node-abc",
+    "signal_contributions": [
+      {"name": "llm.valence.low", "value": true, "weight": 0.9, "contribution": 0.9},
+      {"name": "llm.certainty.mid", "value": true, "weight": 0.2, "contribution": 0.2}
+    ],
+    "base_score": 1.1,
+    "phase_multiplier": 1.3,
+    "phase_bonus": 0.0,
+    "final_score": 1.43,
+    "rank": 1,
+    "selected": true
+  }
+]
+```
+
+---
+
 ## Optimization Results Summary
 
 Optimizations to surface and canonical graph processing produced dramatic improvements in graph quality and connectivity:
@@ -1197,6 +1272,8 @@ When working on the pipeline:
    - Register in `signal_registry.py`
 6. **Adding a new methodology**: Create YAML config in `config/methodologies/`
 7. **Debugging joint scoring**: Check `rank_strategy_node_pairs()` output with alternatives list
+   - `score_decomposition` in simulation JSON provides per-signal breakdown for every (strategy, node) candidate
+   - `generate_scoring_csv.py` converts this to a spreadsheet-friendly format; scores exactly match pipeline values
 
 ## Related Documentation
 

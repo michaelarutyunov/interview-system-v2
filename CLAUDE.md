@@ -131,10 +131,16 @@ uv run uvicorn src.main:app --reload
 # Run simulation
 uv run python scripts/run_simulation.py coffee_jtbd_v2 skeptical_analyst 10
 # Outputs: synthetic_interviews/TIMESTAMP_concept_persona.json
-#          synthetic_interviews/TIMESTAMP_concept_persona_scoring.csv (per-turn signal decomposition)
-# JSON turn fields: signals (global), node_signals (per-node: exhaustion, focus, etc.)
+#          synthetic_interviews/TIMESTAMP_concept_persona_scoring.csv (live decomposition — scores match pipeline exactly)
+# JSON turn fields:
+#   signals              — global signals (engagement, valence, depth, etc.)
+#   node_signals         — per-node signals (exhaustion, focus, etc.) keyed by node_id
+#   score_decomposition  — per-candidate joint scoring breakdown (strategy × node)
+#                          each entry: strategy, node_id, signal_contributions, base_score,
+#                          phase_multiplier, phase_bonus, final_score, rank, selected
 
 # Generate scoring CSV from existing simulation JSON
+# Reads score_decomposition from JSON — accurate live scores, not post-hoc recomputation
 uv run python scripts/generate_scoring_csv.py synthetic_interviews/<file>.json
 
 # Analyze similarity distribution

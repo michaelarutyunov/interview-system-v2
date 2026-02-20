@@ -87,7 +87,9 @@ async def get_surface_metrics(db_path: Path, session_id: str) -> Dict[str, Any]:
     }
 
 
-async def get_canonical_metrics(db_path: Path, session_id: str) -> Optional[Dict[str, Any]]:
+async def get_canonical_metrics(
+    db_path: Path, session_id: str
+) -> Optional[Dict[str, Any]]:
     """Query canonical graph metrics for a session.
 
     Args:
@@ -280,7 +282,9 @@ def print_comparison_table(results: List[Dict[str, Any]]) -> None:
 async def main():
     """Main entry point."""
     if len(sys.argv) < 2:
-        print("Usage: python compare_extraction_metrics.py <session_id_1> [session_id_2] ...")
+        print(
+            "Usage: python compare_extraction_metrics.py <session_id_1> [session_id_2] ..."
+        )
         sys.exit(1)
 
     session_ids = sys.argv[1:]

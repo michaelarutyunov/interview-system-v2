@@ -4,6 +4,7 @@ tests.conftest.mock_extraction_result
 scripts.review_canonical_slots.project_root
 scripts.compare_extraction_metrics.project_root
 scripts.compare_extraction_metrics.print_comparison_table
+scripts.analyze_similarity_distribution.np
 scripts.analyze_similarity_distribution.analyze_distribution
 scripts.analyze_similarity_distribution.print_report
 ui.api_client.SessionInfo
@@ -199,6 +200,7 @@ src.methodologies.registry.MethodologyRegistry.get_methodology
 src.methodologies.registry.MethodologyRegistry._validate_config
 src.methodologies.registry.MethodologyRegistry.list_methodologies
 src.methodologies.registry.MethodologyRegistry.create_signal_detector
+src.methodologies.scoring.log
 src.methodologies.scoring.score_strategy
 src.methodologies.scoring._get_signal_value
 src.methodologies.scoring.rank_strategies
@@ -406,6 +408,7 @@ src.core.config.InterviewConfig.sync_max_turns_with_phases
 src.core.config.load_interview_config
 src.core.config.settings
 src.core.config.interview_config
+src.core.logging._cull_old_logs
 src.core.logging.configure_logging
 src.core.logging.get_logger
 src.core.logging.bind_context
@@ -516,6 +519,7 @@ src.signals.llm.decorator._parse_signals_rubrics
 src.signals.llm.decorator._load_output_example
 src.signals.llm.decorator.llm_signal
 src.signals.llm.llm_signal_base.BaseLLMSignal
+src.signals.session.strategy_history.log
 src.signals.session.strategy_history.StrategyRepetitionCountSignal
 src.signals.session.strategy_history.TurnsSinceChangeSignal
 src.signals.session.node_strategy_repetition.NodeStrategyRepetitionSignal
@@ -561,19 +565,23 @@ src.signals.graph.node_signals.NodeIsOrphanSignal
 src.signals.graph.node_signals.NodeEdgeCountSignal
 src.signals.graph.node_signals.NodeHasOutgoingSignal
 src.signals.graph.node_signals.__all__
+src.signals.meta.node_opportunity.log
 src.signals.meta.node_opportunity.NodeOpportunitySignal
 src.signals.meta.node_opportunity.NodeOpportunitySignal._is_exhausted
 src.signals.meta.node_opportunity.NodeOpportunitySignal._get_focus_streak_category
 src.signals.meta.node_opportunity.NodeOpportunitySignal._determine_opportunity
+src.signals.meta.node_opportunity.NodeOpportunitySignal._get_previous_opportunity
 src.signals.meta.node_opportunity.NodeOpportunitySignal._get_response_depth
 src.signals.meta.node_opportunity.NodeOpportunitySignal._calculate_shallow_ratio
 src.signals.meta.interview_phase.InterviewPhaseSignal
 src.signals.meta.interview_phase.InterviewPhaseSignal._get_phase_boundaries
 src.signals.meta.interview_phase.InterviewPhaseSignal._normalize_boundaries
 src.signals.meta.interview_phase.InterviewPhaseSignal._determine_phase
+src.signals.meta.canonical_saturation.CanonicalSaturationSignal
 src.signals.meta.__all__
 src.signals.meta.progress.InterviewProgressSignal
 src.signals.meta.progress.InterviewProgressSignal._get_ontology_level_count
+src.signals.meta.conversation_saturation.ConversationSaturationSignal
 src.signals.llm.signals.engagement.EngagementSignal
 src.signals.llm.signals.__all__
 src.signals.llm.signals.depth.ResponseDepthSignal
@@ -683,6 +691,7 @@ src.domain.models.knowledge_graph.GraphState.add_strategy_used
 src.domain.models.extraction.ExtractedConcept
 src.domain.models.extraction.ExtractedRelationship
 src.domain.models.extraction.ExtractionResult
+src.domain.models.session.FocusEntry
 src.domain.models.session.SessionState
 src.domain.models.session.Session
 src.domain.models.methodology_schema.NodeTypeSpec

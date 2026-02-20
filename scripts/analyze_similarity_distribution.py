@@ -82,9 +82,7 @@ async def get_similarity_scores(
         ]
 
 
-def analyze_distribution(
-    scores: List[Tuple[str, str, float, str, str]]
-) -> Dict:
+def analyze_distribution(scores: List[Tuple[str, str, float, str, str]]) -> Dict:
     """
     Analyze similarity score distribution.
 
@@ -239,7 +237,13 @@ def print_report(analysis: Dict, scores: List[Tuple[str, str, float, str, str]])
         if non_exact_samples:
             print("SAMPLE NON-EXACT MATCHES (top 10 by similarity)")
             print("-" * 80)
-            for _surface_id, _slot_id, sim, surface_label, slot_name in non_exact_samples:
+            for (
+                _surface_id,
+                _slot_id,
+                sim,
+                surface_label,
+                slot_name,
+            ) in non_exact_samples:
                 print(f"  {sim:.4f} | {surface_label:30s} → {slot_name}")
             print()
 
