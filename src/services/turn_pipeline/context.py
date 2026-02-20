@@ -424,6 +424,18 @@ class PipelineContext:
         return None
 
     @property
+    def score_decomposition(self) -> Optional[list]:
+        """Get per-candidate score decomposition from joint scoring.
+
+        Returns:
+            List of ScoredCandidate from StrategySelectionOutput (Stage 6),
+            or None if stage not yet completed. Populated during simulation only.
+        """
+        if self.strategy_selection_output:
+            return self.strategy_selection_output.score_decomposition
+        return None
+
+    @property
     def signals(self) -> Optional[Dict[str, Any]]:
         """Get detected methodology signals for observability and debugging.
 

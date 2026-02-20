@@ -5,8 +5,11 @@ type safety and runtime validation for the turn processing pipeline.
 """
 
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional, Union
-from pydantic import BaseModel, Field, model_validator
+from typing import List, Dict, Any, Optional, Union, TYPE_CHECKING
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+if TYPE_CHECKING:
+    from src.methodologies.scoring import ScoredCandidate
 
 from src.domain.models.knowledge_graph import GraphState, KGNode, SaturationMetrics
 from src.domain.models.utterance import Utterance
@@ -216,6 +219,8 @@ class StrategySelectionOutput(BaseModel):
     Includes signals and alternatives for methodology-based selection observability.
     """
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     strategy: str = Field(
         description="Selected strategy ID (e.g., 'deepen', 'broaden', 'ladder_deeper')"
     )
@@ -250,6 +255,16 @@ class StrategySelectionOutput(BaseModel):
     generates_closing_question: bool = Field(
         default=False,
         description="Whether this strategy generates a closing question (interview conclusion)",
+    )
+    # Per-candidate score decomposition from joint scoring (simulation-only)
+    score_decomposition: Optional[List[Any]] = Field(
+        default=None,
+        description=(
+            "Per-candidate score decomposition from rank_strategy_node_pairs(). "
+            "Each entry is a ScoredCandidate with strategy, node_id, signal_contributions "
+            "(name/value/weight/contribution), base_score, phase_multiplier, phase_bonus, "
+            "final_score, rank, selected. Populated during simulation; None in live API."
+        ),
     )
 
 

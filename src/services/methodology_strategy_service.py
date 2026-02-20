@@ -21,7 +21,7 @@ import structlog
 
 from src.core.exceptions import ConfigurationError, ScoringError
 from src.methodologies import get_registry
-from src.methodologies.scoring import rank_strategy_node_pairs
+from src.methodologies.scoring import rank_strategy_node_pairs, ScoredCandidate
 from src.services.global_signal_detection_service import GlobalSignalDetectionService
 from src.services.node_signal_detection_service import NodeSignalDetectionService
 
@@ -88,6 +88,7 @@ class MethodologyStrategyService:
         Sequence[Union[Tuple[str, float], Tuple[str, str, float]]],
         Optional[Dict[str, Any]],
         Dict[str, Dict[str, Any]],
+        list[ScoredCandidate],
     ]:
         """Select best (strategy, node) pair using joint scoring with phase weights.
 
@@ -234,7 +235,7 @@ class MethodologyStrategyService:
             )
 
         # Score all (strategy, node) pairs using joint scoring
-        scored_pairs = rank_strategy_node_pairs(
+        scored_pairs, score_decomposition = rank_strategy_node_pairs(
             strategies=strategies,
             global_signals=global_signals,
             node_signals=node_signals,
@@ -280,4 +281,5 @@ class MethodologyStrategyService:
             alternatives,
             global_signals,
             node_signals,
+            score_decomposition,
         )
