@@ -6,10 +6,36 @@ normalized at source to [0, 1] or bool.
 """
 
 import structlog
+from dataclasses import dataclass, field
 from typing import List, Tuple, Dict, Any, Optional
 from src.methodologies.registry import StrategyConfig
 
 log = structlog.get_logger(__name__)
+
+
+@dataclass
+class SignalContribution:
+    """Per-signal score contribution within a scored candidate."""
+
+    name: str
+    value: Any
+    weight: float
+    contribution: float
+
+
+@dataclass
+class ScoredCandidate:
+    """Full decomposition for one (strategy, node) candidate from joint scoring."""
+
+    strategy: str
+    node_id: str
+    signal_contributions: list[SignalContribution] = field(default_factory=list)
+    base_score: float = 0.0
+    phase_multiplier: float = 1.0
+    phase_bonus: float = 0.0
+    final_score: float = 0.0
+    rank: int = 0
+    selected: bool = False
 
 
 def score_strategy(
@@ -45,6 +71,41 @@ def score_strategy(
         score += contribution
 
     return score
+
+
+def score_strategy_with_decomposition(
+    strategy_config: StrategyConfig,
+    signals: Dict[str, Any],
+) -> tuple[float, list[SignalContribution]]:
+    """Score a strategy and return (score, signal_contributions) for decomposition."""
+    weights = strategy_config.signal_weights
+    score = 0.0
+    contributions: list[SignalContribution] = []
+
+    for signal_key, weight in weights.items():
+        signal_value = _get_signal_value(signal_key, signals)
+
+        if signal_value is None:
+            continue
+
+        if isinstance(signal_value, bool):
+            contribution = weight if signal_value else 0.0
+        elif isinstance(signal_value, (int, float)):
+            contribution = weight * signal_value
+        else:
+            contribution = 0.0
+
+        score += contribution
+        contributions.append(
+            SignalContribution(
+                name=signal_key,
+                value=signal_value,
+                weight=weight,
+                contribution=contribution,
+            )
+        )
+
+    return score, contributions
 
 
 def _get_signal_value(signal_key: str, signals: Dict[str, Any]) -> Any:
