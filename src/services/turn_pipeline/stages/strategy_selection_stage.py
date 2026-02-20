@@ -107,6 +107,7 @@ class StrategySelectionStage(TurnStage):
             focus_node_id,
             alternatives,
             signals,
+            node_signals,
         ) = await self._select_strategy_and_node(context)
 
         # Update node_tracker with the new focus (sets previous_focus for next turn)
@@ -149,6 +150,7 @@ class StrategySelectionStage(TurnStage):
             focus=focus_dict,
             # selected_at auto-set
             signals=signals,
+            node_signals=node_signals,
             strategy_alternatives=list(alternatives) if alternatives else [],
             generates_closing_question=generates_closing_question,
         )
@@ -172,6 +174,7 @@ class StrategySelectionStage(TurnStage):
         Optional[str],
         Sequence[Union[tuple[str, float], tuple[str, str, float]]],
         Optional[Dict[str, Any]],
+        Dict[str, Dict[str, Any]],
     ]:
         """
         Select strategy and focus node using joint scoring.
@@ -203,6 +206,7 @@ class StrategySelectionStage(TurnStage):
             focus_node_id,
             alternatives,
             signals,
+            node_signals,
         ) = await self.methodology_strategy.select_strategy_and_focus(
             context,
             context.graph_state,
@@ -252,4 +256,10 @@ class StrategySelectionStage(TurnStage):
                 simplified_alternatives.append((alt_strategy, alt_score))
                 seen_strategies.add(alt_strategy)
 
-        return strategy_name, focus_node_id, simplified_alternatives, signals
+        return (
+            strategy_name,
+            focus_node_id,
+            simplified_alternatives,
+            signals,
+            node_signals,
+        )

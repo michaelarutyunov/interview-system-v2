@@ -52,3 +52,5 @@ class TurnResult:
     )  # [{"source_node_id": ..., "target_node_id": ..., "edge_type": ...}]
     # Saturation tracking metrics from StateComputationStage (Stage 5)
     saturation_metrics: Optional[Dict[str, Any]] = None
+    # Per-node signals from StrategySelectionStage (Stage 6)
+    node_signals: Optional[Dict[str, Dict[str, Any]]] = None

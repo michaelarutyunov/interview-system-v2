@@ -198,7 +198,7 @@ async def test_phase_boundaries_configurable():
     assert "early" in jtbd_config.phases
     assert jtbd_config.phases["early"].phase_boundaries is not None
     assert jtbd_config.phases["early"].phase_boundaries.get("early_max_turns") == 3
-    assert jtbd_config.phases["early"].phase_boundaries.get("mid_max_turns") == 10
+    assert jtbd_config.phases["early"].phase_boundaries.get("mid_max_turns") == 12
 
 
 @pytest.mark.asyncio

@@ -412,6 +412,18 @@ class PipelineContext:
         return None
 
     @property
+    def node_signals(self) -> Optional[Dict[str, Dict[str, Any]]]:
+        """Get per-node signals computed during joint strategy-node scoring.
+
+        Returns:
+            Dict mapping node_id to dict of signal_name: value, from
+            StrategySelectionOutput (Stage 6), or None if stage not yet completed.
+        """
+        if self.strategy_selection_output:
+            return self.strategy_selection_output.node_signals
+        return None
+
+    @property
     def signals(self) -> Optional[Dict[str, Any]]:
         """Get detected methodology signals for observability and debugging.
 

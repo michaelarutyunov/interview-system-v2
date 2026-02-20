@@ -77,8 +77,8 @@ class NodeExhaustedSignal(NodeSignalDetector):
         if state.focus_count == 0:
             return False
 
-        # No yield for 3+ turns
-        if state.turns_since_last_yield < 3:
+        # No yield for 2+ turns (tightened from 3 to flag stale nodes faster)
+        if state.turns_since_last_yield < 2:
             return False
 
         # Current focus streak is 2+ (persistent focus without yield)

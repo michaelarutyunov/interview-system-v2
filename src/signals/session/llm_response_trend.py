@@ -54,6 +54,14 @@ class GlobalResponseTrendSignal(SignalDetector):
         if len(self.response_history) > self.history_size:
             self.response_history = self.response_history[-self.history_size :]
 
+    # Map categorical depth labels to numeric scores for trend arithmetic
+    _DEPTH_SCORE: dict = {
+        "surface": 1,
+        "shallow": 2,
+        "moderate": 3,
+        "deep": 4,
+    }
+
     async def detect(
         self,
         context,
@@ -76,25 +84,39 @@ class GlobalResponseTrendSignal(SignalDetector):
         if current_depth:
             self.add_response_depth(current_depth)
 
-        # Get recent history (last 5 responses)
-        recent = self.response_history[-5:]
+        # Get recent history (last 6 responses)
+        recent = self.response_history[-6:]
 
         if not recent:
             return {self.signal_name: "stable"}
 
-        # Count deep vs shallow responses
-        # Map: deep/moderate = "deep", surface/shallow = "shallow"
-        deep_count = sum(1 for d in recent if d in ["deep", "moderate"])
-        shallow_count = sum(1 for d in recent if d in ["surface", "shallow"])
+        # Map to numeric scores; unknown labels default to "moderate" (3)
+        scores = [self._DEPTH_SCORE.get(d, 3) for d in recent]
 
-        # Detect fatigue: 4+ shallow responses
+        # Detect fatigue: 4+ shallow responses (score <= 2) in recent window
+        shallow_count = sum(1 for s in scores if s <= 2)
         if shallow_count >= 4:
             return {self.signal_name: "fatigued"}
 
-        # Detect trends
-        if shallow_count > deep_count:
-            return {self.signal_name: "shallowing"}
-        elif deep_count > shallow_count:
+        # Require at least 4 turns of history before claiming a trend; default
+        # to "stable" while accumulating so the signal does not fire
+        # spuriously on the first few turns.
+        if len(scores) < 4:
+            return {self.signal_name: "stable"}
+
+        # Compare the mean score of the older half vs the newer half.
+        # A genuine trend requires a consistent directional shift, not just
+        # a high absolute level.
+        mid = len(scores) // 2
+        older_mean = sum(scores[:mid]) / mid
+        newer_mean = sum(scores[mid:]) / (len(scores) - mid)
+
+        delta = newer_mean - older_mean
+
+        # Threshold of 0.5 (half a depth level) to avoid noise
+        if delta >= 0.5:
             return {self.signal_name: "deepening"}
+        elif delta <= -0.5:
+            return {self.signal_name: "shallowing"}
         else:
             return {self.signal_name: "stable"}

@@ -251,13 +251,21 @@ class TurnPipeline:
                 }
 
         # Build per-turn graph change lists for simulation observability
-        nodes_added = [{"id": n.id, "label": n.label, "node_type": n.node_type} for n in context.nodes_added]
+        nodes_added = [
+            {"id": n.id, "label": n.label, "node_type": n.node_type}
+            for n in context.nodes_added
+        ]
         edges_added = list(context.edges_added)  # already List[Dict[str, Any]]
 
         # Serialize saturation metrics for simulation observability
         saturation_metrics = None
-        if context.state_computation_output and context.state_computation_output.saturation_metrics:
-            saturation_metrics = context.state_computation_output.saturation_metrics.model_dump()
+        if (
+            context.state_computation_output
+            and context.state_computation_output.saturation_metrics
+        ):
+            saturation_metrics = (
+                context.state_computation_output.saturation_metrics.model_dump()
+            )
 
         return TurnResult(
             turn_number=turn_number,
@@ -280,4 +288,5 @@ class TurnPipeline:
             nodes_added=nodes_added,
             edges_added=edges_added,
             saturation_metrics=saturation_metrics,
+            node_signals=context.node_signals,
         )

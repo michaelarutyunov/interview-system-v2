@@ -87,6 +87,7 @@ class MethodologyStrategyService:
         Optional[str],
         Sequence[Union[Tuple[str, float], Tuple[str, str, float]]],
         Optional[Dict[str, Any]],
+        Dict[str, Dict[str, Any]],
     ]:
         """Select best (strategy, node) pair using joint scoring with phase weights.
 
@@ -109,13 +110,14 @@ class MethodologyStrategyService:
             response_text: User's response text for LLM signal analysis
 
         Returns:
-            Tuple of (strategy_name, focus_node_id, alternatives, global_signals):
+            Tuple of (strategy_name, focus_node_id, alternatives, global_signals, node_signals):
             - strategy_name: Name of selected strategy from YAML config
             - focus_node_id: ID of selected focus node (UUID, not label)
             - alternatives: List of (strategy_name, node_id, score) tuples for
                 observability and debugging, sorted by score descending
             - global_signals: Dict of detected global signals (e.g.,
                 {"llm.response_depth": "deep", "graph.node_count": 42})
+            - node_signals: Dict mapping node_id to per-node signal dict
 
         Raises:
             ConfigurationError: If methodology not found or has no strategies defined
@@ -272,4 +274,10 @@ class MethodologyStrategyService:
             top_3_alternatives=alternatives[:3],
         )
 
-        return best_strategy_config.name, best_node_id, alternatives, global_signals
+        return (
+            best_strategy_config.name,
+            best_node_id,
+            alternatives,
+            global_signals,
+            node_signals,
+        )

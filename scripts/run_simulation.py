@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.core.logging import configure_logging
 configure_logging()
 
+from pathlib import Path
 from src.services.simulation_service import SimulationService
 from src.services.session_service import SessionService
 from src.persistence.repositories.session_repo import SessionRepository
@@ -95,6 +96,19 @@ async def main():
         print(f"  Turn {turn.turn_number}: {turn.strategy_selected or 'N/A'}{term}")
 
     print("\nJSON saved to: synthetic_interviews/")
+
+    # Generate scoring decomposition CSV
+    output_dir = Path("synthetic_interviews")
+    # Find the most recently written JSON for this simulation
+    json_files = sorted(
+        output_dir.glob(f"*_{result.concept_id}_{result.persona_id}.json"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    if json_files:
+        from scripts.generate_scoring_csv import generate_scoring_csv
+        csv_path = generate_scoring_csv(json_files[0])
+        print(f"Scoring CSV saved to: {csv_path}")
 
 
 if __name__ == "__main__":

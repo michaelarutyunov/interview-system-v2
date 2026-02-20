@@ -232,6 +232,11 @@ class StrategySelectionOutput(BaseModel):
         default=None,
         description="Detected signals from methodology-specific signal detector",
     )
+    # Node-level signals computed during joint strategy-node scoring
+    node_signals: Optional[Dict[str, Dict[str, Any]]] = Field(
+        default=None,
+        description="Per-node signals keyed by node_id. Each value is a dict of signal_name: value.",
+    )
     # Joint strategy-node scoring produces tuples with node_id
     strategy_alternatives: List[Union[tuple[str, float], tuple[str, str, float]]] = (
         Field(
