@@ -519,7 +519,7 @@ graph LR
 
 **Exhaustion Detection Criteria** (NodeExhaustedSignal):
 1. Minimum engagement: `focus_count >= 1`
-2. Yield stagnation: `turns_since_last_yield >= 3`
+2. Yield stagnation: `turns_since_last_yield >= 2` (tightened from 3 for faster node rotation)
 3. Persistent focus: `current_focus_streak >= 2`
 4. Shallow responses: 2/3 of recent responses are "surface"
 

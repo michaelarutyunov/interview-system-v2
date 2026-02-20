@@ -130,6 +130,12 @@ uv run uvicorn src.main:app --reload
 
 # Run simulation
 uv run python scripts/run_simulation.py coffee_jtbd_v2 skeptical_analyst 10
+# Outputs: synthetic_interviews/TIMESTAMP_concept_persona.json
+#          synthetic_interviews/TIMESTAMP_concept_persona_scoring.csv (per-turn signal decomposition)
+# JSON turn fields: signals (global), node_signals (per-node: exhaustion, focus, etc.)
+
+# Generate scoring CSV from existing simulation JSON
+uv run python scripts/generate_scoring_csv.py synthetic_interviews/<file>.json
 
 # Analyze similarity distribution
 uv run python scripts/analyze_similarity_distribution.py <session_id>

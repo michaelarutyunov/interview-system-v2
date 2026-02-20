@@ -384,7 +384,7 @@ All signals use dot-notation namespacing to prevent collisions:
 |------|-----------|-----------------|
 | **Graph (Global)** | `graph.*` | node_count, max_depth, orphan_count, chain_completion.ratio (float [0,1]), chain_completion.has_complete (bool) |
 | **Graph (Node)** | `graph.node.*` | exhausted, exhaustion_score, yield_stagnation, focus_streak, recency_score, is_orphan, edge_count |
-| **LLM** | `llm.*` | response_depth (categorical: surface/shallow/moderate/deep), valence (float [0,1]), certainty (float [0,1]), specificity (float [0,1]), engagement (float [0,1]), global_response_trend |
+| **LLM** | `llm.*` | response_depth (categorical: surface/shallow/moderate/deep), valence (float [0,1]), certainty (float [0,1]), specificity (float [0,1]), engagement (float [0,1]), global_response_trend (deepening/stable/plateauing — computed as temporal delta across recent turns) |
 | **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_strategy_change |
 | **Meta (Global)** | `meta.*` | interview_progress, interview.phase |
 | **Meta (Node)** | `meta.node.*` | opportunity (exhausted/probe_deeper/fresh) |
