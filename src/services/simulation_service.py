@@ -72,6 +72,8 @@ class SimulationTurn:
     saturation_metrics: Optional[Dict[str, Any]] = None
     # Per-node signals from StrategySelectionStage (Stage 6)
     node_signals: Optional[Dict[str, Any]] = None
+    # Per-candidate score decomposition from joint scoring
+    score_decomposition: Optional[List[Dict[str, Any]]] = None
 
 
 @dataclass
@@ -242,6 +244,9 @@ class SimulationService:
                 context_edges_added=turn_result_session.edges_added,
                 saturation_metrics=turn_result_session.saturation_metrics,
                 node_signals=turn_result_session.node_signals,
+                score_decomposition=self._serialize_decomposition(
+                    turn_result_session.score_decomposition
+                ),
             )
             turns.append(turn_result)
 
@@ -314,6 +319,7 @@ class SimulationService:
         context_edges_added: Optional[List[Dict[str, Any]]] = None,
         saturation_metrics: Optional[Dict[str, Any]] = None,
         node_signals: Optional[Dict[str, Any]] = None,
+        score_decomposition: Optional[List[Dict[str, Any]]] = None,
     ) -> SimulationTurn:
         """Simulate a single interview turn.
 
@@ -396,7 +402,39 @@ class SimulationService:
             extraction_summary=extraction_summary_data,
             saturation_metrics=saturation_metrics,
             node_signals=node_signals,
+            score_decomposition=score_decomposition,
         )
+
+    def _serialize_decomposition(
+        self, decomposition: Optional[list]
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Convert ScoredCandidate list to JSON-serializable dicts."""
+        if decomposition is None:
+            return None
+        result = []
+        for c in decomposition:
+            result.append(
+                {
+                    "strategy": c.strategy,
+                    "node_id": c.node_id,
+                    "signal_contributions": [
+                        {
+                            "name": sc.name,
+                            "value": sc.value,
+                            "weight": sc.weight,
+                            "contribution": sc.contribution,
+                        }
+                        for sc in c.signal_contributions
+                    ],
+                    "base_score": round(c.base_score, 6),
+                    "phase_multiplier": c.phase_multiplier,
+                    "phase_bonus": c.phase_bonus,
+                    "final_score": round(c.final_score, 6),
+                    "rank": c.rank,
+                    "selected": c.selected,
+                }
+            )
+        return result
 
     async def _serialize_graph_data(
         self, session_id: str
@@ -666,6 +704,8 @@ class SimulationService:
                     "saturation_metrics": t.saturation_metrics,
                     # Per-node signals from StrategySelectionStage
                     "node_signals": t.node_signals,
+                    # Per-candidate score decomposition from joint scoring
+                    "score_decomposition": t.score_decomposition,
                 }
                 for t in result.turns
             ],

@@ -54,3 +54,5 @@ class TurnResult:
     saturation_metrics: Optional[Dict[str, Any]] = None
     # Per-node signals from StrategySelectionStage (Stage 6)
     node_signals: Optional[Dict[str, Dict[str, Any]]] = None
+    # Per-candidate score decomposition from joint scoring (simulation-only)
+    score_decomposition: Optional[List[Any]] = None

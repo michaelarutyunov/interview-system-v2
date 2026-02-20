@@ -289,4 +289,5 @@ class TurnPipeline:
             edges_added=edges_added,
             saturation_metrics=saturation_metrics,
             node_signals=context.node_signals,
+            score_decomposition=context.score_decomposition,
         )
