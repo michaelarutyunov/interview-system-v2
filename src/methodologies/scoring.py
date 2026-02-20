@@ -227,7 +227,7 @@ def rank_strategy_node_pairs(
     node_tracker=None,
     phase_weights: Optional[Dict[str, float]] = None,
     phase_bonuses: Optional[Dict[str, float]] = None,
-) -> List[Tuple[StrategyConfig, str, float]]:
+) -> tuple[List[Tuple[StrategyConfig, str, float]], List[ScoredCandidate]]:
     """
     Rank (strategy, node) pairs by joint score.
 
@@ -248,11 +248,14 @@ def rank_strategy_node_pairs(
                       Applied additively: final_score = (base_score * multiplier) + bonus
 
     Returns:
-        List of (strategy_config, node_id, score) sorted descending by score
+        Tuple of (ranked_pairs, decomposition) where:
+        - ranked_pairs: List of (strategy_config, node_id, score) sorted descending
+        - decomposition: List of ScoredCandidate with per-signal contribution breakdown
     """
     current_phase = global_signals.get("meta.interview.phase", "unknown")
 
     scored_pairs: List[Tuple[StrategyConfig, str, float]] = []
+    candidates: List[ScoredCandidate] = []
 
     for strategy in strategies:
         for node_id, node_signal_dict in node_signals.items():
@@ -260,8 +263,10 @@ def rank_strategy_node_pairs(
             # Node signals take precedence when keys overlap
             combined_signals = {**global_signals, **node_signal_dict}
 
-            # Score strategy for this specific node
-            base_score = score_strategy(strategy, combined_signals)
+            # Score strategy for this specific node (with decomposition)
+            base_score, contributions = score_strategy_with_decomposition(
+                strategy, combined_signals
+            )
 
             # Apply phase weight multiplier if available
             multiplier = 1.0
@@ -277,6 +282,17 @@ def rank_strategy_node_pairs(
             final_score = (base_score * multiplier) + bonus
 
             scored_pairs.append((strategy, node_id, final_score))
+            candidates.append(
+                ScoredCandidate(
+                    strategy=strategy.name,
+                    node_id=node_id,
+                    signal_contributions=contributions,
+                    base_score=base_score,
+                    phase_multiplier=multiplier,
+                    phase_bonus=bonus,
+                    final_score=final_score,
+                )
+            )
 
             log.debug(
                 "strategy_node_pair_scored",
@@ -292,6 +308,13 @@ def rank_strategy_node_pairs(
     # Sort by score descending
     ranked = sorted(scored_pairs, key=lambda x: x[2], reverse=True)
 
+    # Assign rank and selected flag to each candidate
+    ranked_order = {(s.name, nid): i for i, (s, nid, _) in enumerate(ranked)}
+    for candidate in candidates:
+        rank = ranked_order.get((candidate.strategy, candidate.node_id), len(ranked))
+        candidate.rank = rank + 1  # 1-indexed
+        candidate.selected = rank == 0
+
     log.info(
         "joint_scoring_top5",
         phase=current_phase,
@@ -303,4 +326,4 @@ def rank_strategy_node_pairs(
         ],
     )
 
-    return ranked
+    return ranked, candidates

@@ -7,6 +7,8 @@ from src.methodologies.scoring import (
     score_strategy,
     rank_strategies,
     rank_strategy_node_pairs,
+    ScoredCandidate,
+    SignalContribution,
 )
 from src.methodologies.registry import StrategyConfig
 
@@ -292,7 +294,7 @@ class TestRankStrategyNodePairs:
             "node_2": {"llm.response_depth": 1.0},  # High
         }
 
-        ranked = rank_strategy_node_pairs(strategies, global_signals, node_signals)
+        ranked, decomposition = rank_strategy_node_pairs(strategies, global_signals, node_signals)
 
         assert len(ranked) == 2
         # node_2 should rank higher (response_depth=5 matches high threshold)
@@ -315,7 +317,7 @@ class TestRankStrategyNodePairs:
             "node_1": {},  # No override, uses global
         }
 
-        ranked = rank_strategy_node_pairs(strategies, global_signals, node_signals)
+        ranked, _ = rank_strategy_node_pairs(strategies, global_signals, node_signals)
 
         assert ranked[0][2] == 1.0  # Uses global signal value
 
@@ -333,7 +335,7 @@ class TestRankStrategyNodePairs:
             "node_1": {"llm.response_depth": 0.25},  # Override to low
         }
 
-        ranked = rank_strategy_node_pairs(strategies, global_signals, node_signals)
+        ranked, _ = rank_strategy_node_pairs(strategies, global_signals, node_signals)
 
         assert ranked[0][2] == 0.0  # Uses node signal value (not high)
 
@@ -349,7 +351,7 @@ class TestRankStrategyNodePairs:
         global_signals = {"llm.response_depth": 1.0}  # High (>= 0.75)
         node_signals = {"node_1": {}}
 
-        ranked = rank_strategy_node_pairs(
+        ranked, _ = rank_strategy_node_pairs(
             strategies,
             global_signals,
             node_signals,
@@ -359,6 +361,38 @@ class TestRankStrategyNodePairs:
 
         # Final score = (0.5 * 2.0) + 0.3 = 1.3
         assert ranked[0][2] == pytest.approx(1.3)
+
+    def test_rank_strategy_node_pairs_returns_decomposition(self):
+        """rank_strategy_node_pairs should return ScoredCandidate list alongside ranked pairs."""
+        strategy = StrategyConfig(
+            name="dig_motivation",
+            description="Dig motivation",
+            signal_weights={
+                "llm.engagement.high": 0.5,
+                "llm.response_depth.deep": 0.3,
+            },
+        )
+        global_signals = {
+            "llm.engagement": 0.75,  # >= 0.75 → "high" → True
+            "llm.response_depth": "deep",
+        }
+        node_signals = {"node-1": {}}
+
+        ranked, decomposition = rank_strategy_node_pairs(
+            strategies=[strategy],
+            global_signals=global_signals,
+            node_signals=node_signals,
+        )
+
+        assert len(decomposition) == 1
+        candidate = decomposition[0]
+        assert candidate.strategy == "dig_motivation"
+        assert candidate.node_id == "node-1"
+        assert candidate.selected is True
+        assert candidate.rank == 1
+        # engagement.high fired: 0.5 contribution; response_depth.deep fired: 0.3
+        assert abs(candidate.base_score - 0.8) < 0.001
+        assert len(candidate.signal_contributions) == 2
 
 
 class TestLLMSignalThresholdsIntegration:
