@@ -122,6 +122,25 @@ See `docs/data_flow_paths.md` for full diagrams. Key paths:
 
 ---
 
+## Database Access
+
+- **Path**: `data/interview.db` (SQLite, set via `DATABASE_PATH` in `.env`)
+- **Driver**: `aiosqlite` — use directly, not SQLAlchemy sessions
+- **Quick query pattern**:
+  ```python
+  import asyncio, json, aiosqlite
+  async def main():
+      async with aiosqlite.connect('data/interview.db') as db:
+          db.row_factory = aiosqlite.Row
+          async with db.execute('SELECT ...') as cursor:
+              rows = await cursor.fetchall()
+  asyncio.run(main())
+  ```
+- **Key tables**: `sessions`, `utterances`, `kg_nodes`, `kg_edges`, `canonical_slots`, `scoring_history`, `qualitative_signals`
+- **Token/cost data**: `json.loads(session['config'])['metadata']['llm_usage']`
+
+---
+
 ## Common Tasks
 
 ```bash
