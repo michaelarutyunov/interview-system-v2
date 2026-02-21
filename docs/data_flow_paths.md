@@ -1214,6 +1214,143 @@ class SignalContribution:
 
 ---
 
+## Path 19: NodeStateTracker Per-Turn Lifecycle
+
+**Why Critical**: NodeStateTracker maintains per-node state across turns, enabling exhaustion detection and intelligent backtracking. Understanding the exact timing of state mutations is essential for debugging node rotation bugs and signal detection accuracy.
+
+### Stage-by-Stage State Transitions
+
+**Timeline**: Stage 1 (Load) -> Stage 4 (Mutate) -> Stage 5 (Read) -> Stage 6 (Read & Mutate) -> Stage 10 (Save)
+
+```mermaid
+graph TB
+    subgraph "Stage 1: Context Loading (Turn Start)"
+        A["SessionService.process_turn"] --> B["_get_or_create_node_tracker"]
+        B --> C["Query sessions.node_tracker_state"]
+        C --> D{State exists?}
+        D -->|Yes| E["NodeStateTracker.from_dict"]
+        D -->|No| F["New NodeStateTracker()"]
+        E --> G["node_tracker with restored states"]
+        F --> G
+    end
+
+    subgraph "Stage 4: Graph Update (First Mutation)"
+        G --> H["GraphUpdateStage.process"]
+        H --> I["For each new node: register_node"]
+        I --> J["Create NodeState: node_id, label, created_at_turn, depth"]
+        H --> K["update_edge_counts: edge_count_outgoing, edge_count_incoming"]
+        H --> L["record_yield: last_yield_turn, yield_count, yield_rate"]
+        L --> M["NOTE: turns_since_last_yield reset to 0"]
+        M --> N["previous_focus node credited with yield"]
+    end
+
+    subgraph "Stage 5: State Computation (Read-Only)"
+        N --> O["StateComputationStage.process"]
+        O --> P["Read node_tracker.states for saturation"]
+        P --> Q["Check all_response_depths for consecutive_shallow"]
+        Q --> R["Compute SaturationMetrics"]
+    end
+
+    subgraph "Stage 6: Strategy Selection (Read & Second Mutation)"
+        R --> S["NodeSignalDetectionService detects node signals"]
+        S --> T["Read focus_streak, turns_since_last_yield, focus_count"]
+        T --> U["Compute exhaustion_score, opportunity status"]
+
+        U --> V["StrategySelectionStage: update_focus"]
+        V --> W["Increment focus_count, set last_focus_turn"]
+        W --> X["Update current_focus_streak (reset if changed, increment if same)"]
+        X --> Y["Tick turns_since_last_yield += 1 for ALL nodes"]
+        Y --> Z["Update strategy_usage_count"]
+        Z --> AA["Set previous_focus = new_focus"]
+    end
+
+    subgraph "Stage 10: Scoring Persistence (Save)"
+        AA --> AB["SessionService._save_node_tracker"]
+        AB --> AC["node_tracker.to_dict"]
+        AC --> AD["Serialize: schema_version, previous_focus, states"]
+        AD --> AE["UPDATE sessions.node_tracker_state"]
+        AE --> AF["Next turn starts at Stage 1"]
+    end
+
+    style L fill:#ffe1e1
+    style M fill:#ffe1e1
+    style T fill:#e1f5ff
+    style U fill:#e1f5ff
+    style X fill:#e1ffe1
+    style Y fill:#e1ffe1
+```
+
+### Critical Timing Relationship: Stage 4 < Stage 6
+
+**Why This Matters**: The order of operations means that `record_yield()` (Stage 4) runs BEFORE signal detection (Stage 6). This timing affects what values signals see:
+
+| Field | Stage 4 (record_yield) | Stage 6 (signal detection) | Stage 6 (update_focus) |
+|-------|------------------------|----------------------------|------------------------|
+| `last_yield_turn` | Set to `turn_number` | Read for yield_stagnation | Unchanged |
+| `turns_since_last_yield` | Reset to `0` | Read as `0` (just yielded!) | Ticked to `1` for ALL nodes |
+| `yield_count` | Incremented | Read for yield_rate | Unchanged |
+| `yield_rate` | Recalculated | Read for exhaustion scoring | Unchanged |
+| `focus_streak` | Unchanged | Read for exhaustion scoring | Reset to `1` or incremented |
+| `focus_count` | Unchanged | Read for exhaustion scoring | Incremented |
+| `last_focus_turn` | Unchanged | Unchanged | Set to `turn_number` |
+
+**Key Insight**: When `record_yield()` runs in Stage 4, it resets `turns_since_last_yield` to `0`. Signal detection in Stage 6 sees this value as `0`, which means the node appears "fresh" from a yield perspective even though it just yielded. This is correct behavior—the node produced value this turn, so it's not stagnant.
+
+### Field-Level State Transitions
+
+**Example: Single Node Across 3 Turns**
+
+```
+Turn 1 (node created):
+  Stage 1: Load -> No state (new node)
+  Stage 4: register_node -> created_at_turn=1, focus_count=0, yield_count=0
+  Stage 6: update_focus(node_A) -> focus_count=1, current_focus_streak=1, turns_since_last_yield=1
+  Stage 10: Save -> persisted
+
+Turn 2 (node yields):
+  Stage 1: Load -> focus_count=1, current_focus_streak=1, turns_since_last_yield=1
+  Stage 4: record_yield -> yield_count=1, last_yield_turn=2, turns_since_last_yield=0
+  Stage 6: signal detection -> reads turns_since_last_yield=0 (not stagnant)
+           update_focus(node_A) -> focus_count=2, current_focus_streak=2, turns_since_last_yield=1
+  Stage 10: Save -> persisted
+
+Turn 3 (node yields again, focus changes):
+  Stage 1: Load -> focus_count=2, current_focus_streak=2, turns_since_last_yield=1
+  Stage 4: record_yield -> yield_count=2, last_yield_turn=3, turns_since_last_yield=0
+  Stage 6: signal detection -> reads focus_streak=2 (potential exhaustion)
+           update_focus(node_B) -> node_A focus_streak resets to 1 (turns_since_last_focus=1)
+                              -> node_B focus_count=1, turns_since_last_focus=0
+                              -> ALL nodes: turns_since_last_yield += 1 (node_A: 0->1, node_B: 0->1)
+  Stage 10: Save -> persisted
+```
+
+### Mutation Summary
+
+| Stage | Method | Fields Modified |
+|-------|--------|-----------------|
+| **Stage 4** | `register_node` | node_id, label, created_at_turn, depth, node_type, is_terminal, level |
+| **Stage 4** | `update_edge_counts` | edge_count_outgoing, edge_count_incoming, connected_node_ids |
+| **Stage 4** | `record_yield` | last_yield_turn, turns_since_last_yield, yield_count, yield_rate |
+| **Stage 6** | `append_response_signal` | all_response_depths (append) |
+| **Stage 6** | `update_focus` | focus_count, last_focus_turn, current_focus_streak, turns_since_last_focus, turns_since_last_yield (tick all), strategy_usage_count, last_strategy_used, consecutive_same_strategy, previous_focus |
+| **Stage 10** | `to_dict` | Serialization to JSON |
+
+### Integration Points
+
+**Signal Detection Reads NodeState**:
+- `NodeExhaustedSignal`: Reads `focus_count`, `turns_since_last_yield`, `current_focus_streak`, `all_response_depths`
+- `NodeExhaustionScoreSignal`: Reads `turns_since_last_yield`, `current_focus_streak`, `all_response_depths`
+- `NodeFocusStreakSignal`: Reads `current_focus_streak`
+- `NodeYieldStagnationSignal`: Reads `turns_since_last_yield`
+- `NodeOpportunitySignal`: Reads exhaustion status
+
+**Bug Prevention**:
+- The Stage 4 < Stage 6 ordering means `current_focus_streak` accumulates correctly across turns
+- If `record_yield()` reset `focus_streak`, it would always appear as `0` during signal detection
+- `turns_since_last_yield` is reset to `0` in Stage 4, then ticked to `1` in Stage 6 for all nodes
+
+---
+
 ## Optimization Results Summary
 
 Optimizations to surface and canonical graph processing produced dramatic improvements in graph quality and connectivity:
@@ -1254,6 +1391,8 @@ Optimizations to surface and canonical graph processing produced dramatic improv
 | SRL Preprocessing | 2.5 | 3 | - |
 | Saturation Signal Computation | 1, 6, 10 | - | sessions |
 | Focus Tracing for Post-Hoc Analysis | 1, 10 | - | sessions |
+| Score Decomposition for Simulation Observability | 6 | - | - |
+| NodeStateTracker Per-Turn Lifecycle | 1, 4, 5, 6, 10, SessionService | - | sessions |
 
 ## Usage for Development
 

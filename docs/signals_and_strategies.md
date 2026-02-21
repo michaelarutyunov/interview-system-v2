@@ -361,20 +361,47 @@ Node-level signals provide **per-node** assessments for joint strategy-node scor
 | `graph.node.*` | Graph-derived per-node signals | exhaustion_score, focus_streak, has_outgoing |
 | `technique.node.*` | Technique-specific signals | strategy_repetition |
 
+### NodeState Field Write Timing
+
+**Critical**: All node signals read from `NodeState` fields, which are written by specific pipeline stages. Understanding this timing is essential for avoiding bugs where signals read stale state.
+
+| NodeState Field | Written By | Pipeline Stage | Signal Detection Timing |
+|-----------------|------------|-----------------|-------------------------|
+| `node_id`, `label`, `created_at_turn`, `depth`, `node_type`, `is_terminal`, `level` | `register_node()` | Stage 4 (GraphUpdateStage) | Fresh at Stage 6 detection |
+| `focus_count`, `last_focus_turn` | `update_focus()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
+| `current_focus_streak` | `update_focus()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 - CRITICAL: Stage 4 `record_yield()` must NOT reset this |
+| `turns_since_last_focus` | `update_focus()` | Stage 9 (ContinuationStage) | Ticked for ALL nodes in Stage 9 |
+| `turns_since_last_yield` | `record_yield()`, `update_focus()` | Stage 4 (GraphUpdateStage), Stage 9 (ContinuationStage) | Reset by Stage 4 on yield, ticked for all nodes in Stage 9 |
+| `last_yield_turn`, `yield_count`, `yield_rate` | `record_yield()` | Stage 4 (GraphUpdateStage) | Fresh at Stage 6 detection |
+| `all_response_depths` | `append_response_signal()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
+| `edge_count_incoming`, `edge_count_outgoing` | `update_edge_counts()` | Stage 4 (GraphUpdateStage) | Fresh at Stage 6 detection |
+| `strategy_usage_count`, `last_strategy_used`, `consecutive_same_strategy` | `update_focus()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
+| `previous_focus` (tracker-level) | `update_focus()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
+
+**Key Timing Dependencies**:
+
+1. **Stage 4 → Stage 6**: Signals that read yield metrics (`exhausted`, `exhaustion_score`, `yield_stagnation`) get fresh values because `record_yield()` runs in Stage 4.
+
+2. **Stage 9 (next turn) → Stage 6 (current turn)**: Signals that read focus metrics (`focus_streak`, `recency_score`, `is_current_focus`) are reading values from the PREVIOUS turn's `update_focus()` call in Stage 9 ContinuationStage. This is correct — the focus was selected in the previous turn's Stage 9 and is now being evaluated for signals.
+
+3. **Critical: current_focus_streak timing**: The `current_focus_streak` field is incremented in Stage 9's `update_focus()` call. Signal detection in Stage 6 reads this value, which represents the streak that was set during the previous turn's focus selection. Stage 4's `record_yield()` must NOT reset this value, or signals would always read 0.
+
+4. **Turn counter tick order**: `turns_since_last_yield` is ticked for ALL nodes in Stage 9's `update_focus()` loop, then reset to 0 for the yielding node in Stage 4's `record_yield()`. This means Stage 6 signals see the accumulated value from the previous turn's tick.
+
 ### Available Node Signals
 
-| Signal | Type | Description |
-|--------|------|-------------|
-| `graph.node.exhaustion_score` | float | Continuous exhaustion 0.0-1.0 (preferred over binary `exhausted`) |
-| `graph.node.exhausted` | bool | Binary exhaustion flag (strict 4-way conjunction, rarely fires) |
-| `graph.node.yield_stagnation` | bool | No yield for 3+ turns |
-| `graph.node.focus_streak` | str | `none`, `low`, `medium`, `high` |
-| `graph.node.is_current_focus` | bool | Currently focused node |
-| `graph.node.recency_score` | float | 0.0-1.0 recency |
-| `graph.node.is_orphan` | bool | No connected edges |
-| `graph.node.edge_count` | int | Total edges (**unbounded** - do NOT use with threshold binning) |
-| `graph.node.has_outgoing` | bool | Has outgoing edges |
-| `technique.node.strategy_repetition` | int | Times same strategy used on node |
+| Signal | Type | Reads NodeState Fields | Timing Notes |
+|--------|------|------------------------|--------------|
+| `graph.node.exhaustion_score` | float | `focus_count`, `turns_since_last_yield`, `current_focus_streak`, `all_response_depths` | Fresh: `turns_since_last_yield` updated Stage 4, `current_focus_streak` from previous turn Stage 9 |
+| `graph.node.exhausted` | bool | `focus_count`, `turns_since_last_yield`, `current_focus_streak`, `all_response_depths` | Fresh: `turns_since_last_yield` updated Stage 4, `current_focus_streak` from previous turn Stage 9 |
+| `graph.node.yield_stagnation` | bool | `focus_count`, `turns_since_last_yield` | Fresh: both updated Stage 4 or ticked Stage 9 |
+| `graph.node.focus_streak` | str | `current_focus_streak` | From previous turn Stage 9 - represents streak selected last turn |
+| `graph.node.is_current_focus` | bool | `previous_focus` (tracker-level) | From previous turn Stage 9 - represents focus selected last turn |
+| `graph.node.recency_score` | float | `turns_since_last_focus` | Ticked for all nodes in Stage 9 - represents turns since last focus selection |
+| `graph.node.is_orphan` | bool | `edge_count_incoming`, `edge_count_outgoing` | Fresh: updated Stage 4 |
+| `graph.node.edge_count` | int | `edge_count_incoming`, `edge_count_outgoing` | Fresh: updated Stage 4 |
+| `graph.node.has_outgoing` | bool | `edge_count_outgoing` | Fresh: updated Stage 4 |
+| `technique.node.strategy_repetition` | int | `consecutive_same_strategy` | From previous turn Stage 9 - represents strategy usage through last turn |
 
 ### Node Signal Detection
 

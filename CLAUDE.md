@@ -38,10 +38,11 @@ Any codebase change should follow these principles:
 | Document | Purpose |
 |----------|---------|
 | `docs/SYSTEM_DESIGN.md` | System architecture |
-| `docs/data_flow_paths.md` | 15 critical data flow diagrams |
+| `docs/data_flow_paths.md` | 19 critical data flow diagrams (incl. NodeStateTracker lifecycle) |
 | `docs/pipeline_contracts.md` | Stage input/output contracts |
 | `docs/extraction_and_graphs.md` | Extraction and Graphs configuration |
-| `docs/signals_and_strategies.md` | Signal Pools configuration |
+| `docs/signals_and_strategies.md` | Signal Pools configuration with timing annotations |
+| `docs/NodeStateTracker_mutation.md` | NodeStateTracker per-turn lifecycle and state mutation timing |
 
 ---
 

@@ -161,6 +161,35 @@ Queries to identify potential security issues.
 
 ---
 
+## 9. Cross-Stage State Mutation Analysis
+
+Queries to analyze pipeline stage ordering and state mutation timing patterns.
+These queries help identify timing bugs where state is mutated before being read by signals.
+
+| Query | Purpose |
+|-------|---------|
+| `which pipeline stages call NodeStateTracker methods with stage numbers` | Map stage → method call ordering |
+| `show writes to NodeState field current_focus_streak across all stages` | Find all mutation sites for a field |
+| `which signals read NodeState field and at which stage` | Signal → field read dependency |
+| `pipeline stage that mutates state before signal detection reads it` | Timing violation detector |
+| `trace NodeState field mutations across pipeline stages in order` | Per-field state evolution |
+| `which stage resets current_focus_streak field to zero` | Find field reset operations |
+| `show all NodeStateTracker method calls with calling stage context` | Stage → tracker method mapping |
+| `signal that reads NodeState field written in earlier stage` | Identify fresh vs stale signal reads |
+| `record_yield called before or after signal detection stage` | Verify critical stage ordering |
+| `which stage last modified NodeState field before signal detection` | Provenance for signal inputs |
+
+### Use Case: The 119q Bug
+
+The bug where `focus_streak` always appeared as 0 would have been found by:
+1. `which stage resets current_focus_streak field to zero` → Found Stage 4 `record_yield`
+2. `which signals read NodeState field current_focus_streak` → Found `NodeFocusStreakSignal`
+3. `trace NodeState field mutations across pipeline stages in order` → Shows Stage 4 < Stage 6 ordering
+
+**Key Insight**: Stage 4 (record_yield) runs BEFORE Stage 6 (signal detection), so any reset in Stage 4 makes signals read stale/zero values.
+
+---
+
 ## Batch Execution Template
 
 ```python
