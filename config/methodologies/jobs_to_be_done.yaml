@@ -248,7 +248,9 @@ strategies:
       llm.global_response_trend.shallowing: -0.4  # Don't explore when answers declining
       llm.global_response_trend.fatigued: -0.6    # Strongly suppress during fatigue
       # Node-level signals (Phase 3) — reduced weights to prevent node dominance
-      graph.node.focus_streak.none: 0.6  # Fresh nodes (was 1.0)
+      graph.node.focus_streak.none: 0.6   # Fresh nodes (was 1.0)
+      graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
+      graph.node.focus_streak.high: -0.7   # Strongly penalize 4+ turn over-focus
       graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.8)
       graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.7)
 
@@ -266,9 +268,11 @@ strategies:
       # Diversity — strong penalty to prevent probe_alternatives monoculture
       temporal.strategy_repetition_count: -0.8  # was -0.5; must overcome orphan node boost
       # Node-level signals (Phase 3)
-      graph.node.is_orphan.true: 0.5   # was 1.0; reduced to prevent orphan boost dominance
+      graph.node.is_orphan.true: 0.5       # was 1.0; reduced to prevent orphan boost dominance
       graph.node.exhaustion_score.low: 0.6  # Avoid exhausted nodes
-      graph.node.focus_streak.none: 0.5     # Fresh nodes without prior focus
+      graph.node.focus_streak.none: 0.5    # Fresh nodes without prior focus
+      graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
+      graph.node.focus_streak.high: -0.7    # Strongly penalize 4+ turn over-focus
 
   # Strategy 3: Dig into motivation (laddering)
   - name: dig_motivation
@@ -290,8 +294,10 @@ strategies:
       # Diversity — stronger penalty to break 7-turn streaks
       temporal.strategy_repetition_count: -0.5  # was -0.3; must erode lead faster
       # Node-level signals (Phase 3)
-      graph.node.exhaustion_score.low: 1.0  # Boost non-exhausted nodes
-      graph.node.focus_streak.low: 0.5  # Prefer fresh nodes
+      graph.node.exhaustion_score.low: 1.0   # Boost non-exhausted nodes
+      graph.node.focus_streak.low: 0.5       # Prefer nodes in first focus
+      graph.node.focus_streak.medium: -0.4   # Penalize 2-3 turn over-focus
+      graph.node.focus_streak.high: -0.8     # Strongly penalize 4+ turn over-focus
 
   # Strategy 4: Validate outcome (validation)
   - name: validate_outcome
@@ -335,7 +341,9 @@ strategies:
       temporal.strategy_repetition_count: -0.8
       temporal.turns_since_strategy_change: -0.6  # Penalty for staying too long
       # Node-level signals (Phase 3)
-      graph.node.focus_streak.none: 0.8  # Fresh nodes
+      graph.node.focus_streak.none: 0.8    # Fresh nodes
+      graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
+      graph.node.focus_streak.high: -0.7    # Strongly penalize 4+ turn over-focus
       graph.node.exhaustion_score.low: 0.5  # Avoid exhausted nodes
 
   # Strategy 6: Uncover obstacles (probing)
@@ -354,9 +362,11 @@ strategies:
       temporal.strategy_repetition_count: -0.5  # Stronger repetition penalty
       temporal.turns_since_strategy_change: -0.4  # Break strategy lock
       # Node-level signals (Phase 3) — reduced to prevent node dominance
-      graph.node.is_orphan.true: 0.7  # Boost orphan nodes (was 1.0)
+      graph.node.is_orphan.true: 0.7       # Boost orphan nodes (was 1.0)
       graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.7)
       graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.6)
+      graph.node.focus_streak.medium: -0.3  # Penalize 2-3 turn over-focus
+      graph.node.focus_streak.high: -0.6    # Strongly penalize 4+ turn over-focus
 
   # Strategy 7: Clarify assumption (challenging)
   - name: clarify_assumption
@@ -377,7 +387,9 @@ strategies:
       temporal.strategy_repetition_count: -0.6
       # Node-level — prefer nodes the respondent has spoken confidently about
       graph.node.exhaustion_score.low: 0.5   # Fresh node = still something to challenge
-      graph.node.focus_streak.low: 0.4       # Not yet over-focused
+      graph.node.focus_streak.low: 0.4       # First focus = just started engagement
+      graph.node.focus_streak.medium: -0.4   # Penalize 2-3 turn over-focus
+      graph.node.focus_streak.high: -0.7     # Strongly penalize 4+ turn over-focus
 
 phases:
   early:

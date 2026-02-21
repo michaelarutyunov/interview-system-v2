@@ -195,12 +195,14 @@ class NodeStateTracker:
         else:
             state.current_focus_streak = 1
 
-        # Update turns_since_last_focus for all nodes
+        # Update turns_since_last_focus and turns_since_last_yield for all nodes
+        # turns_since_last_yield tick: increments each turn; reset to 0 by record_yield on actual yield
         for nid, s in self.states.items():
             if nid == tracking_key:
                 s.turns_since_last_focus = 0
             else:
                 s.turns_since_last_focus += 1
+            s.turns_since_last_yield += 1
 
         # Update strategy usage
         if strategy not in state.strategy_usage_count:
@@ -239,7 +241,6 @@ class NodeStateTracker:
         - Resets turns_since_last_yield for this node
         - Increments yield_count
         - Recalculates yield_rate
-        - Resets current_focus_streak to 0 (yield breaks the streak)
 
         Args:
             node_id: ID of node that produced changes (surface node ID)
@@ -287,8 +288,11 @@ class NodeStateTracker:
         # Recalculate yield rate: yield_count / max(focus_count, 1)
         state.yield_rate = state.yield_count / max(state.focus_count, 1)
 
-        # Reset focus streak (yield breaks the streak)
-        state.current_focus_streak = 0
+        # Note: current_focus_streak is NOT reset here.
+        # Streak measures consecutive turns of focus attention, which only resets
+        # when focus changes to a different node (handled in update_focus).
+        # Resetting on yield would mask over-focus since record_yield runs before
+        # signal detection (Stage 4 < Stage 6), making streak always appear 0.
 
         self.log.debug(
             "node_yield_recorded",
