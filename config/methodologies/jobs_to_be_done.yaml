@@ -383,8 +383,8 @@ phases:
   early:
     description: "Initial exploration, building graph structure"
     phase_boundaries:
-      early_max_turns: 3
-      mid_max_turns: 12
+      early_max_turns: 5
+      mid_max_turns: 17
     signal_weights:
       explore_situation: 1.5
       probe_alternatives: 1.2
@@ -398,8 +398,8 @@ phases:
   mid:
     description: "Building depth and connections"
     phase_boundaries:
-      early_max_turns: 3
-      mid_max_turns: 12
+      early_max_turns: 5
+      mid_max_turns: 17
     signal_weights:
       dig_motivation: 1.4        # Primary mid-phase strategy but not overwhelming
       probe_alternatives: 0.9    # Below 1.0: mid-phase should deepen, not probe
@@ -417,8 +417,8 @@ phases:
   late:
     description: "Validation and verification"
     phase_boundaries:
-      early_max_turns: 3
-      mid_max_turns: 12
+      early_max_turns: 5
+      mid_max_turns: 17
     signal_weights:
       validate_outcome: 1.5
       uncover_obstacles: 1.2
