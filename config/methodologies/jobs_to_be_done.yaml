@@ -222,6 +222,7 @@ signals:
     - llm.certainty
     - llm.specificity
     - llm.engagement
+    - llm.intellectual_engagement
     # Note: llm.global_response_trend is session-scoped and managed separately
 
   temporal:
@@ -288,6 +289,8 @@ strategies:
       llm.engagement.high: 0.5              # Engaged = safe to dig deeper (was 0.7)
       llm.engagement.mid: 0.3               # Moderate engagement = still OK to dig (NEW)
       llm.engagement.low: -0.5              # Disengaged = avoid deepening
+      llm.intellectual_engagement.high: 0.6  # Motivational reasoning revealed = prime laddering target
+      llm.intellectual_engagement.mid: 0.3   # Some reasoning = worth probing further
       llm.valence.high: 0.4                 # Positive emotion = safe to probe
       # Response quality trend — dig when quality is declining
       llm.global_response_trend.shallowing: 0.4  # Shallow trend → try digging (NEW)

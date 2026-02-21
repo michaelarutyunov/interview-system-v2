@@ -59,6 +59,18 @@ emotional_valence: What is the emotional tone of the response?
   description of a positive outcome is 2, not 4. Mixed emotions
   should be scored by the dominant tone.
 
+intellectual_engagement: How analytically invested is the respondent — do they express reasoning, values, tradeoffs, or motivations rather than bare facts?
+  1 = No reasoning offered: bare assertions, single-word answers, or restated facts with no "why" or "because"
+  2 = Minimal reasoning: one motivation or qualifier stated, but no causal chain or value expression
+  3 = Moderate analytical investment: some reasoning or value language ("I care about X because Y"), but incomplete or underdeveloped
+  4 = Clear reasoning chains: explicit motivations, stated tradeoffs, goal-oriented language, or "because" constructions that reveal underlying values
+  5 = Dense motivational structure: multiple interlinked reasons, value hierarchies, self-aware tradeoffs, or causal explanations that reveal why something matters at a deeper level
+
+  Score the PRESENCE OF REASONING AND MOTIVATION STRUCTURE, not the word count or domain vocabulary.
+  A terse "I won't trust it unless I can verify the source — that's just how I make decisions" is 4 (clear stated value chain).
+  A lengthy but purely descriptive response ("I use it on Tuesdays, sometimes Wednesdays, mostly for meetings") is 1-2.
+  "It matters because consistency compounds over time, and that's the actual job I'm trying to hire for" is 5.
+
 engagement: How willing is the respondent to engage with this topic?
   1 = Minimal effort: single words, "I don't know", deflection,
       or restating the question back
