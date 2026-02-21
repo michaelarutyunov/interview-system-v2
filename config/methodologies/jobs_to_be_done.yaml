@@ -388,6 +388,7 @@ strategies:
       llm.engagement.low: -0.5       # Disengaged = don't challenge
       # Diversity — should be rare; not a replacement for laddering
       temporal.strategy_repetition_count: -0.6
+      temporal.strategy_repetition_count.high: -0.4  # Additional penalty when used 4+ of last 5 turns
       # Node-level — prefer nodes the respondent has spoken confidently about
       graph.node.exhaustion_score.low: 0.5   # Fresh node = still something to challenge
       graph.node.focus_streak.low: 0.4       # First focus = just started engagement
