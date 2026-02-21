@@ -457,7 +457,7 @@ response_depth: How much elaboration does the response provide?
 - Example: `response_depth:` header followed by indented scale definitions
 
 **Batch Detection**:
-All 5 LLM signals (response_depth, specificity, certainty, valence, engagement) are detected in a single API call. The prompt includes the interviewer's question (for context) and the respondent's answer, with rubrics injected to guide the LLM's scoring. The LLM returns structured JSON:
+All 6 LLM signals (response_depth, specificity, certainty, valence, engagement, intellectual_engagement) are detected in a single API call. The prompt includes the interviewer's question (for context) and the respondent's answer, with rubrics injected to guide the LLM's scoring. The LLM returns structured JSON:
 
 ```json
 {
@@ -465,7 +465,8 @@ All 5 LLM signals (response_depth, specificity, certainty, valence, engagement) 
   "specificity": {"score": 0.75, "rationale": "Concrete details and named entities"},
   "certainty": {"score": 1.0, "rationale": "Confident statements with no hedging"},
   "valence": {"score": 0.75, "rationale": "Positive tone throughout"},
-  "engagement": {"score": 1.0, "rationale": "Volunteered additional context unprompted"}
+  "engagement": {"score": 1.0, "rationale": "Volunteered additional context unprompted"},
+  "intellectual_engagement": {"score": 0.75, "rationale": "Causal reasoning with value expression present"}
 }
 ```
 

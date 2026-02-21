@@ -112,7 +112,7 @@ Signal detection operates in two modes:
 
 **Signal Types**:
 - `llm.response_depth`: Categorical string (surface/shallow/moderate/deep)
-- `llm.specificity`, `llm.certainty`, `llm.valence`, `llm.engagement`: Float [0,1] (normalized from Likert 1-5)
+- `llm.specificity`, `llm.certainty`, `llm.valence`, `llm.engagement`, `llm.intellectual_engagement`: Float [0,1] (normalized from Likert 1-5)
 
 **LLM signals are fresh** - computed every response via rubric-based prompts, no cross-response caching
 

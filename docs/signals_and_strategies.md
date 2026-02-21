@@ -220,7 +220,8 @@ async def execute(self, context: PipelineContext) -> PipelineContext:
 | `llm.specificity` | float | 0.0-1.0 | Concreteness of language |
 | `llm.certainty` | float | 0.0-1.0 | Epistemic confidence |
 | `llm.valence` | float | 0.0-1.0 | Emotional tone (negative-positive) |
-| `llm.engagement` | float | 0.0-1.0 | Willingness to engage |
+| `llm.engagement` | float | 0.0-1.0 | Willingness to engage (participatory quality) |
+| `llm.intellectual_engagement` | float | 0.0-1.0 | Analytical reasoning and motivational depth (causal chains, value expressions) |
 
 **Rubric-Based Detection**: The LLM batch detector loads rubric definitions from `src/signals/llm/prompts/signals.md` using indentation-based parsing. Each signal's rubric defines the scoring criteria and scale anchors that guide the LLM's assessment.
 
@@ -256,7 +257,8 @@ The prompt template uses `{question}` and `{response}` placeholders. Response te
     "llm.specificity": 0.5,        # Float [0,1]
     "llm.certainty": 1.0,          # Float [0,1]
     "llm.valence": 0.75,           # Float [0,1]
-    "llm.engagement": 1.0          # Float [0,1]
+    "llm.engagement": 1.0,                # Float [0,1]
+    "llm.intellectual_engagement": 0.75   # Float [0,1]
 }
 ```
 
