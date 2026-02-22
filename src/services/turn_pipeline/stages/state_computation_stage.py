@@ -206,16 +206,24 @@ class StateComputationStage(TurnStage):
             tracking.consecutive_zero_yield = 0
 
         # --- Depth plateau tracking ---
+        # Only count depth plateau during zero-yield turns.
+        # If the graph is actively growing (new nodes or edges), a stable max_depth
+        # is expected widening behavior — not stagnation — and must not increment
+        # the plateau counter.
         current_max_depth = 0
         if graph_state and graph_state.depth_metrics:
             current_max_depth = graph_state.depth_metrics.max_depth
 
-        if (
-            tracking.prev_max_depth >= 0
-            and current_max_depth == tracking.prev_max_depth
-        ):
-            tracking.consecutive_depth_plateau += 1
+        if nodes_added + edges_added == 0:
+            if (
+                tracking.prev_max_depth >= 0
+                and current_max_depth == tracking.prev_max_depth
+            ):
+                tracking.consecutive_depth_plateau += 1
+            else:
+                tracking.consecutive_depth_plateau = 0
         else:
+            # Graph is actively growing — depth plateau is lateral widening, not stagnation
             tracking.consecutive_depth_plateau = 0
         tracking.prev_max_depth = current_max_depth
 

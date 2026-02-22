@@ -233,6 +233,10 @@ signals:
     - meta.interview.phase
     - meta.conversation.saturation
     - meta.canonical.saturation
+    # Note: meta.interview_progress is intentionally excluded from JTBD.
+    # It is deprecated for this methodology and replaced by meta.conversation.saturation
+    # and meta.canonical.saturation, which are information-velocity-based rather than
+    # structural. Do not add it to signal_weights for any JTBD strategy.
 
 strategies:
   # Strategy 1: Explore the situation (elaboration)
@@ -241,7 +245,8 @@ strategies:
     signal_weights:
       # Global signals
       llm.valence.mid: 0.5
-      temporal.strategy_repetition_count: -0.8  # Strong repetition penalty (was -0.5)
+      temporal.strategy_repetition_count: -0.7  # Symmetric repetition penalty (was -0.8)
+      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
       temporal.turns_since_strategy_change: -0.4  # Break strategy lock
       # Engagement
       llm.engagement.mid: 0.4               # Moderate engagement = breadth OK
@@ -266,8 +271,9 @@ strategies:
       # Response depth — shallow answers suggest surface-level exploration still in play
       llm.response_depth.surface: 0.3       # Surface answers → probe alternatives
       llm.response_depth.shallow: 0.2       # Shallow answers → probe alternatives
-      # Diversity — strong penalty to prevent probe_alternatives monoculture
-      temporal.strategy_repetition_count: -0.8  # was -0.5; must overcome orphan node boost
+      # Diversity — symmetric penalty to prevent monoculture
+      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.8)
+      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
       # Node-level signals (Phase 3)
       graph.node.is_orphan.true: 0.5       # was 1.0; reduced to prevent orphan boost dominance
       graph.node.exhaustion_score.low: 0.6  # Avoid exhausted nodes
@@ -294,8 +300,9 @@ strategies:
       llm.valence.high: 0.4                 # Positive emotion = safe to probe
       # Response quality trend — dig when quality is declining
       llm.global_response_trend.shallowing: 0.4  # Shallow trend → try digging (NEW)
-      # Diversity — stronger penalty to break 7-turn streaks
-      temporal.strategy_repetition_count: -0.5  # was -0.3; must erode lead faster
+      # Diversity — symmetric penalty to prevent lock
+      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.5, lacked .high)
+      temporal.strategy_repetition_count.high: -1.0  # Severe penalty at 4-5 reps to break dominance
       # Node-level signals (Phase 3)
       graph.node.exhaustion_score.low: 1.0   # Boost non-exhausted nodes
       graph.node.focus_streak.low: 0.5       # Prefer nodes in first focus
@@ -317,8 +324,9 @@ strategies:
       meta.node.opportunity.probe_deeper: 0.6  # Extraction opportunity
       # Engagement trigger
       llm.engagement.low: 0.6               # Low engagement = validate & wrap
-      # Diversity (lighter penalty — OK to repeat validation)
-      temporal.strategy_repetition_count: -0.2
+      # Diversity (lighter penalty — OK to repeat validation, but symmetric)
+      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.2)
+      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
       # Node-level signals (Phase 3)
       graph.node.has_outgoing.true: 0.8  # Well-connected nodes
       graph.node.focus_streak.high: 0.5  # Often-focused nodes
@@ -340,8 +348,9 @@ strategies:
       llm.engagement.mid: 0.4               # Moderate engagement + fatigue = still revitalize (NEW)
       llm.engagement.high: -0.4             # Already engaged = not needed
       llm.valence.low: 0.5                  # Negative valence = shift gears
-      # Global signals - Strong penalty to prevent revitalization loops
-      temporal.strategy_repetition_count: -0.8
+      # Global signals - Symmetric penalty to prevent loops
+      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.8)
+      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
       temporal.turns_since_strategy_change: -0.6  # Penalty for staying too long
       # Node-level signals (Phase 3)
       graph.node.focus_streak.none: 0.8    # Fresh nodes
@@ -361,8 +370,9 @@ strategies:
       llm.certainty.mid: 0.2                # Respondent expressing doubt about solutions
       # Engagement — can surface obstacles even at mid engagement
       llm.engagement.mid: 0.3               # Moderate engagement = probing OK
-      # Diversity
-      temporal.strategy_repetition_count: -0.5  # Stronger repetition penalty
+      # Diversity — symmetric penalty to prevent lock
+      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.5)
+      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
       temporal.turns_since_strategy_change: -0.4  # Break strategy lock
       # Node-level signals (Phase 3) — reduced to prevent node dominance
       graph.node.is_orphan.true: 0.7       # Boost orphan nodes (was 1.0)
@@ -386,9 +396,9 @@ strategies:
       llm.engagement.high: 0.3       # Engaged = will respond constructively
       llm.engagement.mid: 0.2        # Moderate engagement = still OK to gently challenge (NEW)
       llm.engagement.low: -0.5       # Disengaged = don't challenge
-      # Diversity — should be rare; not a replacement for laddering
-      temporal.strategy_repetition_count: -0.6
-      temporal.strategy_repetition_count.high: -0.4  # Additional penalty when used 4+ of last 5 turns
+      # Diversity — should be rare; symmetric penalty to prevent lock
+      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.6)
+      temporal.strategy_repetition_count.high: 0  # Disabled (was -0.4); enable if lock persists
       # Node-level — prefer nodes the respondent has spoken confidently about
       graph.node.exhaustion_score.low: 0.5   # Fresh node = still something to challenge
       graph.node.focus_streak.low: 0.4       # First focus = just started engagement
@@ -427,7 +437,7 @@ phases:
     phase_bonuses:
       dig_motivation: 0.3        # Restored — dig needs additive bonus to compete on non-negative turns
       probe_alternatives: 0.15   # Bonus to break out of single-node focus
-      uncover_obstacles: 0.15    # Moderate — fires naturally via valence.low signal
+      uncover_obstacles: 0.25    # Boosted — compete when dig_motivation is penalized
       clarify_assumption: 0.15   # Additive — ensure it fires on hedging turns
 
   late:

@@ -27,6 +27,8 @@ class InterviewProgressSignal(SignalDetector):
     DEPRECATED for JTBD: Replaced by meta.conversation.saturation and
     meta.canonical.saturation signals which are methodology-agnostic and
     based on information velocity rather than structural completeness.
+    Do NOT add this signal to jobs_to_be_done.yaml signals list or any
+    JTBD strategy signal_weights — its absence is intentional and correct.
 
     Retained in means_end_chain.yaml where chain_completion is meaningful
     for Means-End Chain methodology.
