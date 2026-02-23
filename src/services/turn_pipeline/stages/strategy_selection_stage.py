@@ -135,14 +135,14 @@ class StrategySelectionStage(TurnStage):
                 context.methodology
             )
         )
-        generates_closing_question = next(
-            (
-                s.generates_closing_question
-                for s in methodology_config.strategies
-                if s.name == strategy
-            ),
-            False,
+        selected_config = next(
+            (s for s in methodology_config.strategies if s.name == strategy),
+            None,
         )
+        generates_closing_question = (
+            selected_config.generates_closing_question if selected_config else False
+        )
+        focus_mode = selected_config.focus_mode if selected_config else "recent_node"
 
         # Create contract output (single source of truth)
         # No need to set individual fields - they're derived from the contract
@@ -154,6 +154,7 @@ class StrategySelectionStage(TurnStage):
             node_signals=node_signals,
             strategy_alternatives=list(alternatives) if alternatives else [],
             generates_closing_question=generates_closing_question,
+            focus_mode=focus_mode,
             score_decomposition=score_decomposition,
         )
 
