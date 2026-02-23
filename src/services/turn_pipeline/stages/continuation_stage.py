@@ -150,10 +150,11 @@ class ContinuationStage(TurnStage):
             )
             return False, "Maximum turns reached"
 
-        if strategy == "close":
+        if context.strategy_selection_output.generates_closing_question:
             log.info(
                 "session_ending",
-                reason="close_strategy",
+                reason="closing_strategy",
+                strategy=strategy,
                 phase=current_phase,
             )
             return False, "Closing strategy selected"
