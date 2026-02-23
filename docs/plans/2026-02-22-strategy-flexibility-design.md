@@ -1,7 +1,7 @@
 # Design: Eliminate Hardcoded Strategy Names
 
 **Date**: 2026-02-22
-**Status**: Approved
+**Status**: Implemented
 **Goal**: Make the strategy consumption layer fully YAML-driven so new methodologies can define new strategies without code changes.
 
 ## Problem
