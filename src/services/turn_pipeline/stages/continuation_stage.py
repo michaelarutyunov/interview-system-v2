@@ -82,6 +82,7 @@ class ContinuationStage(TurnStage):
                 recent_nodes=context.recent_nodes,
                 strategy=context.strategy,
                 graph_state=context.graph_state,
+                focus_mode=context.strategy_selection_output.focus_mode,
             )
         else:
             focus_concept = ""
