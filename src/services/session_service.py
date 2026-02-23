@@ -20,7 +20,6 @@ from src.services.canonical_slot_service import CanonicalSlotService
 from src.services.embedding_service import EmbeddingService
 from src.persistence.repositories.canonical_slot_repo import CanonicalSlotRepository
 from src.core.concept_loader import load_concept
-from src.domain.models.extraction import ExtractionResult
 from src.domain.models.knowledge_graph import GraphState, KGNode
 from src.domain.models.utterance import Utterance
 from src.llm.client import LLMClient
@@ -518,72 +517,6 @@ class SessionService:
             lines.append(f"{speaker}: {utt['text']}")
 
         return "\n".join(lines)
-
-    def _select_strategy(
-        self,
-        graph_state: GraphState,
-        turn_number: int,
-        extraction: ExtractionResult,
-    ) -> str:
-        """
-        Select questioning strategy.
-
-        Simple heuristic strategy selection. The actual strategy selection
-        is handled by StrategySelectionStage in the pipeline.
-
-        Args:
-            graph_state: Current graph state
-            turn_number: Current turn number
-            extraction: Latest extraction result
-
-        Returns:
-            Strategy name
-        """
-
-        # Simple heuristics for variety
-        if turn_number >= self.max_turns - 2:
-            return "close"
-
-        # Default to deepen
-        return "deepen"
-
-    def _should_continue(
-        self,
-        turn_number: int,
-        max_turns: int,
-        graph_state: GraphState,
-        strategy: str,
-    ) -> bool:
-        """
-        Determine if interview should continue.
-
-        Args:
-            turn_number: Current turn number
-            max_turns: Maximum turns for this session
-            graph_state: Current graph state
-            strategy: Selected strategy
-
-        Returns:
-            True if should continue, False if should end
-        """
-        # Max turns reached
-        if turn_number >= max_turns:
-            log.info(
-                "session_ending",
-                reason="max_turns",
-                turn_number=turn_number,
-                max_turns=max_turns,
-            )
-            return False
-
-        # Strategy is close
-        if strategy == "close":
-            log.info("session_ending", reason="close_strategy")
-            return False
-
-        # Future: saturation detected, other termination conditions
-
-        return True
 
     async def get_status(self, session_id: str) -> dict:
         """
