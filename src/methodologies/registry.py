@@ -17,6 +17,9 @@ if TYPE_CHECKING:
 # MethodologyStrategyService) rather than through ComposedSignalDetector.
 EXTRA_SIGNAL_WEIGHT_PREFIXES = frozenset({"llm.global_response_trend"})
 
+# Valid values for StrategyConfig.focus_mode
+VALID_FOCUS_MODES = frozenset({"recent_node", "summary", "topic"})
+
 
 def _is_valid_signal_weight_key(key: str, known_signals: set[str]) -> bool:
     """Check if a signal weight key has a valid signal prefix.
@@ -75,6 +78,7 @@ class StrategyConfig:
     description: str
     signal_weights: dict[str, float]
     generates_closing_question: bool = False
+    focus_mode: str = "recent_node"
 
 
 class MethodologyRegistry:
@@ -153,6 +157,7 @@ class MethodologyRegistry:
                     generates_closing_question=s.get(
                         "generates_closing_question", False
                     ),
+                    focus_mode=s.get("focus_mode", "recent_node"),
                 )
                 for s in data.get("strategies", [])
             ],
@@ -192,6 +197,13 @@ class MethodologyRegistry:
                     f"strategies[{i}]: duplicate strategy name '{strategy.name}'"
                 )
             strategy_names.add(strategy.name)
+
+            if strategy.focus_mode not in VALID_FOCUS_MODES:
+                errors.append(
+                    f"strategies[{i}] '{strategy.name}': "
+                    f"invalid focus_mode '{strategy.focus_mode}' "
+                    f"(valid: {sorted(VALID_FOCUS_MODES)})"
+                )
 
             for weight_key in strategy.signal_weights:
                 if not _is_valid_signal_weight_key(weight_key, known_signals):
