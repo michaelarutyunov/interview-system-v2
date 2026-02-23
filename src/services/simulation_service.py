@@ -16,11 +16,13 @@ Key Design:
     - Session service controls max_turns (NOT synthetic service)
 """
 
-from datetime import datetime, timezone
-from typing import List, Optional
-from dataclasses import dataclass, field
-from pathlib import Path
+import asyncio
 import json
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+
 import structlog
 
 from src.core.concept_loader import load_concept
@@ -28,6 +30,10 @@ from src.services.session_service import SessionService
 from src.services.synthetic_service import SyntheticService
 from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.graph_repo import GraphRepository
+from src.api.dependencies import (
+    get_shared_extraction_client,
+    get_shared_generation_client,
+)
 from src.domain.models.session import Session, SessionState
 from src.domain.models.interview_state import InterviewMode
 
@@ -39,7 +45,11 @@ SYNTHETIC_OUTPUT_DIR = Path("synthetic_interviews")
 
 @dataclass
 class SimulationTurn:
-    """Single turn in simulated interview."""
+    """Single turn in simulated interview.
+
+    Contains the question asked, synthetic response generated, strategy selected,
+    and observability data including signals and alternatives.
+    """
 
     turn_number: int
     question: str
@@ -49,11 +59,31 @@ class SimulationTurn:
     strategy_selected: Optional[str] = None
     should_continue: bool = True
     latency_ms: int = 0
+    # Methodology-based signal detection observability
+    signals: Optional[Dict[str, Any]] = None
+    strategy_alternatives: Optional[List[Dict[str, Any]]] = None
+    # Termination reason (populated when should_continue=False)
+    termination_reason: Optional[str] = None
+    # Graph changes this turn for turn-by-turn evolution analysis (cu72.2)
+    nodes_added: Optional[List[Dict[str, Any]]] = None
+    edges_added: Optional[List[Dict[str, Any]]] = None
+    extraction_summary: Optional[Dict[str, Any]] = None
+    # Saturation tracking metrics from StateComputationStage
+    saturation_metrics: Optional[Dict[str, Any]] = None
+    # Per-node signals from StrategySelectionStage (Stage 6)
+    node_signals: Optional[Dict[str, Any]] = None
+    # Per-candidate score decomposition from joint scoring
+    score_decomposition: Optional[List[Dict[str, Any]]] = None
 
 
 @dataclass
 class SimulationResult:
-    """Result of simulated interview."""
+    """Result of simulated interview.
+
+    Contains complete interview transcript with turn-by-turn analysis,
+    knowledge graph diagnostics for both surface and canonical graphs,
+    and session metadata.
+    """
 
     concept_id: str
     concept_name: str
@@ -67,12 +97,20 @@ class SimulationResult:
     turns: List[SimulationTurn] = field(default_factory=list)
     status: str = "completed"  # completed, max_turns_reached, error
 
+    # Surface graph diagnostics (kg_nodes, kg_edges)
+    nodes: List[Dict[str, Any]] = field(default_factory=list)
+    edges: List[Dict[str, Any]] = field(default_factory=list)
+
+    # Canonical graph diagnostics (canonical_slots, canonical_edges)
+    canonical_slots: List[Dict[str, Any]] = field(default_factory=list)
+    canonical_edges: List[Dict[str, Any]] = field(default_factory=list)
+
 
 class SimulationService:
     """Service for AI-to-AI interview simulation.
 
     Orchestrates interviewer AI (SessionService) with synthetic respondent AI
-    to generate complete interview transcripts for testing.
+    to generate complete interview transcripts for testing and validation.
     """
 
     DEFAULT_MAX_TURNS = 10  # Default for simulations (shorter than real interviews)
@@ -83,7 +121,7 @@ class SimulationService:
         session_service: SessionService,
         synthetic_service: Optional[SyntheticService] = None,
     ):
-        """Initialize simulation service.
+        """Initialize simulation service with required dependencies.
 
         Args:
             session_service: Session service for interviewer AI
@@ -114,7 +152,7 @@ class SimulationService:
             session_id: Optional session ID (generates new if None)
 
         Returns:
-            SimulationResult with complete transcript
+            SimulationResult with complete transcript, graph diagnostics, and metadata
 
         Raises:
             ValueError: If concept or persona not found
@@ -125,8 +163,8 @@ class SimulationService:
         # Extract product_name from concept.name
         product_name = concept.name
 
-        # Extract objective (try objective field, fall back to insight)
-        objective = concept.context.objective or concept.context.insight or concept.name
+        # Extract objective from concept context
+        objective = concept.context.objective or concept.name
 
         # Validate persona
         from src.llm.prompts.synthetic import get_available_personas
@@ -134,8 +172,7 @@ class SimulationService:
         available_personas = get_available_personas()
         if persona_id not in available_personas:
             raise ValueError(
-                f"Unknown persona: {persona_id}. "
-                f"Available: {', '.join(available_personas.keys())}"
+                f"Unknown persona: {persona_id}. Available: {', '.join(available_personas.keys())}"
             )
         persona_name = available_personas[persona_id]
 
@@ -199,8 +236,41 @@ class SimulationService:
                 product_name=product_name,
                 strategy_selected=turn_result_session.strategy_selected,
                 should_continue=turn_result_session.should_continue,
+                signals=turn_result_session.signals,
+                strategy_alternatives=turn_result_session.strategy_alternatives,
+                termination_reason=turn_result_session.termination_reason,
+                context_nodes_added=turn_result_session.nodes_added,
+                context_edges_added=turn_result_session.edges_added,
+                saturation_metrics=turn_result_session.saturation_metrics,
+                node_signals=turn_result_session.node_signals,
+                score_decomposition=self._serialize_decomposition(
+                    turn_result_session.score_decomposition
+                ),
             )
             turns.append(turn_result)
+
+            # Rate limit pacing: small delay between turns to avoid hitting
+            # Kimi rate limits (simulation runs faster than human-paced interviews)
+            await asyncio.sleep(0.5)
+
+        # NEW: Fetch graph data for diagnostics (after loop, before result creation)
+        (
+            nodes_data,
+            edges_data,
+            canonical_slots_data,
+            canonical_edges_data,
+        ) = await self._serialize_graph_data(session_id)
+
+        # Determine status from termination reason
+        if turn_result.should_continue:
+            # Loop was terminated by turn count reaching max_turns
+            status = "completed"
+        elif turn_result.termination_reason:
+            # Use actual termination reason (e.g., "graph_saturated", "close_strategy")
+            status = turn_result.termination_reason
+        else:
+            # Fallback
+            status = "max_turns_reached"
 
         result = SimulationResult(
             concept_id=concept_id,
@@ -213,7 +283,11 @@ class SimulationService:
             session_id=session_id,
             total_turns=len(turns),
             turns=turns,
-            status="completed" if turn_result.should_continue else "max_turns_reached",
+            status=status,
+            nodes=nodes_data,
+            edges=edges_data,
+            canonical_slots=canonical_slots_data,
+            canonical_edges=canonical_edges_data,
         )
 
         log.info(
@@ -237,8 +311,19 @@ class SimulationService:
         product_name: str,
         strategy_selected: Optional[str] = None,
         should_continue: bool = True,
+        signals: Optional[Dict[str, Any]] = None,
+        strategy_alternatives: Optional[List[Dict[str, Any]]] = None,
+        termination_reason: Optional[str] = None,
+        context_nodes_added: Optional[List[Any]] = None,
+        context_edges_added: Optional[List[Dict[str, Any]]] = None,
+        saturation_metrics: Optional[Dict[str, Any]] = None,
+        node_signals: Optional[Dict[str, Any]] = None,
+        score_decomposition: Optional[List[Dict[str, Any]]] = None,
     ) -> SimulationTurn:
         """Simulate a single interview turn.
+
+        Generates synthetic response to interviewer's question using the specified
+        persona and interview context.
 
         Args:
             session_id: Session ID
@@ -248,11 +333,15 @@ class SimulationService:
             product_name: Product name for context
             strategy_selected: Strategy selected by interviewer
             should_continue: Whether interview should continue
+            signals: Methodology signals from signal pools
+            strategy_alternatives: Alternative strategies with scores
+            termination_reason: Reason for termination (if should_continue=False)
 
         Returns:
             SimulationTurn with question and response
         """
         # Get graph state to extract previous concepts
+        assert self.session.graph is not None, "SessionService.graph must be initialized"
         graph_state = await self.session.graph.get_graph_state(session_id)
 
         # Build interview context for synthetic service
@@ -271,6 +360,28 @@ class SimulationService:
             use_deflection=None,  # Use default deflection chance
         )
 
+        # Serialize graph changes for turn-by-turn evolution analysis (cu72.2)
+        nodes_added_data = None
+        edges_added_data = None
+        extraction_summary_data = None
+        if context_nodes_added is not None or context_edges_added is not None:
+            nodes_added_data = [
+                {"id": n["id"], "label": n["label"], "node_type": n["node_type"]}
+                for n in (context_nodes_added or [])
+            ]
+            edges_added_data = [
+                {
+                    "source_node_id": e.get("source_node_id"),
+                    "target_node_id": e.get("target_node_id"),
+                    "edge_type": e.get("edge_type"),
+                }
+                for e in (context_edges_added or [])
+            ]
+            extraction_summary_data = {
+                "nodes_added": len(nodes_added_data),
+                "edges_added": len(edges_added_data),
+            }
+
         return SimulationTurn(
             turn_number=turn_number,
             question=question,
@@ -280,7 +391,191 @@ class SimulationService:
             strategy_selected=strategy_selected,
             should_continue=should_continue,
             latency_ms=synthetic_response["latency_ms"],
+            signals=signals,
+            strategy_alternatives=strategy_alternatives,
+            termination_reason=termination_reason,
+            nodes_added=nodes_added_data,
+            edges_added=edges_added_data,
+            extraction_summary=extraction_summary_data,
+            saturation_metrics=saturation_metrics,
+            node_signals=node_signals,
+            score_decomposition=score_decomposition,
         )
+
+    def _serialize_decomposition(
+        self, decomposition: Optional[list]
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Convert ScoredCandidate list to JSON-serializable dicts."""
+        if decomposition is None:
+            return None
+        result = []
+        for c in decomposition:
+            result.append(
+                {
+                    "strategy": c.strategy,
+                    "node_id": c.node_id,
+                    "signal_contributions": [
+                        {
+                            "name": sc.name,
+                            "value": sc.value,
+                            "weight": sc.weight,
+                            "contribution": sc.contribution,
+                        }
+                        for sc in c.signal_contributions
+                    ],
+                    "base_score": round(c.base_score, 6),
+                    "phase_multiplier": c.phase_multiplier,
+                    "phase_bonus": c.phase_bonus,
+                    "final_score": round(c.final_score, 6),
+                    "rank": c.rank,
+                    "selected": c.selected,
+                }
+            )
+        return result
+
+    async def _serialize_graph_data(
+        self, session_id: str
+    ) -> tuple[
+        list[dict[str, Any]],
+        list[dict[str, Any]],
+        list[dict[str, Any]],
+        list[dict[str, Any]],
+    ]:
+        """Fetch and serialize surface and canonical graph data for JSON output.
+
+        Args:
+            session_id: Session ID to fetch graph data for
+
+        Returns:
+            Tuple of (nodes_list, edges_list, canonical_slots_list, canonical_edges_list)
+            as JSON-compatible dicts for simulation result export
+        """
+        # Fetch surface graph from graph repository
+        nodes = await self.session.graph_repo.get_nodes_by_session(session_id)
+        edges = await self.session.graph_repo.get_edges_by_session(session_id)
+
+        # Serialize surface nodes to JSON-compatible format
+        nodes_data = [
+            {
+                "id": n.id,
+                "label": n.label,
+                "node_type": n.node_type,
+                "confidence": n.confidence,
+                "properties": n.properties,
+                "source_utterance_ids": n.source_utterance_ids,
+                "stance": n.stance,
+                "recorded_at": n.recorded_at.isoformat(),
+                "superseded_by": n.superseded_by,
+            }
+            for n in nodes
+        ]
+
+        # Serialize surface edges to JSON-compatible format
+        edges_data = [
+            {
+                "id": e.id,
+                "source_node_id": e.source_node_id,
+                "target_node_id": e.target_node_id,
+                "edge_type": e.edge_type,
+                "confidence": e.confidence,
+                "properties": e.properties,
+                "source_utterance_ids": e.source_utterance_ids,
+                "recorded_at": e.recorded_at.isoformat(),
+            }
+            for e in edges
+        ]
+
+        # Fetch canonical graph if available
+        canonical_slots_data = []
+        canonical_edges_data = []
+
+        if self.session.canonical_slot_repo is not None:
+            # Fetch canonical slots with provenance (surface_node_ids)
+            slots_with_provenance = (
+                await self.session.canonical_slot_repo.get_slots_with_provenance(session_id)
+            )
+            canonical_slots_data = slots_with_provenance  # Already in dict format
+
+            # Fetch canonical edges with metadata
+            edges_with_metadata = await self.session.canonical_slot_repo.get_edges_with_metadata(
+                session_id
+            )
+            canonical_edges_data = edges_with_metadata  # Already in dict format
+
+            log.info(
+                "canonical_graph_serialized",
+                session_id=session_id,
+                canonical_slots=len(canonical_slots_data),
+                canonical_edges=len(canonical_edges_data),
+            )
+        else:
+            log.info(
+                "canonical_graph_skipped",
+                session_id=session_id,
+                reason="canonical_slot_repo is None (feature disabled)",
+            )
+
+        return nodes_data, edges_data, canonical_slots_data, canonical_edges_data
+
+    def _count_nodes_by_type(self, nodes: list[dict[str, Any]]) -> dict[str, int]:
+        """Count nodes by their type for summary statistics.
+
+        Args:
+            nodes: List of serialized node dictionaries
+
+        Returns:
+            Dictionary mapping node_type to count
+        """
+        counts: dict[str, int] = {}
+        for node in nodes:
+            node_type = node.get("node_type", "unknown")
+            counts[node_type] = counts.get(node_type, 0) + 1
+        return counts
+
+    def _count_edges_by_type(self, edges: list[dict[str, Any]]) -> dict[str, int]:
+        """Count edges by their type for summary statistics.
+
+        Args:
+            edges: List of serialized edge dictionaries
+
+        Returns:
+            Dictionary mapping edge_type to count
+        """
+        counts: dict[str, int] = {}
+        for edge in edges:
+            edge_type = edge.get("edge_type", "unknown")
+            counts[edge_type] = counts.get(edge_type, 0) + 1
+        return counts
+
+    def _count_slots_by_type(self, slots: list[dict[str, Any]]) -> dict[str, int]:
+        """Count canonical slots by their node_type for summary statistics.
+
+        Args:
+            slots: List of canonical slot dictionaries
+
+        Returns:
+            Dictionary mapping node_type to count
+        """
+        counts: dict[str, int] = {}
+        for slot in slots:
+            node_type = slot.get("node_type", "unknown")
+            counts[node_type] = counts.get(node_type, 0) + 1
+        return counts
+
+    def _count_canonical_edges_by_type(self, edges: list[dict[str, Any]]) -> dict[str, int]:
+        """Count canonical edges by their edge_type for summary statistics.
+
+        Args:
+            edges: List of canonical edge dictionaries
+
+        Returns:
+            Dictionary mapping edge_type to count
+        """
+        counts: dict[str, int] = {}
+        for edge in edges:
+            edge_type = edge.get("edge_type", "unknown")
+            counts[edge_type] = counts.get(edge_type, 0) + 1
+        return counts
 
     async def _create_simulation_session(
         self,
@@ -323,7 +618,7 @@ class SimulationService:
         await self.session.session_repo.create(session, config)
 
     async def _save_simulation_result(self, result: SimulationResult) -> Path:
-        """Save simulation result to JSON file.
+        """Save simulation result to JSON file in synthetic_interviews/.
 
         Args:
             result: SimulationResult to save
@@ -334,9 +629,9 @@ class SimulationService:
         # Create output directory if it doesn't exist
         SYNTHETIC_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-        # Generate filename: {concept_id}_{persona_id}_{timestamp}.json
+        # Generate filename: {timestamp}_{concept_id}_{persona_id}.json
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        filename = f"{result.concept_id}_{result.persona_id}_{timestamp}.json"
+        filename = f"{timestamp}_{result.concept_id}_{result.persona_id}.json"
         filepath = SYNTHETIC_OUTPUT_DIR / filename
 
         # Convert dataclass to dict, handling nested dataclasses
@@ -354,6 +649,28 @@ class SimulationService:
                 "status": result.status,
                 "saved_at": datetime.now(timezone.utc).isoformat(),
             },
+            # Surface graph section (kg_nodes, kg_edges)
+            "graph": {
+                "nodes": result.nodes,
+                "edges": result.edges,
+                "summary": {
+                    "total_nodes": len(result.nodes),
+                    "total_edges": len(result.edges),
+                    "nodes_by_type": self._count_nodes_by_type(result.nodes),
+                    "edges_by_type": self._count_edges_by_type(result.edges),
+                },
+            },
+            # Canonical graph section (canonical_slots, canonical_edges)
+            "canonical_graph": {
+                "slots": result.canonical_slots,
+                "edges": result.canonical_edges,
+                "summary": {
+                    "total_slots": len(result.canonical_slots),
+                    "total_edges": len(result.canonical_edges),
+                    "slots_by_type": self._count_slots_by_type(result.canonical_slots),
+                    "edges_by_type": self._count_canonical_edges_by_type(result.canonical_edges),
+                },
+            },
             "turns": [
                 {
                     "turn_number": t.turn_number,
@@ -364,6 +681,20 @@ class SimulationService:
                     "strategy_selected": t.strategy_selected,
                     "should_continue": t.should_continue,
                     "latency_ms": t.latency_ms,
+                    # Signal detection observability
+                    "signals": t.signals,
+                    "strategy_alternatives": t.strategy_alternatives,
+                    "termination_reason": t.termination_reason,
+                    # Graph evolution observability (cu72.2)
+                    "nodes_added": t.nodes_added,
+                    "edges_added": t.edges_added,
+                    "extraction_summary": t.extraction_summary,
+                    # Saturation tracking metrics (is_saturated, consecutive counters)
+                    "saturation_metrics": t.saturation_metrics,
+                    # Per-node signals from StrategySelectionStage
+                    "node_signals": t.node_signals,
+                    # Per-candidate score decomposition from joint scoring
+                    "score_decomposition": t.score_decomposition,
                 }
                 for t in result.turns
             ],
@@ -386,7 +717,7 @@ def get_simulation_service(
     session_repo: Optional[SessionRepository] = None,
     graph_repo: Optional[GraphRepository] = None,
 ) -> SimulationService:
-    """Factory for simulation service.
+    """Factory for simulation service with repository dependencies.
 
     Args:
         session_repo: Optional session repository (creates default if None)
@@ -415,6 +746,8 @@ def get_simulation_service(
     session_service = SessionService(
         session_repo=session_repo,
         graph_repo=graph_repo,
+        extraction_llm_client=get_shared_extraction_client(),
+        generation_llm_client=get_shared_generation_client(),
     )
 
     # Create synthetic service (will be created in SimulationService if None)

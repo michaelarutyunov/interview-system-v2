@@ -1,10 +1,13 @@
 # ADR-004: Adopt Two-Tier Hybrid Scoring System
 
 ## Status
-Accepted
+**Superseded by ADR-014** (Signal Pools Architecture)
+
+> **Note**: This ADR was never implemented. The system evolved toward a signal-pools-based approach (ADR-014) rather than the two-tier hybrid scoring described here. The Signal Pools architecture uses YAML-configured signal detection with weighted additive scoring, which achieved the same goals of interpretability and predictable scoring without the complexity of separate Tier 1/Tier 2 scorers.
 
 ## Context
 **Supersedes**: ADR-003 (Phase 3 multiplicative approach)
+**Superseded By**: ADR-014 (Signal Pools Architecture)
 
 The interview system currently has three options for strategy selection:
 
@@ -86,14 +89,25 @@ where Σ(weights) = 1.0
 | Multiplicative | Unpredictable, hard to debug, not production-ready |
 | Incremental migration | Slower; direct replacement simplifies codebase |
 
-## Implementation
+## Actual Implementation (ADR-014 Signal Pools)
 
-See beads issues for detailed tasks:
-- `interview-system-v2-xxx`: Implement two-tier scoring engine
-- `interview-system-v2-yyy`: Implement Tier 1 scorers (3)
-- `interview-system-v2-zzz`: Implement Tier 2 scorers (6)
+The system ultimately implemented **Signal Pools Architecture** (ADR-014) instead of the two-tier approach. Key differences:
 
-### Migration Path
+| Aspect | Two-Tier (This ADR) | Signal Pools (Implemented) |
+|--------|---------------------|---------------------------|
+| Scoring | Tier 1 vetoes + Tier 2 weighted | Weighted additive with phase multipliers |
+| Configuration | Custom scorer classes | YAML signal_weights per strategy |
+| Hard constraints | Boolean vetoes | Negative weights in YAML config |
+| Node awareness | Separate node selection | Joint strategy-node scoring (D1) |
+| Similarity | TF-IDF cosine | Sentence-transformers embeddings |
+
+The Signal Pools approach achieved the same goals:
+- ✅ **Interpretability**: YAML weights are explicit percentages
+- ✅ **Predictable**: Linear scoring formula with bounded signals
+- ✅ **Easier tuning**: Edit YAML, no code changes
+- ✅ **Production-proven**: Similar to implemented architecture
+
+## Migration Path (Historical)
 
 1. Implement TwoTierScoringEngine alongside ArbitrationEngine
 2. Implement all 9 scorers
@@ -101,39 +115,18 @@ See beads issues for detailed tasks:
 4. Remove ArbitrationEngine and multiplicative code
 5. Add YAML configuration loading
 
-### Strategies
-
-Expanding from 3 to 5+ strategies:
-- **deepen**: Deepen existing branches
-- **broaden**: Explore new aspects
-- **cover_element**: Cover stimulus elements
-- **closing**: End interview gracefully (NEW)
-- **reflection**: Meta-questions when stuck (NEW)
+**Actual Path Taken**: See ADR-014 for the Signal Pools implementation that replaced both the multiplicative approach and this two-tier design.
 
 ## Consequences
 
-### Positive
-- Strategy selection becomes transparent and debuggable
-- Scores bounded and predictable
-- Explicit veto behavior prevents inappropriate questions
-- Weights can be tuned from interview data
-- Aligns with production dialogue system practices
+### Historical Note
+This ADR represents a design direction that was superseded before implementation. The Signal Pools architecture (ADR-014) became the production approach, offering similar benefits with less complexity.
 
-### Negative
-- More code to maintain (9 scorers vs 5)
-- Initial configuration complexity
-- Need to tune weights from real data
-- Cosine similarity adds computational overhead
-
-### Neutral
-- Cosine similarity requires TF-IDF but can cache vectors
-- Direct replacement means no A/B comparison data
-- More strategies require focus generation logic
-
-## Related Decisions
+### Related Decisions
 - **ADR-001**: Dual sync/async API - Unaffected
 - **ADR-002**: Streamlit framework choice - Unaffected
 - **ADR-003**: Superseded by this decision (two-tier vs multiplicative)
+- **ADR-014**: Supersedes this decision (Signal Pools Architecture)
 
 ## References
 - Choo & Wedley (2008): "Comparing Fundamentals of Additive and Multiplicative Aggregation"
@@ -141,3 +134,4 @@ Expanding from 3 to 5+ strategies:
 - `docs/theory/two_tier_scoring_system_design.md`: Complete design specification
 - Rasa 2.0: Dialogue management hierarchy
 - Alibaba DAMO: Rule-based DM models
+- **ADR-014**: Signal Pools Architecture (implemented approach)

@@ -1,12 +1,9 @@
 """
 Stage 6: Select strategy.
 
-ADR-008 Phase 3: Use two-tier scoring to select questioning strategy.
-ADR-010: Validate graph_state freshness before strategy selection.
-Phase 4: Use methodology-based strategy selection with direct signal->strategy scoring.
-
-Phase 6 Cleanup (2026-01-28): Removed two-tier scoring fallback code.
-The two-tier scoring system has been replaced by methodology-specific signal detection.
+Selects questioning strategy using methodology-based signal detection with
+direct signal-to-strategy scoring. Validates graph_state freshness before
+selection to prevent stale state bugs.
 """
 
 from typing import TYPE_CHECKING, Optional, Dict, Any, Sequence, Union
@@ -30,7 +27,8 @@ class StrategySelectionStage(TurnStage):
     """
     Select questioning strategy using methodology-based signal detection.
 
-    Phase 4: Uses MethodologyStrategyService for direct signal->strategy scoring.
+    Uses MethodologyStrategyService for direct signal-to-strategy scoring based
+    on graph state, recent nodes, and conversation history.
 
     Populates:
     - PipelineContext.strategy
@@ -44,8 +42,8 @@ class StrategySelectionStage(TurnStage):
         """
         Initialize stage with methodology-based strategy service.
 
-        Note: The old two-tier scoring system has been removed.
-        All strategy selection now uses methodology-specific signal detection.
+        Note: Strategy selection uses methodology-specific signal detection
+        configured in YAML (config/methodologies/*.yaml).
         """
         self.methodology_strategy = MethodologyStrategyService()
 
@@ -53,8 +51,9 @@ class StrategySelectionStage(TurnStage):
         """
         Select strategy using methodology-based signal detection.
 
-        ADR-010: Validates graph_state freshness before selection.
-        Phase 4: Uses methodology-specific signals and direct signal->strategy scoring.
+        Validates graph_state freshness before selection to prevent stale
+        state bugs. Uses methodology-specific signals and direct signal-to-
+        strategy scoring.
 
         Args:
             context: Turn context with graph_state, recent_nodes, recent_utterances
@@ -62,7 +61,15 @@ class StrategySelectionStage(TurnStage):
         Returns:
             Modified context with strategy, selection_result, focus, signals, and alternatives
         """
-        # ADR-010: Validate freshness before using graph_state
+        # Pipeline stage order validation: StateComputationStage (Stage 5) must run first
+        if context.state_computation_output is None:
+            raise RuntimeError(
+                "Pipeline stage order violation: StrategySelectionStage (Stage 6) "
+                "requires StateComputationStage (Stage 5) to have run first. "
+                "state_computation_output is None."
+            )
+
+        # Validate freshness before using graph_state
         # This prevents the stale state bug where graph_state from Stage 1
         # (before extraction) was used in Stage 6
         if context.graph_state and context.graph_state_computed_at:
@@ -95,13 +102,24 @@ class StrategySelectionStage(TurnStage):
                 raise
 
         # Select strategy using methodology-based signal detection
-        # Phase 3: Use joint strategy-node scoring
         (
             strategy,
             focus_node_id,
             alternatives,
             signals,
+            node_signals,
+            score_decomposition,
         ) = await self._select_strategy_and_node(context)
+
+        # Update node_tracker with the new focus (sets previous_focus for next turn)
+        # This must be done AFTER response depth append (which uses previous_focus)
+        # and BEFORE the next turn starts
+        if context.node_tracker and focus_node_id:
+            await context.node_tracker.update_focus(
+                node_id=focus_node_id,
+                strategy=strategy,
+                turn_number=context.turn_number,
+            )
 
         # Track strategy history for diversity tracking
         # This enables the system to avoid repetitive questioning patterns
@@ -109,8 +127,20 @@ class StrategySelectionStage(TurnStage):
             context.graph_state.add_strategy_used(strategy)
 
         # Wrap node_id in dict format for ContinuationStage compatibility
-        # Phase 3: focus is now node_id (not label)
         focus_dict = {"focus_node_id": focus_node_id} if focus_node_id else None
+
+        # Look up generates_closing_question flag for the selected strategy
+        methodology_config = self.methodology_strategy.methodology_registry.get_methodology(
+            context.methodology
+        )
+        selected_config = next(
+            (s for s in methodology_config.strategies if s.name == strategy),
+            None,
+        )
+        generates_closing_question = (
+            selected_config.generates_closing_question if selected_config else False
+        )
+        focus_mode = selected_config.focus_mode if selected_config else "recent_node"
 
         # Create contract output (single source of truth)
         # No need to set individual fields - they're derived from the contract
@@ -119,7 +149,11 @@ class StrategySelectionStage(TurnStage):
             focus=focus_dict,
             # selected_at auto-set
             signals=signals,
-            strategy_alternatives=alternatives or [],
+            node_signals=node_signals,
+            strategy_alternatives=list(alternatives) if alternatives else [],
+            generates_closing_question=generates_closing_question,
+            focus_mode=focus_mode,
+            score_decomposition=score_decomposition,
         )
 
         log.info(
@@ -141,28 +175,32 @@ class StrategySelectionStage(TurnStage):
         Optional[str],
         Sequence[Union[tuple[str, float], tuple[str, str, float]]],
         Optional[Dict[str, Any]],
+        Dict[str, Dict[str, Any]],
+        list,
     ]:
         """
         Select strategy and focus node using joint scoring.
 
-        Phase 3: Uses MethodologyStrategyService.select_strategy_and_focus()
-        for joint (strategy, node) scoring.
+        Uses MethodologyStrategyService.select_strategy_and_focus() for
+        joint (strategy, node) scoring.
 
         Args:
             context: Turn context
 
         Returns:
             Tuple of (strategy_name, focus_node_id, alternatives, signals)
-            - alternatives now includes (strategy_name, node_id, score) tuples
+            - alternatives includes (strategy_name, node_id, score) tuples
         """
         # Get last response text
         response_text = context.user_input or ""
 
         # Use joint strategy-node scoring
         # graph_state should be available after StateComputationStage
-        assert context.graph_state is not None, (
-            "graph_state must be set by StateComputationStage"
-        )
+        if context.graph_state is None:
+            raise ValueError(
+                "Pipeline contract violation: graph_state must be set by "
+                "StateComputationStage before StrategySelectionStage"
+            )
 
         # Call new joint scoring method
         (
@@ -170,11 +208,36 @@ class StrategySelectionStage(TurnStage):
             focus_node_id,
             alternatives,
             signals,
+            node_signals,
+            score_decomposition,
         ) = await self.methodology_strategy.select_strategy_and_focus(
             context,
             context.graph_state,
             response_text,
         )
+
+        # Update node_tracker with response depth from the detected signals
+        # The response_depth belongs to the focus node from the PREVIOUS turn
+        # (the node that was asked about when generating the question this response answers)
+        log.info(
+            "response_depth_append_check",
+            has_signals=bool(signals),
+            has_node_tracker=bool(context.node_tracker),
+            has_previous_focus=bool(context.node_tracker and context.node_tracker.previous_focus),
+            previous_focus=context.node_tracker.previous_focus if context.node_tracker else None,
+        )
+        if signals and context.node_tracker and context.node_tracker.previous_focus:
+            response_depth = signals.get("llm.response_depth")
+            if response_depth:
+                await context.node_tracker.append_response_signal(
+                    context.node_tracker.previous_focus,
+                    response_depth,
+                )
+                log.info(
+                    "response_depth_appended_to_node",
+                    node_id=context.node_tracker.previous_focus,
+                    response_depth=response_depth,
+                )
 
         # Convert alternatives from (strategy, node_id, score) to (strategy, score)
         # for backward compatibility with logging
@@ -192,4 +255,11 @@ class StrategySelectionStage(TurnStage):
                 simplified_alternatives.append((alt_strategy, alt_score))
                 seen_strategies.add(alt_strategy)
 
-        return strategy_name, focus_node_id, simplified_alternatives, signals
+        return (
+            strategy_name,
+            focus_node_id,
+            simplified_alternatives,
+            signals,
+            node_signals,
+            score_decomposition,
+        )

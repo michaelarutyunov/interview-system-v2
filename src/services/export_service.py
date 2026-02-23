@@ -1,5 +1,4 @@
-"""
-Export service for converting session data to various formats.
+"""Export service for converting session data to various formats.
 
 Supports export to:
 - JSON: Full session data with all metadata
@@ -20,8 +19,7 @@ log = structlog.get_logger(__name__)
 
 
 def _calculate_phase(turn_number: int) -> str:
-    """
-    Calculate interview phase based on turn number (deterministic).
+    """Calculate interview phase based on turn number.
 
     Phase transition rules:
     - exploratory: turns 0 to exploratory.n_turns (exclusive)
@@ -48,8 +46,10 @@ def _calculate_phase(turn_number: int) -> str:
 
 
 class ExportService:
-    """
-    Service for exporting session data to various formats.
+    """Service for exporting session data to various formats.
+
+    Converts interview session data including utterances, knowledge graph,
+    scoring history, and diagnostics into JSON, Markdown, or CSV formats.
 
     Usage:
         service = ExportService()
@@ -62,8 +62,7 @@ class ExportService:
         session_repo=None,
         graph_repo=None,
     ):
-        """
-        Initialize export service.
+        """Initialize export service with repository dependencies.
 
         Args:
             session_repo: Optional session repository (injected for testing)
@@ -87,8 +86,7 @@ class ExportService:
         session_id: str,
         format: str = "json",
     ) -> str:
-        """
-        Export session data to specified format.
+        """Export session data to specified format.
 
         Args:
             session_id: Session ID to export
@@ -128,14 +126,14 @@ class ExportService:
         return result
 
     async def _collect_session_data(self, session_id: str) -> Dict[str, Any]:
-        """
-        Collect all session data for export.
+        """Collect all session data for export.
 
         Args:
             session_id: Session ID
 
         Returns:
-            Dict with all session data
+            Dict with all session data including metadata, utterances,
+            graph, scoring history, and diagnostics.
         """
         # Get session metadata
         session = await self.session_repo.get(session_id)
@@ -158,9 +156,6 @@ class ExportService:
         # Get scoring history
         scoring_history = await self.session_repo.get_scoring_history(session_id)
 
-        # Get all scoring candidates for diagnostics
-        all_candidates = await self.session_repo.get_all_scoring_candidates(session_id)
-
         # Get all qualitative signals for diagnostics
         all_signals = await self.session_repo.get_all_qualitative_signals(session_id)
 
@@ -170,9 +165,7 @@ class ExportService:
                 "concept_id": session.concept_id,
                 "methodology": session.methodology,
                 "status": session.status,
-                "created_at": session.created_at.isoformat()
-                if session.created_at
-                else None,
+                "created_at": session.created_at.isoformat() if session.created_at else None,
                 "completed_at": None,  # Session model doesn't have completed_at
                 "config": {},  # Session model doesn't have config
                 "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -197,9 +190,7 @@ class ExportService:
                         "confidence": n.confidence,
                         "properties": n.properties,
                         "source_utterance_ids": n.source_utterance_ids,
-                        "recorded_at": n.recorded_at.isoformat()
-                        if n.recorded_at
-                        else None,
+                        "recorded_at": n.recorded_at.isoformat() if n.recorded_at else None,
                     }
                     for n in nodes
                 ],
@@ -212,50 +203,30 @@ class ExportService:
                         "confidence": e.confidence,
                         "properties": e.properties,
                         "source_utterance_ids": e.source_utterance_ids,
-                        "recorded_at": e.recorded_at.isoformat()
-                        if e.recorded_at
-                        else None,
+                        "recorded_at": e.recorded_at.isoformat() if e.recorded_at else None,
                     }
                     for e in edges
                 ],
             },
             "scoring_history": scoring_history,
             "diagnostics": {
-                "scoring_candidates": {
-                    f"turn_{turn}": [
-                        {
-                            "strategy_id": c["strategy_id"],
-                            "strategy_name": c["strategy_name"],
-                            "focus_type": c["focus_type"],
-                            "focus_description": c["focus_description"],
-                            "final_score": c["final_score"],
-                            "is_selected": bool(c["is_selected"]),
-                            "vetoed_by": c["vetoed_by"],
-                            "tier1_results": json.loads(c["tier1_results"])
-                            if c.get("tier1_results")
-                            else [],
-                            "tier2_results": json.loads(c["tier2_results"])
-                            if c.get("tier2_results")
-                            else [],
-                            "reasoning": c["reasoning"],
-                        }
-                        for c in candidates
-                    ]
-                    for turn, candidates in sorted(all_candidates.items())
-                },
+                "scoring_history": scoring_history,  # Already fetched above
                 "llm_signals": {
-                    f"turn_{turn}": signals
-                    for turn, signals in sorted(all_signals.items())
+                    f"turn_{turn}": signals for turn, signals in sorted(all_signals.items())
                 },
             },
         }
 
     def _export_json(self, data: Dict[str, Any]) -> str:
-        """Export to JSON format."""
+        """Export session data to JSON format with indentation."""
         return json.dumps(data, indent=2, default=str)
 
     def _export_markdown(self, data: Dict[str, Any]) -> str:
-        """Export to human-readable Markdown format."""
+        """Export session data to human-readable Markdown format.
+
+        Includes session metadata, statistics, conversation transcript,
+        and knowledge graph visualization.
+        """
         lines = []
 
         # Header
@@ -308,9 +279,7 @@ class ExportService:
             nodes_by_type[node_type].append(node)
 
         for node_type, type_nodes in sorted(nodes_by_type.items()):
-            lines.append(
-                f"### {node_type.replace('_', ' ').title()} ({len(type_nodes)})"
-            )
+            lines.append(f"### {node_type.replace('_', ' ').title()} ({len(type_nodes)})")
             lines.append("")
             for node in type_nodes:
                 label = node["label"]
@@ -327,12 +296,8 @@ class ExportService:
             node_labels = {n["id"]: n["label"] for n in nodes}
 
             for edge in edges:
-                source_label = node_labels.get(
-                    edge["source_node_id"], edge["source_node_id"]
-                )
-                target_label = node_labels.get(
-                    edge["target_node_id"], edge["target_node_id"]
-                )
+                source_label = node_labels.get(edge["source_node_id"], edge["source_node_id"])
+                target_label = node_labels.get(edge["target_node_id"], edge["target_node_id"])
                 edge_type = edge["edge_type"]
                 confidence = edge["confidence"]
 
@@ -349,7 +314,11 @@ class ExportService:
         return "\n".join(lines)
 
     def _export_csv(self, data: Dict[str, Any]) -> str:
-        """Export to CSV format with multiple sections."""
+        """Export session data to CSV format with multiple sections.
+
+        Output includes three sections: NODES, EDGES, UTTERANCES
+        for spreadsheet analysis.
+        """
         output = StringIO()
 
         # Nodes section
@@ -374,9 +343,7 @@ class ExportService:
                         "label": node["label"],
                         "node_type": node["node_type"],
                         "confidence": node["confidence"],
-                        "source_utterance_ids": json.dumps(
-                            node["source_utterance_ids"]
-                        ),
+                        "source_utterance_ids": json.dumps(node["source_utterance_ids"]),
                     }
                 )
         output.write("\n\n")

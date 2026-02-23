@@ -1,7 +1,7 @@
 # Interview System v2 - System Design
 
 > **Purpose**: Narrative documentation of the interview system architecture, written for technical articles and comprehensive understanding.
-> **Related**: [Pipeline Contracts](./pipeline_contracts.md) | [Data Flow Paths](./data_flow_paths.md) | [ADR Index](./adr/README.md)
+> **Related**: [Pipeline Contracts](./pipeline_contracts.md) | [Data Flow Paths](./data_flow_paths.md)
 
 ## Table of Contents
 
@@ -12,17 +12,18 @@
 - [Concept-Driven Coverage](#concept-driven-coverage)
 - [Methodology-Centric Design](#methodology-centric-design)
 - [Knowledge Graph State](#knowledge-graph-state)
+- [Policy-Driven Follow-Up Question Generation](#policy-driven-follow-up-question-generation)
 - [LLM Integration](#llm-integration)
 
 ---
 
 ## Overview
 
-The Interview System v2 is a knowledge-graph-based conversational research system that conducts semi-structured interviews through adaptive questioning. At its core, the system uses a **10-stage turn processing pipeline** that transforms user input into follow-up questions while building a knowledge graph of the conversation.
+The Interview System v2 is a knowledge-graph-based conversational research system that conducts semi-structured interviews through adaptive questioning. At its core, the system uses a **12-stage turn processing pipeline** that transforms user input into follow-up questions while building a knowledge graph of the conversation.
 
 ### Key Design Principles
 
-1. **Pipeline Pattern**: Each turn flows through 10 sequential stages with well-defined contracts
+1. **Pipeline Pattern**: Each turn flows through 12 stages with well-defined contracts
 2. **Signal Pools**: Strategy selection uses namespaced signals from multiple data sources
 3. **Methodology-Centric**: Interview behavior driven by pluggable methodology configurations
 4. **Knowledge Graph**: All extracted concepts and relationships stored as graph structure
@@ -32,7 +33,7 @@ The Interview System v2 is a knowledge-graph-based conversational research syste
 
 ```
 User Input → Turn Pipeline → Knowledge Graph → Strategy Selection → Question Generation → User Response
-                ↓ (10 stages)
+                ↓ (12 stages)
             Context Accumulation
 ```
 
@@ -49,9 +50,33 @@ The system separates **concepts** (WHAT to explore) from **methodologies** (HOW 
 │                     Application Layer                       │
 │  - FastAPI endpoints                                        │
 │  - TurnPipeline orchestrator                                │
-│  - 10 sequential stages                                     │
+│  - 12 stages (including SRLPreprocessing, SlotDiscovery) │
 └─────────────────────────────────────────────────────────────┘
                             ↓
+### Dual-Graph Architecture
+
+The system implements a dual-graph architecture to handle respondent paraphrase fragmentation:
+
+**Surface Graph**:
+- Original extraction (respondent's exact language)
+- High fidelity for traceability
+- Stored in `kg_nodes` and `kg_edges` tables
+
+**Canonical Graph**:
+- Deduplicated abstract concepts (canonical slots)
+- Stable signals for exhaustion tracking
+- Stored in `canonical_slots`, `canonical_edges` tables
+
+**Mapping**:
+- Unidirectional: Surface → Canonical only
+- Via `surface_to_slot_mapping` table
+- Uses embedding similarity (all-MiniLM-L6-v2, 384-dim)
+
+**Benefits**:
+1. Cleaner signals: "1 concept discussed 3 times" vs "3 fresh concepts"
+2. Accurate exhaustion tracking across paraphrases
+3. Stable metrics regardless of language variation
+
 ┌─────────────────────────────────────────────────────────────┐
 │                   Methodology Layer                         │
 │  - YAML-based methodology configs                           │
@@ -75,10 +100,11 @@ The system separates **concepts** (WHAT to explore) from **methodologies** (HOW 
 
 ### Pipeline Overview
 
-The turn pipeline is the heart of the system. Each user response flows through 10 stages in sequence:
+The turn pipeline is the heart of the system. Each user response flows through 10 base stages (plus 2 optional stages):
 
+**Base Stages (always run)**:
 ```
-1. ContextLoading  → Load session metadata and graph state
+1. ContextLoading  → Load session metadata and conversation history
 2. UtteranceSaving → Save user input to database
 3. Extraction      → Extract concepts and relationships
 4. GraphUpdate     → Add concepts/relationships to graph
@@ -89,6 +115,14 @@ The turn pipeline is the heart of the system. Each user response flows through 1
 9. ResponseSaving  → Save system response
 10. ScoringPersistence → Save scoring and update session
 ```
+
+**Additional Stages**:
+```
+2.5. SRLPreprocessing → Linguistic structure extraction
+4.5. SlotDiscovery    → Canonical slot discovery for dual-graph
+```
+
+**Total**: 12 stages
 
 ### Shared Context Accumulator
 
@@ -101,23 +135,24 @@ class PipelineContext:
     session_id: str
     user_input: str
 
-    # Session metadata (loaded in Stage 1)
-    methodology: str
-    concept_id: str
-    turn_number: int
-    mode: str
-    max_turns: int
-    recent_utterances: List[Dict[str, str]]
-    strategy_history: List[str]
+    # Stage output contracts (single source of truth)
+    # Each stage writes its contract output to the context
+    context_loading_output: Optional[ContextLoadingOutput] = None
+    utterance_saving_output: Optional[UtteranceSavingOutput] = None
+    srl_preprocessing_output: Optional[SrlPreprocessingOutput] = None
+    extraction_output: Optional[ExtractionOutput] = None
+    graph_update_output: Optional[GraphUpdateOutput] = None
+    slot_discovery_output: Optional[SlotDiscoveryOutput] = None
+    state_computation_output: Optional[StateComputationOutput] = None
+    strategy_selection_output: Optional[StrategySelectionOutput] = None
+    continuation_output: Optional[ContinuationOutput] = None
+    question_generation_output: Optional[QuestionGenerationOutput] = None
+    response_saving_output: Optional[ResponseSavingOutput] = None
+    scoring_persistence_output: Optional[ScoringPersistenceOutput] = None
 
-    # Graph state (loaded in Stage 1, refreshed in Stage 5)
-    graph_state: GraphState
-    recent_nodes: List[KGNode]
-
-    # Extraction results (computed in Stage 3)
-    extraction: ExtractionResult
-
-    # And more...
+    # Convenience properties (@property methods)
+    # Fields like methodology, turn_number, graph_state are accessed
+    # via @property methods that read from the contract outputs above
 ```
 
 Each stage **reads** from the context and **writes** new information. This pattern ensures:
@@ -140,27 +175,172 @@ class ExtractionOutput(BaseModel):
     relationship_count: int            # Number of relationships extracted
 ```
 
-**ADR-010 Phase 2** enhanced traceability by adding `source_utterance_id` throughout extraction and scoring data, linking all extracted concepts back to the specific user utterance that produced them.
+Traceability is enhanced by `source_utterance_id` throughout extraction and scoring data, linking all extracted concepts back to the specific user utterance that produced them.
+
+### Pipeline Output: TurnResult
+
+**Pipeline Output**: The `TurnResult` dataclass is the final output returned by the pipeline after all stages complete.
+
+```python
+@dataclass
+class TurnResult:
+    # Core results
+    turn_number: int
+    extracted: dict                    # concepts, relationships
+    graph_state: dict                  # node_count, edge_count, depth_achieved
+    scoring: dict                      # strategy_id, score, reasoning
+    strategy_selected: Optional[str]   # Selected strategy name
+    next_question: str                  # Generated question
+    should_continue: bool              # Whether interview continues
+
+    # Observability
+    signals: Optional[Dict[str, Any]] = None           # Raw methodology signals
+    strategy_alternatives: Optional[List[Dict[str, Any]]] = None  # All scored alternatives
+    termination_reason: Optional[str] = None  # Reason for termination
+
+    # Dual-Graph Observability
+    canonical_graph: Optional[Dict[str, Any]] = None    # Canonical graph metrics
+    graph_comparison: Optional[Dict[str, Any]] = None   # Surface vs canonical comparison
+
+    # Scoring Observability (simulation-only)
+    node_signals: Optional[Dict[str, Dict[str, Any]]] = None   # Per-node signals keyed by node_id
+    score_decomposition: Optional[List[ScoredCandidate]] = None  # Per-candidate decomposition from joint scoring
+
+    # Performance
+    latency_ms: int = 0                # Pipeline execution time
+```
+
+#### Field Details
+
+| Field | Source | Description |
+|-------|--------|-------------|
+| `turn_number` | PipelineContext | Current turn number (1-indexed) |
+| `extracted` | ExtractionOutput | Extracted concepts and relationships |
+| `graph_state` | StateComputationOutput | Current graph state metrics |
+| `scoring` | ScoringPersistenceOutput | Strategy scoring data |
+| `strategy_selected` | StrategySelectionOutput | Selected strategy name |
+| `next_question` | QuestionGenerationOutput | Generated follow-up question |
+| `should_continue` | ContinuationOutput | Whether to continue interview |
+| `signals` | StrategySelectionOutput | Raw signals from signal pools |
+| `strategy_alternatives` | StrategySelectionOutput | All scored alternatives with node_id |
+| `termination_reason` | ContinuationOutput.reason | Reason for termination |
+| `canonical_graph` | StateComputationOutput | Canonical graph metrics |
+| `graph_comparison` | StateComputationOutput | Surface vs canonical comparison |
+| `latency_ms` | Pipeline | Total execution time in milliseconds |
+
+#### Signals and Strategy Alternatives
+
+**Observability fields**: Observability fields expose raw signal data for debugging:
+
+- **`signals`**: Raw methodology signals from all signal pools
+  - `graph.*`: Global and node-level graph signals
+  - `llm.*`: Response depth, valence, certainty, specificity, engagement
+  - `temporal.*`: Strategy repetition, turns since change
+  - `meta.*`: Interview progress, phase, node opportunity
+
+- **`strategy_alternatives`**: All (strategy, node) pairs with scores
+  ```python
+  [
+      {"strategy": "deepen", "node_id": "node_123", "score": 2.5},
+      {"strategy": "clarify", "node_id": "node_456", "score": 2.1},
+      ...
+  ]
+  ```
+
+These fields enable:
+- Debugging why a strategy was selected
+- Understanding signal influence on scoring
+- Analyzing joint strategy-node selection behavior
+
+#### Canonical Graph Output
+
+The dual-graph architecture adds canonical graph observability fields:
+
+```python
+canonical_graph = {
+    "slots": {
+        "concept_count": int,      # Active canonical slots
+        "orphan_count": int,        # Slots with no edges
+        "avg_support": float,       # Avg support per slot
+    },
+    "edges": {
+        "edge_count": int,          # Canonical edges
+    },
+    "metrics": {
+        "max_depth": int,           # Longest canonical path
+    }
+}
+
+graph_comparison = {
+    "node_reduction_pct": float,     # % reduction from surface → canonical
+    "edge_aggregation_ratio": float, # canonical_edges / surface_edges
+    "orphan_improvement_pct": float, # Orphan reduction from aggregation
+}
+```
+
+### Continuation and Termination
+
+The `ContinuationStage` (Stage 7) decides whether to continue the interview based on multiple termination conditions.
+
+#### Termination Reasons
+
+The `termination_reason` field is populated when `should_continue=False`:
+
+| Reason | Description | Detection |
+|--------|-------------|-----------|
+| `"Maximum turns reached"` | Interview reached configured `max_turns` limit | `turn_number >= max_turns` |
+| `"Closing strategy selected"` | Closing strategy was explicitly selected | `strategy == "close"` |
+| `"graph_saturated"` | 3+ consecutive turns with zero yield (no new nodes/edges) | `consecutive_zero_yield >= 3` |
+| `"quality_degraded"` | 6+ consecutive shallow responses detected | `consecutive_shallow >= 6` |
+| `"depth_plateau"` | Graph max_depth hasn't increased in 6 consecutive turns | `consecutive_depth_plateau >= 6` |
+| `"all_nodes_exhausted"` | All explored nodes have no more content to yield | All nodes have `turns_since_last_yield >= 3` |
+| `"saturated"` | Generic saturation (fallback when is_saturated=True) | `saturation.is_saturated == True` |
+
+#### Continuation Logic
+
+```python
+# ContinuationStage evaluates multiple conditions:
+should_continue = (
+    turn_number < max_turns and
+    strategy != "close" and
+    not saturation.is_saturated and
+    not all_nodes_exhausted
+)
+
+# Saturation checks apply after minimum turns OR in late stage
+if turn_number < MIN_TURN_FOR_SATURATION and not is_late_stage:
+    return True  # Skip saturation checks early
+
+# Specific saturation conditions:
+# - graph_saturated: consecutive_zero_yield >= 3
+# - quality_degraded: consecutive_shallow >= 6
+# - depth_plateau: consecutive_depth_plateau >= 6
+```
+
+If `should_continue=False`, the `termination_reason` field is set to explain why, enabling:
+- User understanding of why interview ended
+- Analytics on termination patterns
+- Debugging premature termination
 
 ---
 
 ## Signal Pools Architecture
 
-### Overview
+### Signal Pool Overview
 
-**Phase 6 (2026-01-28)**: The system now uses methodology-based signal detection with YAML configuration, replacing the old two-tier scoring system.
+The system uses methodology-based signal detection with YAML configuration.
 
-**Phase 6 (2026-01-29)**: Node-level signals enable per-node state tracking and intelligent backtracking.
+Node-level signals enable per-node state tracking and intelligent backtracking.
 
-**D1 Architecture (2026-01-30)**: Joint strategy-node scoring enables the system to select optimal (strategy, node) combinations, with node exhaustion awareness driving automatic backtracking.
+Joint strategy-node scoring enables the system to select optimal (strategy, node) combinations, with node exhaustion awareness driving automatic backtracking.
 
 Signal pools enable flexible strategy selection by collecting signals from multiple data sources:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    ComposedSignalDetector                   │
-│  - Orchestrates signal detection from all pools             │
-│  - Two-pass detection (non-meta first, then meta)           │
+│              GlobalSignalDetectionService                   │
+│  - Uses ComposedSignalDetector for global signals           │
+│  - Dependency-ordered detection (topological sort)          │
 └─────────────────────────────────────────────────────────────┘
                             ↓
         ┌───────────────────┼───────────────────┬───────────────┐
@@ -170,10 +350,11 @@ Signal pools enable flexible strategy selection by collecting signals from multi
 │              │   │              │   │              │ │              │
 │Global:       │   │ - response_  │   │ - strategy_  │ │Node-level:   │
 │ - node_count │   │   depth      │   │   repetition │ │ - strategy_  │
-│ - max_depth  │   │ - sentiment  │   │ - turns_     │ │   repetition │
-│ - chain_comp │   │ - uncertainty │   │   since_     │ │              │
-│              │   │ - hedging    │   │   strategy   │ └──────────────┘
-│Node-level:   │   │ - global_    │   │   change     │
+│ - max_depth  │   │ - valence    │   │ - turns_     │ │   repetition │
+│ - chain_comp │   │ - certainty  │   │   since_     │ │              │
+│              │   │ - specificity│   │   strategy   │ └──────────────┘
+│              │   │ - engagement │   │   change     │
+│Node-level:   │   │ - global_    │   │              │
 │ - exhausted  │   │   trend      │   │              │
 │ - yield_stag │   │              │   │              │
 │ - focus_     │   │              │   │              │
@@ -205,9 +386,9 @@ All signals use dot-notation namespacing to prevent collisions:
 
 | Pool | Namespace | Example Signals |
 |------|-----------|-----------------|
-| **Graph (Global)** | `graph.*` | node_count, max_depth, orphan_count, chain_completion |
+| **Graph (Global)** | `graph.*` | node_count, max_depth, orphan_count, chain_completion.ratio (float [0,1]), chain_completion.has_complete (bool) |
 | **Graph (Node)** | `graph.node.*` | exhausted, exhaustion_score, yield_stagnation, focus_streak, recency_score, is_orphan, edge_count |
-| **LLM** | `llm.*` | response_depth, sentiment, uncertainty, ambiguity, hedging_language, global_response_trend |
+| **LLM** | `llm.*` | response_depth (categorical: surface/shallow/moderate/deep), valence (float [0,1]), certainty (float [0,1]), specificity (float [0,1]), engagement (float [0,1]), global_response_trend (deepening/stable/plateauing — computed as temporal delta across recent turns) |
 | **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_strategy_change |
 | **Meta (Global)** | `meta.*` | interview_progress, interview.phase |
 | **Meta (Node)** | `meta.node.*` | opportunity (exhausted/probe_deeper/fresh) |
@@ -218,22 +399,22 @@ All signals use dot-notation namespacing to prevent collisions:
 ```mermaid
 graph LR
     A[methodology_config.yaml] -->|MethodologyRegistry.load| B[MethodologyConfig]
-    B -->|config.signals| C[ComposedSignalDetector]
+    B -->|config.signals| C[GlobalSignalDetectionService]
     B -->|config.strategies| D[rank_strategy_node_pairs]
     B -->|config.phases| E[Phase Weights + Bonuses]
 
-    C -->|detect global| F[Global Signals Dict]
-    C -->|detect per-node| G[Node Signals Dict]
+    C -->|ComposedSignalDetector| F[Global Signals Dict]
+    G[NodeSignalDetectionService] -->|hardcoded detectors| H[Node Signals Dict]
 
-    F --> H{phase in config?}
-    G --> H
-    E --> H
+    F --> I{phase in config?}
+    H --> I
+    E --> I
 
-    H -->|Yes| I[Load phase weights + bonuses]
-    H -->|No| J[No phase modifiers]
+    I -->|Yes| J[Load phase weights + bonuses]
+    I -->|No| K[No phase modifiers]
 
-    I --> K[rank_strategy_node_pairs]
-    J --> K
+    J --> L[rank_strategy_node_pairs]
+    K --> L
 
     K --> L[For Each Strategy × Node Pair]
     L --> M[Merge global + node signals]
@@ -256,23 +437,60 @@ graph LR
 - No stale signals from previous responses
 - Accurate strategy selection
 
+### Rubric-Based LLM Detection
+
+LLM signals use rubric-based prompts to guide the LLM's assessment. The `LLMBatchDetector` loads rubric definitions from `src/signals/llm/prompts/signals.md` using indentation-based parsing:
+
+**Rubric Structure**:
+```markdown
+response_depth: How much elaboration does the response provide?
+    1 = Minimal or single-word answer, no development
+    2 = Brief statement with no supporting detail
+    3 = Moderate elaboration with some explanation or context
+    4 = Detailed response with reasoning, examples, or multiple facets
+    5 = Rich, layered response exploring the topic from multiple angles
+```
+
+**Parsing Method**:
+- Signal headers: Start at column 0, contain `:`, not a comment
+- Content lines: Indented, appended to current signal's rubric
+- Example: `response_depth:` header followed by indented scale definitions
+
+**Batch Detection**:
+All 6 LLM signals (response_depth, specificity, certainty, valence, engagement, intellectual_engagement) are detected in a single API call. The prompt includes the interviewer's question (for context) and the respondent's answer, with rubrics injected to guide the LLM's scoring. The LLM returns structured JSON:
+
+```json
+{
+  "response_depth": {"score": "deep", "rationale": "Detailed response with examples"},
+  "specificity": {"score": 0.75, "rationale": "Concrete details and named entities"},
+  "certainty": {"score": 1.0, "rationale": "Confident statements with no hedging"},
+  "valence": {"score": 0.75, "rationale": "Positive tone throughout"},
+  "engagement": {"score": 1.0, "rationale": "Volunteered additional context unprompted"},
+  "intellectual_engagement": {"score": 0.75, "rationale": "Causal reasoning with value expression present"}
+}
+```
+
+**Signal Type Handling**:
+- **Categorical** (response_depth): Returns string values (surface/shallow/moderate/deep/comprehensive), matched via string equality in strategy weights
+- **Continuous** (others): Returns float [0,1], matched via threshold binning (.low/.mid/.high) in strategy weights
+
 ### Node-Level Signals
 
-**Phase 6 (2026-01-29)**: Node-level signals enable per-node state tracking and joint strategy-node scoring.
+Node-level signals enable per-node state tracking and joint strategy-node scoring.
 
 Node-level signals use the `graph.node.*` namespace and are computed by `NodeSignalDetector` subclasses:
 
 | Signal | Description | Type | Detector |
 |--------|-------------|------|----------|
-| `graph.node.exhausted` | Boolean: is node exhausted | `"true"` / `"false"` | `NodeExhaustedSignal` |
+| `graph.node.exhausted` | Boolean: is node exhausted | bool | `NodeExhaustedSignal` |
 | `graph.node.exhaustion_score` | Continuous: 0.0 (fresh) to 1.0 (exhausted) | float | `NodeExhaustionScoreSignal` |
-| `graph.node.yield_stagnation` | Boolean: 3+ turns without yield | `"true"` / `"false"` | `NodeYieldStagnationSignal` |
+| `graph.node.yield_stagnation` | Boolean: 3+ turns without yield | bool | `NodeYieldStagnationSignal` |
 | `graph.node.focus_streak` | Categorical: none/low/medium/high | str | `NodeFocusStreakSignal` |
-| `graph.node.is_current_focus` | Boolean: is this the current focus | `"true"` / `"false"` | `NodeIsCurrentFocusSignal` |
+| `graph.node.is_current_focus` | Boolean: is this the current focus | bool | `NodeIsCurrentFocusSignal` |
 | `graph.node.recency_score` | Continuous: 1.0 (current) to 0.0 (20+ turns ago) | float | `NodeRecencyScoreSignal` |
-| `graph.node.is_orphan` | Boolean: node has no edges | `"true"` / `"false"` | `NodeIsOrphanSignal` |
+| `graph.node.is_orphan` | Boolean: node has no edges | bool | `NodeIsOrphanSignal` |
 | `graph.node.edge_count` | Integer: total edges (incoming + outgoing) | int | `NodeEdgeCountSignal` |
-| `graph.node.strategy_repetition` | Categorical: none/low/medium/high | str | `NodeStrategyRepetitionSignal` |
+| `technique.node.strategy_repetition` | Categorical: none/low/medium/high | str | `NodeStrategyRepetitionSignal` (technique pool) |
 
 **Node Signal Architecture:**
 
@@ -299,16 +517,27 @@ Computed by `NodeOpportunitySignal` using:
 
 **Interview Phase Signal (`meta.interview.phase`):**
 
-Detects the current interview phase based on graph state:
-- **early**: Initial exploration (node_count < 5)
-- **mid**: Building depth and connections (node_count < 15 or orphan_count > 3)
-- **late**: Validation and verification (node_count >= 15)
+Detects the current interview phase based on turn number and methodology-specific thresholds:
+- **early**: Initial exploration (turn_number < early_max_turns)
+- **mid**: Building depth and connections (early_max_turns ≤ turn_number < mid_max_turns)
+- **late**: Validation and verification (turn_number ≥ mid_max_turns)
 
-Computed by `InterviewPhaseSignal` using graph state metrics.
+**Phase transition logic**: The system uses a turn_number-based threshold system. Transitions occur at predefined turn number boundaries defined in the methodology YAML config. This ensures predictable phase progression based on interview progress.
 
-### Joint Strategy-Node Scoring (D1 Architecture)
+Each methodology defines its own phase transition thresholds in YAML config under `phases.<phase>.phase_boundaries`:
+```yaml
+phases:
+  early:
+    phase_boundaries:
+      early_max_turns: 4   # Transition to mid at this turn
+      mid_max_turns: 12    # Transition to late at this turn
+```
 
-**Phase 6 (2026-01-29)**: The system implements joint strategy-node scoring for focus selection.
+Computed by `InterviewPhaseSignal` using methodology-specific thresholds from config with fallback to defaults (4/12).
+
+### Joint Strategy-Node Scoring
+
+The system implements joint strategy-node scoring for focus selection.
 
 Instead of selecting a strategy first and then a node, the system scores all (strategy, node) pairs:
 
@@ -320,26 +549,26 @@ def rank_strategy_node_pairs(
     node_tracker: NodeStateTracker,
     phase_weights: Optional[Dict[str, float]] = None,
     phase_bonuses: Optional[Dict[str, float]] = None,
-    signal_norms: Optional[Dict[str, float]] = None,
-) -> List[Tuple[StrategyConfig, str, float]]:
+) -> tuple[List[Tuple[StrategyConfig, str, float]], List[ScoredCandidate]]:
     """
     Rank (strategy, node) pairs by joint score.
 
     For each (strategy, node) pair:
     1. Merge global + node signals (node signals take precedence)
-    2. Score strategy using combined signals
+    2. Score strategy using combined signals (with per-signal decomposition)
     3. Apply phase weight multiplier if available
     4. Apply phase bonus additively if available
     5. Sort all pairs by score descending
 
-    Returns: List of (StrategyConfig, node_id, score) tuples
+    Returns: (ranked_pairs, decomposition) where decomposition contains
+    per-signal contribution breakdown for every candidate (simulation observability)
     """
 ```
 
 **Scoring Formula**:
 ```python
 # Base score from signal weights
-base_score = score_strategy(strategy, combined_signals, signal_norms)
+base_score = score_strategy(strategy, combined_signals)
 
 # Apply phase weight multiplier if available
 multiplier = phase_weights.get(strategy.name, 1.0)
@@ -360,105 +589,110 @@ final_score = (base_score * multiplier) + bonus
 
 ---
 
-## Concept-Driven Coverage
-
-### Concepts vs Methodologies
-
-The system uses a **two-layer architecture**:
-
-1. **Concepts** (`config/concepts/*.yaml`): Define WHAT to explore
-   - Semantic elements (attributes, values, consequences)
-   - Research context (topic, insight, promise, rtb)
-   - Element aliases for fuzzy matching
-
-2. **Methodologies** (`src/methodologies/config/*.yaml`): Define HOW to explore
-   - Node types (attribute, functional, psychosocial, etc.)
-   - Ladder structure (chain length)
-   - Signal definitions
-   - Strategy definitions
-
-### Coverage State Tracking
-
-The system tracks coverage at the **element level** with depth validation:
-
-```python
-coverage_state = {
-    "elements": {
-        1: {  # "Creamy texture"
-            "covered": True,
-            "linked_node_ids": ["node_123", "node_456"],
-            "types_found": ["attribute", "psychosocial_consequence"],
-            "depth_score": 0.5,  # 2/4 levels (chain validation)
-        },
-        2: {  # "Plant-based"
-            "covered": False,
-            "linked_node_ids": [],
-            "types_found": [],
-            "depth_score": 0.0,
-        },
-    },
-    "elements_covered": 1,
-    "elements_total": 6,
-    "overall_depth": 0.25,
-}
-```
-
-### Depth Tracking (Chain Validation)
-
-Depth is calculated via **chain validation** - finding the longest connected path of node types among linked nodes:
-
-**Algorithm:**
-1. Get all nodes linked to an element
-2. Get edges connecting these nodes (treat as undirected)
-3. Build adjacency graph
-4. Find longest connected path
-5. `depth_score = longest_chain_length / methodology_ladder_length`
-
-**Why chain validation matters:**
-- Simply counting types (2/4 = 0.5) doesn't validate connection
-- attribute + psychosocial with no functional might be unrelated thoughts
-- Chain validation confirms actual laddering occurred
-
----
-
 ## Methodology-Centric Design
 
 ### Methodology Registry
 
-The system uses a **methodology registry** that loads YAML configurations:
+The system uses a **methodology registry** with lazy-loading:
 
 ```python
 # src/methodologies/registry.py
 class MethodologyRegistry:
-    _methodologies: Dict[str, MethodologyConfig] = {}
+    def __init__(self, config_dir: str | Path | None = None):
+        self.config_dir = Path(config_dir)
+        self._cache: dict[str, MethodologyConfig] = {}
 
-    @classmethod
-    def load_all(cls):
-        """Load all methodology YAML configs from config directory"""
-        for config_file in glob("src/methodologies/config/*.yaml"):
-            config = MethodologyConfig.from_yaml(config_file)
-            cls._methodologies[config.id] = config
+    def get_methodology(self, name: str) -> MethodologyConfig:
+        """Get methodology configuration by name (loads on-demand)."""
+        if name in self._cache:
+            return self._cache[name]
+        # Loads YAML file on first access, caches result
+        config = MethodologyConfig.from_yaml(self.config_dir / f"{name}.yaml")
+        self._cache[name] = config
+        return config
+```
 
-    @classmethod
-    def get_methodology(cls, methodology_id: str) -> MethodologyConfig:
-        """Get methodology config by ID"""
-        return cls._methodologies.get(methodology_id)
+**Global Access Pattern**:
+
+```python
+# src/methodologies/__init__.py
+def get_registry() -> MethodologyRegistry:
+    """Get the global methodology registry instance."""
+    return _registry
 ```
 
 ### MethodologyStrategyService
 
-The `MethodologyStrategyService` uses methodology configs to:
+The `MethodologyStrategyService` uses methodology configs (via dependency injection):
 
-1. **Detect signals** from all pools (graph, llm, temporal, meta)
+1. **Detect signals** from all pools (graph, llm, temporal, meta, technique)
 2. **Score strategies** using YAML-defined signal weights
-3. **Select best strategy** based on weighted scores
-4. **Select focus** using strategy.focus_preference
+3. **Select best (strategy, node) pair** using **D1 architecture** - joint strategy-node scoring
 
-This replaces the old two-tier scoring system with a more flexible, YAML-driven approach.
+The service is instantiated with a `MethodologyRegistry` instance, enabling flexible methodology switching and testability:
+
+```python
+# src/services/methodology_strategy_service.py
+class MethodologyStrategyService:
+    def __init__(self, methodology_registry: MethodologyRegistry):
+        self.registry = methodology_registry
+```
+
+**D1 Architecture**: Joint strategy-node scoring (`rank_strategy_node_pairs()`) enables per-node exhaustion awareness and backtracking by scoring (strategy, node_id) pairs instead of strategies alone.
 
 ---
 
 ## Knowledge Graph State
+
+### Session State
+
+The `SessionState` object tracks mutable interview state across conversation turns (Pydantic BaseModel):
+
+```python
+class SessionState(BaseModel):
+    # Core session metadata
+    methodology: str
+    concept_id: str
+    concept_name: str
+    turn_count: int = 0
+    last_strategy: Optional[str] = None
+    mode: InterviewMode = InterviewMode.EXPLORATORY
+
+    # Velocity tracking for saturation signals
+    surface_velocity_ewma: float = 0.0
+    surface_velocity_peak: float = 0.0
+    prev_surface_node_count: int = 0
+    canonical_velocity_ewma: float = 0.0
+    canonical_velocity_peak: float = 0.0
+    prev_canonical_node_count: int = 0
+
+    # Focus history for tracing strategy-node decisions
+    focus_history: List[FocusEntry] = Field(
+        default_factory=list,
+        description="Ordered sequence of strategy-node decisions across turns"
+    )
+```
+
+**FocusEntry Model**:
+
+```python
+class FocusEntry(BaseModel):
+    """Single entry in focus history tracking strategy-node decisions."""
+    turn: int                     # Turn number (1-indexed)
+    node_id: str                  # Target node ID (empty if no node focus)
+    label: str                    # Human-readable node label
+    strategy: str                 # Strategy selected for this turn
+```
+
+**Focus Tracing Flow**:
+1. **ContextLoadingStage** (Stage 1): Loads `focus_history` from `SessionState` into `ContextLoadingOutput`
+2. **ScoringPersistenceStage** (Stage 10): Appends new `FocusEntry` with current turn's strategy and node focus
+3. **API**: `GET /sessions/{id}/status` returns `focus_tracing` array from `session.state.focus_history`
+
+**Post-Hoc Analysis**:
+- Enables reconstruction of exploration path through knowledge graph
+- Turn 1 has empty `node_id`/`label` (graph was empty, no node to target)
+- Empty turns are preserved (no gaps in sequence) for accurate trace reading
 
 ### Graph Structure
 
@@ -466,38 +700,65 @@ The knowledge graph stores:
 
 - **Nodes**: Concepts extracted from user responses
   - `id`: Unique node identifier
-  - `text`: Concept text
+  - `label`: Concept text
   - `node_type`: Type classification (attribute, functional, psychosocial, etc.)
-  - `utterance_id`: Source utterance for traceability
+  - `source_utterance_ids`: Source utterances for traceability (supports multiple sources)
+  - `confidence`: Optional confidence score
+  - `properties`: Optional metadata properties
+  - `recorded_at`: Timestamp when node was created
+  - `superseded_by`: Optional ID of canonical slot that supersedes this node
+  - `stance`: Optional stance classification (pro/con/neutral)
 
 - **Edges**: Relationships between concepts
   - `id`: Unique edge identifier
   - `source_node_id`: Source node
   - `target_node_id`: Target node
-  - `relationship_type`: Type of relationship
-  - `utterance_id`: Source utterance for traceability
+  - `edge_type`: Type of relationship
+  - `source_utterance_ids`: Source utterances for traceability (supports multiple sources)
 
 ### Graph State Metrics
 
-The `GraphState` object tracks:
+The `GraphState` object tracks (Pydantic BaseModel):
 
 ```python
-@dataclass
-class GraphState:
-    node_count: int              # Total nodes in graph
-    edge_count: int              # Total edges in graph
-    turn_count: int              # Number of completed turns
-    coverage_state: CoverageState # Element-level coverage
-    max_depth: int               # Maximum chain depth
-    orphan_count: int            # Nodes with no edges
-    coverage_breadth: float      # Breadth of coverage (0-1)
+class GraphState(BaseModel):
+    node_count: int
+    edge_count: int
+    turn_count: int
+    depth_metrics: DepthMetrics  # Nested: max_depth, avg_depth, depth_distribution
+    saturation_metrics: Optional[SaturationMetrics]  # Consecutive shallow, zero yield, etc.
+    nodes_by_type: Dict[str, int]  # Node counts by type
+    edges_by_type: Dict[str, int]  # Edge counts by type
+    orphan_count: int
+    current_phase: Literal["exploratory", "focused", "closing"]
+    strategy_history: Deque[str]  # deque with maxlen=30
+    extended_properties: Dict[str, Any]  # Additional metadata
 ```
 
 These metrics drive strategy selection via signal pools.
 
+### Canonical Graph State
+
+The system maintains a parallel canonical graph for deduplicated concepts (Pydantic BaseModel):
+
+```python
+class CanonicalGraphState(BaseModel):
+    slot_count: int              # Number of active canonical slots
+    edge_count: int              # Number of canonical edges
+    orphan_count: int            # Slots with no canonical edges
+    max_depth: int               # Longest path in canonical graph
+    avg_support: float           # Average support_count per slot
+    slots_by_type: Dict[str, int]  # Slot counts by type
+```
+
+**State Computation**:
+- Computed by `CanonicalSlotService` (Stage 4.5) and `StateComputationStage` (Stage 5)
+- Aggregates surface edges to canonical edges
+- Tracks candidate → active slot lifecycle
+
 ### Node State Tracking
 
-**Phase 6 (2026-01-29)**: The system now includes per-node state tracking via `NodeStateTracker` to enable node exhaustion detection and backtracking.
+The system includes per-node state tracking via `NodeStateTracker` to enable node exhaustion detection and backtracking.
 
 The `NodeState` dataclass tracks for each node:
 
@@ -541,9 +802,65 @@ class NodeState:
         return (self.edge_count_incoming + self.edge_count_outgoing) == 0
 ```
 
+### Node Tracker Persistence
+
+NodeStateTracker persists across turns via database storage, enabling `previous_focus` tracking and `all_response_depths` accumulation for saturation detection.
+
+#### Persistence Flow
+
+```mermaid
+graph LR
+    A[SessionService.process_turn] -->|load or create| B[SessionService._get_or_create_node_tracker]
+    B -->|check database| C[SessionRepository.get_node_tracker_state]
+    C -->|state found?| D{Has persisted state?}
+    D -->|Yes| E[NodeStateTracker.from_dict]
+    D -->|No| F[New NodeStateTracker]
+    E -->|restored states| G[node_tracker]
+    F --> G
+    G -->|Load at turn start| H[StrategySelectionStage]
+    H -->|append_response_depth| I[node_tracker]
+    H -->|update_focus| J[node_tracker]
+    I -->|all_response_depths.append| K[previous_focus node]
+    J -->|set previous_focus| L[node_tracker]
+    L -->|After turn completes| M[SessionService._save_node_tracker]
+    M -->|to_dict| N[node_tracker.to_dict]
+    N -->|JSON serialize| O[tracker_dict]
+    O -->|save to database| P[SessionRepository.update_node_tracker_state]
+    P -->|Write| Q[(sessions.node_tracker_state)]
+    Q -->|Next turn| A
+```
+
+#### Key Points
+
+**Load (turn start)**:
+- `SessionService._get_or_create_node_tracker()` queries `sessions.node_tracker_state` from database
+- If found: `NodeStateTracker.from_dict()` restores all node states
+- If not found: Creates fresh `NodeStateTracker()`
+
+**Use (during turn)**:
+- `StrategySelectionStage.append_response_signal()`: Appends `llm.response_depth` to `previous_focus` node's `all_response_depths` list
+- `StrategySelectionStage.update_focus()`: Updates `previous_focus` for next turn
+
+**Save (turn end)**:
+- `SessionService._save_node_tracker()` serializes via `NodeStateTracker.to_dict()`
+- Stores JSON in `sessions.node_tracker_state` column (added in migration 004)
+
+#### Schema and Compatibility
+
+- `NODE_TRACKER_SCHEMA_VERSION = 1` for future compatibility
+- Includes: `schema_version`, `previous_focus`, `states` dict
+- Existing sessions with `node_tracker_state = NULL` create fresh tracker (graceful degradation)
+- State size: ~15KB JSON for 25 nodes (varies by interview length)
+
+#### Enables
+
+- **Response depth tracking**: `all_response_depths` accumulates across turns per node
+- **Saturation detection**: `consecutive_shallow` calculation requires historical depth data
+- **Focus continuity**: `previous_focus` enables tracking which node received the last response
+
 ### Node Exhaustion and Backtracking
 
-**Phase 6 (2026-01-29)**: The node exhaustion system enables intelligent backtracking by detecting when nodes are exhausted (no longer yielding new information).
+The node exhaustion system enables intelligent backtracking by detecting when nodes are exhausted (no longer yielding new information).
 
 #### Exhaustion Detection Criteria
 
@@ -634,7 +951,7 @@ if config.phases and current_phase in config.phases:
     phase_bonuses = phase_config.phase_bonuses        # Additive
 
 # Base score calculation using signal weights
-base_score = score_strategy(strategy, signals, signal_norms)
+base_score = score_strategy(strategy, signals)
 
 # Apply phase weight multiplier and bonus additively
 multiplier = phase_weights.get(strategy.name, 1.0) if phase_weights else 1.0
@@ -644,40 +961,63 @@ bonus = phase_bonuses.get(strategy.name, 0.0) if phase_bonuses else 0.0
 final_score = (base_score * multiplier) + bonus
 ```
 
+**Signal Normalization**: All signals are normalized at source to [0, 1] or bool. No additional normalization is needed during scoring.
+
+**Threshold Binning**: Strategy weights use compound keys (`.low`, `.mid`, `.high`) to convert continuous [0,1] signals into categorical boolean triggers. This models how a moderator thinks categorically ("that was shallow → clarify") rather than linearly. Boundaries: `low ≤ 0.25`, `0.25 < mid < 0.75`, `high ≥ 0.75`.
+
+**Note**: Only applies to float signals. Categorical signals like `llm.response_depth` (surface/shallow/moderate/deep/comprehensive) use string equality matching instead:
+```yaml
+llm.response_depth.shallow: 0.8  # Matches when response_depth == "shallow"
+```
+
+**Error Handling in Signal Detection:**
+
+Each signal detector runs in isolation with try/except handling. If a detector fails (e.g., database timeout, LLM error):
+- Error logged with `structlog` at error level
+- Failed signal scored as 0 (missing from signals dict)
+- Other detectors continue executing
+- Strategy selection proceeds with partial signals (degraded but not dead)
+
 **YAML Configuration Example:**
 
 ```yaml
-# src/methodologies/config/means_end_chain.yaml
+# config/methodologies/means_end_chain.yaml
+
+# Phase-based strategy modifiers
 phases:
   early:
     signal_weights:    # Multiplicative weights
-      deepen: 1.5      # Boost deepen in early phase
+      explore: 1.5     # Boost explore in early phase
       clarify: 1.2
-      reflect: 0.8     # Reduce reflect in early phase
+      deepen: 0.5
+      reflect: 0.2
     phase_bonuses:     # Additive bonuses
-      broaden: 0.2     # Small bonus for broaden strategy
+      explore: 0.2     # Bonus for explore in early phase
   mid:
     signal_weights:    # Default scoring in mid phase
-      deepen: 1.0
-      clarify: 1.0
-      reflect: 1.0
+      deepen: 1.3      # Prioritize deepening chains
+      clarify: 0.8     # Reduced from 1.0 (was causing dominance)
+      explore: 0.8
+      reflect: 0.7
     phase_bonuses:
-      probe: 0.1
+      deepen: 0.3      # Additive bonus for deepening in mid phase
   late:
     signal_weights:
-      deepen: 0.5      # Reduce deepen in late phase
-      clarify: 0.8
-      reflect: 1.8     # Boost reflect in late phase
+      reflect: 1.2     # Reduced from 1.8 (was causing dominance)
+      revitalize: 1.2  # Boost revitalize in late phase
+      deepen: 0.5
+      explore: 0.3
     phase_bonuses:
-      synthesize: 0.3  # Bonus for synthesis strategies
-      validate: 0.2
+      reflect: 0.2     # Reduced from 0.4 (was causing over-selection)
+      revitalize: 0.2  # Bonus for revitalize in late phase
 ```
 
 **Phase-based behavior:**
-- **Early phase**: Boost strategies that explore new concepts (`deepen`, `clarify`)
-- **Mid phase**: Use default weights for balanced exploration
-- **Late phase**: Boost strategies that validate and verify findings (`reflect`, `synthesize`)
+- **Early phase**: Boost strategies that explore new concepts (`explore`, `clarify`)
+- **Mid phase**: Prioritize deepening chains while maintaining variety (`deepen` boosted, others balanced)
+- **Late phase**: Boost strategies that validate and verify findings (`reflect`, `revitalize`)
 - **Additive bonuses** provide small strategy nudges independent of multiplicative weights
+- **Weight calibration**: Reduced `clarify` mid weight (1.0→0.8) and `reflect` late weight/bonus (1.8→1.2, 0.4→0.2) to improve strategy variety and prevent dominance
 
 This ensures the interview adapts its strategy preferences as the knowledge graph matures.
 
@@ -699,11 +1039,13 @@ The system uses fundamentally different prompt structures for opening versus fol
 - Goal: Execute a specific strategy based on signals
 - Style: Focused, strategic, signal-aware
 - Context: Strategy description + signal rationale + methodology + graph state
-- Example: "Why does that matter?" (because `graph.chain_completion.has_complete_chain=false`)
+- Example: "Why does that matter?" (because `graph.chain_completion.has_complete=false`)
 
 ### Signal Rationale in Prompts
 
-**Phase 6 (2026-01-29)**: Follow-up prompts now include active signals with descriptions to explain WHY each strategy was selected.
+> **Implementation Note**: Signal rationale in prompts is architected but not currently wired. The prompt templates support signal descriptions, signal classes have `description` attributes, and strategies have descriptions from YAML. However, `QuestionGenerationStage` does not yet pass `signals` or `signal_descriptions` to `generate_question()`. This feature is designed but not deployed.
+
+Follow-up prompts include active signals with descriptions to explain WHY each strategy was selected.
 
 #### Signal Descriptions
 
@@ -717,8 +1059,8 @@ Example signals with descriptions:
 ```python
 class GraphMaxDepthSignal(SignalDetector):
     signal_name = "graph.max_depth"
-    description = "Depth of the longest causal chain. Low values (<2) indicate surface-level exploration,
-                   moderate (2-3) indicate reaching consequences or values, high (4+) indicate deep value exploration."
+    description = "Normalized depth of the longest causal chain (0.0-1.0).
+                   Normalized by ontology level count. 0.0 = no depth, 1.0 = full ontology chain depth reached."
 ```
 
 #### Prompt Structure
@@ -731,7 +1073,7 @@ The follow-up user prompt includes:
   → "Depth of the longest chain. Low values (<2) indicate surface-level exploration"
 - llm.response_depth: moderate
   → "LLM assessment of response depth. 'moderate' means some elaboration"
-- graph.chain_completion.has_complete_chain: false
+- graph.chain_completion.has_complete: false
   → "Whether any complete chains exist from level 1 to terminal nodes"
 
 ## Why This Strategy Was Selected:
@@ -745,7 +1087,7 @@ Strategy: Deepen Understanding - "Explore why something matters to understand de
 
 ### Strategy Descriptions from YAML
 
-Strategies are now loaded from `config/scoring.yaml` with `description` fields that explain WHAT each strategy does:
+Strategies are loaded from methodology YAML files (`config/methodologies/*.yaml`) with `description` fields that explain WHAT each strategy does:
 
 ```yaml
 - id: deepen
@@ -774,21 +1116,32 @@ This provides the LLM with methodology-specific context for generating appropria
 
 ## LLM Integration
 
-### Three-Client Architecture (ADR-010)
+### Three-Client Architecture
 
 The system uses three specialized LLM clients:
 
 | Client | Purpose | Model |
 |--------|---------|-------|
-| `ExtractionClient` | Concept/relationship extraction | Claude (high quality) |
-| `SignalClient` | Qualitative signal extraction | Claude (high quality) |
-| `QuestionClient` | Question generation | Claude/Moonshot (cost-optimized) |
+| `ExtractionClient` | Concept/relationship extraction | Claude Sonnet (high quality) |
+| `ScoringClient` | Qualitative signal scoring | Kimi kimi-k2-0905-preview |
+| `GenerationClient` | Question generation | Claude Sonnet |
 
-### LLM Fallback
+**Scoring Client Details**: The scoring client uses rubric-based prompts to assess response quality. It receives both the interviewer's question (up to 200 chars) and the respondent's answer (up to 500 chars) for context-aware scoring. Question context is extracted from `recent_utterances` by `GlobalSignalDetectionService` and threaded through `ComposedSignalDetector` → `LLMBatchDetector`.
 
-The system implements LLM fallback for reliability:
-- Primary LLM fails → fallback to secondary model
-- Fallback status tracked in `QuestionGenerationOutput.has_llm_fallback`
+### LLM Timeout and Retry
+
+LLM clients implement timeout with exponential backoff retry for resilience.
+
+**Behavior**:
+- **Timeout**: 30 seconds for all clients (extraction, scoring, generation)
+- **Retry**: Max 1 retry on timeout or transient errors (429 rate limit, 5xx server errors)
+- **Backoff**: Exponential delay (1s × 2^attempt) between retries
+- **Circuit breaker**: Errors propagate as `LLMTimeoutError` or `LLMError` after retries exhausted
+
+**Error Types**:
+- `httpx.TimeoutException` → Retry with backoff → `LLMTimeoutError` if exhausted
+- `HTTPStatusError(429)` → Retry with backoff → `LLMRateLimitError` if exhausted
+- `HTTPStatusError(5xx)` → No retry, raises `LLMError` immediately (server errors indicate actual failures)
 
 ---
 
@@ -796,6 +1149,5 @@ The system implements LLM fallback for reliability:
 
 - [Pipeline Contracts](./pipeline_contracts.md) - Stage read/write specifications
 - [Data Flow Paths](./data_flow_paths.md) - Critical data flow visualizations
-- [ADR Index](./adr/README.md) - Architecture decision records
 - [API Documentation](./API.md) - Complete API reference
 - [DEVELOPMENT](./DEVELOPMENT.md) - Development guide

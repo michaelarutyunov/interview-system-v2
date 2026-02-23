@@ -11,7 +11,7 @@ from datetime import datetime
 from src.domain.models.interview_state import InterviewMode
 
 
-# ============ SESSION SCHEMAS (from Phase 1) ============
+# ============ SESSION SCHEMAS ============
 
 
 class SessionCreate(BaseModel):
@@ -47,15 +47,13 @@ class SessionListResponse(BaseModel):
     total: int
 
 
-# ============ TURN SCHEMAS (Phase 2) ============
+# ============ TURN SCHEMAS ============
 
 
 class TurnRequest(BaseModel):
     """Request to process a turn."""
 
-    text: str = Field(
-        ..., min_length=1, max_length=5000, description="User's response text"
-    )
+    text: str = Field(..., min_length=1, max_length=5000, description="User's response text")
 
 
 class ExtractedConceptSchema(BaseModel):
@@ -90,7 +88,7 @@ class GraphStateSchema(BaseModel):
 
 
 class ScoringSchema(BaseModel):
-    """Scoring results in turn response (Phase 3)."""
+    """Scoring results in turn response."""
 
     depth: float = 0.0
     saturation: float = 0.0
@@ -110,6 +108,15 @@ class TurnResponse(BaseModel):
     next_question: str
     should_continue: bool
     latency_ms: int = 0
+    # Methodology-based signal detection observability
+    signals: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Methodology signals from signal pools (graph, llm, temporal, meta)",
+    )
+    strategy_alternatives: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Alternative strategies with scores (including node_id for joint scoring)",
+    )
 
     class Config:
         json_schema_extra = {
@@ -159,7 +166,7 @@ class ErrorResponse(BaseModel):
     error_type: Optional[str] = None
 
 
-# ============ SYNTHETIC SCHEMAS (Phase 4) ============
+# ============ SYNTHETIC SCHEMAS ============
 
 
 class SyntheticRespondRequest(BaseModel):
@@ -208,9 +215,7 @@ class SyntheticSequenceRequest(BaseModel):
     questions: List[str] = Field(..., description="List of interview questions")
     session_id: str = Field(..., description="Session identifier")
     persona: str = Field(default="health_conscious", description="Persona ID")
-    product_name: str = Field(
-        default="the product", description="Product name for context"
-    )
+    product_name: str = Field(default="the product", description="Product name for context")
 
 
 # ============ STATUS AND GRAPH SCHEMAS ============
@@ -256,54 +261,10 @@ class SessionStatusResponse(BaseModel):
     strategy_selected: str = "unknown"
     strategy_reasoning: Optional[str] = None
     phase: str = "unknown"  # Interview phase: exploratory, focused, or closing
-
-
-# ============ SCORING CANDIDATES SCHEMAS ============
-
-
-class Tier1ResultSchema(BaseModel):
-    """Tier 1 scorer result."""
-
-    scorer_id: str
-    is_veto: bool
-    reasoning: str
-    signals: Dict[str, Any] = Field(default_factory=dict)
-
-
-class Tier2ResultSchema(BaseModel):
-    """Tier 2 scorer result."""
-
-    scorer_id: str
-    raw_score: float
-    weight: float
-    contribution: float
-    reasoning: str
-    signals: Dict[str, Any] = Field(default_factory=dict)
-
-
-class ScoringCandidateSchema(BaseModel):
-    """A scoring candidate (strategy + focus)."""
-
-    id: str
-    strategy_id: str
-    strategy_name: str
-    focus_type: str
-    focus_description: Optional[str] = None
-    final_score: float
-    is_selected: bool
-    vetoed_by: Optional[str] = None
-    tier1_results: List[Tier1ResultSchema] = Field(default_factory=list)
-    tier2_results: List[Tier2ResultSchema] = Field(default_factory=list)
-    reasoning: Optional[str] = None
-
-
-class ScoringTurnResponse(BaseModel):
-    """Scoring candidates for a specific turn."""
-
-    session_id: str
-    turn_number: int
-    candidates: List[ScoringCandidateSchema]
-    winner_strategy_id: Optional[str] = None
+    focus_tracing: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Ordered sequence of strategy-node decisions across turns for post-hoc analysis",
+    )
 
 
 # ============ SIMULATION SCHEMAS ============
@@ -320,6 +281,19 @@ class SimulationTurnSchema(BaseModel):
     strategy_selected: Optional[str] = None
     should_continue: bool = True
     latency_ms: float = 0.0
+    # Methodology-based signal detection observability
+    signals: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Methodology signals from signal pools (graph, llm, temporal, meta)",
+    )
+    strategy_alternatives: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Alternative strategies with scores (including node_id for joint scoring)",
+    )
+    termination_reason: Optional[str] = Field(
+        default=None,
+        description="Reason for termination (e.g., 'max_turns_reached', 'graph_saturated', 'close_strategy')",
+    )
 
 
 class SimulationRequest(BaseModel):
@@ -345,3 +319,7 @@ class SimulationResponse(BaseModel):
     total_turns: int
     turns: List[SimulationTurnSchema]
     status: str = "completed"  # completed, max_turns_reached, error
+
+    # Graph diagnostics (nodes and edges for diagnostic visibility)
+    nodes: List[Dict[str, Any]] = Field(default_factory=list)
+    edges: List[Dict[str, Any]] = Field(default_factory=list)

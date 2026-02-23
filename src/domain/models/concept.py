@@ -19,10 +19,6 @@ class ConceptContext(BaseModel):
     description, guiding the interviewer on what specific aspect of the concept
     to explore. This is particularly useful when combined with methodology-specific
     opening_bias to generate targeted opening questions.
-
-    Migration note: Legacy concepts may include 'topic', 'insight', 'promise', and
-    'rtb' fields for evaluative research. New exploratory concepts should only
-    use 'objective' to avoid biasing the AI interviewer.
     """
 
     objective: Optional[str] = Field(
@@ -34,33 +30,15 @@ class ConceptContext(BaseModel):
         "Example: 'Explore how consumers make decisions about plant-based milk "
         "alternatives, focusing on the attributes that matter most to them.'",
     )
-    # Legacy fields for backward compatibility with evaluative concepts
-    topic: Optional[str] = Field(
-        None, description="Primary topic or domain being explored (legacy)"
-    )
-    insight: Optional[str] = Field(
-        None,
-        description="Key insight or hypothesis (legacy - may bias AI, prefer objective)",
-    )
-    promise: Optional[str] = Field(
-        None,
-        description="Value proposition being tested (legacy - evaluative only)",
-    )
-    rtb: Optional[str] = Field(
-        None,
-        description="Reason to believe (legacy - evaluative only)",
-    )
 
 
 class ConceptElement(BaseModel):
     """
-    A semantic element within a concept.
+    A semantic element within a concept (LEGACY - evaluative interviews).
 
-    Elements are methodology-agnostic - they define WHAT to explore,
-    not the node type (attribute, consequence, value, etc.) which is
-    determined by the methodology.
-
-    Element IDs are integers for simplicity and type safety.
+    NOTE: Elements are legacy feature for evaluative interviews with predefined topics.
+    Current system is EXPLORATORY ONLY - elements are not used in practice.
+    This class exists for backward compatibility with old concept formats.
     """
 
     id: int = Field(..., description="Unique integer identifier (1, 2, 3...)", ge=1)
@@ -80,6 +58,9 @@ class Concept(BaseModel):
 
     Concepts are decoupled from methodologies - the same concept can
     be used with different methodologies (MEC, JTBD, Repertory Grid, etc.).
+
+    NOTE: elements field is legacy (evaluative interviews). Current system
+    is EXPLORATORY ONLY - elements list is always empty in practice.
 
     Key changes from v1 format:
     - Element IDs are integers (1, 2, 3) instead of strings

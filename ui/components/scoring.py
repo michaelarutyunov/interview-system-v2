@@ -53,9 +53,7 @@ class ScoringTab:
             # Fall back to legacy two-tier scoring
             self._render_legacy_scoring(api_client, current_session)
 
-    def _get_methodology_scoring(
-        self, api_client, current_session
-    ) -> Optional[Dict[str, Any]]:
+    def _get_methodology_scoring(self, api_client, current_session) -> Optional[Dict[str, Any]]:
         """
         Try to get methodology-centric scoring data.
 
@@ -124,9 +122,7 @@ class ScoringTab:
         llm_signals = {k: v for k, v in signals.items() if k.startswith("llm.")}
 
         # Temporal signals (history tracking)
-        temporal_signals = {
-            k: v for k, v in signals.items() if k.startswith("temporal.")
-        }
+        temporal_signals = {k: v for k, v in signals.items() if k.startswith("temporal.")}
 
         # Meta signals (derived/composite signals)
         meta_signals = {k: v for k, v in signals.items() if k.startswith("meta.")}
@@ -206,9 +202,7 @@ class ScoringTab:
         all_scoring = api_client.get_all_scoring(current_session.id)
 
         if not all_scoring:
-            st.info(
-                "No scoring data available yet. Complete some interview turns first."
-            )
+            st.info("No scoring data available yet. Complete some interview turns first.")
             return
 
         # Turn selector
@@ -267,9 +261,7 @@ class ScoringTab:
             return
 
         # Sort by final score (descending)
-        sorted_candidates = sorted(
-            candidates, key=lambda c: c["final_score"], reverse=True
-        )
+        sorted_candidates = sorted(candidates, key=lambda c: c["final_score"], reverse=True)
 
         for idx, candidate in enumerate(sorted_candidates):
             # Status indicator
@@ -294,9 +286,7 @@ class ScoringTab:
                     with st.expander("🔍 Tier 1: Hard Constraints (Vetoes)"):
                         for t1 in candidate["tier1_results"]:
                             if t1["is_veto"]:
-                                st.error(
-                                    f"❌ {t1['scorer_id']}: **VETO** - {t1['reasoning']}"
-                                )
+                                st.error(f"❌ {t1['scorer_id']}: **VETO** - {t1['reasoning']}")
                             else:
                                 st.success(f"✓ {t1['scorer_id']}: Pass")
 
@@ -354,9 +344,7 @@ class ScoringTab:
                     with st.expander("🔍 Tier 1: Hard Constraints (Vetoes)"):
                         for t1 in candidate["tier1_results"]:
                             if t1["is_veto"]:
-                                st.error(
-                                    f"❌ {t1['scorer_id']}: **VETO** - {t1['reasoning']}"
-                                )
+                                st.error(f"❌ {t1['scorer_id']}: **VETO** - {t1['reasoning']}")
                             else:
                                 st.success(f"✓ {t1['scorer_id']}: Pass")
 

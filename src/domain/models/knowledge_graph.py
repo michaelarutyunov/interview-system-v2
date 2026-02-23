@@ -1,6 +1,25 @@
-"""Domain models for knowledge graph nodes and edges."""
+"""Knowledge graph domain models for nodes, edges, and session-level state.
 
-from pydantic import BaseModel, Field, model_validator
+This module defines the core data structures for the knowledge graph that tracks
+concepts and relationships discovered during semi-structured interviews.
+
+Core Models:
+- KGNode: Individual graph nodes with confidence, stance, and provenance
+- KGEdge: Relationships between nodes with source utterance tracking
+- GraphState: Session-level aggregated metrics and state (node_count, phase, depth_metrics)
+- DepthMetrics: Longest chain analysis and average depth per element
+- SaturationMetrics: Information saturation indicators for interview termination
+
+Key Concepts:
+- Single timestamp model (simplified from v1 bi-temporal versioning)
+- Stance tracking: -1 (negative), 0 (neutral), +1 (positive)
+- Source utterance provenance: traceability from node/edge to original utterances
+- Strategy history: deque(maxlen=30) for diversity tracking in scoring
+- Phase tracking: exploratory -> focused -> closing progression
+"""
+
+from collections import deque
+from pydantic import BaseModel, Field, model_validator, field_validator
 from typing import List, Dict, Any, Optional, Literal
 from datetime import datetime, timezone
 import structlog
@@ -9,9 +28,16 @@ logger = structlog.get_logger(__name__)
 
 
 class KGNode(BaseModel):
-    """A node in the knowledge graph.
+    """Knowledge graph node representing a single concept extracted from user input.
 
-    Simplified from v1: Single timestamp instead of bi-temporal versioning.
+    Nodes are the fundamental units of knowledge in the interview system, created
+    during the extraction stage and persisted for session-level tracking.
+
+    Key Attributes:
+        - source_utterance_ids: Traceability chain linking node to original utterances
+        - stance: Sentiment polarity (-1/0/+1) for attitude tracking
+        - superseded_by: REVISES relationship support for node evolution
+        - confidence: LLM extraction confidence (0.0-1.0) for quality filtering
     """
 
     id: str
@@ -22,18 +48,24 @@ class KGNode(BaseModel):
     properties: Dict[str, Any] = Field(default_factory=dict)
     source_utterance_ids: List[str] = Field(default_factory=list)
     recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    superseded_by: Optional[str] = (
-        None  # Node ID that supersedes this one (for REVISES)
-    )
-    stance: int = Field(
-        default=0, ge=-1, le=1
-    )  # Stance: -1 (negative), 0 (neutral), +1 (positive)
+    superseded_by: Optional[str] = None  # Node ID that supersedes this one (for REVISES)
+    stance: int = Field(default=0, ge=-1, le=1)  # Stance: -1 (negative), 0 (neutral), +1 (positive)
 
     model_config = {"from_attributes": True}
 
 
 class KGEdge(BaseModel):
-    """A relationship in the knowledge graph."""
+    """Directed relationship between two knowledge graph nodes.
+
+    Edges represent causal, hierarchical, or associative relationships
+    discovered during interview. Each edge maintains provenance via
+    source_utterance_ids for traceability back to user responses.
+
+    Edge Types (methodology-specific):
+        - leads_to: Causal or consequential relationship
+        - revises: Correction or refinement of earlier statement
+        - is_a: Hierarchical categorization
+    """
 
     id: str
     session_id: str
@@ -49,9 +81,18 @@ class KGEdge(BaseModel):
 
 
 class DepthMetrics(BaseModel):
-    """Depth analysis of the knowledge graph (ADR-010).
+    """Knowledge graph depth analysis for chain completion scoring.
 
-    Tracks various depth metrics for scoring and analysis.
+    Tracks reasoning chain depth to detect when interview has reached
+    sufficient depth on a topic or needs broadening.
+
+    Metrics:
+        - max_depth: Length of longest reasoning chain (primary depth signal)
+        - avg_depth: Average depth across all nodes
+        - depth_by_element: Per-element depth for targeted exploration
+        - longest_chain_path: Node IDs forming deepest chain for visualization
+
+    Used by: StateComputationStage (Stage 5), strategy selection scoring
     """
 
     max_depth: int = Field(description="Length of longest reasoning chain", ge=0)
@@ -67,28 +108,79 @@ class DepthMetrics(BaseModel):
 
 
 class SaturationMetrics(BaseModel):
-    """Information saturation indicators (ADR-010).
+    """Information saturation indicators for interview termination detection.
 
-    Tracks whether the interview is reaching information saturation.
+    Tracks whether the interview has exhausted a topic and should
+    transition or close. Computed by StateComputationStage (Stage 5)
+    and consumed by ContinuationStage (Stage 7).
+
+    Saturation Signals:
+        - consecutive_low_info: Turns since last novel concept (zero yield)
+        - new_info_rate: Rate of novel concept introduction
+        - consecutive_shallow: Turns with only surface-level responses
+        - consecutive_depth_plateau: Turns at same max_depth (no progress)
+
+    Termination Condition: is_saturated derived when multiple indicators
+    suggest topic exhaustion.
     """
 
+    # === Core saturation metrics ===
     chao1_ratio: float = Field(
-        description="Chao1 diversity estimator (0-1)", ge=0.0, le=1.0
+        default=0.0,
+        description="Chao1 diversity estimator (0-1, placeholder for future)",
+        ge=0.0,
+        le=1.0,
     )
     new_info_rate: float = Field(
-        description="Rate of novel concept introduction", ge=0.0, le=1.0
+        default=0.0,
+        description="Rate of novel concept introduction",
+        ge=0.0,
+        le=1.0,
     )
     consecutive_low_info: int = Field(
-        description="Turns since last novel concept", ge=0
+        default=0,
+        description="Turns since last novel concept (consecutive zero yield)",
+        ge=0,
     )
-    is_saturated: bool = Field(description="Derived: indicates topic exhaustion")
+    is_saturated: bool = Field(
+        default=False,
+        description="Derived: indicates topic exhaustion",
+    )
+
+    # === Quality degradation tracking ===
+    consecutive_shallow: int = Field(
+        default=0,
+        description="Turns with only shallow/surface responses",
+        ge=0,
+    )
+
+    # === Depth plateau tracking ===
+    consecutive_depth_plateau: int = Field(
+        default=0,
+        description="Turns at same max_depth (no depth progress)",
+        ge=0,
+    )
+    prev_max_depth: int = Field(
+        default=-1,
+        description="Previous turn's max_depth (for plateau detection)",
+    )
 
 
 class GraphState(BaseModel):
-    """Current state of the knowledge graph for a session.
+    """Session-level knowledge graph state for signal detection and scoring.
 
-    ADR-010: Strengthened data model with typed fields instead of generic
-    properties dict for better type safety and validation.
+    Aggregates metrics computed by StateComputationStage (Stage 5) and
+    consumed by signal detectors in StrategySelectionStage (Stage 6).
+
+    Primary Consumers:
+        - Graph signal detectors (node_count, orphan_count, depth_metrics)
+        - Strategy diversity scoring (strategy_history deque)
+        - Phase detection (current_phase progression)
+        - Continuation decisions (saturation_metrics)
+
+    Validation:
+        - node_count must equal sum of nodes_by_type values
+        - Warns on early closing phase (< 3 turns)
     """
 
     # === Basic Counts ===
@@ -99,9 +191,7 @@ class GraphState(BaseModel):
     orphan_count: int = Field(ge=0, default=0)
 
     # === Structured Metrics (ADR-010) ===
-    depth_metrics: DepthMetrics = Field(
-        description="Depth analysis of the knowledge graph"
-    )
+    depth_metrics: DepthMetrics = Field(description="Depth analysis of the knowledge graph")
     saturation_metrics: Optional[SaturationMetrics] = Field(
         default=None,
         description="Information saturation indicators (expensive to compute)",
@@ -110,9 +200,9 @@ class GraphState(BaseModel):
     # === Phase Tracking (promoted from properties, ADR-010) ===
     current_phase: Literal["exploratory", "focused", "closing"] = "exploratory"
     turn_count: int = Field(ge=0, default=0)
-    strategy_history: List[str] = Field(
-        default_factory=list,
-        description="History of recently used strategies for diversity tracking",
+    strategy_history: Any = Field(
+        default_factory=lambda: deque(maxlen=30),
+        description="History of recently used strategies (max 30 for diversity tracking)",
     )
 
     # === Extensibility (ADR-010) ===
@@ -145,6 +235,24 @@ class GraphState(BaseModel):
             )
 
         return self
+
+    @field_validator("strategy_history", mode="before")
+    @classmethod
+    def _ensure_strategy_history_deque(cls, v: Any) -> Any:
+        """Convert list to deque on load from DB (backward compatibility).
+
+        When loading from database, Pydantic deserializes as list.
+        This validator converts it to deque for automatic trimming.
+
+        Args:
+            v: Value from DB (list or deque)
+
+        Returns:
+            deque(maxlen=30) with preserved items
+        """
+        if isinstance(v, list):
+            return deque(v, maxlen=30)
+        return v
 
     def add_strategy_used(self, strategy_id: str) -> None:
         """Record a strategy selection in history for diversity tracking.

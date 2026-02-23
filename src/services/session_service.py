@@ -1,26 +1,30 @@
 """
 Session orchestration service.
 
-ADR-008 Phase 3: Uses TurnPipeline for composable turn processing.
-
-This service provides the main entry point for interview turn processing,
-delegating to a pipeline of stages for actual processing.
+Main entry point for interview turn processing, delegating to a pipeline
+of composable stages for extraction, graph updates, strategy selection,
+and question generation.
 """
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List, Dict, Any, Union, TYPE_CHECKING
+from typing import Optional, List, Dict, TYPE_CHECKING
 from uuid import uuid4
 
 import structlog
 
-from src.core.config import interview_config
+from src.core.config import interview_config, settings
+from src.services.srl_service import SRLService
+from src.services.canonical_slot_service import CanonicalSlotService
+from src.services.embedding_service import EmbeddingService
+from src.persistence.repositories.canonical_slot_repo import CanonicalSlotRepository
 from src.core.concept_loader import load_concept
-from src.domain.models.extraction import ExtractionResult
 from src.domain.models.knowledge_graph import GraphState, KGNode
 from src.domain.models.utterance import Utterance
-from src.domain.models.turn import Focus
+from src.llm.client import LLMClient
 from src.services.extraction_service import ExtractionService
+from src.services.focus_selection_service import FocusSelectionService
 from src.services.graph_service import GraphService
 from src.services.question_service import QuestionService
 
@@ -37,8 +41,10 @@ from src.services.turn_pipeline import (
 from src.services.turn_pipeline.stages import (
     ContextLoadingStage,
     UtteranceSavingStage,
+    SRLPreprocessingStage,
     ExtractionStage,
     GraphUpdateStage,
+    SlotDiscoveryStage,
     StateComputationStage,
     StrategySelectionStage,
     ContinuationStage,
@@ -48,10 +54,6 @@ from src.services.turn_pipeline.stages import (
 )
 
 log = structlog.get_logger(__name__)
-
-
-# Re-export TurnResult for backward compatibility
-TurnResult = PipelineTurnResult
 
 
 @dataclass
@@ -75,11 +77,11 @@ class SessionContext:
 
 
 class SessionService:
-    """
-    Orchestrates interview session turn processing.
+    """Orchestrates interview session turn processing.
 
-    ADR-008 Phase 3: Uses TurnPipeline for composable turn processing.
     Main entry point for processing user input and generating responses.
+    Uses TurnPipeline with composable stages for extraction, graph updates,
+    strategy selection, and question generation.
     """
 
     def __init__(
@@ -91,6 +93,8 @@ class SessionService:
         question_service: Optional[QuestionService] = None,
         utterance_repo: Optional[UtteranceRepository] = None,
         max_turns: Optional[int] = None,
+        extraction_llm_client: Optional[LLMClient] = None,
+        generation_llm_client: Optional[LLMClient] = None,
     ):
         """
         Initialize session service with pipeline.
@@ -103,31 +107,58 @@ class SessionService:
             question_service: Question service (creates default if None)
             utterance_repo: Utterance repository (creates default if None)
             max_turns: Maximum turns before forcing close (defaults to interview_config.yaml)
+            extraction_llm_client: LLM client for extraction (required if extraction_service not provided)
+            generation_llm_client: LLM client for question generation (required if question_service not provided)
         """
         self.session_repo = session_repo
         self.graph_repo = graph_repo
 
+        # Store LLM clients for use in pipeline stages
+        self.extraction_llm_client = extraction_llm_client
+        self.generation_llm_client = generation_llm_client
+
+        # Store canonical_slot_repo for NodeStateTracker
+        # Will be initialized in _build_pipeline() when pipeline is first constructed
+        self.canonical_slot_repo: Optional[CanonicalSlotRepository] = None
+
         # Create services with graph_repo where needed
-        self.extraction = extraction_service or ExtractionService()
-        self.graph = graph_service or GraphService(graph_repo)
+        if extraction_service:
+            self.extraction = extraction_service
+        else:
+            if extraction_llm_client is None:
+                raise ValueError(
+                    "extraction_llm_client is required when extraction_service is not provided"
+                )
+            self.extraction = ExtractionService(llm_client=extraction_llm_client)
+
+        # Note: GraphService is created in _build_pipeline() after canonical_slot_repo is initialized
+        # This allows us to pass canonical_slot_repo to GraphService.__init__ (no longer optional)
+        self.graph: Optional[GraphService] = graph_service  # Set in _build_pipeline() if None
 
         # Question service needs methodology for opening question generation
         # We'll create it with a default and update it when we have a session
         if question_service:
             self.question = question_service
         else:
+            if generation_llm_client is None:
+                raise ValueError(
+                    "generation_llm_client is required when question_service is not provided"
+                )
             # Create with default methodology, will be updated per session
-            self.question = QuestionService(methodology="means_end_chain")
+            self.question = QuestionService(
+                llm_client=generation_llm_client, methodology="means_end_chain"
+            )
 
         # Create utterance repo if not provided
         if utterance_repo is None:
             utterance_repo = UtteranceRepository(str(session_repo.db_path))
         self.utterance_repo = utterance_repo
 
-        # Load from centralized interview config (Phase 4: ADR-008)
-        self.max_turns = (
-            max_turns if max_turns is not None else interview_config.session.max_turns
-        )
+        # Create focus selection service (consolidates focus resolution logic)
+        self.focus_selection = FocusSelectionService()
+
+        # Load from centralized interview configuration
+        self.max_turns = max_turns if max_turns is not None else interview_config.session.max_turns
 
         # Build pipeline with all stages
         self.pipeline = self._build_pipeline()
@@ -143,35 +174,115 @@ class SessionService:
         Build the turn processing pipeline with all stages.
 
         Returns:
-            TurnPipeline configured with all stages
+            TurnPipeline configured with 12 stages for turn processing
         """
+        # SRL service: lazy-loads spaCy model on first use, None disables gracefully
+        srl_service = SRLService() if settings.enable_srl else None
+
+        # Canonical slot discovery dependencies (conditionally enabled)
+        canonical_slot_repo = None
+        canonical_slot_service = None
+        canonical_graph_service = None
+
+        # EmbeddingService: shared between surface dedup and canonical slots
+        # Created unconditionally — surface dedup is independent of canonical slots
+        embedding_service = EmbeddingService()  # lazy loads all-MiniLM-L6-v2 + spaCy
+
+        if settings.enable_canonical_slots:
+            # Slot discovery uses scoring LLM (KIMI) — cheaper and sufficient
+            # for structured JSON extraction. Falls back to generation client.
+            from src.llm.client import get_scoring_llm_client
+
+            try:
+                slot_llm_client = get_scoring_llm_client()
+            except ValueError:
+                # KIMI_API_KEY not configured — fall back to generation client
+                if self.generation_llm_client is None:
+                    raise ValueError(
+                        "No LLM client available for SlotDiscoveryStage: "
+                        "configure KIMI_API_KEY or provide generation_llm_client"
+                    )
+                slot_llm_client = self.generation_llm_client
+
+            canonical_slot_repo = CanonicalSlotRepository(str(self.session_repo.db_path))
+            canonical_slot_service = CanonicalSlotService(
+                llm_client=slot_llm_client,
+                slot_repo=canonical_slot_repo,
+                embedding_service=embedding_service,
+            )
+
+            # Store canonical_slot_repo for NodeStateTracker
+            self.canonical_slot_repo = canonical_slot_repo
+
+            # Import and initialize CanonicalGraphService
+            from src.services.canonical_graph_service import (
+                CanonicalGraphService as CGS,
+            )
+
+            canonical_graph_service = CGS(canonical_slot_repo=canonical_slot_repo)
+
+            # Create GraphService with canonical_slot_repo and embedding_service
+            if self.graph is None:
+                self.graph = GraphService(
+                    self.graph_repo,
+                    canonical_slot_repo=canonical_slot_repo,
+                    embedding_service=embedding_service,
+                )
+        else:
+            # Canonical slots disabled: set canonical_slot_repo to None
+            self.canonical_slot_repo = None
+
+            # Create GraphService with embedding_service for surface dedup (independent of canonical)
+            if self.graph is None:
+                self.graph = GraphService(
+                    self.graph_repo,
+                    canonical_slot_repo=None,
+                    embedding_service=embedding_service,
+                )
+
+        # Build stage list
         stages = [
             ContextLoadingStage(
                 session_repo=self.session_repo,
                 graph_service=self.graph,
             ),
             UtteranceSavingStage(),
+            SRLPreprocessingStage(srl_service=srl_service),
             ExtractionStage(
                 extraction_service=self.extraction,
             ),
             GraphUpdateStage(
                 graph_service=self.graph,
             ),
+            # Stage 4.5: SlotDiscoveryStage (always wired, skips if service is None)
+            # Maps surface nodes to canonical slots via LLM proposal + embedding similarity
+            # Also aggregates surface edges to canonical edges
+            SlotDiscoveryStage(slot_service=canonical_slot_service, graph_service=self.graph),
+        ]
+
+        # StateComputationStage: Refresh graph state and compute canonical graph state
+        stages.append(
             StateComputationStage(
                 graph_service=self.graph,
-            ),
-            StrategySelectionStage(),
-            ContinuationStage(
-                question_service=self.question,
-            ),
-            QuestionGenerationStage(
-                question_service=self.question,
-            ),
-            ResponseSavingStage(),
-            ScoringPersistenceStage(
-                session_repo=self.session_repo,
-            ),
-        ]
+                canonical_graph_service=canonical_graph_service,  # None if disabled
+            )
+        )
+
+        stages.extend(
+            [
+                StrategySelectionStage(),
+                ContinuationStage(
+                    focus_selection_service=self.focus_selection,
+                ),
+                QuestionGenerationStage(
+                    question_service=self.question,
+                ),
+                ResponseSavingStage(),
+                ScoringPersistenceStage(
+                    session_repo=self.session_repo,
+                ),
+            ]
+        )
 
         return TurnPipeline(stages=stages)
 
@@ -179,41 +290,38 @@ class SessionService:
         self,
         session_id: str,
         user_input: str,
-    ) -> TurnResult:
-        """
-        Process a single interview turn using the pipeline.
+    ) -> PipelineTurnResult:
+        """Process a single interview turn using the pipeline.
 
-        ADR-008 Phase 3: Delegates to TurnPipeline with composable stages.
-
-        Pipeline stages:
+        Delegates to TurnPipeline which executes 12 stages sequentially:
         1. ContextLoadingStage - Load session metadata and graph state
         2. UtteranceSavingStage - Save user utterance
-        3. ExtractionStage - Extract concepts/relationships
-        4. GraphUpdateStage - Update knowledge graph
-        5. StateComputationStage - Refresh graph state
-        6. StrategySelectionStage - Select questioning strategy
-        7. ContinuationStage - Determine if should continue
-        8. QuestionGenerationStage - Generate follow-up question
-        9. ResponseSavingStage - Save system utterance
-        10. ScoringPersistenceStage - Save scoring and update turn count
+        3. SRLPreprocessingStage - Preprocess user input for SRL extraction
+        4. ExtractionStage - Extract concepts/relationships
+        5. GraphUpdateStage - Update knowledge graph
+        6. SlotDiscoveryStage - Discover canonical slots (if enabled)
+        7. StateComputationStage - Refresh graph state and saturation metrics
+        8. StrategySelectionStage - Select questioning strategy
+        9. ContinuationStage - Determine if should continue
+        10. QuestionGenerationStage - Generate follow-up question
+        11. ResponseSavingStage - Save system utterance
+        12. ScoringPersistenceStage - Save scoring and update turn count
 
         Args:
             session_id: Session ID
             user_input: User's response text
 
         Returns:
-            TurnResult with extraction, graph state, next question
+            TurnResult with extraction, graph state, next question, and continuation status
 
         Raises:
             ValueError: If session not found
         """
         log.info("processing_turn", session_id=session_id, input_length=len(user_input))
 
-        # Create NodeStateTracker for this turn
-        # The tracker will be populated with existing nodes by GraphUpdateStage
-        from src.services.node_state_tracker import NodeStateTracker
-
-        node_tracker = NodeStateTracker()
+        # Load or create NodeStateTracker for this turn
+        # If persisted state exists, load it; otherwise create fresh tracker
+        node_tracker = await self._get_or_create_node_tracker(session_id)
 
         # Create initial context with node_tracker
         context = PipelineContext(
@@ -225,6 +333,10 @@ class SessionService:
         # Execute pipeline
         result = await self.pipeline.execute(context)
 
+        # Persist node_tracker state after turn completes
+        # This ensures previous_focus and all_response_depths are saved for next turn
+        await self._save_node_tracker(session_id, node_tracker)
+
         log.info(
             "turn_processed",
             session_id=session_id,
@@ -235,168 +347,6 @@ class SessionService:
         )
 
         return result
-
-    async def _save_scoring(
-        self,
-        session_id: str,
-        turn_number: int,
-        strategy: str,
-        scoring: Dict[str, Any],
-        selection_result: Any = None,
-    ):
-        """Save scoring data to scoring_history table and all candidates to scoring_candidates."""
-        import uuid
-
-        scoring_id = str(uuid.uuid4())
-
-        # Extract scoring details from two-tier result if available
-        scorer_details = {}
-        if selection_result and selection_result.scoring_result:
-            scorer_details = {
-                "tier1_results": [
-                    {
-                        "scorer_id": t.scorer_id,
-                        "is_veto": t.is_veto,
-                        "reasoning": t.reasoning,
-                        "signals": t.signals,
-                    }
-                    for t in selection_result.scoring_result.tier1_outputs
-                ],
-                "tier2_results": [
-                    {
-                        "scorer_id": t.scorer_id,
-                        "raw_score": t.raw_score,
-                        "weight": t.weight,
-                        "contribution": t.contribution,
-                        "reasoning": t.reasoning,
-                        "signals": t.signals,
-                    }
-                    for t in selection_result.scoring_result.tier2_outputs
-                ],
-                "final_score": selection_result.scoring_result.final_score,
-                "vetoed_by": selection_result.scoring_result.vetoed_by,
-            }
-
-        # Save winner to scoring_history (legacy)
-        await self.session_repo.save_scoring_history(
-            scoring_id=scoring_id,
-            session_id=session_id,
-            turn_number=turn_number,
-            depth_score=scoring.get("depth", 0.0),
-            saturation_score=scoring.get("saturation", 0.0),
-            strategy_selected=strategy,
-            strategy_reasoning=selection_result.scoring_result.reasoning_trace[-1]
-            if selection_result.scoring_result
-            and selection_result.scoring_result.reasoning_trace
-            else None,
-            scorer_details=scorer_details,
-        )
-
-        # Save ALL candidates to scoring_candidates table
-        if selection_result:
-            # Save the winner
-            await self._save_candidate(
-                session_id=session_id,
-                turn_number=turn_number,
-                strategy_id=selection_result.selected_strategy["id"],
-                strategy_name=selection_result.selected_strategy.get("name", ""),
-                focus=selection_result.selected_focus,
-                final_score=selection_result.final_score,
-                is_selected=True,
-                scoring_result=selection_result.scoring_result,
-            )
-
-            # Save alternatives
-            for alternative in selection_result.alternative_strategies:
-                await self._save_candidate(
-                    session_id=session_id,
-                    turn_number=turn_number,
-                    strategy_id=alternative.strategy["id"],
-                    strategy_name=alternative.strategy.get("name", ""),
-                    focus=alternative.focus,
-                    final_score=alternative.score,
-                    is_selected=False,
-                    scoring_result=alternative.scoring_result,
-                )
-
-    async def _save_candidate(
-        self,
-        session_id: str,
-        turn_number: int,
-        strategy_id: str,
-        strategy_name: str,
-        focus: Union[
-            "Focus", Dict[str, Any]
-        ],  # Accept both typed Focus and dict for compatibility
-        final_score: float,
-        is_selected: bool,
-        scoring_result: Any,
-    ):
-        """Save a single candidate to the scoring_candidates table."""
-        import uuid
-
-        candidate_id = str(uuid.uuid4())
-
-        # Convert Focus to dict if needed
-        if isinstance(focus, dict):
-            focus_dict: Dict[str, Any] = focus
-        elif hasattr(focus, "to_dict"):
-            focus_dict: Dict[str, Any] = focus.to_dict()
-        elif hasattr(focus, "model_dump"):  # Pydantic v2
-            focus_dict: Dict[str, Any] = focus.model_dump()
-        else:
-            focus_dict: Dict[str, Any] = focus  # type: ignore[assignment]
-
-        # Extract Tier 1 and Tier 2 results
-        tier1_results = []
-        tier2_results = []
-
-        if scoring_result:
-            tier1_results = [
-                {
-                    "scorer_id": t.scorer_id,
-                    "is_veto": t.is_veto,
-                    "reasoning": t.reasoning,
-                    "signals": t.signals,
-                }
-                for t in scoring_result.tier1_outputs
-            ]
-            tier2_results = [
-                {
-                    "scorer_id": t.scorer_id,
-                    "raw_score": t.raw_score,
-                    "weight": t.weight,
-                    "contribution": t.contribution,
-                    "reasoning": t.reasoning,
-                    "signals": t.signals,
-                }
-                for t in scoring_result.tier2_outputs
-            ]
-
-        # Build reasoning trace
-        reasoning = (
-            " | ".join(scoring_result.reasoning_trace)
-            if scoring_result and scoring_result.reasoning_trace
-            else None
-        )
-
-        await self.session_repo.save_scoring_candidate(
-            candidate_id=candidate_id,
-            session_id=session_id,
-            turn_number=turn_number,
-            strategy_id=strategy_id,
-            strategy_name=strategy_name,
-            focus_type=focus_dict.get("focus_type", ""),
-            focus_description=focus_dict.get("focus_description", "")[
-                :500
-            ],  # Limit length
-            final_score=final_score,
-            is_selected=is_selected,
-            vetoed_by=scoring_result.vetoed_by if scoring_result else None,
-            tier1_results=tier1_results,
-            tier2_results=tier2_results,
-            reasoning=reasoning,
-        )
 
     async def start_session(
         self,
@@ -422,15 +372,7 @@ class SessionService:
         self.question.methodology = concept.methodology
 
         # Extract objective from concept context
-        # Try objective first (new field for exploratory interviews)
-        # Fall back to insight for backward compatibility
-        # Finally fall back to concept name if neither exists
-        if concept.context.objective:
-            objective = concept.context.objective
-        elif concept.context.insight:
-            objective = concept.context.insight
-        else:
-            objective = concept.name
+        objective = concept.context.objective or concept.name
 
         question = await self.question.generate_opening_question(
             objective=objective,
@@ -466,6 +408,9 @@ class SessionService:
         session = await self.session_repo.get(session_id)
         if not session:
             raise ValueError(f"Session {session_id} not found")
+
+        # GraphService is always set after __init__ completes (_build_pipeline creates it)
+        assert self.graph is not None, "GraphService not initialized"
 
         # Get session config to read max_turns
         config = await self.session_repo.get_config(session_id)
@@ -522,7 +467,6 @@ class SessionService:
             turn_number=turn_number,
             speaker=speaker,
             text=text,
-            discourse_markers=[],
             created_at=datetime.utcnow(),
         )
 
@@ -565,74 +509,6 @@ class SessionService:
             lines.append(f"{speaker}: {utt['text']}")
 
         return "\n".join(lines)
-
-    def _select_strategy(
-        self,
-        graph_state: GraphState,
-        turn_number: int,
-        extraction: ExtractionResult,
-    ) -> str:
-        """
-        Select questioning strategy.
-
-        Phase 2: Always returns "deepen"
-        Phase 3: Full scoring-based selection
-
-        Args:
-            graph_state: Current graph state
-            turn_number: Current turn number
-            extraction: Latest extraction result
-
-        Returns:
-            Strategy name
-        """
-        # Phase 2: Hardcoded deepen
-        # Phase 3 will implement full scoring/arbitration
-
-        # Simple heuristics for variety
-        if turn_number >= self.max_turns - 2:
-            return "close"
-
-        # Default to deepen
-        return "deepen"
-
-    def _should_continue(
-        self,
-        turn_number: int,
-        max_turns: int,
-        graph_state: GraphState,
-        strategy: str,
-    ) -> bool:
-        """
-        Determine if interview should continue.
-
-        Args:
-            turn_number: Current turn number
-            max_turns: Maximum turns for this session
-            graph_state: Current graph state
-            strategy: Selected strategy
-
-        Returns:
-            True if should continue, False if should end
-        """
-        # Max turns reached
-        if turn_number >= max_turns:
-            log.info(
-                "session_ending",
-                reason="max_turns",
-                turn_number=turn_number,
-                max_turns=max_turns,
-            )
-            return False
-
-        # Strategy is close
-        if strategy == "close":
-            log.info("session_ending", reason="close_strategy")
-            return False
-
-        # Future: saturation detected, other termination conditions
-
-        return True
 
     async def get_status(self, session_id: str) -> dict:
         """
@@ -677,81 +553,81 @@ class SessionService:
             "strategy_selected": strategy,
             "strategy_reasoning": reasoning,
             "phase": phase,
+            "focus_tracing": [entry.model_dump() for entry in session.state.focus_history],
         }
 
-    async def get_turn_scoring(self, session_id: str, turn_number: int) -> dict:
+    # ==================== NODE TRACKER STATE PERSISTENCE ====================
+
+    async def _get_or_create_node_tracker(self, session_id: str):
         """
-        Get all scoring candidates for a specific turn.
+        Load existing node tracker state or create new tracker.
 
         Args:
-            session_id: Session ID
-            turn_number: Turn number
+            session_id: Session ID to load tracker state for
 
         Returns:
-            Dict with session_id, turn_number, candidates list, and winner_strategy_id
+            NodeStateTracker with restored state or fresh tracker
         """
-        import json
+        from src.services.node_state_tracker import NodeStateTracker
 
-        rows = await self.session_repo.get_turn_scoring(session_id, turn_number)
+        # Try to load persisted state
+        tracker_state_json = await self.session_repo.get_node_tracker_state(session_id)
 
-        if not rows:
-            return {
-                "session_id": session_id,
-                "turn_number": turn_number,
-                "candidates": [],
-                "winner_strategy_id": None,
-            }
+        if tracker_state_json:
+            try:
+                # Deserialize from JSON
+                state_data = json.loads(tracker_state_json)
+                tracker = NodeStateTracker.from_dict(state_data)
+                log.debug(
+                    "node_tracker_loaded",
+                    session_id=session_id,
+                    nodes_count=len(tracker.states),
+                    previous_focus=tracker.previous_focus,
+                )
+                return tracker
+            except (json.JSONDecodeError, ValueError) as e:
+                log.warning(
+                    "node_tracker_load_failed_creating_fresh",
+                    session_id=session_id,
+                    error=str(e),
+                )
+                # Fall through to create fresh tracker
 
-        candidates = []
-        winner_strategy_id = None
-
-        for row in rows:
-            candidate = {
-                "id": row["id"],
-                "strategy_id": row["strategy_id"],
-                "strategy_name": row["strategy_name"],
-                "focus_type": row["focus_type"],
-                "focus_description": row["focus_description"],
-                "final_score": row["final_score"],
-                "is_selected": bool(row["is_selected"]),
-                "vetoed_by": row["vetoed_by"],
-                "tier1_results": json.loads(row["tier1_results"])
-                if row["tier1_results"]
-                else [],
-                "tier2_results": json.loads(row["tier2_results"])
-                if row["tier2_results"]
-                else [],
-                "reasoning": row["reasoning"],
-            }
-            candidates.append(candidate)
-
-            if candidate["is_selected"]:
-                winner_strategy_id = candidate["strategy_id"]
-
-        return {
-            "session_id": session_id,
-            "turn_number": turn_number,
-            "candidates": candidates,
-            "winner_strategy_id": winner_strategy_id,
-        }
-
-    async def get_all_scoring(self, session_id: str) -> list:
-        """
-        Get all scoring data for all turns in a session.
-
-        Args:
-            session_id: Session ID
-
-        Returns:
-            List of turn scoring dicts
-        """
-        turn_numbers = await self.session_repo.get_all_turn_numbers_with_scoring(
-            session_id
+        # No persisted state or load failed - create fresh tracker
+        log.debug(
+            "node_tracker_created_fresh",
+            session_id=session_id,
+            reason="no_persisted_state_or_load_failed",
         )
+        # Create fresh tracker with canonical_slot_repo for node aggregation across paraphrases
+        return NodeStateTracker(canonical_slot_repo=self.canonical_slot_repo)
 
-        results = []
-        for turn_num in turn_numbers:
-            turn_data = await self.get_turn_scoring(session_id, turn_num)
-            results.append(turn_data)
+    async def _save_node_tracker(self, session_id: str, node_tracker) -> None:
+        """
+        Persist node tracker state to database.
 
-        return results
+        Args:
+            session_id: Session ID to save tracker state for
+            node_tracker: NodeStateTracker to persist
+        """
+        # Skip if tracker is empty (no nodes tracked yet)
+        if node_tracker.is_empty():
+            log.debug(
+                "node_tracker_skip_save",
+                session_id=session_id,
+                reason="no_states_to_save",
+            )
+            return
+
+        # Serialize to JSON
+        tracker_dict = node_tracker.to_dict()
+        tracker_state_json = json.dumps(tracker_dict)
+
+        # Persist to database
+        await self.session_repo.update_node_tracker_state(session_id, tracker_state_json)
+        log.debug(
+            "node_tracker_saved",
+            session_id=session_id,
+            nodes_count=len(node_tracker.states),
+            previous_focus=node_tracker.previous_focus,
+        )

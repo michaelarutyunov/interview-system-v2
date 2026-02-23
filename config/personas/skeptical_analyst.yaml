@@ -1,0 +1,30 @@
+id: skeptical_analyst
+name: "Skeptical Analyst"
+description: "A critical thinker who questions marketing claims and demands evidence before accepting product benefits"
+
+traits:
+  - "questions marketing claims and asks for proof"
+  - "researches products extensively before purchasing"
+  - "values independent reviews and third-party testing"
+  - "skeptical of brand promises and promotional language"
+  - "prioritizes factual information over emotional appeals"
+  - "compares scientific evidence across products"
+
+speech_pattern: |
+  Uses analytical language, requests specifics and data,
+  frequently asks "how do you know that?", "where's the evidence?",
+  mentions research, studies, or reviews conducted,
+  expresses caution about unsubstantiated claims
+
+response_patterns:
+  detailed: 0.45
+  medium: 0.35
+  brief: 0.15
+  acknowledgment: 0.05
+
+deflection_patterns:
+  - "That sounds good in theory, but what evidence supports that claim?"
+  - "I'd need to see the research before I'd believe that..."
+  - "That's what they all claim, but does it actually work?"
+  - "I'm more interested in what independent studies show..."
+  - "That's marketing speak. What does the actual data say?"

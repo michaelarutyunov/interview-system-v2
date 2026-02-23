@@ -1,8 +1,8 @@
 """
 Stage 2: Save user utterance.
 
-ADR-008 Phase 3: Persist user input to the utterances table.
-Phase 6: Output UtteranceSavingOutput contract.
+Persists user input to the utterances table. Outputs
+UtteranceSavingOutput contract.
 """
 
 from typing import TYPE_CHECKING
@@ -52,8 +52,8 @@ class UtteranceSavingStage(TurnStage):
         try:
             await db.execute(
                 """
-                INSERT INTO utterances (id, session_id, turn_number, speaker, text, discourse_markers, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO utterances (id, session_id, turn_number, speaker, text, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
                     utterance_id,
@@ -61,7 +61,6 @@ class UtteranceSavingStage(TurnStage):
                     context.turn_number,
                     "user",
                     context.user_input,
-                    "[]",
                     now,
                 ),
             )

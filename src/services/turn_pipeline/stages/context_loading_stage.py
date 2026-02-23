@@ -1,8 +1,10 @@
 """
 Stage 1: Load session context.
 
-ADR-008 Phase 3: Load session metadata, graph state, and recent utterances.
-Phase 6: Output ContextLoadingOutput contract.
+Loads session metadata and conversation history. Outputs
+ContextLoadingOutput contract.
+
+Note: Graph state is NOT loaded here - it comes from StateComputationStage (Stage 5).
 """
 
 from typing import TYPE_CHECKING
@@ -13,6 +15,8 @@ import structlog
 
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import ContextLoadingOutput
+from src.persistence.repositories.session_repo import SessionRepository
+from src.services.graph_service import GraphService
 
 log = structlog.get_logger(__name__)
 
@@ -26,15 +30,16 @@ class ContextLoadingStage(TurnStage):
 
     Populates PipelineContext with:
     - Session metadata (methodology, concept, turn number, mode)
-    - Graph state (node count, edge count, depth)
-    - Recent nodes
     - Recent utterances
+    - Strategy history
+
+    Note: Graph state and recent nodes are populated by StateComputationStage (Stage 5).
     """
 
     def __init__(
         self,
-        session_repo,
-        graph_service,
+        session_repo: SessionRepository,
+        graph_service: GraphService,
     ):
         """
         Initialize stage.
@@ -81,27 +86,11 @@ class ContextLoadingStage(TurnStage):
                 max_turns = config.get("max_turns", default_max_turns)
 
         # Get recent utterances
-        recent_utterances = await self._get_recent_utterances(
-            context.session_id, limit=10
-        )
+        recent_utterances = await self._get_recent_utterances(context.session_id, limit=10)
 
-        # Attach sentiment from stored turn_sentiments (if available)
-        # This loads previously computed sentiment values for each utterance
-        if context.graph_state and context.graph_state.extended_properties:
-            turn_sentiments = context.graph_state.extended_properties.get(
-                "turn_sentiments", {}
-            )
-            if turn_sentiments:
-                # Inline sentiment loading (from old signal_helpers)
-                for utterance in recent_utterances:
-                    turn_num = utterance.get("turn_number")
-                    if turn_num is not None:
-                        sentiment = turn_sentiments.get(str(turn_num))
-                        if sentiment is not None:
-                            utterance["sentiment"] = sentiment
-
-        # Get recent nodes (used by DifficultySelectionStage)
-        recent_nodes = await self.graph.get_recent_nodes(context.session_id, limit=5)
+        # Note: Sentiment loading from turn_sentiments has been removed
+        # It previously accessed context.graph_state which is not available
+        # until Stage 5. This should be handled elsewhere if needed.
 
         # Get recent strategy history for StrategyDiversityScorer
         # This is persisted in scoring_history and loaded here for turn continuity
@@ -109,23 +98,17 @@ class ContextLoadingStage(TurnStage):
             context.session_id, limit=5
         )
 
-        # Note: Graph state will be loaded in StateComputationStage after graph updates
-        # For now, provide a placeholder/empty GraphState to satisfy the contract
-        from src.domain.models.knowledge_graph import (
-            GraphState,
-            DepthMetrics,
-        )
-
-        placeholder_graph_state = context.graph_state or GraphState(
-            node_count=0,
-            edge_count=0,
-            depth_metrics=DepthMetrics(max_depth=0, avg_depth=0.0),
-            current_phase="exploratory",
-            turn_count=session.state.turn_count or 0,
-        )
+        # Load existing node labels for cross-turn relationship bridging
+        recent_node_labels = []
+        try:
+            all_nodes = await self.graph.repo.get_nodes_by_session(context.session_id)
+            recent_node_labels = [node.label for node in all_nodes]
+        except Exception as e:
+            log.warning("node_labels_load_failed", error=str(e))
 
         # Create contract output (single source of truth)
-        # No need to set individual fields - they're derived from the contract
+        # Note: graph_state and recent_nodes are NOT included here - they come
+        # from StateComputationStage (Stage 5) after graph updates
         context.context_loading_output = ContextLoadingOutput(
             methodology=session.methodology,
             concept_id=session.concept_id,
@@ -135,9 +118,17 @@ class ContextLoadingStage(TurnStage):
             mode=session.mode.value,
             max_turns=max_turns,
             recent_utterances=recent_utterances,
-            recent_nodes=recent_nodes,
             strategy_history=strategy_history,
-            graph_state=placeholder_graph_state,  # Will be updated by StateComputationStage
+            recent_node_labels=recent_node_labels,
+            # Velocity state from SessionState
+            surface_velocity_ewma=session.state.surface_velocity_ewma,
+            surface_velocity_peak=session.state.surface_velocity_peak,
+            prev_surface_node_count=session.state.prev_surface_node_count,
+            canonical_velocity_ewma=session.state.canonical_velocity_ewma,
+            canonical_velocity_peak=session.state.canonical_velocity_peak,
+            prev_canonical_node_count=session.state.prev_canonical_node_count,
+            # Focus history from SessionState
+            focus_history=session.state.focus_history,
         )
 
         log.info(

@@ -1,37 +1,61 @@
 """Strategy scoring using signal weights from YAML configs.
 
 Scores strategies based on detected signals and strategy weights
-defined in methodology YAML configs.
+defined in methodology YAML configs. All signals are expected to be
+normalized at source to [0, 1] or bool.
 """
 
+import structlog
+from dataclasses import dataclass, field
 from typing import List, Tuple, Dict, Any, Optional
 from src.methodologies.registry import StrategyConfig
+
+log = structlog.get_logger(__name__)
+
+
+@dataclass
+class SignalContribution:
+    """Per-signal score contribution within a scored candidate."""
+
+    name: str
+    value: Any
+    weight: float
+    contribution: float
+
+
+@dataclass
+class ScoredCandidate:
+    """Full decomposition for one (strategy, node) candidate from joint scoring."""
+
+    strategy: str
+    node_id: str
+    signal_contributions: list[SignalContribution] = field(default_factory=list)
+    base_score: float = 0.0
+    phase_multiplier: float = 1.0
+    phase_bonus: float = 0.0
+    final_score: float = 0.0
+    rank: int = 0
+    selected: bool = False
 
 
 def score_strategy(
     strategy_config: StrategyConfig,
     signals: Dict[str, Any],
-    signal_norms: Optional[Dict[str, float]] = None,
 ) -> float:
     """
     Score a strategy based on current signals using YAML weights.
 
     Args:
         strategy_config: Strategy config with signal_weights from YAML
-        signals: Dict of detected signals (namespaced)
-        signal_norms: Optional dict of signal_key -> max_expected value
-                     for normalizing numeric signals. E.g.,
-                     {"graph.node_count": 50, "graph.max_depth": 8}
+        signals: Dict of detected signals (namespaced, normalized to [0,1] or bool)
 
     Returns:
-        Score in range [0, 1] (unbounded if multiple weights add up > 1)
+        Weighted score (can be negative or > 1 depending on weights)
     """
     weights = strategy_config.signal_weights
     score = 0.0
 
     for signal_key, weight in weights.items():
-        # Parse signal key (e.g., "llm.response_depth.surface")
-        # and match against detected signals
         signal_value = _get_signal_value(signal_key, signals)
 
         if signal_value is None:
@@ -40,39 +64,48 @@ def score_strategy(
         if isinstance(signal_value, bool):
             contribution = weight if signal_value else 0.0
         elif isinstance(signal_value, (int, float)):
-            normalized = _normalize_numeric(signal_key, signal_value, signal_norms)
-            contribution = weight * normalized
+            contribution = weight * signal_value  # Already [0,1]
         else:
             contribution = 0.0
 
         score += contribution
 
-    # Return raw score (can be negative or > 1 depending on weights)
-    # The comparison matters more than absolute value
     return score
 
 
-def _normalize_numeric(
-    signal_key: str,
-    value: float,
-    signal_norms: Optional[Dict[str, float]],
-) -> float:
-    """Normalize a numeric signal value to [0, 1].
+def score_strategy_with_decomposition(
+    strategy_config: StrategyConfig,
+    signals: Dict[str, Any],
+) -> tuple[float, list[SignalContribution]]:
+    """Score a strategy and return (score, signal_contributions) for decomposition."""
+    weights = strategy_config.signal_weights
+    score = 0.0
+    contributions: list[SignalContribution] = []
 
-    Uses signal_norms max_expected if available, otherwise falls back
-    to the legacy /10.0 heuristic for values > 1.
-    """
-    # Already in [0, 1] range — pass through
-    if abs(value) <= 1:
-        return value
+    for signal_key, weight in weights.items():
+        signal_value = _get_signal_value(signal_key, signals)
 
-    # Use per-signal max_expected if available
-    if signal_norms and signal_key in signal_norms:
-        max_expected = signal_norms[signal_key]
-        return min(max(value / max_expected, 0.0), 1.0)
+        if signal_value is None:
+            continue
 
-    # Legacy fallback: divide by 10 and clip
-    return min(max(value / 10.0, 0.0), 1.0)
+        if isinstance(signal_value, bool):
+            contribution = weight if signal_value else 0.0
+        elif isinstance(signal_value, (int, float)):
+            contribution = weight * signal_value
+        else:
+            contribution = 0.0
+
+        score += contribution
+        contributions.append(
+            SignalContribution(
+                name=signal_key,
+                value=signal_value,
+                weight=weight,
+                contribution=contribution,
+            )
+        )
+
+    return score, contributions
 
 
 def _get_signal_value(signal_key: str, signals: Dict[str, Any]) -> Any:
@@ -95,7 +128,34 @@ def _get_signal_value(signal_key: str, signals: Dict[str, Any]) -> Any:
 
         if base_signal in signals:
             actual_value = signals[base_signal]
-            # Return True if values match (for boolean scoring)
+
+            # Bool coercion: match Python bool against "true"/"false" strings
+            if isinstance(actual_value, bool) and expected_value in (
+                "true",
+                "false",
+            ):
+                return actual_value == (expected_value == "true")
+
+            # Threshold binning for normalized [0,1] signals
+            # Note: bool check must come first since bool is a subclass of int
+            if (
+                isinstance(actual_value, (int, float))
+                and not isinstance(actual_value, bool)
+                and expected_value
+                in (
+                    "low",
+                    "mid",
+                    "high",
+                )
+            ):
+                if expected_value == "low":
+                    return actual_value <= 0.25
+                elif expected_value == "mid":
+                    return 0.25 < actual_value < 0.75
+                elif expected_value == "high":
+                    return actual_value >= 0.75
+
+            # Return True if values match (for string enum scoring)
             return actual_value == expected_value
 
     return None
@@ -106,7 +166,6 @@ def rank_strategies(
     signals: Dict[str, Any],
     phase_weights: Optional[Dict[str, float]] = None,
     phase_bonuses: Optional[Dict[str, float]] = None,
-    signal_norms: Optional[Dict[str, float]] = None,
 ) -> List[Tuple[StrategyConfig, float]]:
     """
     Rank all strategies by score.
@@ -128,7 +187,7 @@ def rank_strategies(
     scored = []
     for strategy_config in strategy_configs:
         # Score strategy using signal weights
-        base_score = score_strategy(strategy_config, signals, signal_norms=signal_norms)
+        base_score = score_strategy(strategy_config, signals)
 
         # Apply phase weight multiplier if available
         if phase_weights and strategy_config.name in phase_weights:
@@ -145,6 +204,9 @@ def rank_strategies(
         final_score = (base_score * multiplier) + bonus
 
         scored.append((strategy_config, final_score))
+
+    # Sort by score descending
+    scored.sort(key=lambda x: x[1], reverse=True)
 
     # Log scores for debugging
     log.info(
@@ -165,8 +227,7 @@ def rank_strategy_node_pairs(
     node_tracker=None,
     phase_weights: Optional[Dict[str, float]] = None,
     phase_bonuses: Optional[Dict[str, float]] = None,
-    signal_norms: Optional[Dict[str, float]] = None,
-) -> List[Tuple[StrategyConfig, str, float]]:
+) -> tuple[List[Tuple[StrategyConfig, str, float]], List[ScoredCandidate]]:
     """
     Rank (strategy, node) pairs by joint score.
 
@@ -187,9 +248,14 @@ def rank_strategy_node_pairs(
                       Applied additively: final_score = (base_score * multiplier) + bonus
 
     Returns:
-        List of (strategy_config, node_id, score) sorted descending by score
+        Tuple of (ranked_pairs, decomposition) where:
+        - ranked_pairs: List of (strategy_config, node_id, score) sorted descending
+        - decomposition: List of ScoredCandidate with per-signal contribution breakdown
     """
+    current_phase = global_signals.get("meta.interview.phase", "unknown")
+
     scored_pairs: List[Tuple[StrategyConfig, str, float]] = []
+    candidates: List[ScoredCandidate] = []
 
     for strategy in strategies:
         for node_id, node_signal_dict in node_signals.items():
@@ -197,9 +263,9 @@ def rank_strategy_node_pairs(
             # Node signals take precedence when keys overlap
             combined_signals = {**global_signals, **node_signal_dict}
 
-            # Score strategy for this specific node
-            base_score = score_strategy(
-                strategy, combined_signals, signal_norms=signal_norms
+            # Score strategy for this specific node (with decomposition)
+            base_score, contributions = score_strategy_with_decomposition(
+                strategy, combined_signals
             )
 
             # Apply phase weight multiplier if available
@@ -216,6 +282,47 @@ def rank_strategy_node_pairs(
             final_score = (base_score * multiplier) + bonus
 
             scored_pairs.append((strategy, node_id, final_score))
+            candidates.append(
+                ScoredCandidate(
+                    strategy=strategy.name,
+                    node_id=node_id,
+                    signal_contributions=contributions,
+                    base_score=base_score,
+                    phase_multiplier=multiplier,
+                    phase_bonus=bonus,
+                    final_score=final_score,
+                )
+            )
+
+            log.debug(
+                "strategy_node_pair_scored",
+                strategy=strategy.name,
+                node_id=node_id,
+                base_score=round(base_score, 4),
+                phase_multiplier=multiplier,
+                phase_bonus=bonus,
+                final_score=round(final_score, 4),
+                phase=current_phase,
+            )
 
     # Sort by score descending
-    return sorted(scored_pairs, key=lambda x: x[2], reverse=True)
+    ranked = sorted(scored_pairs, key=lambda x: x[2], reverse=True)
+
+    # Assign rank and selected flag to each candidate
+    ranked_order = {(s.name, nid): i for i, (s, nid, _) in enumerate(ranked)}
+    for candidate in candidates:
+        rank = ranked_order.get((candidate.strategy, candidate.node_id), len(ranked))
+        candidate.rank = rank + 1  # 1-indexed
+        candidate.selected = rank == 0
+
+    log.info(
+        "joint_scoring_top5",
+        phase=current_phase,
+        phase_weights=phase_weights,
+        phase_bonuses=phase_bonuses,
+        top5=[
+            {"strategy": s.name, "node_id": nid, "score": round(sc, 4)} for s, nid, sc in ranked[:5]
+        ],
+    )
+
+    return ranked, candidates

@@ -1,3 +1,7 @@
+# WARNING: This methodology config is INCOMPLETE.
+# It defines ontology only. Signals, strategies, and phases are not yet defined.
+# It cannot be used for interview sessions until completed.
+
 method:
   name: customer_journey_mapping
   version: "1.0"

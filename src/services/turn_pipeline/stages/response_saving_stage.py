@@ -1,8 +1,8 @@
 """
 Stage 9: Save system response.
 
-ADR-008 Phase 3: Persist system utterance to the database.
-Phase 6: Output ResponseSavingOutput contract.
+Persists system utterance to the database. Outputs
+ResponseSavingOutput contract.
 """
 
 from typing import TYPE_CHECKING
@@ -52,8 +52,8 @@ class ResponseSavingStage(TurnStage):
         try:
             await db.execute(
                 """
-                INSERT INTO utterances (id, session_id, turn_number, speaker, text, discourse_markers, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO utterances (id, session_id, turn_number, speaker, text, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
                     utterance_id,
@@ -61,7 +61,6 @@ class ResponseSavingStage(TurnStage):
                     context.turn_number,
                     "system",
                     context.next_question,
-                    "[]",
                     now,
                 ),
             )

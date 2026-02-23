@@ -139,9 +139,7 @@ def get_qualitative_signals_user_prompt(
         Formatted prompt with conversation history
     """
     # Format conversation history
-    formatted_history = _format_conversation_for_analysis(
-        conversation_history, max_turns=10
-    )
+    formatted_history = _format_conversation_for_analysis(conversation_history, max_turns=10)
 
     return f"""Analyze the following conversation history from a qualitative research interview.
 
@@ -161,9 +159,7 @@ Focus on:
 Return ONLY a valid JSON object. Do not include any explanatory text outside the JSON."""
 
 
-def _format_conversation_for_analysis(
-    history: List[Dict[str, Any]], max_turns: int = 10
-) -> str:
+def _format_conversation_for_analysis(history: List[Dict[str, Any]], max_turns: int = 10) -> str:
     """Format conversation history for LLM analysis.
 
     Args:
@@ -195,8 +191,7 @@ def _format_conversation_for_analysis(
                 lines.append("  [Extraction: Low elaboration - minimal extraction]")
             elif concepts_count > 0:
                 lines.append(
-                    f"  [Extraction: {concepts_count} concept(s), "
-                    f"avg confidence: {avg_conf:.2f}]"
+                    f"  [Extraction: {concepts_count} concept(s), avg confidence: {avg_conf:.2f}]"
                 )
 
     return "\n".join(lines)
@@ -235,6 +230,4 @@ def parse_qualitative_signals_response(
                 return json.loads(response_content[start:end].strip())
 
         # If all else fails, raise
-        raise ValueError(
-            f"Could not parse LLM response as JSON: {response_content[:200]}..."
-        )
+        raise ValueError(f"Could not parse LLM response as JSON: {response_content[:200]}...")

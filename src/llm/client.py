@@ -14,6 +14,7 @@ Supported providers:
 """
 
 from abc import ABC, abstractmethod
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, Literal
 import time
@@ -28,6 +29,19 @@ log = structlog.get_logger(__name__)
 
 LLMClientType = Literal["extraction", "scoring", "generation"]
 
+# Context variable for implicitly passing session_id through async call chain
+_session_id_ctx: ContextVar[Optional[str]] = ContextVar("_session_id_ctx", default=None)
+
+
+def set_llm_session_id(session_id: str) -> None:
+    """Set the session_id context for LLM usage tracking."""
+    _session_id_ctx.set(session_id)
+
+
+def get_llm_session_id() -> Optional[str]:
+    """Get the current session_id from context."""
+    return _session_id_ctx.get()
+
 
 # =============================================================================
 # Default configurations for each client type
@@ -38,26 +52,28 @@ LLMClientType = Literal["extraction", "scoring", "generation"]
 
 EXTRACTION_DEFAULTS = dict(
     provider="anthropic",
-    model="claude-sonnet-4-5-20250929",
+    model="claude-sonnet-4-6",
     temperature=0.3,  # Lower for structured, consistent extraction
     max_tokens=2048,  # Higher for complex graph outputs
     timeout=30.0,
+    effort="medium",  # Complex agentic reasoning (coding/agentics)
 )
 
 SCORING_DEFAULTS = dict(
     provider="kimi",
-    model="moonshot-v1-8k",
+    model="kimi-k2-0905-preview",
     temperature=0.3,
     max_tokens=512,
-    timeout=15.0,
+    timeout=30.0,  # K2 is larger model, needs more time
 )
 
 GENERATION_DEFAULTS = dict(
     provider="anthropic",
-    model="claude-sonnet-4-5-20250929",
+    model="claude-sonnet-4-6",
     temperature=0.7,  # Higher for creative question variations
     max_tokens=1024,
     timeout=30.0,
+    effort="low",  # Conversational, speed matters (non-coding)
 )
 
 # Map client types to their defaults
@@ -94,6 +110,9 @@ class LLMClient(ABC):
         system: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        effort: Optional[str] = None,
+        timeout: Optional[float] = None,
+        session_id: Optional[str] = None,
     ) -> LLMResponse:
         """
         Generate a completion from the LLM.
@@ -103,6 +122,9 @@ class LLMClient(ABC):
             system: Optional system prompt
             temperature: Sampling temperature (0.0-2.0)
             max_tokens: Maximum tokens in response
+            effort: Effort level for Sonnet 4.6 ("low", "medium", "high")
+            timeout: Optional timeout override in seconds (uses default if None)
+            session_id: Optional session ID for usage tracking
 
         Returns:
             LLMResponse with content and metadata
@@ -129,17 +151,19 @@ class AnthropicClient(LLMClient):
         timeout: float,
         client_type: LLMClientType,
         api_key: Optional[str] = None,
+        effort: Optional[str] = None,
     ):
         """
         Initialize Anthropic client.
 
         Args:
-            model: Model ID (e.g., claude-sonnet-4-5-20250929)
+            model: Model ID (e.g., claude-sonnet-4-6)
             temperature: Sampling temperature
             max_tokens: Maximum tokens in response
             timeout: Request timeout in seconds
             client_type: Client type for logging
             api_key: API key (defaults to settings.anthropic_api_key)
+            effort: Default effort level ("low", "medium", "high")
 
         Raises:
             ValueError: If API key is not configured
@@ -150,6 +174,7 @@ class AnthropicClient(LLMClient):
         self.max_tokens = max_tokens
         self.timeout = timeout
         self.client_type = client_type
+        self.effort = effort
         self.base_url = "https://api.anthropic.com/v1"
 
         if not self.api_key:
@@ -168,36 +193,54 @@ class AnthropicClient(LLMClient):
         system: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        effort: Optional[str] = None,
+        timeout: Optional[float] = None,
+        session_id: Optional[str] = None,
     ) -> LLMResponse:
         """
-        Call Anthropic Messages API.
+        Call Anthropic Messages API with automatic retry on timeout/rate-limit.
 
         Args:
             prompt: User message
             system: Optional system prompt
             temperature: Sampling temperature (defaults to init value)
             max_tokens: Max tokens (defaults to init value)
+            effort: Effort level for Sonnet 4.6 ("low", "medium", "high")
+            timeout: Optional timeout override in seconds (uses default if None)
+            session_id: Optional session ID for usage tracking
 
         Returns:
             LLMResponse with content and usage stats
 
         Raises:
-            httpx.HTTPStatusError: On API errors (4xx, 5xx)
-            httpx.TimeoutException: On timeout
+            LLMTimeoutError: After all retries exhausted on timeout
+            LLMRateLimitError: After all retries exhausted on rate limit (429)
+            httpx.HTTPStatusError: On other API errors (no retry)
         """
-        start = time.perf_counter()
+        import asyncio
+        from src.core.exceptions import LLMTimeoutError, LLMRateLimitError
 
-        headers = {
-            "x-api-key": self.api_key,
-            "content-type": "application/json",
-            "anthropic-version": "2023-06-01",
-        }
+        max_retries = 1  # 2 total attempts
+        base_delay = 1.0  # seconds
 
         # Use instance defaults if not provided
         if max_tokens is None:
             max_tokens = self.max_tokens
         if temperature is None:
             temperature = self.temperature
+        if effort is None:
+            effort = getattr(self, "effort", None)
+        if timeout is None:
+            timeout = self.timeout
+
+        # Get session_id from parameter or context
+        effective_session_id = session_id or get_llm_session_id()
+
+        headers = {
+            "x-api-key": self.api_key,
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+        }
 
         payload: Dict[str, Any] = {
             "model": self.model,
@@ -209,55 +252,148 @@ class AnthropicClient(LLMClient):
         if system:
             payload["system"] = system
 
-        log.debug(
-            "llm_call_start",
-            provider="anthropic",
-            client_type=self.client_type,
-            model=self.model,
-            prompt_length=len(prompt),
-            system_length=len(system) if system else 0,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        # Add effort parameter for Sonnet 4.6 (controls output token budget)
+        # See: https://platform.claude.com/docs/en/about-claude/models/migration-guide
+        if effort is not None:
+            # Validate effort values
+            valid_efforts = {"low", "medium", "high"}
+            if effort not in valid_efforts:
+                log.warning(
+                    "invalid_effort_value",
+                    effort=effort,
+                    valid_efforts=valid_efforts,
+                    defaulting_to="medium",
+                )
+                effort = "medium"
+            payload["output_config"] = {"effort": effort}
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(
-                f"{self.base_url}/messages",
-                headers=headers,
-                json=payload,
+        for attempt in range(max_retries + 1):
+            start = time.perf_counter()
+
+            log.debug(
+                "llm_call_start",
+                provider="anthropic",
+                client_type=self.client_type,
+                model=self.model,
+                prompt_length=len(prompt),
+                system_length=len(system) if system else 0,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                effort=effort,  # Log effort level for observability
+                attempt=attempt + 1,
+                max_retries=max_retries,
             )
-            response.raise_for_status()
-            data = response.json()
 
-        latency_ms = (time.perf_counter() - start) * 1000
+            try:
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    response = await client.post(
+                        f"{self.base_url}/messages",
+                        headers=headers,
+                        json=payload,
+                    )
+                    response.raise_for_status()
+                    data = response.json()
 
-        # Extract content from response
-        content = ""
-        if data.get("content"):
-            content = data["content"][0].get("text", "")
+                latency_ms = (time.perf_counter() - start) * 1000
 
-        usage = {
-            "input_tokens": data.get("usage", {}).get("input_tokens", 0),
-            "output_tokens": data.get("usage", {}).get("output_tokens", 0),
-        }
+                # Extract content from response
+                content = ""
+                if data.get("content"):
+                    content = data["content"][0].get("text", "")
 
-        log.info(
-            "llm_call_complete",
-            provider="anthropic",
-            client_type=self.client_type,
-            model=self.model,
-            latency_ms=round(latency_ms, 2),
-            input_tokens=usage["input_tokens"],
-            output_tokens=usage["output_tokens"],
-        )
+                usage = {
+                    "input_tokens": data.get("usage", {}).get("input_tokens", 0),
+                    "output_tokens": data.get("usage", {}).get("output_tokens", 0),
+                }
 
-        return LLMResponse(
-            content=content,
-            model=data.get("model", self.model),
-            usage=usage,
-            latency_ms=latency_ms,
-            raw_response=data,
-        )
+                log.info(
+                    "llm_call_complete",
+                    provider="anthropic",
+                    client_type=self.client_type,
+                    model=self.model,
+                    latency_ms=round(latency_ms, 2),
+                    input_tokens=usage["input_tokens"],
+                    output_tokens=usage["output_tokens"],
+                    attempt=attempt + 1,
+                )
+
+                # Record token usage if session_id provided
+                if effective_session_id:
+                    from src.services.token_usage_service import (
+                        get_token_usage_service,
+                    )
+
+                    token_service = get_token_usage_service()
+                    token_service.record_llm_call(
+                        session_id=effective_session_id,
+                        model=self.model,
+                        input_tokens=usage["input_tokens"],
+                        output_tokens=usage["output_tokens"],
+                        client_type=self.client_type,
+                    )
+
+                return LLMResponse(
+                    content=content,
+                    model=data.get("model", self.model),
+                    usage=usage,
+                    latency_ms=latency_ms,
+                    raw_response=data,
+                )
+
+            except httpx.TimeoutException as e:
+                log.warning(
+                    "llm_timeout",
+                    provider="anthropic",
+                    attempt=attempt + 1,
+                    max_retries=max_retries,
+                    timeout_seconds=self.timeout,
+                )
+                if attempt < max_retries:
+                    delay = base_delay * (2**attempt)  # 1s on first retry
+                    log.info(
+                        "llm_retry_after_timeout",
+                        delay_seconds=delay,
+                        next_attempt=attempt + 2,
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    raise LLMTimeoutError(
+                        f"LLM call timed out after {max_retries + 1} attempts "
+                        f"(timeout={self.timeout}s)"
+                    ) from e
+
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code
+                if status_code == 429:  # Rate limit
+                    log.warning(
+                        "llm_rate_limit",
+                        provider="anthropic",
+                        attempt=attempt + 1,
+                        max_retries=max_retries,
+                    )
+                    if attempt < max_retries:
+                        delay = base_delay * (2**attempt)
+                        log.info(
+                            "llm_retry_after_rate_limit",
+                            delay_seconds=delay,
+                            next_attempt=attempt + 2,
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        raise LLMRateLimitError(
+                            f"Rate limit exceeded after {max_retries + 1} attempts"
+                        ) from e
+                else:
+                    # Don't retry other 4xx/5xx errors
+                    log.error(
+                        "llm_http_error",
+                        provider="anthropic",
+                        status_code=status_code,
+                    )
+                    raise
+
+        # Unreachable: loop either returns LLMResponse or raises an exception
+        assert False, "unreachable"
 
 
 # =============================================================================
@@ -321,35 +457,55 @@ class OpenAICompatibleClient(LLMClient):
         system: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        effort: Optional[str] = None,  # Ignored for OpenAI-compatible APIs
+        timeout: Optional[float] = None,
+        session_id: Optional[str] = None,
     ) -> LLMResponse:
         """
-        Call OpenAI-compatible API.
+        Call OpenAI-compatible API with automatic retry on timeout/rate-limit.
 
         Args:
             prompt: User message
             system: Optional system prompt
             temperature: Sampling temperature (defaults to init value)
             max_tokens: Max tokens (defaults to init value)
+            effort: Ignored for OpenAI-compatible APIs (no effort parameter support)
+            timeout: Optional timeout override in seconds (uses default if None)
+            session_id: Optional session ID for usage tracking
 
         Returns:
             LLMResponse with content and usage stats
 
         Raises:
-            httpx.HTTPStatusError: On API errors (4xx, 5xx)
-            httpx.TimeoutException: On timeout
+            LLMTimeoutError: After all retries exhausted on timeout
+            LLMRateLimitError: After all retries exhausted on rate limit (429)
+            httpx.HTTPStatusError: On other API errors (no retry)
         """
-        start = time.perf_counter()
+        import asyncio
+        from src.core.exceptions import LLMTimeoutError, LLMRateLimitError
 
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        max_retries = 1  # 2 total attempts
+        base_delay = 1.0  # seconds
 
         # Use instance defaults if not provided
         if max_tokens is None:
             max_tokens = self.max_tokens
         if temperature is None:
             temperature = self.temperature
+        if timeout is None:
+            timeout = self.timeout
+
+        # Get session_id from parameter or context
+        effective_session_id = session_id or get_llm_session_id()
+
+        # Log if effort was provided but will be ignored
+        if effort is not None:
+            log.debug(
+                "effort_parameter_ignored",
+                provider=self.provider_name,
+                effort=effort,
+                reason="OpenAI-compatible APIs do not support effort parameter",
+            )
 
         # Build messages array
         messages = []
@@ -364,55 +520,137 @@ class OpenAICompatibleClient(LLMClient):
             "max_tokens": max_tokens,
         }
 
-        log.debug(
-            "llm_call_start",
-            provider=self.provider_name,
-            client_type=self.client_type,
-            model=self.model,
-            prompt_length=len(prompt),
-            system_length=len(system) if system else 0,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        for attempt in range(max_retries + 1):
+            start = time.perf_counter()
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(
-                f"{self.base_url}/chat/completions",
-                headers=headers,
-                json=payload,
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
+
+            log.debug(
+                "llm_call_start",
+                provider=self.provider_name,
+                client_type=self.client_type,
+                model=self.model,
+                prompt_length=len(prompt),
+                system_length=len(system) if system else 0,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                attempt=attempt + 1,
+                max_retries=max_retries,
             )
-            response.raise_for_status()
-            data = response.json()
 
-        latency_ms = (time.perf_counter() - start) * 1000
+            try:
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    response = await client.post(
+                        f"{self.base_url}/chat/completions",
+                        headers=headers,
+                        json=payload,
+                    )
+                    response.raise_for_status()
+                    data = response.json()
 
-        # Extract content from OpenAI-compatible response
-        content = ""
-        if data.get("choices"):
-            content = data["choices"][0].get("message", {}).get("content", "")
+                latency_ms = (time.perf_counter() - start) * 1000
 
-        usage = {
-            "input_tokens": data.get("usage", {}).get("prompt_tokens", 0),
-            "output_tokens": data.get("usage", {}).get("completion_tokens", 0),
-        }
+                # Extract content from OpenAI-compatible response
+                content = ""
+                if data.get("choices"):
+                    content = data["choices"][0].get("message", {}).get("content", "")
 
-        log.info(
-            "llm_call_complete",
-            provider=self.provider_name,
-            client_type=self.client_type,
-            model=self.model,
-            latency_ms=round(latency_ms, 2),
-            input_tokens=usage["input_tokens"],
-            output_tokens=usage["output_tokens"],
-        )
+                usage = {
+                    "input_tokens": data.get("usage", {}).get("prompt_tokens", 0),
+                    "output_tokens": data.get("usage", {}).get("completion_tokens", 0),
+                }
 
-        return LLMResponse(
-            content=content,
-            model=data.get("model", self.model),
-            usage=usage,
-            latency_ms=latency_ms,
-            raw_response=data,
-        )
+                log.info(
+                    "llm_call_complete",
+                    provider=self.provider_name,
+                    client_type=self.client_type,
+                    model=self.model,
+                    latency_ms=round(latency_ms, 2),
+                    input_tokens=usage["input_tokens"],
+                    output_tokens=usage["output_tokens"],
+                    attempt=attempt + 1,
+                )
+
+                # Record token usage if session_id provided
+                if effective_session_id:
+                    from src.services.token_usage_service import (
+                        get_token_usage_service,
+                    )
+
+                    token_service = get_token_usage_service()
+                    token_service.record_llm_call(
+                        session_id=effective_session_id,
+                        model=self.model,
+                        input_tokens=usage["input_tokens"],
+                        output_tokens=usage["output_tokens"],
+                        client_type=self.client_type,
+                    )
+
+                return LLMResponse(
+                    content=content,
+                    model=data.get("model", self.model),
+                    usage=usage,
+                    latency_ms=latency_ms,
+                    raw_response=data,
+                )
+
+            except httpx.TimeoutException as e:
+                log.warning(
+                    "llm_timeout",
+                    provider=self.provider_name,
+                    attempt=attempt + 1,
+                    max_retries=max_retries,
+                    timeout_seconds=self.timeout,
+                )
+                if attempt < max_retries:
+                    delay = base_delay * (2**attempt)
+                    log.info(
+                        "llm_retry_after_timeout",
+                        delay_seconds=delay,
+                        next_attempt=attempt + 2,
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    raise LLMTimeoutError(
+                        f"LLM call timed out after {max_retries + 1} attempts "
+                        f"(timeout={self.timeout}s)"
+                    ) from e
+
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code
+                if status_code == 429:  # Rate limit
+                    log.warning(
+                        "llm_rate_limit",
+                        provider=self.provider_name,
+                        attempt=attempt + 1,
+                        max_retries=max_retries,
+                    )
+                    if attempt < max_retries:
+                        delay = base_delay * (2**attempt)
+                        log.info(
+                            "llm_retry_after_rate_limit",
+                            delay_seconds=delay,
+                            next_attempt=attempt + 2,
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        raise LLMRateLimitError(
+                            f"Rate limit exceeded after {max_retries + 1} attempts"
+                        ) from e
+                else:
+                    # Don't retry other 4xx/5xx errors
+                    log.error(
+                        "llm_http_error",
+                        provider=self.provider_name,
+                        status_code=status_code,
+                    )
+                    raise
+
+        # Unreachable: loop either returns LLMResponse or raises an exception
+        assert False, "unreachable"
 
 
 # =============================================================================
@@ -537,6 +775,7 @@ def get_llm_client(client_type: LLMClientType) -> LLMClient:
     temperature = defaults["temperature"]
     max_tokens = defaults["max_tokens"]
     timeout = defaults["timeout"]
+    effort = defaults.get("effort")  # Optional effort parameter for Sonnet 4.6
 
     # Create client based on provider
     if provider == "anthropic":
@@ -546,6 +785,7 @@ def get_llm_client(client_type: LLMClientType) -> LLMClient:
             max_tokens=max_tokens,
             timeout=timeout,
             client_type=client_type,
+            effort=effort,
         )
     elif provider == "kimi":
         return KimiClient(
@@ -572,7 +812,7 @@ def get_llm_client(client_type: LLMClientType) -> LLMClient:
 
 def get_extraction_llm_client() -> LLMClient:
     """
-    Factory for extraction LLM client (nodes/edges/stance).
+    Factory for extraction LLM client (nodes/edges).
 
     Returns:
         LLMClient instance configured for extraction tasks

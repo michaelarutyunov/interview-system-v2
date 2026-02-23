@@ -1,7 +1,9 @@
 """
-Pipeline orchestrator for turn processing.
+Turn pipeline orchestrator for sequential stage execution.
 
-ADR-008 Phase 3: TurnPipeline executes stages sequentially with timing and error handling.
+Executes pipeline stages with timing tracking, error handling, and result
+building. Provides main entry point for turn processing through the
+interview system's 12-stage pipeline.
 """
 
 import time
@@ -9,6 +11,7 @@ from typing import List
 
 import structlog
 
+from src.llm.client import set_llm_session_id
 from .base import TurnStage
 from .context import PipelineContext
 from .result import TurnResult
@@ -18,35 +21,45 @@ log = structlog.get_logger(__name__)
 
 class TurnPipeline:
     """
-    Orchestrates execution of pipeline stages.
+    Orchestrates sequential execution of turn processing stages.
 
-    Executes stages sequentially, tracking timing and handling errors.
+    Executes pipeline stages with timing tracking, error handling, and
+    stage contract outputs. Builds TurnResult from context contracts
+    for API response serialization.
     """
 
     def __init__(self, stages: List[TurnStage]):
         """
-        Initialize pipeline with a list of stages.
+        Initialize pipeline with ordered list of stages.
 
         Args:
-            stages: Ordered list of TurnStage instances
+            stages: Ordered list of TurnStage instances to execute sequentially
         """
         self.stages = stages
         self.logger = log
 
     async def execute(self, context: PipelineContext) -> TurnResult:
         """
-        Execute all stages sequentially.
+        Execute all pipeline stages sequentially with timing tracking.
+
+        Iterates through configured stages, logging timing per stage and
+        handling errors by re-raising with context. Total pipeline latency
+        is computed and passed to result builder.
 
         Args:
             context: Initial turn context with session_id and user_input
 
         Returns:
-            TurnResult with extraction, graph state, next question
+            TurnResult with extraction, graph state, strategy, next question,
+            and continuation status
 
         Raises:
-            Exception: If any stage fails
+            Exception: If any stage fails (error logged before re-raising)
         """
         start_time = time.perf_counter()
+
+        # Set session_id context for LLM usage tracking
+        set_llm_session_id(context.session_id)
 
         self.logger.info(
             "pipeline_started",
@@ -98,14 +111,23 @@ class TurnPipeline:
 
     def _build_result(self, context: PipelineContext, latency_ms: int) -> TurnResult:
         """
-        Build TurnResult from context.
+        Build TurnResult from stage contract outputs.
+
+        Aggregates data from all stage contracts (ContextLoadingOutput,
+        ExtractionOutput, StrategySelectionOutput, etc.) into a single
+        TurnResult for API response serialization. Includes canonical
+        graph state and comparison metrics when available.
 
         Args:
-            context: Final turn context
-            latency_ms: Total pipeline latency
+            context: Final turn context with populated contract outputs
+            latency_ms: Total pipeline execution latency in milliseconds
 
         Returns:
-            TurnResult
+            TurnResult with extraction, graph state, strategy, question,
+            continuation status, signals, alternatives, and canonical metrics
+
+        Raises:
+            RuntimeError: If StrategySelectionStage has not run (required)
         """
         # Build extracted data
         extracted = {
@@ -140,8 +162,99 @@ class TurnPipeline:
                 "depth_achieved": context.graph_state.nodes_by_type,
             }
 
+        # Safely access stage outputs (may be None for partial pipeline execution)
+        # Access contracts directly to avoid RuntimeError from convenience properties
+        turn_number = (
+            context.context_loading_output.turn_number if context.context_loading_output else 1
+        )
+        if not context.strategy_selection_output:
+            raise RuntimeError("StrategySelectionStage must run before building result")
+        strategy_selected = context.strategy_selection_output.strategy
+        next_question = (
+            context.question_generation_output.question
+            if context.question_generation_output
+            else ""
+        )
+        should_continue = (
+            context.continuation_output.should_continue if context.continuation_output else True
+        )
+        termination_reason = (
+            context.continuation_output.reason
+            if context.continuation_output and not should_continue
+            else None
+        )
+
+        # Extract methodology signals and strategy alternatives for observability
+        signals = None
+        strategy_alternatives = None
+        if context.strategy_selection_output:
+            signals = context.strategy_selection_output.signals
+            # Convert tuples to dicts for JSON serialization
+            alternatives = context.strategy_selection_output.strategy_alternatives
+            if alternatives:
+                strategy_alternatives = []
+                for alt in alternatives:
+                    if len(alt) == 2:
+                        strategy, score = alt
+                        strategy_alternatives.append({"strategy": strategy, "score": score})
+                    elif len(alt) == 3:
+                        strategy, node_id, score = alt
+                        strategy_alternatives.append(
+                            {"strategy": strategy, "node_id": node_id, "score": score}
+                        )
+
+        # Build canonical_graph and graph_comparison
+        canonical_graph = None
+        graph_comparison = None
+
+        if context.canonical_graph_state:
+            cg_state = context.canonical_graph_state
+            canonical_graph = {
+                "slots": {
+                    "concept_count": cg_state.concept_count,
+                    "orphan_count": cg_state.orphan_count,
+                    "avg_support": round(cg_state.avg_support, 2),
+                },
+                "edges": {
+                    "edge_count": cg_state.edge_count,
+                },
+                "metrics": {
+                    "max_depth": cg_state.max_depth,
+                },
+            }
+
+            # Build graph_comparison metrics
+            if context.graph_state:
+                surface_nodes = context.graph_state.node_count
+                canonical_nodes = cg_state.concept_count
+                node_reduction_pct = (
+                    (1 - canonical_nodes / surface_nodes) * 100 if surface_nodes > 0 else 0.0
+                )
+
+                surface_edges = context.graph_state.edge_count
+                canonical_edges = cg_state.edge_count
+                edge_aggregation_ratio = (
+                    canonical_edges / surface_edges if surface_edges > 0 else 0.0
+                )
+
+                graph_comparison = {
+                    "node_reduction_pct": round(node_reduction_pct, 1),
+                    "edge_aggregation_ratio": round(edge_aggregation_ratio, 2),
+                }
+
+        # Build per-turn graph change lists for simulation observability
+        nodes_added = [
+            {"id": n.id, "label": n.label, "node_type": n.node_type} for n in context.nodes_added
+        ]
+        edges_added = list(context.edges_added)  # already List[Dict[str, Any]]
+
+        # Serialize saturation metrics for simulation observability
+        saturation_metrics = None
+        if context.state_computation_output and context.state_computation_output.saturation_metrics:
+            saturation_metrics = context.state_computation_output.saturation_metrics.model_dump()
+
         return TurnResult(
-            turn_number=context.turn_number,
+            turn_number=turn_number,
             extracted=extracted,
             graph_state=graph_state,
             scoring=context.scoring
@@ -149,8 +262,18 @@ class TurnPipeline:
                 "depth": 0.0,
                 "saturation": 0.0,
             },
-            strategy_selected=context.strategy,
-            next_question=context.next_question,
-            should_continue=context.should_continue,
+            strategy_selected=strategy_selected,
+            next_question=next_question,
+            should_continue=should_continue,
             latency_ms=latency_ms,
+            signals=signals,
+            strategy_alternatives=strategy_alternatives,
+            termination_reason=termination_reason,
+            canonical_graph=canonical_graph,
+            graph_comparison=graph_comparison,
+            nodes_added=nodes_added,
+            edges_added=edges_added,
+            saturation_metrics=saturation_metrics,
+            node_signals=context.node_signals,
+            score_decomposition=context.score_decomposition,
         )

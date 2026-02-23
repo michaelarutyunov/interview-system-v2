@@ -19,9 +19,7 @@ class SessionRepository:
     def __init__(self, db_path: str):
         self.db_path = db_path
 
-    async def create(
-        self, session: Session, config: Optional[Dict[str, Any]] = None
-    ) -> Session:
+    async def create(self, session: Session, config: Optional[Dict[str, Any]] = None) -> Session:
         """Create a new session and populate concept_elements."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -43,9 +41,7 @@ class SessionRepository:
             await db.commit()
 
             # Fetch the created session to get the timestamps
-            cursor = await db.execute(
-                "SELECT * FROM sessions WHERE id = ?", (session.id,)
-            )
+            cursor = await db.execute("SELECT * FROM sessions WHERE id = ?", (session.id,))
             row = await cursor.fetchone()
             if not row:
                 raise ValueError(f"Session {session.id} not found after creation")
@@ -55,9 +51,7 @@ class SessionRepository:
         """Get a session by ID."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT * FROM sessions WHERE id = ?", (session_id,)
-            )
+            cursor = await db.execute("SELECT * FROM sessions WHERE id = ?", (session_id,))
             row = await cursor.fetchone()
             if not row:
                 return None
@@ -67,9 +61,7 @@ class SessionRepository:
         """Update session state (computed on-demand, no caching)."""
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
-                "UPDATE sessions SET "
-                "turn_count = ?, updated_at = datetime('now') "
-                "WHERE id = ?",
+                "UPDATE sessions SET turn_count = ?, updated_at = datetime('now') WHERE id = ?",
                 (state.turn_count, session_id),
             )
             await db.commit()
@@ -87,9 +79,7 @@ class SessionRepository:
     async def delete(self, session_id: str) -> bool:
         """Delete a session by ID. Returns True if deleted."""
         async with aiosqlite.connect(self.db_path) as db:
-            cursor = await db.execute(
-                "DELETE FROM sessions WHERE id = ?", (session_id,)
-            )
+            cursor = await db.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
             await db.commit()
             return cursor.rowcount > 0
 
@@ -120,13 +110,48 @@ class SessionRepository:
         """Get session configuration."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT config FROM sessions WHERE id = ?", (session_id,)
-            )
+            cursor = await db.execute("SELECT config FROM sessions WHERE id = ?", (session_id,))
             row = await cursor.fetchone()
             if row:
                 return json.loads(row["config"]) if row["config"] else {}
             return {}
+
+    async def update_metadata(self, session_id: str, metadata: Dict[str, Any]) -> None:
+        """
+        Merge metadata into session config.
+
+        Args:
+            session_id: Session identifier
+            metadata: Dict to merge into config (e.g., {"metadata": {"llm_usage": {...}}})
+
+        Note:
+            This performs a deep merge at the top level only. Nested keys are
+            replaced, not merged recursively.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            # Get existing config
+            cursor = await db.execute("SELECT config FROM sessions WHERE id = ?", (session_id,))
+            row = await cursor.fetchone()
+            existing_config = {}
+            if row and row["config"]:
+                existing_config = json.loads(row["config"])
+
+            # Merge new metadata
+            existing_config.update(metadata)
+
+            # Update the config
+            await db.execute(
+                "UPDATE sessions SET config = ?, updated_at = datetime('now') WHERE id = ?",
+                (json.dumps(existing_config), session_id),
+            )
+            await db.commit()
+
+            log.info(
+                "session_metadata_updated",
+                session_id=session_id,
+                keys_updated=list(metadata.keys()),
+            )
 
     async def save_scoring_history(
         self,
@@ -159,107 +184,6 @@ class SessionRepository:
                 ),
             )
             await db.commit()
-
-    async def save_scoring_candidate(
-        self,
-        candidate_id: str,
-        session_id: str,
-        turn_number: int,
-        strategy_id: str,
-        strategy_name: str,
-        focus_type: str,
-        focus_description: str,
-        final_score: float,
-        is_selected: bool,
-        vetoed_by: Optional[str] = None,
-        tier1_results: Optional[list] = None,
-        tier2_results: Optional[list] = None,
-        reasoning: Optional[str] = None,
-    ) -> None:
-        """Save a scoring candidate to the candidates table."""
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute(
-                """INSERT INTO scoring_candidates (
-                    id, session_id, turn_number,
-                    strategy_id, strategy_name, focus_type, focus_description,
-                    final_score, is_selected, vetoed_by,
-                    tier1_results, tier2_results, reasoning
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    candidate_id,
-                    session_id,
-                    turn_number,
-                    strategy_id,
-                    strategy_name,
-                    focus_type,
-                    focus_description[:500],  # Limit length
-                    final_score,
-                    1 if is_selected else 0,
-                    vetoed_by,
-                    json.dumps(tier1_results or []),
-                    json.dumps(tier2_results or []),
-                    reasoning,
-                ),
-            )
-            await db.commit()
-
-    async def get_turn_scoring(self, session_id: str, turn_number: int) -> list:
-        """Get all scoring candidates for a specific turn."""
-        async with aiosqlite.connect(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                """SELECT
-                    id, strategy_id, strategy_name, focus_type, focus_description,
-                    final_score, is_selected, vetoed_by,
-                    tier1_results, tier2_results, reasoning
-                   FROM scoring_candidates
-                   WHERE session_id = ? AND turn_number = ?
-                   ORDER BY final_score DESC""",
-                (session_id, turn_number),
-            )
-            rows = await cursor.fetchall()
-            return [dict(row) for row in rows]
-
-    async def get_all_scoring_candidates(self, session_id: str) -> Dict[int, list]:
-        """Get all scoring candidates for a session, grouped by turn_number.
-
-        Returns:
-            Dict mapping turn_number to list of candidate dicts.
-        """
-        async with aiosqlite.connect(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                """SELECT
-                    turn_number, id, strategy_id, strategy_name, focus_type,
-                    focus_description, final_score, is_selected, vetoed_by,
-                    tier1_results, tier2_results, reasoning
-                   FROM scoring_candidates
-                   WHERE session_id = ?
-                   ORDER BY turn_number ASC, final_score DESC""",
-                (session_id,),
-            )
-            rows = await cursor.fetchall()
-            # Group by turn_number
-            result = {}
-            for row in rows:
-                turn = row["turn_number"]
-                if turn not in result:
-                    result[turn] = []
-                result[turn].append(dict(row))
-            return result
-
-    async def get_all_turn_numbers_with_scoring(self, session_id: str) -> list:
-        """Get all turn numbers that have scoring data."""
-        async with aiosqlite.connect(self.db_path) as db:
-            cursor = await db.execute(
-                """SELECT DISTINCT turn_number
-                   FROM scoring_candidates
-                   WHERE session_id = ?
-                   ORDER BY turn_number DESC""",
-                (session_id,),
-            )
-            rows = await cursor.fetchall()
-            return [row[0] for row in rows]
 
     async def get_latest_strategy(self, session_id: str) -> Dict[str, Any]:
         """Get the most recent strategy from scoring_history."""
@@ -342,15 +266,9 @@ class SessionRepository:
                     llm_model,
                     extraction_latency_ms,
                     json.dumps(extraction_errors or []),
-                    json.dumps(signals.get("uncertainty"))
-                    if signals.get("uncertainty")
-                    else None,
-                    json.dumps(signals.get("reasoning"))
-                    if signals.get("reasoning")
-                    else None,
-                    json.dumps(signals.get("emotional"))
-                    if signals.get("emotional")
-                    else None,
+                    json.dumps(signals.get("uncertainty")) if signals.get("uncertainty") else None,
+                    json.dumps(signals.get("reasoning")) if signals.get("reasoning") else None,
+                    json.dumps(signals.get("emotional")) if signals.get("emotional") else None,
                     json.dumps(signals.get("contradiction"))
                     if signals.get("contradiction")
                     else None,
@@ -414,6 +332,50 @@ class SessionRepository:
                 }
             return result
 
+    # ==================== NODE TRACKER STATE PERSISTENCE ====================
+
+    async def get_node_tracker_state(self, session_id: str) -> Optional[str]:
+        """
+        Get the persisted node tracker state for a session.
+
+        Args:
+            session_id: Session ID to get tracker state for
+
+        Returns:
+            JSON string of tracker state, or None if not set
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT node_tracker_state FROM sessions WHERE id = ?",
+                (session_id,),
+            )
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            return row["node_tracker_state"]
+
+    async def update_node_tracker_state(self, session_id: str, tracker_state_json: str) -> None:
+        """
+        Update the persisted node tracker state for a session.
+
+        Args:
+            session_id: Session ID to update tracker state for
+            tracker_state_json: JSON string of serialized NodeStateTracker
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "UPDATE sessions SET node_tracker_state = ?, updated_at = datetime('now') "
+                "WHERE id = ?",
+                (tracker_state_json, session_id),
+            )
+            await db.commit()
+            log.debug(
+                "node_tracker_state_saved",
+                session_id=session_id,
+                state_size_bytes=len(tracker_state_json),
+            )
+
     def _row_to_utterance(self, row: aiosqlite.Row) -> Utterance:
         """Convert a database row to an Utterance model."""
         return Utterance(
@@ -422,9 +384,6 @@ class SessionRepository:
             turn_number=row["turn_number"],
             speaker=row["speaker"],
             text=row["text"],
-            discourse_markers=json.loads(row["discourse_markers"])
-            if row["discourse_markers"]
-            else [],
             created_at=datetime.fromisoformat(row["created_at"]),
         )
 

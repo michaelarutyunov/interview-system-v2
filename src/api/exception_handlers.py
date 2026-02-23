@@ -21,14 +21,23 @@ log = structlog.get_logger(__name__)
 
 
 def setup_exception_handlers(app: FastAPI):
-    """Register all exception handlers with the FastAPI app."""
+    """Register custom exception handlers with the FastAPI application.
+
+    Sets up handlers for all InterviewSystemError subclasses with appropriate
+    HTTP status codes, plus handlers for configuration errors and generic exceptions.
+    """
 
     @app.exception_handler(InterviewSystemError)
     async def interview_system_error_handler(
         request: Request,
         exc: InterviewSystemError,
     ) -> JSONResponse:
-        """Handle all custom InterviewSystemError exceptions."""
+        """Handle InterviewSystemError exceptions with appropriate HTTP status codes.
+
+        Maps specific error types to HTTP status codes (404 for not found,
+        400 for validation, 504 for timeout, etc.) and returns consistent
+        error response format.
+        """
         log_ctx = log.bind(
             path=request.url.path,
             method=request.method,
@@ -69,7 +78,11 @@ def setup_exception_handlers(app: FastAPI):
         request: Request,
         exc: ConfigurationError,
     ) -> JSONResponse:
-        """Handle configuration errors."""
+        """Handle configuration errors with HTTP 500 status.
+
+        Returns a 500 Internal Server Error when the application configuration
+        is invalid or missing required settings.
+        """
         log.error(
             "configuration_error",
             path=request.url.path,
@@ -91,7 +104,11 @@ def setup_exception_handlers(app: FastAPI):
         request: Request,
         exc: Exception,
     ) -> JSONResponse:
-        """Handle all unhandled exceptions."""
+        """Handle all unhandled exceptions with HTTP 500 status.
+
+        Catches any exception not handled by specific handlers, logs the error
+        with full context, and returns a generic 500 Internal Server Error response.
+        """
         log_ctx = log.bind(
             path=request.url.path,
             method=request.method,

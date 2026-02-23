@@ -1,0 +1,326 @@
+# Jobs-to-be-Done Simplified Methodology Configuration
+#
+# Simplified ontology: 5 node types (vs 8), 4 edge types (vs 7).
+# Merges job_statement/emotional_job/social_job → job,
+# job_context/job_trigger → circumstance,
+# addresses/enables/supports → leads_to.
+# Reduces LLM classification ambiguity and edge rejection.
+
+method:
+  name: jobs_to_be_done_simple
+  version: "3.0"
+  goal: "Understand what jobs users are trying to accomplish and what motivates them"
+  opening_bias: "Ask about a specific recent time they made a decision or change related to the topic."
+  description: "Simplified JTBD framework with fewer node/edge types for higher extraction accuracy"
+
+ontology:
+  nodes:
+    - name: job
+      level: 0
+      terminal: false
+      description: "A functional, emotional, or social job the customer is trying to accomplish"
+      examples:
+        - "get my daily caffeine fix"
+        - "feel productive in the morning"
+        - "fit in with health-conscious peers"
+        - "project a professional image"
+
+    - name: circumstance
+      level: 0
+      terminal: false
+      description: "Situation, context, or trigger that causes the job to arise"
+      examples:
+        - "when I'm rushing to work"
+        - "feeling tired in the morning"
+        - "anticipating a long meeting"
+        - "when meeting clients"
+
+    - name: pain_point
+      level: 0
+      terminal: false
+      description: "Obstacle or frustration in getting the job done"
+      examples:
+        - "coffee is too bitter"
+        - "takes too long to prepare"
+        - "upsets my stomach"
+
+    - name: gain_point
+      level: 0
+      terminal: false
+      description: "Desired outcome or benefit that makes the job worthwhile"
+      examples:
+        - "smooth, enjoyable taste"
+        - "quick and convenient"
+        - "feeling energized without jitters"
+
+    - name: solution
+      level: 0
+      terminal: false
+      description: "Current or potential method for accomplishing the job"
+      examples:
+        - "using oat milk in coffee"
+        - "buying coffee at a cafe"
+        - "meal prepping"
+
+  edges:
+    - name: leads_to
+      description: "Positive relationship: one thing contributes to, enables, or addresses another"
+      permitted_connections:
+        - [job, gain_point]            # Job seeks a gain
+        - [job, pain_point]            # Job encounters a pain
+        - [job, job]                   # Functional job leads to emotional/social job
+        - [solution, job]              # Solution accomplishes a job
+        - [solution, pain_point]       # Solution addresses a pain
+        - [solution, gain_point]       # Solution enables a gain
+        - [pain_point, job]            # Pain motivates a job
+        - [gain_point, job]            # Gain satisfies a job
+        - [gain_point, gain_point]     # Gain chains (saves time → feel productive)
+
+    - name: conflicts_with
+      description: "Negative relationship: one thing prevents, undermines, or blocks another"
+      permitted_connections:
+        - [pain_point, job]            # Pain blocks a job
+        - [pain_point, gain_point]     # Pain undermines a gain
+        - [pain_point, solution]       # Pain blocks a solution
+        - [solution, pain_point]       # Solution creates a pain (side effect)
+        - [solution, solution]         # Solutions conflict with each other
+
+    - name: occurs_in
+      description: "Temporal, situational, or causal context relationship"
+      permitted_connections:
+        - [job, circumstance]          # Job arises in a circumstance
+        - [pain_point, circumstance]   # Pain arises in a circumstance
+        - [gain_point, circumstance]   # Gain matters in a circumstance
+        - [solution, circumstance]     # Solution used in a circumstance
+        - [circumstance, circumstance] # Context nesting (morning → weekday routine)
+
+    - name: revises
+      description: "Contradiction - newer belief or approach supersedes older one"
+      permitted_connections:
+        - ["*", "*"]
+
+  extraction_guidelines:
+    - "Listen for phrases indicating what the user is trying to accomplish ('I need to...', 'I want to...', 'The goal is...')"
+    - "Identify circumstances — both situations ('when...', 'in situations like...') and triggers ('feeling...', 'after...')"
+    - "Extract pain points directly expressed ('frustrating that...', 'hate it when...', 'problem is...')"
+    - "Extract gain points as positive outcomes ('love that...', 'great because...', 'important that...')"
+    - "A single 'job' type covers functional, emotional, and social jobs — classify all as 'job'"
+    - "Map the current solution approach even if not explicitly stated"
+    - "Prioritize creating edges between co-occurring concepts — a connected graph is more valuable than isolated nodes"
+    - "Look for trade-offs users make between competing jobs or solutions"
+
+  relationship_examples:
+    job_addresses_pain:
+      description: "Direct statement of what needs to be accomplished"
+      example: "I need something that wakes me up but doesn't make me jittery"
+      extraction: "job('wake up without jitters') → leads_to → pain_point('caffeine jitters')"
+
+    job_in_context:
+      description: "Context revealed through situation description"
+      example: "When I have 8am meetings, I can't wait in line at the cafe"
+      extraction: "job('get morning coffee quickly') → occurs_in → circumstance('early morning meetings')"
+
+    pain_conflicts_solution:
+      description: "Pain point blocks a current solution"
+      example: "Dairy makes me feel bloated, especially before presentations"
+      extraction: "pain_point('dairy bloating') → conflicts_with → solution('regular milk in coffee'), pain_point('dairy bloating') → occurs_in → circumstance('before presentations')"
+
+    solution_leads_to_job:
+      description: "Functional choice enables emotional outcome"
+      example: "I choose oat milk because it aligns with my values"
+      extraction: "solution('oat milk') → leads_to → job('feel environmentally responsible')"
+
+  extractability_criteria:
+    extractable_contains:
+      - "Goals or objectives the user wants to achieve"
+      - "Frustrations, pain points, or obstacles"
+      - "Positive outcomes or benefits they value"
+      - "Situational context (when, where, with whom)"
+      - "Current solutions or workarounds"
+      - "Emotions or social considerations related to choices"
+    non_extractable_contains:
+      - "Simple yes/no responses"
+      - "Acknowledgments ('okay', 'I see', 'right')"
+      - "Questions back to the interviewer"
+      - "Purely factual product descriptions without user context"
+      - "Irrelevant tangents"
+
+signals:
+  graph:
+    - graph.node_count
+    - graph.orphan_count
+    - graph.max_depth
+
+  llm:
+    - llm.response_depth
+    - llm.valence
+    - llm.certainty
+    - llm.specificity
+    - llm.engagement
+    # Note: llm.global_response_trend is session-scoped and managed separately
+
+  temporal:
+    - temporal.strategy_repetition_count
+    - temporal.turns_since_strategy_change
+
+  meta:
+    - meta.interview_progress
+    - meta.interview.phase
+
+strategies:
+  # Strategy 1: Explore the situation (elaboration)
+  - name: explore_situation
+    description: "Understand the context and circumstances around when jobs arise"
+    signal_weights:
+      # Global signals
+      llm.valence.mid: 0.5
+      temporal.strategy_repetition_count: -0.8  # Strong repetition penalty (was -0.5)
+      temporal.turns_since_strategy_change: -0.4  # Break strategy lock
+      # Engagement
+      llm.engagement.mid: 0.4               # Moderate engagement = breadth OK
+      # Response quality awareness — suppress exploration during declining quality
+      llm.global_response_trend.shallowing: -0.4  # Don't explore when answers declining
+      llm.global_response_trend.fatigued: -0.6    # Strongly suppress during fatigue
+      # Node-level signals (Phase 3) — reduced weights to prevent node dominance
+      graph.node.focus_streak.none: 0.6  # Fresh nodes (was 1.0)
+      graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.8)
+      graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.7)
+
+  # Strategy 2: Probe alternatives (probing)
+  - name: probe_alternatives
+    description: "Discover what other solutions or approaches the user has considered"
+    signal_weights:
+      # Global signals
+      llm.specificity.high: 0.4
+      # Engagement
+      llm.engagement.mid: 0.3               # Moderate engagement = probing OK
+      # Diversity
+      temporal.strategy_repetition_count: -0.3
+      # Node-level signals (Phase 3)
+      graph.node.is_orphan.true: 1.0  # Boost orphan nodes
+      graph.node.exhaustion_score.low: 0.6  # Avoid exhausted nodes
+
+  # Strategy 3: Dig into motivation (laddering)
+  - name: dig_motivation
+    description: "Probe deeper with 'why' questions to uncover underlying functional and emotional jobs"
+    signal_weights:
+      # Global signals — use actual category names (surface/shallow/moderate/deep)
+      llm.response_depth.surface: 0.5    # Surface answers → dig deeper
+      llm.response_depth.shallow: 0.4    # Shallow answers → dig deeper
+      llm.response_depth.moderate: 0.15  # Even moderate answers can benefit from deepening
+      graph.max_depth: -0.4
+      # Engagement & valence safety checks — mid-engagement now contributes
+      llm.engagement.high: 0.5              # Engaged = safe to dig deeper (was 0.7)
+      llm.engagement.mid: 0.3               # Moderate engagement = still OK to dig (NEW)
+      llm.engagement.low: -0.5              # Disengaged = avoid deepening
+      llm.valence.high: 0.4                 # Positive emotion = safe to probe
+      # Response quality trend — dig when quality is declining
+      llm.global_response_trend.shallowing: 0.4  # Shallow trend → try digging (NEW)
+      # Diversity
+      temporal.strategy_repetition_count: -0.3
+      # Node-level signals (Phase 3)
+      graph.node.exhaustion_score.low: 1.0  # Boost non-exhausted nodes
+      graph.node.focus_streak.low: 0.5  # Prefer fresh nodes
+
+  # Strategy 4: Validate outcome (validation)
+  - name: validate_outcome
+    description: "Confirm understanding and check if we've captured the most important aspects"
+    signal_weights:
+      # Global signals
+      meta.interview_progress: 0.6
+      graph.max_depth: 0.5
+      llm.response_depth.deep: 0.3       # Deep responses → validate
+      llm.response_depth.moderate: 0.2   # Moderate responses → validate
+      # Uncertainty/hedging triggers (Phase 5)
+      llm.certainty.low: 1.0  # Trigger on high uncertainty
+      llm.certainty.mid: 0.7  # Trigger on medium uncertainty
+      meta.node.opportunity.probe_deeper: 0.6  # Extraction opportunity
+      # Engagement trigger
+      llm.engagement.low: 0.6               # Low engagement = validate & wrap
+      # Diversity (lighter penalty — OK to repeat validation)
+      temporal.strategy_repetition_count: -0.2
+      # Node-level signals (Phase 3)
+      graph.node.has_outgoing.true: 0.8  # Well-connected nodes
+      graph.node.focus_streak.high: 0.5  # Often-focused nodes
+      technique.node.strategy_repetition.low: 0.3  # Avoid overusing same strategy
+
+  # Strategy 5: Revitalize engagement (elaboration) - Phase 5
+  - name: revitalize
+    description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
+    signal_weights:
+      # Fatigue detection triggers (Phase 5)
+      llm.global_response_trend.fatigued: 1.0  # Trigger on fatigue
+      llm.global_response_trend.shallowing: 0.5  # Prevent fatigue
+      meta.node.opportunity.exhausted: 0.3  # Try exhausted nodes with new angle
+      # Engagement & valence triggers — mid-engagement now contributes
+      llm.engagement.low: 0.8               # Low engagement = strong trigger (was 1.2)
+      llm.engagement.mid: 0.4               # Moderate engagement + fatigue = still revitalize (NEW)
+      llm.engagement.high: -0.4             # Already engaged = not needed
+      llm.valence.low: 0.5                  # Negative valence = shift gears
+      # Global signals - Strong penalty to prevent revitalization loops
+      temporal.strategy_repetition_count: -0.8
+      temporal.turns_since_strategy_change: -0.6  # Penalty for staying too long
+      # Node-level signals (Phase 3)
+      graph.node.focus_streak.none: 0.8  # Fresh nodes
+      graph.node.exhaustion_score.low: 0.5  # Avoid exhausted nodes
+
+  # Strategy 6: Uncover obstacles (probing)
+  - name: uncover_obstacles
+    description: "Identify pain points and frustrations that prevent jobs from being done well"
+    signal_weights:
+      # Global signals
+      llm.valence.low: 0.7
+      llm.valence.mid: 0.3                  # Neutral responses can also reveal obstacles (NEW)
+      llm.response_depth.moderate: 0.3      # Moderate answers about pains = probe more (NEW)
+      # Engagement
+      llm.engagement.mid: 0.4               # Moderate engagement = probing OK
+      # Diversity
+      temporal.strategy_repetition_count: -0.5  # Stronger repetition penalty
+      temporal.turns_since_strategy_change: -0.4  # Break strategy lock
+      # Node-level signals (Phase 3) — reduced to prevent node dominance
+      graph.node.is_orphan.true: 0.7  # Boost orphan nodes (was 1.0)
+      graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.7)
+      graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.6)
+
+phases:
+  early:
+    description: "Initial exploration, building graph structure"
+    phase_boundaries:
+      early_max_turns: 3
+      mid_max_turns: 10
+    signal_weights:
+      explore_situation: 1.5
+      probe_alternatives: 1.2
+      dig_motivation: 0.5
+      validate_outcome: 0.2
+      uncover_obstacles: 0.3
+    phase_bonuses:
+      explore_situation: 0.2  # Additive bonus to encourage exploration even with zero base score
+
+  mid:
+    description: "Building depth and connections"
+    phase_boundaries:
+      early_max_turns: 3
+      mid_max_turns: 10
+    signal_weights:
+      dig_motivation: 1.3
+      probe_alternatives: 1.0
+      uncover_obstacles: 1.0
+      revitalize: 1.0             # Explicit mid-phase weight (was missing)
+      explore_situation: 0.6      # Reduced from 0.8 — mid phase should deepen, not explore
+      validate_outcome: 0.5
+    phase_bonuses:
+      dig_motivation: 0.3  # Additive bonus to prioritize digging in mid-phase
+
+  late:
+    description: "Validation and verification"
+    phase_boundaries:
+      early_max_turns: 3
+      mid_max_turns: 10
+    signal_weights:
+      validate_outcome: 1.5
+      uncover_obstacles: 1.2
+      dig_motivation: 0.5
+      explore_situation: 0.3
+    phase_bonuses:
+      validate_outcome: 0.2  # Additive bonus to ensure validation gets selected

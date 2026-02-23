@@ -23,6 +23,7 @@ from src.core.concept_loader import load_concept
 def get_extraction_system_prompt(
     methodology: str = "means_end_chain",
     concept_id: Optional[str] = None,
+    concept_naming_convention: Optional[str] = None,
 ) -> str:
     """
     Get system prompt for concept/relationship extraction.
@@ -37,9 +38,10 @@ def get_extraction_system_prompt(
     # Load schema and get descriptions
     schema = load_methodology(methodology)
     node_descriptions = schema.get_node_descriptions()
-    edge_descriptions = schema.get_edge_descriptions()
+    edge_descriptions = schema.get_edge_descriptions_with_connections()
 
-    # Load concept elements for element linking
+    # Load concept elements for element linking (LEGACY - exploratory interviews don't use elements)
+    # For exploratory research, elements list is always empty, so this section is not added to prompt
     elements_section = ""
     if concept_id:
         try:
@@ -72,12 +74,17 @@ Important:
                 error=str(e),
             )
 
-    node_types_str = "\n".join(
-        f"  - {name}: {desc}" for name, desc in node_descriptions.items()
+    node_types_str = "\n".join(f"  - {name}: {desc}" for name, desc in node_descriptions.items())
+    edge_types_str = "\n".join(f"  - {name}: {desc}" for name, desc in edge_descriptions.items())
+
+    # Determine primary edge type for this methodology's conversational examples
+    # (avoids hardcoding MEC-specific "leads_to" which doesn't exist in JTBD etc.)
+    valid_edge_types = schema.get_valid_edge_types()
+    primary_edge_type = next(
+        (et for et in valid_edge_types if et != "revises"),
+        valid_edge_types[0] if valid_edge_types else "leads_to",
     )
-    edge_types_str = "\n".join(
-        f"  - {name}: {desc}" for name, desc in edge_descriptions.items()
-    )
+    edge_type_list = ", ".join(valid_edge_types)
 
     # Methodology-specific content from schema
     methodology_guidelines = schema.get_extraction_guidelines()
@@ -106,6 +113,12 @@ Extract: {example_spec.extraction}
 {examples_str}
 """
 
+    # Build naming convention instruction
+    if concept_naming_convention:
+        naming_instruction = f"{concept_naming_convention} The source_quote field captures the respondent's verbatim language."
+    else:
+        naming_instruction = "Name concepts concisely according to their node type. Use the node type descriptions and examples above as naming models. The source_quote field captures the respondent's verbatim language."
+
     return f"""You are an expert qualitative researcher extracting knowledge from interview responses.
 
 Your task is to identify concepts and relationships from the respondent's text that reveal their mental model about the product being discussed.
@@ -116,52 +129,41 @@ Your task is to identify concepts and relationships from the respondent's text t
 ## Valid Edge Types:
 {edge_types_str}
 
-## Stance Detection:
-For each concept, determine the respondent's stance:
-- +1 (positive): Respondent expresses liking, preference, agreement, or positive emotions
-- 0 (neutral): Respondent states facts or neutral observations without clear positive/negative sentiment
-- -1 (negative): Respondent expresses dislike, criticism, disagreement, or negative emotions
-
-Examples:
-- "I love how creamy it is" → stance: +1
-- "It mixes well" → stance: 0
-- "I hate the aftertaste" → stance: -1
 {elements_section}
 ## Universal Extraction Principles:
-1. Only extract concepts EXPLICITLY mentioned or clearly implied
-2. Use the respondent's own language for concept labels
+1. Only extract concepts EXPLICITLY mentioned or clearly implied. When multiple concepts co-occur in a response, create relationships between them using the methodology's edge types—even if the connection is implicit—with confidence proportional to your certainty.
+2. {naming_instruction}
 3. Classify each concept into the most appropriate node type
 4. Assign confidence based on how explicit the concept/relationship is
 5. Include the verbatim quote that supports each extraction
-6. Determine stance based on sentiment and emotional content
 
-## Conversational Implicit Relationships (CRITICAL for laddering interviews):
-When the interviewer asks a question and the respondent answers:
-- **Identify the topic in the interviewer's question** (e.g., "Why does X matter?")
-- **Extract the concept from the respondent's answer** (e.g., "Because it Y")
-- **Create a relationship from question topic → answer concept** (X leads_to Y)
-- Even if no explicit causal markers are present, the Q&A structure implies causality
-- Use the methodology's appropriate relationship type (usually "leads_to")
-- Set confidence slightly lower (0.7-0.8) since it's implicit, not explicit
+## Cross-Turn Relationship Bridging (CRITICAL):
+When creating relationships:
+- **Connect new concepts to existing ones**: If the context includes "[Existing graph concepts from previous turns]", reference those exact labels as source_text or target_text
+- **Bridge Q→A pairs**: When the interviewer asks about a topic and the respondent answers, create a relationship from the question topic → answer concept
+- **Do NOT re-extract existing concepts**: If a concept already exists in the graph, use its exact label in relationships but do not add it as a new concept
+- Use the methodology's appropriate relationship type (commonly "{primary_edge_type}")
+- Set confidence 0.7-0.8 for implicit connections, 0.85-1.0 for explicit ones
 
 Examples:
+- Existing concept: "morning routine"
+  Respondent: "That routine helps me stay focused at work"
+  → Extract new concept: "stay focused at work"
+  → Extract relationship: "morning routine" {primary_edge_type} "stay focused at work"
+  (References existing concept without re-extracting it)
+
 - Interviewer: "Why does that nice sensation matter?"
   Respondent: "It feels like a good start of the day"
-  → Extract relationship: "nice sensation" leads_to "good start of the day"
-
-- Interviewer: "What does having that uninterrupted time do for you?"
-  Respondent: "It helps me feel accomplished"
-  → Extract relationship: "uninterrupted time" leads_to "feel accomplished"
+  → Extract relationship: "nice sensation" {primary_edge_type} "good start of the day"
 {methodology_section}
 ## Output Format:
 Return valid JSON with this structure:
 {{
   "concepts": [
     {{
-      "text": "concept label in respondent's words",
+      "text": "concise concept label phrased according to its node type",
       "node_type": "one of the valid node types",
       "confidence": 0.0-1.0,
-      "stance": -1, 0, or 1,
       "source_quote": "verbatim text that supports this",
       "linked_elements": [1, 2]  // Array of element IDs this concept relates to (empty array if none)
     }}
@@ -170,16 +172,15 @@ Return valid JSON with this structure:
     {{
       "source_text": "source concept label",
       "target_text": "target concept label",
-      "relationship_type": "leads_to or revises",
+      "relationship_type": "one of: {edge_type_list}",
       "confidence": 0.0-1.0,
       "source_quote": "verbatim text showing relationship"
     }}
-  ],
-  "discourse_markers": ["because", "so", ...]
+  ]
 }}
 
 If the text contains no extractable concepts, return:
-{{"concepts": [], "relationships": [], "discourse_markers": []}}"""
+{{"concepts": [], "relationships": []}}"""
 
 
 def get_extraction_user_prompt(text: str, context: str = "") -> str:
@@ -218,9 +219,7 @@ def get_extractability_system_prompt(methodology: str = "means_end_chain") -> st
     criteria = schema.get_extractability_criteria()
 
     extractable_items = "\n".join(f"- {item}" for item in criteria.extractable_contains)
-    non_extractable_items = "\n".join(
-        f"- {item}" for item in criteria.non_extractable_contains
-    )
+    non_extractable_items = "\n".join(f"- {item}" for item in criteria.non_extractable_contains)
 
     return f"""You are assessing whether text contains extractable knowledge for a qualitative research interview ({methodology.replace("_", " ")}).
 
@@ -250,38 +249,94 @@ def get_extractability_user_prompt(text: str) -> str:
     return f'Is this utterance extractable?\n\n"{text}"'
 
 
+def _strip_markdown_fences(text: str) -> str:
+    """Strip markdown code fences from LLM response."""
+    text = text.strip()
+    if text.startswith("```json"):
+        text = text[7:]
+    elif text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    return text.strip()
+
+
+def _repair_json(text: str) -> str:
+    """Attempt to repair common LLM JSON generation errors.
+
+    Handles three frequent failure modes:
+    1. Missing commas between properties ("key": value "key2": value2)
+    2. Trailing commas before closing brackets ([...,] or {...,})
+    3. Truncated JSON (incomplete closing brackets/braces)
+    """
+    import re
+
+    # Fix 1: Missing commas between properties/elements
+    # Pattern: "value" "key" or number "key" (missing comma between them)
+    # e.g. "confidence": 0.9 "source_quote": "..."
+    text = re.sub(r"(\")\s*\n\s*(\")", r"\1,\n\2", text)
+    text = re.sub(r"(\d)\s*\n\s*(\")", r"\1,\n\2", text)
+    text = re.sub(r"(true|false|null)\s*\n\s*(\")", r"\1,\n\2", text)
+    # Also handle same-line missing commas: "value" "key"
+    text = re.sub(r'(\")\s+(\"[a-z_]+"?\s*:)', r"\1, \2", text)
+    text = re.sub(r'(\d)\s+(\"[a-z_]+"?\s*:)', r"\1, \2", text)
+    # Fix missing comma between array elements: } {
+    text = re.sub(r"(\})\s*\n\s*(\{)", r"\1,\n\2", text)
+    # Fix missing comma after ] or } before "key":
+    text = re.sub(r'(\]|\})\s*\n\s*(\"[a-z_]+"?\s*:)', r"\1,\n\2", text)
+
+    # Fix 2: Trailing commas before closing brackets
+    text = re.sub(r",\s*\]", "]", text)
+    text = re.sub(r",\s*\}", "}", text)
+
+    # Fix 3: Truncated JSON — balance brackets/braces
+    open_braces = text.count("{") - text.count("}")
+    open_brackets = text.count("[") - text.count("]")
+    if open_braces > 0 or open_brackets > 0:
+        # Try to close unclosed structures
+        text = text.rstrip().rstrip(",")
+        text += "]" * open_brackets + "}" * open_braces
+
+    return text
+
+
 def parse_extraction_response(response_text: str) -> Dict[str, Any]:
     """
     Parse LLM extraction response into structured data.
+
+    Includes repair logic for common LLM JSON generation errors:
+    missing commas, trailing commas, and truncated responses.
 
     Args:
         response_text: Raw LLM response (should be JSON)
 
     Returns:
-        Parsed dict with concepts, relationships, discourse_markers
+        Parsed dict with concepts, relationships
 
     Raises:
-        ValueError: If response is not valid JSON
+        ValueError: If response is not valid JSON even after repair
     """
     import json
 
-    # Try to extract JSON from response (handle markdown code blocks)
-    text = response_text.strip()
+    text = _strip_markdown_fences(response_text)
 
-    # Remove markdown code block if present
-    if text.startswith("```json"):
-        text = text[7:]
-    if text.startswith("```"):
-        text = text[3:]
-    if text.endswith("```"):
-        text = text[:-3]
-
-    text = text.strip()
-
+    # Try strict parse first
     try:
         data = json.loads(text)
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON in extraction response: {e}")
+    except json.JSONDecodeError:
+        # Attempt repair and retry
+        repaired = _repair_json(text)
+        try:
+            data = json.loads(repaired)
+            import structlog
+
+            structlog.get_logger(__name__).warning(
+                "extraction_json_repaired",
+                original_length=len(text),
+                repaired_length=len(repaired),
+            )
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in extraction response: {e}")
 
     # Validate structure
     if not isinstance(data, dict):
@@ -291,7 +346,6 @@ def parse_extraction_response(response_text: str) -> Dict[str, Any]:
     return {
         "concepts": data.get("concepts", []),
         "relationships": data.get("relationships", []),
-        "discourse_markers": data.get("discourse_markers", []),
     }
 
 

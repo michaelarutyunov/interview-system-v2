@@ -15,6 +15,10 @@ from src.api.schemas import (
     SimulationResponse,
     SimulationTurnSchema,
 )
+from src.api.dependencies import (
+    get_shared_extraction_client,
+    get_shared_generation_client,
+)
 from src.core.config import settings
 from src.persistence.database import get_db
 from src.persistence.repositories.session_repo import SessionRepository
@@ -33,22 +37,20 @@ router = APIRouter(prefix="/simulation", tags=["simulation"])
 async def get_simulation_service(
     db: aiosqlite.Connection = Depends(get_db),
 ) -> SimulationService:
-    """
-    Create SimulationService with dependencies.
+    """FastAPI dependency injection for SimulationService.
 
-    Args:
-        db: Database connection
-
-    Returns:
-        SimulationService instance
+    Creates a service instance with SessionService and LLM clients for
+    AI-to-AI interview simulation and testing.
     """
     session_repo = SessionRepository(str(settings.database_path))
     graph_repo = GraphRepository(db)
 
-    # Create session service
+    # Create session service with LLM clients
     session_service = SessionService(
         session_repo=session_repo,
         graph_repo=graph_repo,
+        extraction_llm_client=get_shared_extraction_client(),
+        generation_llm_client=get_shared_generation_client(),
     )
 
     # Create simulation service (synthetic service will be created internally)
@@ -133,6 +135,10 @@ async def simulate_interview(
                     strategy_selected=t.strategy_selected,
                     should_continue=t.should_continue,
                     latency_ms=t.latency_ms,
+                    # Enhanced diagnostics for observability
+                    signals=t.signals,
+                    strategy_alternatives=t.strategy_alternatives,
+                    termination_reason=t.termination_reason,
                 )
                 for t in result.turns
             ],

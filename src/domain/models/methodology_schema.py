@@ -40,10 +40,22 @@ class EdgeTypeSpec(BaseModel):
 
 
 class OntologySpec(BaseModel):
-    """Ontology specification containing nodes and edges."""
+    """Ontology specification containing nodes, edges, and extraction metadata.
+
+    In YAML, extraction_guidelines, relationship_examples, extractability_criteria,
+    and concept_naming_convention are nested under ontology:, so they live here.
+    """
+
+    model_config = ConfigDict(extra="ignore")
 
     nodes: List[NodeTypeSpec] = Field(description="Node type definitions")
     edges: List[EdgeTypeSpec] = Field(description="Edge type definitions")
+
+    # Methodology-specific extraction sections (nested under ontology: in YAML)
+    extraction_guidelines: Optional[List[str]] = None
+    relationship_examples: Optional[Dict[str, Any]] = None
+    extractability_criteria: Optional[Dict[str, Any]] = None
+    concept_naming_convention: Optional[str] = None
 
 
 class RelationshipExampleSpec(BaseModel):
@@ -90,6 +102,10 @@ class MethodologySchema(BaseModel):
     extraction_guidelines: Optional[List[str]] = None
     relationship_examples: Optional[Dict[str, RelationshipExampleSpec]] = None
     extractability_criteria: Optional[ExtractabilityCriteriaSpec] = None
+    concept_naming_convention: Optional[str] = Field(
+        default=None,
+        description="Methodology-specific instruction for how to name extracted concepts",
+    )
 
     # Built on load (not in YAML)
     _node_names: Set[str] = PrivateAttr(default_factory=set)
@@ -164,9 +180,7 @@ class MethodologySchema(BaseModel):
                     return nt.terminal
         return None
 
-    def is_valid_connection(
-        self, edge_type: str, source_type: str, target_type: str
-    ) -> bool:
+    def is_valid_connection(self, edge_type: str, source_type: str, target_type: str) -> bool:
         """Check if edge_type allows source_type → target_type.
 
         Args:
@@ -190,9 +204,7 @@ class MethodologySchema(BaseModel):
                     else:
                         continue
 
-                    if (src == "*" or src == source_type) and (
-                        tgt == "*" or tgt == target_type
-                    ):
+                    if (src == "*" or src == source_type) and (tgt == "*" or tgt == target_type):
                         return True
         return False
 
@@ -207,9 +219,7 @@ class MethodologySchema(BaseModel):
             for nt in self.ontology.nodes:
                 examples = ", ".join(f"'{e}'" for e in nt.examples[:3])
                 result[nt.name] = (
-                    f"{nt.description} (e.g., {examples})"
-                    if examples
-                    else nt.description
+                    f"{nt.description} (e.g., {examples})" if examples else nt.description
                 )
         return result
 
@@ -224,26 +234,81 @@ class MethodologySchema(BaseModel):
             result = {et.name: et.description for et in self.ontology.edges}
         return result
 
+    def get_edge_descriptions_with_connections(self) -> Dict[str, str]:
+        """For LLM prompt: {name: "description (valid: source→target, ...)"}.
+
+        Includes permitted connections so the LLM knows which node-type pairs
+        are valid for each edge type, reducing silent edge rejection.
+
+        Returns:
+            Dictionary mapping edge type names to descriptions with valid connections
+        """
+        result = {}
+        if self.ontology:
+            for et in self.ontology.edges:
+                connections = []
+                if et.permitted_connections:
+                    for conn in et.permitted_connections:
+                        if isinstance(conn, EdgeConnectionSpec):
+                            connections.append(f"{conn.from_}→{conn.to}")
+                        elif isinstance(conn, list):
+                            connections.append(f"{conn[0]}→{conn[1]}")
+                conn_str = f" (valid: {', '.join(connections)})" if connections else ""
+                result[et.name] = f"{et.description}{conn_str}"
+        return result
+
     def get_extraction_guidelines(self) -> List[str]:
         """Get methodology-specific extraction guidelines.
+
+        Reads from ontology (where YAML nests these fields), falls back to top-level.
 
         Returns:
             List of guideline strings, or empty list if not defined
         """
+        if self.ontology and self.ontology.extraction_guidelines:
+            return self.ontology.extraction_guidelines
         return self.extraction_guidelines or []
+
+    def get_concept_naming_convention(self) -> Optional[str]:
+        """Get methodology-specific concept naming convention for extraction prompts.
+
+        Reads from ontology (where YAML nests this field), falls back to top-level.
+        """
+        if self.ontology and self.ontology.concept_naming_convention:
+            return self.ontology.concept_naming_convention
+        return self.concept_naming_convention
 
     def get_relationship_examples(self) -> Dict[str, RelationshipExampleSpec]:
         """Get methodology-specific relationship extraction examples.
 
+        Reads from ontology (where YAML nests these fields), falls back to top-level.
+
         Returns:
             Dictionary of example name to spec, or empty dict if not defined
         """
+        if self.ontology and self.ontology.relationship_examples:
+            # Parse raw dicts into RelationshipExampleSpec objects
+            result = {}
+            for name, data in self.ontology.relationship_examples.items():
+                if isinstance(data, dict):
+                    result[name] = RelationshipExampleSpec(**data)
+                elif isinstance(data, RelationshipExampleSpec):
+                    result[name] = data
+            return result
         return self.relationship_examples or {}
 
     def get_extractability_criteria(self) -> ExtractabilityCriteriaSpec:
         """Get extractability criteria for this methodology.
 
+        Reads from ontology (where YAML nests these fields), falls back to top-level.
+
         Returns:
             ExtractabilityCriteriaSpec, or empty spec if not defined
         """
+        if self.ontology and self.ontology.extractability_criteria:
+            raw = self.ontology.extractability_criteria
+            if isinstance(raw, dict):
+                return ExtractabilityCriteriaSpec(**raw)
+            elif isinstance(raw, ExtractabilityCriteriaSpec):
+                return raw
         return self.extractability_criteria or ExtractabilityCriteriaSpec()

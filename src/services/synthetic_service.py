@@ -17,7 +17,6 @@ from src.llm.prompts.synthetic import (
     get_synthetic_system_prompt_with_deflection,
     get_synthetic_user_prompt,
     parse_synthetic_response,
-    PERSONAS,
 )
 
 
@@ -77,8 +76,7 @@ class SyntheticService:
         available_personas = get_available_personas()
         if persona not in available_personas:
             raise ValueError(
-                f"Unknown persona: {persona}. "
-                f"Available: {', '.join(available_personas.keys())}"
+                f"Unknown persona: {persona}. Available: {', '.join(available_personas.keys())}"
             )
 
         # Extract previous concepts from graph state
@@ -115,7 +113,7 @@ class SyntheticService:
         return {
             "response": response,
             "persona": persona,
-            "persona_name": PERSONAS[persona]["name"],
+            "persona_name": get_available_personas()[persona],
             "question": question,
             "latency_ms": llm_response.latency_ms,
             "tokens_used": llm_response.usage,

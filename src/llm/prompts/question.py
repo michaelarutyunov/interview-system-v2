@@ -39,16 +39,12 @@ def get_question_system_prompt(
     """
     # Load strategy from methodology config
     methodology_name = (
-        methodology.method["name"]
-        if methodology and methodology.method
-        else "means_end_chain"
+        methodology.method["name"] if methodology and methodology.method else "means_end_chain"
     )
     registry = get_registry()
     try:
         config = registry.get_methodology(methodology_name)
-        strategy_config = next(
-            (s for s in config.strategies if s.name == strategy), None
-        )
+        strategy_config = next((s for s in config.strategies if s.name == strategy), None)
         if strategy_config:
             strat_name = strategy.replace("_", " ").title()
             strat_description = strategy_config.description
@@ -182,16 +178,12 @@ def get_question_user_prompt(
     # Add focus and strategy
     # Load strategy description from methodology config
     methodology_name = (
-        methodology.method["name"]
-        if methodology and methodology.method
-        else "means_end_chain"
+        methodology.method["name"] if methodology and methodology.method else "means_end_chain"
     )
     registry = get_registry()
     try:
         config = registry.get_methodology(methodology_name)
-        strategy_config = next(
-            (s for s in config.strategies if s.name == strategy), None
-        )
+        strategy_config = next((s for s in config.strategies if s.name == strategy), None)
         if strategy_config:
             strat_name = strategy.replace("_", " ").title()
             strat_description = strategy_config.description
@@ -242,38 +234,27 @@ def _build_strategy_rationale(signals: Dict[str, Any], strategy: str) -> str:
         elif depth >= 4:
             rationale_parts.append("- High depth indicates we've reached deep values")
 
-    if "graph.chain_completion.has_complete_chain" in signals:
-        has_chain = signals["graph.chain_completion.has_complete_chain"]
+    if "graph.chain_completion.has_complete" in signals:
+        has_chain = signals["graph.chain_completion.has_complete"]
         if not has_chain:
-            rationale_parts.append(
-                "- No complete chains exist - need to reach terminal values"
-            )
+            rationale_parts.append("- No complete chains exist - need to reach terminal values")
 
     if "llm.response_depth" in signals:
         resp_depth = signals["llm.response_depth"]
         if resp_depth == "surface":
-            rationale_parts.append(
-                "- Surface-level response suggests need for deeper probing"
-            )
+            rationale_parts.append("- Surface-level response suggests need for deeper probing")
         elif resp_depth == "deep":
             rationale_parts.append("- Deep response indicates strong engagement")
 
     if "llm.hedging_language" in signals:
         hedging = signals["llm.hedging_language"]
         if hedging in ["medium", "high"]:
-            rationale_parts.append(
-                f"- Hedging language ({hedging}) suggests uncertainty"
-            )
+            rationale_parts.append(f"- Hedging language ({hedging}) suggests uncertainty")
         elif hedging in ["none", "low"]:
             rationale_parts.append("- Confident response with low uncertainty")
 
-    # Strategy-specific rationale
-    if strategy == "deepen":
-        rationale_parts.append("- Strategy: deepen to probe motivations and values")
-    elif strategy == "broaden":
-        rationale_parts.append("- Strategy: broaden to explore new areas")
-    elif strategy == "clarify":
-        rationale_parts.append("- Strategy: clarify to resolve uncertainty")
+    # Strategy rationale (description already in system/user prompt from YAML)
+    rationale_parts.append(f"- Strategy: {strategy}")
 
     if not rationale_parts:
         return f"Selected {strategy} strategy based on current state"
@@ -345,9 +326,7 @@ def get_opening_question_user_prompt(
 
     name = method_info.get("name", "qualitative interview")
     goal = method_info.get("goal", "understand user experiences")
-    opening_bias = method_info.get(
-        "opening_bias", "Elicit concrete, experience-based responses."
-    )
+    opening_bias = method_info.get("opening_bias", "Elicit concrete, experience-based responses.")
 
     return f"""You are an experienced qualitative moderator starting an in-depth interview.
 

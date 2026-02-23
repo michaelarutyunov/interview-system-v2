@@ -59,8 +59,10 @@ Accepted | Proposed | Deprecated | Superseded by [ADR-YYY]
 | [013](0013-methodology-centric-architecture.md) | Methodology-Centric Architecture Refactoring | **Accepted** | 2026-01-28 |
 | [014](ADR-014-signal-pools-architecture.md) | Signal Pools Architecture | **Accepted** | 2025-01-28 |
 | [015](ADR-015-node-exhaustion-backtracking.md) | Node Exhaustion and Backtracking System | **Accepted** | 2026-01-29 |
+| [016](016-pure-node-count-phase-detection.md) | Pure Node-Count Phase Detection | **Accepted** | 2026-02-04 |
+| [017](017-strategy-weight-calibration.md) | Strategy Weight Calibration for Phase Balance | **Accepted** | 2026-02-04 |
 
-**Note**: ADR numbering collisions (008a/b, 010a/b) occurred due to parallel development. Future ADRs will use sequential numbering starting from 012.
+**Note**: ADR numbering collisions (008a/b, 010a/b) occurred due to parallel development. Future ADRs will use sequential numbering starting from 018.
 
 **Superseded ADRs:**
 - ADR-004 (Two-Tier Scoring System): Superseded by ADR-013 (Methodology-Centric Architecture) and ADR-014 (Signal Pools Architecture)

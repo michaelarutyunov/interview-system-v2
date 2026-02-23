@@ -261,6 +261,20 @@ curl -X POST /api/sessions -d '{"concept_id": "coffee_jtbd_v2"}'
 
 All changes passed `ruff check` and were pushed to `master` branch.
 
+## Updates
+
+### 2026-02-03: Technical Debt Resolved (at0)
+
+**Commit**: `413a077` - "fix: make methodology a required parameter for ExtractionService (at0)"
+
+The temporary default "means_end_chain" technical debt has been resolved:
+- `ExtractionService.__init__()` now **requires** `methodology: str` parameter
+- Removed `Optional[str]` with default and warning logic
+- Updated all callers to explicitly pass methodology from session context
+- Forces early validation at service creation rather than runtime
+
+**Status**: Technical debt item #1 from "Negative" consequences is now resolved.
+
 ## References
 
 - [ADR-007: YAML-based Methodology Schema](./007-yaml-based-methodology-schema.md) - Methodology system

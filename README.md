@@ -358,11 +358,14 @@ The system uses a layered architecture with pipeline pattern for turn processing
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                   │
 │  ┌─────────────────────────────────────────────────────────────┐ │
-│ │              Turn Pipeline Architecture (10 stages)            │ │
+│ │         Turn Pipeline Architecture (12 stages: 10 base + 2 optional)   │ │
 │  │  1. ContextLoading → 2. UtteranceSaving → 3. Extraction     │ │
 │  │  4. GraphUpdate → 5. StateComputation → 6. StrategySelection│ │
 │  │  7. Continuation → 8. QuestionGeneration → 9. ResponseSaving │ │
-│  │  10. ScoringPersistence                                       │ │
+│  │  10. ScoringPersistence                                    │ │
+│  │                                                                  │ │
+│  │  Optional stages (feature-controlled):                       │ │
+│  │  2.5. SRLPreprocessing → 4.5. SlotDiscovery              │ │
 │  └─────────────────────────────────────────────────────────────┘ │
 │                                                                   │
 │  ┌─────────────────────────────────────────────────────────────┐ │
@@ -397,7 +400,7 @@ The system uses a layered architecture with pipeline pattern for turn processing
 
 ### Key Components
 
-- **Turn Pipeline**: 10 modular stages for processing each respondent turn
+- **Turn Pipeline**: 12 modular stages (10 base + 2 optional: SRLPreprocessing, SlotDiscovery) for processing each respondent turn
 - **Signal Pools**: 5 signal pools (Graph, LLM, Temporal, Meta, Technique) for comprehensive context
 - **MethodologyStrategyService**: Strategy selection using YAML configs and signal detection
 - **NodeStateTracker**: Tracks node visitation, yields, and exhaustion for backtracking
@@ -431,7 +434,7 @@ strategies:
     signal_weights:
       graph.max_depth.low: 2.0
       llm.response_depth.surface: 1.5
-    focus_preference: deep
+    # Focus selection uses joint strategy-node scoring
     technique: deepen
 
 phases:

@@ -10,7 +10,38 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.methodologies.signals.registry import ComposedSignalDetector
+    from src.signals.signal_registry import ComposedSignalDetector
+
+# Signal weight prefixes that are valid but not in the main signal registry.
+# These are session-scoped signals managed separately (e.g., in
+# MethodologyStrategyService) rather than through ComposedSignalDetector.
+EXTRA_SIGNAL_WEIGHT_PREFIXES = frozenset({"llm.global_response_trend"})
+
+# Valid values for StrategyConfig.focus_mode
+VALID_FOCUS_MODES = frozenset({"recent_node", "summary", "topic"})
+
+
+def _is_valid_signal_weight_key(key: str, known_signals: set[str]) -> bool:
+    """Check if a signal weight key has a valid signal prefix.
+
+    Signal weight keys can be:
+    - Exact signal name: "graph.max_depth"
+    - Compound key: "llm.response_depth.surface" (base signal + value qualifier)
+    - Deep compound: "graph.chain_completion.has_complete.false"
+
+    Tries progressively shorter prefixes until one matches a known signal
+    or an allowed extra prefix.
+    """
+    if key in known_signals or key in EXTRA_SIGNAL_WEIGHT_PREFIXES:
+        return True
+
+    parts = key.split(".")
+    for i in range(len(parts) - 1, 0, -1):
+        prefix = ".".join(parts[:i])
+        if prefix in known_signals or prefix in EXTRA_SIGNAL_WEIGHT_PREFIXES:
+            return True
+
+    return False
 
 
 @dataclass
@@ -25,6 +56,7 @@ class PhaseConfig:
     description: str
     signal_weights: dict[str, float]  # strategy_name -> multiplier
     phase_bonuses: dict[str, float]  # strategy_name -> additive bonus
+    phase_boundaries: dict[str, int] | None = None  # phase_boundary_key -> value
 
 
 @dataclass
@@ -36,7 +68,6 @@ class MethodologyConfig:
     signals: dict[str, list[str]]  # graph, llm, temporal, meta
     strategies: list["StrategyConfig"]  # List of strategy definitions
     phases: dict[str, PhaseConfig] | None = None  # phase_name -> config
-    signal_norms: dict[str, float] | None = None  # signal_key -> max_expected
 
 
 @dataclass
@@ -45,17 +76,16 @@ class StrategyConfig:
 
     name: str
     description: str
-    technique: str
     signal_weights: dict[str, float]
+    generates_closing_question: bool = False
+    focus_mode: str = "recent_node"
 
 
 class MethodologyRegistry:
     """Registry for loading methodology configurations from YAML.
 
-    Replaces the old folder-per-methodology approach with:
-    - YAML configs for methodology definitions
-    - Composed signal detectors from shared pools
-    - Technique instances referenced by name
+    Loads methodology definitions from YAML configs and creates
+    composed signal detectors with signal pools.
 
     Example:
         registry = MethodologyRegistry()
@@ -88,7 +118,7 @@ class MethodologyRegistry:
             MethodologyConfig with signals and strategies
 
         Raises:
-            ValueError: If methodology config not found
+            ValueError: If methodology config not found or validation fails
         """
         if name in self._cache:
             return self._cache[name]
@@ -100,20 +130,7 @@ class MethodologyRegistry:
         with open(config_path) as f:
             data = yaml.safe_load(f)
 
-        # Handle both new unified format and legacy format
-        # New format has 'method' key at top level
-        # Legacy format has 'methodology' key at top level
-        if "method" in data:
-            # New unified format
-            method_data = data["method"]
-        elif "methodology" in data:
-            # Legacy format
-            method_data = data["methodology"]
-        else:
-            raise ValueError(
-                f"Invalid methodology config format: {config_path}. "
-                "Expected 'method' or 'methodology' key."
-            )
+        method_data = data["method"]
 
         # Load phases if present
         phases = None
@@ -125,13 +142,8 @@ class MethodologyRegistry:
                     description=phase_data.get("description", ""),
                     signal_weights=phase_data.get("signal_weights", {}),
                     phase_bonuses=phase_data.get("phase_bonuses", {}),
+                    phase_boundaries=phase_data.get("phase_boundaries"),
                 )
-
-        # Load signal_norms if present
-        raw_norms = data.get("signal_norms", None)
-        signal_norms = (
-            {k: float(v) for k, v in raw_norms.items()} if raw_norms else None
-        )
 
         config = MethodologyConfig(
             name=method_data["name"],
@@ -141,26 +153,89 @@ class MethodologyRegistry:
                 StrategyConfig(
                     name=s["name"],
                     description=s.get("description", ""),
-                    technique=s["technique"],
                     signal_weights=s["signal_weights"],
+                    generates_closing_question=s.get("generates_closing_question", False),
+                    focus_mode=s.get("focus_mode", "recent_node"),
                 )
                 for s in data.get("strategies", [])
             ],
             phases=phases,
-            signal_norms=signal_norms,
         )
+
+        self._validate_config(config, config_path)
 
         self._cache[name] = config
         return config
+
+    def _validate_config(self, config: MethodologyConfig, config_path: Path) -> None:
+        """Validate methodology config against known signals and techniques.
+
+        Collects all errors and raises a single ValueError listing them all.
+        """
+        from src.signals.signal_registry import ComposedSignalDetector
+
+        errors: list[str] = []
+        known_signals = ComposedSignalDetector.get_known_signal_names()
+
+        # Collect defined strategy names
+        strategy_names: set[str] = set()
+
+        # 1. Validate signals in signals: dict
+        for pool_name, signal_list in config.signals.items():
+            for signal_name in signal_list:
+                if signal_name not in known_signals:
+                    errors.append(f"signals.{pool_name}: unknown signal '{signal_name}'")
+
+        # 2. Validate strategies
+        for i, strategy in enumerate(config.strategies):
+            if strategy.name in strategy_names:
+                errors.append(f"strategies[{i}]: duplicate strategy name '{strategy.name}'")
+            strategy_names.add(strategy.name)
+
+            if strategy.focus_mode not in VALID_FOCUS_MODES:
+                errors.append(
+                    f"strategies[{i}] '{strategy.name}': "
+                    f"invalid focus_mode '{strategy.focus_mode}' "
+                    f"(valid: {sorted(VALID_FOCUS_MODES)})"
+                )
+
+            for weight_key in strategy.signal_weights:
+                if not _is_valid_signal_weight_key(weight_key, known_signals):
+                    errors.append(
+                        f"strategies[{i}] '{strategy.name}': "
+                        f"unknown signal weight key '{weight_key}'"
+                    )
+
+        # 3. Validate phases reference defined strategies
+        if config.phases:
+            for phase_name, phase_config in config.phases.items():
+                for key in phase_config.signal_weights:
+                    if key not in strategy_names:
+                        errors.append(
+                            f"phases.{phase_name}.signal_weights: "
+                            f"unknown strategy '{key}' "
+                            f"(defined: {sorted(strategy_names)})"
+                        )
+                for key in phase_config.phase_bonuses:
+                    if key not in strategy_names:
+                        errors.append(
+                            f"phases.{phase_name}.phase_bonuses: "
+                            f"unknown strategy '{key}' "
+                            f"(defined: {sorted(strategy_names)})"
+                        )
+
+        if errors:
+            error_list = "\n  - ".join(errors)
+            raise ValueError(
+                f"Methodology config validation failed for '{config_path.name}':\n  - {error_list}"
+            )
 
     def list_methodologies(self) -> list[str]:
         """List all available methodology names."""
         yaml_files = list(self.config_dir.glob("*.yaml"))
         return [f.stem for f in yaml_files if f.stem != "schema"]
 
-    def create_signal_detector(
-        self, config: MethodologyConfig
-    ) -> "ComposedSignalDetector":
+    def create_signal_detector(self, config: MethodologyConfig) -> "ComposedSignalDetector":
         """Create a composed signal detector for a methodology.
 
         Instantiates all signal detectors from the methodology config.
@@ -171,7 +246,7 @@ class MethodologyRegistry:
         Returns:
             ComposedSignalDetector that detects all methodology signals
         """
-        from src.methodologies.signals.registry import ComposedSignalDetector
+        from src.signals.signal_registry import ComposedSignalDetector
 
         # Collect all signal names from all pools
         signal_names: list[str] = []
@@ -179,35 +254,3 @@ class MethodologyRegistry:
             signal_names.extend(pool_signals)
 
         return ComposedSignalDetector(signal_names)
-
-    def get_technique(self, technique_name: str):
-        """Get a technique instance by name.
-
-        Args:
-            technique_name: Name of technique (e.g., "laddering")
-
-        Returns:
-            Technique instance
-
-        Raises:
-            ValueError: If technique not found
-        """
-        from src.methodologies.techniques import (
-            LadderingTechnique,
-            ElaborationTechnique,
-            ProbingTechnique,
-            ValidationTechnique,
-        )
-
-        techniques = {
-            "laddering": LadderingTechnique,
-            "elaboration": ElaborationTechnique,
-            "probing": ProbingTechnique,
-            "validation": ValidationTechnique,
-        }
-
-        technique_class = techniques.get(technique_name)
-        if not technique_class:
-            raise ValueError(f"Unknown technique: {technique_name}")
-
-        return technique_class()

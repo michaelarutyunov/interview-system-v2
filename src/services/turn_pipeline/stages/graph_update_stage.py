@@ -1,9 +1,9 @@
 """
 Stage 4: Update knowledge graph.
 
-ADR-008 Phase 3: Add extracted concepts and relationships to the graph.
-Phase 6: Output GraphUpdateOutput contract.
-Phase 7: Integrate NodeStateTracker for per-node state tracking.
+Adds extracted concepts and relationships to the graph. Outputs
+GraphUpdateOutput contract. Integrates with NodeStateTracker for
+per-node state tracking.
 """
 
 from typing import TYPE_CHECKING
@@ -13,6 +13,7 @@ import structlog
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import GraphUpdateOutput
 from src.services.node_state_tracker import GraphChangeSummary
+from src.services.graph_service import GraphService
 
 
 if TYPE_CHECKING:
@@ -27,7 +28,7 @@ class GraphUpdateStage(TurnStage):
     Populates PipelineContext.nodes_added and PipelineContext.edges_added.
     """
 
-    def __init__(self, graph_service):
+    def __init__(self, graph_service: GraphService):
         """
         Initialize stage.
 
@@ -51,20 +52,28 @@ class GraphUpdateStage(TurnStage):
         Returns:
             Modified context with nodes_added and edges_added
         """
-        if not context.extraction:
-            log.warning("no_extraction_to_add", session_id=context.session_id)
-            return context
-
-        if not context.user_utterance:
-            log.warning(
-                "no_user_utterance_for_graph_update", session_id=context.session_id
+        # Validate Stage 2 (UtteranceSavingStage) completed first
+        if context.utterance_saving_output is None:
+            raise RuntimeError(
+                "Pipeline contract violation: GraphUpdateStage (Stage 4) requires "
+                "UtteranceSavingStage (Stage 2) to complete first."
             )
-            return context
+
+        # Validate Stage 3 (ExtractionStage) completed first
+        if context.extraction_output is None:
+            raise RuntimeError(
+                "Pipeline contract violation: GraphUpdateStage (Stage 4) requires "
+                "ExtractionStage (Stage 3) to complete first."
+            )
+
+        # Get extraction and utterance from contract outputs
+        extraction = context.extraction_output.extraction
+        utterance_id = context.utterance_saving_output.user_utterance.id
 
         nodes, edges = await self.graph.add_extraction_to_graph(
             session_id=context.session_id,
-            extraction=context.extraction,
-            utterance_id=context.user_utterance.id,
+            extraction=extraction,
+            utterance_id=utterance_id,
         )
 
         # Convert edges to dicts for contract output
@@ -74,7 +83,7 @@ class GraphUpdateStage(TurnStage):
             if hasattr(edge, "model_dump"):
                 edges_as_dicts.append(edge.model_dump())
             elif hasattr(edge, "to_dict"):
-                edges_as_dicts.append(edge.to_dict())
+                edges_as_dicts.append(edge.to_dict())  # type: ignore[attr-defined]
             elif isinstance(edge, dict):
                 edges_as_dicts.append(edge)
             else:

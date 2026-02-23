@@ -162,6 +162,18 @@ extractability_criteria:
     - "Second-hand stories ('my friend said...')"
     - "Factual product descriptions without personal experience"
 
+  concept_naming_convention: >
+    Name each concept according to its role in the critical incident:
+    incidents as specific memorable events or experiences,
+    situations as contextual circumstances,
+    actions as concrete behaviors taken,
+    outcomes as results or consequences of actions,
+    emotions as emotional responses or feelings,
+    attributions as perceived causes or explanations,
+    learnings as insights or takeaways,
+    behavior_changes as subsequent changes in behavior.
+    Use the examples in each node type description as naming models.
+
 signals:
   graph:
     - graph.node_count
@@ -170,8 +182,10 @@ signals:
 
   llm:
     - llm.response_depth
-    - llm.sentiment
-    - llm.uncertainty
+    - llm.valence
+    - llm.certainty
+    - llm.specificity
+    - llm.engagement
 
   temporal:
     - temporal.strategy_repetition_count
@@ -180,56 +194,42 @@ signals:
   meta:
     - meta.interview_progress
     - meta.interview.phase
-
-signal_norms:
-  graph.node_count: 30
-  graph.edge_count: 60
-  graph.orphan_count: 15
-  graph.max_depth: 6
-  temporal.strategy_repetition_count: 5
-  temporal.turns_since_strategy_change: 5
+    - meta.conversation.saturation
+    - meta.canonical.saturation
 
 strategies:
   - name: explore_incident
     description: "Explore the incident details - what happened, when, where"
-    technique: probing
     signal_weights:
-      llm.uncertainty: 0.5
-      graph.orphan_count: 0.7
+      llm.certainty.low: 0.5
+      graph.node.is_orphan.true: 0.7
       temporal.strategy_repetition_count: 0.6
 
   - name: explore_outcomes
     description: "Understand what happened as a result and why it mattered"
-    technique: probing
     signal_weights:
-      llm.response_depth.surface: 0.8
-      graph.node_count: 0.5
+      llm.response_depth.low: 0.8
 
   - name: explore_emotions
     description: "Understand the emotional response and feelings"
-    technique: elaboration
     signal_weights:
-      llm.sentiment.positive: 0.7
-      llm.sentiment.negative: 0.7
-      llm.response_depth.moderate: 0.5
+      llm.valence.high: 0.7
+      llm.valence.low: 0.7
+      llm.response_depth.mid: 0.5
 
   - name: explore_attributions
     description: "Understand what they believe caused the outcome"
-    technique: probing
     signal_weights:
-      graph.node_count: 0.6
-      llm.response_depth.moderate: 0.7
+      llm.response_depth.mid: 0.7
 
   - name: explore_learnings
     description: "Identify insights and how they changed understanding"
-    technique: laddering
     signal_weights:
       graph.max_depth: 0.8
-      llm.response_depth.deep: 0.9
+      llm.response_depth.high: 0.9
 
   - name: explore_behavior_change
     description: "Understand how the incident influenced future behavior"
-    technique: validation
     signal_weights:
       meta.interview_progress: 0.7
       graph.max_depth: 0.6
@@ -237,6 +237,9 @@ strategies:
 phases:
   early:
     description: "Initial incident exploration"
+    phase_boundaries:
+      early_max_turns: 4
+      mid_max_turns: 10
     signal_weights:
       explore_incident: 1.5
       explore_outcomes: 1.2
@@ -246,6 +249,9 @@ phases:
 
   mid:
     description: "Deepening understanding of causes and emotions"
+    phase_boundaries:
+      early_max_turns: 4
+      mid_max_turns: 10
     signal_weights:
       explore_outcomes: 1.3
       explore_attributions: 1.3
@@ -256,6 +262,9 @@ phases:
 
   late:
     description: "Extracting learnings and behavior changes"
+    phase_boundaries:
+      early_max_turns: 4
+      mid_max_turns: 10
     signal_weights:
       explore_learnings: 1.5
       explore_behavior_change: 1.3

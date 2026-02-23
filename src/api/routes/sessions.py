@@ -6,7 +6,7 @@ Endpoints for session management and turn processing.
 
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import Response
@@ -29,8 +29,10 @@ from src.api.schemas import (
     EdgeSchema,
     GraphResponse,
     SessionStatusResponse,
-    ScoringCandidateSchema,
-    ScoringTurnResponse,
+)
+from src.api.dependencies import (
+    get_shared_extraction_client,
+    get_shared_generation_client,
 )
 from src.core.config import settings
 from src.core.exceptions import SessionNotFoundError, SessionCompletedError
@@ -50,7 +52,11 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 
 def get_session_repository() -> SessionRepository:
-    """Dependency that provides a SessionRepository instance."""
+    """FastAPI dependency injection for SessionRepository.
+
+    Provides a repository instance for session CRUD operations in session routes.
+    Each request gets a new repository with database connection from settings.
+    """
     return SessionRepository(str(settings.database_path))
 
 
@@ -60,7 +66,11 @@ SessionRepoDep = Annotated[SessionRepository, Depends(get_session_repository)]
 async def get_graph_repository(
     db: aiosqlite.Connection = Depends(get_db),
 ) -> GraphRepository:
-    """Dependency that provides a GraphRepository instance."""
+    """FastAPI dependency injection for GraphRepository.
+
+    Provides a repository instance for knowledge graph CRUD operations in session routes.
+    Uses the shared database connection from get_db dependency.
+    """
     return GraphRepository(db)
 
 
@@ -70,21 +80,25 @@ GraphRepoDep = Annotated[GraphRepository, Depends(get_graph_repository)]
 async def get_session_service(
     db: aiosqlite.Connection = Depends(get_db),
 ) -> SessionService:
-    """
-    Create SessionService with dependencies.
+    """FastAPI dependency injection for SessionService.
 
-    Phase 4: No longer requires StrategyService - uses methodology-based strategy selection.
+    Creates a service instance with repositories and LLM clients for session management.
+    LLM clients are shared via centralized factory functions for efficiency.
     """
     session_repo = SessionRepository(str(settings.database_path))
     graph_repo = GraphRepository(db)
+    extraction_llm_client = get_shared_extraction_client()
+    generation_llm_client = get_shared_generation_client()
 
     return SessionService(
         session_repo=session_repo,
         graph_repo=graph_repo,
+        extraction_llm_client=extraction_llm_client,
+        generation_llm_client=generation_llm_client,
     )
 
 
-# ============ SESSION CRUD (from Phase 1) ============
+# ============ SESSION CRUD ============
 
 
 @router.post(
@@ -96,7 +110,12 @@ async def create_session(
     request: SessionCreate,
     session_repo: SessionRepoDep,
 ):
-    """Create a new interview session."""
+    """Create a new interview session with specified methodology and concept.
+
+    Initializes a session with the given methodology (e.g., 'means_end_chain'),
+    concept ID, and configuration. Returns the session details including the
+    generated session ID and initial state.
+    """
     session_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
 
@@ -159,7 +178,11 @@ async def create_session(
 async def list_sessions(
     session_repo: SessionRepoDep,
 ):
-    """List all sessions."""
+    """List all active interview sessions.
+
+    Returns all sessions with their current status, methodology, concept,
+    turn count, and timestamps. Only active sessions are included.
+    """
     sessions = await session_repo.list_active()
 
     return SessionListResponse(
@@ -186,7 +209,11 @@ async def get_session(
     session_id: str,
     session_repo: SessionRepoDep,
 ):
-    """Get session details by ID."""
+    """Get session details by ID.
+
+    Returns the full session configuration including methodology, concept,
+    current state, turn count, and timestamps. Returns 404 if session not found.
+    """
     session = await session_repo.get(session_id)
 
     if not session:
@@ -214,7 +241,11 @@ async def delete_session(
     session_id: str,
     session_repo: SessionRepoDep,
 ):
-    """Delete/close a session."""
+    """Delete/close an interview session by ID.
+
+    Permanently removes the session and all associated data from the database.
+    Returns 404 if the session does not exist.
+    """
     deleted = await session_repo.delete(session_id)
 
     if not deleted:
@@ -279,57 +310,7 @@ async def get_session_graph(
     )
 
 
-@router.get("/{session_id}/scoring/{turn_number}", response_model=ScoringTurnResponse)
-async def get_turn_scoring(
-    session_id: str,
-    turn_number: int,
-    service: SessionService = Depends(get_session_service),
-):
-    """Get all scoring candidates for a specific turn.
-
-    Returns all (strategy, focus) candidates that were considered,
-    including their Tier 1 veto results, Tier 2 scores, and final ranking.
-    """
-    scoring_data = await service.get_turn_scoring(session_id, turn_number)
-
-    # Convert candidates to schemas
-    candidates = [ScoringCandidateSchema(**c) for c in scoring_data["candidates"]]
-
-    return ScoringTurnResponse(
-        session_id=scoring_data["session_id"],
-        turn_number=scoring_data["turn_number"],
-        candidates=candidates,
-        winner_strategy_id=scoring_data["winner_strategy_id"],
-    )
-
-
-@router.get("/{session_id}/scoring", response_model=List[ScoringTurnResponse])
-async def get_all_scoring(
-    session_id: str,
-    service: SessionService = Depends(get_session_service),
-):
-    """Get all scoring data for all turns in a session.
-
-    Returns a list of turns with their candidates.
-    """
-    scoring_data_list = await service.get_all_scoring(session_id)
-
-    results = []
-    for scoring_data in scoring_data_list:
-        candidates = [ScoringCandidateSchema(**c) for c in scoring_data["candidates"]]
-        results.append(
-            ScoringTurnResponse(
-                session_id=scoring_data["session_id"],
-                turn_number=scoring_data["turn_number"],
-                candidates=candidates,
-                winner_strategy_id=scoring_data["winner_strategy_id"],
-            )
-        )
-
-    return results
-
-
-# ============ TURN PROCESSING (Phase 2) ============
+# ============ TURN PROCESSING ============
 
 
 @router.post(
@@ -399,12 +380,9 @@ async def process_turn(
         return TurnResponse(
             turn_number=result.turn_number,
             extracted=ExtractionSchema(
-                concepts=[
-                    ExtractedConceptSchema(**c) for c in result.extracted["concepts"]
-                ],
+                concepts=[ExtractedConceptSchema(**c) for c in result.extracted["concepts"]],
                 relationships=[
-                    ExtractedRelationshipSchema(**r)
-                    for r in result.extracted["relationships"]
+                    ExtractedRelationshipSchema(**r) for r in result.extracted["relationships"]
                 ],
             ),
             graph_state=GraphStateSchema(
@@ -445,16 +423,16 @@ async def process_turn(
         )
 
 
-# ============ EXPORT (Phase 6) ============
+# ============ EXPORT ============
 
 
 async def get_export_service(
     db: aiosqlite.Connection = Depends(get_db),
 ) -> ExportService:
-    """
-    Create ExportService with dependencies.
+    """FastAPI dependency injection for ExportService.
 
-    Injected into route handlers.
+    Creates a service instance for exporting session data to various formats
+    (JSON, Markdown, CSV) with graph repository access.
     """
     graph_repo = GraphRepository(db)
 

@@ -1,0 +1,7 @@
+{
+  "response_depth": {"score": 3, "rationale": "Moderate explanation but no examples given"},
+  "specificity": {"score": 2, "rationale": "Mostly vague, one mention of 'last week'"},
+  "certainty": {"score": 4, "rationale": "Confident statements with one minor caveat"},
+  "emotional_valence": {"score": 2, "rationale": "Mild frustration about the process"},
+  "engagement": {"score": 4, "rationale": "Volunteered additional context unprompted"}
+}

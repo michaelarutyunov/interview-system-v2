@@ -1,8 +1,19 @@
-"""
-NodeState domain model for tracking per-node state across interview sessions.
+"""NodeState domain model for per-node engagement tracking across interviews.
 
-This module provides the NodeState dataclass which maintains persistent state
-for each knowledge graph node throughout an interview session.
+This module provides NodeState dataclass that tracks individual node behavior
+patterns throughout an interview session. Used by NodeStateTracker service
+to maintain yield history, focus streaks, and strategy effectiveness.
+
+Core Metrics:
+    - Engagement: focus_count, current_focus_streak, turns_since_last_focus
+    - Yield: yield_count, yield_rate, turns_since_last_yield
+    - Quality: all_response_depths for shallow/deep classification
+    - Connectivity: edge counts and connected_node_ids for orphan detection
+    - Strategy: strategy_usage_count for repetition detection
+
+Consumers:
+    - NodeExhaustedSignal (graph.node.exhausted)
+    - StrategyDiversityScorer (temporal.strategy_repetition_count)
 """
 
 from dataclasses import dataclass, field
@@ -11,42 +22,22 @@ from typing import Optional, List, Dict, Set
 
 @dataclass
 class NodeState:
-    """
-    Persistent state tracked for each node across the interview session.
+    """Per-node persistent state tracking for exhaustion and yield scoring.
 
-    NodeState tracks engagement patterns, yield history, response quality,
-    relationships, and strategy usage for each knowledge graph node.
+    Tracks engagement patterns, yield history, and response quality for each
+    knowledge graph node throughout an interview session. Updated by
+    NodeStateTracker after each graph mutation.
 
-    Attributes:
-        node_id: Unique identifier for the node
-        label: Human-readable label for the node
-        created_at_turn: Turn number when node was created
-        depth: Depth level in the knowledge graph (0 = root)
+    Key Metrics for Signal Detection:
+        - focus_count + current_focus_streak: Detects over-focus patterns
+        - turns_since_last_yield: Primary exhaustion signal (threshold-based)
+        - yield_rate: Quality ratio (0.0 = exhausted, 1.0 = high yield)
+        - is_orphan property: Identifies unconnected nodes for coverage signals
 
-        # Engagement metrics
-        focus_count: Number of times this node has been selected as focus
-        last_focus_turn: Most recent turn number when this node was focused
-        turns_since_last_focus: Turns elapsed since last focus
-        current_focus_streak: Consecutive turns this node has been focus
-
-        # Yield metrics
-        last_yield_turn: Most recent turn when node produced graph changes
-        turns_since_last_yield: Turns elapsed since last yield
-        yield_count: Total number of times node has yielded (produced changes)
-        yield_rate: Ratio of yield_count to focus_count (0.0 - 1.0)
-
-        # Response quality
-        all_response_depths: List of all response depths (surface/shallow/deep)
-
-        # Relationships
-        connected_node_ids: Set of node IDs directly connected to this node
-        edge_count_outgoing: Number of edges from this node to others
-        edge_count_incoming: Number of edges from others to this node
-
-        # Strategy usage
-        strategy_usage_count: Dict mapping strategy name to usage count
-        last_strategy_used: Most recently used strategy on this node
-        consecutive_same_strategy: Consecutive times same strategy was used
+    State Update Cycle:
+        1. Node selected as focus: increment focus_count, update last_focus_turn
+        2. Graph mutation from node: increment yield_count, update last_yield_turn
+        3. Strategy used: update strategy_usage_count, track consecutive_same_strategy
     """
 
     # Basic info
@@ -85,12 +76,16 @@ class NodeState:
 
     @property
     def is_orphan(self) -> bool:
-        """
-        Check if this node is an orphan (no edges).
+        """Detect orphan nodes with no incoming or outgoing edges.
 
-        A node is considered an orphan if it has no incoming or outgoing edges.
+        Orphan nodes indicate incomplete coverage - concepts mentioned but
+        not yet explored or connected to interview structure.
 
         Returns:
-            True if node has no edges, False otherwise
+            True if node has zero edges (incoming + outgoing), False otherwise
+
+        Used by:
+            - OrphanCountSignal (graph.orphan_count)
+            - Coverage scoring for breadth strategies
         """
         return (self.edge_count_incoming + self.edge_count_outgoing) == 0

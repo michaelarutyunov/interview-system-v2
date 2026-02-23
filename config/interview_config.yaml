@@ -13,7 +13,7 @@
 session:
   # Calculated from phases (exploratory + focused + closing)
   # Can be overridden via API: config={"max_turns": custom_value}
-  # Default sum: exploratory.n_turns + focused.n_turns + closing.n_turns = 4 + 6 + 1 = 11
+  # Default sum: exploratory.n_turns + focused.n_turns + closing.n_turns = 8 + 8 + 4 = 20
   # Note: Omitting max_turns here triggers auto-calculation from phases
   # Minimum turns before allowing early termination
   min_turns: 5
@@ -31,11 +31,11 @@ session:
 # Phases control which strategies are boosted via phase_profiles in config/scoring.yaml
 phases:
   exploratory:
-    n_turns: 5  # Focus on breadth exploration
+    n_turns: 8  # Focus on breadth exploration
   focused:
-    n_turns: 5  # Balance depth and breadth
+    n_turns: 8  # Balance depth and breadth
   closing:
-    n_turns: 2  # Wrap up (extendable via session.max_turns)
+    n_turns: 4  # Wrap up — begins at turn 17 (8+8+1)
 
 # ============================================================================
 # Session Service Configuration

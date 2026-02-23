@@ -172,7 +172,8 @@ from src.services.extraction_service import ExtractionService
 
 @pytest.fixture
 def extraction_service():
-    return ExtractionService()
+    # methodology is required (no default)
+    return ExtractionService(methodology="means_end_chain")
 
 @pytest.mark.asyncio
 async def test_extract_concepts(extraction_service):
@@ -414,9 +415,9 @@ All checks must pass before committing.
 
 **Signal Pools Architecture (ADR-014)**: Methodologies are now defined using YAML-based configuration files that combine signals from shared pools with strategy definitions. This replaces the old folder-per-methodology approach.
 
-1. **Create YAML config in `src/methodologies/config/`:**
+1. **Create YAML config in `config/methodologies/`:**
    ```yaml
-   # src/methodologies/config/my_methodology.yaml
+   # config/methodologies/my_methodology.yaml
    methodology:
      name: my_methodology
      display_name: "My Interview Methodology"
@@ -476,14 +477,12 @@ All checks must pass before committing.
          signal_weights:
            llm.response_depth.surface: 0.8
            graph.max_depth: 0.5
-         focus_preference: shallow
 
        - name: broaden
          technique: elaboration
          signal_weights:
            llm.response_depth.deep: 0.7
-           graph.coverage_breadth: 0.6
-         focus_preference: recent
+           graph.chain_completion.has_complete_chain.false: 0.6
    ```
 
 2. **The methodology is automatically available:**
@@ -756,13 +755,12 @@ SIGNAL_CLASSES = {
 
 4. **Use in methodology YAML config:**
    ```yaml
-   # src/methodologies/config/means_end_chain.yaml
+   # config/methodologies/means_end_chain.yaml
    strategies:
      - name: my_strategy
        technique: my_technique  # Use your new technique
        signal_weights:
          graph.max_depth: 0.5
-       focus_preference: shallow
    ```
 
 5. **Add tests:**
@@ -1099,7 +1097,7 @@ log.info(
 
 ### Key Design Patterns
 
-- **Pipeline Pattern** (ADR-008): Turn processing through 10 independent stages
+- **Pipeline Pattern** (ADR-008): Turn processing through 12 stages (10 base + 2 optional)
 - **Repository Pattern**: Data access abstraction
 - **Service Layer**: Business logic encapsulation
 - **Dependency Injection**: FastAPI Depends for testability
@@ -1108,24 +1106,30 @@ log.info(
 
 ### Pipeline Architecture (ADR-008)
 
-The core turn processing flow uses a pipeline pattern with 10 independent stages:
+The core turn processing flow uses a pipeline pattern with 12 stages (10 base + 2 optional):
 
 ```
 SessionService.process_turn()
     │
-    └─→ TurnPipeline.execute(TurnContext)
+    └─→ TurnPipeline.execute(PipelineContext)
             │
             ├─→ ContextLoadingStage       # Load session metadata
             ├─→ UtteranceSavingStage      # Save user input
+            ├─→ SRLPreprocessingStage     # Linguistic analysis (optional, enable_srl)
             ├─→ ExtractionStage           # Extract concepts
             ├─→ GraphUpdateStage          # Update knowledge graph
-            ├─→ StateComputationStage     # Recompute graph state
+            ├─→ SlotDiscoveryStage        # Canonical slot discovery (optional, enable_canonical_slots)
+            ├─→ StateComputationStage     # Recompute graph state (both graphs)
             ├─→ StrategySelectionStage    # Select strategy (scoring)
             ├─→ ContinuationStage         # Decide to continue
             ├─→ QuestionGenerationStage   # Generate next question
             ├─→ ResponseSavingStage       # Save system response
             └─→ ScoringPersistenceStage   # Save scoring data
 ```
+
+**Optional Stages** (controlled by feature flags):
+- **SRLPreprocessingStage** (Stage 2.5): Enabled via `enable_srl=True`
+- **SlotDiscoveryStage** (Stage 4.5): Enabled via `enable_canonical_slots=True`
 
 **TurnContext** is the data bucket that flows through stages:
 ```python
@@ -1144,6 +1148,32 @@ class TurnContext:
 ```
 
 **Key principle**: Each stage only reads/writes TurnContext. No stage calls another stage directly. This makes changes isolated and safe.
+
+### Feature Flags
+
+The system supports optional features controlled by configuration flags in `src/core/config.py`:
+
+| Flag | Default | Description | Impact |
+|------|---------|-------------|--------|
+| `enable_srl` | `True` | Enable SRL preprocessing for linguistic analysis | Adds Stage 2.5, +15ms latency |
+| `enable_canonical_slots` | `True` | Enable dual-graph canonical slot discovery | Adds Stage 4.5, +2-3s latency |
+
+**Usage**:
+```python
+# In .env file or environment variables
+ENABLE_SRL=true
+ENABLE_CANONICAL_SLOTS=true
+
+# Or in code
+from src.core.config import settings
+if settings.enable_srl:
+    srl_service = SRLService()
+```
+
+**Graceful Degradation**:
+- When disabled, optional stages are skipped entirely
+- No performance overhead when disabled
+- No database schema requirements when disabled
 
 **For more details**:
 - `docs/data_flow_diagram.md` - Complete pipeline flow documentation
@@ -1299,11 +1329,15 @@ src/
 │   ├── migrations/
 │   └── repositories/      # Session, Graph, Utterance repositories
 └── services/              # Business logic
+    ├── canonical_slot_service.py      # Dual-graph: LLM-based slot discovery
+    ├── canonical_graph_service.py     # Dual-graph: Canonical state computation
+    ├── embedding_service.py           # Dual-graph: Text embeddings
+    ├── srl_service.py                 # Linguistic analysis (spaCy)
     ├── depth_calculator.py  # Chain validation for depth (ADR-008)
     ├── methodology_strategy_service.py  # YAML-based strategy selection
     ├── focus_selection_service.py  # Centralized focus selection
     ├── turn_pipeline/     # Pipeline orchestrator (ADR-008)
-    │   ├── stages/        # 10 independent stages
+    │   ├── stages/        # 12 independent stages
     │   ├── base.py        # TurnStage base class
     │   ├── context.py     # PipelineContext dataclass
     │   ├── pipeline.py    # TurnPipeline orchestrator

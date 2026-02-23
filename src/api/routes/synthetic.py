@@ -27,10 +27,10 @@ router = APIRouter(prefix="/synthetic", tags=["synthetic"])
 
 
 async def get_synthetic_service_dep() -> SyntheticService:
-    """
-    Dependency that provides a SyntheticService instance.
+    """FastAPI dependency injection for SyntheticService.
 
-    Injected into route handlers.
+    Provides a service instance for generating synthetic respondent answers
+    for AI-to-AI interview simulation and testing.
     """
     return get_synthetic_service()
 

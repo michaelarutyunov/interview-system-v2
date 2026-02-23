@@ -1,12 +1,29 @@
-"""
-Qualitative signal models for LLM-based signal extraction.
+"""Qualitative signal domain models for LLM-based semantic analysis.
 
-These models represent semantic signals extracted from conversation history
-that provide deeper insight into respondent engagement, reasoning quality,
-and knowledge state than rule-based heuristics alone.
+This module defines Pydantic models for LLM-extracted qualitative signals
+that capture semantic patterns beyond rule-based heuristics. These signals
+provide deeper insight into respondent engagement, reasoning quality,
+emotional state, and knowledge boundaries.
 
-ADR-006: Two-tier scoring - Layer 3 of signal architecture.
-ADR-010 Phase 2: Converted to Pydantic for type safety and added metadata fields.
+Signal Categories:
+    - Uncertainty: Type and depth of uncertainty (knowledge gaps vs curiosity)
+    - Reasoning: Quality of cognitive processing (causal, associative, reactive)
+    - Emotional: Engagement intensity and trajectory
+    - Contradiction: Stance reversals or inconsistent statements
+    - Knowledge Ceiling: Terminal vs exploratory "don't know" responses
+    - Concept Depth: Abstraction level (concrete vs abstract)
+
+Usage Pattern:
+    1. Conversation history analyzed by LLM after each turn
+    2. QualitativeSignalSet produced with multiple signal types
+    3. Signals consumed by Tier 1/Tier 2 scorers for nuanced decisions
+    4. More accurate strategy selection than graph metrics alone
+
+Design Notes:
+    - All signals include LLM confidence scores
+    - Reasoning field explains LLM's interpretation
+    - Examples field provides supporting quotes
+    - Metadata (turn_number, source_utterance_id, model) for traceability
 """
 
 from datetime import datetime, timezone
@@ -16,7 +33,22 @@ from pydantic import BaseModel, Field
 
 
 class UncertaintyType(str, Enum):
-    """Types of uncertainty expressed in responses."""
+    """Classification of uncertainty type expressed in user responses.
+
+    Distinguishes between productive uncertainty (leads to exploration)
+    and terminal uncertainty (indicates topic exhaustion).
+
+    Values:
+        - KNOWLEDGE_GAP: Acknowledged missing information, potential for learning
+        - CONCEPTUAL_CLARITY: Confusion about meaning, needs clarification
+        - CONFIDENCE_QUALIFICATION: Hedging language ("I think", "probably")
+        - EPISTEMIC_HUMILITY: Honest uncertainty about complex topics
+        - APATHY: Disengagement, lack of interest (terminal signal)
+
+    Used by:
+        - UncertaintySignal for classification
+        - Strategy selection to detect knowledge boundaries
+    """
 
     KNOWLEDGE_GAP = "knowledge_gap"  # "I don't know enough about this"
     CONCEPTUAL_CLARITY = "conceptual_clarity"  # "I'm not sure what you mean"
@@ -26,7 +58,22 @@ class UncertaintyType(str, Enum):
 
 
 class ReasoningQuality(str, Enum):
-    """Quality of reasoning exhibited in responses."""
+    """Classification of cognitive reasoning quality in responses.
+
+    Categorizes the depth and structure of respondent's
+    thought processes as revealed through conversation.
+
+    Values:
+        - CAUSAL: Clear cause-effect reasoning chains
+        - COUNTERFACTUAL: "What if" thinking, considers alternatives
+        - ASSOCIATIVE: Loose connections, word associations (shallow)
+        - REACTIVE: Simple responses without elaboration
+        - METACOGNITIVE: Thinking about thinking, self-reflection
+
+    Used by:
+        - ReasoningSignal for quality assessment
+        - Depth detection and strategy selection
+    """
 
     CAUSAL = "causal"  # Clear cause-effect reasoning
     COUNTERFACTUAL = "counterfactual"  # "What if" thinking, alternatives
@@ -36,7 +83,22 @@ class ReasoningQuality(str, Enum):
 
 
 class EmotionalIntensity(str, Enum):
-    """Emotional intensity levels."""
+    """Classification of emotional engagement intensity.
+
+    Tracks respondent's emotional state to distinguish genuine
+    interest from polite participation.
+
+    Values:
+        - HIGH_POSITIVE: Enthusiasm, excitement ("love", "amazing")
+        - MODERATE_POSITIVE: Interest, engagement, affirmation
+        - NEUTRAL: Factual, calm, informational
+        - MODERATE_NEGATIVE: Hesitation, discomfort, uncertainty
+        - HIGH_NEGATIVE: Frustration, hostility, disengagement
+
+    Used by:
+        - EmotionalSignal for intensity classification
+        - Engagement detection and rapport assessment
+    """
 
     HIGH_POSITIVE = "high_positive"  # Enthusiasm, excitement, "love", "amazing"
     MODERATE_POSITIVE = "moderate_positive"  # Interest, engagement
@@ -46,25 +108,29 @@ class EmotionalIntensity(str, Enum):
 
 
 class UncertaintySignal(BaseModel):
-    """Signal capturing type and depth of uncertainty in recent responses.
+    """LLM-detected uncertainty signal with type and severity classification.
 
-    Distinguishes between productive uncertainty (curiosity, conceptual clarity)
-    and terminal uncertainty (knowledge gaps, apathy).
+    Distinguishes between productive uncertainty (curiosity, conceptual
+    clarity needs) and terminal uncertainty (knowledge gaps, apathy).
 
-    ADR-010 Phase 2: Added confidence field for standardization.
+    Fields:
+        - uncertainty_type: Category from UncertaintyType enum
+        - confidence: LLM confidence in classification (0.0-1.0)
+        - severity: Impact score for decision-making (0.0-1.0)
+        - examples: Supporting quotes from conversation that led to detection
+        - reasoning: LLM explanation for classification
+
+    Strategy Implications:
+        - APATHY/KNOWLEDGE_GAP: Consider closing or topic switch
+        - CONCEPTUAL_CLARITY: Ask clarifying questions
+        - EPISTEMIC_HUMILITY: Can deepen with appropriate scaffolding
     """
 
     uncertainty_type: UncertaintyType
-    confidence: float = Field(
-        ge=0.0, le=1.0, description="LLM confidence in this detection"
-    )
+    confidence: float = Field(ge=0.0, le=1.0, description="LLM confidence in this detection")
     severity: float = Field(ge=0.0, le=1.0, description="0-1 impact score")
-    examples: List[str] = Field(
-        default_factory=list, description="Quotes that led to this"
-    )
-    reasoning: str = Field(
-        default="", description="LLM's reasoning for this classification"
-    )
+    examples: List[str] = Field(default_factory=list, description="Quotes that led to this")
+    reasoning: str = Field(default="", description="LLM's reasoning for this classification")
 
 
 class ReasoningSignal(BaseModel):
@@ -72,15 +138,11 @@ class ReasoningSignal(BaseModel):
 
     Helps assess whether the respondent is engaging in deep causal reasoning
     or providing surface-level associations.
-
-    ADR-010 Phase 2: Added confidence field for standardization.
     """
 
     reasoning_quality: ReasoningQuality
     confidence: float = Field(ge=0.0, le=1.0, description="LLM confidence score")
-    depth_score: float = Field(
-        ge=0.0, le=1.0, description="0-1, how deep the reasoning goes"
-    )
+    depth_score: float = Field(ge=0.0, le=1.0, description="0-1, how deep the reasoning goes")
     has_examples: bool = Field(description="Uses concrete examples")
     has_abstractions: bool = Field(description="Uses abstract principles")
     examples: List[str] = Field(default_factory=list, description="Example quotes")
@@ -91,18 +153,12 @@ class EmotionalSignal(BaseModel):
     """Signal capturing emotional engagement and intensity.
 
     Helps distinguish between genuine interest and polite participation.
-
-    ADR-010 Phase 2: Added confidence field for standardization.
     """
 
     intensity: EmotionalIntensity
     confidence: float = Field(ge=0.0, le=1.0, description="LLM confidence score")
-    trajectory: str = Field(
-        description="emotional trajectory: rising, falling, stable, volatile"
-    )
-    markers: List[str] = Field(
-        default_factory=list, description="Emotional markers detected"
-    )
+    trajectory: str = Field(description="emotional trajectory: rising, falling, stable, volatile")
+    markers: List[str] = Field(default_factory=list, description="Emotional markers detected")
     reasoning: str = Field(default="", description="LLM's reasoning")
 
 
@@ -120,9 +176,7 @@ class ContradictionSignal(BaseModel):
         description="Type of contradiction: stance reversal, inconsistent detail, etc.",
     )
     earlier_statement: str = Field(default="", description="The contradicted statement")
-    current_statement: str = Field(
-        default="", description="The contradicting statement"
-    )
+    current_statement: str = Field(default="", description="The contradicting statement")
     confidence: float = Field(ge=0.0, le=1.0, default=0.0, description="LLM confidence")
     reasoning: str = Field(default="", description="LLM's reasoning")
 
@@ -150,9 +204,7 @@ class ConceptDepthSignal(BaseModel):
     (more concrete) exploration.
     """
 
-    abstraction_level: float = Field(
-        ge=0.0, le=1.0, description="0=concrete, 1=abstract"
-    )
+    abstraction_level: float = Field(ge=0.0, le=1.0, description="0=concrete, 1=abstract")
     has_concrete_examples: bool = Field(description="Uses concrete examples")
     has_abstract_principles: bool = Field(description="Uses abstract principles")
     suggestion: str = Field(description="Strategy suggestion: deepen, broaden, stay")
@@ -166,9 +218,6 @@ class QualitativeSignalSet(BaseModel):
     Extracted via LLM analysis of recent conversation history.
     Designed to be consumed by Tier 1/Tier 2 scorers for more nuanced
     decision-making than rule-based heuristics alone.
-
-    ADR-010 Phase 2: Converted to Pydantic and added metadata fields for
-    traceability and signal provenance tracking.
     """
 
     # Required signals
@@ -179,27 +228,19 @@ class QualitativeSignalSet(BaseModel):
     knowledge_ceiling: Optional[KnowledgeCeilingSignal] = None
     concept_depth: Optional[ConceptDepthSignal] = None
 
-    # Metadata (ADR-010 Phase 2: Enhanced for traceability)
-    turn_number: int = Field(
-        default=0, description="Turn number when signals were extracted"
-    )
+    # Metadata
+    turn_number: int = Field(default=0, description="Turn number when signals were extracted")
     source_utterance_id: str = Field(
         default="unknown",
-        description="Source utterance ID for traceability (ADR-010 Phase 2)",
+        description="Source utterance ID for traceability",
     )
     generated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        description="When signals were generated (ADR-010 Phase 2)",
+        description="When signals were generated",
     )
-    llm_model: str = Field(
-        default="unknown", description="LLM model used (e.g., moonshot-v1-8k)"
-    )
-    prompt_version: str = Field(
-        default="unknown", description="Prompt version used (e.g., v2.1)"
-    )
-    extraction_latency_ms: int = Field(
-        default=0, description="Signal extraction latency in ms"
-    )
+    llm_model: str = Field(default="unknown", description="LLM model used (e.g., moonshot-v1-8k)")
+    prompt_version: str = Field(default="unknown", description="Prompt version used (e.g., v2.1)")
+    extraction_latency_ms: int = Field(default=0, description="Signal extraction latency in ms")
     extraction_errors: List[str] = Field(
         default_factory=list, description="Any errors during extraction"
     )
@@ -210,15 +251,11 @@ class QualitativeSignalSet(BaseModel):
             "uncertainty": self.uncertainty.model_dump() if self.uncertainty else None,
             "reasoning": self.reasoning.model_dump() if self.reasoning else None,
             "emotional": self.emotional.model_dump() if self.emotional else None,
-            "contradiction": self.contradiction.model_dump()
-            if self.contradiction
-            else None,
+            "contradiction": self.contradiction.model_dump() if self.contradiction else None,
             "knowledge_ceiling": (
                 self.knowledge_ceiling.model_dump() if self.knowledge_ceiling else None
             ),
-            "concept_depth": self.concept_depth.model_dump()
-            if self.concept_depth
-            else None,
+            "concept_depth": self.concept_depth.model_dump() if self.concept_depth else None,
             # Metadata
             "turn_number": self.turn_number,
             "source_utterance_id": self.source_utterance_id,

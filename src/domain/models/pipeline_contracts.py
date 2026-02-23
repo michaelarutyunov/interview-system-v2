@@ -5,28 +5,31 @@ type safety and runtime validation for the turn processing pipeline.
 """
 
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional, Union
-from pydantic import BaseModel, Field, model_validator
+from typing import List, Dict, Any, Optional, Union, TYPE_CHECKING
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.domain.models.knowledge_graph import GraphState, KGNode
+if TYPE_CHECKING:
+    pass
+
+from src.domain.models.knowledge_graph import GraphState, KGNode, SaturationMetrics
 from src.domain.models.utterance import Utterance
 from src.domain.models.extraction import ExtractionResult
+from src.domain.models.canonical_graph import CanonicalGraphState
+from src.domain.models.session import FocusEntry
 
 
 class ContextLoadingOutput(BaseModel):
     """Contract: ContextLoadingStage output (Stage 1).
 
-    Stage 1 loads session metadata, conversation history, and recent nodes.
+    Stage 1 loads session metadata and conversation history.
 
-    Note: graph_state is actually set by StateComputationStage (Stage 5) after
-    graph updates. This contract includes it for completeness but it's populated
-    later in the pipeline.
+    Note: graph_state and recent_nodes are NOT loaded here - they come from
+    StateComputationStage (Stage 5) after graph updates. Stages 2-4 should
+    not access these properties via context.graph_state or context.recent_nodes.
     """
 
     # Session metadata
-    methodology: str = Field(
-        description="Methodology identifier (e.g., 'means_end_chain')"
-    )
+    methodology: str = Field(description="Methodology identifier (e.g., 'means_end_chain')")
     concept_id: str = Field(description="Concept identifier")
     concept_name: str = Field(description="Human-readable concept name")
     turn_number: int = Field(ge=0, description="Current turn number (0-indexed)")
@@ -41,12 +44,24 @@ class ContextLoadingOutput(BaseModel):
         default_factory=list, description="History of strategies used"
     )
 
-    # Graph state (populated by StateComputationStage, not ContextLoadingStage)
-    graph_state: GraphState = Field(
-        description="Current knowledge graph state (set by Stage 5, not Stage 1)"
+    # Graph context for cross-turn relationship bridging
+    recent_node_labels: List[str] = Field(
+        default_factory=list,
+        description="Labels of existing graph nodes for cross-turn relationship bridging",
     )
-    recent_nodes: List[KGNode] = Field(
-        default_factory=list, description="Recently added graph nodes"
+
+    # Velocity state loaded from SessionState (used by saturation signals)
+    surface_velocity_ewma: float = Field(default=0.0, description="Loaded from SessionState")
+    surface_velocity_peak: float = Field(default=0.0, description="Loaded from SessionState")
+    prev_surface_node_count: int = Field(default=0, description="Loaded from SessionState")
+    canonical_velocity_ewma: float = Field(default=0.0, description="Loaded from SessionState")
+    canonical_velocity_peak: float = Field(default=0.0, description="Loaded from SessionState")
+    prev_canonical_node_count: int = Field(default=0, description="Loaded from SessionState")
+
+    # Focus history for tracing strategy-node decisions
+    focus_history: List[FocusEntry] = Field(
+        default_factory=list,
+        description="Focus history loaded from SessionState for persistence stage",
     )
 
 
@@ -61,21 +76,64 @@ class UtteranceSavingOutput(BaseModel):
     user_utterance: Utterance = Field(description="Full saved utterance record")
 
 
+class SrlPreprocessingOutput(BaseModel):
+    """Contract: SRLPreprocessingStage output (Stage 2.5).
+
+    Stage 2.5 extracts linguistic structure (discourse relations, SRL frames)
+    to guide extraction with structural hints.
+
+    This stage is optional - it can be disabled via enable_srl config flag.
+    """
+
+    discourse_relations: List[Dict[str, str]] = Field(
+        default_factory=list,
+        description="Discourse relations: {marker, antecedent, consequent}",
+    )
+    srl_frames: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Predicate-argument frames: {predicate, arguments}",
+    )
+    discourse_count: int = Field(default=0, ge=0, description="Number of discourse relations found")
+    frame_count: int = Field(default=0, ge=0, description="Number of SRL frames found")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When SRL analysis was performed",
+    )
+
+    @model_validator(mode="after")
+    def set_counts_if_missing(self) -> "SrlPreprocessingOutput":
+        """Set counts from lists if not provided."""
+        if self.discourse_count == 0:
+            self.discourse_count = len(self.discourse_relations)
+        if self.frame_count == 0:
+            self.frame_count = len(self.srl_frames)
+        return self
+
+
 class StateComputationOutput(BaseModel):
     """Contract: StateComputationStage output (Stage 5).
 
     Stage 5 refreshes graph state metrics after updates.
 
-    ADR-010: Added computed_at for freshness tracking to prevent
-    stale state bug where graph_state from Stage 1 was used in Stage 6.
+    Tracks freshness via computed_at timestamp to prevent stale state bugs.
+    Includes saturation_metrics computed from graph yield and quality signals
+    for ContinuationStage to consume.
+
+    Also includes canonical_graph_state for dual-graph architecture metrics.
     """
 
     graph_state: GraphState = Field(description="Refreshed knowledge graph state")
     recent_nodes: List[KGNode] = Field(
         default_factory=list, description="Refreshed list of recent nodes"
     )
-    computed_at: datetime = Field(
-        description="When state was computed (for freshness validation)"
+    computed_at: datetime = Field(description="When state was computed (for freshness validation)")
+    saturation_metrics: Optional[SaturationMetrics] = Field(
+        default=None,
+        description="Saturation indicators computed from graph state and yield tracking",
+    )
+    canonical_graph_state: Optional["CanonicalGraphState"] = Field(
+        default=None,
+        description="Canonical graph state (deduplicated concepts)",
     )
 
     @model_validator(mode="after")
@@ -90,12 +148,9 @@ class StrategySelectionInput(BaseModel):
     """Contract: StrategySelectionStage input (Stage 6).
 
     Stage 6 selects questioning strategy using methodology-based signal detection
-    (Phase 4: methodology-specific signals with direct signal->strategy scoring).
+    with direct signal-to-strategy scoring.
 
-    The two-tier scoring system has been removed and replaced by methodology-specific
-    signal detection in each methodology module (MEC, JTBD).
-
-    ADR-010: Added freshness validation to prevent stale state bug.
+    Includes freshness validation to prevent stale state bugs.
     """
 
     # Graph state (must be fresh!)
@@ -103,9 +158,7 @@ class StrategySelectionInput(BaseModel):
     recent_nodes: List[KGNode] = Field(default_factory=list, description="Recent nodes")
 
     # Extraction results
-    extraction: Any = Field(
-        description="ExtractionResult with timestamp for freshness check"
-    )
+    extraction: Any = Field(description="ExtractionResult with timestamp for freshness check")
 
     # Context
     conversation_history: List[Dict[str, Any]] = Field(
@@ -143,9 +196,10 @@ class StrategySelectionOutput(BaseModel):
     """Contract: StrategySelectionStage output (Stage 6).
 
     Stage 6 produces selected strategy and focus for question generation.
-
-    Phase 4: Added signals and alternatives for methodology-based selection.
+    Includes signals and alternatives for methodology-based selection observability.
     """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     strategy: str = Field(
         description="Selected strategy ID (e.g., 'deepen', 'broaden', 'ladder_deeper')"
@@ -158,20 +212,41 @@ class StrategySelectionOutput(BaseModel):
         description="When strategy was selected (for debugging)",
     )
 
-    # Phase 4: Methodology-based selection fields
+    # Methodology-based selection fields
     signals: Optional[Dict[str, Any]] = Field(
         default=None,
-        description="Detected signals from methodology-specific signal detector (Phase 4)",
+        description="Detected signals from methodology-specific signal detector",
     )
-    # Phase 6: Joint strategy-node scoring produces tuples with node_id
-    strategy_alternatives: List[Union[tuple[str, float], tuple[str, str, float]]] = (
-        Field(
-            default_factory=list,
-            description=(
-                "Alternative strategies with scores for observability (Phase 4, Phase 6). "
-                "Format: [(strategy, score)] or [(strategy, node_id, score)] for joint scoring"
-            ),
-        )
+    # Node-level signals computed during joint strategy-node scoring
+    node_signals: Optional[Dict[str, Dict[str, Any]]] = Field(
+        default=None,
+        description="Per-node signals keyed by node_id. Each value is a dict of signal_name: value.",
+    )
+    # Joint strategy-node scoring produces tuples with node_id
+    strategy_alternatives: List[Union[tuple[str, float], tuple[str, str, float]]] = Field(
+        default_factory=list,
+        description=(
+            "Alternative strategies with scores for observability. "
+            "Format: [(strategy, score)] or [(strategy, node_id, score)] for joint scoring"
+        ),
+    )
+    generates_closing_question: bool = Field(
+        default=False,
+        description="Whether this strategy generates a closing question (interview conclusion)",
+    )
+    focus_mode: str = Field(
+        default="recent_node",
+        description="Focus selection mode: 'recent_node' (default), 'summary', or 'topic'",
+    )
+    # Per-candidate score decomposition from joint scoring (simulation-only)
+    score_decomposition: Optional[List[Any]] = Field(
+        default=None,
+        description=(
+            "Per-candidate score decomposition from rank_strategy_node_pairs(). "
+            "Each entry is a ScoredCandidate with strategy, node_id, signal_contributions "
+            "(name/value/weight/contribution), base_score, phase_multiplier, phase_bonus, "
+            "final_score, rank, selected. Populated during simulation; None in live API."
+        ),
     )
 
 
@@ -182,17 +257,13 @@ class ExtractionOutput(BaseModel):
     methodology-specific extraction service.
     """
 
-    extraction: ExtractionResult = Field(
-        description="Extracted concepts and relationships"
-    )
+    extraction: ExtractionResult = Field(description="Extracted concepts and relationships")
     methodology: str = Field(description="Methodology used for extraction")
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         description="When extraction was performed",
     )
-    concept_count: int = Field(
-        default=0, ge=0, description="Number of concepts extracted"
-    )
+    concept_count: int = Field(default=0, ge=0, description="Number of concepts extracted")
     relationship_count: int = Field(
         default=0, ge=0, description="Number of relationships extracted"
     )
@@ -214,9 +285,7 @@ class GraphUpdateOutput(BaseModel):
     relationships, deduplicating against existing nodes.
     """
 
-    nodes_added: List[KGNode] = Field(
-        default_factory=list, description="Nodes added to graph"
-    )
+    nodes_added: List[KGNode] = Field(default_factory=list, description="Nodes added to graph")
     edges_added: List[Dict[str, Any]] = Field(
         default_factory=list, description="Edges added to graph"
     )
@@ -237,6 +306,26 @@ class GraphUpdateOutput(BaseModel):
         return self
 
 
+class SlotDiscoveryOutput(BaseModel):
+    """Contract: SlotDiscoveryStage output (Stage 4.5).
+
+    Stage 4.5 discovers or updates canonical slots for newly added surface nodes.
+    Implements dual-graph architecture by mapping surface nodes to abstract canonical slots.
+    """
+
+    slots_created: int = Field(default=0, ge=0, description="New canonical slots created this turn")
+    slots_updated: int = Field(
+        default=0, ge=0, description="Existing slots that received new mappings"
+    )
+    mappings_created: int = Field(
+        default=0, ge=0, description="Surface nodes mapped to canonical slots"
+    )
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When slot discovery was performed",
+    )
+
+
 class QuestionGenerationOutput(BaseModel):
     """Contract: QuestionGenerationStage output (Stage 7).
 
@@ -246,12 +335,8 @@ class QuestionGenerationOutput(BaseModel):
 
     question: str = Field(description="Generated question text")
     strategy: str = Field(description="Strategy used to generate question")
-    focus: Optional[Dict[str, Any]] = Field(
-        default=None, description="Focus target for question"
-    )
-    has_llm_fallback: bool = Field(
-        default=False, description="Whether LLM fallback was used"
-    )
+    focus: Optional[Dict[str, Any]] = Field(default=None, description="Focus target for question")
+    has_llm_fallback: bool = Field(default=False, description="Whether LLM fallback was used")
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         description="When question was generated",
@@ -297,21 +382,16 @@ class ScoringPersistenceOutput(BaseModel):
 
     Stage 10 persists scoring metrics for observability and analysis.
 
-    Note: This stage saves both legacy two-tier scoring data (for old
-    sessions) and new methodology-based signals (for new sessions).
+    Note: The legacy two-tier scoring system has been removed. This stage now
+    saves methodology-based signals from StrategySelectionStage.
     """
 
     turn_number: int = Field(ge=0, description="Turn number for scoring")
     strategy: str = Field(description="Strategy that was selected")
     depth_score: float = Field(ge=0.0, description="Depth metric from graph state")
-    saturation_score: float = Field(
-        ge=0.0, description="Saturation metric from graph state"
-    )
+    saturation_score: float = Field(ge=0.0, description="Saturation metric from graph state")
     has_methodology_signals: bool = Field(
         default=False, description="Whether methodology signals were saved"
-    )
-    has_legacy_scoring: bool = Field(
-        default=False, description="Whether legacy two-tier scoring was saved"
     )
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),

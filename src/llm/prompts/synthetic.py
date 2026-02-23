@@ -12,115 +12,14 @@ Used by:
 - Test scripts for automated regression testing
 
 Migration (2026-01-29):
-- Personas now loaded from config/personas/*.yaml via persona_loader
-- Legacy PERSONAS dict kept as fallback for backward compatibility
+- Personas loaded from config/personas/*.yaml via persona_loader
+- Legacy PERSONAS dict removed after migration verification
 """
 
 from typing import Dict, Any, List, Optional
 
 # Import persona loader
 from src.core.persona_loader import load_persona, list_personas as load_list_personas
-
-
-# Legacy fallback personas (kept for backward compatibility during transition)
-_LEGACY_PERSONAS: Dict[str, Dict[str, Any]] = {
-    "health_conscious": {
-        "name": "Health-Conscious Millennial",
-        "traits": [
-            "prioritizes health and wellness",
-            "reads nutrition labels carefully",
-            "values organic and natural ingredients",
-            "avoids artificial additives and preservatives",
-            "willing to pay more for health benefits",
-        ],
-        "speech_pattern": (
-            "Uses health-related terminology (nutrients, ingredients, wellness), "
-            "focuses on how products affect their body and long-term health, "
-            "mentions specific health concerns or goals"
-        ),
-    },
-    "price_sensitive": {
-        "name": "Budget-Conscious Shopper",
-        "traits": [
-            "compares prices across brands",
-            "looks for sales and discounts",
-            "prioritizes value over premium features",
-            "budget-conscious but not cheap",
-            "seeks cost-effective alternatives",
-        ],
-        "speech_pattern": (
-            "Mentions price, value, deals, and budget considerations, "
-            "compares costs and benefits, talks about getting the most for their money, "
-            "references shopping around for better prices"
-        ),
-    },
-    "convenience_seeker": {
-        "name": "Busy Professional",
-        "traits": [
-            "values time over cost",
-            "prioritizes convenience and ease of use",
-            "seeks quick and simple solutions",
-            "often on-the-go or multi-tasking",
-            "appreciates grab-and-go options",
-        ],
-        "speech_pattern": (
-            "Focuses on convenience, time-saving, and simplicity, "
-            "mentions busy schedule and need for quick solutions, "
-            "values products that fit into their fast-paced lifestyle"
-        ),
-    },
-    "quality_focused": {
-        "name": "Quality Enthusiast",
-        "traits": [
-            "appreciates premium quality and craftsmanship",
-            "values superior taste and experience",
-            "seeks the best products regardless of price",
-            "knowledgeable about product characteristics",
-            "enjoys discovering and trying premium options",
-        ],
-        "speech_pattern": (
-            "Uses descriptive language about taste, texture, and quality, "
-            "appreciates nuanced differences between products, "
-            "values authenticity and craftsmanship, mentions premium aspects"
-        ),
-    },
-    "sustainability_minded": {
-        "name": "Environmentally Conscious Consumer",
-        "traits": [
-            "prioritizes environmental impact",
-            "values sustainable packaging and sourcing",
-            "willing to pay more for eco-friendly options",
-            "researches company ethics and practices",
-            "makes choices based on carbon footprint",
-        ],
-        "speech_pattern": (
-            "Focuses on sustainability, environmental impact, and ethics, "
-            "mentions packaging, sourcing, and company values, "
-            "talks about making a difference through consumer choices"
-        ),
-    },
-}
-
-# Export PERSONAS for backward compatibility
-PERSONAS = _LEGACY_PERSONAS
-
-
-def _get_persona_config(persona_id: str) -> Dict[str, Any]:
-    """Get persona configuration from YAML or fallback to legacy dict.
-
-    Args:
-        persona_id: Persona identifier
-
-    Returns:
-        Dict with persona configuration (name, traits, speech_pattern, etc.)
-    """
-    try:
-        # Try loading from config/personas/*.yaml
-        persona = load_persona(persona_id)
-        return persona.model_dump()
-    except Exception:
-        # Fallback to legacy hardcoded personas
-        return _LEGACY_PERSONAS.get(persona_id, _LEGACY_PERSONAS["health_conscious"])
 
 
 def get_synthetic_system_prompt() -> str:
@@ -196,15 +95,15 @@ def get_synthetic_user_prompt(
 
     Args:
         question: The interviewer's question
-        persona: Persona ID from config/personas/*.yaml or legacy PERSONAS dict
+        persona: Persona ID from config/personas/*.yaml
         previous_concepts: Optional list of concepts mentioned earlier
         interview_context: Optional dict with product_name, turn_number
 
     Returns:
         User prompt string
     """
-    # Get persona configuration (from YAML or legacy fallback)
-    persona_config = _get_persona_config(persona)
+    # Get persona configuration from YAML
+    persona_config = load_persona(persona).model_dump()
 
     prompt_parts = []
 
@@ -288,17 +187,9 @@ def get_available_personas() -> Dict[str, str]:
     """
     Get dict of available personas.
 
-    Loads from config/personas/*.yaml with fallback to legacy personas.
+    Loads from config/personas/*.yaml.
 
     Returns:
         Dict mapping persona_id to persona_name
     """
-    try:
-        # Try loading from config/personas/*.yaml
-        return load_list_personas()
-    except Exception:
-        # Fallback to legacy personas
-        return {
-            persona_id: config["name"]
-            for persona_id, config in _LEGACY_PERSONAS.items()
-        }
+    return load_list_personas()

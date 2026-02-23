@@ -120,6 +120,13 @@ ontology:
       - "Off-topic tangents"
       - "Very short responses with no substance"
 
+  concept_naming_convention: >
+    Name each concept according to its level in the means-end chain:
+    attributes as concrete product features or characteristics,
+    consequences as functional or psychosocial outcomes,
+    values as abstract personal values or life goals.
+    Use the examples in each node type description as naming models.
+
 signals:
   graph:
     - graph.node_count
@@ -127,12 +134,17 @@ signals:
     - graph.avg_depth
     - graph.orphan_count
     - graph.chain_completion
+    # Canonical graph signals (Phase 4, experimental)
+    - graph.canonical_concept_count
+    - graph.canonical_edge_density
+    - graph.canonical_exhaustion_score
 
   llm:
     - llm.response_depth
-    - llm.sentiment
-    - llm.uncertainty
-    - llm.hedging_language
+    - llm.valence
+    - llm.certainty
+    - llm.specificity
+    - llm.engagement
     # Note: llm.global_response_trend is session-scoped and managed separately
 
   temporal:
@@ -142,97 +154,116 @@ signals:
   meta:
     - meta.interview_progress
     - meta.interview.phase
-
-# Per-signal normalization: max_expected values for numeric signals.
-# Numeric signal values are divided by max_expected and clipped to [0, 1].
-# Signals not listed here fall back to the legacy /10 heuristic.
-signal_norms:
-  graph.node_count: 50       # MEC interviews rarely exceed 50 nodes
-  graph.edge_count: 100      # ~2x node_count in connected chains
-  graph.orphan_count: 20     # Orphans typically < half of node_count
-  graph.max_depth: 8         # MEC chains: attribute(1) → value(5), occasional 6-8
-  graph.avg_depth: 6         # Average depth across all chains
-  temporal.strategy_repetition_count: 5  # Last 5 turns tracked
-  temporal.turns_since_strategy_change: 5  # Practical max before forced pivot
+    - meta.conversation.saturation
+    - meta.canonical.saturation
 
 strategies:
   # Strategy 1: Deepen the chain (laddering)
   - name: deepen
     description: "Explore why something matters to understand deeper motivations and values through progressive 'why' questioning"
-    technique: laddering
     signal_weights:
       # Global signals
-      llm.response_depth.surface: 0.8
-      llm.response_depth.moderate: 0.3
-      graph.max_depth: 0.5
-      graph.chain_completion.has_complete_chain.false: 1.0
+      llm.response_depth.low: 0.8
+      llm.response_depth.mid: 0.3
+      llm.response_depth.moderate: 0.15  # Even moderate answers can benefit from deepening
+      graph.max_depth: -0.3
+      graph.chain_completion.has_complete.false: 1.0
+      # Engagement & valence safety checks — mid-engagement now contributes
+      llm.engagement.high: 0.5              # Engaged = safe to deepen (was 0.7)
+      llm.engagement.mid: 0.3               # Moderate engagement = still OK to deepen (NEW)
+      llm.engagement.low: -0.5              # Disengaged = avoid deepening
+      llm.valence.high: 0.4                 # Positive emotion = safe to go deeper
+      # Response quality trend — deepen when quality is declining
+      llm.global_response_trend.shallowing: 0.4  # Shallow trend → try deepening (NEW)
+      # Diversity
+      temporal.strategy_repetition_count: -0.3
       # Node-level signals (Phase 3)
-      graph.node.exhausted.false: 1.0  # Boost non-exhausted nodes
+      graph.node.exhaustion_score.low: 1.0  # Boost non-exhausted nodes
       graph.node.focus_streak.low: 0.5  # Prefer fresh nodes
-      graph.node.exhaustion_score.low: 0.7  # Avoid exhausted nodes
 
   # Strategy 2: Clarify relationships (probing)
   - name: clarify
     description: "Rephrase the question in simpler, clearer words when user shows confusion or lack of understanding"
-    technique: probing
     signal_weights:
-      # Global signals
-      graph.orphan_count: 0.7
-      graph.edge_density: 0.6
-      # Node-level signals (Phase 3)
-      graph.node.is_orphan.true: 1.0  # Boost orphan nodes
-      graph.node.exhausted.false: 0.5
+      # LLM-based clarification triggers
+      llm.specificity.low: 0.8              # Vague language = needs clarification
+      llm.certainty.low: 0.5                # Uncertainty = needs validation
+      llm.engagement.mid: 0.3               # Moderate engagement = clarify OK
+      # Diversity
+      temporal.strategy_repetition_count: -0.3
+      temporal.turns_since_strategy_change: -0.3  # Break strategy lock
+      # Node-level signals (Phase 3) — reduced to prevent node dominance
+      graph.node.is_orphan.true: 0.7  # Boost orphan nodes (was 1.0)
+      graph.node.exhaustion_score.low: 0.4  # (was 0.5)
       graph.node.focus_streak.none: 0.3
 
   # Strategy 3: Explore new areas (elaboration)
   - name: explore
     description: "Find new branches and related concepts by asking 'what else?' to expand breadth"
-    technique: elaboration
     signal_weights:
       # Global signals
-      llm.uncertainty: 0.4
-      temporal.strategy_repetition_count: 0.5
-      # Node-level signals (Phase 3)
-      graph.node.focus_streak.none: 1.0  # Fresh nodes
-      graph.node.yield_stagnation.false: 0.8  # Nodes that yield
-      graph.node.exhausted.false: 0.7
+      llm.certainty.low: 0.4
+      temporal.strategy_repetition_count: -0.8  # Strong repetition penalty (was -0.3)
+      # Engagement & valence
+      llm.engagement.mid: 0.4               # Moderate engagement = breadth OK
+      llm.valence.low: 0.3                  # Negative emotion = change topic
+      # Response quality awareness — suppress exploration during declining quality
+      llm.global_response_trend.shallowing: -0.4  # Don't explore when answers declining
+      llm.global_response_trend.fatigued: -0.6    # Strongly suppress during fatigue
+      # Node-level signals (Phase 3) — reduced weights to prevent node dominance
+      graph.node.focus_streak.none: 0.6  # Fresh nodes (was 1.0)
+      graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.8)
+      graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.7)
 
   # Strategy 4: Reflect and validate (validation)
   - name: reflect
     description: "Summarize what you've heard and invite correction or addition to validate understanding"
-    technique: validation
     signal_weights:
       # Global signals
       graph.max_depth: 0.7
       meta.interview_progress: 0.5
-      llm.response_depth.deep: 0.6
+      llm.response_depth.high: 0.6
       # Uncertainty/hedging triggers (Phase 5)
-      llm.hedging_language.high: 1.0  # Trigger on high uncertainty
-      llm.hedging_language.medium: 0.7  # Trigger on medium uncertainty
+      llm.certainty.low: 0.7  # Trigger on high uncertainty
+      llm.certainty.mid: 0.7  # Trigger on medium uncertainty
       meta.node.opportunity.probe_deeper: 0.6  # Extraction opportunity
+      # Engagement trigger
+      llm.engagement.low: 0.6               # Low engagement = validate & wrap
+      # Diversity (lighter penalty — OK to repeat reflection)
+      temporal.strategy_repetition_count: -0.2
       # Node-level signals (Phase 3)
-      graph.node.edge_count.high: 0.8  # Well-connected nodes
+      graph.node.has_outgoing.true: 0.8  # Well-connected nodes
       graph.node.focus_streak.high: 0.5  # Often-focused nodes
       technique.node.strategy_repetition.low: 0.3  # Avoid overusing same strategy
+      # Saturation triggers (Phase 6)
+      meta.conversation.saturation: 0.5  # High saturation = validate
+      meta.canonical.saturation: 0.3     # Supportive metric
 
   # Strategy 5: Revitalize engagement (elaboration) - Phase 5
   - name: revitalize
     description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
-    technique: elaboration
     signal_weights:
       # Fatigue detection triggers (Phase 5)
       llm.global_response_trend.fatigued: 1.0  # Trigger on fatigue
       llm.global_response_trend.shallowing: 0.5  # Prevent fatigue
       meta.node.opportunity.exhausted: 0.3  # Try exhausted nodes with new angle
+      # Engagement & valence triggers — mid-engagement now contributes
+      llm.engagement.low: 0.8               # Low engagement = strong trigger (was 1.2)
+      llm.engagement.mid: 0.4               # Moderate engagement + fatigue = still revitalize (NEW)
+      llm.engagement.high: -0.4             # Already engaged = not needed
+      llm.valence.low: 0.5                  # Negative valence = shift gears
       # Global signals
-      temporal.strategy_repetition_count: 0.5
+      temporal.strategy_repetition_count: -0.3  # Penalize repetition (was +0.5 bug)
       # Node-level signals (Phase 3)
       graph.node.focus_streak.none: 0.8  # Fresh nodes
-      graph.node.exhausted.false: 0.5
+      graph.node.exhaustion_score.low: 0.5  # Avoid exhausted nodes
 
 phases:
   early:
     description: "Initial exploration, building graph structure"
+    phase_boundaries:
+      early_max_turns: 4
+      mid_max_turns: 12
     signal_weights:
       explore: 1.5
       clarify: 1.2
@@ -243,21 +274,28 @@ phases:
 
   mid:
     description: "Building depth and connections"
+    phase_boundaries:
+      early_max_turns: 4
+      mid_max_turns: 12
     signal_weights:
       deepen: 1.3
-      clarify: 1.0
-      explore: 0.8
+      clarify: 0.8
+      revitalize: 1.0             # Explicit mid-phase weight (was missing)
+      explore: 0.6                # Reduced from 0.8 — mid phase should deepen, not explore
       reflect: 0.7
     phase_bonuses:
       deepen: 0.3  # Additive bonus to prioritize deepening in mid-phase
 
   late:
     description: "Validation and verification"
+    phase_boundaries:
+      early_max_turns: 4
+      mid_max_turns: 12
     signal_weights:
-      reflect: 1.5
-      validate: 1.2
+      reflect: 1.2
+      revitalize: 1.2
       deepen: 0.5
       explore: 0.3
     phase_bonuses:
-      reflect: 0.4  # Additive bonus to ensure reflection gets selected even with zero base score
-      validate: 0.2  # Additive bonus to prioritize validation in late phase
+      reflect: 0.2  # Additive bonus to ensure reflection gets selected even with zero base score
+      revitalize: 0.2  # Additive bonus for revitalize in late phase

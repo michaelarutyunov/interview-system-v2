@@ -1,8 +1,10 @@
 """
 SQLite database connection management.
 
-Provides async database initialization, connection factory, and migration support.
+Provides async database initialization and connection factory.
 Uses aiosqlite for async SQLite access.
+
+Schema is defined in schema.sql (consolidated, no migrations).
 """
 
 import aiosqlite
@@ -14,18 +16,19 @@ from src.core.config import settings
 
 log = structlog.get_logger(__name__)
 
-# Path to migrations directory
-MIGRATIONS_DIR = Path(__file__).parent / "migrations"
+# Path to consolidated schema file
+SCHEMA_FILE = Path(__file__).parent / "schema.sql"
 
 
 async def init_database(db_path: Path | None = None) -> None:
     """
-    Initialize database and run migrations.
+    Initialize database from consolidated schema.
 
     Args:
         db_path: Optional path to database file. Uses settings.database_path if not provided.
 
-    Creates the database file if it doesn't exist and applies all migrations.
+    Creates database file if it doesn't exist and applies consolidated schema.
+    Existing databases are left intact (idempotent schema using CREATE TABLE IF NOT EXISTS).
     """
     db_path = db_path or settings.database_path
 
@@ -34,6 +37,10 @@ async def init_database(db_path: Path | None = None) -> None:
 
     log.info("initializing_database", path=str(db_path))
 
+    if not SCHEMA_FILE.exists():
+        log.error("schema_file_not_found", path=str(SCHEMA_FILE))
+        raise FileNotFoundError(f"Schema file not found: {SCHEMA_FILE}")
+
     async with aiosqlite.connect(db_path) as db:
         # Enable foreign keys
         await db.execute("PRAGMA foreign_keys = ON")
@@ -41,51 +48,21 @@ async def init_database(db_path: Path | None = None) -> None:
         # Enable WAL mode for better concurrent read performance
         await db.execute("PRAGMA journal_mode = WAL")
 
-        # Run migrations
-        await _run_migrations(db)
+        # Apply consolidated schema (idempotent - CREATE TABLE IF NOT EXISTS)
+        schema_sql = SCHEMA_FILE.read_text()
+        await db.executescript(schema_sql)
+
+        # Migrations for existing databases (idempotent)
+        # Add embedding column to kg_nodes (surface semantic dedup)
+        try:
+            await db.execute("ALTER TABLE kg_nodes ADD COLUMN embedding BLOB")
+            log.info("migration_applied", migration="kg_nodes_add_embedding")
+        except Exception:
+            pass  # Column already exists
 
         await db.commit()
 
     log.info("database_initialized", path=str(db_path))
-
-
-async def _run_migrations(db: aiosqlite.Connection) -> None:
-    """
-    Run all SQL migration files in order.
-
-    Migrations are .sql files in the migrations directory, sorted by name.
-    Each migration is run in full (no partial migration tracking for simplicity).
-    """
-    if not MIGRATIONS_DIR.exists():
-        log.warning("migrations_dir_not_found", path=str(MIGRATIONS_DIR))
-        return
-
-    migration_files = sorted(MIGRATIONS_DIR.glob("*.sql"))
-
-    for migration_file in migration_files:
-        log.debug("running_migration", file=migration_file.name)
-
-        sql = migration_file.read_text()
-
-        # Execute all statements in the migration
-        await db.executescript(sql)
-
-    # Post-migration cleanup: drop coverage columns from existing databases.
-    # These are idempotent checks — safe to run even if columns don't exist.
-    for table, column in [
-        ("sessions", "coverage_score"),
-        ("scoring_history", "coverage_score"),
-    ]:
-        try:
-            cursor = await db.execute(f"PRAGMA table_info({table})")
-            columns = [row[1] for row in await cursor.fetchall()]
-            if column in columns:
-                await db.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
-                log.info("dropped_column", table=table, column=column)
-        except Exception as e:
-            log.debug("column_drop_skipped", table=table, column=column, reason=str(e))
-
-    log.info("migrations_complete", count=len(migration_files))
 
 
 async def get_db() -> AsyncGenerator[aiosqlite.Connection, None]:
