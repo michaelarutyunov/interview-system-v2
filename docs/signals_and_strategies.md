@@ -560,6 +560,67 @@ phases:
 | `signal_weights.{signal}` | YAML (strategy) | Weight for scoring contribution |
 | `signal_weights.{strategy}` | YAML (phase) | Phase-specific multiplier |
 | `phase_bonuses.{strategy}` | YAML (phase) | Phase-specific additive bonus |
+| `focus_mode` | YAML (strategy) | Focus selection behavior: `recent_node`, `summary`, or `topic` |
+| `generates_closing_question` | YAML (strategy) | Whether this strategy terminates the interview |
+
+---
+
+## Focus Mode Configuration
+
+**Purpose**: Controls what concept the interview should focus on after a strategy is selected. This replaces hardcoded strategy name checks in the focus selection logic.
+
+### Focus Mode Values
+
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| `recent_node` (default) | Focus on most recently discussed node | Most strategies (deepen, broaden, reflect, cover) |
+| `summary` | Focus on "what we've discussed" | Closing strategies that synthesize |
+| `topic` | Focus on the research topic itself | Future use for topic-level reflection |
+
+### YAML Configuration
+
+```yaml
+strategies:
+  - name: validate_outcome
+    description: "Confirm understanding and check if we've captured the most important aspects"
+    focus_mode: summary              # Closing strategy → summarize
+    generates_closing_question: true # Ends interview
+    signal_weights:
+      graph.max_depth: 0.5
+
+  - name: deepen
+    description: "Explore why something matters"
+    # focus_mode defaults to "recent_node" (not specified)
+    signal_weights:
+      llm.response_depth.shallow: 0.8
+```
+
+### Consumption Layer Behavior
+
+The focus mode is consumed by `FocusSelectionService.resolve_focus_from_strategy_output()`:
+
+```python
+def _select_by_focus_mode(self, recent_nodes, focus_mode="recent_node"):
+    if not recent_nodes:
+        return "the topic"
+    if focus_mode == "summary":
+        return "what we've discussed"
+    if focus_mode == "topic":
+        return "the topic"
+    return recent_nodes[0].label  # recent_node (default)
+```
+
+### Termination Handling
+
+The `generates_closing_question` flag is consumed by `ContinuationStage` to determine interview termination:
+
+```python
+# ContinuationStage._should_continue()
+if context.strategy_selection_output.generates_closing_question:
+    return False, "Closing strategy selected"
+```
+
+This replaces the previous hardcoded `if strategy == "close"` check, enabling any strategy with `generates_closing_question: true` to terminate the interview.
 
 ---
 
@@ -747,6 +808,8 @@ strategies:
 
   - name: reflect
     description: "Synthesize insights"
+    focus_mode: summary                # Summarize what we've discussed
+    generates_closing_question: true   # Terminates interview
     signal_weights:
       meta.interview.phase.late: 1.0
       graph.chain_completion.high: 0.8

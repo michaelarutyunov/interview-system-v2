@@ -289,7 +289,7 @@ The `termination_reason` field is populated when `should_continue=False`:
 | Reason | Description | Detection |
 |--------|-------------|-----------|
 | `"Maximum turns reached"` | Interview reached configured `max_turns` limit | `turn_number >= max_turns` |
-| `"Closing strategy selected"` | Closing strategy was explicitly selected | `strategy == "close"` |
+| `"Closing strategy selected"` | Closing strategy was explicitly selected | `generates_closing_question == true` |
 | `"graph_saturated"` | 3+ consecutive turns with zero yield (no new nodes/edges) | `consecutive_zero_yield >= 3` |
 | `"quality_degraded"` | 6+ consecutive shallow responses detected | `consecutive_shallow >= 6` |
 | `"depth_plateau"` | Graph max_depth hasn't increased in 6 consecutive turns | `consecutive_depth_plateau >= 6` |
@@ -621,6 +621,25 @@ def get_registry() -> MethodologyRegistry:
     return _registry
 ```
 
+### StrategyConfig Schema
+
+Each strategy in the methodology YAML includes:
+
+```python
+@dataclass
+class StrategyConfig:
+    name: str                           # Strategy identifier
+    description: str                    # Human-readable description
+    signal_weights: dict[str, float]    # Signal → weight mapping
+    generates_closing_question: bool = False  # Terminates interview when selected
+    focus_mode: str = "recent_node"     # Focus selection: recent_node | summary | topic
+```
+
+**Valid `focus_mode` values:**
+- `recent_node` (default): Focus on most recently discussed node
+- `summary`: Focus on "what we've discussed" (for closing strategies)
+- `topic`: Focus on the research topic itself (future use)
+
 ### MethodologyStrategyService
 
 The `MethodologyStrategyService` uses methodology configs (via dependency injection):
@@ -639,6 +658,44 @@ class MethodologyStrategyService:
 ```
 
 **D1 Architecture**: Joint strategy-node scoring (`rank_strategy_node_pairs()`) enables per-node exhaustion awareness and backtracking by scoring (strategy, node_id) pairs instead of strategies alone.
+
+### YAML-Driven Strategy Consumption
+
+The strategy consumption layer is fully YAML-driven, eliminating hardcoded strategy names from the codebase.
+
+**Focus Selection (via `FocusSelectionService`):**
+
+The `focus_mode` field from `StrategyConfig` determines what concept to focus on:
+
+```python
+# src/services/focus_selection_service.py
+def _select_by_focus_mode(self, recent_nodes, focus_mode="recent_node"):
+    if not recent_nodes:
+        return "the topic"
+    if focus_mode == "summary":
+        return "what we've discussed"
+    if focus_mode == "topic":
+        return "the topic"
+    return recent_nodes[0].label  # recent_node (default)
+```
+
+**Termination (via `ContinuationStage`):**
+
+The `generates_closing_question` flag determines whether to end the interview:
+
+```python
+# src/services/turn_pipeline/stages/continuation_stage.py
+if context.strategy_selection_output.generates_closing_question:
+    return False, "Closing strategy selected"
+```
+
+This enables any strategy with `generates_closing_question: true` to terminate the interview, not just a hardcoded "close" strategy.
+
+**Benefits:**
+- New methodologies can define custom strategies without code changes
+- Focus behavior is declarative via YAML configuration
+- Termination is no longer tied to specific strategy names
+- Full separation of mechanism (pipeline) from domain (methodology content)
 
 ---
 

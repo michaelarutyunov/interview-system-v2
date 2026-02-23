@@ -539,9 +539,11 @@ node_tracker: NodeStateTracker        # Node state tracking for node-level signa
 ```python
 strategy: str                          # Selected strategy
 focus: Optional[Dict[str, Any]]        # Focus target with focus_node_id when strategy selects a node
+focus_mode: str                        # Focus selection mode: 'recent_node' (default), 'summary', or 'topic'
 selected_at: datetime                # When strategy was selected (auto-set)
 signals: Optional[Dict[str, Any]]      # Methodology-specific signals (namespaced)
 strategy_alternatives: List[tuple[str, str, float]]  # (strategy, node_id, score) tuples
+generates_closing_question: bool       # Whether this strategy generates a closing question (interview conclusion)
 ```
 
 ---
