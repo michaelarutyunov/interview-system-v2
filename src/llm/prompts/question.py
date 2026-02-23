@@ -267,13 +267,8 @@ def _build_strategy_rationale(signals: Dict[str, Any], strategy: str) -> str:
         elif hedging in ["none", "low"]:
             rationale_parts.append("- Confident response with low uncertainty")
 
-    # Strategy-specific rationale
-    if strategy == "deepen":
-        rationale_parts.append("- Strategy: deepen to probe motivations and values")
-    elif strategy == "broaden":
-        rationale_parts.append("- Strategy: broaden to explore new areas")
-    elif strategy == "clarify":
-        rationale_parts.append("- Strategy: clarify to resolve uncertainty")
+    # Strategy rationale (description already in system/user prompt from YAML)
+    rationale_parts.append(f"- Strategy: {strategy}")
 
     if not rationale_parts:
         return f"Selected {strategy} strategy based on current state"
