@@ -256,6 +256,10 @@ class StrategySelectionOutput(BaseModel):
         default=False,
         description="Whether this strategy generates a closing question (interview conclusion)",
     )
+    focus_mode: str = Field(
+        default="recent_node",
+        description="Focus selection mode: 'recent_node' (default), 'summary', or 'topic'",
+    )
     # Per-candidate score decomposition from joint scoring (simulation-only)
     score_decomposition: Optional[List[Any]] = Field(
         default=None,
