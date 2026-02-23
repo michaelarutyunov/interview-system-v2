@@ -207,9 +207,7 @@ class QuestionService:
         # Load methodology schema
         methodology_schema = self.load_methodology_schema()
 
-        system_prompt = get_opening_question_system_prompt(
-            methodology=methodology_schema
-        )
+        system_prompt = get_opening_question_system_prompt(methodology=methodology_schema)
         user_prompt = get_opening_question_user_prompt(
             objective=objective,
             methodology=methodology_schema,

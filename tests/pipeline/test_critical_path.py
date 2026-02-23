@@ -101,9 +101,7 @@ async def test_pipeline_critical_path_minimal(session_repo, graph_repo, utteranc
     )
 
     # Mock the extraction to return empty result (no LLM call)
-    with patch.object(
-        stages[2].extraction, "extract", new_callable=AsyncMock
-    ) as mock_extract:
+    with patch.object(stages[2].extraction, "extract", new_callable=AsyncMock) as mock_extract:
         from src.domain.models.extraction import ExtractionResult
 
         mock_extract.return_value = ExtractionResult(

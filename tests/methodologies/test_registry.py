@@ -8,9 +8,7 @@ class TestStrategyConfigFocusMode:
     """Test focus_mode field on StrategyConfig."""
 
     def test_default_focus_mode_is_recent_node(self):
-        config = StrategyConfig(
-            name="test", description="test", signal_weights={}
-        )
+        config = StrategyConfig(name="test", description="test", signal_weights={})
         assert config.focus_mode == "recent_node"
 
     def test_focus_mode_summary(self):

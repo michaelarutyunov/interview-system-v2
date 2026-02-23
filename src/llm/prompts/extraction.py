@@ -74,12 +74,8 @@ Important:
                 error=str(e),
             )
 
-    node_types_str = "\n".join(
-        f"  - {name}: {desc}" for name, desc in node_descriptions.items()
-    )
-    edge_types_str = "\n".join(
-        f"  - {name}: {desc}" for name, desc in edge_descriptions.items()
-    )
+    node_types_str = "\n".join(f"  - {name}: {desc}" for name, desc in node_descriptions.items())
+    edge_types_str = "\n".join(f"  - {name}: {desc}" for name, desc in edge_descriptions.items())
 
     # Determine primary edge type for this methodology's conversational examples
     # (avoids hardcoding MEC-specific "leads_to" which doesn't exist in JTBD etc.)
@@ -223,9 +219,7 @@ def get_extractability_system_prompt(methodology: str = "means_end_chain") -> st
     criteria = schema.get_extractability_criteria()
 
     extractable_items = "\n".join(f"- {item}" for item in criteria.extractable_contains)
-    non_extractable_items = "\n".join(
-        f"- {item}" for item in criteria.non_extractable_contains
-    )
+    non_extractable_items = "\n".join(f"- {item}" for item in criteria.non_extractable_contains)
 
     return f"""You are assessing whether text contains extractable knowledge for a qualitative research interview ({methodology.replace("_", " ")}).
 

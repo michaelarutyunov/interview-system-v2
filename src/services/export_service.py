@@ -165,9 +165,7 @@ class ExportService:
                 "concept_id": session.concept_id,
                 "methodology": session.methodology,
                 "status": session.status,
-                "created_at": session.created_at.isoformat()
-                if session.created_at
-                else None,
+                "created_at": session.created_at.isoformat() if session.created_at else None,
                 "completed_at": None,  # Session model doesn't have completed_at
                 "config": {},  # Session model doesn't have config
                 "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -192,9 +190,7 @@ class ExportService:
                         "confidence": n.confidence,
                         "properties": n.properties,
                         "source_utterance_ids": n.source_utterance_ids,
-                        "recorded_at": n.recorded_at.isoformat()
-                        if n.recorded_at
-                        else None,
+                        "recorded_at": n.recorded_at.isoformat() if n.recorded_at else None,
                     }
                     for n in nodes
                 ],
@@ -207,9 +203,7 @@ class ExportService:
                         "confidence": e.confidence,
                         "properties": e.properties,
                         "source_utterance_ids": e.source_utterance_ids,
-                        "recorded_at": e.recorded_at.isoformat()
-                        if e.recorded_at
-                        else None,
+                        "recorded_at": e.recorded_at.isoformat() if e.recorded_at else None,
                     }
                     for e in edges
                 ],
@@ -218,8 +212,7 @@ class ExportService:
             "diagnostics": {
                 "scoring_history": scoring_history,  # Already fetched above
                 "llm_signals": {
-                    f"turn_{turn}": signals
-                    for turn, signals in sorted(all_signals.items())
+                    f"turn_{turn}": signals for turn, signals in sorted(all_signals.items())
                 },
             },
         }
@@ -286,9 +279,7 @@ class ExportService:
             nodes_by_type[node_type].append(node)
 
         for node_type, type_nodes in sorted(nodes_by_type.items()):
-            lines.append(
-                f"### {node_type.replace('_', ' ').title()} ({len(type_nodes)})"
-            )
+            lines.append(f"### {node_type.replace('_', ' ').title()} ({len(type_nodes)})")
             lines.append("")
             for node in type_nodes:
                 label = node["label"]
@@ -305,12 +296,8 @@ class ExportService:
             node_labels = {n["id"]: n["label"] for n in nodes}
 
             for edge in edges:
-                source_label = node_labels.get(
-                    edge["source_node_id"], edge["source_node_id"]
-                )
-                target_label = node_labels.get(
-                    edge["target_node_id"], edge["target_node_id"]
-                )
+                source_label = node_labels.get(edge["source_node_id"], edge["source_node_id"])
+                target_label = node_labels.get(edge["target_node_id"], edge["target_node_id"])
                 edge_type = edge["edge_type"]
                 confidence = edge["confidence"]
 
@@ -356,9 +343,7 @@ class ExportService:
                         "label": node["label"],
                         "node_type": node["node_type"],
                         "confidence": node["confidence"],
-                        "source_utterance_ids": json.dumps(
-                            node["source_utterance_ids"]
-                        ),
+                        "source_utterance_ids": json.dumps(node["source_utterance_ids"]),
                     }
                 )
         output.write("\n\n")

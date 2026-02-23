@@ -78,9 +78,7 @@ class NodeSignalDetectionService:
             return {}
 
         # Initialize node signals dict
-        node_signals: Dict[str, Dict[str, Any]] = {
-            node_id: {} for node_id in all_states.keys()
-        }
+        node_signals: Dict[str, Dict[str, Any]] = {node_id: {} for node_id in all_states.keys()}
 
         # List of node signal detectors to run
         # These detectors take node_tracker in their constructor

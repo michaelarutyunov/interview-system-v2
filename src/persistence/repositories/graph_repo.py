@@ -111,9 +111,7 @@ class GraphRepository:
 
         node = await self.get_node(node_id)
         if node is None:
-            raise RuntimeError(
-                f"Node creation failed: node {node_id} not found after INSERT"
-            )
+            raise RuntimeError(f"Node creation failed: node {node_id} not found after INSERT")
         return node
 
     async def get_node(self, node_id: str) -> Optional[KGNode]:
@@ -234,9 +232,7 @@ class GraphRepository:
 
         return await self.get_node(node_id)
 
-    async def add_source_utterance(
-        self, node_id: str, utterance_id: str
-    ) -> Optional[KGNode]:
+    async def add_source_utterance(self, node_id: str, utterance_id: str) -> Optional[KGNode]:
         """
         Add a source utterance to a node's provenance.
 
@@ -258,9 +254,7 @@ class GraphRepository:
 
         return node
 
-    async def supersede_node(
-        self, old_node_id: str, new_node_id: str
-    ) -> Optional[KGNode]:
+    async def supersede_node(self, old_node_id: str, new_node_id: str) -> Optional[KGNode]:
         """
         Mark a node as superseded by another (for contradictions).
 
@@ -336,9 +330,7 @@ class GraphRepository:
 
         edge = await self.get_edge(edge_id)
         if edge is None:
-            raise RuntimeError(
-                f"Edge creation failed: edge {edge_id} not found after INSERT"
-            )
+            raise RuntimeError(f"Edge creation failed: edge {edge_id} not found after INSERT")
         return edge
 
     async def get_edge(self, edge_id: str) -> Optional[KGEdge]:
@@ -417,9 +409,7 @@ class GraphRepository:
 
         return self._row_to_edge(row)
 
-    async def add_edge_source_utterance(
-        self, edge_id: str, utterance_id: str
-    ) -> Optional[KGEdge]:
+    async def add_edge_source_utterance(self, edge_id: str, utterance_id: str) -> Optional[KGEdge]:
         """
         Add a source utterance to an edge's provenance.
 
@@ -518,9 +508,7 @@ class GraphRepository:
         all_edges = await self.get_edges_by_session(session_id)
 
         all_node_ids = {node.id for node in all_nodes}
-        adjacency, has_incoming = self._build_directed_adjacency(
-            all_node_ids, all_edges
-        )
+        adjacency, has_incoming = self._build_directed_adjacency(all_node_ids, all_edges)
         max_depth = self._find_longest_path_bfs(adjacency, all_node_ids, has_incoming)
 
         # Create DepthMetrics (ADR-010)
@@ -623,9 +611,7 @@ class GraphRepository:
 
     # ==================== DUAL-GRAPH REPORTING METHODS ====================
 
-    async def get_nodes_with_canonical_mapping(
-        self, session_id: str
-    ) -> List[Dict[str, Any]]:
+    async def get_nodes_with_canonical_mapping(self, session_id: str) -> List[Dict[str, Any]]:
         """
         Get surface nodes with optional canonical slot mapping.
 

@@ -259,6 +259,4 @@ class ContinuationStage(TurnStage):
         if not explored:
             return False
 
-        return all(
-            ns.turns_since_last_yield >= NODE_EXHAUSTION_YIELD_GAP for ns in explored
-        )
+        return all(ns.turns_since_last_yield >= NODE_EXHAUSTION_YIELD_GAP for ns in explored)

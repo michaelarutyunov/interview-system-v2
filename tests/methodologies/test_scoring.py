@@ -7,8 +7,6 @@ from src.methodologies.scoring import (
     score_strategy,
     rank_strategies,
     rank_strategy_node_pairs,
-    ScoredCandidate,
-    SignalContribution,
 )
 from src.methodologies.registry import StrategyConfig
 
@@ -421,9 +419,7 @@ class TestLLMSignalThresholdsIntegration:
             (1.0, "high", True),
         ],
     )
-    def test_all_llm_signals_threshold_combinations(
-        self, signal_value, qualifier, expected
-    ):
+    def test_all_llm_signals_threshold_combinations(self, signal_value, qualifier, expected):
         """Test all LLM signals use consistent threshold binning."""
         signals = {
             "llm.response_depth": signal_value,
@@ -439,8 +435,7 @@ class TestLLMSignalThresholdsIntegration:
             key = f"llm.response_depth.{qualifier}"
             result = _get_signal_value(key, signals)
             assert result == expected, (
-                f"Failed for {key} with value {signal_value}: "
-                f"expected {expected}, got {result}"
+                f"Failed for {key} with value {signal_value}: expected {expected}, got {result}"
             )
 
     def test_new_llm_signal_names_in_strategy(self):

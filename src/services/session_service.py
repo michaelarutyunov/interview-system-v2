@@ -133,9 +133,7 @@ class SessionService:
 
         # Note: GraphService is created in _build_pipeline() after canonical_slot_repo is initialized
         # This allows us to pass canonical_slot_repo to GraphService.__init__ (no longer optional)
-        self.graph: Optional[GraphService] = (
-            graph_service  # Set in _build_pipeline() if None
-        )
+        self.graph: Optional[GraphService] = graph_service  # Set in _build_pipeline() if None
 
         # Question service needs methodology for opening question generation
         # We'll create it with a default and update it when we have a session
@@ -160,9 +158,7 @@ class SessionService:
         self.focus_selection = FocusSelectionService()
 
         # Load from centralized interview configuration
-        self.max_turns = (
-            max_turns if max_turns is not None else interview_config.session.max_turns
-        )
+        self.max_turns = max_turns if max_turns is not None else interview_config.session.max_turns
 
         # Build pipeline with all stages
         self.pipeline = self._build_pipeline()
@@ -208,9 +204,7 @@ class SessionService:
                     )
                 slot_llm_client = self.generation_llm_client
 
-            canonical_slot_repo = CanonicalSlotRepository(
-                str(self.session_repo.db_path)
-            )
+            canonical_slot_repo = CanonicalSlotRepository(str(self.session_repo.db_path))
             canonical_slot_service = CanonicalSlotService(
                 llm_client=slot_llm_client,
                 slot_repo=canonical_slot_repo,
@@ -263,9 +257,7 @@ class SessionService:
             # Stage 4.5: SlotDiscoveryStage (always wired, skips if service is None)
             # Maps surface nodes to canonical slots via LLM proposal + embedding similarity
             # Also aggregates surface edges to canonical edges
-            SlotDiscoveryStage(
-                slot_service=canonical_slot_service, graph_service=self.graph
-            ),
+            SlotDiscoveryStage(slot_service=canonical_slot_service, graph_service=self.graph),
         ]
 
         # StateComputationStage: Refresh graph state and compute canonical graph state
@@ -561,9 +553,7 @@ class SessionService:
             "strategy_selected": strategy,
             "strategy_reasoning": reasoning,
             "phase": phase,
-            "focus_tracing": [
-                entry.model_dump() for entry in session.state.focus_history
-            ],
+            "focus_tracing": [entry.model_dump() for entry in session.state.focus_history],
         }
 
     # ==================== NODE TRACKER STATE PERSISTENCE ====================
@@ -634,9 +624,7 @@ class SessionService:
         tracker_state_json = json.dumps(tracker_dict)
 
         # Persist to database
-        await self.session_repo.update_node_tracker_state(
-            session_id, tracker_state_json
-        )
+        await self.session_repo.update_node_tracker_state(session_id, tracker_state_json)
         log.debug(
             "node_tracker_saved",
             session_id=session_id,

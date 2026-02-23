@@ -192,8 +192,7 @@ class ChainCompletionSignal(SignalDetector):
             schema = load_methodology(methodology_name)
         except Exception as e:
             raise ConfigurationError(
-                f"ChainCompletionSignal failed to load methodology schema "
-                f"'{methodology_name}': {e}"
+                f"ChainCompletionSignal failed to load methodology schema '{methodology_name}': {e}"
             ) from e
 
         # Get terminal node types from schema
@@ -248,9 +247,7 @@ class ChainCompletionSignal(SignalDetector):
         """Get all nodes for the session."""
         session_id = getattr(context, "session_id", None)
         if not session_id:
-            raise GraphError(
-                "ChainCompletionSignal failed to load nodes: session_id is None"
-            )
+            raise GraphError("ChainCompletionSignal failed to load nodes: session_id is None")
 
         try:
             from src.persistence.repositories.graph_repo import GraphRepository
@@ -260,17 +257,14 @@ class ChainCompletionSignal(SignalDetector):
             return await repo.get_nodes_by_session(session_id)
         except Exception as e:
             raise GraphError(
-                f"ChainCompletionSignal failed to load nodes for session "
-                f"'{session_id}': {e}"
+                f"ChainCompletionSignal failed to load nodes for session '{session_id}': {e}"
             ) from e
 
     async def _get_session_edges(self, context: Any) -> List[Any]:
         """Get all edges for the session."""
         session_id = getattr(context, "session_id", None)
         if not session_id:
-            raise GraphError(
-                "ChainCompletionSignal failed to load edges: session_id is None"
-            )
+            raise GraphError("ChainCompletionSignal failed to load edges: session_id is None")
 
         try:
             from src.persistence.repositories.graph_repo import GraphRepository
@@ -280,13 +274,10 @@ class ChainCompletionSignal(SignalDetector):
             return await repo.get_edges_by_session(session_id)
         except Exception as e:
             raise GraphError(
-                f"ChainCompletionSignal failed to load edges for session "
-                f"'{session_id}': {e}"
+                f"ChainCompletionSignal failed to load edges for session '{session_id}': {e}"
             ) from e
 
-    def _build_adjacency_list(
-        self, nodes: List[Any], edges: List[Any]
-    ) -> Dict[str, List[str]]:
+    def _build_adjacency_list(self, nodes: List[Any], edges: List[Any]) -> Dict[str, List[str]]:
         """Build adjacency list from nodes and edges."""
         adj_list = {node.id: [] for node in nodes}
 
@@ -347,9 +338,7 @@ class CanonicalConceptCountSignal(SignalDetector):
     )
     dependencies = []
 
-    async def detect(
-        self, context: "PipelineContext", graph_state, response_text
-    ) -> dict:
+    async def detect(self, context: "PipelineContext", graph_state, response_text) -> dict:
         """Return canonical concept count from canonical graph state."""
         cg_state = context.canonical_graph_state
 
@@ -377,9 +366,7 @@ class CanonicalEdgeDensitySignal(SignalDetector):
     )
     dependencies = []
 
-    async def detect(
-        self, context: "PipelineContext", graph_state, response_text
-    ) -> dict:
+    async def detect(self, context: "PipelineContext", graph_state, response_text) -> dict:
         """Return canonical edge density from canonical graph state."""
         cg_state = context.canonical_graph_state
 
@@ -416,9 +403,7 @@ class CanonicalExhaustionScoreSignal(SignalDetector):
     )
     dependencies = []
 
-    async def detect(
-        self, context: "PipelineContext", graph_state, response_text
-    ) -> dict:
+    async def detect(self, context: "PipelineContext", graph_state, response_text) -> dict:
         """Return average canonical slot exhaustion score."""
         node_tracker = context.node_tracker
 
@@ -427,8 +412,7 @@ class CanonicalExhaustionScoreSignal(SignalDetector):
             return {}
 
         exhaustion_scores = [
-            self._calculate_exhaustion_score(state)
-            for state in node_tracker.states.values()
+            self._calculate_exhaustion_score(state) for state in node_tracker.states.values()
         ]
 
         if not exhaustion_scores:
@@ -464,9 +448,7 @@ class CanonicalExhaustionScoreSignal(SignalDetector):
             return 0.0
 
         recent_responses = state.all_response_depths[-recent_count:]
-        shallow_count = sum(
-            1 for depth in recent_responses if depth in ("surface", "shallow")
-        )
+        shallow_count = sum(1 for depth in recent_responses if depth in ("surface", "shallow"))
 
         return shallow_count / len(recent_responses)
 

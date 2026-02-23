@@ -33,9 +33,7 @@ class NodeStrategyRepetitionSignal(NodeSignalDetector):
         results = {}
 
         for node_id, state in self._get_all_node_states().items():
-            repetition_category = self._categorize_repetition(
-                state.consecutive_same_strategy
-            )
+            repetition_category = self._categorize_repetition(state.consecutive_same_strategy)
             results[node_id] = repetition_category
 
         return results

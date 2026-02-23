@@ -287,12 +287,10 @@ class GraphService:
         # Detect cross-turn resolution: node is cross-turn if current utterance_id
         # is not in its source_utterance_ids (i.e. it was created in a prior turn)
         source_is_cross_turn = (
-            source_node is not None
-            and utterance_id not in source_node.source_utterance_ids
+            source_node is not None and utterance_id not in source_node.source_utterance_ids
         )
         target_is_cross_turn = (
-            target_node is not None
-            and utterance_id not in target_node.source_utterance_ids
+            target_node is not None and utterance_id not in target_node.source_utterance_ids
         )
         is_cross_turn = source_is_cross_turn or target_is_cross_turn
 
@@ -343,9 +341,7 @@ class GraphService:
             source_utterance_ids=[utterance_id],
         )
 
-    async def get_session_graph(
-        self, session_id: str
-    ) -> Tuple[List[KGNode], List[KGEdge]]:
+    async def get_session_graph(self, session_id: str) -> Tuple[List[KGNode], List[KGEdge]]:
         """
         Get complete graph for a session.
 
@@ -536,12 +532,8 @@ class GraphService:
             surface_edge_id = cast(str, surface_edge_id)
 
             # Get canonical slot mappings for source and target
-            source_mapping = await self.canonical_slot_repo.get_mapping_for_node(
-                source_id
-            )
-            target_mapping = await self.canonical_slot_repo.get_mapping_for_node(
-                target_id
-            )
+            source_mapping = await self.canonical_slot_repo.get_mapping_for_node(source_id)
+            target_mapping = await self.canonical_slot_repo.get_mapping_for_node(target_id)
 
             # Skip if either endpoint is unmapped
             if source_mapping is None or target_mapping is None:
@@ -568,14 +560,12 @@ class GraphService:
                 continue
 
             # Add or update canonical edge
-            canonical_edge = (
-                await self.canonical_slot_repo.add_or_update_canonical_edge(
-                    session_id=session_id,
-                    source_slot_id=source_slot_id,
-                    target_slot_id=target_slot_id,
-                    edge_type=edge_type,
-                    surface_edge_id=surface_edge_id,
-                )
+            canonical_edge = await self.canonical_slot_repo.add_or_update_canonical_edge(
+                session_id=session_id,
+                source_slot_id=source_slot_id,
+                target_slot_id=target_slot_id,
+                edge_type=edge_type,
+                surface_edge_id=surface_edge_id,
             )
             canonical_edges.append(canonical_edge)
 

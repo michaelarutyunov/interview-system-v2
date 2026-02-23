@@ -72,9 +72,7 @@ class MethodologyStrategyService:
         """
         self.methodology_registry = get_registry()
         # Use injected services or create defaults
-        self.global_signal_service = (
-            global_signal_service or GlobalSignalDetectionService()
-        )
+        self.global_signal_service = global_signal_service or GlobalSignalDetectionService()
         self.node_signal_service = node_signal_service or NodeSignalDetectionService()
 
     async def select_strategy_and_focus(
@@ -126,9 +124,7 @@ class MethodologyStrategyService:
             ScoringError: If no valid (strategy, node) pairs can be scored
         """
         # Get methodology config from YAML
-        methodology_name = (
-            context.methodology if context.methodology else "means_end_chain"
-        )
+        methodology_name = context.methodology if context.methodology else "means_end_chain"
         config = self.methodology_registry.get_methodology(methodology_name)
 
         if not config:

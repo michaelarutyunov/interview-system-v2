@@ -146,9 +146,7 @@ class ScoringPersistenceStage(TurnStage):
         if not context.graph_state:
             return
 
-        signals_data = context.graph_state.extended_properties.get(
-            "qualitative_signals"
-        )
+        signals_data = context.graph_state.extended_properties.get("qualitative_signals")
         if not signals_data:
             return
 
@@ -289,9 +287,7 @@ class ScoringPersistenceStage(TurnStage):
         current_surface = graph_state.node_count
         prev_surface = clo.prev_surface_node_count
         surface_delta = max(current_surface - prev_surface, 0)
-        new_surface_ewma = (
-            alpha * surface_delta + (1 - alpha) * clo.surface_velocity_ewma
-        )
+        new_surface_ewma = alpha * surface_delta + (1 - alpha) * clo.surface_velocity_ewma
         new_surface_peak = max(clo.surface_velocity_peak, float(surface_delta))
 
         # Canonical graph velocity computation (may be None if disabled)
@@ -300,12 +296,8 @@ class ScoringPersistenceStage(TurnStage):
             current_canonical = cg_state.concept_count
             prev_canonical = clo.prev_canonical_node_count
             canonical_delta = max(current_canonical - prev_canonical, 0)
-            new_canonical_ewma = (
-                alpha * canonical_delta + (1 - alpha) * clo.canonical_velocity_ewma
-            )
-            new_canonical_peak = max(
-                clo.canonical_velocity_peak, float(canonical_delta)
-            )
+            new_canonical_ewma = alpha * canonical_delta + (1 - alpha) * clo.canonical_velocity_ewma
+            new_canonical_peak = max(clo.canonical_velocity_peak, float(canonical_delta))
         else:
             # Canonical slots disabled — preserve zeros
             current_canonical = 0
@@ -318,9 +310,7 @@ class ScoringPersistenceStage(TurnStage):
 
         # Build focus entry for this turn
         focus = (
-            context.strategy_selection_output.focus
-            if context.strategy_selection_output
-            else None
+            context.strategy_selection_output.focus if context.strategy_selection_output else None
         )
         focus_node_id = focus.get("focus_node_id") if focus else None
 

@@ -321,8 +321,7 @@ def rank_strategy_node_pairs(
         phase_weights=phase_weights,
         phase_bonuses=phase_bonuses,
         top5=[
-            {"strategy": s.name, "node_id": nid, "score": round(sc, 4)}
-            for s, nid, sc in ranked[:5]
+            {"strategy": s.name, "node_id": nid, "score": round(sc, 4)} for s, nid, sc in ranked[:5]
         ],
     )
 

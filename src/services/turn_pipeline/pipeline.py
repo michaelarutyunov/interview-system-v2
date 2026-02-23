@@ -165,9 +165,7 @@ class TurnPipeline:
         # Safely access stage outputs (may be None for partial pipeline execution)
         # Access contracts directly to avoid RuntimeError from convenience properties
         turn_number = (
-            context.context_loading_output.turn_number
-            if context.context_loading_output
-            else 1
+            context.context_loading_output.turn_number if context.context_loading_output else 1
         )
         if not context.strategy_selection_output:
             raise RuntimeError("StrategySelectionStage must run before building result")
@@ -178,9 +176,7 @@ class TurnPipeline:
             else ""
         )
         should_continue = (
-            context.continuation_output.should_continue
-            if context.continuation_output
-            else True
+            context.continuation_output.should_continue if context.continuation_output else True
         )
         termination_reason = (
             context.continuation_output.reason
@@ -200,9 +196,7 @@ class TurnPipeline:
                 for alt in alternatives:
                     if len(alt) == 2:
                         strategy, score = alt
-                        strategy_alternatives.append(
-                            {"strategy": strategy, "score": score}
-                        )
+                        strategy_alternatives.append({"strategy": strategy, "score": score})
                     elif len(alt) == 3:
                         strategy, node_id, score = alt
                         strategy_alternatives.append(
@@ -234,9 +228,7 @@ class TurnPipeline:
                 surface_nodes = context.graph_state.node_count
                 canonical_nodes = cg_state.concept_count
                 node_reduction_pct = (
-                    (1 - canonical_nodes / surface_nodes) * 100
-                    if surface_nodes > 0
-                    else 0.0
+                    (1 - canonical_nodes / surface_nodes) * 100 if surface_nodes > 0 else 0.0
                 )
 
                 surface_edges = context.graph_state.edge_count
@@ -252,20 +244,14 @@ class TurnPipeline:
 
         # Build per-turn graph change lists for simulation observability
         nodes_added = [
-            {"id": n.id, "label": n.label, "node_type": n.node_type}
-            for n in context.nodes_added
+            {"id": n.id, "label": n.label, "node_type": n.node_type} for n in context.nodes_added
         ]
         edges_added = list(context.edges_added)  # already List[Dict[str, Any]]
 
         # Serialize saturation metrics for simulation observability
         saturation_metrics = None
-        if (
-            context.state_computation_output
-            and context.state_computation_output.saturation_metrics
-        ):
-            saturation_metrics = (
-                context.state_computation_output.saturation_metrics.model_dump()
-            )
+        if context.state_computation_output and context.state_computation_output.saturation_metrics:
+            saturation_metrics = context.state_computation_output.saturation_metrics.model_dump()
 
         return TurnResult(
             turn_number=turn_number,

@@ -111,9 +111,7 @@ class GraphVisualizer:
         edges = graph_data.get("edges", [])
 
         if not nodes:
-            st.info(
-                "📊 No nodes to display yet. Start the interview to extract concepts."
-            )
+            st.info("📊 No nodes to display yet. Start the interview to extract concepts.")
             return None
 
         # Filter nodes by type

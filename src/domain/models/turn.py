@@ -99,12 +99,8 @@ class Focus(BaseModel):
         "rapport_repair",
         "synthesis",
     ]
-    node_id: Optional[str] = Field(
-        None, description="Node ID if focusing on a specific node"
-    )
-    focus_description: str = Field(
-        ..., description="Human-readable description of the focus"
-    )
+    node_id: Optional[str] = Field(None, description="Node ID if focusing on a specific node")
+    focus_description: str = Field(..., description="Human-readable description of the focus")
     confidence: float = Field(
         default=1.0, ge=0.0, le=1.0, description="Confidence score for this focus"
     )

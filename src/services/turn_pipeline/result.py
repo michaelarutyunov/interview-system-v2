@@ -28,9 +28,7 @@ class TurnResult:
     should_continue: bool
     latency_ms: int = 0
     # Methodology-based signal detection observability
-    signals: Optional[Dict[str, Any]] = (
-        None  # Raw methodology signals from signal pools
-    )
+    signals: Optional[Dict[str, Any]] = None  # Raw methodology signals from signal pools
     strategy_alternatives: Optional[List[Dict[str, Any]]] = (
         None  # Alternative strategies with scores
     )

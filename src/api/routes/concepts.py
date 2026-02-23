@@ -56,9 +56,7 @@ class ConceptConfig(BaseModel):
     name: str = Field(description="Concept name")
     description: str = Field(default="", description="Description")
     methodology: str = Field(description="Methodology ID")
-    elements: List[ConceptElement] = Field(
-        default_factory=list, description="Concept elements"
-    )
+    elements: List[ConceptElement] = Field(default_factory=list, description="Concept elements")
     completion: ConceptCompletion = Field(description="Completion criteria")
 
 

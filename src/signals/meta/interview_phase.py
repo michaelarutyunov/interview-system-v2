@@ -144,9 +144,7 @@ class InterviewPhaseSignal(SignalDetector):
         """
         early = boundaries.get(
             "early_max_turns",
-            boundaries.get(
-                "early_max_nodes", self.DEFAULT_BOUNDARIES["early_max_turns"]
-            ),
+            boundaries.get("early_max_nodes", self.DEFAULT_BOUNDARIES["early_max_turns"]),
         )
         mid = boundaries.get(
             "mid_max_turns",

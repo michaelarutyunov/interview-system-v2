@@ -42,9 +42,7 @@ class UtteranceRepository:
             await db.commit()
 
             # Fetch the saved utterance to get the exact database state
-            cursor = await db.execute(
-                "SELECT * FROM utterances WHERE id = ?", (utterance.id,)
-            )
+            cursor = await db.execute("SELECT * FROM utterances WHERE id = ?", (utterance.id,))
             row = await cursor.fetchone()
             if not row:
                 raise ValueError(f"Utterance {utterance.id} not found after save")

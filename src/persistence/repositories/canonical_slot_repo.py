@@ -115,9 +115,7 @@ class CanonicalSlotRepository:
 
         slot = await self.get_slot(slot_id)
         if slot is None:
-            raise RuntimeError(
-                f"Slot creation failed: slot {slot_id} not found after INSERT"
-            )
+            raise RuntimeError(f"Slot creation failed: slot {slot_id} not found after INSERT")
         return slot
 
     async def get_slot(self, slot_id: str) -> Optional[CanonicalSlot]:
@@ -501,9 +499,7 @@ class CanonicalSlotRepository:
             target_slot_id=row["target_slot_id"],
             edge_type=row["edge_type"],
             support_count=row["support_count"],
-            surface_edge_ids=json.loads(row["surface_edge_ids"])
-            if row["surface_edge_ids"]
-            else [],
+            surface_edge_ids=json.loads(row["surface_edge_ids"]) if row["surface_edge_ids"] else [],
         )
 
     async def get_canonical_edges(self, session_id: str) -> List[CanonicalEdge]:
@@ -577,9 +573,7 @@ class CanonicalSlotRepository:
 
         result = []
         for row in rows:
-            surface_ids = (
-                row["surface_node_ids"].split(",") if row["surface_node_ids"] else []
-            )
+            surface_ids = row["surface_node_ids"].split(",") if row["surface_node_ids"] else []
             result.append(
                 {
                     "slot_id": row["slot_id"],

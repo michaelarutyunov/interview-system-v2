@@ -461,9 +461,7 @@ class ExtractionService:
                     target_text=raw.get("target_text", ""),
                     relationship_type=raw.get("relationship_type", ""),
                     confidence=float(raw.get("confidence", 0.7)),
-                    reasoning=raw.get(
-                        "reasoning"
-                    ),  # LLM explanation for why edge exists
+                    reasoning=raw.get("reasoning"),  # LLM explanation for why edge exists
                     source_utterance_id=source_utterance_id,  # Links edge to source utterance
                 )
 

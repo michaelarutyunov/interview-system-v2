@@ -86,9 +86,7 @@ class ContextLoadingStage(TurnStage):
                 max_turns = config.get("max_turns", default_max_turns)
 
         # Get recent utterances
-        recent_utterances = await self._get_recent_utterances(
-            context.session_id, limit=10
-        )
+        recent_utterances = await self._get_recent_utterances(context.session_id, limit=10)
 
         # Note: Sentiment loading from turn_sentiments has been removed
         # It previously accessed context.graph_state which is not available

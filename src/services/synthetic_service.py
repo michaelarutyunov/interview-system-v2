@@ -76,8 +76,7 @@ class SyntheticService:
         available_personas = get_available_personas()
         if persona not in available_personas:
             raise ValueError(
-                f"Unknown persona: {persona}. "
-                f"Available: {', '.join(available_personas.keys())}"
+                f"Unknown persona: {persona}. Available: {', '.join(available_personas.keys())}"
             )
 
         # Extract previous concepts from graph state

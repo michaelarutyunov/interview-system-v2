@@ -19,9 +19,7 @@ class SessionRepository:
     def __init__(self, db_path: str):
         self.db_path = db_path
 
-    async def create(
-        self, session: Session, config: Optional[Dict[str, Any]] = None
-    ) -> Session:
+    async def create(self, session: Session, config: Optional[Dict[str, Any]] = None) -> Session:
         """Create a new session and populate concept_elements."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -43,9 +41,7 @@ class SessionRepository:
             await db.commit()
 
             # Fetch the created session to get the timestamps
-            cursor = await db.execute(
-                "SELECT * FROM sessions WHERE id = ?", (session.id,)
-            )
+            cursor = await db.execute("SELECT * FROM sessions WHERE id = ?", (session.id,))
             row = await cursor.fetchone()
             if not row:
                 raise ValueError(f"Session {session.id} not found after creation")
@@ -55,9 +51,7 @@ class SessionRepository:
         """Get a session by ID."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT * FROM sessions WHERE id = ?", (session_id,)
-            )
+            cursor = await db.execute("SELECT * FROM sessions WHERE id = ?", (session_id,))
             row = await cursor.fetchone()
             if not row:
                 return None
@@ -67,9 +61,7 @@ class SessionRepository:
         """Update session state (computed on-demand, no caching)."""
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
-                "UPDATE sessions SET "
-                "turn_count = ?, updated_at = datetime('now') "
-                "WHERE id = ?",
+                "UPDATE sessions SET turn_count = ?, updated_at = datetime('now') WHERE id = ?",
                 (state.turn_count, session_id),
             )
             await db.commit()
@@ -87,9 +79,7 @@ class SessionRepository:
     async def delete(self, session_id: str) -> bool:
         """Delete a session by ID. Returns True if deleted."""
         async with aiosqlite.connect(self.db_path) as db:
-            cursor = await db.execute(
-                "DELETE FROM sessions WHERE id = ?", (session_id,)
-            )
+            cursor = await db.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
             await db.commit()
             return cursor.rowcount > 0
 
@@ -120,9 +110,7 @@ class SessionRepository:
         """Get session configuration."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT config FROM sessions WHERE id = ?", (session_id,)
-            )
+            cursor = await db.execute("SELECT config FROM sessions WHERE id = ?", (session_id,))
             row = await cursor.fetchone()
             if row:
                 return json.loads(row["config"]) if row["config"] else {}
@@ -143,9 +131,7 @@ class SessionRepository:
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             # Get existing config
-            cursor = await db.execute(
-                "SELECT config FROM sessions WHERE id = ?", (session_id,)
-            )
+            cursor = await db.execute("SELECT config FROM sessions WHERE id = ?", (session_id,))
             row = await cursor.fetchone()
             existing_config = {}
             if row and row["config"]:
@@ -156,8 +142,7 @@ class SessionRepository:
 
             # Update the config
             await db.execute(
-                "UPDATE sessions SET config = ?, updated_at = datetime('now') "
-                "WHERE id = ?",
+                "UPDATE sessions SET config = ?, updated_at = datetime('now') WHERE id = ?",
                 (json.dumps(existing_config), session_id),
             )
             await db.commit()
@@ -281,15 +266,9 @@ class SessionRepository:
                     llm_model,
                     extraction_latency_ms,
                     json.dumps(extraction_errors or []),
-                    json.dumps(signals.get("uncertainty"))
-                    if signals.get("uncertainty")
-                    else None,
-                    json.dumps(signals.get("reasoning"))
-                    if signals.get("reasoning")
-                    else None,
-                    json.dumps(signals.get("emotional"))
-                    if signals.get("emotional")
-                    else None,
+                    json.dumps(signals.get("uncertainty")) if signals.get("uncertainty") else None,
+                    json.dumps(signals.get("reasoning")) if signals.get("reasoning") else None,
+                    json.dumps(signals.get("emotional")) if signals.get("emotional") else None,
                     json.dumps(signals.get("contradiction"))
                     if signals.get("contradiction")
                     else None,
@@ -376,9 +355,7 @@ class SessionRepository:
                 return None
             return row["node_tracker_state"]
 
-    async def update_node_tracker_state(
-        self, session_id: str, tracker_state_json: str
-    ) -> None:
+    async def update_node_tracker_state(self, session_id: str, tracker_state_json: str) -> None:
         """
         Update the persisted node tracker state for a session.
 

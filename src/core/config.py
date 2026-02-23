@@ -20,9 +20,7 @@ class Settings(BaseSettings):
     Environment variables take precedence over .env file values.
     """
 
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # ==========================================================================
     # Paths
@@ -70,15 +68,9 @@ class Settings(BaseSettings):
     )
 
     # API Keys (required for providers you use)
-    anthropic_api_key: Optional[str] = Field(
-        default=None, description="Anthropic API key"
-    )
-    kimi_api_key: Optional[str] = Field(
-        default=None, description="Kimi (Moonshot AI) API key"
-    )
-    deepseek_api_key: Optional[str] = Field(
-        default=None, description="DeepSeek API key"
-    )
+    anthropic_api_key: Optional[str] = Field(default=None, description="Anthropic API key")
+    kimi_api_key: Optional[str] = Field(default=None, description="Kimi (Moonshot AI) API key")
+    deepseek_api_key: Optional[str] = Field(default=None, description="DeepSeek API key")
     openai_api_key: Optional[str] = Field(
         default=None, description="OpenAI API key (optional, for GPT models)"
     )
@@ -317,9 +309,7 @@ class InterviewConfig(BaseModel):
 
     @field_validator("session")
     @classmethod
-    def sync_max_turns_with_phases(
-        cls, v: SessionConfig, info: ValidationInfo
-    ) -> SessionConfig:
+    def sync_max_turns_with_phases(cls, v: SessionConfig, info: ValidationInfo) -> SessionConfig:
         """
         Calculate max_turns from phase n_turns if using default.
 
@@ -330,9 +320,7 @@ class InterviewConfig(BaseModel):
         Note: UI/API can still override via request.config={"max_turns": custom}
         """
         phases = info.data.get("phases")
-        if (
-            isinstance(phases, PhasesConfig) and v.max_turns == 20
-        ):  # Only if using default
+        if isinstance(phases, PhasesConfig) and v.max_turns == 20:  # Only if using default
             phase_sum = 0
             for phase in [phases.exploratory, phases.focused, phases.closing]:
                 if phase and phase.n_turns:

@@ -80,9 +80,7 @@ class NodeOpportunitySignal(NodeSignalDetector):
             streak = self._get_focus_streak_category(state)
 
             # Determine opportunity
-            opportunity = self._determine_opportunity(
-                is_exhausted, streak, state, response_depth
-            )
+            opportunity = self._determine_opportunity(is_exhausted, streak, state, response_depth)
 
             # Detect and log state transitions
             prev_opportunity = self._get_previous_opportunity(context, node_id)
@@ -233,8 +231,6 @@ class NodeOpportunitySignal(NodeSignalDetector):
         recent_responses = state.all_response_depths[-recent_count:]
 
         # Count shallow responses (surface or shallow)
-        shallow_count = sum(
-            1 for depth in recent_responses if depth in ("surface", "shallow")
-        )
+        shallow_count = sum(1 for depth in recent_responses if depth in ("surface", "shallow"))
 
         return shallow_count / len(recent_responses)

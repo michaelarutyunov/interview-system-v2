@@ -79,8 +79,7 @@ class CanonicalGraphService:
         canonical_edges = [
             e
             for e in all_canonical_edges
-            if e.source_slot_id in active_slot_ids
-            and e.target_slot_id in active_slot_ids
+            if e.source_slot_id in active_slot_ids and e.target_slot_id in active_slot_ids
         ]
 
         concept_count = len(active_slots)
@@ -132,9 +131,7 @@ class CanonicalGraphService:
             avg_support=avg_support,
         )
 
-    def _compute_max_depth(
-        self, slots: List[CanonicalSlot], edges: List[CanonicalEdge]
-    ) -> int:
+    def _compute_max_depth(self, slots: List[CanonicalSlot], edges: List[CanonicalEdge]) -> int:
         """
         Compute the longest path length in the canonical graph.
 

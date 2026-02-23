@@ -56,9 +56,7 @@ class TestFocusResolutionOrder:
 
         assert result == "oat milk"
 
-    def test_resolves_from_description_when_node_id_not_found(
-        self, focus_service, mock_nodes
-    ):
+    def test_resolves_from_description_when_node_id_not_found(self, focus_service, mock_nodes):
         """Falls back to focus_description when node_id doesn't match any node."""
         focus_dict = {
             "focus_node_id": "nonexistent-node",
@@ -151,9 +149,7 @@ class TestFocusModeSelection:
         )
         assert result == "oat milk"
 
-    def test_novel_strategy_name_works_without_code_change(
-        self, focus_service, mock_nodes
-    ):
+    def test_novel_strategy_name_works_without_code_change(self, focus_service, mock_nodes):
         """A strategy name that has never existed in code should still work."""
         result = focus_service.resolve_focus_from_strategy_output(
             focus_dict=None,

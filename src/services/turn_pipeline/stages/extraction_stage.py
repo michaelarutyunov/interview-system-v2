@@ -62,9 +62,7 @@ class ExtractionStage(TurnStage):
                 from src.core.concept_loader import load_concept, get_element_alias_map
 
                 self.extraction.concept = load_concept(context.concept_id)
-                self.extraction.element_alias_map = get_element_alias_map(
-                    self.extraction.concept
-                )
+                self.extraction.element_alias_map = get_element_alias_map(self.extraction.concept)
                 log.debug(
                     "extraction_concept_loaded",
                     concept_id=context.concept_id,

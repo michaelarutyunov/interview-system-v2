@@ -127,16 +127,10 @@ class UncertaintySignal(BaseModel):
     """
 
     uncertainty_type: UncertaintyType
-    confidence: float = Field(
-        ge=0.0, le=1.0, description="LLM confidence in this detection"
-    )
+    confidence: float = Field(ge=0.0, le=1.0, description="LLM confidence in this detection")
     severity: float = Field(ge=0.0, le=1.0, description="0-1 impact score")
-    examples: List[str] = Field(
-        default_factory=list, description="Quotes that led to this"
-    )
-    reasoning: str = Field(
-        default="", description="LLM's reasoning for this classification"
-    )
+    examples: List[str] = Field(default_factory=list, description="Quotes that led to this")
+    reasoning: str = Field(default="", description="LLM's reasoning for this classification")
 
 
 class ReasoningSignal(BaseModel):
@@ -148,9 +142,7 @@ class ReasoningSignal(BaseModel):
 
     reasoning_quality: ReasoningQuality
     confidence: float = Field(ge=0.0, le=1.0, description="LLM confidence score")
-    depth_score: float = Field(
-        ge=0.0, le=1.0, description="0-1, how deep the reasoning goes"
-    )
+    depth_score: float = Field(ge=0.0, le=1.0, description="0-1, how deep the reasoning goes")
     has_examples: bool = Field(description="Uses concrete examples")
     has_abstractions: bool = Field(description="Uses abstract principles")
     examples: List[str] = Field(default_factory=list, description="Example quotes")
@@ -165,12 +157,8 @@ class EmotionalSignal(BaseModel):
 
     intensity: EmotionalIntensity
     confidence: float = Field(ge=0.0, le=1.0, description="LLM confidence score")
-    trajectory: str = Field(
-        description="emotional trajectory: rising, falling, stable, volatile"
-    )
-    markers: List[str] = Field(
-        default_factory=list, description="Emotional markers detected"
-    )
+    trajectory: str = Field(description="emotional trajectory: rising, falling, stable, volatile")
+    markers: List[str] = Field(default_factory=list, description="Emotional markers detected")
     reasoning: str = Field(default="", description="LLM's reasoning")
 
 
@@ -188,9 +176,7 @@ class ContradictionSignal(BaseModel):
         description="Type of contradiction: stance reversal, inconsistent detail, etc.",
     )
     earlier_statement: str = Field(default="", description="The contradicted statement")
-    current_statement: str = Field(
-        default="", description="The contradicting statement"
-    )
+    current_statement: str = Field(default="", description="The contradicting statement")
     confidence: float = Field(ge=0.0, le=1.0, default=0.0, description="LLM confidence")
     reasoning: str = Field(default="", description="LLM's reasoning")
 
@@ -218,9 +204,7 @@ class ConceptDepthSignal(BaseModel):
     (more concrete) exploration.
     """
 
-    abstraction_level: float = Field(
-        ge=0.0, le=1.0, description="0=concrete, 1=abstract"
-    )
+    abstraction_level: float = Field(ge=0.0, le=1.0, description="0=concrete, 1=abstract")
     has_concrete_examples: bool = Field(description="Uses concrete examples")
     has_abstract_principles: bool = Field(description="Uses abstract principles")
     suggestion: str = Field(description="Strategy suggestion: deepen, broaden, stay")
@@ -245,9 +229,7 @@ class QualitativeSignalSet(BaseModel):
     concept_depth: Optional[ConceptDepthSignal] = None
 
     # Metadata
-    turn_number: int = Field(
-        default=0, description="Turn number when signals were extracted"
-    )
+    turn_number: int = Field(default=0, description="Turn number when signals were extracted")
     source_utterance_id: str = Field(
         default="unknown",
         description="Source utterance ID for traceability",
@@ -256,15 +238,9 @@ class QualitativeSignalSet(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc),
         description="When signals were generated",
     )
-    llm_model: str = Field(
-        default="unknown", description="LLM model used (e.g., moonshot-v1-8k)"
-    )
-    prompt_version: str = Field(
-        default="unknown", description="Prompt version used (e.g., v2.1)"
-    )
-    extraction_latency_ms: int = Field(
-        default=0, description="Signal extraction latency in ms"
-    )
+    llm_model: str = Field(default="unknown", description="LLM model used (e.g., moonshot-v1-8k)")
+    prompt_version: str = Field(default="unknown", description="Prompt version used (e.g., v2.1)")
+    extraction_latency_ms: int = Field(default=0, description="Signal extraction latency in ms")
     extraction_errors: List[str] = Field(
         default_factory=list, description="Any errors during extraction"
     )
@@ -275,15 +251,11 @@ class QualitativeSignalSet(BaseModel):
             "uncertainty": self.uncertainty.model_dump() if self.uncertainty else None,
             "reasoning": self.reasoning.model_dump() if self.reasoning else None,
             "emotional": self.emotional.model_dump() if self.emotional else None,
-            "contradiction": self.contradiction.model_dump()
-            if self.contradiction
-            else None,
+            "contradiction": self.contradiction.model_dump() if self.contradiction else None,
             "knowledge_ceiling": (
                 self.knowledge_ceiling.model_dump() if self.knowledge_ceiling else None
             ),
-            "concept_depth": self.concept_depth.model_dump()
-            if self.concept_depth
-            else None,
+            "concept_depth": self.concept_depth.model_dump() if self.concept_depth else None,
             # Metadata
             "turn_number": self.turn_number,
             "source_utterance_id": self.source_utterance_id,

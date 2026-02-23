@@ -154,9 +154,7 @@ class MethodologyRegistry:
                     name=s["name"],
                     description=s.get("description", ""),
                     signal_weights=s["signal_weights"],
-                    generates_closing_question=s.get(
-                        "generates_closing_question", False
-                    ),
+                    generates_closing_question=s.get("generates_closing_question", False),
                     focus_mode=s.get("focus_mode", "recent_node"),
                 )
                 for s in data.get("strategies", [])
@@ -186,16 +184,12 @@ class MethodologyRegistry:
         for pool_name, signal_list in config.signals.items():
             for signal_name in signal_list:
                 if signal_name not in known_signals:
-                    errors.append(
-                        f"signals.{pool_name}: unknown signal '{signal_name}'"
-                    )
+                    errors.append(f"signals.{pool_name}: unknown signal '{signal_name}'")
 
         # 2. Validate strategies
         for i, strategy in enumerate(config.strategies):
             if strategy.name in strategy_names:
-                errors.append(
-                    f"strategies[{i}]: duplicate strategy name '{strategy.name}'"
-                )
+                errors.append(f"strategies[{i}]: duplicate strategy name '{strategy.name}'")
             strategy_names.add(strategy.name)
 
             if strategy.focus_mode not in VALID_FOCUS_MODES:
@@ -233,8 +227,7 @@ class MethodologyRegistry:
         if errors:
             error_list = "\n  - ".join(errors)
             raise ValueError(
-                f"Methodology config validation failed for "
-                f"'{config_path.name}':\n  - {error_list}"
+                f"Methodology config validation failed for '{config_path.name}':\n  - {error_list}"
             )
 
     def list_methodologies(self) -> list[str]:
@@ -242,9 +235,7 @@ class MethodologyRegistry:
         yaml_files = list(self.config_dir.glob("*.yaml"))
         return [f.stem for f in yaml_files if f.stem != "schema"]
 
-    def create_signal_detector(
-        self, config: MethodologyConfig
-    ) -> "ComposedSignalDetector":
+    def create_signal_detector(self, config: MethodologyConfig) -> "ComposedSignalDetector":
         """Create a composed signal detector for a methodology.
 
         Instantiates all signal detectors from the methodology config.

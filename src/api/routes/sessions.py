@@ -380,12 +380,9 @@ async def process_turn(
         return TurnResponse(
             turn_number=result.turn_number,
             extracted=ExtractionSchema(
-                concepts=[
-                    ExtractedConceptSchema(**c) for c in result.extracted["concepts"]
-                ],
+                concepts=[ExtractedConceptSchema(**c) for c in result.extracted["concepts"]],
                 relationships=[
-                    ExtractedRelationshipSchema(**r)
-                    for r in result.extracted["relationships"]
+                    ExtractedRelationshipSchema(**r) for r in result.extracted["relationships"]
                 ],
             ),
             graph_state=GraphStateSchema(

@@ -33,9 +33,7 @@ class FocusEntry(BaseModel):
     """
 
     turn: int = Field(description="Turn number (1-indexed)")
-    node_id: str = Field(
-        default="", description="Target node ID, empty if no node focus"
-    )
+    node_id: str = Field(default="", description="Target node ID, empty if no node focus")
     label: str = Field(default="", description="Human-readable node label")
     strategy: str = Field(description="Strategy selected for this turn")
 
