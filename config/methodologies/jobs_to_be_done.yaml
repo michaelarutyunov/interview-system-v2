@@ -313,6 +313,7 @@ strategies:
   - name: validate_outcome
     description: "Confirm understanding and check if we've captured the most important aspects"
     generates_closing_question: true
+    focus_mode: summary
     signal_weights:
       # Global signals
       graph.max_depth: 0.5
