@@ -4,6 +4,18 @@ Consolidated from: node_exhaustion.py, node_engagement.py, node_relationships.py
 
 These signals are derived from NodeStateTracker and computed per node,
 enabling joint strategy-node scoring. All require NodeStateTracker.
+
+Current list of signals:
+1. NodeExhaustedSignal (exhaustion) - Binary exhaustion indicator
+2. NodeExhaustionScoreSignal (exhaustion) - Continuous exhaustion score
+3. NodeYieldStagnationSignal (exhaustion) - Binary yield stagnation indicator
+4. NodeFocusStreakSignal (engagement) - Categorical focus streak
+5. NodeIsCurrentFocusSignal (engagement) - Binary current focus indicator
+6. NodeRecencyScoreSignal (engagement) - Continuous recency score
+7. NodeIsOrphanSignal (relationships) - Binary orphan indicator
+8. NodeEdgeCountSignal (relationships) - Continuous edge count
+9. NodeHasOutgoingSignal (relationships) - Binary outgoing indicator
+
 """
 
 from src.signals.graph.node_base import NodeSignalDetector
@@ -526,6 +538,44 @@ class NodeHasOutgoingSignal(NodeSignalDetector):
 
 
 # =============================================================================
+# Differentiation Signals (for same-turn new-node tie-breaking)
+# =============================================================================
+
+
+class NodeTypePrioritySignal(NodeSignalDetector):
+    """Assign strategic priority based on node_type from methodology config.
+
+    Different node types have different strategic value depending on the
+    methodology and interview phase. For example, in JTBD, pain_points
+    may be more valuable to explore than job_statements.
+
+    Priority values are configured per-strategy in methodology YAML via
+    node_type_priorities. Nodes whose type is not in the map get a neutral
+    default of 0.5.
+
+    Namespaced signal: graph.node.type_priority
+    Cost: negligible (dict lookup per node)
+    Refresh: per_turn
+    """
+
+    signal_name = "graph.node.type_priority"
+    description = "Strategic priority based on node_type (0.0-1.0). Configured per-strategy in methodology YAML."
+
+    def __init__(self, node_tracker, node_type_priorities: dict[str, float] | None = None):
+        super().__init__(node_tracker)
+        self._priorities = node_type_priorities or {}
+        self._default_priority = 0.5
+
+    async def detect(self, context, graph_state, response_text):  # noqa: ARG002
+        results = {}
+        for node_id, state in self._get_all_node_states().items():
+            results[node_id] = self._priorities.get(
+                state.node_type, self._default_priority
+            )
+        return results
+
+
+# =============================================================================
 # Exports
 # =============================================================================
 
@@ -542,4 +592,6 @@ __all__ = [
     "NodeIsOrphanSignal",
     "NodeEdgeCountSignal",
     "NodeHasOutgoingSignal",
+    # Differentiation
+    "NodeTypePrioritySignal",
 ]

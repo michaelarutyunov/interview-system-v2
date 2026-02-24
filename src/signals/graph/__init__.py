@@ -32,6 +32,7 @@ from src.signals.graph.node_signals import (
     NodeIsOrphanSignal,
     NodeEdgeCountSignal,
     NodeHasOutgoingSignal,
+    NodeTypePrioritySignal,
 )
 
 __all__ = [
@@ -61,4 +62,6 @@ __all__ = [
     "NodeIsOrphanSignal",
     "NodeEdgeCountSignal",
     "NodeHasOutgoingSignal",
+    # Node-level: Differentiation
+    "NodeTypePrioritySignal",
 ]
