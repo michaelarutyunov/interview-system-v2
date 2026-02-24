@@ -177,12 +177,20 @@ class MethodologyStrategyService:
             signals=global_signals,
         )
 
+        # Merge node_type_priorities across all strategies (max per type)
+        merged_priorities: dict[str, float] = {}
+        for strategy in config.strategies:
+            for node_type, priority in strategy.node_type_priorities.items():
+                if node_type not in merged_priorities or priority > merged_priorities[node_type]:
+                    merged_priorities[node_type] = priority
+
         # Detect node-level signals (delegated to NodeSignalDetectionService)
         node_signals = await self.node_signal_service.detect(
             context=context,
             graph_state=graph_state,
             response_text=response_text,
             node_tracker=node_tracker,
+            node_type_priorities=merged_priorities if merged_priorities else None,
         )
 
         log.debug(
