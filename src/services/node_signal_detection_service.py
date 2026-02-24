@@ -31,6 +31,7 @@ class NodeSignalDetectionService:
     - graph.node.is_orphan: Whether node has no edges
     - graph.node.edge_count: Number of edges connected to node
     - graph.node.has_outgoing: Whether node has outgoing edges
+    - graph.node.type_priority: Strategic priority by node_type (0.0-1.0)
     - technique.node.strategy_repetition: Times same strategy used on node
     """
 
@@ -40,6 +41,7 @@ class NodeSignalDetectionService:
         graph_state: "GraphState",
         response_text: str,
         node_tracker: "NodeStateTracker",
+        node_type_priorities: dict[str, float] | None = None,
     ) -> Dict[str, Dict[str, Any]]:
         """
         Detect node-level signals for all tracked nodes.
@@ -49,6 +51,7 @@ class NodeSignalDetectionService:
             graph_state: Current knowledge graph state
             response_text: User's response text
             node_tracker: NodeStateTracker with node states
+            node_type_priorities: Optional dict mapping node_type to priority (0.0-1.0)
 
         Returns:
             Dict mapping node_id to dict of signal_name: value
@@ -65,6 +68,7 @@ class NodeSignalDetectionService:
             NodeIsOrphanSignal,
             NodeEdgeCountSignal,
             NodeHasOutgoingSignal,
+            NodeTypePrioritySignal,
         )
         from src.signals.session.node_strategy_repetition import (
             NodeStrategyRepetitionSignal,
@@ -94,6 +98,7 @@ class NodeSignalDetectionService:
             NodeIsOrphanSignal(node_tracker),
             NodeEdgeCountSignal(node_tracker),
             NodeHasOutgoingSignal(node_tracker),
+            NodeTypePrioritySignal(node_tracker, node_type_priorities=node_type_priorities),
             NodeStrategyRepetitionSignal(node_tracker),
         ]
 
