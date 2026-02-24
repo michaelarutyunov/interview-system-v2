@@ -7,8 +7,6 @@ from src.methodologies.scoring import (
     score_strategy,
     rank_strategies,
     rank_strategy_node_pairs,
-    ScoredCandidate,
-    SignalContribution,
 )
 from src.methodologies.registry import StrategyConfig
 
@@ -294,7 +292,7 @@ class TestRankStrategyNodePairs:
             "node_2": {"llm.response_depth": 1.0},  # High
         }
 
-        ranked, decomposition = rank_strategy_node_pairs(strategies, global_signals, node_signals)
+        ranked, _ = rank_strategy_node_pairs(strategies, global_signals, node_signals)
 
         assert len(ranked) == 2
         # node_2 should rank higher (response_depth=5 matches high threshold)
@@ -378,7 +376,7 @@ class TestRankStrategyNodePairs:
         }
         node_signals = {"node-1": {}}
 
-        ranked, decomposition = rank_strategy_node_pairs(
+        _, decomposition = rank_strategy_node_pairs(
             strategies=[strategy],
             global_signals=global_signals,
             node_signals=node_signals,

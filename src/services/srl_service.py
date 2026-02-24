@@ -9,6 +9,7 @@ Extracts:
 """
 
 from typing import Dict, List, Optional, Set, Any
+import spacy
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -62,8 +63,6 @@ class SRLService:
             spaCy Language object for dependency parsing.
         """
         if self._nlp is None:
-            import spacy
-
             logger.info("loading_spacy_model", model=self._model_name)
             self._nlp = spacy.load(self._model_name)
             logger.info("spacy_model_loaded", model=self._model_name)

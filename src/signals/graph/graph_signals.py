@@ -4,6 +4,19 @@ Consolidated from: structure.py, depth.py, chain_completion.py, canonical_struct
 
 These signals are derived from the knowledge graph snapshot and are
 refreshed after each graph update (PER_TURN). They are free or low cost.
+
+Current list of signals:
+1. GraphNodeCountSignal (structure) - count of nodes in the graph
+2. GraphEdgeCountSignal (structure) - count of edges in the graph
+3. OrphanCountSignal (structure) - count of disconnected nodes
+4. GraphMaxDepthSignal (depth) - depth of longest chain
+5. GraphAvgDepthSignal (depth) - average depth
+6. DepthByElementSignal (depth) - depth by element
+7. ChainCompletionSignal (chain_completion) - chain completion
+8. CanonicalConceptCountSignal (canonical_structure) - count of canonical concepts
+9. CanonicalEdgeDensitySignal (canonical_structure) - canonical edge-to-concept ratio
+10. CanonicalExhaustionScoreSignal (canonical_structure) - average canonicalexhaustion score
+
 """
 
 from collections import deque

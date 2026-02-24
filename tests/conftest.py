@@ -110,6 +110,5 @@ def mock_extraction_result():
             )
         ],
         relationships=[],
-        discourse_markers=[],
         is_extractable=True,
     )

@@ -2,12 +2,22 @@
 #
 # MEC explores chains from attributes → consequences → values
 # by asking "why is that important?" to probe deeper.
+#
+# Strategy design principles:
+# - chain_completion is the PRIMARY success metric — MEC's entire goal is
+#   completing attribute → functional → psychosocial → instrumental → terminal chains
+# - intellectual_engagement drives laddering — high IE means causal reasoning
+#   is happening, which is the prime moment to keep climbing
+# - specificity is INVERTED from JTBD: low specificity (abstract) → anchor_down,
+#   high specificity (concrete) → ladder_up (ready to climb)
+# - Adaptive termination: max_turns high, saturation + chain_completion gate closing
+# - Repetition penalties symmetric at -0.7 (proven pattern from JTBD tuning)
 
 method:
   name: means_end_chain
-  version: "3.0"
+  version: "4.0"
   goal: "Explore causal chains from concrete attributes to abstract values"
-  opening_bias: "Elicit concrete, experience-based responses. Ask for specific examples and situations."
+  opening_bias: "Ask about specific product features, qualities, or characteristics they notice or care about."
   description: "Laddering: attributes → consequences → values"
 
 ontology:
@@ -134,7 +144,7 @@ signals:
     - graph.avg_depth
     - graph.orphan_count
     - graph.chain_completion
-    # Canonical graph signals (Phase 4, experimental)
+    # Canonical graph signals
     - graph.canonical_concept_count
     - graph.canonical_edge_density
     - graph.canonical_exhaustion_score
@@ -145,6 +155,7 @@ signals:
     - llm.certainty
     - llm.specificity
     - llm.engagement
+    - llm.intellectual_engagement
     # Note: llm.global_response_trend is session-scoped and managed separately
 
   temporal:
@@ -152,150 +163,231 @@ signals:
     - temporal.turns_since_strategy_change
 
   meta:
-    - meta.interview_progress
     - meta.interview.phase
     - meta.conversation.saturation
     - meta.canonical.saturation
 
 strategies:
-  # Strategy 1: Deepen the chain (laddering)
-  - name: deepen
-    description: "Explore why something matters to understand deeper motivations and values through progressive 'why' questioning"
+  # Strategy 1: Elicit concrete attributes (elaboration)
+  - name: elicit_attribute
+    description: "Surface concrete product features and qualities — ask 'What specifically about X matters to you?' or 'What do you notice about X?'"
     signal_weights:
-      # Global signals
-      llm.response_depth.low: 0.8
-      llm.response_depth.mid: 0.3
-      llm.response_depth.moderate: 0.15  # Even moderate answers can benefit from deepening
-      graph.max_depth: -0.3
-      graph.chain_completion.has_complete.false: 1.0
-      # Engagement & valence safety checks — mid-engagement now contributes
-      llm.engagement.high: 0.5              # Engaged = safe to deepen (was 0.7)
-      llm.engagement.mid: 0.3               # Moderate engagement = still OK to deepen (NEW)
-      llm.engagement.low: -0.5              # Disengaged = avoid deepening
-      llm.valence.high: 0.4                 # Positive emotion = safe to go deeper
-      # Response quality trend — deepen when quality is declining
-      llm.global_response_trend.shallowing: 0.4  # Shallow trend → try deepening (NEW)
+      # Primary triggers — fire when graph is sparse
+      graph.orphan_count: 0.4            # Orphans need connecting → but also need new attributes
+      # Engagement — need willingness to describe
+      llm.engagement.mid: 0.4
+      llm.engagement.high: 0.3
+      llm.engagement.low: -0.3           # Disengaged = don't push for new content
+      # Specificity — already concrete responses suggest more attributes available
+      llm.specificity.high: 0.3          # Concrete language = respondent in attribute-mode
+      # Response quality — suppress during fatigue
+      llm.global_response_trend.shallowing: -0.4
+      llm.global_response_trend.fatigued: -0.6
       # Diversity
-      temporal.strategy_repetition_count: -0.3
-      # Node-level signals (Phase 3)
-      graph.node.exhaustion_score.low: 1.0  # Boost non-exhausted nodes
-      graph.node.focus_streak.low: 0.5  # Prefer fresh nodes
+      temporal.strategy_repetition_count: -0.7
+      temporal.turns_since_strategy_change: -0.4
+      # Node-level signals
+      graph.node.focus_streak.none: 0.6  # Fresh nodes
+      graph.node.focus_streak.medium: -0.4
+      graph.node.focus_streak.high: -0.7
+      graph.node.yield_stagnation.false: 0.5
+      graph.node.exhaustion_score.low: 0.4
 
-  # Strategy 2: Clarify relationships (probing)
-  - name: clarify
-    description: "Rephrase the question in simpler, clearer words when user shows confusion or lack of understanding"
+  # Strategy 2: Ladder up — the core MEC move (laddering)
+  - name: ladder_up
+    description: "Ask 'Why is that important to you?' to climb from concrete attributes toward abstract values — the core laddering technique"
     signal_weights:
-      # LLM-based clarification triggers
-      llm.specificity.low: 0.8              # Vague language = needs clarification
-      llm.certainty.low: 0.5                # Uncertainty = needs validation
-      llm.engagement.mid: 0.3               # Moderate engagement = clarify OK
+      # Primary trigger — incomplete chains are the strongest signal
+      graph.chain_completion.has_complete.false: 1.0
+      # Depth awareness — don't ladder when already at high depth
+      graph.max_depth: -0.2              # Slight brake at high depth (already near values)
+      # Intellectual engagement — high IE = respondent is reasoning about 'why'
+      llm.intellectual_engagement.high: 0.6
+      llm.intellectual_engagement.mid: 0.3
+      # Response depth — surface/shallow answers are prime laddering targets
+      llm.response_depth.surface: 0.5
+      llm.response_depth.shallow: 0.4
+      llm.response_depth.moderate: 0.15
+      llm.response_depth.deep: 0.3      # Deep + incomplete chain = keep going
+      # Specificity — concrete responses are ready to ladder from
+      llm.specificity.high: 0.4         # Concrete = solid base to climb from
+      # Engagement safety — need engagement to handle 'why' probing
+      llm.engagement.high: 0.5
+      llm.engagement.mid: 0.3
+      llm.engagement.low: -0.5          # Don't push disengaged respondents
+      # Valence safety
+      llm.valence.high: 0.4             # Positive = safe to go deeper
+      # Response quality trend
+      llm.global_response_trend.shallowing: 0.4  # Shallow trend → try laddering
       # Diversity
-      temporal.strategy_repetition_count: -0.3
-      temporal.turns_since_strategy_change: -0.3  # Break strategy lock
-      # Node-level signals (Phase 3) — reduced to prevent node dominance
-      graph.node.is_orphan.true: 0.7  # Boost orphan nodes (was 1.0)
-      graph.node.exhaustion_score.low: 0.4  # (was 0.5)
+      temporal.strategy_repetition_count: -0.7
+      temporal.strategy_repetition_count.high: -1.0  # Severe penalty at 4-5 reps
+      # Node-level signals
+      graph.node.exhaustion_score.low: 1.0
+      graph.node.focus_streak.low: 0.5
+      graph.node.focus_streak.medium: -0.4
+      graph.node.focus_streak.high: -0.8
+
+  # Strategy 3: Anchor down to concrete (probing)
+  - name: anchor_down
+    description: "Pull the respondent back to concrete examples when they become too abstract — ask 'Can you give me a specific example?' or 'What does that look like in practice?'"
+    signal_weights:
+      # Primary trigger — low specificity = abstract/vague language
+      llm.specificity.low: 0.9          # Vague/abstract = need concrete grounding
+      llm.specificity.mid: 0.3          # Moderately vague = mild trigger
+      # Depth — high depth + vague = floating in abstraction
+      graph.max_depth: 0.4              # Higher depth = more likely to be too abstract
+      # Certainty — uncertain abstract responses are prime anchoring targets
+      llm.certainty.low: 0.4
+      llm.certainty.mid: 0.2
+      # Engagement — can anchor even at moderate engagement
+      llm.engagement.mid: 0.3
+      llm.engagement.high: 0.2
+      # Diversity
+      temporal.strategy_repetition_count: -0.7
+      temporal.turns_since_strategy_change: -0.4
+      # Node-level signals
+      graph.node.exhaustion_score.low: 0.5
+      graph.node.focus_streak.medium: -0.3
+      graph.node.focus_streak.high: -0.6
+
+  # Strategy 4: Bridge separate chains (probing)
+  - name: bridge_chains
+    description: "Connect separate ladders — ask 'How does what you said about X relate to Y?' to find convergence points between parallel chains"
+    signal_weights:
+      # Primary trigger — orphan nodes suggest disconnected chains
+      graph.orphan_count: 0.6           # More orphans = more bridging needed
+      # Chain completion — bridge when some chains exist but aren't connected
+      graph.chain_completion.has_complete.true: 0.5  # At least one chain exists to bridge from
+      # Intellectual engagement — high IE = respondent can reason about connections
+      llm.intellectual_engagement.high: 0.5
+      llm.intellectual_engagement.mid: 0.3
+      # Engagement safety
+      llm.engagement.high: 0.4
+      llm.engagement.mid: 0.3
+      llm.engagement.low: -0.4
+      # Diversity
+      temporal.strategy_repetition_count: -0.7
+      temporal.turns_since_strategy_change: -0.4
+      # Node-level signals — prefer nodes that have outgoing edges (part of a chain)
+      graph.node.has_outgoing.true: 0.6
+      graph.node.is_orphan.true: 0.5    # Orphans are prime bridging targets
+      graph.node.exhaustion_score.low: 0.4
+      graph.node.focus_streak.medium: -0.3
+      graph.node.focus_streak.high: -0.6
+
+  # Strategy 5: Clarify meaning (probing)
+  - name: clarify
+    description: "When the respondent's meaning is unclear, ask 'What do you mean by X?' or rephrase to check understanding"
+    signal_weights:
+      # Primary triggers — vague + uncertain
+      llm.specificity.low: 0.8
+      llm.certainty.low: 0.5
+      # Engagement
+      llm.engagement.mid: 0.3
+      # Diversity
+      temporal.strategy_repetition_count: -0.7
+      temporal.turns_since_strategy_change: -0.3
+      # Node-level signals
+      graph.node.is_orphan.true: 0.7
+      graph.node.exhaustion_score.low: 0.4
       graph.node.focus_streak.none: 0.3
 
-  # Strategy 3: Explore new areas (elaboration)
-  - name: explore
-    description: "Find new branches and related concepts by asking 'what else?' to expand breadth"
+  # Strategy 6: Validate chain (validation)
+  - name: validate_chain
+    description: "Reflect back a complete chain — 'So X matters because Y, which connects to Z — does that capture it?' Confirm the laddering is accurate"
+    generates_closing_question: true
     signal_weights:
-      # Global signals
-      llm.certainty.low: 0.4
-      temporal.strategy_repetition_count: -0.8  # Strong repetition penalty (was -0.3)
-      # Engagement & valence
-      llm.engagement.mid: 0.4               # Moderate engagement = breadth OK
-      llm.valence.low: 0.3                  # Negative emotion = change topic
-      # Response quality awareness — suppress exploration during declining quality
-      llm.global_response_trend.shallowing: -0.4  # Don't explore when answers declining
-      llm.global_response_trend.fatigued: -0.6    # Strongly suppress during fatigue
-      # Node-level signals (Phase 3) — reduced weights to prevent node dominance
-      graph.node.focus_streak.none: 0.6  # Fresh nodes (was 1.0)
-      graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.8)
-      graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.7)
+      # Primary trigger — complete chains exist to validate
+      graph.chain_completion.has_complete.true: 0.8
+      graph.chain_completion.ratio: 0.5  # Higher ratio = more to validate
+      graph.max_depth: 0.5
+      # Response quality — validate after deep responses
+      llm.response_depth.deep: 0.3
+      llm.response_depth.moderate: 0.2
+      # Uncertainty triggers — validate uncertain chains
+      llm.certainty.low: 0.7
+      llm.certainty.mid: 0.5
+      meta.node.opportunity.probe_deeper: 0.6
+      # Engagement
+      llm.engagement.low: 0.6           # Low engagement = validate & wrap
+      # Diversity (lighter penalty — OK to repeat validation)
+      temporal.strategy_repetition_count: -0.5
+      # Node-level signals
+      graph.node.has_outgoing.true: 0.8  # Well-connected nodes (part of chains)
+      graph.node.focus_streak.high: 0.5  # Often-focused = worth validating
+      technique.node.strategy_repetition.low: 0.3
+      # Saturation triggers
+      meta.conversation.saturation: 0.5
+      meta.canonical.saturation: 0.3
 
-  # Strategy 4: Reflect and validate (validation)
-  - name: reflect
-    description: "Summarize what you've heard and invite correction or addition to validate understanding"
-    signal_weights:
-      # Global signals
-      graph.max_depth: 0.7
-      meta.interview_progress: 0.5
-      llm.response_depth.high: 0.6
-      # Uncertainty/hedging triggers (Phase 5)
-      llm.certainty.low: 0.7  # Trigger on high uncertainty
-      llm.certainty.mid: 0.7  # Trigger on medium uncertainty
-      meta.node.opportunity.probe_deeper: 0.6  # Extraction opportunity
-      # Engagement trigger
-      llm.engagement.low: 0.6               # Low engagement = validate & wrap
-      # Diversity (lighter penalty — OK to repeat reflection)
-      temporal.strategy_repetition_count: -0.2
-      # Node-level signals (Phase 3)
-      graph.node.has_outgoing.true: 0.8  # Well-connected nodes
-      graph.node.focus_streak.high: 0.5  # Often-focused nodes
-      technique.node.strategy_repetition.low: 0.3  # Avoid overusing same strategy
-      # Saturation triggers (Phase 6)
-      meta.conversation.saturation: 0.5  # High saturation = validate
-      meta.canonical.saturation: 0.3     # Supportive metric
-
-  # Strategy 5: Revitalize engagement (elaboration) - Phase 5
+  # Strategy 7: Revitalize engagement (elaboration)
   - name: revitalize
-    description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
+    description: "Shift to a fresh topic when the respondent shows fatigue — ask about a different product aspect or experience"
     signal_weights:
-      # Fatigue detection triggers (Phase 5)
-      llm.global_response_trend.fatigued: 1.0  # Trigger on fatigue
-      llm.global_response_trend.shallowing: 0.5  # Prevent fatigue
-      meta.node.opportunity.exhausted: 0.3  # Try exhausted nodes with new angle
-      # Engagement & valence triggers — mid-engagement now contributes
-      llm.engagement.low: 0.8               # Low engagement = strong trigger (was 1.2)
-      llm.engagement.mid: 0.4               # Moderate engagement + fatigue = still revitalize (NEW)
-      llm.engagement.high: -0.4             # Already engaged = not needed
-      llm.valence.low: 0.5                  # Negative valence = shift gears
-      # Global signals
-      temporal.strategy_repetition_count: -0.3  # Penalize repetition (was +0.5 bug)
-      # Node-level signals (Phase 3)
+      # Fatigue detection triggers
+      llm.global_response_trend.fatigued: 1.0
+      llm.global_response_trend.shallowing: 0.5
+      meta.node.opportunity.exhausted: 0.3
+      # Engagement triggers
+      llm.engagement.low: 0.8
+      llm.engagement.mid: 0.4
+      llm.engagement.high: -0.4          # Already engaged = not needed
+      # Valence
+      llm.valence.low: 0.5              # Negative valence = shift gears
+      # Diversity
+      temporal.strategy_repetition_count: -0.7
+      temporal.turns_since_strategy_change: -0.6
+      # Node-level signals
       graph.node.focus_streak.none: 0.8  # Fresh nodes
-      graph.node.exhaustion_score.low: 0.5  # Avoid exhausted nodes
+      graph.node.focus_streak.medium: -0.4
+      graph.node.focus_streak.high: -0.7
+      graph.node.exhaustion_score.low: 0.5
 
 phases:
   early:
-    description: "Initial exploration, building graph structure"
+    description: "Surface concrete attributes — build the base of the ladder"
     phase_boundaries:
       early_max_turns: 4
-      mid_max_turns: 12
+      mid_max_turns: 14
     signal_weights:
-      explore: 1.5
+      elicit_attribute: 1.5
       clarify: 1.2
-      deepen: 0.5
-      reflect: 0.2
+      ladder_up: 0.5
+      anchor_down: 0.3
+      validate_chain: 0.2
     phase_bonuses:
-      explore: 0.2  # Additive bonus to encourage exploration even with zero base score
+      elicit_attribute: 0.2
 
   mid:
-    description: "Building depth and connections"
+    description: "Ladder up — build chains from attributes to values"
     phase_boundaries:
       early_max_turns: 4
-      mid_max_turns: 12
+      mid_max_turns: 14
     signal_weights:
-      deepen: 1.3
+      ladder_up: 1.4
+      anchor_down: 1.2
+      bridge_chains: 1.1
       clarify: 0.8
-      revitalize: 1.0             # Explicit mid-phase weight (was missing)
-      explore: 0.6                # Reduced from 0.8 — mid phase should deepen, not explore
-      reflect: 0.7
+      revitalize: 1.0
+      elicit_attribute: 0.6
+      validate_chain: 0.5
     phase_bonuses:
-      deepen: 0.3  # Additive bonus to prioritize deepening in mid-phase
+      ladder_up: 0.3
+      anchor_down: 0.15
+      bridge_chains: 0.1
 
   late:
-    description: "Validation and verification"
+    description: "Validate complete chains and bridge remaining gaps"
     phase_boundaries:
       early_max_turns: 4
-      mid_max_turns: 12
+      mid_max_turns: 14
     signal_weights:
-      reflect: 1.2
-      revitalize: 1.2
-      deepen: 0.5
-      explore: 0.3
+      validate_chain: 1.5
+      bridge_chains: 1.3
+      ladder_up: 0.7
+      anchor_down: 0.5
+      elicit_attribute: 0.3
     phase_bonuses:
-      reflect: 0.2  # Additive bonus to ensure reflection gets selected even with zero base score
-      revitalize: 0.2  # Additive bonus for revitalize in late phase
+      validate_chain: 0.2
+      bridge_chains: 0.15

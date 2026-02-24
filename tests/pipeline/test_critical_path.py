@@ -109,7 +109,6 @@ async def test_pipeline_critical_path_minimal(session_repo, graph_repo, utteranc
         mock_extract.return_value = ExtractionResult(
             concepts=[],
             relationships=[],
-            discourse_markers=[],
             is_extractable=True,
         )
 
@@ -197,8 +196,8 @@ async def test_phase_boundaries_configurable():
     assert jtbd_config.phases is not None
     assert "early" in jtbd_config.phases
     assert jtbd_config.phases["early"].phase_boundaries is not None
-    assert jtbd_config.phases["early"].phase_boundaries.get("early_max_turns") == 3
-    assert jtbd_config.phases["early"].phase_boundaries.get("mid_max_turns") == 12
+    assert jtbd_config.phases["early"].phase_boundaries.get("early_max_turns") == 5
+    assert jtbd_config.phases["early"].phase_boundaries.get("mid_max_turns") == 17
 
 
 @pytest.mark.asyncio
