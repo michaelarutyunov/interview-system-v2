@@ -269,6 +269,9 @@ strategies:
       graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.8)
       graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.7)
       graph.node.type_priority: 0.6  # ADD: differentiation by node type
+      graph.node.slot_saturation.low: 0.5  # Prefer nodes in fresh slots (0-2 support)
+      graph.node.slot_saturation.medium: -0.2  # Light penalty for medium saturation (3-5)
+      graph.node.slot_saturation.high: -0.5  # Penalize high saturation nodes (6+)
 
   # Strategy 2: Probe alternatives (probing)
   - name: probe_alternatives
@@ -300,6 +303,9 @@ strategies:
       graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.7    # Strongly penalize 4+ turn over-focus
       graph.node.type_priority: 0.5  # ADD: differentiation by node type
+      graph.node.slot_saturation.low: 0.4  # Prefer nodes in fresh slots
+      graph.node.slot_saturation.medium: -0.2  # Light penalty for medium saturation
+      graph.node.slot_saturation.high: -0.5  # Penalize high saturation nodes
 
   # Strategy 3: Dig into motivation (laddering)
   - name: dig_motivation
@@ -338,6 +344,9 @@ strategies:
       graph.node.focus_streak.medium: -0.4   # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.8     # Strongly penalize 4+ turn over-focus
       graph.node.type_priority: 0.5  # ADD: differentiation by node type
+      graph.node.slot_saturation.low: 0.3  # Prefer nodes in fresh slots for deepening
+      graph.node.slot_saturation.medium: -0.1  # Light penalty for medium saturation
+      graph.node.slot_saturation.high: -0.4  # Penalize high saturation nodes
 
   # Strategy 4: Validate outcome (validation)
   - name: validate_outcome
@@ -374,6 +383,9 @@ strategies:
       meta.conversation.saturation: 0.5  # High saturation = validate
       meta.canonical.saturation: 0.3     # Supportive metric
       graph.node.type_priority: 0.4  # ADD: differentiation by node type
+      graph.node.slot_saturation.high: 0.3  # Prefer saturated nodes for validation
+      graph.node.slot_saturation.medium: 0.2  # Medium saturation also OK
+      graph.node.slot_saturation.low: -0.2  # Light penalty for fresh slots
 
   # Strategy 5: Revitalize engagement (elaboration) - Phase 5
   - name: revitalize
@@ -407,6 +419,9 @@ strategies:
       graph.node.focus_streak.high: -0.7    # Strongly penalize 4+ turn over-focus
       graph.node.exhaustion_score.low: 0.5  # Avoid exhausted nodes
       graph.node.type_priority: 0.5  # ADD: differentiation by node type
+      graph.node.slot_saturation.low: 0.6  # Strongly prefer fresh slots for revitalization
+      graph.node.slot_saturation.medium: -0.1  # Light penalty for medium saturation
+      graph.node.slot_saturation.high: -0.6  # Strongly penalize high saturation
 
   # Strategy 6: Uncover obstacles (probing)
   - name: uncover_obstacles
@@ -440,6 +455,9 @@ strategies:
       graph.node.focus_streak.medium: -0.3  # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.6    # Strongly penalize 4+ turn over-focus
       graph.node.type_priority: 0.5  # ADD: differentiation by node type
+      graph.node.slot_saturation.low: 0.4  # Prefer nodes in fresh slots
+      graph.node.slot_saturation.medium: -0.2  # Light penalty for medium saturation
+      graph.node.slot_saturation.high: -0.5  # Penalize high saturation nodes
 
   # Strategy 7: Clarify assumption (challenging)
   - name: clarify_assumption
@@ -474,6 +492,9 @@ strategies:
       graph.node.focus_streak.medium: -0.4   # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.7     # Strongly penalize 4+ turn over-focus
       graph.node.type_priority: 0.4  # ADD: differentiation by node type
+      graph.node.slot_saturation.low: 0.3  # Prefer nodes in fresh slots
+      graph.node.slot_saturation.medium: -0.1  # Light penalty for medium saturation
+      graph.node.slot_saturation.high: -0.4  # Penalize high saturation nodes
 
 phases:
   early:

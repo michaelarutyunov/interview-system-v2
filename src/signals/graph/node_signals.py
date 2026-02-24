@@ -432,9 +432,7 @@ class NodeIsOrphanSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.is_orphan"
-    description = (
-        "Whether node is an orphan (no edges). True if isolated, False if connected."
-    )
+    description = "Whether node is an orphan (no edges). True if isolated, False if connected."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
         """Detect orphan status for all tracked nodes.
@@ -569,10 +567,74 @@ class NodeTypePrioritySignal(NodeSignalDetector):
     async def detect(self, context, graph_state, response_text):  # noqa: ARG002
         results = {}
         for node_id, state in self._get_all_node_states().items():
-            results[node_id] = self._priorities.get(
-                state.node_type, self._default_priority
-            )
+            results[node_id] = self._priorities.get(state.node_type, self._default_priority)
         return results
+
+
+class NodeSlotSaturationSignal(NodeSignalDetector):
+    """Measure canonical slot saturation for each surface node.
+
+    Returns the support_count category of the canonical slot that each surface node
+    maps to. This provides a measure of how many surface nodes have been
+    consolidated into the same canonical slot, helping to break scoring
+    ties among same-turn new nodes.
+
+    Categories:
+    - low: 0-2 surface nodes mapped to the same canonical slot (fresh)
+    - medium: 3-5 surface nodes mapped to the same canonical slot
+    - high: 6+ surface nodes mapped to the same canonical slot (saturated)
+
+    Nodes not mapped to any canonical slot return "low" (0).
+
+    Namespaced signal: graph.node.slot_saturation
+    Cost: low (dict lookup per node)
+    Refresh: per_turn (after Stage 4.5 SlotDiscoveryStage)
+    """
+
+    signal_name = "graph.node.slot_saturation"
+    description = "Support count category of the canonical slot: low (0-2), medium (3-5), high (6+). Higher values indicate more nodes consolidated into the same slot."
+
+    def __init__(self, node_tracker, slot_saturation_map: dict[str, int] | None = None):
+        super().__init__(node_tracker)
+        self._saturation_map = slot_saturation_map or {}
+
+    async def detect(self, context, graph_state, response_text):  # noqa: ARG002
+        """Return slot saturation category for each tracked node.
+
+        Args:
+            context: Pipeline context (not directly used)
+            graph_state: Current knowledge graph state (not directly used)
+            response_text: User response text (not directly used)
+
+        Returns:
+            Dict mapping node_id -> "low" | "medium" | "high" category string.
+            Unmapped nodes return "low".
+        """
+        results = {}
+        for node_id in self._get_all_node_states().keys():
+            support_count = self._saturation_map.get(node_id, 0)
+            category = self._categorize_saturation(support_count)
+            results[node_id] = category
+        return results
+
+    def _categorize_saturation(self, support_count: int) -> str:
+        """Categorize numeric support count into ordinal levels.
+
+        Maps continuous support_count values to discrete categories for use in
+        strategy selection rules and YAML-based scoring configuration.
+
+        Args:
+            support_count: Number of surface nodes mapped to the same canonical slot
+
+        Returns:
+            Category string: "low" (0-2), "medium" (3-5), or "high" (6+)
+        """
+        if support_count <= 2:
+            return "low"
+        elif support_count <= 5:
+            return "medium"
+        else:
+            return "high"
 
 
 # =============================================================================
@@ -594,4 +656,5 @@ __all__ = [
     "NodeHasOutgoingSignal",
     # Differentiation
     "NodeTypePrioritySignal",
+    "NodeSlotSaturationSignal",
 ]

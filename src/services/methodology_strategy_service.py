@@ -19,9 +19,11 @@ Key concepts:
 from typing import Tuple, Optional, TYPE_CHECKING, Any, Dict, Union, Sequence
 import structlog
 
+from src.core.config import settings
 from src.core.exceptions import ConfigurationError, ScoringError
 from src.methodologies import get_registry
 from src.methodologies.scoring import rank_strategy_node_pairs, ScoredCandidate
+from src.persistence.repositories.canonical_slot_repo import CanonicalSlotRepository
 from src.services.global_signal_detection_service import GlobalSignalDetectionService
 from src.services.node_signal_detection_service import NodeSignalDetectionService
 
@@ -72,9 +74,7 @@ class MethodologyStrategyService:
         """
         self.methodology_registry = get_registry()
         # Use injected services or create defaults
-        self.global_signal_service = (
-            global_signal_service or GlobalSignalDetectionService()
-        )
+        self.global_signal_service = global_signal_service or GlobalSignalDetectionService()
         self.node_signal_service = node_signal_service or NodeSignalDetectionService()
 
     async def select_strategy_and_focus(
@@ -126,9 +126,7 @@ class MethodologyStrategyService:
             ScoringError: If no valid (strategy, node) pairs can be scored
         """
         # Get methodology config from YAML
-        methodology_name = (
-            context.methodology if context.methodology else "means_end_chain"
-        )
+        methodology_name = context.methodology if context.methodology else "means_end_chain"
         config = self.methodology_registry.get_methodology(methodology_name)
 
         if not config:
@@ -184,6 +182,27 @@ class MethodologyStrategyService:
                 if node_type not in merged_priorities or priority > merged_priorities[node_type]:
                     merged_priorities[node_type] = priority
 
+        # Fetch slot_saturation_map from canonical slots repository
+        # This provides support_count for each surface node's canonical slot
+        slot_saturation_map: dict[str, int] | None = None
+        try:
+            canonical_slot_repo = CanonicalSlotRepository(db_path=str(settings.database_path))
+            slot_saturation_map = await canonical_slot_repo.get_slot_saturation_map(
+                session_id=context.session_id
+            )
+            log.debug(
+                "slot_saturation_map_fetched",
+                session_id=context.session_id,
+                map_size=len(slot_saturation_map),
+            )
+        except Exception as e:
+            log.warning(
+                "slot_saturation_map_fetch_failed",
+                error=str(e),
+                exc_info=True,
+            )
+            # Continue without slot saturation data - not critical for operation
+
         # Detect node-level signals (delegated to NodeSignalDetectionService)
         node_signals = await self.node_signal_service.detect(
             context=context,
@@ -191,6 +210,7 @@ class MethodologyStrategyService:
             response_text=response_text,
             node_tracker=node_tracker,
             node_type_priorities=merged_priorities if merged_priorities else None,
+            slot_saturation_map=slot_saturation_map,
         )
 
         log.debug(

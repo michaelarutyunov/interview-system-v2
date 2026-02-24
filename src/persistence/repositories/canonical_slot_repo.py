@@ -115,9 +115,7 @@ class CanonicalSlotRepository:
 
         slot = await self.get_slot(slot_id)
         if slot is None:
-            raise RuntimeError(
-                f"Slot creation failed: slot {slot_id} not found after INSERT"
-            )
+            raise RuntimeError(f"Slot creation failed: slot {slot_id} not found after INSERT")
         return slot
 
     async def get_slot(self, slot_id: str) -> Optional[CanonicalSlot]:
@@ -375,6 +373,36 @@ class CanonicalSlotRepository:
             assigned_turn=row["assigned_turn"],
         )
 
+    async def get_slot_saturation_map(self, session_id: str) -> Dict[str, int]:
+        """
+        Get support_count for each surface node's canonical slot.
+
+        Returns a mapping of surface_node_id to the support_count of the
+        canonical slot it maps to. This is used for node differentiation
+        signals to break scoring ties among same-turn new nodes.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            Dict mapping surface_node_id to support_count of its canonical slot.
+            Empty dict if session has no mappings.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                """
+                SELECT m.surface_node_id, s.support_count
+                FROM surface_to_slot_mapping m
+                JOIN canonical_slots s ON m.canonical_slot_id = s.id
+                WHERE s.session_id = ?
+                """,
+                (session_id,),
+            )
+            rows = await cursor.fetchall()
+
+        return {row["surface_node_id"]: row["support_count"] for row in rows}
+
     # ==================== CANONICAL EDGE OPERATIONS ====================
 
     async def add_or_update_canonical_edge(
@@ -501,9 +529,7 @@ class CanonicalSlotRepository:
             target_slot_id=row["target_slot_id"],
             edge_type=row["edge_type"],
             support_count=row["support_count"],
-            surface_edge_ids=json.loads(row["surface_edge_ids"])
-            if row["surface_edge_ids"]
-            else [],
+            surface_edge_ids=json.loads(row["surface_edge_ids"]) if row["surface_edge_ids"] else [],
         )
 
     async def get_canonical_edges(self, session_id: str) -> List[CanonicalEdge]:
@@ -577,9 +603,7 @@ class CanonicalSlotRepository:
 
         result = []
         for row in rows:
-            surface_ids = (
-                row["surface_node_ids"].split(",") if row["surface_node_ids"] else []
-            )
+            surface_ids = row["surface_node_ids"].split(",") if row["surface_node_ids"] else []
             result.append(
                 {
                     "slot_id": row["slot_id"],

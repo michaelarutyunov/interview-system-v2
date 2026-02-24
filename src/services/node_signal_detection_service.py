@@ -32,6 +32,7 @@ class NodeSignalDetectionService:
     - graph.node.edge_count: Number of edges connected to node
     - graph.node.has_outgoing: Whether node has outgoing edges
     - graph.node.type_priority: Strategic priority by node_type (0.0-1.0)
+    - graph.node.slot_saturation: Canonical slot support count for node
     - technique.node.strategy_repetition: Times same strategy used on node
     """
 
@@ -42,6 +43,7 @@ class NodeSignalDetectionService:
         response_text: str,
         node_tracker: "NodeStateTracker",
         node_type_priorities: dict[str, float] | None = None,
+        slot_saturation_map: dict[str, int] | None = None,
     ) -> Dict[str, Dict[str, Any]]:
         """
         Detect node-level signals for all tracked nodes.
@@ -52,6 +54,7 @@ class NodeSignalDetectionService:
             response_text: User's response text
             node_tracker: NodeStateTracker with node states
             node_type_priorities: Optional dict mapping node_type to priority (0.0-1.0)
+            slot_saturation_map: Optional dict mapping node_id to slot support_count
 
         Returns:
             Dict mapping node_id to dict of signal_name: value
@@ -69,6 +72,7 @@ class NodeSignalDetectionService:
             NodeEdgeCountSignal,
             NodeHasOutgoingSignal,
             NodeTypePrioritySignal,
+            NodeSlotSaturationSignal,
         )
         from src.signals.session.node_strategy_repetition import (
             NodeStrategyRepetitionSignal,
@@ -82,9 +86,7 @@ class NodeSignalDetectionService:
             return {}
 
         # Initialize node signals dict
-        node_signals: Dict[str, Dict[str, Any]] = {
-            node_id: {} for node_id in all_states.keys()
-        }
+        node_signals: Dict[str, Dict[str, Any]] = {node_id: {} for node_id in all_states.keys()}
 
         # List of node signal detectors to run
         # These detectors take node_tracker in their constructor
@@ -99,6 +101,7 @@ class NodeSignalDetectionService:
             NodeEdgeCountSignal(node_tracker),
             NodeHasOutgoingSignal(node_tracker),
             NodeTypePrioritySignal(node_tracker, node_type_priorities=node_type_priorities),
+            NodeSlotSaturationSignal(node_tracker, slot_saturation_map=slot_saturation_map),
             NodeStrategyRepetitionSignal(node_tracker),
         ]
 
