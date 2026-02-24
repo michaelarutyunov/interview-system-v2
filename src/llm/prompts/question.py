@@ -29,15 +29,20 @@ def get_question_system_prompt(
     Get system prompt for question generation.
 
     Args:
+        methodology: Methodology schema for method-specific context (required)
         strategy: Strategy name (e.g., deepen, explore, clarify, reflect, revitalize)
                   - must match methodology config
         topic: Research topic to anchor questions to (prevents drift)
-        methodology: Optional methodology schema for method-specific context
 
     Returns:
         System prompt string
+
+    Raises:
+        ValueError: If methodology.method is None
     """
     # Load strategy from methodology config - fail fast if missing
+    if methodology.method is None:
+        raise ValueError("MethodologySchema.method is required but is None")
     methodology_name = methodology.method["name"]
     registry = get_registry()
     config = registry.get_methodology(methodology_name)
@@ -49,8 +54,9 @@ def get_question_system_prompt(
         strat_name = strategy.replace("_", " ").title()
         strat_description = ""
 
-    # Build methodology section
+    # Build methodology section - method already validated above
     method_info = methodology.method
+    assert method_info is not None  # for type checker
     method_name = method_info.get("name", "qualitative interview")
     method_goal = method_info.get("goal", "")
     method_desc = method_info.get("description", "")
@@ -172,6 +178,8 @@ def get_question_user_prompt(
 
     # Add focus and strategy
     # Load strategy description from methodology config
+    if methodology.method is None:
+        raise ValueError("MethodologySchema.method is required but is None")
     methodology_name = methodology.method["name"]
     registry = get_registry()
     config = registry.get_methodology(methodology_name)
