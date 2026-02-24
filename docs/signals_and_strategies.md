@@ -403,6 +403,7 @@ Node-level signals provide **per-node** assessments for joint strategy-node scor
 | `graph.node.is_orphan` | bool | `edge_count_incoming`, `edge_count_outgoing` | Fresh: updated Stage 4 |
 | `graph.node.edge_count` | int | `edge_count_incoming`, `edge_count_outgoing` | Fresh: updated Stage 4 |
 | `graph.node.has_outgoing` | bool | `edge_count_outgoing` | Fresh: updated Stage 4 |
+| `graph.node.type_priority` | float | `node_type` (from extraction) | Fresh: updated Stage 4; priority configured per-strategy via `node_type_priorities` in YAML |
 | `technique.node.strategy_repetition` | int | `consecutive_same_strategy` | From previous turn Stage 9 - represents strategy usage through last turn |
 
 ### Node Signal Detection
@@ -422,6 +423,48 @@ Node-level signals provide **per-node** assessments for joint strategy-node scor
     }
 }
 ```
+
+### Node Differentiation Signals
+
+When multiple nodes are created in the same turn with identical engagement history (e.g., 8 nodes extracted from one response), they may have identical scores from history-based signals. Node differentiation signals break these ties using node-specific properties.
+
+#### graph.node.type_priority
+
+**Purpose**: Assigns strategic priority based on `node_type` from methodology configuration. Different node types have different strategic value depending on the methodology and interview phase.
+
+**Source**: `node_type` field from NodeState (set during extraction)
+**Cost**: Negligible (dict lookup per node)
+**Signal Type**: Continuous float [0.0, 1.0]
+
+**Configuration**: Priorities are defined per-strategy in methodology YAML:
+
+```yaml
+strategies:
+  - name: explore_situation
+    node_type_priorities:
+      job_trigger: 0.9      # Highest priority for explore
+      job_context: 0.85
+      pain_point: 0.7
+      job_statement: 0.6
+      gain_point: 0.5
+      solution_approach: 0.4
+      emotional_job: 0.3
+      social_job: 0.3
+    signal_weights:
+      graph.node.type_priority: 0.6   # Continuous weight × raw value
+```
+
+**Usage in Scoring**: Unlike discretized signals (e.g., `exhaustion_score.high`), type_priority uses a **continuous weight format**:
+
+```yaml
+# Continuous: contribution = weight × raw_value
+signal_weights:
+  graph.node.type_priority: 0.6   # 0.6 × 0.9 (job_trigger) = 0.54 contribution
+```
+
+This allows the full gradient of type priorities to influence scoring — a 0.9 node scores higher than a 0.7 node proportionally.
+
+**Default Behavior**: Nodes with `node_type` not in the priorities map receive a neutral default of 0.5.
 
 ---
 
@@ -541,6 +584,10 @@ strategies:
     signal_weights:
       llm.response_depth.low: 0.8
       temporal.strategy_repetition_count: -0.5
+    node_type_priorities:  # Optional: strategic priority by node type
+      job_trigger: 0.9
+      pain_point: 0.7
+      job_statement: 0.5
 
 # Phase-based adaptation
 phases:
@@ -560,6 +607,7 @@ phases:
 | `signal_weights.{signal}` | YAML (strategy) | Weight for scoring contribution |
 | `signal_weights.{strategy}` | YAML (phase) | Phase-specific multiplier |
 | `phase_bonuses.{strategy}` | YAML (phase) | Phase-specific additive bonus |
+| `node_type_priorities.{type}` | YAML (strategy) | Strategic priority for node types (0.0-1.0) |
 | `focus_mode` | YAML (strategy) | Focus selection behavior: `recent_node`, `summary`, or `topic` |
 | `generates_closing_question` | YAML (strategy) | Whether this strategy terminates the interview |
 

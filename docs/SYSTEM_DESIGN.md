@@ -387,7 +387,7 @@ All signals use dot-notation namespacing to prevent collisions:
 | Pool | Namespace | Example Signals |
 |------|-----------|-----------------|
 | **Graph (Global)** | `graph.*` | node_count, max_depth, orphan_count, chain_completion.ratio (float [0,1]), chain_completion.has_complete (bool) |
-| **Graph (Node)** | `graph.node.*` | exhausted, exhaustion_score, yield_stagnation, focus_streak, recency_score, is_orphan, edge_count |
+| **Graph (Node)** | `graph.node.*` | exhausted, exhaustion_score, yield_stagnation, focus_streak, recency_score, is_orphan, edge_count, type_priority |
 | **LLM** | `llm.*` | response_depth (categorical: surface/shallow/moderate/deep), valence (float [0,1]), certainty (float [0,1]), specificity (float [0,1]), engagement (float [0,1]), global_response_trend (deepening/stable/plateauing — computed as temporal delta across recent turns) |
 | **Temporal** | `temporal.*` | strategy_repetition_count, turns_since_strategy_change |
 | **Meta (Global)** | `meta.*` | interview_progress, interview.phase |
@@ -490,6 +490,7 @@ Node-level signals use the `graph.node.*` namespace and are computed by `NodeSig
 | `graph.node.recency_score` | Continuous: 1.0 (current) to 0.0 (20+ turns ago) | float | `NodeRecencyScoreSignal` |
 | `graph.node.is_orphan` | Boolean: node has no edges | bool | `NodeIsOrphanSignal` |
 | `graph.node.edge_count` | Integer: total edges (incoming + outgoing) | int | `NodeEdgeCountSignal` |
+| `graph.node.type_priority` | Continuous: strategic priority by node_type (0.0-1.0) | float | `NodeTypePrioritySignal` |
 | `technique.node.strategy_repetition` | Categorical: none/low/medium/high | str | `NodeStrategyRepetitionSignal` (technique pool) |
 
 **Node Signal Architecture:**
@@ -930,7 +931,7 @@ A node is considered **exhausted** when all of the following conditions are met:
 
 #### Node-Level Exhaustion Signals
 
-The system provides multiple signals for exhaustion detection:
+The system provides multiple signals for exhaustion detection and node differentiation:
 
 | Signal | Type | Purpose |
 |--------|------|---------|
@@ -939,6 +940,7 @@ The system provides multiple signals for exhaustion detection:
 | `graph.node.yield_stagnation` | boolean | Early warning: 3+ turns without yield |
 | `graph.node.focus_streak` | categorical | Track persistent focus (none/low/medium/high) |
 | `graph.node.recency_score` | float (0.0-1.0) | How recently node was focused (decays over 20 turns) |
+| `graph.node.type_priority` | float (0.0-1.0) | Strategic priority based on node_type (configured per-strategy) |
 
 #### Exhaustion Score Calculation
 
