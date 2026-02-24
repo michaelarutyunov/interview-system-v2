@@ -28,7 +28,7 @@ from src.llm.prompts.question import (
 )
 from src.domain.models.knowledge_graph import KGNode, GraphState
 from src.core.schema_loader import load_methodology
-from src.domain.models.methodology_schema import MethodologySchema
+from src.core.config import settings
 
 log = structlog.get_logger(__name__)
 
@@ -127,19 +127,16 @@ class QuestionService:
                 depth_achieved=depth_achieved,
             )
 
-        # Load methodology schema for prompt
-        methodology_schema: Optional[MethodologySchema] = None
-        try:
-            methodology_schema = self.load_methodology_schema()
-        except Exception:
-            pass  # Methodology is optional for follow-up prompts
+        # Load methodology schema for prompt - fail fast if missing
+        methodology_schema = self.load_methodology_schema()
 
         # Get prompts - include topic anchoring and methodology
         system_prompt = get_question_system_prompt(
-            strategy, topic=topic, methodology=methodology_schema
+            methodology_schema, strategy=strategy, topic=topic
         )
         user_prompt = get_question_user_prompt(
             focus_concept=focus_concept,
+            methodology=methodology_schema,
             recent_utterances=recent_utterances,
             graph_summary=graph_summary,
             strategy=strategy,
@@ -149,11 +146,16 @@ class QuestionService:
             signal_descriptions=signal_descriptions,
         )
 
+        # Determine temperature based on self-selection mode
+        # Self-selection: lower temp (0.7) for deterministic scoring
+        # Baseline: higher temp (0.8) for creative variety in single generation
+        effective_temp = 0.7 if settings.enable_question_self_selection else 0.8
+
         try:
             response = await self.llm.complete(
                 prompt=user_prompt,
                 system=system_prompt,
-                temperature=0.8,  # Higher for variety
+                temperature=effective_temp,
                 max_tokens=200,
             )
 
@@ -162,6 +164,10 @@ class QuestionService:
             log.info(
                 "question_generated",
                 strategy=strategy,
+                prompt_variant="self_selection"
+                if settings.enable_question_self_selection
+                else "baseline",
+                temperature=effective_temp,
                 question_length=len(question),
                 latency_ms=response.latency_ms,
             )
@@ -207,7 +213,9 @@ class QuestionService:
         # Load methodology schema
         methodology_schema = self.load_methodology_schema()
 
-        system_prompt = get_opening_question_system_prompt(methodology=methodology_schema)
+        system_prompt = get_opening_question_system_prompt(
+            methodology=methodology_schema
+        )
         user_prompt = get_opening_question_user_prompt(
             objective=objective,
             methodology=methodology_schema,

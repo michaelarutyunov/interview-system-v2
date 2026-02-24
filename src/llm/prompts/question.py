@@ -21,9 +21,9 @@ log = structlog.get_logger(__name__)
 
 
 def get_question_system_prompt(
+    methodology: MethodologySchema,
     strategy: str = "deepen",
     topic: Optional[str] = None,
-    methodology: Optional[MethodologySchema] = None,
 ) -> str:
     """
     Get system prompt for question generation.
@@ -37,39 +37,29 @@ def get_question_system_prompt(
     Returns:
         System prompt string
     """
-    # Load strategy from methodology config
-    methodology_name = (
-        methodology.method["name"] if methodology and methodology.method else "means_end_chain"
-    )
+    # Load strategy from methodology config - fail fast if missing
+    methodology_name = methodology.method["name"]
     registry = get_registry()
-    try:
-        config = registry.get_methodology(methodology_name)
-        strategy_config = next((s for s in config.strategies if s.name == strategy), None)
-        if strategy_config:
-            strat_name = strategy.replace("_", " ").title()
-            strat_description = strategy_config.description
-        else:
-            # Fallback to strategy name
-            strat_name = strategy.replace("_", " ").title()
-            strat_description = ""
-    except Exception:
-        # Fallback on error
+    config = registry.get_methodology(methodology_name)
+    strategy_config = next((s for s in config.strategies if s.name == strategy), None)
+    if strategy_config:
+        strat_name = strategy.replace("_", " ").title()
+        strat_description = strategy_config.description
+    else:
         strat_name = strategy.replace("_", " ").title()
         strat_description = ""
 
     # Build methodology section
-    methodology_section = ""
-    if methodology and methodology.method:
-        method_info = methodology.method
-        method_name = method_info.get("name", "qualitative interview")
-        method_goal = method_info.get("goal", "")
-        method_desc = method_info.get("description", "")
+    method_info = methodology.method
+    method_name = method_info.get("name", "qualitative interview")
+    method_goal = method_info.get("goal", "")
+    method_desc = method_info.get("description", "")
 
-        methodology_section = f"\n\nMethod: {method_name}"
-        if method_desc:
-            methodology_section += f"\n{method_desc}"
-        if method_goal:
-            methodology_section += f"\nGoal: {method_goal}"
+    methodology_section = f"\n\nMethod: {method_name}"
+    if method_desc:
+        methodology_section += f"\n{method_desc}"
+    if method_goal:
+        methodology_section += f"\nGoal: {method_goal}"
 
     # Build topic anchoring instruction if topic provided
     topic_instruction = ""
@@ -102,11 +92,17 @@ Strategy: {strat_description}{methodology_section}
 - GOOD: "Why does having that routine matter to you?"
 {topic_instruction}
 ## Output:
-Generate ONLY the question - no explanations, no quotation marks, just the question itself."""
+Before outputting your final question:
+1. Generate 3 distinct candidate questions that follow the strategy
+2. Score each silently: clarity (1-5), strategy_fit (1-5), naturalness (1-5), topic_anchor (1-5)
+3. Select the highest-scoring candidate
+4. Output ONLY the selected question — no candidates, no scores, no explanation"""
 
 
+# Simple prompt: Generate ONLY the question - no explanations, no quotation marks, just the question itself.
 def get_question_user_prompt(
     focus_concept: str,
+    methodology: MethodologySchema,
     recent_utterances: Optional[List[Dict[str, str]]] = None,
     graph_summary: Optional[str] = None,
     strategy: str = "deepen",
@@ -114,7 +110,6 @@ def get_question_user_prompt(
     depth_achieved: int = 0,
     signals: Optional[Dict[str, Any]] = None,
     signal_descriptions: Optional[Dict[str, str]] = None,
-    methodology: Optional[MethodologySchema] = None,
 ) -> str:
     """
     Get user prompt for question generation.
@@ -177,20 +172,14 @@ def get_question_user_prompt(
 
     # Add focus and strategy
     # Load strategy description from methodology config
-    methodology_name = (
-        methodology.method["name"] if methodology and methodology.method else "means_end_chain"
-    )
+    methodology_name = methodology.method["name"]
     registry = get_registry()
-    try:
-        config = registry.get_methodology(methodology_name)
-        strategy_config = next((s for s in config.strategies if s.name == strategy), None)
-        if strategy_config:
-            strat_name = strategy.replace("_", " ").title()
-            strat_description = strategy_config.description
-        else:
-            strat_name = strategy.replace("_", " ").title()
-            strat_description = ""
-    except Exception:
+    config = registry.get_methodology(methodology_name)
+    strategy_config = next((s for s in config.strategies if s.name == strategy), None)
+    if strategy_config:
+        strat_name = strategy.replace("_", " ").title()
+        strat_description = strategy_config.description
+    else:
         strat_name = strategy.replace("_", " ").title()
         strat_description = ""
 
@@ -237,19 +226,25 @@ def _build_strategy_rationale(signals: Dict[str, Any], strategy: str) -> str:
     if "graph.chain_completion.has_complete" in signals:
         has_chain = signals["graph.chain_completion.has_complete"]
         if not has_chain:
-            rationale_parts.append("- No complete chains exist - need to reach terminal values")
+            rationale_parts.append(
+                "- No complete chains exist - need to reach terminal values"
+            )
 
     if "llm.response_depth" in signals:
         resp_depth = signals["llm.response_depth"]
         if resp_depth == "surface":
-            rationale_parts.append("- Surface-level response suggests need for deeper probing")
+            rationale_parts.append(
+                "- Surface-level response suggests need for deeper probing"
+            )
         elif resp_depth == "deep":
             rationale_parts.append("- Deep response indicates strong engagement")
 
     if "llm.hedging_language" in signals:
         hedging = signals["llm.hedging_language"]
         if hedging in ["medium", "high"]:
-            rationale_parts.append(f"- Hedging language ({hedging}) suggests uncertainty")
+            rationale_parts.append(
+                f"- Hedging language ({hedging}) suggests uncertainty"
+            )
         elif hedging in ["none", "low"]:
             rationale_parts.append("- Confident response with low uncertainty")
 
@@ -326,7 +321,9 @@ def get_opening_question_user_prompt(
 
     name = method_info.get("name", "qualitative interview")
     goal = method_info.get("goal", "understand user experiences")
-    opening_bias = method_info.get("opening_bias", "Elicit concrete, experience-based responses.")
+    opening_bias = method_info.get(
+        "opening_bias", "Elicit concrete, experience-based responses."
+    )
 
     return f"""You are an experienced qualitative moderator starting an in-depth interview.
 
