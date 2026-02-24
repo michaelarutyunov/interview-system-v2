@@ -53,7 +53,6 @@ class PhaseConfig:
     description: str
     signal_weights: dict[str, float]  # strategy_name -> multiplier
     phase_bonuses: dict[str, float]  # strategy_name -> additive bonus
-    phase_boundaries: dict[str, int] | None = None  # phase_boundary_key -> value
 
 
 @dataclass
@@ -62,9 +61,9 @@ class MethodologyConfig:
 
     name: str
     description: str
-    signals: dict[str, list[str]]  # graph, llm, temporal, meta
     strategies: list["StrategyConfig"]  # List of strategy definitions
-    phases: dict[str, PhaseConfig] | None = None  # phase_name -> config
+    phases: dict[str, PhaseConfig]  # phase_name -> config (built from phase_profile)
+    phase_boundaries: dict[str, int]  # phase_name -> max_turns
 
 
 @dataclass
@@ -76,6 +75,7 @@ class StrategyConfig:
     signal_weights: dict[str, float]
     generates_closing_question: bool = False
     node_type_priorities: dict[str, float] = field(default_factory=dict)
+    phase_profile: dict[str, dict[str, float]] | None = None  # phase_name -> {multiplier, bonus}
 
 
 class MethodologyRegistry:
@@ -129,42 +129,133 @@ class MethodologyRegistry:
 
         method_data = data["method"]
 
-        # Load phases if present
-        phases = None
-        if "phases" in data:
-            phases = {}
+        # Load phase_boundaries
+        phase_boundaries_data = data.get("phase_boundaries", {})
+        phase_boundaries: dict[str, int] = {}
+
+        # First, try new phase_boundaries format
+        for phase_name, boundary_dict in phase_boundaries_data.items():
+            if isinstance(boundary_dict, dict):
+                # Extract max_turns from nested dict
+                for key, value in boundary_dict.items():
+                    if "max_turns" in key:
+                        phase_boundaries[phase_name] = value
+            elif isinstance(boundary_dict, int):
+                phase_boundaries[phase_name] = boundary_dict
+
+        # Fallback: extract from old phases section (migration compatibility)
+        if not phase_boundaries and "phases" in data:
             for phase_name, phase_data in data["phases"].items():
-                phases[phase_name] = PhaseConfig(
-                    name=phase_name,
-                    description=phase_data.get("description", ""),
-                    signal_weights=phase_data.get("signal_weights", {}),
-                    phase_bonuses=phase_data.get("phase_bonuses", {}),
-                    phase_boundaries=phase_data.get("phase_boundaries"),
-                )
+                if "phase_boundaries" in phase_data:
+                    boundaries = phase_data["phase_boundaries"]
+                    if isinstance(boundaries, dict):
+                        for key, value in boundaries.items():
+                            if "max_turns" in key:
+                                phase_boundaries[phase_name] = value
+
+        # Load strategies with phase_profile
+        strategies = [
+            StrategyConfig(
+                name=s["name"],
+                description=s.get("description", ""),
+                signal_weights=s["signal_weights"],
+                generates_closing_question=s.get(
+                    "generates_closing_question", False
+                ),
+                node_type_priorities=s.get("node_type_priorities", {}),
+                phase_profile=s.get("phase_profile"),
+            )
+            for s in data.get("strategies", [])
+        ]
+
+        # Build phases from strategy phase_profile entries
+        phases = self._build_phase_configs_from_strategies(
+            strategies, phase_boundaries, data.get("phases", {})
+        )
 
         config = MethodologyConfig(
             name=method_data["name"],
             description=method_data.get("description", ""),
-            signals=data.get("signals", {}),
-            strategies=[
-                StrategyConfig(
-                    name=s["name"],
-                    description=s.get("description", ""),
-                    signal_weights=s["signal_weights"],
-                    generates_closing_question=s.get(
-                        "generates_closing_question", False
-                    ),
-                    node_type_priorities=s.get("node_type_priorities", {}),
-                )
-                for s in data.get("strategies", [])
-            ],
+            strategies=strategies,
             phases=phases,
+            phase_boundaries=phase_boundaries,
         )
 
         self._validate_config(config, config_path)
 
         self._cache[name] = config
         return config
+
+    def _build_phase_configs_from_strategies(
+        self,
+        strategies: list[StrategyConfig],
+        phase_boundaries: dict[str, int],
+        phases_fallback: dict,
+    ) -> dict[str, PhaseConfig]:
+        """Build per-phase configs from per-strategy phase_profile entries.
+
+        Inverts the data from:
+          strategies[].phase_profile[phase] = {multiplier, bonus}
+        To:
+          phases[phase].signal_weights[strategy] = multiplier
+          phases[phase].phase_bonuses[strategy] = bonus
+
+        Args:
+            strategies: List of strategies with phase_profile entries
+            phase_boundaries: Phase name -> max_turns mapping
+            phases_fallback: Fallback phases dict for description/migration
+
+        Returns:
+            Dict mapping phase_name -> PhaseConfig
+        """
+        phases: dict[str, PhaseConfig] = {}
+
+        # Collect all unique phase names from strategy phase_profile entries
+        phase_names: set[str] = set()
+        for strategy in strategies:
+            if strategy.phase_profile:
+                phase_names.update(strategy.phase_profile.keys())
+
+        # If no phase_profile found, fall back to old phases section
+        if not phase_names and phases_fallback:
+            for phase_name, phase_data in phases_fallback.items():
+                phases[phase_name] = PhaseConfig(
+                    name=phase_name,
+                    description=phase_data.get("description", ""),
+                    signal_weights=phase_data.get("signal_weights", {}),
+                    phase_bonuses=phase_data.get("phase_bonuses", {}),
+                )
+            return phases
+
+        # Build phases from strategy phase_profile entries
+        for phase_name in phase_names:
+            signal_weights: dict[str, float] = {}
+            phase_bonuses: dict[str, float] = {}
+
+            for strategy in strategies:
+                if strategy.phase_profile and phase_name in strategy.phase_profile:
+                    profile_entry = strategy.phase_profile[phase_name]
+                    multiplier = profile_entry.get("multiplier", 1.0)
+                    bonus = profile_entry.get("bonus", 0.0)
+
+                    if multiplier != 1.0:
+                        signal_weights[strategy.name] = multiplier
+                    if bonus != 0.0:
+                        phase_bonuses[strategy.name] = bonus
+
+            # Get description from fallback if available
+            description = ""
+            if phase_name in phases_fallback:
+                description = phases_fallback[phase_name].get("description", "")
+
+            phases[phase_name] = PhaseConfig(
+                name=phase_name,
+                description=description,
+                signal_weights=signal_weights,
+                phase_bonuses=phase_bonuses,
+            )
+
+        return phases
 
     def _validate_config(self, config: MethodologyConfig, config_path: Path) -> None:
         """Validate methodology config against known signals and techniques.
@@ -179,15 +270,7 @@ class MethodologyRegistry:
         # Collect defined strategy names
         strategy_names: set[str] = set()
 
-        # 1. Validate signals in signals: dict
-        for pool_name, signal_list in config.signals.items():
-            for signal_name in signal_list:
-                if signal_name not in known_signals:
-                    errors.append(
-                        f"signals.{pool_name}: unknown signal '{signal_name}'"
-                    )
-
-        # 2. Validate strategies
+        # 1. Validate strategies
         for i, strategy in enumerate(config.strategies):
             if strategy.name in strategy_names:
                 errors.append(
@@ -197,10 +280,26 @@ class MethodologyRegistry:
 
             for weight_key in strategy.signal_weights:
                 if not _is_valid_signal_weight_key(weight_key, known_signals):
+                    # Enhance error with available signals for discoverability
+                    available = ", ".join(sorted(known_signals)[:10])
+                    if len(known_signals) > 10:
+                        available += f", ... ({len(known_signals)} total)"
                     errors.append(
                         f"strategies[{i}] '{strategy.name}': "
-                        f"unknown signal weight key '{weight_key}'"
+                        f"unknown signal weight key '{weight_key}' "
+                        f"(available: {available})"
                     )
+
+        # 2. Validate phase_profile phase names against phase_boundaries
+        for i, strategy in enumerate(config.strategies):
+            if strategy.phase_profile:
+                for phase_name in strategy.phase_profile:
+                    if phase_name not in config.phase_boundaries:
+                        errors.append(
+                            f"strategies[{i}] '{strategy.name}': "
+                            f"phase_profile references unknown phase '{phase_name}' "
+                            f"(defined phases: {sorted(config.phase_boundaries.keys())})"
+                        )
 
         # 3. Validate phases reference defined strategies
         if config.phases:
@@ -237,7 +336,7 @@ class MethodologyRegistry:
     ) -> "ComposedSignalDetector":
         """Create a composed signal detector for a methodology.
 
-        Instantiates all signal detectors from the methodology config.
+        Collects signal names from strategy signal_weights.
 
         Args:
             config: MethodologyConfig loaded from YAML
@@ -247,9 +346,29 @@ class MethodologyRegistry:
         """
         from src.signals.signal_registry import ComposedSignalDetector
 
-        # Collect all signal names from all pools
-        signal_names: list[str] = []
-        for pool_signals in config.signals.values():
-            signal_names.extend(pool_signals)
+        # Collect all signal names from strategy signal_weights
+        # Extract the base signal name from compound keys like "llm.response_depth.surface"
+        signal_names: set[str] = set()
+        for strategy in config.strategies:
+            for weight_key in strategy.signal_weights:
+                # Extract base signal name by progressively shortening the key
+                parts = weight_key.split(".")
+                for i in range(len(parts), 0, -1):
+                    prefix = ".".join(parts[:i])
+                    # Check if this is a known signal (will validate below)
+                    # For now, collect all potential prefixes
+                    signal_names.add(prefix)
 
-        return ComposedSignalDetector(signal_names)
+        # Filter to only known global signals (exclude node-level signals that
+        # require NodeStateTracker — those are handled by NodeSignalDetectionService)
+        from src.signals.signal_base import SignalDetector
+
+        known_signals = ComposedSignalDetector.get_known_signal_names()
+        valid_signals = [
+            s
+            for s in signal_names
+            if s in known_signals
+            and not getattr(SignalDetector.get_signal_class(s), "requires_node_tracker", False)
+        ]
+
+        return ComposedSignalDetector(valid_signals)

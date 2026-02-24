@@ -210,33 +210,42 @@ ontology:
     job_triggers as initiating events.
     Use the examples in each node type description as naming models.
 
-signals:
-  graph:
-    - graph.node_count
-    - graph.orphan_count
-    - graph.max_depth
+phase_boundaries:
+  early: 5     # turns 1-5
+  mid: 17      # turns 6-17
+  late: 999    # turns 18+
 
-  llm:
-    - llm.response_depth
-    - llm.valence
-    - llm.certainty
-    - llm.specificity
-    - llm.engagement
-    - llm.intellectual_engagement
-    # Note: llm.global_response_trend is session-scoped and managed separately
+# Shared signal weight profiles using YAML anchors
+_profiles:
+  # Engagement gates — positive engagement enables probing, negative suppresses it
+  engagement_gates: &engagement_gates
+    llm.engagement.high: 0.5
+    llm.engagement.low: -0.5
 
-  temporal:
-    - temporal.strategy_repetition_count
-    - temporal.turns_since_strategy_change
+  # Fresh node preference — avoid over-focusing on same nodes
+  freshness_preference: &freshness_preference
+    graph.node.focus_streak.none: 0.6
+    graph.node.focus_streak.medium: -0.4
+    graph.node.focus_streak.high: -0.7
+    graph.node.exhaustion_score.low: 0.4
 
-  meta:
-    - meta.interview.phase
-    - meta.conversation.saturation
-    - meta.canonical.saturation
-    # Note: meta.interview_progress is intentionally excluded from JTBD.
-    # It is deprecated for this methodology and replaced by meta.conversation.saturation
-    # and meta.canonical.saturation, which are information-velocity-based rather than
-    # structural. Do not add it to signal_weights for any JTBD strategy.
+  # Slot saturation preference — prefer fresh slots (continuous: higher saturation = lower reward)
+  slot_freshness: &slot_freshness
+    graph.node.slot_saturation: 0.5    # Continuous: reward inversely proportional to saturation
+    graph.node.slot_saturation.low: 0  # Placeholder (discretized format, unused)
+
+  # Diversity penalty — symmetric to prevent lock-in
+  diversity_penalty: &diversity_penalty
+    temporal.strategy_repetition_count: -0.7
+    temporal.strategy_repetition_count.high: 0.0  # Reserved for future tuning
+
+  # Strategy break penalty — break strategy lock after some time
+  strategy_break: &strategy_break
+    temporal.turns_since_strategy_change: -0.4
+
+  # Type priority — differentiation by node type
+  type_priority: &type_priority
+    graph.node.type_priority: 0.6
 
 strategies:
   # Strategy 1: Explore the situation (elaboration)
@@ -252,26 +261,20 @@ strategies:
       emotional_job: 0.3
       social_job: 0.3
     signal_weights:
+      <<: [*engagement_gates, *freshness_preference, *slot_freshness, *diversity_penalty, *strategy_break, *type_priority]
       # Global signals
       llm.valence.mid: 0.5
-      temporal.strategy_repetition_count: -0.7  # Symmetric repetition penalty (was -0.8)
-      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
-      temporal.turns_since_strategy_change: -0.4  # Break strategy lock
       # Engagement
       llm.engagement.mid: 0.4               # Moderate engagement = breadth OK
       # Response quality awareness — suppress exploration during declining quality
       llm.global_response_trend.shallowing: -0.4  # Don't explore when answers declining
       llm.global_response_trend.fatigued: -0.6    # Strongly suppress during fatigue
       # Node-level signals (Phase 3) — reduced weights to prevent node dominance
-      graph.node.focus_streak.none: 0.6   # Fresh nodes (was 1.0)
-      graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
-      graph.node.focus_streak.high: -0.7   # Strongly penalize 4+ turn over-focus
       graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.8)
-      graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.7)
-      graph.node.type_priority: 0.6  # ADD: differentiation by node type
-      graph.node.slot_saturation.low: 0.5  # Prefer nodes in fresh slots (0-2 support)
-      graph.node.slot_saturation.medium: -0.2  # Light penalty for medium saturation (3-5)
-      graph.node.slot_saturation.high: -0.5  # Penalize high saturation nodes (6+)
+    phase_profile:
+      early:  { multiplier: 1.5, bonus: 0.2 }
+      mid:    { multiplier: 0.6 }
+      late:   { multiplier: 0.3 }
 
   # Strategy 2: Probe alternatives (probing)
   - name: probe_alternatives
@@ -286,6 +289,7 @@ strategies:
       emotional_job: 0.3
       social_job: 0.3
     signal_weights:
+      <<: [*freshness_preference, *slot_freshness, *diversity_penalty, *type_priority]
       # Global signals
       llm.specificity.high: 0.4
       # Engagement
@@ -293,19 +297,14 @@ strategies:
       # Response depth — shallow answers suggest surface-level exploration still in play
       llm.response_depth.surface: 0.3       # Surface answers → probe alternatives
       llm.response_depth.shallow: 0.2       # Shallow answers → probe alternatives
-      # Diversity — symmetric penalty to prevent monoculture
-      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.8)
-      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
       # Node-level signals (Phase 3)
       graph.node.is_orphan.true: 0.5       # was 1.0; reduced to prevent orphan boost dominance
       graph.node.exhaustion_score.low: 0.6  # Avoid exhausted nodes
       graph.node.focus_streak.none: 0.5    # Fresh nodes without prior focus
-      graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
-      graph.node.focus_streak.high: -0.7    # Strongly penalize 4+ turn over-focus
-      graph.node.type_priority: 0.5  # ADD: differentiation by node type
-      graph.node.slot_saturation.low: 0.4  # Prefer nodes in fresh slots
-      graph.node.slot_saturation.medium: -0.2  # Light penalty for medium saturation
-      graph.node.slot_saturation.high: -0.5  # Penalize high saturation nodes
+    phase_profile:
+      early:  { multiplier: 1.2, bonus: 0.15 }
+      mid:    { multiplier: 0.9, bonus: 0.15 }
+      late:   { multiplier: 0.4 }
 
   # Strategy 3: Dig into motivation (laddering)
   - name: dig_motivation
@@ -320,6 +319,7 @@ strategies:
       job_trigger: 0.4
       job_context: 0.3
     signal_weights:
+      <<: [*engagement_gates, *diversity_penalty, *type_priority]
       # Global signals — use actual category names (surface/shallow/moderate/deep)
       llm.response_depth.surface: 0.5    # Surface answers → dig deeper
       llm.response_depth.shallow: 0.4    # Shallow answers → dig deeper
@@ -336,17 +336,18 @@ strategies:
       # Response quality trend — dig when quality is declining
       llm.global_response_trend.shallowing: 0.4  # Shallow trend → try digging (NEW)
       # Diversity — symmetric penalty to prevent lock
-      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.5, lacked .high); stronger weight -1.2 under consideration
-      temporal.strategy_repetition_count.high: -1.0  # Severe penalty at 4-5 reps to break dominance; stronger weight -1.5 under consideration
+      temporal.strategy_repetition_count.high: -1.0  # Severe penalty at 4-5 reps to break dominance
       # Node-level signals (Phase 3)
       graph.node.exhaustion_score.low: 1.0   # Boost non-exhausted nodes
       graph.node.focus_streak.low: 0.5       # Prefer nodes in first focus
       graph.node.focus_streak.medium: -0.4   # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.8     # Strongly penalize 4+ turn over-focus
-      graph.node.type_priority: 0.5  # ADD: differentiation by node type
-      graph.node.slot_saturation.low: 0.3  # Prefer nodes in fresh slots for deepening
-      graph.node.slot_saturation.medium: -0.1  # Light penalty for medium saturation
-      graph.node.slot_saturation.high: -0.4  # Penalize high saturation nodes
+      graph.node.slot_saturation: 0.3    # Continuous: prefer nodes in fresh slots for deepening
+      graph.node.slot_saturation.low: 0  # Placeholder (discretized format, unused)
+    phase_profile:
+      early:  { multiplier: 0.5 }
+      mid:    { multiplier: 1.4, bonus: 0.3 }
+      late:   { multiplier: 0.5 }
 
   # Strategy 4: Validate outcome (validation)
   - name: validate_outcome
@@ -362,6 +363,7 @@ strategies:
       job_trigger: 0.3
       job_context: 0.3
     signal_weights:
+      <<: [*diversity_penalty, *type_priority]
       # Global signals
       graph.max_depth: 0.5
       llm.response_depth.deep: 0.3       # Deep responses → validate
@@ -372,9 +374,6 @@ strategies:
       meta.node.opportunity.probe_deeper: 0.6  # Extraction opportunity
       # Engagement trigger
       llm.engagement.low: 0.6               # Low engagement = validate & wrap
-      # Diversity (lighter penalty — OK to repeat validation, but symmetric)
-      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.2)
-      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
       # Node-level signals (Phase 3)
       graph.node.has_outgoing.true: 0.8  # Well-connected nodes
       graph.node.focus_streak.high: 0.5  # Often-focused nodes
@@ -382,10 +381,12 @@ strategies:
       # Saturation triggers (Phase 6)
       meta.conversation.saturation: 0.5  # High saturation = validate
       meta.canonical.saturation: 0.3     # Supportive metric
-      graph.node.type_priority: 0.4  # ADD: differentiation by node type
-      graph.node.slot_saturation.high: 0.3  # Prefer saturated nodes for validation
-      graph.node.slot_saturation.medium: 0.2  # Medium saturation also OK
-      graph.node.slot_saturation.low: -0.2  # Light penalty for fresh slots
+      graph.node.slot_saturation: -0.3   # Continuous: prefer saturated nodes (inverted — negative = higher score for high saturation)
+      graph.node.slot_saturation.low: 0  # Placeholder (discretized format, unused)
+    phase_profile:
+      early:  { multiplier: 0.2 }
+      mid:    { multiplier: 0.5 }
+      late:   { multiplier: 1.5, bonus: 0.2 }
 
   # Strategy 5: Revitalize engagement (elaboration) - Phase 5
   - name: revitalize
@@ -400,6 +401,7 @@ strategies:
       emotional_job: 0.3
       social_job: 0.3
     signal_weights:
+      <<: [*engagement_gates, *freshness_preference, *slot_freshness, *diversity_penalty, *type_priority]
       # Fatigue detection triggers (Phase 5)
       llm.global_response_trend.fatigued: 1.0  # Trigger on fatigue
       llm.global_response_trend.shallowing: 0.5  # Prevent fatigue
@@ -410,18 +412,16 @@ strategies:
       llm.engagement.high: -0.4             # Already engaged = not needed
       llm.valence.low: 0.5                  # Negative valence = shift gears
       # Global signals - Symmetric penalty to prevent loops
-      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.8)
-      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
       temporal.turns_since_strategy_change: -0.6  # Penalty for staying too long
       # Node-level signals (Phase 3)
       graph.node.focus_streak.none: 0.8    # Fresh nodes
-      graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
-      graph.node.focus_streak.high: -0.7    # Strongly penalize 4+ turn over-focus
       graph.node.exhaustion_score.low: 0.5  # Avoid exhausted nodes
-      graph.node.type_priority: 0.5  # ADD: differentiation by node type
-      graph.node.slot_saturation.low: 0.6  # Strongly prefer fresh slots for revitalization
-      graph.node.slot_saturation.medium: -0.1  # Light penalty for medium saturation
-      graph.node.slot_saturation.high: -0.6  # Strongly penalize high saturation
+      graph.node.slot_saturation: 0.6    # Continuous: strongly prefer fresh slots for revitalization (overrides anchor)
+      graph.node.slot_saturation.low: 0  # Placeholder (discretized format, unused)
+    phase_profile:
+      early:  { multiplier: 0.3 }
+      mid:    { multiplier: 1.0 }
+      late:   { multiplier: 0.3 }
 
   # Strategy 6: Uncover obstacles (probing)
   - name: uncover_obstacles
@@ -436,6 +436,7 @@ strategies:
       emotional_job: 0.3
       social_job: 0.3
     signal_weights:
+      <<: [*freshness_preference, *slot_freshness, *diversity_penalty, *strategy_break, *type_priority]
       # Global signals — negative valence is the primary trigger
       llm.valence.low: 0.9                  # Strong trigger on negative/critical responses (was 0.7)
       llm.valence.mid: 0.3                  # Neutral responses can also reveal obstacles
@@ -444,20 +445,16 @@ strategies:
       llm.certainty.mid: 0.2                # Respondent expressing doubt about solutions
       # Engagement — can surface obstacles even at mid engagement
       llm.engagement.mid: 0.3               # Moderate engagement = probing OK
-      # Diversity — symmetric penalty to prevent lock
-      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.5)
-      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
-      temporal.turns_since_strategy_change: -0.4  # Break strategy lock
       # Node-level signals (Phase 3) — reduced to prevent node dominance
       graph.node.is_orphan.true: 0.7       # Boost orphan nodes (was 1.0)
       graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.7)
       graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.6)
       graph.node.focus_streak.medium: -0.3  # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.6    # Strongly penalize 4+ turn over-focus
-      graph.node.type_priority: 0.5  # ADD: differentiation by node type
-      graph.node.slot_saturation.low: 0.4  # Prefer nodes in fresh slots
-      graph.node.slot_saturation.medium: -0.2  # Light penalty for medium saturation
-      graph.node.slot_saturation.high: -0.5  # Penalize high saturation nodes
+    phase_profile:
+      early:  { multiplier: 0.3 }
+      mid:    { multiplier: 1.3, bonus: 0.25 }
+      late:   { multiplier: 1.2 }
 
   # Strategy 7: Clarify assumption (challenging)
   - name: clarify_assumption
@@ -472,6 +469,7 @@ strategies:
       job_trigger: 0.4
       job_context: 0.3
     signal_weights:
+      <<: [*engagement_gates, *diversity_penalty, *type_priority]
       # Primary triggers — high certainty + high specificity = confident claim worth probing
       llm.certainty.high: 0.8        # Confident respondent = safe to push back
       llm.specificity.high: 0.5      # Concrete claim = clear target to examine
@@ -483,63 +481,14 @@ strategies:
       llm.engagement.high: 0.3       # Engaged = will respond constructively
       llm.engagement.mid: 0.2        # Moderate engagement = still OK to gently challenge (NEW)
       llm.engagement.low: -0.5       # Disengaged = don't challenge
-      # Diversity — should be rare; symmetric penalty to prevent lock
-      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.6)
-      temporal.strategy_repetition_count.high: 0  # Disabled (was -0.4); enable if lock persists
       # Node-level — prefer nodes the respondent has spoken confidently about
       graph.node.exhaustion_score.low: 0.5   # Fresh node = still something to challenge
       graph.node.focus_streak.low: 0.4       # First focus = just started engagement
       graph.node.focus_streak.medium: -0.4   # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.7     # Strongly penalize 4+ turn over-focus
-      graph.node.type_priority: 0.4  # ADD: differentiation by node type
-      graph.node.slot_saturation.low: 0.3  # Prefer nodes in fresh slots
-      graph.node.slot_saturation.medium: -0.1  # Light penalty for medium saturation
-      graph.node.slot_saturation.high: -0.4  # Penalize high saturation nodes
-
-phases:
-  early:
-    description: "Initial exploration, building graph structure"
-    phase_boundaries:
-      early_max_turns: 5
-      mid_max_turns: 17
-    signal_weights:
-      explore_situation: 1.5
-      probe_alternatives: 1.2
-      dig_motivation: 0.5
-      validate_outcome: 0.2
-      uncover_obstacles: 0.3
-    phase_bonuses:
-      explore_situation: 0.2    # Additive bonus to encourage exploration even with zero base score
-      probe_alternatives: 0.15  # Bonus to surface orphan alternatives early
-
-  mid:
-    description: "Building depth and connections"
-    phase_boundaries:
-      early_max_turns: 5
-      mid_max_turns: 17
-    signal_weights:
-      dig_motivation: 1.4        # Primary mid-phase strategy but not overwhelming
-      probe_alternatives: 0.9    # Below 1.0: mid-phase should deepen, not probe
-      uncover_obstacles: 1.3     # Boosted from 1.2 — compete when valence is low
-      clarify_assumption: 1.3    # Boosted from 1.2 — fire on both certainty and self-doubt
-      revitalize: 1.0
-      explore_situation: 0.6
-      validate_outcome: 0.5
-    phase_bonuses:
-      dig_motivation: 0.3        # Restored — dig needs additive bonus to compete on non-negative turns
-      probe_alternatives: 0.15   # Bonus to break out of single-node focus
-      uncover_obstacles: 0.25    # Boosted — compete when dig_motivation is penalized
-      clarify_assumption: 0.15   # Additive — ensure it fires on hedging turns
-
-  late:
-    description: "Validation and verification"
-    phase_boundaries:
-      early_max_turns: 5
-      mid_max_turns: 17
-    signal_weights:
-      validate_outcome: 1.5
-      uncover_obstacles: 1.2
-      dig_motivation: 0.5
-      explore_situation: 0.3
-    phase_bonuses:
-      validate_outcome: 0.2  # Additive bonus to ensure validation gets selected
+      graph.node.slot_saturation: 0.3    # Continuous: prefer nodes in fresh slots
+      graph.node.slot_saturation.low: 0  # Placeholder (discretized format, unused)
+    phase_profile:
+      early:  { multiplier: 0.3 }
+      mid:    { multiplier: 1.3, bonus: 0.15 }
+      late:   { multiplier: 0.3 }

@@ -29,12 +29,13 @@ class GlobalResponseTrendSignal(SignalDetector):
     signal_name = "llm.global_response_trend"
     description = "Trend in response quality over time. 'deepening' = engaged, 'stable' = consistent, 'shallowing' = declining quality, 'fatigued' = disengaged (4+ shallow responses). 'fatigued' suggests need for rapport repair or closing."
 
-    def __init__(self, history_size: int = 10):
+    def __init__(self, history_size: int = 10, **kwargs: object) -> None:  # type: ignore[override]
         """Initialize signal with response history tracking.
 
         Args:
             history_size: Maximum number of response depths to track
         """
+        super().__init__(**kwargs)
         self.history_size = history_size
         self.response_history: List[str] = []  # Track response depths across turns
 
