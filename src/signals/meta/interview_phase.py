@@ -114,10 +114,8 @@ class InterviewPhaseSignal(SignalDetector):
             registry = MethodologyRegistry()
             config = registry.get_methodology(methodology)
 
-            if config.phases:
-                for phase_config in config.phases.values():
-                    if phase_config.phase_boundaries:
-                        return self._normalize_boundaries(phase_config.phase_boundaries)
+            if config.phase_boundaries:
+                return self._normalize_boundaries(config.phase_boundaries)
 
             # Config loaded successfully, but no phase boundaries defined
             # This is valid - use defaults
@@ -133,8 +131,10 @@ class InterviewPhaseSignal(SignalDetector):
     def _normalize_boundaries(self, boundaries: dict) -> dict:
         """Normalize phase boundaries to turn-based keys.
 
-        Supports both new turn-based keys and legacy node-based keys.
-        Turn-based keys take precedence over node-based keys.
+        Supports three key formats (checked in priority order):
+        1. Phase-name keys: {"early": 5, "mid": 17} (current registry output)
+        2. Turn-based keys: {"early_max_turns": 4, "mid_max_turns": 12} (legacy)
+        3. Node-based keys: {"early_max_nodes": 4, "mid_max_nodes": 12} (legacy)
 
         Args:
             boundaries: Raw phase boundaries from YAML config
@@ -143,14 +143,22 @@ class InterviewPhaseSignal(SignalDetector):
             Dict with 'early_max_turns' and 'mid_max_turns' keys
         """
         early = boundaries.get(
-            "early_max_turns",
+            "early",
             boundaries.get(
-                "early_max_nodes", self.DEFAULT_BOUNDARIES["early_max_turns"]
+                "early_max_turns",
+                boundaries.get(
+                    "early_max_nodes", self.DEFAULT_BOUNDARIES["early_max_turns"]
+                ),
             ),
         )
         mid = boundaries.get(
-            "mid_max_turns",
-            boundaries.get("mid_max_nodes", self.DEFAULT_BOUNDARIES["mid_max_turns"]),
+            "mid",
+            boundaries.get(
+                "mid_max_turns",
+                boundaries.get(
+                    "mid_max_nodes", self.DEFAULT_BOUNDARIES["mid_max_turns"]
+                ),
+            ),
         )
         return {"early_max_turns": early, "mid_max_turns": mid}
 
