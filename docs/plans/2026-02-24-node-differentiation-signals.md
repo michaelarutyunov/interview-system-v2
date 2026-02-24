@@ -644,6 +644,15 @@ The signal is already wired end-to-end. This task adds the priorities to each st
 
 Add `node_type_priorities:` to each strategy in `config/methodologies/jobs_to_be_done.yaml`. Also add `graph.node.type_priority` signal weights to each strategy's `signal_weights:` section.
 
+> **Signal weight format note — continuous vs discretized:**
+> The scoring engine (`_get_signal_value()` in `scoring.py`) supports two weight formats:
+> - **Continuous**: `graph.node.type_priority: 0.6` → contribution = `0.6 × raw_value`. The raw 0.0-1.0 priority value is multiplied directly by the weight. Use when the full gradient matters.
+> - **Discretized**: `graph.node.slot_saturation.high: 0.7` → contribution = `0.7` if raw value ≥ 0.75. The `.high`/`.mid`/`.low` suffix gates the weight behind a threshold. Use when the strategic response differs qualitatively by range.
+>
+> **Why type_priority uses continuous format**: The priority value itself is a graded preference (0.4 vs 0.7 vs 0.9). The full gradient carries useful information — a 0.9 node should score higher than a 0.7 node, proportionally.
+>
+> **Why slot_saturation (Task 10) uses discretized format**: The strategic response to saturation is asymmetric — underrepresented slots (`.high`) are boosted while saturated slots (`.low`) are penalized. A continuous weight can't express this push/pull dynamic with a single number.
+
 Priorities per strategy (based on JTBD methodology theory):
 
 **explore_situation:**
@@ -1256,8 +1265,26 @@ In `src/services/methodology_strategy_service.py`:
         )
 ```
 
-3. Update the StrategySelectionStage initialization to pass canonical_slot_repo. Find where `MethodologyStrategyService()` is instantiated in `src/services/turn_pipeline/stages/strategy_selection_stage.py:48`:
+**Step 5b: Thread `canonical_slot_repo` through the DI chain**
 
+The dependency injection chain has 4 layers. Update each in order:
+
+**5b-1. MethodologyStrategyService.__init__** (`src/services/methodology_strategy_service.py`, around line 52-56):
+Add `canonical_slot_repo` parameter:
+```python
+    def __init__(
+        self,
+        global_signal_service: Optional[GlobalSignalDetectionService] = None,
+        node_signal_service: Optional[NodeSignalDetectionService] = None,
+        canonical_slot_repo=None,
+    ):
+        self.global_signal_service = global_signal_service or GlobalSignalDetectionService()
+        self.node_signal_service = node_signal_service or NodeSignalDetectionService()
+        self.canonical_slot_repo = canonical_slot_repo
+```
+
+**5b-2. StrategySelectionStage.__init__** (`src/services/turn_pipeline/stages/strategy_selection_stage.py`, line 41):
+Add `canonical_slot_repo` parameter and pass to service:
 ```python
     def __init__(self, canonical_slot_repo=None):
         self.methodology_strategy = MethodologyStrategyService(
@@ -1265,7 +1292,16 @@ In `src/services/methodology_strategy_service.py`:
         )
 ```
 
-4. Update the pipeline builder in `src/services/session_service.py` to pass `canonical_slot_repo` to `StrategySelectionStage`. Search for where `StrategySelectionStage()` is instantiated and pass the repo. The exact location depends on the pipeline wiring (around line 160).
+**5b-3. SessionService._build_pipeline** (`src/services/session_service.py`, around line 282):
+Find the `StrategySelectionStage()` instantiation and pass `canonical_slot_repo`:
+```python
+            StrategySelectionStage(canonical_slot_repo=canonical_slot_repo),
+```
+
+**5b-4. Handle the `enable_canonical_slots` conditional** (`src/services/session_service.py`, lines 188-240):
+The `canonical_slot_repo` variable is created conditionally based on `settings.enable_canonical_slots`. When slots are disabled, `canonical_slot_repo` will be `None`, which is handled gracefully — `MethodologyStrategyService` checks `if self.canonical_slot_repo:` before fetching the saturation map. No additional guard needed; the `None`-safe pattern already works.
+
+Verify that `canonical_slot_repo` is in scope at the `StrategySelectionStage()` call site. If it's defined inside a conditional block, ensure it's also assigned `None` in the else branch (or is defined before the conditional).
 
 **Step 6: Run all tests**
 
@@ -1400,7 +1436,7 @@ class TestNodeDifferentiationIntegration:
             "meta.interview.phase": "early",
         }
 
-        # 8 nodes from the Turn 2 example, all with identical history
+        # 8 synthetic nodes simulating same-turn extraction, all with identical history-based signals
         base_node_signals = {
             "graph.node.exhausted": False,
             "graph.node.exhaustion_score": 0.0,
