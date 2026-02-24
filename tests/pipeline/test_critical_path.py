@@ -189,7 +189,7 @@ async def test_phase_boundaries_configurable():
     assert "early" in mec_config.phases
     assert mec_config.phases["early"].phase_boundaries is not None
     assert mec_config.phases["early"].phase_boundaries.get("early_max_turns") == 4
-    assert mec_config.phases["early"].phase_boundaries.get("mid_max_turns") == 12
+    assert mec_config.phases["early"].phase_boundaries.get("mid_max_turns") == 14
 
     # Check JTBD has different boundaries
     jtbd_config = registry.get_methodology("jobs_to_be_done")
