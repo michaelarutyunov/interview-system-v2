@@ -572,19 +572,18 @@ class NodeTypePrioritySignal(NodeSignalDetector):
 
 
 class NodeSlotSaturationSignal(NodeSignalDetector):
-    """Measure canonical slot saturation for each surface node.
+    """Measure canonical slot saturation freshness for each surface node.
 
-    Returns the support_count category of the canonical slot that each surface node
-    maps to. This provides a measure of how many surface nodes have been
-    consolidated into the same canonical slot, helping to break scoring
-    ties among same-turn new nodes.
+    Returns a float 0.0–1.0 representing how fresh (unsaturated) the canonical
+    slot is that each surface node maps to. This enables the scoring engine to
+    use continuous weights (e.g. graph.node.slot_saturation: 0.5) directly.
 
-    Categories:
-    - low: 0-2 surface nodes mapped to the same canonical slot (fresh)
-    - medium: 3-5 surface nodes mapped to the same canonical slot
-    - high: 6+ surface nodes mapped to the same canonical slot (saturated)
+    Score interpretation:
+    - 1.0: Fully fresh — node is unmapped or in the least-saturated slot
+    - 0.0: Maximally saturated — node is in the slot with the highest support count
 
-    Nodes not mapped to any canonical slot return "low" (0).
+    Scores are computed relative to the session's current maximum support count,
+    so they adapt as the interview progresses.
 
     Namespaced signal: graph.node.slot_saturation
     Cost: low (dict lookup per node)
@@ -592,14 +591,14 @@ class NodeSlotSaturationSignal(NodeSignalDetector):
     """
 
     signal_name = "graph.node.slot_saturation"
-    description = "Support count category of the canonical slot: low (0-2), medium (3-5), high (6+). Higher values indicate more nodes consolidated into the same slot."
+    description = "Slot freshness score (0.0-1.0): 1.0 = unsaturated/fresh, 0.0 = maximally saturated. Relative to session max support count."
 
     def __init__(self, node_tracker, slot_saturation_map: dict[str, int] | None = None):
         super().__init__(node_tracker)
         self._saturation_map = slot_saturation_map or {}
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG002
-        """Return slot saturation category for each tracked node.
+        """Return slot saturation freshness score for each tracked node.
 
         Args:
             context: Pipeline context (not directly used)
@@ -607,34 +606,23 @@ class NodeSlotSaturationSignal(NodeSignalDetector):
             response_text: User response text (not directly used)
 
         Returns:
-            Dict mapping node_id -> "low" | "medium" | "high" category string.
-            Unmapped nodes return "low".
+            Dict mapping node_id -> float (0.0–1.0 freshness score).
+            Unmapped nodes return 1.0 (fully fresh).
         """
         results = {}
         for node_id in self._get_all_node_states().keys():
             support_count = self._saturation_map.get(node_id, 0)
-            category = self._categorize_saturation(support_count)
-            results[node_id] = category
+            results[node_id] = self._compute_saturation_score(support_count)
         return results
 
-    def _categorize_saturation(self, support_count: int) -> str:
-        """Categorize numeric support count into ordinal levels.
-
-        Maps continuous support_count values to discrete categories for use in
-        strategy selection rules and YAML-based scoring configuration.
-
-        Args:
-            support_count: Number of surface nodes mapped to the same canonical slot
-
-        Returns:
-            Category string: "low" (0-2), "medium" (3-5), or "high" (6+)
-        """
-        if support_count <= 2:
-            return "low"
-        elif support_count <= 5:
-            return "medium"
-        else:
-            return "high"
+    def _compute_saturation_score(self, support_count: int) -> float:
+        """Return 0.0–1.0 freshness score: 1.0 = unsaturated, 0.0 = maximally saturated."""
+        if not self._saturation_map:
+            return 1.0  # no slots yet, all nodes are fresh
+        max_support = max(self._saturation_map.values())
+        if max_support == 0:
+            return 1.0
+        return 1.0 - (support_count / max_support)
 
 
 # =============================================================================
