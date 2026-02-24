@@ -1,9 +1,9 @@
 # Claude Code Quick Reference - Interview System v2
 
 A graph-led conversational interview system with adaptive strategy selection via Signal Pools.
-Features a dual graph architecture with conversaion (surface) and canonical graphs with semantically deduplicated nodes.
+Features a dual graph architecture with conversation (surface) and canonical graphs with semantically deduplicated nodes.
 Plug-in methodology configuration based on YAML files.
-Includes simulation service to generate sample interviews with YAML-paramterized synthetic personas
+Includes simulation service to generate sample interviews with YAML-parameterized synthetic personas
 
 ---
 
@@ -43,6 +43,10 @@ Any codebase change should follow these principles:
 | `docs/extraction_and_graphs.md` | Extraction and Graphs configuration |
 | `docs/signals_and_strategies.md` | Signal Pools configuration with timing annotations |
 | `docs/NodeStateTracker_mutation.md` | NodeStateTracker per-turn lifecycle and state mutation timing |
+| `docs/API.md` | REST API endpoints |
+| `docs/DEVELOPMENT.md` | Development setup and workflows |
+| `docs/PERFORMANCE.md` | Performance benchmarks and budgets |
+| `docs/synthetic_personas.md` | Persona design and configuration |
 
 ---
 
@@ -50,24 +54,47 @@ Any codebase change should follow these principles:
 
 ```
 src/
-├── services/turn_pipeline/stages/    # 12 pipeline stages
-├── services/
-│   ├── graph_service.py              # Surface graph + dedup
-│   ├── canonical_slot_service.py     # Canonical graph
-│   ├── extraction_service.py         # LLM extraction
-│   ├── methodology_strategy_service.py  # Strategy selection
-│   ├── global_signal_detection_service.py
-│   └── node_signal_detection_service.py
-├── signals/                          # Signal pools
-│   ├── graph/                        # graph.* signals
-│   ├── llm/                          # llm.* signals
-│   ├── session/                      # temporal.* signals
-│   ├── meta/                         # meta.* signals
-│   └── signal_base.py                # Base classes
+├── api/routes/                       # FastAPI route handlers
+├── core/config.py                    # Settings (feature flags, thresholds)
+├── domain/models/                    # Pydantic domain models & pipeline contracts
+├── llm/                              # LLM client & prompt templates
 ├── methodologies/
 │   ├── registry.py                   # YAML loader
 │   └── scoring.py                    # Strategy scoring
-└── persistence/repositories/         # DB access
+├── persistence/repositories/         # DB access (aiosqlite)
+├── services/
+│   ├── turn_pipeline/stages/         # 12 pipeline stages
+│   ├── graph_service.py              # Surface graph + dedup
+│   ├── canonical_graph_service.py    # Canonical graph queries
+│   ├── canonical_slot_service.py     # Canonical slot mapping
+│   ├── embedding_service.py          # Embedding generation
+│   ├── extraction_service.py         # LLM extraction
+│   ├── focus_selection_service.py    # Node focus selection
+│   ├── methodology_strategy_service.py  # Strategy selection
+│   ├── global_signal_detection_service.py
+│   ├── node_signal_detection_service.py
+│   ├── node_state_tracker.py         # Per-node state tracking
+│   ├── question_service.py           # Question generation
+│   ├── simulation_service.py         # Interview simulation orchestration
+│   ├── session_service.py            # Session + pipeline wiring
+│   ├── srl_service.py                # SRL preprocessing
+│   ├── synthetic_service.py          # Synthetic persona responses
+│   └── token_usage_service.py        # LLM token/cost tracking
+├── signals/                          # Signal pools
+│   ├── graph/                        # graph.* and graph.node.* signals
+│   │   ├── graph_signals.py          # Global graph signals
+│   │   ├── node_base.py              # NodeSignalDetector base class
+│   │   └── node_signals.py           # Per-node signal detectors
+│   ├── llm/                          # llm.* signals (LLM-judged)
+│   │   ├── signals/                  # Individual signal detectors
+│   │   ├── batch_detector.py         # Batched LLM signal evaluation
+│   │   ├── decorator.py              # @llm_signal() decorator
+│   │   └── llm_signal_base.py        # Base class
+│   ├── session/                      # temporal.* signals
+│   ├── meta/                         # meta.* signals
+│   ├── signal_base.py                # Base classes
+│   └── signal_registry.py            # Signal discovery & registration
+└── main.py                           # FastAPI app entrypoint
 ```
 
 ---
@@ -145,6 +172,12 @@ See `docs/data_flow_paths.md` for full diagrams. Key paths:
 ## Common Tasks
 
 ```bash
+# Run tests
+uv run pytest
+
+# Lint and format
+ruff check . --fix && ruff format .
+
 # Start API server locally
 uv run uvicorn src.main:app --reload
 
@@ -166,15 +199,10 @@ uv run python scripts/generate_scoring_csv.py synthetic_interviews/<file>.json
 # Analyze similarity distribution
 uv run python scripts/analyze_similarity_distribution.py <session_id>
 
-# Run CodeGrapher architectural queries and generate report:
-1. Read queries from arch_queries.md (in backticks within tables)
-2. Check CodeGrapher index status via MCP: mcp__codegrapher__codegraph_status; refresh if stale (full mode)
-3. Run each query via MCP: mcp__codegrapher__codegraph_query with query="..."
-4. Aggregate results and sort by PageRank (descending)
-5. Generate markdown report with format: YYYYMMDD_HHMMSS_codegrapher_report.md
-6. Report sections: Summary table, Detailed findings by category, PageRank guide
-
-Note: Prioritize issues with PageRank >= 0.10 (core components) for fixes
+# CodeGrapher architectural report:
+# Read arch_queries.md → run queries via mcp__codegrapher__codegraph_query
+# Sort by PageRank (descending), prioritize PageRank >= 0.10
+# Output: YYYYMMDD_HHMMSS_codegrapher_report.md
 
 # Fix diagnostics with categorization
 /skill deep-code-quality  # Use before applying ruff/pyright fixes
@@ -322,9 +350,12 @@ tail -f /tmp/uvicorn_phase_test.log
 
 ```bash
 config/methodologies/
+├── critical_incident.yaml
+├── customer_journey_mapping.yaml
 ├── jobs_to_be_done.yaml
 ├── means_end_chain.yaml
-└── critical_incident.yaml
+├── repertory_grid.yaml
+└── schema_tracing.md              # Schema documentation
 ```
 
 ### Synthetic Personas
@@ -345,6 +376,7 @@ config/personas/
 
 ```bash
 config/concepts/
+├── coffee_cit_v1.yaml
 ├── coffee_jtbd_v2.yaml
 └── oat_milk_v2.yaml
 ```

@@ -274,14 +274,14 @@ The prompt template uses `{question}` and `{response}` placeholders. Response te
 |--------|------|-------------|
 | `temporal.strategy_repetition_count` | float | Times current strategy used in last 5 turns, normalized [0,1] by dividing by window size (5) |
 | `temporal.turns_since_strategy_change` | float | Consecutive turns using current strategy, normalized [0,1] by dividing by window size (5) |
-| `llm.global_response_trend` | str | Trend: `fatigued`, `shallowing`, `engaged`, `stable` |
+| `llm.global_response_trend` | str | Trend: `deepening`, `stable`, `shallowing`, `fatigued` |
 
 **Trend Detection**:
 ```python
-# Analyzes last 3 LLM signals
+# Analyzes last 6 LLM response depths; requires 4+ turns before claiming a trend
 {
-    "llm.global_response_trend": "fatigued"
-    # Detected: response_depth decreasing + engagement dropping
+    "llm.global_response_trend": "fatigued"  # 4+ shallow responses in last 6
+    # Other values: "deepening" (newer half mean > older + 0.5), "shallowing" (< -0.5), "stable"
 }
 ```
 
@@ -345,9 +345,9 @@ signal_weights:
 **Phase Boundaries** (configurable):
 ```yaml
 phase_boundaries:
-  early_max_turns: 4    # 0-3 turns = early phase
-  mid_max_turns: 12     # 4-11 turns = mid phase
-                        # 12+ turns = late phase
+  early: 5     # turns 1-5 = early phase
+  mid: 17      # turns 6-17 = mid phase
+  late: 999    # turns 18+ = late phase
 ```
 
 ---
@@ -370,25 +370,25 @@ Node-level signals provide **per-node** assessments for joint strategy-node scor
 | NodeState Field | Written By | Pipeline Stage | Signal Detection Timing |
 |-----------------|------------|-----------------|-------------------------|
 | `node_id`, `label`, `created_at_turn`, `depth`, `node_type`, `is_terminal`, `level` | `register_node()` | Stage 4 (GraphUpdateStage) | Fresh at Stage 6 detection |
-| `focus_count`, `last_focus_turn` | `update_focus()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
-| `current_focus_streak` | `update_focus()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 - CRITICAL: Stage 4 `record_yield()` must NOT reset this |
-| `turns_since_last_focus` | `update_focus()` | Stage 9 (ContinuationStage) | Ticked for ALL nodes in Stage 9 |
-| `turns_since_last_yield` | `record_yield()`, `update_focus()` | Stage 4 (GraphUpdateStage), Stage 9 (ContinuationStage) | Reset by Stage 4 on yield, ticked for all nodes in Stage 9 |
+| `focus_count`, `last_focus_turn` | `update_focus()` | Stage 7 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
+| `current_focus_streak` | `update_focus()` | Stage 7 (ContinuationStage) | From PREVIOUS turn at Stage 6 - CRITICAL: Stage 4 `record_yield()` must NOT reset this |
+| `turns_since_last_focus` | `update_focus()` | Stage 7 (ContinuationStage) | Ticked for ALL nodes in Stage 7 |
+| `turns_since_last_yield` | `record_yield()`, `update_focus()` | Stage 4 (GraphUpdateStage), Stage 7 (ContinuationStage) | Reset by Stage 4 on yield, ticked for all nodes in Stage 7 |
 | `last_yield_turn`, `yield_count`, `yield_rate` | `record_yield()` | Stage 4 (GraphUpdateStage) | Fresh at Stage 6 detection |
-| `all_response_depths` | `append_response_signal()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
+| `all_response_depths` | `append_response_signal()` | Stage 7 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
 | `edge_count_incoming`, `edge_count_outgoing` | `update_edge_counts()` | Stage 4 (GraphUpdateStage) | Fresh at Stage 6 detection |
-| `strategy_usage_count`, `last_strategy_used`, `consecutive_same_strategy` | `update_focus()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
-| `previous_focus` (tracker-level) | `update_focus()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
+| `strategy_usage_count`, `last_strategy_used`, `consecutive_same_strategy` | `update_focus()` | Stage 7 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
+| `previous_focus` (tracker-level) | `update_focus()` | Stage 7 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
 
 **Key Timing Dependencies**:
 
 1. **Stage 4 → Stage 6**: Signals that read yield metrics (`exhausted`, `exhaustion_score`, `yield_stagnation`) get fresh values because `record_yield()` runs in Stage 4.
 
-2. **Stage 9 (next turn) → Stage 6 (current turn)**: Signals that read focus metrics (`focus_streak`, `recency_score`, `is_current_focus`) are reading values from the PREVIOUS turn's `update_focus()` call in Stage 9 ContinuationStage. This is correct — the focus was selected in the previous turn's Stage 9 and is now being evaluated for signals.
+2. **Stage 7 (next turn) → Stage 6 (current turn)**: Signals that read focus metrics (`focus_streak`, `recency_score`, `is_current_focus`) are reading values from the PREVIOUS turn's `update_focus()` call in Stage 7 ContinuationStage. This is correct — the focus was selected in the previous turn's Stage 7 and is now being evaluated for signals.
 
-3. **Critical: current_focus_streak timing**: The `current_focus_streak` field is incremented in Stage 9's `update_focus()` call. Signal detection in Stage 6 reads this value, which represents the streak that was set during the previous turn's focus selection. Stage 4's `record_yield()` must NOT reset this value, or signals would always read 0.
+3. **Critical: current_focus_streak timing**: The `current_focus_streak` field is incremented in Stage 7's `update_focus()` call. Signal detection in Stage 6 reads this value, which represents the streak that was set during the previous turn's focus selection. Stage 4's `record_yield()` must NOT reset this value, or signals would always read 0.
 
-4. **Turn counter tick order**: `turns_since_last_yield` is ticked for ALL nodes in Stage 9's `update_focus()` loop, then reset to 0 for the yielding node in Stage 4's `record_yield()`. This means Stage 6 signals see the accumulated value from the previous turn's tick.
+4. **Turn counter tick order**: `turns_since_last_yield` is ticked for ALL nodes in Stage 7's `update_focus()` loop, then reset to 0 for the yielding node in Stage 4's `record_yield()`. This means Stage 6 signals see the accumulated value from the previous turn's tick.
 
 ### Available Node Signals
 
@@ -404,6 +404,7 @@ Node-level signals provide **per-node** assessments for joint strategy-node scor
 | `graph.node.edge_count` | int | `edge_count_incoming`, `edge_count_outgoing` | Fresh: updated Stage 4 |
 | `graph.node.has_outgoing` | bool | `edge_count_outgoing` | Fresh: updated Stage 4 |
 | `graph.node.type_priority` | float | `node_type` (from extraction) | Fresh: updated Stage 4; priority configured per-strategy via `node_type_priorities` in YAML |
+| `graph.node.slot_saturation` | float | canonical slot support count for this node | Fresh: updated Stage 4.5 (SlotDiscovery); 0.0 = no slot, 1.0 = fully saturated |
 | `technique.node.strategy_repetition` | int | `consecutive_same_strategy` | From previous turn Stage 9 - represents strategy usage through last turn |
 
 ### Node Signal Detection
@@ -465,6 +466,29 @@ signal_weights:
 This allows the full gradient of type priorities to influence scoring — a 0.9 node scores higher than a 0.7 node proportionally.
 
 **Default Behavior**: Nodes with `node_type` not in the priorities map receive a neutral default of 0.5.
+
+#### graph.node.slot_saturation
+
+**Purpose**: Measures how "claimed" a node is by canonical slots. A node with high saturation belongs to a well-supported canonical slot (many surface nodes merge into it), meaning the concept is already well-covered. Strategies seeking fresh content prefer low-saturation nodes; `validate_outcome` uses an inverted negative weight to prefer high-saturation (well-established) nodes.
+
+**Source**: Canonical slot support count from `SlotDiscoveryStage` (Stage 4.5)
+**Cost**: O(nodes) — reads canonical mapping per node
+**Signal Type**: Continuous float [0.0, 1.0]; 0.0 = no canonical slot, 1.0 = fully saturated (max observed support)
+
+**Configuration**: Uses **continuous weight format** — unlike discretized `.high/.mid/.low` variants:
+
+```yaml
+# Freshness-seeking strategy (prefers low-saturation nodes)
+signal_weights:
+  graph.node.slot_saturation: 0.5    # Inverted internally — lower saturation → higher score
+  graph.node.slot_saturation.low: 0  # Placeholder (required by validator, unused at runtime)
+
+# Validation strategy (prefers high-saturation / well-covered nodes)
+signal_weights:
+  graph.node.slot_saturation: -0.3   # Negative weight → higher saturation = less penalized
+```
+
+**Semantics Note**: The scoring engine multiplies `weight × raw_value` directly. For freshness-seeking strategies, the signal uses a high positive weight and the caller inverts the value internally (`1.0 - saturation`). For `validate_outcome`, a negative weight means highly saturated nodes (close to 1.0) receive a smaller penalty than fresh nodes.
 
 ---
 
@@ -572,10 +596,11 @@ signals:
     - meta.interview.phase
     - meta.node.opportunity
 
-# Phase boundaries
+# Phase boundaries (flat format: phase_name: max_turns)
 phase_boundaries:
-  early_max_turns: 4
-  mid_max_turns: 12
+  early: 5
+  mid: 17
+  late: 999
 
 # Strategy definitions
 strategies:
@@ -603,7 +628,7 @@ phases:
 | Parameter | Location | Description |
 |-----------|----------|-------------|
 | `signals.{pool}` | YAML | List of signals to detect from each pool |
-| `phase_boundaries.{phase}_max_turns` | YAML | Turn count thresholds for phase detection |
+| `phase_boundaries.{phase}` | YAML | Turn count thresholds for phase detection (e.g., `early: 5`, `mid: 17`, `late: 999`) |
 | `signal_weights.{signal}` | YAML (strategy) | Weight for scoring contribution |
 | `signal_weights.{strategy}` | YAML (phase) | Phase-specific multiplier |
 | `phase_bonuses.{strategy}` | YAML (phase) | Phase-specific additive bonus |
@@ -814,8 +839,9 @@ signals:
     - meta.node.opportunity
 
 phase_boundaries:
-  early_max_turns: 4
-  mid_max_turns: 12
+  early: 5
+  mid: 17
+  late: 999
 
 strategies:
   - name: explore
@@ -1074,15 +1100,18 @@ logger.info(f"Strategy config: {strategy_config}")
 
 ### Problem: Phase detection not working
 
-**Symptoms**: Always in `early` phase regardless of turn count.
+**Symptoms**: All turns report `phase = unknown` or always in `early` phase regardless of turn count.
 
 **Check**:
-1. Verify `phase_boundaries` in YAML:
+1. Verify `phase_boundaries` uses the **flat format** (phase name as key, max_turns as integer value):
    ```yaml
    phase_boundaries:
-     early_max_turns: 4
-     mid_max_turns: 12
+     early: 5     # turns 1-5
+     mid: 17      # turns 6-17
+     late: 999    # turns 18+
    ```
+   The old nested format (`early_max_turns: 4`, `mid_max_turns: 12`) is no longer supported and will cause all turns to show `phase = unknown`.
+
 2. Check `meta.interview.phase` signal is declared:
    ```yaml
    signals:
@@ -1090,6 +1119,7 @@ logger.info(f"Strategy config: {strategy_config}")
        - meta.interview.phase
    ```
 3. Check `turn_number` is available in pipeline context (dependency)
+4. If using the old format, `InterviewPhaseSignal._normalize_boundaries()` in `src/signals/meta/interview_phase.py` must be updated to read the new flat keys.
 
 ---
 

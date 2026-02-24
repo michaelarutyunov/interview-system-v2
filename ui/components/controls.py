@@ -251,10 +251,12 @@ class SessionControls:
 
         with st.spinner("Deleting session..."):
             try:
-                client = st.session_state.api_client._get_client()
-                client.delete(
-                    f"{st.session_state.api_client.base_url}/sessions/{session_id}"
-                )
+                import httpx
+
+                with httpx.Client(timeout=30.0) as client:
+                    client.delete(
+                        f"{st.session_state.api_client.base_url}/sessions/{session_id}"
+                    )
 
                 # Clear from state if it was current
                 current = st.session_state.get("current_session")
