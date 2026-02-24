@@ -242,6 +242,15 @@ strategies:
   # Strategy 1: Explore the situation (elaboration)
   - name: explore_situation
     description: "Understand the context and circumstances around when jobs arise"
+    node_type_priorities:
+      job_trigger: 0.9
+      job_context: 0.85
+      pain_point: 0.7
+      job_statement: 0.6
+      gain_point: 0.5
+      solution_approach: 0.4
+      emotional_job: 0.3
+      social_job: 0.3
     signal_weights:
       # Global signals
       llm.valence.mid: 0.5
@@ -259,10 +268,20 @@ strategies:
       graph.node.focus_streak.high: -0.7   # Strongly penalize 4+ turn over-focus
       graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.8)
       graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.7)
+      graph.node.type_priority: 0.6  # ADD: differentiation by node type
 
   # Strategy 2: Probe alternatives (probing)
   - name: probe_alternatives
     description: "Discover what other solutions or approaches the user has considered"
+    node_type_priorities:
+      solution_approach: 0.9
+      pain_point: 0.8
+      gain_point: 0.7
+      job_statement: 0.5
+      job_trigger: 0.4
+      job_context: 0.3
+      emotional_job: 0.3
+      social_job: 0.3
     signal_weights:
       # Global signals
       llm.specificity.high: 0.4
@@ -280,10 +299,20 @@ strategies:
       graph.node.focus_streak.none: 0.5    # Fresh nodes without prior focus
       graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.7    # Strongly penalize 4+ turn over-focus
+      graph.node.type_priority: 0.5  # ADD: differentiation by node type
 
   # Strategy 3: Dig into motivation (laddering)
   - name: dig_motivation
     description: "Probe deeper with 'why' questions to uncover underlying functional and emotional jobs"
+    node_type_priorities:
+      pain_point: 0.9
+      gain_point: 0.85
+      job_statement: 0.8
+      emotional_job: 0.7
+      social_job: 0.7
+      solution_approach: 0.5
+      job_trigger: 0.4
+      job_context: 0.3
     signal_weights:
       # Global signals — use actual category names (surface/shallow/moderate/deep)
       llm.response_depth.surface: 0.5    # Surface answers → dig deeper
@@ -301,18 +330,28 @@ strategies:
       # Response quality trend — dig when quality is declining
       llm.global_response_trend.shallowing: 0.4  # Shallow trend → try digging (NEW)
       # Diversity — symmetric penalty to prevent lock
-      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.5, lacked .high)
-      temporal.strategy_repetition_count.high: -1.0  # Severe penalty at 4-5 reps to break dominance
+      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.5, lacked .high); stronger weight -1.2 under consideration
+      temporal.strategy_repetition_count.high: -1.0  # Severe penalty at 4-5 reps to break dominance; stronger weight -1.5 under consideration
       # Node-level signals (Phase 3)
       graph.node.exhaustion_score.low: 1.0   # Boost non-exhausted nodes
       graph.node.focus_streak.low: 0.5       # Prefer nodes in first focus
       graph.node.focus_streak.medium: -0.4   # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.8     # Strongly penalize 4+ turn over-focus
+      graph.node.type_priority: 0.5  # ADD: differentiation by node type
 
   # Strategy 4: Validate outcome (validation)
   - name: validate_outcome
     description: "Confirm understanding and check if we've captured the most important aspects"
     generates_closing_question: true
+    node_type_priorities:
+      gain_point: 0.9
+      emotional_job: 0.85
+      social_job: 0.85
+      job_statement: 0.7
+      solution_approach: 0.6
+      pain_point: 0.5
+      job_trigger: 0.3
+      job_context: 0.3
     signal_weights:
       # Global signals
       graph.max_depth: 0.5
@@ -334,10 +373,20 @@ strategies:
       # Saturation triggers (Phase 6)
       meta.conversation.saturation: 0.5  # High saturation = validate
       meta.canonical.saturation: 0.3     # Supportive metric
+      graph.node.type_priority: 0.4  # ADD: differentiation by node type
 
   # Strategy 5: Revitalize engagement (elaboration) - Phase 5
   - name: revitalize
     description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
+    node_type_priorities:
+      job_trigger: 0.9
+      job_context: 0.85
+      solution_approach: 0.7
+      pain_point: 0.6
+      gain_point: 0.5
+      job_statement: 0.4
+      emotional_job: 0.3
+      social_job: 0.3
     signal_weights:
       # Fatigue detection triggers (Phase 5)
       llm.global_response_trend.fatigued: 1.0  # Trigger on fatigue
@@ -357,10 +406,20 @@ strategies:
       graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.7    # Strongly penalize 4+ turn over-focus
       graph.node.exhaustion_score.low: 0.5  # Avoid exhausted nodes
+      graph.node.type_priority: 0.5  # ADD: differentiation by node type
 
   # Strategy 6: Uncover obstacles (probing)
   - name: uncover_obstacles
     description: "Identify pain points and frustrations that prevent jobs from being done well"
+    node_type_priorities:
+      pain_point: 0.95
+      job_trigger: 0.7
+      solution_approach: 0.6
+      gain_point: 0.5
+      job_statement: 0.4
+      job_context: 0.4
+      emotional_job: 0.3
+      social_job: 0.3
     signal_weights:
       # Global signals — negative valence is the primary trigger
       llm.valence.low: 0.9                  # Strong trigger on negative/critical responses (was 0.7)
@@ -380,10 +439,20 @@ strategies:
       graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.6)
       graph.node.focus_streak.medium: -0.3  # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.6    # Strongly penalize 4+ turn over-focus
+      graph.node.type_priority: 0.5  # ADD: differentiation by node type
 
   # Strategy 7: Clarify assumption (challenging)
   - name: clarify_assumption
     description: "Challenge a confident or specific claim to expose unstated assumptions or overgeneralizations"
+    node_type_priorities:
+      gain_point: 0.85
+      pain_point: 0.8
+      solution_approach: 0.75
+      job_statement: 0.6
+      emotional_job: 0.5
+      social_job: 0.5
+      job_trigger: 0.4
+      job_context: 0.3
     signal_weights:
       # Primary triggers — high certainty + high specificity = confident claim worth probing
       llm.certainty.high: 0.8        # Confident respondent = safe to push back
@@ -404,6 +473,7 @@ strategies:
       graph.node.focus_streak.low: 0.4       # First focus = just started engagement
       graph.node.focus_streak.medium: -0.4   # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.7     # Strongly penalize 4+ turn over-focus
+      graph.node.type_priority: 0.4  # ADD: differentiation by node type
 
 phases:
   early:
