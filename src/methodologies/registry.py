@@ -154,6 +154,7 @@ class MethodologyRegistry:
                     generates_closing_question=s.get(
                         "generates_closing_question", False
                     ),
+                    node_type_priorities=s.get("node_type_priorities", {}),
                 )
                 for s in data.get("strategies", [])
             ],
