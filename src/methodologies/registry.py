@@ -6,7 +6,7 @@ composed signal detectors with signal pools.
 
 import yaml
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -75,6 +75,7 @@ class StrategyConfig:
     description: str
     signal_weights: dict[str, float]
     generates_closing_question: bool = False
+    node_type_priorities: dict[str, float] = field(default_factory=dict)
 
 
 class MethodologyRegistry:
