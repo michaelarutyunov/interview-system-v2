@@ -337,6 +337,7 @@ strategies:
 
   # Strategy 5: Revitalize engagement (elaboration) - Phase 5
   - name: revitalize
+    node_binding: none
     description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
     signal_weights:
       # Fatigue detection triggers (Phase 5)
