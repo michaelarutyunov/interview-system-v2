@@ -239,26 +239,11 @@ class StrategySelectionStage(TurnStage):
                     response_depth=response_depth,
                 )
 
-        # Convert alternatives from (strategy, node_id, score) to (strategy, score)
-        # for backward compatibility with logging
-        # The full alternatives are still available in context for debugging
-        simplified_alternatives = []
-        seen_strategies = set()
-        for alt in alternatives:
-            # Handle both 2-tuple and 3-tuple formats
-            if len(alt) == 3:
-                alt_strategy, _alt_node_id, alt_score = alt
-            else:
-                alt_strategy, alt_score = alt
-
-            if alt_strategy not in seen_strategies:
-                simplified_alternatives.append((alt_strategy, alt_score))
-                seen_strategies.add(alt_strategy)
-
+        # Alternatives are already (strategy_name, score) tuples from two-stage selection
         return (
             strategy_name,
             focus_node_id,
-            simplified_alternatives,
+            alternatives,
             signals,
             node_signals,
             score_decomposition,
