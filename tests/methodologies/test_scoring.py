@@ -7,6 +7,7 @@ from src.methodologies.scoring import (
     score_strategy,
     rank_strategies,
     rank_strategy_node_pairs,
+    partition_signal_weights,
 )
 from src.methodologies.registry import StrategyConfig
 
@@ -495,3 +496,46 @@ class TestStrategyConfigNodeBinding:
             node_binding="none",
         )
         assert config.node_binding == "none"
+
+
+class TestPartitionSignalWeights:
+    """Tests for auto-partitioning signal weights by namespace."""
+
+    def test_separates_node_signals(self):
+        weights = {
+            "llm.response_depth.low": 0.8,
+            "llm.engagement.high": 0.7,
+            "graph.node.exhaustion_score.low": 1.0,
+            "graph.node.focus_streak.high": -0.8,
+            "technique.node.strategy_repetition.low": 0.3,
+        }
+        strategy_weights, node_weights = partition_signal_weights(weights)
+        assert strategy_weights == {"llm.response_depth.low": 0.8, "llm.engagement.high": 0.7}
+        assert node_weights == {
+            "graph.node.exhaustion_score.low": 1.0,
+            "graph.node.focus_streak.high": -0.8,
+            "technique.node.strategy_repetition.low": 0.3,
+        }
+
+    def test_all_global(self):
+        weights = {"llm.engagement.high": 0.5, "meta.interview_progress": 0.3}
+        strategy_weights, node_weights = partition_signal_weights(weights)
+        assert strategy_weights == weights
+        assert node_weights == {}
+
+    def test_all_node(self):
+        weights = {"graph.node.exhaustion_score.low": 1.0}
+        strategy_weights, node_weights = partition_signal_weights(weights)
+        assert strategy_weights == {}
+        assert node_weights == weights
+
+    def test_empty_weights(self):
+        strategy_weights, node_weights = partition_signal_weights({})
+        assert strategy_weights == {}
+        assert node_weights == {}
+
+    def test_meta_node_goes_to_node_weights(self):
+        weights = {"meta.node.opportunity.fresh": 0.6}
+        strategy_weights, node_weights = partition_signal_weights(weights)
+        assert strategy_weights == {}
+        assert node_weights == {"meta.node.opportunity.fresh": 0.6}

@@ -12,6 +12,35 @@ from src.methodologies.registry import StrategyConfig
 
 log = structlog.get_logger(__name__)
 
+# Prefixes that indicate node-scoped signals
+NODE_SIGNAL_PREFIXES = ("graph.node.", "technique.node.", "meta.node.")
+
+
+def partition_signal_weights(
+    signal_weights: Dict[str, float],
+) -> tuple[Dict[str, float], Dict[str, float]]:
+    """Split signal_weights into strategy weights and node weights by namespace.
+
+    Keys starting with graph.node.*, technique.node.*, or meta.node.* are
+    routed to node_weights. Everything else goes to strategy_weights.
+
+    Args:
+        signal_weights: Combined signal weights from YAML config
+
+    Returns:
+        Tuple of (strategy_weights, node_weights)
+    """
+    strategy_weights: Dict[str, float] = {}
+    node_weights: Dict[str, float] = {}
+
+    for key, weight in signal_weights.items():
+        if any(key.startswith(prefix) for prefix in NODE_SIGNAL_PREFIXES):
+            node_weights[key] = weight
+        else:
+            strategy_weights[key] = weight
+
+    return strategy_weights, node_weights
+
 
 @dataclass
 class SignalContribution:
