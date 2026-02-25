@@ -236,11 +236,12 @@ class MethodologyStrategyService:
             )
 
         # --- Stage 1: Select strategy using global signals only ---
-        ranked_strategies = rank_strategies(
+        ranked_strategies, stage1_decomposition = rank_strategies(
             strategy_configs=strategies,
             signals=global_signals,
             phase_weights=phase_weights,
             phase_bonuses=phase_bonuses,
+            return_decomposition=True,  # Capture Stage 1 decomposition
         )
 
         if not ranked_strategies:
@@ -259,7 +260,7 @@ class MethodologyStrategyService:
 
         # --- Stage 2: Select node (conditional on node_binding) ---
         focus_node_id = None
-        score_decomposition: list[ScoredCandidate] = []
+        stage2_decomposition: list[ScoredCandidate] = []
 
         log.info(
             "stage2_node_selection_start",
@@ -271,7 +272,7 @@ class MethodologyStrategyService:
         )
 
         if best_strategy_config.node_binding == "required" and node_signals:
-            ranked_nodes, score_decomposition = rank_nodes_for_strategy(
+            ranked_nodes, stage2_decomposition = rank_nodes_for_strategy(
                 best_strategy_config, node_signals
             )
             if ranked_nodes:
@@ -312,6 +313,9 @@ class MethodologyStrategyService:
         # Build alternatives for observability (strategy-level, not node-level)
         alternatives = [(s.name, score) for s, score in ranked_strategies]
 
+        # Combine Stage 1 (strategy-level) and Stage 2 (node-level) decompositions
+        combined_decomposition = list(stage1_decomposition) + list(stage2_decomposition)
+
         log.info(
             "strategy_selected",
             methodology=methodology_name,
@@ -321,6 +325,8 @@ class MethodologyStrategyService:
             node_binding=best_strategy_config.node_binding,
             alternatives_count=len(alternatives),
             top_3_alternatives=alternatives[:3],
+            stage1_decomp_count=len(stage1_decomposition),
+            stage2_decomp_count=len(stage2_decomposition),
         )
 
         return (
@@ -329,5 +335,5 @@ class MethodologyStrategyService:
             alternatives,
             global_signals,
             node_signals,
-            score_decomposition,
+            combined_decomposition,
         )
