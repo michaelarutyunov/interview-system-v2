@@ -261,9 +261,6 @@ strategies:
 phases:
   early:
     description: "Initial exploration, building graph structure"
-    phase_boundaries:
-      early_max_turns: 4
-      mid_max_turns: 12
     signal_weights:
       explore: 1.5
       clarify: 1.2
@@ -274,9 +271,6 @@ phases:
 
   mid:
     description: "Building depth and connections"
-    phase_boundaries:
-      early_max_turns: 4
-      mid_max_turns: 12
     signal_weights:
       deepen: 1.3
       clarify: 0.8
@@ -288,9 +282,6 @@ phases:
 
   late:
     description: "Validation and verification"
-    phase_boundaries:
-      early_max_turns: 4
-      mid_max_turns: 12
     signal_weights:
       reflect: 1.2
       revitalize: 1.2

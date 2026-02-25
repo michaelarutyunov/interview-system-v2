@@ -101,7 +101,9 @@ async def test_pipeline_critical_path_minimal(session_repo, graph_repo, utteranc
     )
 
     # Mock the extraction to return empty result (no LLM call)
-    with patch.object(stages[2].extraction, "extract", new_callable=AsyncMock) as mock_extract:
+    with patch.object(
+        stages[2].extraction, "extract", new_callable=AsyncMock
+    ) as mock_extract:
         from src.domain.models.extraction import ExtractionResult
 
         mock_extract.return_value = ExtractionResult(
@@ -172,31 +174,36 @@ async def test_graph_state_strategy_history_deque():
 
 
 @pytest.mark.asyncio
-async def test_phase_boundaries_configurable():
+async def test_phase_boundaries_calculated_from_max_turns():
     """
-    Test that phase boundaries are configurable per methodology.
+    Test that phase boundaries are automatically calculated from max_turns.
 
-    Validates the 54d fix: methodologies define their own phase transition thresholds.
+    Validates the design: phases scale proportionally with interview length.
+    - early: ~10% of max_turns (minimum 1 turn)
+    - mid: max_turns - 2 (reserving last 2 turns for late)
+    - late: final 2 turns for validation
     """
-    from src.methodologies.registry import MethodologyRegistry
+    from src.signals.meta.interview_phase import InterviewPhaseSignal
 
-    registry = MethodologyRegistry()
+    # Test with max_turns = 20 (default)
+    boundaries_20 = InterviewPhaseSignal.calculate_phase_boundaries(20)
+    assert boundaries_20["early_max_turns"] == 2  # 10% of 20 = 2
+    assert boundaries_20["mid_max_turns"] == 18  # 20 - 2 = 18
 
-    # Check MEC has configured boundaries
-    mec_config = registry.get_methodology("means_end_chain")
-    assert mec_config.phases is not None
-    assert "early" in mec_config.phases
-    assert mec_config.phases["early"].phase_boundaries is not None
-    assert mec_config.phases["early"].phase_boundaries.get("early_max_turns") == 4
-    assert mec_config.phases["early"].phase_boundaries.get("mid_max_turns") == 12
+    # Test with max_turns = 10 (short interview)
+    boundaries_10 = InterviewPhaseSignal.calculate_phase_boundaries(10)
+    assert boundaries_10["early_max_turns"] == 1  # 10% of 10 = 1
+    assert boundaries_10["mid_max_turns"] == 8  # 10 - 2 = 8
 
-    # Check JTBD has different boundaries
-    jtbd_config = registry.get_methodology("jobs_to_be_done")
-    assert jtbd_config.phases is not None
-    assert "early" in jtbd_config.phases
-    assert jtbd_config.phases["early"].phase_boundaries is not None
-    assert jtbd_config.phases["early"].phase_boundaries.get("early_max_turns") == 4
-    assert jtbd_config.phases["early"].phase_boundaries.get("mid_max_turns") == 12
+    # Test with max_turns = 30 (long interview)
+    boundaries_30 = InterviewPhaseSignal.calculate_phase_boundaries(30)
+    assert boundaries_30["early_max_turns"] == 3  # 10% of 30 = 3
+    assert boundaries_30["mid_max_turns"] == 28  # 30 - 2 = 28
+
+    # Verify late phase always gets exactly 2 turns
+    assert boundaries_20["mid_max_turns"] == 20 - 2
+    assert boundaries_10["mid_max_turns"] == 10 - 2
+    assert boundaries_30["mid_max_turns"] == 30 - 2
 
 
 @pytest.mark.asyncio

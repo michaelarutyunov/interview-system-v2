@@ -382,7 +382,7 @@ strategies:
 
   # Strategy 7: Clarify assumption (challenging)
   - name: clarify_assumption
-    description: "Challenge a confident or specific claim to expose unstated assumptions or overgeneralizations"
+    description: "Challenge a confident or specific claim to expose unstated assumptions or overgeneralizations. Use open-ended probes that invite elaboration rather than cross-examination or forced-choice questions."
     signal_weights:
       # Primary triggers — high certainty + high specificity = confident claim worth probing
       llm.certainty.high: 0.8        # Confident respondent = safe to push back
@@ -397,7 +397,7 @@ strategies:
       llm.engagement.low: -0.5       # Disengaged = don't challenge
       # Diversity — should be rare; symmetric penalty to prevent lock
       temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.6)
-      temporal.strategy_repetition_count.high: 0  # Disabled (was -0.4); enable if lock persists
+      temporal.strategy_repetition_count.high: -0.4  # Severe penalty at 4-5 reps to break dominance
       # Node-level — prefer nodes the respondent has spoken confidently about
       graph.node.exhaustion_score.low: 0.5   # Fresh node = still something to challenge
       graph.node.focus_streak.low: 0.4       # First focus = just started engagement
@@ -407,9 +407,6 @@ strategies:
 phases:
   early:
     description: "Initial exploration, building graph structure"
-    phase_boundaries:
-      early_max_turns: 4
-      mid_max_turns: 12
     signal_weights:
       explore_situation: 1.5
       probe_alternatives: 1.2
@@ -422,9 +419,6 @@ phases:
 
   mid:
     description: "Building depth and connections"
-    phase_boundaries:
-      early_max_turns: 4
-      mid_max_turns: 12
     signal_weights:
       dig_motivation: 1.2        # Reduced from 1.4 — narrowing structural advantage over competitors
       probe_alternatives: 0.9    # Below 1.0: mid-phase should deepen, not probe
@@ -441,9 +435,6 @@ phases:
 
   late:
     description: "Validation and verification"
-    phase_boundaries:
-      early_max_turns: 4
-      mid_max_turns: 12
     signal_weights:
       validate_outcome: 1.5
       uncover_obstacles: 1.2

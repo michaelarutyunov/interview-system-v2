@@ -25,17 +25,17 @@ specificity: How concrete and specific is the response?
     "I just felt like the experience could be improved overall" is 1.
 
 certainty: How confident does the respondent appear in their statement?
-  1 = Highly uncertain, explicitly unsure ("I don't know", "maybe")
-  2 = Tentative, multiple qualifications, hedged throughout
-  3 = Moderate confidence, some qualifications but generally committed
-  4 = Confident with minor caveats
-  5 = Fully committed, unqualified, no hedging or doubt expressed
+    1 = Highly uncertain, explicitly unsure ("I don't know", "maybe")
+    2 = Tentative, multiple qualifications, hedged throughout
+    3 = Moderate confidence, some qualifications but generally committed
+    4 = Confident with minor caveats
+    5 = Fully committed, unqualified, no hedging or doubt expressed
 
-  Score the respondent's EXPRESSED confidence, not whether their
-  claim is objectively true. Distinguish genuine uncertainty from
-  social softeners: "mostly", "kind of", "I guess", "sort of" are
-  genuine hedges that reduce the score; "I think" or "I feel" used
-  as sentence openers in otherwise assertive statements are not.
+    Score the respondent's EXPRESSED confidence, not whether their
+    claim is objectively true. Distinguish genuine uncertainty from
+    social softeners: "mostly", "kind of", "I guess", "sort of" are
+    genuine hedges that reduce the score; "I think" or "I feel" used
+    as sentence openers in otherwise assertive statements are not.
 
   Calibration examples:
   - "Work, mostly" → 2 (explicit hedge "mostly" limits commitment)
@@ -48,41 +48,41 @@ certainty: How confident does the respondent appear in their statement?
     ("mainly" is a genuine qualification that caps the score; "I can actually" is assertive — balance at 4)
 
 emotional_valence: What is the emotional tone of the response?
-  1 = Strongly negative (frustration, anger, disappointment)
-  2 = Mildly negative or critical
-  3 = Neutral, factual, no discernible emotional charge
-  4 = Mildly positive (satisfaction, mild enthusiasm)
-  5 = Strongly positive (excitement, delight, strong advocacy)
+    1 = Strongly negative (frustration, anger, disappointment)
+    2 = Mildly negative or critical
+    3 = Neutral, factual, no discernible emotional charge
+    4 = Mildly positive (satisfaction, mild enthusiasm)
+    5 = Strongly positive (excitement, delight, strong advocacy)
 
-  Score the EMOTIONAL TONE, not the factual content. A calm
-  description of a negative event is 3, not 1. A frustrated
-  description of a positive outcome is 2, not 4. Mixed emotions
-  should be scored by the dominant tone.
+    Score the EMOTIONAL TONE, not the factual content. A calm
+    description of a negative event is 3, not 1. A frustrated
+    description of a positive outcome is 2, not 4. Mixed emotions
+    should be scored by the dominant tone.
 
 intellectual_engagement: How analytically invested is the respondent — do they express reasoning, values, tradeoffs, or motivations rather than bare facts?
-  1 = No reasoning offered: bare assertions, single-word answers, or restated facts with no "why" or "because"
-  2 = Minimal reasoning: one motivation or qualifier stated, but no causal chain or value expression
-  3 = Moderate analytical investment: some reasoning or value language ("I care about X because Y"), but incomplete or underdeveloped
-  4 = Clear reasoning chains: explicit motivations, stated tradeoffs, goal-oriented language, or "because" constructions that reveal underlying values
-  5 = Dense motivational structure: multiple interlinked reasons, value hierarchies, self-aware tradeoffs, or causal explanations that reveal why something matters at a deeper level
+    1 = No reasoning offered: bare assertions, single-word answers, or restated facts with no "why" or "because"
+    2 = Minimal reasoning: one motivation or qualifier stated, but no causal chain or value expression
+    3 = Moderate analytical investment: some reasoning or value language ("I care about X because Y"), but incomplete or underdeveloped
+    4 = Clear reasoning chains: explicit motivations, stated tradeoffs, goal-oriented language, or "because" constructions that reveal underlying values
+    5 = Dense motivational structure: multiple interlinked reasons, value hierarchies, self-aware tradeoffs, or causal explanations that reveal why something matters at a deeper level
 
-  Score the PRESENCE OF REASONING AND MOTIVATION STRUCTURE, not the word count or domain vocabulary.
-  A terse "I won't trust it unless I can verify the source — that's just how I make decisions" is 4 (clear stated value chain).
-  A lengthy but purely descriptive response ("I use it on Tuesdays, sometimes Wednesdays, mostly for meetings") is 1-2.
-  "It matters because consistency compounds over time, and that's the actual job I'm trying to hire for" is 5.
+    Score the PRESENCE OF REASONING AND MOTIVATION STRUCTURE, not the word count or domain vocabulary.
+    A terse "I won't trust it unless I can verify the source — that's just how I make decisions" is 4 (clear stated value chain).
+    A lengthy but purely descriptive response ("I use it on Tuesdays, sometimes Wednesdays, mostly for meetings") is 1-2.
+    "It matters because consistency compounds over time, and that's the actual job I'm trying to hire for" is 5.
 
 engagement: How willing is the respondent to engage with this topic?
-  1 = Minimal effort: single words, "I don't know", deflection,
-      or restating the question back
-  2 = Compliant but passive: answers the literal question with
-      no voluntary extension
-  3 = Adequate engagement: answers fully but does not volunteer
-      additional information
-  4 = Active engagement: extends beyond the question, offers
-      unsolicited detail or examples
-  5 = High engagement: enthusiastic elaboration, introduces new
-      related points, or signals wanting to say more
+    1 = Minimal effort: single words, "I don't know", deflection,
+        or restating the question back
+    2 = Compliant but passive: answers the literal question with
+        no voluntary extension
+    3 = Adequate engagement: answers fully but does not volunteer
+        additional information
+    4 = Active engagement: extends beyond the question, offers
+        unsolicited detail or examples
+    5 = High engagement: enthusiastic elaboration, introduces new
+        related points, or signals wanting to say more
 
-  Score the respondent's WILLINGNESS to engage, not their
-  articulateness. A poorly worded but effortful answer is 4-5.
-  A polished but minimal answer is 2.
+    Score the respondent's WILLINGNESS to engage, not their
+    articulateness. A poorly worded but effortful answer is 4-5.
+    A polished but minimal answer is 2.
