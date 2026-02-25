@@ -386,19 +386,22 @@ strategies:
     description: "Challenge a confident or specific claim to expose unstated assumptions or overgeneralizations. Use open-ended probes that invite elaboration rather than cross-examination or forced-choice questions."
     signal_weights:
       # Primary triggers — high certainty + high specificity = confident claim worth probing
-      llm.certainty.high: 0.8        # Confident respondent = safe to push back
-      llm.specificity.high: 0.5      # Concrete claim = clear target to examine
-      llm.response_depth.deep: 0.3   # Deep certain answer = assumption worth surfacing
-      # Self-doubt triggers — moderate certainty with self-questioning = clarify the assumption
-      llm.certainty.mid: 0.6         # Hedging/self-doubt = surface the underlying assumption (NEW)
-      llm.response_depth.moderate: 0.3  # Moderate depth + uncertainty = probe the belief (NEW)
-      # Engagement safety check — need engagement to handle a challenge
-      llm.engagement.high: 0.3       # Engaged = will respond constructively
-      llm.engagement.mid: 0.2        # Moderate engagement = still OK to gently challenge (NEW)
+      # Weights are moderate: clarify_assumption is a specialist, not a generalist.
+      # It should win when certainty is high AND other strategies aren't competing,
+      # not every turn an articulate respondent speaks.
+      llm.certainty.high: 0.5        # Confident = probe-worthy (reduced from 0.8)
+      llm.specificity.high: 0.3      # Concrete claim = target (reduced from 0.5)
+      llm.response_depth.deep: 0.2   # Deep certain answer = worth surfacing (reduced from 0.3)
+      # Self-doubt triggers — moderate certainty = surface the assumption
+      llm.certainty.mid: 0.4         # Hedging/self-doubt (reduced from 0.6)
+      llm.response_depth.moderate: 0.2  # Moderate depth + uncertainty
+      # Engagement safety check
+      llm.engagement.high: 0.2       # Engaged = will respond constructively
+      llm.engagement.mid: 0.1        # Moderate engagement = gentle challenge OK
       llm.engagement.low: -0.5       # Disengaged = don't challenge
-      # Diversity — asymmetric penalty; high base score needs strong repetition brake
-      temporal.strategy_repetition_count: -1.5  # Override shared penalty — matches dig_motivation's brake
-      temporal.strategy_repetition_count.high: -1.0  # Severe penalty at 4-5 reps to break dominance
+      # Diversity — strong brake; challenging is fatiguing if overused
+      temporal.strategy_repetition_count: -1.5  # Asymmetric — high base needs strong brake
+      temporal.strategy_repetition_count.high: -1.0  # Severe penalty at 4-5 reps
       # Node-level — prefer nodes the respondent has spoken confidently about
       graph.node.exhaustion_score.low: 0.5   # Fresh node = still something to challenge
       graph.node.focus_streak.low: 0.4       # First focus = just started engagement
