@@ -74,7 +74,7 @@ This ensures that:
 
 **Why Critical**: Strategy selection is the core decision-making logic that determines interview quality and coverage.
 
-The system uses methodology-based signal detection with YAML configuration. Phase-based weight multipliers are applied to strategy scores based on interview phase (early/mid/late). Joint strategy-node scoring enables per-node exhaustion awareness and backtracking via `rank_strategy_node_pairs()`.
+The system uses methodology-based signal detection with YAML configuration. Phase-based weight multipliers are applied to strategy scores based on interview phase (early/mid/late). Two-stage strategy→node selection (D2 architecture) enables per-node exhaustion awareness and intelligent backtracking: first select strategy from global signals, then conditionally select node for node-bound strategies.
 
 ### Signal Detection (Foundation)
 
@@ -126,43 +126,52 @@ Signal detection operates in two modes:
 
 **Node signals format**: `{node_id: {signal_name: value}}` for per-node signals
 
-### Joint Strategy-Node Scoring (D1 Architecture)
+### Two-Stage Strategy→Node Selection (D2 Architecture)
 
-**Why Critical**: The D1 architecture selects strategy and node jointly, enabling node exhaustion awareness and intelligent backtracking.
+**Why Critical**: The D2 architecture separates strategy selection from node selection, enabling cleaner separation of concerns while maintaining node exhaustion awareness and intelligent backtracking.
 
-The D1 architecture replaces separate strategy-then-node selection with joint (strategy, node) pair scoring. This enables the system to be aware of per-node exhaustion and automatically backtrack to fresh nodes.
+The D2 architecture replaces joint (strategy, node) pair scoring with a two-stage approach: first select strategy from global signals only, then conditionally select node for strategies with `node_binding="required"`. This enables the system to be aware of per-node exhaustion and automatically backtrack to fresh nodes, while keeping strategies like `reflect` and `revitalize` that operate at the conversation level.
 
-**Joint Scoring Process**:
+**Two-Stage Process**:
 
-- `rank_strategy_node_pairs()` scores all (strategy, node) combinations
-- Each (strategy, node) pair receives a combined score from:
-  - Global signals (graph.*, llm.*, temporal.*, meta.*)
-  - Node-specific signals (graph.node.*, technique.node.*, meta.node.*)
-  - Node signals take precedence when merging (override global)
-- Returns best (strategy, node_id) pair with alternatives list
+**Stage 1: Strategy Selection** (`rank_strategies()`)
+- Scores all strategies using global signals only (graph.*, llm.*, temporal.*, meta.*)
+- `partition_signal_weights()` auto-excludes node-scoped weights (graph.node.*, technique.node.*, meta.node.*)
+- Applies phase-based multipliers (multiplicative) and bonuses (additive)
+- Returns ranked list of (strategy_config, score) tuples
+
+**Stage 2: Node Selection** (`rank_nodes_for_strategy()`)
+- Conditionally executed only when `node_binding="required"` and node_signals exist
+- Scores nodes for the selected strategy using node-scoped signals only
+- No phase weights applied (uses raw signal weights)
+- Returns ranked list of (node_id, score) tuples with `ScoredCandidate` decomposition
 
 **Key implementation details**:
 
-- `rank_strategy_node_pairs()` scores all (strategy, node) combinations
-- Merges global signals with node-specific signals (node signals take precedence)
-- Returns best (strategy, node_id) pair with alternatives list
+- `rank_strategies()` selects strategy from global signals via `partition_signal_weights()`
+- `rank_nodes_for_strategy()` scores nodes for node-bound strategies
+- `node_binding` field controls Stage 2 execution: `"required"` (default) vs `"none"`
+- Strategies like `reflect` and `revitalize` use `node_binding: none` (conversation-level)
 - Response depth appended to previous_focus BEFORE update_focus() (critical ordering)
 - **FocusSelectionService** resolves focus_node_id with graceful fallback
 
 **Node Exhaustion Awareness**:
-- `graph.node.exhausted.true` applies negative weight in YAML configs
+- Stage 2 applies node-scoped weights (e.g., `graph.node.exhaustion_score.low: 1.0`)
 - `meta.node.opportunity: "exhausted"` signals exhausted nodes
 - Automatically backtracks to fresh nodes
 
-**Phase-Aware Scoring**: Applies both multiplicative weights and additive bonuses
+**Phase-Aware Scoring**: Phase weights and bonuses applied in Stage 1 only (strategy selection), not Stage 2 (node selection)
 
-**Output**: Returns best (strategy, node_id, score) with alternatives list for debugging
+**Output**: Returns (strategy_name, focus_node_id, alternatives, ...) where:
+- `strategy_name`: Selected strategy name
+- `focus_node_id`: Selected node ID (None if `node_binding="none"`)
+- `alternatives`: List of (strategy_name, score) tuples for observability (2-tuple, not 3-tuple)
 
 **Response Depth Tracking**: `llm.response_depth` appended to `previous_focus` node BEFORE `update_focus()` (critical ordering)
 
 **NodeTracker Integration**: `update_focus()` called after response depth append to set `previous_focus` for next turn
 
-**strategy_alternatives** returns list of (strategy, node_id, score) tuples for debugging
+**strategy_alternatives** returns list of (strategy_name, score) tuples for debugging (changed from 3-tuple)
 
 ### Phase Weights & Strategy Selection
 
@@ -200,7 +209,7 @@ All signals use dot-notation namespacing to prevent collisions:
 graph LR
     A[methodology_config.yaml] -->|MethodologyRegistry.load| B[MethodologyConfig]
     B -->|config.signals| C[ComposedSignalDetector]
-    B -->|config.strategies| D[rank_strategy_node_pairs]
+    B -->|config.strategies| D[rank_strategies]
     B -->|config.phases| E[Phase Weights]
 
     C -->|detect| F[Signals Dict]
@@ -211,15 +220,25 @@ graph LR
     I -->|Yes| J["config.phases[phase].signal_weights"]
     I -->|No| K[No phase weights]
 
-    J --> L[rank_strategy_node_pairs with phase_weights]
+    J --> L[rank_strategies with phase_weights]
     K --> L
 
-    L --> M[Base Score × Phase Weight + Bonus]
-    M --> N[Best Strategy-Node Pair]
+    L --> M[partition_signal_weights excludes node signals]
+    M --> N[Base Score × Phase Weight + Bonus]
+    N --> O[Best Strategy]
 
-    N --> O[Technique Lookup]
-    O --> P[Technique Pool]
-    P --> Q[Question Generation]
+    O --> P{node_binding == "required"?}
+    P -->|Yes| Q[rank_nodes_for_strategy]
+    P -->|No| R[No node selection]
+
+    Q --> S[partition_signal_weights extracts node signals]
+    S --> T[Score nodes with node weights]
+    T --> U[Best Node]
+
+    U --> V[Technique Lookup]
+    R --> V
+    V --> W[Technique Pool]
+    W --> X[Question Generation]
 ```
 
 **Phase Weights and Bonuses Example**:
@@ -316,58 +335,77 @@ graph TB
         T --> V2[phase_bonuses - additive]
     end
 
-    subgraph "4. Joint Strategy-Node Scoring D1"
-        O --> W[rank_strategy_node_pairs]
-        P --> W
+    subgraph "4. Stage 1: Strategy Selection"
+        O --> W[rank_strategies]
         V1 --> W
         V2 --> W
         U --> W
-        
-        W --> X[For Each Strategy × Node]
-        X --> Y[Merge global and node signals]
-        Y --> Z[node signals take precedence]
-        
-        Z --> AA[Score strategy combined]
-        AA --> AB{phase_weights available?}
-        
-        AB -->|Yes| AC["final_score = base_score × multiplier + bonus"]
-        AB -->|No| AD[final_score = base_score]
-        
-        AC --> AE[Collect strategy node_id score]
-        AD --> AE
-        
-        AE --> AF[Sort all pairs by score descending]
+
+        W --> X[partition_signal_weights excludes node signals]
+        X --> Y[Score each strategy with global signals]
+
+        Y --> Z{phase_weights available?}
+
+        Z -->|Yes| AA["final_score = base_score × multiplier + bonus"]
+        Z -->|No| AB[final_score = base_score]
+
+        AA --> AC[Sort strategies by score descending]
+        AB --> AC
+
+        AC --> AD[Select best_strategy_config]
     end
 
-    subgraph "5. Best Pair Selection & Focus Update"
-        AF --> AG[Select best strategy node_id pair]
-        AG --> AH[strategy_alternatives list for debugging]
-        
-        AG --> AI[Append llm.response_depth to previous_focus]
-        AI --> AJ[node_tracker.update_focus new focus]
-        AJ --> AK[Set previous_focus for next turn]
+    subgraph "5. Stage 2: Node Selection (Conditional)"
+        AD --> AE{node_binding == "required"?}
+
+        AE -->|Yes| AF{node_signals exist?}
+        AE -->|No| AK[focus_node_id = None]
+
+        AF -->|Yes| AG[rank_nodes_for_strategy]
+        AF -->|No| AK
+
+        P --> AG
+
+        AG --> AH[partition_signal_weights extracts node weights]
+        AH --> AI[Score each node with node signals]
+
+        AI --> AJ[Sort nodes by score descending]
+        AJ --> AL[Select best node_id]
+
+        AL --> AM[focus_node_id = best node_id]
     end
 
-    subgraph "6. Output to Continuation"
-        AK --> AL[context.strategy]
-        AG --> AL
-        AK --> AM[context.focus_node_id]
-        O --> AN[context.signals]
-        P --> AN
-        
-        AL --> AO[ContinuationStage]
-        AM --> AO
-        AN --> AO
-        
-        AO --> AP[FocusSelectionService.resolve_focus]
-        AP --> AQ[context.focus_concept with fallback]
-        AQ --> AR[QuestionGenerationStage]
+    subgraph "6. Build Alternatives & Focus Update"
+        AD --> AN[strategy_alternatives = [(strategy, score), ...]]
+        AN --> AO[2-tuple format for observability]
+
+        AO --> AP[Append llm.response_depth to previous_focus]
+        AM --> AP
+        AM --> AQ[node_tracker.update_focus new focus]
+        AP --> AQ
+        AQ --> AR[Set previous_focus for next turn]
+    end
+
+    subgraph "7. Output to Continuation"
+        AD --> AS[context.strategy]
+        AM --> AS[context.focus_node_id]
+        O --> AT[context.signals]
+        P --> AT
+
+        AS --> AU[ContinuationStage]
+        AM --> AU
+        AT --> AU
+
+        AU --> AV[FocusSelectionService.resolve_focus]
+        AV --> AW[context.focus_concept with fallback]
+        AW --> AX[QuestionGenerationStage]
     end
 
     style K1 fill:#e1f5ff
     style K2 fill:#e1f5ff
     style W fill:#ffe1e1
-    style AG fill:#e1ffe1
+    style AD fill:#e1ffe1
+    style AG fill:#fff4e1
 ```
 
 
@@ -634,21 +672,26 @@ graph TB
         U --> AF[TechniqueNodeStrategyRepetitionSignal:<br/>technique.node.strategy_repetition]
     end
 
-    subgraph "Joint Strategy-Node Scoring"
-        AA --> AG[rank_strategy_node_pairs]
+    subgraph "Two-Stage Strategy Selection (D2)"
+        AA --> AG[Stage 1: rank_strategies - global signals]
         AB --> AG
         AC --> AG
         AD --> AG
         AE --> AG
         AF --> AG
         X --> AG
-        
-        AG --> AH[Merge global + node signals<br/>node signals take precedence]
-        AH --> AI[Score each strategy-node pair]
-        AI --> AJ[Apply phase weights and bonuses]
-        AJ --> AK[Select best strategy-node pair]
-        
-        AK -->|negative weight for exhausted| AL[Backtrack to fresh nodes]
+
+        AG --> AH[Select best strategy]
+        AH --> AI{node_binding == "required"?}
+
+        AI -->|Yes| AJ[Stage 2: rank_nodes_for_strategy]
+        AI -->|No| AK[No node selection]
+
+        AJ --> AL[Score nodes with node-scoped signals]
+        AL --> AM[Select best node]
+
+        AM --> AN[negative weight for exhausted → backtrack]
+        AK --> AN
     end
 
     subgraph "Turn End: Save Node Tracker"
@@ -675,12 +718,12 @@ graph TB
 
 **StrategySelectionStage → NodeStateTracker**:
 - `append_response_signal()`: Records response depth to `previous_focus` node BEFORE updating focus
-- `update_focus()`: Updates engagement and strategy metrics after strategy-node selection
+- `update_focus()`: Updates engagement and strategy metrics after two-stage strategy→node selection
 - Critical ordering: Response depth append happens before focus update to target correct node
 
 **NodeStateTracker → Signal Detection**:
 - Node states feed multiple signal detectors (NodeExhaustedSignal, NodeExhaustionScoreSignal, NodeOpportunitySignal, etc.)
-- Signals flow into `rank_strategy_node_pairs()` for joint strategy-node scoring
+- Node signals flow into `rank_nodes_for_strategy()` for Stage 2 node selection
 - Exhausted nodes receive negative weights, enabling intelligent backtracking
 
 **SessionService → Persistence**:
@@ -1141,11 +1184,13 @@ class FocusEntry(BaseModel):
 
 ## Path 18: Score Decomposition for Simulation Observability
 
-**Why Critical**: `rank_strategy_node_pairs()` computes joint (strategy × node) scores using merged global + node signals, but previously returned only the final float. Post-hoc recomputation from stored signal values misses node-level adjustments, producing inaccurate CSV output. The decomposition path captures the per-signal breakdown at compute time and serializes it into the simulation JSON.
+**Why Critical**: The two-stage architecture produces `ScoredCandidate` decomposition from node selection (Stage 2) for observability. This captures the per-signal breakdown at compute time and serializes it into the simulation JSON for accurate CSV output.
+
+**Important**: Score decomposition now contains **only node-level scores** from Stage 2 (`rank_nodes_for_strategy()`), not the strategy-level scores from Stage 1 (`rank_strategies()`). Strategy scores are available in `alternatives` but without per-signal breakdown.
 
 ```mermaid
 graph LR
-    A[rank_strategy_node_pairs] -->|score_strategy_with_decomposition| B[ScoredCandidate per pair]
+    A[rank_nodes_for_strategy] -->|score_strategy_with_decomposition| B[ScoredCandidate per node]
     B -->|rank + selected flag| C[List[ScoredCandidate]]
 
     C -->|6th return element| D[select_strategy_and_focus]
@@ -1167,17 +1212,17 @@ graph LR
 class ScoredCandidate:
     strategy: str
     node_id: str
-    signal_contributions: list[SignalContribution]  # Per-signal breakdown
+    signal_contributions: list[SignalContribution]  # Per-signal breakdown (node signals only)
     base_score: float        # Sum of signal contributions
-    phase_multiplier: float  # From phase config (default 1.0)
-    phase_bonus: float       # From phase config (default 0.0)
-    final_score: float       # (base_score × multiplier) + bonus
-    rank: int                # 1 = best candidate
-    selected: bool           # True for the winning candidate
+    phase_multiplier: float  # Always 1.0 for node scores (Stage 2 has no phase weights)
+    phase_bonus: float       # Always 0.0 for node scores
+    final_score: float       # base_score (no phase adjustment in Stage 2)
+    rank: int                # 1 = best node
+    selected: bool           # True for the winning node
 
 @dataclass
 class SignalContribution:
-    name: str          # e.g. "llm.valence.low"
+    name: str          # e.g. "graph.node.exhaustion_score"
     value: Any         # Resolved value (True/False/float)
     weight: float      # From YAML signal_weights
     contribution: float  # Effective contribution to base_score
@@ -1185,10 +1230,13 @@ class SignalContribution:
 
 ### Key Points
 
-- **Capture time**: Decomposition is captured inside `rank_strategy_node_pairs()` — the only place where global + node signals are merged and scored together
-- **Accuracy**: CSV scores now match pipeline scores exactly (previously diverged due to missing node-level adjustments)
+- **Capture time**: Decomposition is captured inside `rank_nodes_for_strategy()` using node-scoped signals only
+- **Node-only signals**: `partition_signal_weights()` extracts graph.node.*, technique.node.*, meta.node.* weights
+- **No phase weights in Stage 2**: Phase weights are applied only during Stage 1 strategy selection, not Stage 2 node selection
+- **Accuracy**: CSV scores for node selection match pipeline scores exactly
 - **Simulation-only**: `score_decomposition` is `Optional` in `TurnResult` and `StrategySelectionOutput`; the live API pipeline sets it to `None`
 - **Backward-compatible**: `generate_scoring_csv.py` emits a placeholder N/A row for old JSON files without `score_decomposition`
+- **Empty for node_binding="none"**: When strategy has `node_binding: none`, `score_decomposition` is an empty list `[]`
 - **Scale**: ~70 candidates per turn (7 strategies × 10 nodes) → ~700 rows per turn in CSV for a 10-turn simulation
 
 ### JSON Schema (per turn)
@@ -1410,8 +1458,9 @@ When working on the pipeline:
    - Implement detection logic for per-node signals
    - Register in `signal_registry.py`
 6. **Adding a new methodology**: Create YAML config in `config/methodologies/`
-7. **Debugging joint scoring**: Check `rank_strategy_node_pairs()` output with alternatives list
-   - `score_decomposition` in simulation JSON provides per-signal breakdown for every (strategy, node) candidate
+7. **Debugging two-stage selection**: Check `rank_strategies()` and `rank_nodes_for_strategy()` outputs with alternatives list
+   - `strategies_ranked` log shows Stage 1 strategy scores (strategy_name, score)
+   - `score_decomposition` in simulation JSON provides per-signal breakdown for node selection (Stage 2)
    - `generate_scoring_csv.py` converts this to a spreadsheet-friendly format; scores exactly match pipeline values
 
 ## Related Documentation

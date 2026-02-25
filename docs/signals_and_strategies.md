@@ -89,7 +89,7 @@ Result: Dynamic, context-aware conversation flow
 Located in `src/services/turn_pipeline/stages/strategy_selection_stage.py`.
 
 ```python
-# Simplified flow
+# Simplified flow (two-stage architecture)
 async def execute(self, context: PipelineContext) -> PipelineContext:
     # 1. Load methodology configuration
     methodology = await self.registry.load(context.methodology)
@@ -108,18 +108,19 @@ async def execute(self, context: PipelineContext) -> PipelineContext:
         node_ids=candidate_nodes
     )
 
-    # 4. Joint strategy-node scoring
-    result = await self.strategy_service.select_strategy(
-        methodology=methodology,
-        global_signals=global_signals,
-        node_signals=node_signals,
-        turn_number=context.turn_number
+    # 4. Two-stage strategy→node selection
+    result = await self.strategy_service.select_strategy_and_focus(
+        context=context,
+        graph_state=context.graph_state,
+        response_text=response_text
     )
 
-    context.strategy = result.strategy
-    context.focus = result.focus
-    context.signals = result.signals
-    context.strategy_alternatives = result.alternatives
+    # Result: (strategy_name, focus_node_id, alternatives, global_signals, node_signals, score_decomposition)
+    context.strategy = result.strategy_name
+    context.focus_node_id = result.focus_node_id  # None if node_binding="none"
+    context.signals = result.global_signals
+    context.strategy_alternatives = result.alternatives  # List of (strategy_name, score)
+    context.score_decomposition = result.score_decomposition  # Node-level only
 ```
 
 ### Signal Detection Flow
@@ -354,7 +355,7 @@ phase_boundaries:
 
 ## Node-Level Signals
 
-Node-level signals provide **per-node** assessments for joint strategy-node scoring (D1 Architecture).
+Node-level signals provide **per-node** assessments for Stage 2 node selection in the two-stage architecture (D2).
 
 ### Signal Namespaces
 
@@ -474,13 +475,15 @@ signal_weights:
     llm.response_depth.shallow: 0.3   # True if response_depth == "shallow"
   ```
 
-### Phase Weights and Bonuses
+### Phase Weights and Bonuses (Stage 1 Only)
+
+**Important**: Phase weights and bonuses are applied **only during Stage 1** (strategy selection), not during Stage 2 (node selection). Node selection uses raw signal weights.
 
 ```yaml
 phases:
   early:
     signal_weights:
-      explore: 1.5      # 1.5x multiplier
+      explore: 1.5      # 1.5x multiplier (Stage 1 only)
     phase_bonuses:
       explore: 0.2      # +0.2 bonus
   mid:
@@ -541,6 +544,13 @@ strategies:
     signal_weights:
       llm.response_depth.low: 0.8
       temporal.strategy_repetition_count: -0.5
+    node_binding: required  # Optional: "required" (default) or "none"
+
+  - name: reflect
+    description: "Summarize and validate understanding"
+    signal_weights:
+      meta.interview.phase.late: 1.0
+    node_binding: none  # Conversation-level strategy, no node targeting
 
 # Phase-based adaptation
 phases:
@@ -558,8 +568,10 @@ phases:
 | `signals.{pool}` | YAML | List of signals to detect from each pool |
 | `phase_boundaries.{phase}_max_turns` | YAML | Turn count thresholds for phase detection |
 | `signal_weights.{signal}` | YAML (strategy) | Weight for scoring contribution |
-| `signal_weights.{strategy}` | YAML (phase) | Phase-specific multiplier |
-| `phase_bonuses.{strategy}` | YAML (phase) | Phase-specific additive bonus |
+| `signal_weights.{strategy}` | YAML (phase) | Phase-specific multiplier (Stage 1 only) |
+| `phase_bonuses.{strategy}` | YAML (phase) | Phase-specific additive bonus (Stage 1 only) |
+| `node_binding` | YAML (strategy) | Strategy node binding: `"required"` (default) or `"none"` — controls whether Stage 2 node selection runs |
+| `partition_signal_weights()` | `scoring.py` | Auto-separates global vs node-scoped weights using namespace prefixes |
 
 ---
 
@@ -747,6 +759,7 @@ strategies:
 
   - name: reflect
     description: "Synthesize insights"
+    node_binding: none  # Conversation-level strategy
     signal_weights:
       meta.interview.phase.late: 1.0
       graph.chain_completion.high: 0.8
@@ -810,10 +823,12 @@ The `strategy_alternatives` field in `PipelineContext` contains all scored strat
 ```python
 # Access in code or logs
 context.strategy_alternatives = [
-    (strategy_config, node_id, score),
+    (strategy_name, score),  # 2-tuple format (changed from 3-tuple)
     ...
 ]
 ```
+
+**Note**: The alternatives format changed from 3-tuple `(strategy, node_id, score)` to 2-tuple `(strategy_name, score)` with the D2 two-stage architecture. Node selection is now a separate conditional stage.
 
 ### Available Methodologies
 
@@ -844,13 +859,13 @@ signals_detected: {
 }
 phase_weights_loaded: {"explore": 1.5, "deepen": 1.0}
 strategies_ranked: [
-    ("explore", None, 4.2),
-    ("deepen", "node_3", 2.8)
+    ("explore", 4.2),
+    ("deepen", 2.8)
 ]
 strategy_selected: explore
 ```
 
-**Analysis**: Early phase gives `explore` a 1.5x multiplier, boosting its score above `deepen`.
+**Analysis**: Early phase gives `explore` a 1.5x multiplier, boosting its score above `deepen`. Note: `strategies_ranked` shows 2-tuples `(strategy_name, score)` instead of the old 3-tuple format.
 
 ---
 
@@ -926,7 +941,7 @@ strategies:
       graph.node.exhaustion_score.low: 1.0  # Boost nodes with low exhaustion (score <= 0.25)
 ```
 
-The D1 architecture will score each (deepen, node) pair, preferring nodes with low exhaustion scores.
+The D2 two-stage architecture scores each node for the selected `deepen` strategy using node-scoped signals, preferring nodes with low exhaustion scores.
 
 ---
 
@@ -997,9 +1012,10 @@ logger.info(f"Strategy config: {strategy_config}")
 **Symptoms**: Node-level signals seem ignored.
 
 **Check**:
-1. Verify `MethodologyStrategyService.select_strategy()` is using D1 scoring
+1. Verify the strategy has `node_binding: "required"` (or default, since `"required"` is default)
 2. Check `node_signals` are being passed to scoring function
 3. Ensure node signal names match exactly (e.g., `graph.node.exhausted`)
+4. Check that the strategy actually defines node-scoped signal weights (graph.node.*, technique.node.*, meta.node.*)
 
 ---
 
@@ -1008,9 +1024,9 @@ logger.info(f"Strategy config: {strategy_config}")
 - **ADR-014**: Signal Pools Architecture (`docs/adr/ADR-014-signal-pools-architecture.md`)
 - **Signal Base Class**: `src/signals/signal_base.py`
 - **Signal Registry**: `src/signals/signal_registry.py`
-- **Scoring Logic**: `src/methodologies/scoring.py`
-- **Methodology Registry**: `src/methodologies/registry.py`
-- **Strategy Service**: `src/services/methodology_strategy_service.py`
+- **Scoring Logic**: `src/methodologies/scoring.py` — `rank_strategies()`, `rank_nodes_for_strategy()`, `partition_signal_weights()`
+- **Methodology Registry**: `src/methodologies/registry.py` — `StrategyConfig` with `node_binding` field
+- **Strategy Service**: `src/services/methodology_strategy_service.py` — Two-stage orchestration
 - **Global Signal Detection**: `src/services/global_signal_detection_service.py`
 - **Node Signal Detection**: `src/services/node_signal_detection_service.py`
 - **Strategy Selection Stage**: `src/services/turn_pipeline/stages/strategy_selection_stage.py`
@@ -1020,16 +1036,30 @@ logger.info(f"Strategy config: {strategy_config}")
 
 ## Quick Reference
 
+### Two-Stage Architecture (D2)
+
+| Stage | Function | Signals Used | Phase Weights |
+|-------|----------|--------------|---------------|
+| **Stage 1** | `rank_strategies()` | Global signals only (graph.*, llm.*, temporal.*, meta.*) | ✅ Applied |
+| **Stage 2** | `rank_nodes_for_strategy()` | Node signals only (graph.node.*, technique.node.*, meta.node.*) | ❌ Not applied |
+
 ### Signal Namespaces
 
-| Prefix | Pool | Example |
-|--------|------|---------|
-| `graph.*` | Graph | `graph.node_count` |
-| `llm.*` | LLM | `llm.response_depth` |
-| `temporal.*` | Temporal | `temporal.strategy_repetition_count` |
-| `meta.*` | Meta | `meta.interview.phase` |
-| `graph.node.*` | Node (graph) | `graph.node.exhausted` |
-| `technique.node.*` | Node (technique) | `technique.node.strategy_repetition` |
+| Prefix | Pool | Example | Used In Stage |
+|--------|------|---------|----------------|
+| `graph.*` | Graph (global) | `graph.max_depth` | Stage 1 |
+| `llm.*` | LLM | `llm.response_depth` | Stage 1 |
+| `temporal.*` | Temporal | `temporal.strategy_repetition_count` | Stage 1 |
+| `meta.*` | Meta (global) | `meta.interview.phase` | Stage 1 |
+| `graph.node.*` | Node (graph) | `graph.node.exhausted` | Stage 2 |
+| `technique.node.*` | Node (technique) | `technique.node.strategy_repetition` | Stage 2 |
+
+### `node_binding` Field
+
+| Value | Stage 2 Behavior | Example Strategies |
+|-------|------------------|-------------------|
+| `"required"` (default) | Node selection runs | `explore`, `deepen`, `clarify` |
+| `"none"` | Node selection skipped | `reflect`, `revitalize` |
 
 ### Compound Key Patterns
 
