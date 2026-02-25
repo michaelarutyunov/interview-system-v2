@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional, Union, TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 if TYPE_CHECKING:
-    pass
+    from src.methodologies.scoring import ScoredCandidate
 
 from src.domain.models.knowledge_graph import GraphState, KGNode, SaturationMetrics
 from src.domain.models.utterance import Utterance
@@ -238,14 +238,16 @@ class StrategySelectionOutput(BaseModel):
         default="recent_node",
         description="Focus selection mode: 'recent_node' (default), 'summary', or 'topic'",
     )
-    # Per-candidate score decomposition from joint scoring (simulation-only)
-    score_decomposition: Optional[List[Any]] = Field(
+    # Per-candidate score decomposition from scoring (simulation-only)
+    score_decomposition: Optional[List["ScoredCandidate"]] = Field(
         default=None,
         description=(
-            "Per-candidate score decomposition from rank_strategy_node_pairs(). "
-            "Each entry is a ScoredCandidate with strategy, node_id, signal_contributions "
-            "(name/value/weight/contribution), base_score, phase_multiplier, phase_bonus, "
-            "final_score, rank, selected. Populated during simulation; None in live API."
+            "Per-candidate score decomposition from rank_strategies() and "
+            "rank_nodes_for_strategy(). Combines Stage 1 (strategy-level with node_id='') "
+            "and Stage 2 (node-level) decompositions. Each entry has strategy, node_id, "
+            "signal_contributions (name/value/weight/contribution), base_score, "
+            "phase_multiplier, phase_bonus, final_score, rank, selected. "
+            "Populated during simulation; None in live API."
         ),
     )
 
