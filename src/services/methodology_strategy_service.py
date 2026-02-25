@@ -261,20 +261,45 @@ class MethodologyStrategyService:
         focus_node_id = None
         score_decomposition: list[ScoredCandidate] = []
 
+        log.info(
+            "stage2_node_selection_start",
+            methodology=methodology_name,
+            strategy=best_strategy_config.name,
+            node_binding=best_strategy_config.node_binding,
+            has_node_signals=bool(node_signals),
+            node_count=len(node_signals) if node_signals else 0,
+        )
+
         if best_strategy_config.node_binding == "required" and node_signals:
             ranked_nodes, score_decomposition = rank_nodes_for_strategy(
                 best_strategy_config, node_signals
             )
             if ranked_nodes:
                 focus_node_id = ranked_nodes[0][0]
-
-            log.info(
-                "node_selected_for_strategy",
+                log.info(
+                    "node_selected_for_strategy",
+                    methodology=methodology_name,
+                    strategy=best_strategy_config.name,
+                    node_id=focus_node_id,
+                    node_count=len(ranked_nodes),
+                    top3=[(nid, round(sc, 4)) for nid, sc in ranked_nodes[:3]],
+                )
+            else:
+                log.error(
+                    "node_selection_failed_no_ranked_nodes",
+                    methodology=methodology_name,
+                    strategy=best_strategy_config.name,
+                    node_binding=best_strategy_config.node_binding,
+                    node_signals_count=len(node_signals),
+                    signal_weights=list(best_strategy_config.signal_weights.keys()),
+                )
+        elif best_strategy_config.node_binding == "required" and not node_signals:
+            log.error(
+                "node_selection_failed_no_signals",
                 methodology=methodology_name,
                 strategy=best_strategy_config.name,
-                node_id=focus_node_id,
-                node_count=len(ranked_nodes),
-                top3=[(nid, round(sc, 4)) for nid, sc in ranked_nodes[:3]],
+                node_binding=best_strategy_config.node_binding,
+                reason="node_binding_required_but_no_node_signals_detected",
             )
         else:
             log.info(

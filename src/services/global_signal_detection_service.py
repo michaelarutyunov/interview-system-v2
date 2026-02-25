@@ -110,9 +110,26 @@ class GlobalSignalDetectionService:
                     last_question = utt.get("content")
                     break
 
-        global_signals = await signal_detector.detect(
-            context, graph_state, response_text, question=last_question
+        log.debug(
+            "signal_detector_context_prepared",
+            methodology=methodology_name,
+            has_last_question=bool(last_question),
+            recent_utterance_count=len(context.recent_utterances) if context.recent_utterances else 0,
         )
+
+        try:
+            global_signals = await signal_detector.detect(
+                context, graph_state, response_text, question=last_question
+            )
+        except Exception as e:
+            log.error(
+                "global_signal_detection_failed",
+                methodology=methodology_name,
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
+            raise
 
         log.debug(
             "global_signals_detected",
@@ -123,17 +140,27 @@ class GlobalSignalDetectionService:
         # Update and detect global response trend
         current_depth = global_signals.get("llm.response_depth", "surface")
         trend_signal = self._get_global_trend_signal()
-        trend_result = await trend_signal.detect(
-            context, graph_state, response_text, current_depth=current_depth
-        )
-        global_trend = trend_result.get("llm.global_response_trend", "stable")
-        global_signals["llm.global_response_trend"] = global_trend
 
-        log.debug(
-            "global_response_trend_detected",
-            methodology=methodology_name,
-            trend=global_trend,
-            history_length=len(trend_signal.response_history),
-        )
+        try:
+            trend_result = await trend_signal.detect(
+                context, graph_state, response_text, current_depth=current_depth
+            )
+            global_trend = trend_result.get("llm.global_response_trend", "stable")
+            global_signals["llm.global_response_trend"] = global_trend
+
+            log.debug(
+                "global_response_trend_detected",
+                methodology=methodology_name,
+                trend=global_trend,
+                history_length=len(trend_signal.response_history),
+            )
+        except Exception as e:
+            log.warning(
+                "global_trend_detection_failed",
+                methodology=methodology_name,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            global_signals["llm.global_response_trend"] = "stable"
 
         return global_signals

@@ -7,7 +7,7 @@ normalized at source to [0, 1] or bool.
 
 import structlog
 from dataclasses import dataclass, field
-from typing import List, Tuple, Dict, Any, Optional
+from typing import List, Tuple, Dict, Any, Optional, Union
 from src.methodologies.registry import StrategyConfig
 
 log = structlog.get_logger(__name__)
@@ -38,6 +38,14 @@ def partition_signal_weights(
             node_weights[key] = weight
         else:
             strategy_weights[key] = weight
+
+    log.debug(
+        "signal_weights_partitioned",
+        total_weights=len(signal_weights),
+        strategy_weights_count=len(strategy_weights),
+        node_weights_count=len(node_weights),
+        node_weight_keys=list(node_weights.keys()) if node_weights else None,
+    )
 
     return strategy_weights, node_weights
 
@@ -83,13 +91,17 @@ def score_strategy(
     """
     weights = strategy_config.signal_weights
     score = 0.0
+    signals_used = 0
+    signals_missing = 0
 
     for signal_key, weight in weights.items():
         signal_value = _get_signal_value(signal_key, signals)
 
         if signal_value is None:
+            signals_missing += 1
             continue
 
+        signals_used += 1
         if isinstance(signal_value, bool):
             contribution = weight if signal_value else 0.0
         elif isinstance(signal_value, (int, float)):
@@ -98,6 +110,15 @@ def score_strategy(
             contribution = 0.0
 
         score += contribution
+
+    # Log if no signals were applicable (potential config mismatch)
+    if signals_used == 0 and weights:
+        log.debug(
+            "strategy_scoring_no_signals_matched",
+            strategy=strategy_config.name,
+            configured_weights=list(weights.keys()),
+            available_signals=list(signals.keys()) if signals else None,
+        )
 
     return score
 
@@ -187,6 +208,17 @@ def _get_signal_value(signal_key: str, signals: Dict[str, Any]) -> Any:
             # Return True if values match (for string enum scoring)
             return actual_value == expected_value
 
+    # Log missing signals at debug level to help with configuration issues
+    # Only log for non-trivial lookups (compound keys or non-suffixed signals)
+    if "." in signal_key or not any(
+        signal_key.endswith(suffix) for suffix in [".low", ".mid", ".high", ".true", ".false"]
+    ):
+        log.debug(
+            "signal_value_not_found",
+            signal_key=signal_key,
+            available_signals=list(signals.keys()),
+        )
+
     return None
 
 
@@ -195,7 +227,11 @@ def rank_strategies(
     signals: Dict[str, Any],
     phase_weights: Optional[Dict[str, float]] = None,
     phase_bonuses: Optional[Dict[str, float]] = None,
-) -> List[Tuple[StrategyConfig, float]]:
+    return_decomposition: bool = False,
+) -> Union[
+    List[Tuple[StrategyConfig, float]],
+    Tuple[List[Tuple[StrategyConfig, float]], List[ScoredCandidate]]
+]:
     """
     Rank all strategies by score.
 
@@ -205,15 +241,20 @@ def rank_strategies(
         phase_weights: Optional dict of phase-based weight multipliers (e.g., {"deepen": 1.5, "reflect": 0.5})
         phase_bonuses: Optional dict of phase-based additive bonuses (e.g., {"reflect": 0.3})
                         Applied additively: final_score = (base_score * multiplier) + bonus
+        return_decomposition: If True, return (ranked_strategies, List[ScoredCandidate]) tuple
 
     Returns:
-        List of (strategy_config, score) sorted descending by score
+        - If return_decomposition=False: List of (strategy_config, score) sorted descending by score
+        - If return_decomposition=True: Tuple of (ranked_strategies, decomposition) with ScoredCandidate list
     """
     import structlog
 
     log = structlog.get_logger(__name__)
 
-    scored = []
+    # Build list of candidates with decomposition (if requested)
+    candidates: List[ScoredCandidate] = []
+    scored: List[Tuple[StrategyConfig, float]] = []
+
     for strategy_config in strategy_configs:
         # Partition to exclude node-scoped signals from strategy scoring
         global_weights, _ = partition_signal_weights(strategy_config.signal_weights)
@@ -222,7 +263,15 @@ def rank_strategies(
             description=strategy_config.description,
             signal_weights=global_weights,
         )
-        base_score = score_strategy(global_only_strategy, signals)
+
+        # Score with decomposition (needed for return_decomposition)
+        if return_decomposition:
+            base_score, contributions = score_strategy_with_decomposition(
+                global_only_strategy, signals
+            )
+        else:
+            base_score = score_strategy(global_only_strategy, signals)
+            contributions = []
 
         # Apply phase weight multiplier if available
         if phase_weights and strategy_config.name in phase_weights:
@@ -240,8 +289,32 @@ def rank_strategies(
 
         scored.append((strategy_config, final_score))
 
+        # Build decomposition if requested
+        if return_decomposition:
+            candidates.append(
+                ScoredCandidate(
+                    strategy=strategy_config.name,
+                    node_id="",  # Stage 1 has no node
+                    signal_contributions=contributions,
+                    base_score=base_score,
+                    phase_multiplier=multiplier,
+                    phase_bonus=bonus,
+                    final_score=final_score,
+                    rank=0,  # Set after sorting
+                    selected=False,
+                )
+            )
+
     # Sort by score descending
     scored.sort(key=lambda x: x[1], reverse=True)
+
+    # Assign rank and selected flags for decomposition
+    if return_decomposition:
+        ranked_order = {s.name: i for i, (s, _) in enumerate(scored)}
+        for candidate in candidates:
+            rank = ranked_order.get(candidate.strategy, len(scored))
+            candidate.rank = rank + 1
+            candidate.selected = rank == 0
 
     # Log scores for debugging
     log.info(
@@ -252,7 +325,10 @@ def rank_strategies(
         ranked=[(s.name, score) for s, score in scored],
     )
 
-    return scored
+    if return_decomposition:
+        return scored, candidates
+    else:
+        return scored
 
 
 def rank_strategy_node_pairs(
@@ -385,7 +461,21 @@ def rank_nodes_for_strategy(
     """
     _, node_weights = partition_signal_weights(strategy_config.signal_weights)
 
-    if not node_signals or not node_weights:
+    if not node_signals:
+        log.warning(
+            "rank_nodes_no_signals",
+            strategy=strategy_config.name,
+            reason="node_signals_empty",
+        )
+        return [], []
+
+    if not node_weights:
+        log.warning(
+            "rank_nodes_no_weights",
+            strategy=strategy_config.name,
+            reason="no_node_scoped_weights_in_config",
+            available_weights=list(strategy_config.signal_weights.keys()),
+        )
         return [], []
 
     node_strategy = StrategyConfig(
@@ -421,7 +511,8 @@ def rank_nodes_for_strategy(
     log.debug(
         "nodes_ranked_for_strategy",
         strategy=strategy_config.name,
-        top3=[(nid, round(sc, 4)) for nid, sc in ranked[:3]],
+        node_count=len(ranked),
+        top3=[(nid, round(sc, 4)) for nid, sc in ranked[:3]] if ranked else None,
     )
 
     return ranked, candidates

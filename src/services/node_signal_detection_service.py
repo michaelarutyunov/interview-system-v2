@@ -74,7 +74,12 @@ class NodeSignalDetectionService:
         all_states = node_tracker.get_all_states()
 
         if not all_states:
-            log.debug("no_tracked_nodes_for_signals")
+            log.warning(
+                "no_tracked_nodes_for_signals",
+                session_id=context.session_id if hasattr(context, 'session_id') else None,
+                turn_number=context.turn_number if hasattr(context, 'turn_number') else None,
+                graph_node_count=graph_state.node_count if graph_state else 0,
+            )
             return {}
 
         # Initialize node signals dict
@@ -96,20 +101,34 @@ class NodeSignalDetectionService:
         ]
 
         # Detect all node signals
+        signals_detected_count = 0
         for detector in signal_detectors:
             try:
                 detected = await detector.detect(context, graph_state, response_text)
 
                 # Merge results into node_signals
+                detector_count = 0
                 for node_id, signal_value in detected.items():
                     if node_id in node_signals:
                         node_signals[node_id][detector.signal_name] = signal_value
+                        detector_count += 1
+
+                signals_detected_count += detector_count
+
+                # Log if detector produced no results for any node
+                if detector_count == 0:
+                    log.debug(
+                        "node_signal_detector_no_results",
+                        signal=detector.signal_name,
+                        tracked_nodes=len(all_states),
+                    )
 
             except Exception as e:
                 log.error(
                     "node_signal_detection_failed",
                     signal=detector.signal_name,
                     error=str(e),
+                    error_type=type(e).__name__,
                     exc_info=True,
                 )
                 raise ScorerFailureError(

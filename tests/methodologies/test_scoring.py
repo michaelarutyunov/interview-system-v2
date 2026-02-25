@@ -9,6 +9,7 @@ from src.methodologies.scoring import (
     rank_strategy_node_pairs,
     partition_signal_weights,
     rank_nodes_for_strategy,
+    ScoredCandidate,
 )
 from src.methodologies.registry import StrategyConfig
 
@@ -651,3 +652,114 @@ class TestRankNodesForStrategy:
             candidates[0].signal_contributions[0].name
             == "graph.node.exhaustion_score.low"
         )
+
+
+class TestRankStrategiesDecomposition:
+    """Tests for Stage 1 strategy score decomposition."""
+
+    def test_returns_decomposition_when_requested(self):
+        """rank_strategies should return (ranked, decomposition) when return_decomposition=True."""
+        strategies = [
+            StrategyConfig(
+                name="deepen",
+                description="D",
+                signal_weights={"llm.response_depth.low": 0.8, "llm.engagement.high": 0.7}
+            ),
+            StrategyConfig(
+                name="explore",
+                description="E",
+                signal_weights={"llm.response_depth.low": 0.5}
+            ),
+        ]
+        signals = {"llm.response_depth": 0.1, "llm.engagement": 0.9}
+        phase_weights = {"deepen": 1.3}
+        phase_bonuses = {"deepen": 0.2}
+
+        result = rank_strategies(
+            strategies, signals, phase_weights, phase_bonuses, return_decomposition=True
+        )
+
+        # Should return tuple of (ranked_strategies, decomposition)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+        ranked, decomposition = result
+
+        # Verify ranked strategies (existing behavior)
+        assert len(ranked) == 2
+        assert ranked[0][0].name == "deepen"
+        assert ranked[0][1] > 0  # Should have phase-applied score
+
+        # Verify decomposition exists
+        assert len(decomposition) == 2
+        assert all(isinstance(c, ScoredCandidate) for c in decomposition)
+
+        # Verify deepen has phase multipliers
+        deepen_decomp = next(c for c in decomposition if c.strategy == "deepen")
+        assert deepen_decomp.phase_multiplier == 1.3
+        assert deepen_decomp.phase_bonus == 0.2
+        assert deepen_decomp.final_score == deepen_decomp.base_score * 1.3 + 0.2
+
+        # Verify signal contributions are captured
+        assert len(deepen_decomp.signal_contributions) == 2
+        contrib_names = {c.name for c in deepen_decomp.signal_contributions}
+        assert "llm.response_depth.low" in contrib_names
+        assert "llm.engagement.high" in contrib_names
+
+    def test_backward_compatible_when_not_requested(self):
+        """rank_strategies should return only ranked list when return_decomposition=False (default)."""
+        strategies = [
+            StrategyConfig(
+                name="test",
+                description="T",
+                signal_weights={"llm.engagement.high": 0.5}
+            ),
+        ]
+        signals = {"llm.engagement": 0.8}
+
+        # Default behavior (return_decomposition=False)
+        result = rank_strategies(strategies, signals)
+
+        # Should return list, not tuple
+        assert isinstance(result, list)
+        assert not isinstance(result, tuple)
+        assert len(result) == 1
+        assert result[0][0].name == "test"
+
+    def test_decomposition_includes_rank_and_selected(self):
+        """Decomposition should mark best strategy as selected with rank=1."""
+        strategies = [
+            StrategyConfig(name="low", description="L", signal_weights={"x": 0.1}),
+            StrategyConfig(name="high", description="H", signal_weights={"x": 1.0}),
+        ]
+        signals = {"x": 1.0}
+
+        ranked, decomposition = rank_strategies(
+            strategies, signals, return_decomposition=True
+        )
+
+        # High score strategy should be selected
+        high_decomp = next(c for c in decomposition if c.strategy == "high")
+        assert high_decomp.selected == True
+        assert high_decomp.rank == 1
+
+        # Low score strategy should not be selected
+        low_decomp = next(c for c in decomposition if c.strategy == "low")
+        assert low_decomp.selected == False
+        assert low_decomp.rank == 2
+
+    def test_strategy_decomposition_has_empty_node_id(self):
+        """Strategy-level decomposition should have empty node_id to distinguish from node decomposition."""
+        strategies = [
+            StrategyConfig(name="test", description="T", signal_weights={"x": 1.0}),
+        ]
+        signals = {"x": 1.0}
+
+        ranked, decomposition = rank_strategies(
+            strategies, signals, return_decomposition=True
+        )
+
+        assert len(decomposition) == 1
+        assert decomposition[0].node_id == ""  # Empty for strategy-level
+        assert decomposition[0].strategy == "test"
+
