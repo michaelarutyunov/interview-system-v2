@@ -1,15 +1,15 @@
-"""Strategy selection service using YAML-based methodology configs with joint scoring.
+"""Strategy selection service using two-stage scoring architecture.
 
-Implements D1 architecture for joint strategy-node scoring with signal pools,
-phase weights, and node exhaustion detection. Delegates signal detection to
-specialized services for single responsibility.
+Implements two-stage strategy selection: first selects strategy from global
+signals, then conditionally selects node for that strategy using node signals.
+Delegates signal detection to specialized services for single responsibility.
 
 Domain decomposition:
 - GlobalSignalDetectionService: Detects graph/LLM/temporal signals from response
 - NodeSignalDetectionService: Detects node-level signals with exhaustion tracking
 
 Key concepts:
-- Joint strategy-node scoring: Scores (strategy, node) pairs using combined signals
+- Two-stage selection: Stage 1 picks strategy, Stage 2 conditionally picks node
 - Phase weights: Multiplicative signal weights per interview phase (early/mid/late)
 - Phase bonuses: Additive strategy bonuses per interview phase
 - Node exhaustion: Penalty for over-probing the same node
@@ -21,9 +21,14 @@ import structlog
 
 from src.core.exceptions import ConfigurationError, ScoringError
 from src.methodologies import get_registry
-from src.methodologies.scoring import rank_strategy_node_pairs, ScoredCandidate
+from src.methodologies.scoring import (
+    rank_strategies,
+    rank_nodes_for_strategy,
+    ScoredCandidate,
+)
 from src.services.global_signal_detection_service import GlobalSignalDetectionService
 from src.services.node_signal_detection_service import NodeSignalDetectionService
+from src.signals.meta.interview_phase import InterviewPhaseSignal
 
 if TYPE_CHECKING:
     from src.domain.models.knowledge_graph import GraphState
@@ -34,12 +39,12 @@ log = structlog.get_logger(__name__)
 
 
 class MethodologyStrategyService:
-    """Joint strategy-node scoring service using methodology YAML configs.
+    """Two-stage strategy selection service using methodology YAML configs.
 
-    Orchestrates D1 architecture for strategy selection by combining global
-    signals (graph state, response depth) with node-level signals (exhaustion,
-    opportunity) to score (strategy, node) pairs. Applies phase-based weights
-    (multiplicative) and bonuses (additive) for adaptive interviewing.
+    Orchestrates two-stage strategy selection: first selects strategy from global
+    signals, then conditionally selects node for strategies with node_binding='required'.
+    Applies phase-based weights (multiplicative) and bonuses (additive) for adaptive
+    interviewing.
 
     Signal detection is delegated to specialized services:
     - GlobalSignalDetectionService: graph.*, llm.*, temporal.*, meta.* signals
@@ -72,7 +77,9 @@ class MethodologyStrategyService:
         """
         self.methodology_registry = get_registry()
         # Use injected services or create defaults
-        self.global_signal_service = global_signal_service or GlobalSignalDetectionService()
+        self.global_signal_service = (
+            global_signal_service or GlobalSignalDetectionService()
+        )
         self.node_signal_service = node_signal_service or NodeSignalDetectionService()
 
     async def select_strategy_and_focus(
@@ -124,7 +131,9 @@ class MethodologyStrategyService:
             ScoringError: If no valid (strategy, node) pairs can be scored
         """
         # Get methodology config from YAML
-        methodology_name = context.methodology if context.methodology else "means_end_chain"
+        methodology_name = (
+            context.methodology if context.methodology else "means_end_chain"
+        )
         config = self.methodology_registry.get_methodology(methodology_name)
 
         if not config:
@@ -188,10 +197,6 @@ class MethodologyStrategyService:
         )
 
         # Detect interview phase
-        from src.signals.meta.interview_phase import (
-            InterviewPhaseSignal,
-        )
-
         phase_signal = InterviewPhaseSignal()
         phase_result = await phase_signal.detect(context, graph_state, response_text)
         current_phase = phase_result.get("meta.interview.phase", "early")
@@ -230,50 +235,72 @@ class MethodologyStrategyService:
                 f"to ensure at least one strategy is defined under the 'strategies' key."
             )
 
-        # Score all (strategy, node) pairs using joint scoring
-        scored_pairs, score_decomposition = rank_strategy_node_pairs(
-            strategies=strategies,
-            global_signals=global_signals,
-            node_signals=node_signals,
-            node_tracker=node_tracker,
+        # --- Stage 1: Select strategy using global signals only ---
+        ranked_strategies = rank_strategies(
+            strategy_configs=strategies,
+            signals=global_signals,
             phase_weights=phase_weights,
             phase_bonuses=phase_bonuses,
         )
 
-        if not scored_pairs:
+        if not ranked_strategies:
             log.error(
-                "no_scored_pairs",
+                "no_ranked_strategies",
                 methodology=methodology_name,
                 strategy_count=len(strategies),
-                node_count=len(node_signals),
                 exc_info=True,
             )
             raise ScoringError(
-                f"No valid (strategy, node) pairs could be scored for methodology '{methodology_name}'. "
-                f"Strategies available: {len(strategies)}, Nodes with signals: {len(node_signals)}. "
-                f"Check that signal weights and strategy configurations are valid. "
-                f"Node signals may be empty if no nodes are being tracked by NodeStateTracker."
+                f"No strategies could be scored for methodology '{methodology_name}'. "
+                f"Strategies available: {len(strategies)}."
             )
 
-        # Select best pair
-        best_strategy_config, best_node_id, best_score = scored_pairs[0]
+        best_strategy_config, best_strategy_score = ranked_strategies[0]
 
-        # Build alternatives for observability (include node_id)
-        alternatives = [(s.name, node_id, score) for s, node_id, score in scored_pairs]
+        # --- Stage 2: Select node (conditional on node_binding) ---
+        focus_node_id = None
+        score_decomposition: list[ScoredCandidate] = []
+
+        if best_strategy_config.node_binding == "required" and node_signals:
+            ranked_nodes, score_decomposition = rank_nodes_for_strategy(
+                best_strategy_config, node_signals
+            )
+            if ranked_nodes:
+                focus_node_id = ranked_nodes[0][0]
+
+            log.info(
+                "node_selected_for_strategy",
+                methodology=methodology_name,
+                strategy=best_strategy_config.name,
+                node_id=focus_node_id,
+                node_count=len(ranked_nodes),
+                top3=[(nid, round(sc, 4)) for nid, sc in ranked_nodes[:3]],
+            )
+        else:
+            log.info(
+                "node_selection_skipped",
+                methodology=methodology_name,
+                strategy=best_strategy_config.name,
+                node_binding=best_strategy_config.node_binding,
+            )
+
+        # Build alternatives for observability (strategy-level, not node-level)
+        alternatives = [(s.name, score) for s, score in ranked_strategies]
 
         log.info(
-            "strategy_and_node_selected",
+            "strategy_selected",
             methodology=methodology_name,
             strategy=best_strategy_config.name,
-            node_id=best_node_id,
-            score=best_score,
+            node_id=focus_node_id,
+            score=best_strategy_score,
+            node_binding=best_strategy_config.node_binding,
             alternatives_count=len(alternatives),
             top_3_alternatives=alternatives[:3],
         )
 
         return (
             best_strategy_config.name,
-            best_node_id,
+            focus_node_id,
             alternatives,
             global_signals,
             node_signals,
