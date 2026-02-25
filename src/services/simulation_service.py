@@ -114,7 +114,7 @@ class SimulationService:
     """
 
     DEFAULT_MAX_TURNS = 10  # Default for simulations (shorter than real interviews)
-    DEFAULT_PERSONA = "health_conscious"
+    DEFAULT_PERSONA = "baseline_cooperative"
 
     def __init__(
         self,

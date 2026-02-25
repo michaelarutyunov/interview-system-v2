@@ -95,7 +95,7 @@ async def simulate_interview(
     ```json
     {
         "concept_id": "headphones_mec",
-        "persona_id": "health_conscious",
+        "persona_id": "baseline_cooperative",
         "max_turns": 10
     }
     ```

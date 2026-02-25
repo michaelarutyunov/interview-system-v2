@@ -74,7 +74,7 @@ def load_persona(persona_id: str) -> PersonaConfig:
     """Load a persona configuration from YAML.
 
     Args:
-        persona_id: Persona identifier (e.g., "health_conscious")
+        persona_id: Persona identifier (e.g., "baseline_cooperative")
 
     Returns:
         Validated PersonaConfig instance

@@ -1,0 +1,29 @@
+id: brief_responder
+name: "Brief Responder"
+description: "Gives short, minimal answers. Not hostile — just naturally terse. Forces the system to work harder to elicit detail."
+
+traits:
+  - "answers in short sentences, often one-liners"
+  - "doesn't elaborate unless specifically asked"
+  - "not unfriendly, just economical with words"
+  - "gives factual answers without emotional coloring"
+  - "responds to 'why' questions with brief reasons, not stories"
+
+speech_pattern: |
+  Short sentences. Rarely more than two sentences per turn.
+  Answers the literal question asked, nothing more.
+  Uses "yeah", "not really", "I guess so" frequently.
+  Drops subjects: "Works fine." instead of "It works fine for me."
+
+response_patterns:
+  detailed: 0.05
+  medium: 0.20
+  brief: 0.55
+  acknowledgment: 0.20
+
+deflection_patterns:
+  - "Yeah, pretty much."
+  - "Not really."
+  - "I don't know, it's fine."
+  - "It just is what it is."
+  - "Sure."

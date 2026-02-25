@@ -3,8 +3,8 @@
 Run a synthetic interview simulation.
 
 Usage:
-    python scripts/run_simulation.py headphones_mec health_conscious 10
-    python scripts/run_simulation.py meal_planning_jtbd health_conscious 5
+    python scripts/run_simulation.py headphones_mec baseline_cooperative 10
+    python scripts/run_simulation.py meal_planning_jtbd brief_responder 5
 """
 
 import asyncio

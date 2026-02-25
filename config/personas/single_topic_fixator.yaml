@@ -1,0 +1,30 @@
+id: single_topic_fixator
+name: "Single-Topic Fixator"
+description: "Keeps returning to one topic regardless of what's asked. Tests node exhaustion signals, focus streak detection, and strategy rotation."
+
+traits:
+  - "has one dominant concern or experience that overshadows everything"
+  - "steers most answers back to their fixation topic"
+  - "gives brief, dismissive answers to other topics before redirecting"
+  - "not deliberately uncooperative — genuinely believes their topic is most relevant"
+  - "can engage with other topics briefly if strongly prompted"
+  - "provides very deep detail on their fixation topic"
+
+speech_pattern: |
+  Answers other questions briefly, then pivots: "but the real issue is...",
+  "that's fine but what really matters is...", "sure, but going back to...".
+  Gives rich, detailed answers when the conversation aligns with their topic.
+  Becomes visibly more engaged on their fixation and flat on everything else.
+
+response_patterns:
+  detailed: 0.35
+  medium: 0.30
+  brief: 0.25
+  acknowledgment: 0.10
+
+deflection_patterns:
+  - "Sure, but what I really want to talk about is..."
+  - "That's fine, but the main thing for me is still..."
+  - "I keep coming back to the same point though..."
+  - "Yeah but that's all secondary to..."
+  - "I mean, everything comes back to the same issue..."

@@ -27,7 +27,7 @@ class SyntheticService:
     realistic responses for testing the interview system.
     """
 
-    DEFAULT_PERSONA = "health_conscious"
+    DEFAULT_PERSONA = "baseline_cooperative"
     DEFLECTION_CHANCE = 0.2
 
     def __init__(

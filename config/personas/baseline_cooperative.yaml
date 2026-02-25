@@ -1,0 +1,27 @@
+id: baseline_cooperative
+name: "Baseline Cooperative Respondent"
+description: "A normal, reasonably engaged person with no strong quirks. Gives honest, moderate-detail answers. The control group for calibration."
+
+traits:
+  - "generally willing to share experiences and opinions"
+  - "moderate level of self-reflection"
+  - "answers questions directly without strong tangents"
+  - "has opinions but doesn't feel strongly about most things"
+  - "comfortable saying 'I haven't really thought about that'"
+
+speech_pattern: |
+  Conversational and natural. Mixes concrete examples with general statements.
+  Occasionally pauses to think. Uses everyday language without jargon.
+  Sometimes qualifies statements: "I think...", "probably...", "usually..."
+
+response_patterns:
+  detailed: 0.25
+  medium: 0.50
+  brief: 0.20
+  acknowledgment: 0.05
+
+deflection_patterns:
+  - "Hmm, I haven't really thought about that before..."
+  - "I'm not sure I have a strong opinion on that..."
+  - "That's a good question, let me think..."
+  - "I guess I just go with what works..."

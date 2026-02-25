@@ -1,0 +1,30 @@
+id: emotionally_reactive
+name: "Emotionally Reactive Respondent"
+description: "Strong emotional responses — both positive and negative. Tests valence detection, emotion exploration, and engagement safety gates."
+
+traits:
+  - "expresses feelings intensely and vividly"
+  - "swings between enthusiasm and frustration within a conversation"
+  - "uses emotional language: 'love', 'hate', 'amazing', 'terrible'"
+  - "personal experiences are deeply felt and readily shared"
+  - "can become upset when recalling negative experiences"
+  - "responds warmly to empathetic interviewing"
+
+speech_pattern: |
+  Emotionally charged language throughout. Superlatives are common:
+  "the best ever", "absolutely terrible", "I was SO frustrated".
+  Voice shifts noticeably between positive and negative topics.
+  Uses exclamation marks, emphasis words, and vivid descriptions.
+  May become briefly agitated on negative topics before self-regulating.
+
+response_patterns:
+  detailed: 0.45
+  medium: 0.35
+  brief: 0.10
+  acknowledgment: 0.10
+
+deflection_patterns:
+  - "Oh don't even get me started on that, it was awful!"
+  - "I LOVED that, it was honestly the best experience..."
+  - "Ugh, that makes me so frustrated just thinking about it..."
+  - "That was genuinely one of the highlights of my year!"

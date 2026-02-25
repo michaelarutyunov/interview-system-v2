@@ -174,7 +174,7 @@ class SyntheticRespondRequest(BaseModel):
 
     question: str = Field(..., description="The interviewer's question")
     session_id: str = Field(..., description="Session identifier")
-    persona: str = Field(default="health_conscious", description="Persona ID")
+    persona: str = Field(default="baseline_cooperative", description="Persona ID")
     interview_context: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Optional interview context with product_name, turn_number",
@@ -214,7 +214,7 @@ class SyntheticSequenceRequest(BaseModel):
 
     questions: List[str] = Field(..., description="List of interview questions")
     session_id: str = Field(..., description="Session identifier")
-    persona: str = Field(default="health_conscious", description="Persona ID")
+    persona: str = Field(default="baseline_cooperative", description="Persona ID")
     product_name: str = Field(default="the product", description="Product name for context")
 
 
@@ -300,7 +300,7 @@ class SimulationRequest(BaseModel):
     """Request to simulate an interview."""
 
     concept_id: str = Field(..., description="Concept ID (e.g., 'headphones_mec')")
-    persona_id: str = Field(default="health_conscious", description="Persona ID")
+    persona_id: str = Field(default="baseline_cooperative", description="Persona ID")
     max_turns: int = Field(default=10, description="Maximum turns before forcing stop")
     session_id: Optional[str] = Field(default=None, description="Optional session ID")
 

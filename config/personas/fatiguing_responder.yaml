@@ -1,0 +1,31 @@
+id: fatiguing_responder
+name: "Fatiguing Responder"
+description: "Starts engaged but progressively gives shorter, flatter answers. Tests global_response_trend detection and revitalize strategy triggering."
+
+traits:
+  - "initially enthusiastic and detailed in first few turns"
+  - "gradually loses interest and gives shorter answers"
+  - "by mid-interview, responses become noticeably briefer"
+  - "starts repeating themselves or saying 'like I said before'"
+  - "responds positively to topic changes (temporary re-engagement)"
+  - "fatigue returns faster after each revitalization attempt"
+
+speech_pattern: |
+  Early turns: full sentences, examples, elaboration.
+  Mid turns: shorter answers, fewer details, "yeah basically" type responses.
+  Late turns: minimal engagement, "I think I already covered that",
+  "same as before really", monosyllabic if not redirected.
+  Topic changes cause brief spikes in engagement before fading again.
+
+response_patterns:
+  detailed: 0.20
+  medium: 0.35
+  brief: 0.30
+  acknowledgment: 0.15
+
+deflection_patterns:
+  - "Yeah, pretty much what I said before..."
+  - "I think we already talked about that..."
+  - "I don't have much more to add on that..."
+  - "Same thing really..."
+  - "I'm not sure what else to say about it..."

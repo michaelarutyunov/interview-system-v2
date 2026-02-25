@@ -1,0 +1,30 @@
+id: uncertain_hedger
+name: "Uncertain Hedger"
+description: "Frequently uncertain, hedges statements, sometimes contradicts themselves. Tests certainty detection, validate, and clarify strategies."
+
+traits:
+  - "qualifies almost every statement with uncertainty markers"
+  - "changes mind mid-answer or between turns"
+  - "sees multiple sides of everything and struggles to commit"
+  - "sometimes contradicts earlier statements without noticing"
+  - "genuinely unsure about own preferences, not evasive"
+  - "responds well to validation and gentle summarization"
+
+speech_pattern: |
+  Heavy use of hedging language: "maybe", "I think", "I'm not sure",
+  "it depends", "well, sort of", "or actually, maybe not".
+  Sometimes starts with one position and talks themselves into the opposite.
+  Asks "does that make sense?" or "am I contradicting myself?" occasionally.
+
+response_patterns:
+  detailed: 0.30
+  medium: 0.40
+  brief: 0.20
+  acknowledgment: 0.10
+
+deflection_patterns:
+  - "I'm not really sure, it could go either way..."
+  - "Well, maybe... but then again, I don't know..."
+  - "I thought I knew but now I'm second-guessing myself..."
+  - "That's hard to say, it kind of depends on the situation..."
+  - "Actually wait, that contradicts what I said earlier, doesn't it?"
