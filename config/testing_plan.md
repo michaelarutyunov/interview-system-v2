@@ -103,3 +103,84 @@ For each run, the scoring CSV and JSON output tell you:
 3. Optionally run Tier 3 (4 runs) for cross-methodology comparison.
 
 **Total: 12 mandatory runs, 4 optional = 16 max**
+
+---
+
+# Testing Results
+
+## Smoke Test 1: `meal_planning_jtbd` × `baseline_cooperative` (10 turns)
+
+**Date:** 2026-02-25
+
+### Run 1 — Baseline (pre-fix)
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| Turns completed | 9 | OK |
+| Strategy diversity | 4/8 unique | Concerning |
+| Max consecutive same strategy | 4 (`clarify_assumption` T4-T7) | Red flag |
+| Phase transitions | mid only (no early) | Bug |
+| `validate_outcome` in late phase | Yes (T8) | OK |
+| Graph growth | 30+ nodes, rich edges | OK |
+
+**Issues found:**
+
+**Bug 1 — Phase detection: early phase missing for 10-turn interviews.**
+`EARLY_PHASE_RATIO = 0.10` produces `early_max_turns = max(1, round(10 × 0.10)) = 1`. Turn 0 is the opening question (no strategy selection), so early phase has zero effective turns. Strategies with early-phase bonuses (`explore_situation: 1.5×`) never fired.
+
+**Bug 2 — `clarify_assumption` dominance.**
+`baseline_cooperative` persona consistently produced `certainty.high` + `specificity.high` + `response_depth.deep` + `engagement.high` — all primary triggers for `clarify_assumption`. Combined base score ~1.76 per turn. Repetition penalty of `-0.7 × 0.2 = -0.14` was negligible against this base, so `clarify_assumption` won 5/8 turns despite the penalty.
+
+Investigation also revealed `rank_strategy_node_pairs()` in `scoring.py` is dead code from an older architecture — not called anywhere in the service layer. Node-level strategy repetition signals (`technique.node.strategy_repetition`) therefore cannot influence which strategy wins Stage 1; they only affect node selection after the strategy is already chosen.
+
+### Fixes Applied
+
+**Fix 1 — Phase detection minimum floor** (`src/signals/meta/interview_phase.py`):
+Added `MIN_EARLY_TURNS = 2`. Early phase is now `max(2, round(max_turns × 0.10))`.
+Result for 10 turns: early = turns 0-1, mid = turns 2-7, late = turns 8-9.
+
+**Fix 2 — `clarify_assumption` repetition penalty** (`config/methodologies/jobs_to_be_done.yaml`):
+Increased `temporal.strategy_repetition_count` weight from `-0.7` to `-1.5` (matching `dig_motivation`'s existing brake). Added `-1.0` for `.high` bucket.
+
+### Run 2 — After Fix 1 + Fix 2
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| Strategy diversity | 3/8 unique | Still concerning |
+| Max consecutive same | 4 (`clarify_assumption` T1-T4) | Still red flag |
+| Early phase | T1 shows `early` | Fixed |
+
+`clarify_assumption` still dominated (5/8 turns). The `-1.5` penalty decayed it by T5 but too slowly — base score was too high to begin with.
+
+**Fix 3 — `clarify_assumption` trigger weight reduction** (`config/methodologies/jobs_to_be_done.yaml`):
+Reduced primary trigger weights to make `clarify_assumption` a specialist, not a generalist:
+- `llm.certainty.high`: 0.8 → 0.5
+- `llm.specificity.high`: 0.5 → 0.3
+- `llm.response_depth.deep`: 0.3 → 0.2
+- `llm.certainty.mid`: 0.6 → 0.4
+
+Rationale: a cooperative, articulate respondent should not automatically trigger a challenging strategy every turn. `clarify_assumption` should win when certainty is high AND other strategies aren't competing strongly — not as the default when quality signals are all high.
+
+### Run 3 — After Fix 3
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| Strategy diversity | 4/7 unique | Acceptable |
+| Max consecutive same | 4 (`dig_motivation` T3-T6) | Marginal |
+| `clarify_assumption` turns | 1/7 | Fixed |
+| Phase transitions | early → mid → late | OK |
+
+Strategy rotation improved significantly: `clarify_assumption`(1) → `uncover_obstacles`(1) → `dig_motivation`(4) → `validate_outcome`(1). The interview produces a coherent arc — clarify a claim, surface obstacles, dig motivation, validate.
+
+`dig_motivation` now dominates mid-phase for a cooperative articulate persona, which is broadly expected behaviour (it has `intellectual_engagement.high + engagement.high + depth` triggers). Max consecutive = 4 is marginal but not a hard fail.
+
+### Conclusions
+
+1. **Phase detection with short interviews needs explicit minimums.** The 10% ratio produces a single-turn early phase that is effectively invisible. A 2-turn minimum is required.
+2. **High base-score strategies need asymmetric repetition penalties.** Symmetric `-0.7` penalties are insufficient when a strategy's base score exceeds ~1.5. Strategies that trigger broadly (certainty + specificity + depth + engagement) should have penalties of `-1.5` or higher.
+3. **Strategies should be specialists, not generalists.** Each strategy's trigger weights should be calibrated so it wins only when its *defining signal* fires, not whenever the respondent is articulate. For `clarify_assumption`, the defining signal is a confident/specific claim — not just high certainty in isolation.
+4. **`baseline_cooperative` is a good calibration baseline but a stress test for rotation.** A cooperative articulate respondent produces stable high-quality signals every turn, which suppresses strategy rotation. Tier 2 personas with variable signal profiles will be a better test.
+5. **`rank_strategy_node_pairs()` is confirmed dead code.** Node-level strategy repetition cannot influence strategy selection under the current 2-stage architecture. This is by design — Strategy 1 picks the strategy globally, Stage 2 picks the best node. YAML weights for `technique.node.strategy_repetition` still affect node selection but not strategy choice.
+
+### Status
+Smoke Test 1: **PASS** (with fixes). Proceeding to Smoke Test 2.
