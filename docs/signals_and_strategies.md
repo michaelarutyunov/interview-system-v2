@@ -120,7 +120,7 @@ async def execute(self, context: PipelineContext) -> PipelineContext:
     context.focus_node_id = result.focus_node_id  # None if node_binding="none"
     context.signals = result.global_signals
     context.strategy_alternatives = result.alternatives  # List of (strategy_name, score)
-    context.score_decomposition = result.score_decomposition  # Node-level only
+    context.score_decomposition = result.score_decomposition  # Stage 1 (node_id="") + Stage 2 (node_id="<uuid>")
 ```
 
 ### Signal Detection Flow

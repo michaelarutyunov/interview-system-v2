@@ -42,7 +42,7 @@ def _cull_old_logs(logs_dir: Path, keep: int) -> None:
             pass  # Ignore permission errors, etc.
 
 
-def configure_logging(log_sessions_to_keep: int = 2) -> None:
+def configure_logging(log_sessions_to_keep: int = 5) -> None:
     """Configure structlog for the application.
 
     Call this once at application startup, before any logging.
@@ -51,7 +51,7 @@ def configure_logging(log_sessions_to_keep: int = 2) -> None:
     culls old logs, keeping only the most recent N sessions.
 
     Args:
-        log_sessions_to_keep: Number of recent session logs to retain (default: 2)
+        log_sessions_to_keep: Number of recent session logs to retain (default: 5)
 
     Outputs:
         - Console (colored in dev, plain in production)

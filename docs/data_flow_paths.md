@@ -1184,23 +1184,30 @@ class FocusEntry(BaseModel):
 
 ## Path 18: Score Decomposition for Simulation Observability
 
-**Why Critical**: The two-stage architecture produces `ScoredCandidate` decomposition from node selection (Stage 2) for observability. This captures the per-signal breakdown at compute time and serializes it into the simulation JSON for accurate CSV output.
+**Why Critical**: The two-stage architecture produces `ScoredCandidate` decomposition from both Stage 1 (strategy selection) and Stage 2 (node selection) for full observability. This captures the per-signal breakdown at compute time and serializes it into the simulation JSON for accurate CSV output.
 
-**Important**: Score decomposition now contains **only node-level scores** from Stage 2 (`rank_nodes_for_strategy()`), not the strategy-level scores from Stage 1 (`rank_strategies()`). Strategy scores are available in `alternatives` but without per-signal breakdown.
+**Important**: Score decomposition now contains **both Stage 1 and Stage 2 scores**:
+- **Stage 1 entries**: `node_id=""` (strategy-level scoring with phase multipliers)
+- **Stage 2 entries**: `node_id="<uuid>"` (node-level scoring)
+
+Each entry includes `signal_contributions` (per-signal name/value/weight/contribution), `base_score`, `phase_multiplier`, `phase_bonus`, `final_score`, `rank`, and `selected` flags.
 
 ```mermaid
 graph LR
-    A[rank_nodes_for_strategy] -->|score_strategy_with_decomposition| B[ScoredCandidate per node]
-    B -->|rank + selected flag| C[List[ScoredCandidate]]
+    A[rank_strategies Stage 1] -->|return_decomposition=True| B[ScoredCandidate per strategy]
+    C[rank_nodes_for_strategy Stage 2] -->|returns decomposition| D[ScoredCandidate per node]
 
-    C -->|6th return element| D[select_strategy_and_focus]
-    D -->|score_decomposition| E[StrategySelectionOutput]
-    E -->|context.score_decomposition| F[PipelineContext]
+    B -->|stage1_decomposition| E[Combined decomposition]
+    D -->|stage2_decomposition| E
 
-    F -->|TurnResult.score_decomposition| G[TurnResult]
-    G -->|_serialize_decomposition| H[List[Dict]]
-    H -->|SimulationTurn.score_decomposition| I[SimulationTurn]
-    I -->|_save_simulation_result| J[JSON turn.score_decomposition]
+    E -->|6th return element| F[select_strategy_and_focus]
+    F -->|score_decomposition| G[StrategySelectionOutput]
+    G -->|context.score_decomposition| H[PipelineContext]
+
+    H -->|TurnResult.score_decomposition| I[TurnResult]
+    I -->|_serialize_decomposition| J[List[Dict]]
+    J -->|SimulationTurn.score_decomposition| K[SimulationTurn]
+    K -->|_save_simulation_result| L[JSON turn.score_decomposition]
 
     J -->|generate_scoring_csv.py| K[Scoring CSV]
 ```
@@ -1230,30 +1237,44 @@ class SignalContribution:
 
 ### Key Points
 
-- **Capture time**: Decomposition is captured inside `rank_nodes_for_strategy()` using node-scoped signals only
-- **Node-only signals**: `partition_signal_weights()` extracts graph.node.*, technique.node.*, meta.node.* weights
-- **No phase weights in Stage 2**: Phase weights are applied only during Stage 1 strategy selection, not Stage 2 node selection
-- **Accuracy**: CSV scores for node selection match pipeline scores exactly
+- **Capture time**: Decomposition is captured at both Stage 1 (`rank_strategies()`) and Stage 2 (`rank_nodes_for_strategy()`)
+- **Stage 1 signals**: Global signals only (graph.*, llm.*, temporal.*, meta.*) with phase multipliers/bonuses
+- **Stage 2 signals**: Node-scoped signals only (graph.node.*, technique.node.*, meta.node.*) via `partition_signal_weights()`
+- **Distinguishing stages**: Stage 1 entries have `node_id=""`; Stage 2 entries have `node_id="<uuid>"`
+- **Accuracy**: CSV scores match pipeline scores exactly (live decomposition, not post-hoc)
 - **Simulation-only**: `score_decomposition` is `Optional` in `TurnResult` and `StrategySelectionOutput`; the live API pipeline sets it to `None`
 - **Backward-compatible**: `generate_scoring_csv.py` emits a placeholder N/A row for old JSON files without `score_decomposition`
-- **Empty for node_binding="none"**: When strategy has `node_binding: none`, `score_decomposition` is an empty list `[]`
-- **Scale**: ~70 candidates per turn (7 strategies × 10 nodes) → ~700 rows per turn in CSV for a 10-turn simulation
+- **Empty for node_binding="none"**: When strategy has `node_binding: none`, `score_decomposition` contains only Stage 1 entries
+- **Scale**: ~70 candidates per turn (7 strategies + 7 strategies × ~10 nodes) → ~700 rows per turn in CSV for a 10-turn simulation
 
 ### JSON Schema (per turn)
 
 ```json
 "score_decomposition": [
   {
-    "strategy": "uncover_obstacles",
-    "node_id": "node-abc",
+    "strategy": "deepen",
+    "node_id": "",
     "signal_contributions": [
-      {"name": "llm.valence.low", "value": true, "weight": 0.9, "contribution": 0.9},
-      {"name": "llm.certainty.mid", "value": true, "weight": 0.2, "contribution": 0.2}
+      {"name": "llm.response_depth.low", "value": true, "weight": 0.8, "contribution": 0.8},
+      {"name": "llm.engagement.high", "value": true, "weight": 0.7, "contribution": 0.7}
     ],
-    "base_score": 1.1,
+    "base_score": 1.5,
     "phase_multiplier": 1.3,
+    "phase_bonus": 0.2,
+    "final_score": 2.15,
+    "rank": 1,
+    "selected": true
+  },
+  {
+    "strategy": "deepen",
+    "node_id": "abc-123-def",
+    "signal_contributions": [
+      {"name": "graph.node.exhaustion_score.low", "value": true, "weight": 1.0, "contribution": 1.0}
+    ],
+    "base_score": 1.0,
+    "phase_multiplier": 1.0,
     "phase_bonus": 0.0,
-    "final_score": 1.43,
+    "final_score": 1.0,
     "rank": 1,
     "selected": true
   }
