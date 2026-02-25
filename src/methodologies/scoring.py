@@ -215,8 +215,14 @@ def rank_strategies(
 
     scored = []
     for strategy_config in strategy_configs:
-        # Score strategy using signal weights
-        base_score = score_strategy(strategy_config, signals)
+        # Partition to exclude node-scoped signals from strategy scoring
+        global_weights, _ = partition_signal_weights(strategy_config.signal_weights)
+        global_only_strategy = StrategyConfig(
+            name=strategy_config.name,
+            description=strategy_config.description,
+            signal_weights=global_weights,
+        )
+        base_score = score_strategy(global_only_strategy, signals)
 
         # Apply phase weight multiplier if available
         if phase_weights and strategy_config.name in phase_weights:

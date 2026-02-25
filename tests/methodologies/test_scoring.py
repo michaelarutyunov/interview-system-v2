@@ -545,6 +545,42 @@ class TestPartitionSignalWeights:
         assert node_weights == {"meta.node.opportunity.fresh": 0.6}
 
 
+class TestRankStrategiesExcludesNodeSignals:
+    """Test that rank_strategies only uses global signal weights."""
+
+    def test_node_signals_excluded_from_strategy_scoring(self):
+        strategy_a = StrategyConfig(
+            name="deepen",
+            description="Deepen",
+            signal_weights={
+                "llm.response_depth.low": 0.8,
+                "graph.node.exhaustion_score.low": 5.0,  # node → must be excluded
+            },
+        )
+        strategy_b = StrategyConfig(
+            name="explore",
+            description="Explore",
+            signal_weights={
+                "llm.response_depth.low": 0.9,
+            },
+        )
+        # Include graph.node.exhaustion_score in global signals to simulate
+        # a scenario where node signal bleeds into strategy scoring
+        signals = {
+            "llm.response_depth": 0.1,  # low
+            "graph.node.exhaustion_score": 0.1,  # low — node signal in global dict
+        }
+
+        ranked = rank_strategies([strategy_a, strategy_b], signals)
+
+        # Without node exclusion: deepen=0.8+5.0=5.8, explore=0.9 → deepen wins (wrong)
+        # With node exclusion: deepen=0.8, explore=0.9 → explore wins (correct)
+        assert ranked[0][0].name == "explore"
+        assert ranked[0][1] == pytest.approx(0.9)
+        assert ranked[1][0].name == "deepen"
+        assert ranked[1][1] == pytest.approx(0.8)
+
+
 class TestRankNodesForStrategy:
     """Tests for node ranking within a selected strategy."""
 
