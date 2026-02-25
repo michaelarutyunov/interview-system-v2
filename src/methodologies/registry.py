@@ -20,6 +20,9 @@ EXTRA_SIGNAL_WEIGHT_PREFIXES = frozenset({"llm.global_response_trend"})
 # Valid values for StrategyConfig.focus_mode
 VALID_FOCUS_MODES = frozenset({"recent_node", "summary", "topic"})
 
+# Valid values for StrategyConfig.node_binding
+VALID_NODE_BINDINGS = frozenset({"required", "none"})
+
 
 def _is_valid_signal_weight_key(key: str, known_signals: set[str]) -> bool:
     """Check if a signal weight key has a valid signal prefix.
@@ -81,6 +84,7 @@ class StrategyConfig:
     signal_weights: dict[str, float]
     generates_closing_question: bool = False
     focus_mode: str = "recent_node"
+    node_binding: str = "required"
 
 
 class MethodologyRegistry:
@@ -159,6 +163,7 @@ class MethodologyRegistry:
                         "generates_closing_question", False
                     ),
                     focus_mode=s.get("focus_mode", "recent_node"),
+                    node_binding=s.get("node_binding", "required"),
                 )
                 for s in data.get("strategies", [])
             ],
@@ -198,6 +203,13 @@ class MethodologyRegistry:
                     f"strategies[{i}]: duplicate strategy name '{strategy.name}'"
                 )
             strategy_names.add(strategy.name)
+
+            if strategy.node_binding not in VALID_NODE_BINDINGS:
+                errors.append(
+                    f"strategies[{i}] '{strategy.name}': "
+                    f"invalid node_binding '{strategy.node_binding}' "
+                    f"(valid: {sorted(VALID_NODE_BINDINGS)})"
+                )
 
             if strategy.focus_mode not in VALID_FOCUS_MODES:
                 errors.append(

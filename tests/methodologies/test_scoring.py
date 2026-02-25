@@ -292,7 +292,9 @@ class TestRankStrategyNodePairs:
             "node_2": {"llm.response_depth": 1.0},  # High
         }
 
-        ranked, decomposition = rank_strategy_node_pairs(strategies, global_signals, node_signals)
+        ranked, decomposition = rank_strategy_node_pairs(
+            strategies, global_signals, node_signals
+        )
 
         assert len(ranked) == 2
         # node_2 should rank higher (response_depth=5 matches high threshold)
@@ -419,7 +421,9 @@ class TestLLMSignalThresholdsIntegration:
             (1.0, "high", True),
         ],
     )
-    def test_all_llm_signals_threshold_combinations(self, signal_value, qualifier, expected):
+    def test_all_llm_signals_threshold_combinations(
+        self, signal_value, qualifier, expected
+    ):
         """Test all LLM signals use consistent threshold binning."""
         signals = {
             "llm.response_depth": signal_value,
@@ -470,3 +474,24 @@ class TestLLMSignalThresholdsIntegration:
         signals = {"llm.certainty": 0.0}  # Normalized: low (<= 0.25)
         score = score_strategy(strategy, signals)
         assert score == pytest.approx(0.4)
+
+
+class TestStrategyConfigNodeBinding:
+    """Tests for StrategyConfig node_binding field."""
+
+    def test_default_node_binding_is_required(self):
+        config = StrategyConfig(
+            name="test",
+            description="Test",
+            signal_weights={"llm.engagement.high": 0.5},
+        )
+        assert config.node_binding == "required"
+
+    def test_node_binding_none(self):
+        config = StrategyConfig(
+            name="reflect",
+            description="Reflect",
+            signal_weights={"meta.interview_progress": 0.5},
+            node_binding="none",
+        )
+        assert config.node_binding == "none"
