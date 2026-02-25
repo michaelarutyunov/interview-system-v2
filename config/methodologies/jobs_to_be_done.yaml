@@ -228,6 +228,7 @@ signals:
   temporal:
     - temporal.strategy_repetition_count
     - temporal.turns_since_strategy_change
+    - technique.node.strategy_repetition  # Per-node strategy repetition tracking
 
   meta:
     - meta.interview.phase

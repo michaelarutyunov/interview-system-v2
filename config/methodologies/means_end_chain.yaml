@@ -150,12 +150,14 @@ signals:
   temporal:
     - temporal.strategy_repetition_count
     - temporal.turns_since_strategy_change
+    - technique.node.strategy_repetition  # Per-node strategy repetition tracking
 
   meta:
-    - meta.interview_progress
     - meta.interview.phase
     - meta.conversation.saturation
     - meta.canonical.saturation
+    # Note: meta.interview_progress is deprecated for MEC.
+    # Replaced by meta.conversation.saturation and meta.canonical.saturation.
 
 strategies:
   # Strategy 1: Deepen the chain (laddering)
@@ -222,7 +224,6 @@ strategies:
     signal_weights:
       # Global signals
       graph.max_depth: 0.7
-      meta.interview_progress: 0.5
       llm.response_depth.high: 0.6
       # Uncertainty/hedging triggers (Phase 5)
       llm.certainty.low: 0.7  # Trigger on high uncertainty

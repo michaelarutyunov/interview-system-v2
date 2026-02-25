@@ -2,10 +2,15 @@
 #
 # Explores specific memorable experiences to understand behavior
 # through analysis of the incident, context, actions, outcomes, and learnings
+#
+# CIT interviews follow a narrative arc: elicit the story, then deepen it
+# through emotion, attribution, and synthesis. The ontology is a temporal
+# chain (incident→situation→action→outcome→emotion→learning→behavior_change),
+# so strategies target interview techniques rather than node types.
 
 method:
   name: critical_incident
-  version: "2.0"
+  version: "3.0"
   goal: "Explore exceptionally positive or negative experiences that stand out"
   opening_bias: "Ask them to think of a recent time when this topic was especially memorable or significant."
   description: "Framework for understanding behavior through analysis of specific memorable experiences"
@@ -117,50 +122,50 @@ ontology:
       permitted_connections:
         - [incident, incident]
 
-extraction_guidelines:
-  - "Ask for specific stories: 'Tell me about a time when...' or 'Recall a recent experience where...'"
-  - "Focus on concrete incidents rather than general preferences"
-  - "Extract the sequence: situation → action → outcome → emotion"
-  - "Capture attributions - what the person believes caused the result"
-  - "Identify learnings that changed their understanding"
-  - "Note behavior changes that resulted from the incident"
-  - "Look for patterns across multiple incidents"
-  - "Distinguish between the factual event and the person's interpretation"
+  extraction_guidelines:
+    - "Ask for specific stories: 'Tell me about a time when...' or 'Recall a recent experience where...'"
+    - "Focus on concrete incidents rather than general preferences"
+    - "Extract the sequence: situation → action → outcome → emotion"
+    - "Capture attributions - what the person believes caused the result"
+    - "Identify learnings that changed their understanding"
+    - "Note behavior changes that resulted from the incident"
+    - "Look for patterns across multiple incidents"
+    - "Distinguish between the factual event and the person's interpretation"
 
-relationship_examples:
-  complete_incident:
-    description: "Full critical incident narrative"
-    example: "Last week I was late for work and grabbed coffee at the airport. The oat milk latte was perfect - no bitter aftertaste. I felt relieved and actually enjoyed the rush"
-    extraction: |
-      incident('airport coffee') → occurred_in → situation('late for work')
-      incident('airport coffee') → involved → action('ordered oat milk latte')
-      action('ordered oat milk latte') → resulted_in → outcome('no bitter aftertaste')
-      outcome('no bitter aftertaste') → elicited → emotion('relieved, enjoyed')
-      outcome('no bitter aftertaste') → attributed_to → attribution('oat milk neutral taste')
+  relationship_examples:
+    complete_incident:
+      description: "Full critical incident narrative"
+      example: "Last week I was late for work and grabbed coffee at the airport. The oat milk latte was perfect - no bitter aftertaste. I felt relieved and actually enjoyed the rush"
+      extraction: |
+        incident('airport coffee') → occurred_in → situation('late for work')
+        incident('airport coffee') → involved → action('ordered oat milk latte')
+        action('ordered oat milk latte') → resulted_in → outcome('no bitter aftertaste')
+        outcome('no bitter aftertaste') → elicited → emotion('relieved, enjoyed')
+        outcome('no bitter aftertaste') → attributed_to → attribution('oat milk neutral taste')
 
-  attribution_chain:
-    description: "Person explains why something happened"
-    example: "It worked because oat milk doesn't curdle like almond milk does"
-    extraction: "outcome('smooth coffee') → attributed_to → attribution('oat milk stability vs almond milk')"
+    attribution_chain:
+      description: "Person explains why something happened"
+      example: "It worked because oat milk doesn't curdle like almond milk does"
+      extraction: "outcome('smooth coffee') → attributed_to → attribution('oat milk stability vs almond milk')"
 
-  behavior_change:
-    description: "Incident leads to new behavior"
-    example: "Since that day, I've stopped buying dairy milk entirely"
-    extraction: "incident('positive oat milk experience') → influenced → behavior_change('stopped buying dairy')"
+    behavior_change:
+      description: "Incident leads to new behavior"
+      example: "Since that day, I've stopped buying dairy milk entirely"
+      extraction: "incident('positive oat milk experience') → influenced → behavior_change('stopped buying dairy')"
 
-extractability_criteria:
-  extractable_contains:
-    - "Specific stories or anecdotes ('the time when...', 'last week...')"
-    - "Sequences of events or actions"
-    - "Clear outcomes (positive or negative)"
-    - "Emotional reactions to experiences"
-    - "Explanations or causal attributions"
-    - "Changes in behavior or decisions"
-  non_extractable_contains:
-    - "General opinions without specific examples"
-    - "Hypothetical scenarios ('I would probably...')"
-    - "Second-hand stories ('my friend said...')"
-    - "Factual product descriptions without personal experience"
+  extractability_criteria:
+    extractable_contains:
+      - "Specific stories or anecdotes ('the time when...', 'last week...')"
+      - "Sequences of events or actions"
+      - "Clear outcomes (positive or negative)"
+      - "Emotional reactions to experiences"
+      - "Explanations or causal attributions"
+      - "Changes in behavior or decisions"
+    non_extractable_contains:
+      - "General opinions without specific examples"
+      - "Hypothetical scenarios ('I would probably...')"
+      - "Second-hand stories ('my friend said...')"
+      - "Factual product descriptions without personal experience"
 
   concept_naming_convention: >
     Name each concept according to its role in the critical incident:
@@ -177,8 +182,13 @@ extractability_criteria:
 signals:
   graph:
     - graph.node_count
+    - graph.edge_count
     - graph.max_depth
     - graph.orphan_count
+    # Canonical graph signals
+    - graph.canonical_concept_count
+    - graph.canonical_edge_density
+    - graph.canonical_exhaustion_score
 
   llm:
     - llm.response_depth
@@ -186,89 +196,264 @@ signals:
     - llm.certainty
     - llm.specificity
     - llm.engagement
+    - llm.intellectual_engagement
+    # Note: llm.global_response_trend is session-scoped and managed separately
 
   temporal:
     - temporal.strategy_repetition_count
     - temporal.turns_since_strategy_change
 
   meta:
-    - meta.interview_progress
     - meta.interview.phase
     - meta.conversation.saturation
     - meta.canonical.saturation
+    # Note: meta.interview_progress is deprecated for CI.
+    # Replaced by meta.conversation.saturation and meta.canonical.saturation.
 
 strategies:
-  - name: explore_incident
-    description: "Explore the incident details - what happened, when, where"
+  # Strategy 1: Elicit incident (elaboration)
+  # Get a specific story — "Tell me about a time when..."
+  # CIT-specific: narrative specificity matters more than graph depth.
+  # High llm.specificity signals a well-told story; low specificity = keep eliciting.
+  - name: elicit_incident
+    description: "Elicit a specific, concrete story — who, what, when, where. Prompt for vivid details and context."
     signal_weights:
-      llm.certainty.low: 0.5
-      graph.node.is_orphan.true: 0.7
-      temporal.strategy_repetition_count: 0.6
+      # Global signals — low specificity is the primary trigger (story not yet concrete)
+      llm.specificity.low: 0.7              # Vague narrative = needs more detail
+      llm.specificity.mid: 0.3              # Somewhat concrete = still room for more
+      llm.certainty.low: 0.4                # Uncertain respondent = help them anchor in a specific memory
+      # Engagement
+      llm.engagement.mid: 0.4               # Moderate engagement = breadth OK
+      llm.engagement.high: 0.2              # High engagement = story flowing
+      # Response quality — suppress when answers declining (don't push for new stories)
+      llm.global_response_trend.shallowing: -0.3
+      llm.global_response_trend.fatigued: -0.5
+      # Diversity — symmetric penalty
+      temporal.strategy_repetition_count: -0.7
+      temporal.strategy_repetition_count.high: 0
+      # Node-level signals — prefer fresh, unconnected nodes
+      graph.node.is_orphan.true: 0.6        # Orphan incident nodes need context
+      graph.node.focus_streak.none: 0.6     # Fresh nodes
+      graph.node.focus_streak.medium: -0.4
+      graph.node.focus_streak.high: -0.7
+      graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes
 
-  - name: explore_outcomes
-    description: "Understand what happened as a result and why it mattered"
+  # Strategy 2: Deepen narrative (laddering)
+  # Probe deeper into the incident chain: "What happened next? Then what?"
+  # CIT-specific: follows the temporal chain (situation→action→outcome).
+  # Recency score matters — we want to follow the narrative forward.
+  - name: deepen_narrative
+    description: "Probe deeper into the incident sequence — what happened next, what led to what, how events unfolded step by step."
     signal_weights:
-      llm.response_depth.low: 0.8
+      # Global signals — shallow/moderate depth = narrative has more layers to uncover
+      llm.response_depth.surface: 0.5       # Surface story = dig into sequence
+      llm.response_depth.shallow: 0.4       # Shallow narrative = probe what happened next
+      llm.response_depth.moderate: 0.2      # Moderate = still room to deepen
+      llm.response_depth.deep: 0.2          # Deep = keep the chain going if engaged
+      # Specificity as enabler — concrete details mean the narrative is anchored
+      llm.specificity.high: 0.3             # Specific story = ready to probe sequence
+      # Engagement & valence safety
+      llm.engagement.high: 0.5              # Engaged = safe to deepen
+      llm.engagement.mid: 0.3               # Moderate = still OK
+      llm.engagement.low: -0.5              # Disengaged = don't push
+      llm.valence.high: 0.3                 # Positive = safe to continue
+      # Intellectual engagement — reasoning about events = prime deepening target
+      llm.intellectual_engagement.high: 0.5
+      llm.intellectual_engagement.mid: 0.3
+      # Response quality trend — try deepening when shallowing
+      llm.global_response_trend.shallowing: 0.3
+      # Diversity — moderate penalty, deepening is natural for CIT
+      temporal.strategy_repetition_count: -0.5
+      temporal.strategy_repetition_count.high: -0.5
+      # Node-level signals — prefer recently active nodes (follow the narrative forward)
+      graph.node.recency_score: 0.4         # CIT-specific: recent nodes = active narrative thread
+      graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes
+      graph.node.focus_streak.low: 0.5      # First focus = just started
+      graph.node.focus_streak.medium: -0.3  # Mild penalty for over-focus
+      graph.node.focus_streak.high: -0.6    # Penalize 4+ turn over-focus
 
+  # Strategy 3: Explore emotions (probing)
+  # Understand the emotional response — "How did that make you feel?"
+  # CIT-specific: emotions are core to the methodology. Valence is the primary trigger:
+  # both strong positive and strong negative valence signal emotional content worth exploring.
   - name: explore_emotions
-    description: "Understand the emotional response and feelings"
+    description: "Explore the emotional response — how they felt during and after the incident, what emotions stood out."
     signal_weights:
-      llm.valence.high: 0.7
-      llm.valence.low: 0.7
-      llm.response_depth.mid: 0.5
+      # Global signals — valence extremes are the primary trigger
+      llm.valence.high: 0.7                 # Strong positive emotion = explore it
+      llm.valence.low: 0.7                  # Strong negative emotion = explore it
+      llm.valence.mid: 0.2                  # Neutral = lower priority for emotion probing
+      # Response depth — moderate depth about emotions = probe more
+      llm.response_depth.moderate: 0.3
+      llm.response_depth.shallow: 0.3       # Shallow emotional response = dig deeper
+      # Engagement — emotions need engagement to explore safely
+      llm.engagement.high: 0.4
+      llm.engagement.mid: 0.3
+      llm.engagement.low: -0.4              # Disengaged = don't push emotional topics
+      # Diversity
+      temporal.strategy_repetition_count: -0.7
+      temporal.strategy_repetition_count.high: 0
+      # Node-level signals — CIT allows revisiting from emotional angle
+      # Lower exhaustion penalties than other methods: re-probing an outcome
+      # node for its emotional dimension is valid CIT technique
+      graph.node.exhaustion_score.low: 0.3  # Slight preference for fresh nodes
+      graph.node.focus_streak.none: 0.4     # Fresh nodes
+      graph.node.focus_streak.medium: -0.2  # Mild penalty (emotion re-probe is OK)
+      graph.node.focus_streak.high: -0.5    # But not indefinitely
 
-  - name: explore_attributions
-    description: "Understand what they believe caused the outcome"
+  # Strategy 4: Probe attributions (challenging)
+  # "What do you think caused that?" / "Why do you think it happened that way?"
+  # CIT-specific: attributions reveal causal beliefs, which are the analytical core
+  # of CIT. Needs certainty + engagement to handle well.
+  - name: probe_attributions
+    description: "Challenge or explore causal beliefs — what they think caused the outcome, why they believe it happened that way."
     signal_weights:
-      llm.response_depth.mid: 0.7
+      # Primary triggers — certainty signals readiness for causal probing
+      llm.certainty.high: 0.7               # Confident about what happened = probe why
+      llm.certainty.mid: 0.5                # Hedging = surface the causal belief
+      llm.specificity.high: 0.4             # Specific claim = clear target for attribution
+      # Response depth — moderate/deep responses contain attributable claims
+      llm.response_depth.moderate: 0.3
+      llm.response_depth.deep: 0.3
+      # Engagement safety — need engagement to handle causal probing
+      llm.engagement.high: 0.4
+      llm.engagement.mid: 0.2
+      llm.engagement.low: -0.5              # Disengaged = don't challenge
+      # Intellectual engagement — reasoning about causes = prime target
+      llm.intellectual_engagement.high: 0.5
+      llm.intellectual_engagement.mid: 0.3
+      # Diversity — should be moderate frequency; too much feels like interrogation
+      temporal.strategy_repetition_count: -0.8
+      temporal.strategy_repetition_count.high: -0.5
+      # Node-level signals — prefer nodes with established context
+      graph.node.has_outgoing.true: 0.5     # Well-connected nodes have attributable outcomes
+      graph.node.exhaustion_score.low: 0.4
+      graph.node.focus_streak.low: 0.4
+      graph.node.focus_streak.medium: -0.4
+      graph.node.focus_streak.high: -0.7
 
-  - name: explore_learnings
-    description: "Identify insights and how they changed understanding"
+  # Strategy 5: Extract insights (synthesis)
+  # "What did you take away from that?" / "How did that change things?"
+  # CIT-specific: combines learnings + behavior_change into a synthesis technique.
+  # Late-phase dominant. Needs enough narrative to synthesize from.
+  - name: extract_insights
+    description: "Identify takeaways and consequences — what they learned, how the incident changed their understanding or behavior."
     signal_weights:
-      graph.max_depth: 0.8
-      llm.response_depth.high: 0.9
+      # Global signals — deep responses and graph depth signal enough material to synthesize
+      llm.response_depth.deep: 0.5          # Deep narrative = ready for synthesis
+      llm.response_depth.moderate: 0.3      # Moderate = can still extract insights
+      graph.max_depth: 0.4                  # Graph has structure = material to synthesize
+      # Certainty — confident respondent can articulate lessons learned
+      llm.certainty.high: 0.4
+      llm.certainty.mid: 0.3
+      # Engagement — synthesis needs willing participation
+      llm.engagement.high: 0.3
+      llm.engagement.mid: 0.2
+      llm.engagement.low: -0.3
+      # Diversity — lighter penalty; synthesis is natural end-of-narrative
+      temporal.strategy_repetition_count: -0.5
+      temporal.strategy_repetition_count.high: 0
+      # Node-level signals — prefer nodes with established chains
+      graph.node.has_outgoing.true: 0.6     # Well-connected = enough context for insights
+      graph.node.focus_streak.high: 0.3     # Often-discussed nodes = ripe for synthesis
+      graph.node.exhaustion_score.low: 0.2  # Slight fresh preference but OK with discussed nodes
+      # Saturation — high saturation supports synthesis
+      meta.conversation.saturation: 0.4
+      meta.canonical.saturation: 0.3
 
-  - name: explore_behavior_change
-    description: "Understand how the incident influenced future behavior"
+  # Strategy 6: Revitalize (elaboration)
+  # Shift to a new incident when the current narrative is exhausted.
+  # CIT-specific: CIT naturally supports multiple incidents per interview.
+  # "Can you think of another time when...?" is a core CIT technique.
+  - name: revitalize
+    node_binding: none
+    description: "Shift to a fresh incident or new angle when the current narrative is exhausted or respondent shows fatigue."
     signal_weights:
-      meta.interview_progress: 0.7
-      graph.max_depth: 0.6
+      # Fatigue detection triggers
+      llm.global_response_trend.fatigued: 1.0
+      llm.global_response_trend.shallowing: 0.5
+      meta.node.opportunity.exhausted: 0.4  # Current incident exhausted = try new one
+      # Engagement & valence triggers
+      llm.engagement.low: 0.8
+      llm.engagement.mid: 0.3
+      llm.engagement.high: -0.4             # Already engaged = not needed
+      llm.valence.low: 0.4                  # Negative valence after negative incident = shift
+      # Diversity
+      temporal.strategy_repetition_count: -0.7
+      temporal.strategy_repetition_count.high: 0
+      temporal.turns_since_strategy_change: -0.5
+      # Node-level signals — seek fresh territory
+      graph.node.focus_streak.none: 0.8     # Fresh nodes
+      graph.node.focus_streak.medium: -0.4
+      graph.node.focus_streak.high: -0.7
+      graph.node.exhaustion_score.low: 0.5
+
+  # Strategy 7: Validate (validation)
+  # Summarize the incident narrative and confirm understanding.
+  # CIT-specific: validate the full chain (incident→outcome→learning) as a coherent story.
+  - name: validate
+    node_binding: none
+    description: "Summarize the incident narrative — key events, emotions, attributions, and takeaways — and invite correction or addition."
+    focus_mode: summary
+    signal_weights:
+      # Global signals — depth and structure signal enough to validate
+      llm.response_depth.deep: 0.3
+      llm.response_depth.moderate: 0.2
+      graph.max_depth: 0.4
+      # Uncertainty triggers — validate when respondent is uncertain
+      llm.certainty.low: 0.8                # High uncertainty = validate understanding
+      llm.certainty.mid: 0.6                # Moderate uncertainty = also validate
+      meta.node.opportunity.probe_deeper: 0.5
+      # Engagement trigger — low engagement = validate & wrap
+      llm.engagement.low: 0.6
+      # Diversity — lighter penalty, OK to repeat validation
+      temporal.strategy_repetition_count: -0.5
+      temporal.strategy_repetition_count.high: 0
+      # Node-level signals
+      graph.node.has_outgoing.true: 0.7     # Well-connected nodes
+      graph.node.focus_streak.high: 0.4     # Often-focused = validate before moving on
+      technique.node.strategy_repetition.low: 0.3
+      # Saturation triggers
+      meta.conversation.saturation: 0.5
+      meta.canonical.saturation: 0.3
 
 phases:
   early:
-    description: "Initial incident exploration"
-    phase_boundaries:
-      early_max_turns: 4
-      mid_max_turns: 10
+    description: "Elicit the incident — get the story, set the scene"
     signal_weights:
-      explore_incident: 1.5
-      explore_outcomes: 1.2
+      elicit_incident: 1.5
+      deepen_narrative: 1.2
       explore_emotions: 0.8
+      probe_attributions: 0.3
+      extract_insights: 0.2
+      validate: 0.2
     phase_bonuses:
-      explore_incident: 0.2
+      elicit_incident: 0.2     # Ensure story elicitation even with zero base score
 
   mid:
-    description: "Deepening understanding of causes and emotions"
-    phase_boundaries:
-      early_max_turns: 4
-      mid_max_turns: 10
+    description: "Deepen the narrative — emotions, causes, and consequences"
     signal_weights:
-      explore_outcomes: 1.3
-      explore_attributions: 1.3
-      explore_emotions: 1.0
-      explore_learnings: 0.8
+      deepen_narrative: 1.2
+      explore_emotions: 1.3     # Emotions are core to CIT mid-phase
+      probe_attributions: 1.3   # Attribution probing is the analytical core
+      revitalize: 1.0
+      elicit_incident: 0.6      # Can still elicit contrasting incidents
+      extract_insights: 0.7
+      validate: 0.5
     phase_bonuses:
-      explore_attributions: 0.3
+      explore_emotions: 0.2    # Ensure emotional probing fires
+      probe_attributions: 0.2  # Ensure attribution probing fires
+      revitalize: 0.1          # Available but not dominant
 
   late:
-    description: "Extracting learnings and behavior changes"
-    phase_boundaries:
-      early_max_turns: 4
-      mid_max_turns: 10
+    description: "Synthesize — extract learnings, validate the narrative"
     signal_weights:
-      explore_learnings: 1.5
-      explore_behavior_change: 1.3
-      explore_outcomes: 0.5
+      extract_insights: 1.5
+      validate: 1.4
+      probe_attributions: 1.0   # Late attribution probing still valuable
+      explore_emotions: 0.6
+      deepen_narrative: 0.4
+      elicit_incident: 0.3
     phase_bonuses:
-      explore_learnings: 0.3
-      explore_behavior_change: 0.2
+      extract_insights: 0.3    # Ensure synthesis happens
+      validate: 0.2            # Ensure validation closes the interview

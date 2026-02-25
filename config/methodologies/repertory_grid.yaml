@@ -1,11 +1,16 @@
 # Repertory Grid Methodology Configuration
 #
 # Personal construct psychology framework for understanding
-# how people categorize and evaluate differences between concepts
+# how people categorize and evaluate differences between concepts.
+#
+# RG interviews are comparison-driven: constructs emerge from triadic
+# elicitation (comparing 3 elements). The grid is wide and shallow
+# (2-3 levels), not deep chains. Edge density and construct coverage
+# are the primary quality metrics, not graph depth.
 
 method:
   name: repertory_grid
-  version: "2.0"
+  version: "3.0"
   goal: "Understand personal constructs and how people differentiate between similar concepts"
   opening_bias: "Ask for specific examples of when they encountered this topic in daily life."
   description: "Personal construct psychology framework for understanding how people categorize and evaluate differences"
@@ -118,66 +123,84 @@ ontology:
         - [construct, ideal_element]
         - [construct_pole, ideal_element]
 
-extraction_guidelines:
-  - "Use triadic elicitation: 'In what way are two of these similar but different from the third?'"
-  - "Always capture both poles of each construct (bipolar nature is essential)"
-  - "Extract ratings or preferences when explicitly stated"
-  - "Look for laddering: 'Why does X matter?' → reveals higher-level constructs"
-  - "Identify the 'ideal' product description"
-  - "Notice which elements are grouped as similar"
-  - "Pay attention to the language used - personal constructs reveal the person's meaning system"
-  - "Constructs can be functional (creamy), emotional (comforting), or value-based (responsible)"
+  extraction_guidelines:
+    - "Use triadic elicitation: 'In what way are two of these similar but different from the third?'"
+    - "Always capture both poles of each construct (bipolar nature is essential)"
+    - "Extract ratings or preferences when explicitly stated"
+    - "Look for laddering: 'Why does X matter?' → reveals higher-level constructs"
+    - "Identify the 'ideal' product description"
+    - "Notice which elements are grouped as similar"
+    - "Pay attention to the language used - personal constructs reveal the person's meaning system"
+    - "Constructs can be functional (creamy), emotional (comforting), or value-based (responsible)"
 
-relationship_examples:
-  triadic_elicitation:
-    description: "Comparing three items to elicit constructs"
-    example: "Interviewer: 'How are oat and almond similar but different from dairy?' Response: 'Oat and almond are plant-based, but dairy comes from animals'"
-    extraction: |
-      element('oat milk') → similar_on → construct_pole('plant-based')
-      element('almond milk') → similar_on → construct_pole('plant-based')
-      element('dairy milk') → differs_on → construct_pole('plant-based')
-      construct_pole('plant-based') → opposite_of → construct_pole('animal-based')
+  relationship_examples:
+    triadic_elicitation:
+      description: "Comparing three items to elicit constructs"
+      example: "Interviewer: 'How are oat and almond similar but different from dairy?' Response: 'Oat and almond are plant-based, but dairy comes from animals'"
+      extraction: |
+        element('oat milk') → similar_on → construct_pole('plant-based')
+        element('almond milk') → similar_on → construct_pole('plant-based')
+        element('dairy milk') → differs_on → construct_pole('plant-based')
+        construct_pole('plant-based') → opposite_of → construct_pole('animal-based')
 
-  bipolar_construct:
-    description: "Both poles of a construct"
-    example: "I like things that are creamy, not watery"
-    extraction: "construct_pole('creamy') → opposite_of → construct_pole('watery')"
+    bipolar_construct:
+      description: "Both poles of a construct"
+      example: "I like things that are creamy, not watery"
+      extraction: "construct_pole('creamy') → opposite_of → construct_pole('watery')"
 
-  laddering:
-    description: "Higher-level construct revealed"
-    example: "Creaminess matters because it feels indulgent, and that's how I practice self-care"
-    extraction: |
-      construct_pole('creamy') → implies → construct_pole('indulgent')
-      construct_pole('indulgent') → implies → construct_pole('self-care')
+    laddering:
+      description: "Higher-level construct revealed"
+      example: "Creaminess matters because it feels indulgent, and that's how I practice self-care"
+      extraction: |
+        construct_pole('creamy') → implies → construct_pole('indulgent')
+        construct_pole('indulgent') → implies → construct_pole('self-care')
 
-  ideal_specification:
-    description: "Description of perfect product"
-    example: "Ideally, something that froths like dairy but has the sustainability of oat"
-    extraction: |
-      ideal_element('perfect milk') ← closer_to_ideal ← element('oat milk')
-      construct_pole('froths well') → defines → ideal_element('perfect milk')
-      construct_pole('sustainable') → defines → ideal_element('perfect milk')
+    ideal_specification:
+      description: "Description of perfect product"
+      example: "Ideally, something that froths like dairy but has the sustainability of oat"
+      extraction: |
+        ideal_element('perfect milk') ← closer_to_ideal ← element('oat milk')
+        construct_pole('froths well') → defines → ideal_element('perfect milk')
+        construct_pole('sustainable') → defines → ideal_element('perfect milk')
 
-extractability_criteria:
-  extractable_contains:
-    - "Comparisons between products ('better than...', 'not as... as...')"
-    - "Bipolar descriptions ('creamy vs watery', 'strong vs mild')"
-    - "Similarity statements ('both are...', 'they share...')"
-    - "Difference statements ('unlike...', 'different from...')"
-    - "Preferences and rankings"
-    - "Ideal or hypothetical descriptions"
-    - "'Why' explanations revealing deeper values"
-  non_extractable_contains:
-    - "Descriptions of a single item without comparison"
-    - "Factual specifications without personal meaning"
-    - "Simple agreement or acknowledgment"
-    - "Questions back to the interviewer"
+  extractability_criteria:
+    extractable_contains:
+      - "Comparisons between products ('better than...', 'not as... as...')"
+      - "Bipolar descriptions ('creamy vs watery', 'strong vs mild')"
+      - "Similarity statements ('both are...', 'they share...')"
+      - "Difference statements ('unlike...', 'different from...')"
+      - "Preferences and rankings"
+      - "Ideal or hypothetical descriptions"
+      - "'Why' explanations revealing deeper values"
+    non_extractable_contains:
+      - "Descriptions of a single item without comparison"
+      - "Factual specifications without personal meaning"
+      - "Simple agreement or acknowledgment"
+      - "Questions back to the interviewer"
+
+  concept_naming_convention: >
+    Name each concept according to its role in the repertory grid:
+    elements as specific items or products being compared,
+    construct_poles as one end of a bipolar evaluation dimension,
+    opposite_poles as the contrasting end,
+    constructs as the full bipolar dimension,
+    ratings as explicit scores or preferences,
+    similarities as shared characteristics between elements,
+    differences as distinguishing characteristics,
+    ideal_elements as hypothetical perfect products,
+    laddered_constructs as higher-level values or abstractions.
+    Use the examples in each node type description as naming models.
 
 signals:
   graph:
     - graph.node_count
-    - graph.edge_count
+    - graph.edge_count              # Primary quality metric for RG (dense grid = good)
     - graph.orphan_count
+    - graph.max_depth
+    # Canonical graph signals
+    - graph.canonical_concept_count
+    - graph.canonical_edge_density  # Especially important for RG grid density
+    - graph.canonical_exhaustion_score
 
   llm:
     - llm.response_depth
@@ -185,78 +208,264 @@ signals:
     - llm.certainty
     - llm.specificity
     - llm.engagement
+    - llm.intellectual_engagement
+    # Note: llm.global_response_trend is session-scoped and managed separately
 
   temporal:
     - temporal.strategy_repetition_count
     - temporal.turns_since_strategy_change
 
   meta:
-    - meta.interview_progress
     - meta.interview.phase
+    - meta.conversation.saturation
+    - meta.canonical.saturation
+    # Note: meta.interview_progress is deprecated for RG.
+    # Replaced by meta.conversation.saturation and meta.canonical.saturation.
 
 strategies:
+  # Strategy 1: Triadic elicitation (elicitation)
+  # Core RG technique: "In what way are two of these similar but different from the third?"
+  # RG-specific: this is the primary construct-generating mechanism.
+  # Orphan elements (not yet linked to constructs) are the main trigger.
   - name: triadic_elicitation
-    description: "Compare elements to elicit constructs using similarity/difference"
+    description: "Compare elements to surface personal constructs — ask how two are similar but different from a third."
     signal_weights:
-      llm.certainty.low: 0.6
+      # Global signals — orphan elements and low edge density are primary triggers
+      llm.specificity.low: 0.5              # Vague comparisons = needs structured elicitation
+      llm.specificity.mid: 0.3              # Moderate specificity = more constructs possible
+      llm.certainty.low: 0.4                # Uncertain = structured comparison helps
+      # Engagement
+      llm.engagement.mid: 0.4               # Moderate engagement = elicitation OK
+      llm.engagement.high: 0.3
+      # Response quality — suppress when fatigued (comparison fatigue is real in RG)
+      llm.global_response_trend.shallowing: -0.3
+      llm.global_response_trend.fatigued: -0.6
+      # Diversity — moderate penalty; triadic is core but shouldn't dominate
+      temporal.strategy_repetition_count: -0.6
+      temporal.strategy_repetition_count.high: -0.3
+      # Node-level signals — orphan elements NEED constructs
+      graph.node.is_orphan.true: 0.8        # RG-specific: orphan elements = primary trigger
+      graph.node.focus_streak.none: 0.5     # Fresh elements
+      graph.node.focus_streak.medium: -0.3
+      graph.node.focus_streak.high: -0.6
+      graph.node.exhaustion_score.low: 0.4
+      graph.node.edge_count: -0.3           # RG-specific: well-connected elements need fewer comparisons
 
+  # Strategy 2: Explore constructs (probing)
+  # Understand the meaning of an identified construct — "What do you mean by 'creamy'?"
+  # RG-specific: constructs are subjective; the same word means different things to
+  # different people. Probing meaning is essential for valid grid interpretation.
   - name: explore_constructs
-    description: "Explore the meaning and importance of identified constructs"
+    description: "Explore the meaning and importance of identified constructs — what they mean to the respondent personally."
     signal_weights:
-      llm.response_depth.mid: 0.8
+      # Global signals — moderate depth = construct mentioned but not explained
+      llm.response_depth.shallow: 0.4       # Shallow mention of construct = probe meaning
+      llm.response_depth.moderate: 0.5      # Moderate = still room to clarify
+      llm.specificity.low: 0.6              # Vague construct = needs clarification
+      llm.specificity.mid: 0.3
+      # Engagement
+      llm.engagement.mid: 0.3
+      llm.engagement.high: 0.3
+      llm.engagement.low: -0.3
+      # Diversity
+      temporal.strategy_repetition_count: -0.6
+      temporal.strategy_repetition_count.high: 0
+      temporal.turns_since_strategy_change: -0.3
+      # Node-level signals — prefer constructs with few connections
+      graph.node.is_orphan.true: 0.5        # Unconnected construct = needs exploration
+      graph.node.exhaustion_score.low: 0.5
+      graph.node.focus_streak.none: 0.4
+      graph.node.focus_streak.medium: -0.3
+      graph.node.focus_streak.high: -0.6
 
+  # Strategy 3: Ladder constructs (laddering)
+  # "Why does creaminess matter to you?" → reveals higher-level values.
+  # RG-specific: laddering depth is typically 2-3 levels (construct → value),
+  # much shallower than MEC chains. Certainty is the key trigger:
+  # confident construct evaluation = ready to probe "why".
   - name: ladder_constructs
-    description: "Use 'why does that matter' to reveal higher-level constructs"
+    description: "Use 'why does that matter?' to reveal higher-level constructs and personal values underlying surface evaluations."
     signal_weights:
-      graph.max_depth: 0.9
-      llm.response_depth.high: 0.9
+      # Global signals — certainty is the primary trigger for laddering in RG
+      llm.certainty.high: 0.6               # Confident evaluation = ready for "why?"
+      llm.certainty.mid: 0.4                # Moderate certainty = can still probe
+      llm.response_depth.moderate: 0.3      # Moderate depth = room to go deeper
+      llm.response_depth.deep: 0.4          # Deep response about construct = ladder further
+      # Intellectual engagement — reasoning about preferences = prime laddering
+      llm.intellectual_engagement.high: 0.5
+      llm.intellectual_engagement.mid: 0.3
+      # Engagement & valence safety
+      llm.engagement.high: 0.4
+      llm.engagement.mid: 0.2
+      llm.engagement.low: -0.5              # Disengaged = don't push
+      llm.valence.high: 0.3                 # Positive = safe to probe values
+      # Response quality trend
+      llm.global_response_trend.shallowing: 0.3  # Shallowing = try deepening
+      # Diversity — moderate penalty; laddering is important but shouldn't loop
+      temporal.strategy_repetition_count: -0.7
+      temporal.strategy_repetition_count.high: -0.4
+      # Node-level signals — prefer constructs with established context
+      graph.node.has_outgoing.true: 0.4     # Connected construct = ready to ladder
+      graph.node.exhaustion_score.low: 0.4
+      graph.node.focus_streak.low: 0.5      # First focus on a construct
+      graph.node.focus_streak.medium: -0.4
+      graph.node.focus_streak.high: -0.7
 
+  # Strategy 4: Rate elements (probing)
+  # "How would you rate oat milk on that creamy-watery scale?"
+  # RG-specific: the actual "grid" part — getting explicit ratings or preferences
+  # for elements on identified constructs. Core technique that was missing.
+  # Needs existing constructs to rate against (graph.node.has_outgoing).
+  - name: rate_elements
+    description: "Get explicit ratings, preferences, or rankings of elements on identified constructs — build the actual grid."
+    signal_weights:
+      # Global signals — specificity is the key: specific constructs enable rating
+      llm.specificity.high: 0.5             # Specific construct = ready to rate elements on it
+      llm.specificity.mid: 0.3
+      llm.certainty.high: 0.4               # Confident = can give clear ratings
+      llm.certainty.mid: 0.3
+      # Response depth — moderate responses about preferences = probe for ratings
+      llm.response_depth.moderate: 0.3
+      llm.response_depth.shallow: 0.2
+      # Engagement
+      llm.engagement.mid: 0.4               # Rating is structured, works at moderate engagement
+      llm.engagement.high: 0.3
+      llm.engagement.low: -0.3
+      # Diversity — lighter penalty; rating is structured and respondents don't mind it
+      temporal.strategy_repetition_count: -0.5
+      temporal.strategy_repetition_count.high: 0
+      # Node-level signals — prefer elements with construct connections to rate against
+      graph.node.has_outgoing.true: 0.6     # RG-specific: element linked to constructs = rate it
+      graph.node.edge_count: 0.2            # RG-specific: more connections = richer rating context
+      graph.node.exhaustion_score.low: 0.4
+      graph.node.focus_streak.none: 0.4
+      graph.node.focus_streak.medium: -0.3
+      graph.node.focus_streak.high: -0.6
+
+  # Strategy 5: Explore ideal (synthesis)
+  # "What would the perfect product look like on these dimensions?"
+  # RG-specific: the ideal element ties the grid together — which construct poles
+  # define the ideal? Late-phase, needs enough constructs to synthesize from.
   - name: explore_ideal
-    description: "Understand the ideal product specification and what defines it"
+    description: "Understand the ideal product specification — which construct poles define perfection, and which elements come closest."
     signal_weights:
-      meta.interview_progress: 0.7
+      # Global signals — depth and engagement signal enough material
+      llm.response_depth.deep: 0.4
+      llm.response_depth.moderate: 0.3
+      graph.max_depth: 0.3                  # Some ladder depth = values available
+      # Certainty — confident respondent can articulate ideals
+      llm.certainty.high: 0.4
+      llm.certainty.mid: 0.3
+      # Engagement
+      llm.engagement.high: 0.3
+      llm.engagement.mid: 0.2
+      llm.engagement.low: -0.3
+      # Diversity — lighter penalty; ideal exploration is naturally rare
+      temporal.strategy_repetition_count: -0.5
+      temporal.strategy_repetition_count.high: 0
+      # Node-level signals — prefer well-explored constructs
+      graph.node.has_outgoing.true: 0.5
+      graph.node.focus_streak.high: 0.3     # Often-discussed = ripe for ideal synthesis
+      graph.node.exhaustion_score.low: 0.2
+      # Saturation — high saturation supports ideal exploration
+      meta.conversation.saturation: 0.4
+      meta.canonical.saturation: 0.3
 
-  - name: explore_similarities
-    description: "Identify shared characteristics between elements"
+  # Strategy 6: Revitalize (elaboration)
+  # Shift to fresh element comparisons when respondent shows fatigue.
+  # RG-specific: comparison fatigue is common in RG. Shifting to a new
+  # set of elements or a different comparison angle re-energizes.
+  - name: revitalize
+    node_binding: none
+    description: "Shift to fresh element comparisons or new angles when respondent shows comparison fatigue."
     signal_weights:
-      graph.node.is_orphan.true: 0.6
-      llm.certainty.low: 0.4
+      # Fatigue detection triggers
+      llm.global_response_trend.fatigued: 1.0
+      llm.global_response_trend.shallowing: 0.5
+      meta.node.opportunity.exhausted: 0.4
+      # Engagement & valence triggers
+      llm.engagement.low: 0.8
+      llm.engagement.mid: 0.3
+      llm.engagement.high: -0.4             # Already engaged = not needed
+      llm.valence.low: 0.4                  # Bored/frustrated = shift
+      # Diversity
+      temporal.strategy_repetition_count: -0.7
+      temporal.strategy_repetition_count.high: 0
+      temporal.turns_since_strategy_change: -0.5
+      # Node-level signals — seek fresh territory
+      graph.node.focus_streak.none: 0.8
+      graph.node.focus_streak.medium: -0.4
+      graph.node.focus_streak.high: -0.7
+      graph.node.exhaustion_score.low: 0.5
+
+  # Strategy 7: Validate (validation)
+  # Summarize the construct grid and confirm understanding.
+  # RG-specific: validate the grid — "So you see creaminess and sustainability
+  # as the most important dimensions, with oat milk closest to your ideal?"
+  - name: validate
+    node_binding: none
+    focus_mode: summary
+    description: "Summarize the construct grid — key dimensions, element ratings, and ideal — and invite correction or addition."
+    signal_weights:
+      # Global signals
+      llm.response_depth.deep: 0.3
+      llm.response_depth.moderate: 0.2
+      graph.max_depth: 0.3
+      # Uncertainty triggers
+      llm.certainty.low: 0.8
+      llm.certainty.mid: 0.6
+      meta.node.opportunity.probe_deeper: 0.5
+      # Engagement trigger
+      llm.engagement.low: 0.6
+      # Diversity
+      temporal.strategy_repetition_count: -0.5
+      temporal.strategy_repetition_count.high: 0
+      # Node-level signals
+      graph.node.has_outgoing.true: 0.7
+      graph.node.focus_streak.high: 0.4
+      technique.node.strategy_repetition.low: 0.3
+      # Saturation triggers
+      meta.conversation.saturation: 0.5
+      meta.canonical.saturation: 0.3
 
 phases:
   early:
     description: "Elicit constructs through triadic comparison"
-    phase_boundaries:
-      early_max_turns: 4
-      mid_max_turns: 10
     signal_weights:
       triadic_elicitation: 1.5
-      explore_constructs: 1.0
-      explore_similarities: 0.8
+      explore_constructs: 1.2
+      rate_elements: 0.8          # Can start rating early once constructs emerge
+      ladder_constructs: 0.3
+      explore_ideal: 0.2
+      validate: 0.2
     phase_bonuses:
-      triadic_elicitation: 0.3
+      triadic_elicitation: 0.25   # Ensure triadic comparison fires early
+      explore_constructs: 0.1     # Slight bonus to explore new constructs
 
   mid:
-    description: "Deepen understanding of constructs and laddering"
-    phase_boundaries:
-      early_max_turns: 4
-      mid_max_turns: 10
+    description: "Deepen constructs, ladder to values, build the grid"
     signal_weights:
-      explore_constructs: 1.3
-      ladder_constructs: 1.4
-      triadic_elicitation: 0.5
+      explore_constructs: 1.2
+      ladder_constructs: 1.3      # Mid-phase laddering to values
+      rate_elements: 1.2          # Build the grid in mid-phase
+      triadic_elicitation: 0.7    # Can still elicit new constructs
+      revitalize: 1.0
+      explore_ideal: 0.6
+      validate: 0.5
     phase_bonuses:
-      ladder_constructs: 0.3
-      explore_constructs: 0.2
+      ladder_constructs: 0.2      # Ensure laddering fires
+      rate_elements: 0.15         # Ensure grid-building happens
+      explore_constructs: 0.1
 
   late:
-    description: "Identify ideals and validate understanding"
-    phase_boundaries:
-      early_max_turns: 4
-      mid_max_turns: 10
+    description: "Explore ideal, validate the grid"
     signal_weights:
       explore_ideal: 1.4
-      ladder_constructs: 1.0
-      explore_constructs: 0.6
+      validate: 1.4
+      ladder_constructs: 0.8      # Still valuable in late phase
+      rate_elements: 0.6          # Fill remaining grid gaps
+      explore_constructs: 0.4
+      triadic_elicitation: 0.3
     phase_bonuses:
-      explore_ideal: 0.3
-      ladder_constructs: 0.2
+      explore_ideal: 0.25
+      validate: 0.2
