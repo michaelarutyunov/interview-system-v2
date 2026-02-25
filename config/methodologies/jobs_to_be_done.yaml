@@ -396,9 +396,9 @@ strategies:
       llm.engagement.high: 0.3       # Engaged = will respond constructively
       llm.engagement.mid: 0.2        # Moderate engagement = still OK to gently challenge (NEW)
       llm.engagement.low: -0.5       # Disengaged = don't challenge
-      # Diversity — should be rare; symmetric penalty to prevent lock
-      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.6)
-      temporal.strategy_repetition_count.high: -0.4  # Severe penalty at 4-5 reps to break dominance
+      # Diversity — asymmetric penalty; high base score needs strong repetition brake
+      temporal.strategy_repetition_count: -1.5  # Override shared penalty — matches dig_motivation's brake
+      temporal.strategy_repetition_count.high: -1.0  # Severe penalty at 4-5 reps to break dominance
       # Node-level — prefer nodes the respondent has spoken confidently about
       graph.node.exhaustion_score.low: 0.5   # Fresh node = still something to challenge
       graph.node.focus_streak.low: 0.4       # First focus = just started engagement

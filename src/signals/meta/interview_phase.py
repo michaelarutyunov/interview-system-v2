@@ -5,7 +5,7 @@ Phase detection enables methodology-specific signal weights and bonuses
 to adjust questioning strategy as the interview progresses.
 
 Phases (automatically calculated from max_turns):
-- early: Initial exploration (~10% of max_turns, minimum 1 turn)
+- early: Initial exploration (~10% of max_turns, minimum 2 turns)
 - mid: Building depth and connections (early <= turn < max_turns-2)
 - late: Validation and verification (last 2 turns reserved)
 """
@@ -21,7 +21,7 @@ class InterviewPhaseSignal(SignalDetector):
     strategy as the interview progresses.
 
     Phase boundaries are automatically calculated from max_turns:
-    - early: ~10% of max_turns (minimum 1 turn)
+    - early: ~10% of max_turns (minimum 2 turns)
     - mid: max_turns - 2 (reserving last 2 turns for late)
     - late: final 2 turns for validation
 
@@ -39,7 +39,8 @@ class InterviewPhaseSignal(SignalDetector):
 
     # Proportional phase allocation constants
     EARLY_PHASE_RATIO = 0.10  # 10% of max_turns for early phase
-    LATE_PHASE_TURNS = 2  # Reserve last 2 turns for late phase
+    MIN_EARLY_TURNS = 2  # Minimum turns for early phase (so it actually exists)
+    MIN_LATE_TURNS = 2  # Minimum turns reserved for late phase
     DEFAULT_MAX_TURNS = 20  # Fallback if max_turns not accessible
 
     @staticmethod
@@ -47,9 +48,12 @@ class InterviewPhaseSignal(SignalDetector):
         """Calculate phase boundaries proportionally from max_turns.
 
         Phase allocation:
-        - early: ~10% of max_turns (minimum 1 turn)
-        - late: last 2 turns reserved for validation
+        - early: ~10% of max_turns (minimum MIN_EARLY_TURNS)
+        - late: last MIN_LATE_TURNS turns reserved for validation
         - mid: everything in between
+
+        For short interviews (e.g., 10 turns), floors ensure each phase
+        gets meaningful representation rather than being skipped entirely.
 
         Args:
             max_turns: Total maximum turns for the interview
@@ -58,9 +62,13 @@ class InterviewPhaseSignal(SignalDetector):
             Dict with 'early_max_turns' and 'mid_max_turns' keys
         """
         early_max_turns = max(
-            1, round(max_turns * InterviewPhaseSignal.EARLY_PHASE_RATIO)
+            InterviewPhaseSignal.MIN_EARLY_TURNS,
+            round(max_turns * InterviewPhaseSignal.EARLY_PHASE_RATIO),
         )
-        mid_max_turns = max_turns - InterviewPhaseSignal.LATE_PHASE_TURNS
+        mid_max_turns = max_turns - InterviewPhaseSignal.MIN_LATE_TURNS
+        # Ensure mid phase exists (early doesn't eat into late)
+        if early_max_turns >= mid_max_turns:
+            early_max_turns = max(1, mid_max_turns - 1)
         return {"early_max_turns": early_max_turns, "mid_max_turns": mid_max_turns}
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
