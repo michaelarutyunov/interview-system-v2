@@ -5,17 +5,18 @@ type safety and runtime validation for the turn processing pipeline.
 """
 
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional, Union, TYPE_CHECKING
+from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-
-if TYPE_CHECKING:
-    from src.methodologies.scoring import ScoredCandidate
 
 from src.domain.models.knowledge_graph import GraphState, KGNode, SaturationMetrics
 from src.domain.models.utterance import Utterance
 from src.domain.models.extraction import ExtractionResult
 from src.domain.models.canonical_graph import CanonicalGraphState
 from src.domain.models.session import FocusEntry
+
+# Import ScoredCandidate at runtime for Pydantic v2 validation
+# (TYPE_CHECKING alone is insufficient for Pydantic's runtime type checking)
+from src.methodologies.scoring import ScoredCandidate
 
 
 class ContextLoadingOutput(BaseModel):
@@ -239,7 +240,7 @@ class StrategySelectionOutput(BaseModel):
         description="Focus selection mode: 'recent_node' (default), 'summary', or 'topic'",
     )
     # Per-candidate score decomposition from scoring (simulation-only)
-    score_decomposition: Optional[List["ScoredCandidate"]] = Field(
+    score_decomposition: Optional[List[ScoredCandidate]] = Field(
         default=None,
         description=(
             "Per-candidate score decomposition from rank_strategies() and "
