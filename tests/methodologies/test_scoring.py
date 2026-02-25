@@ -8,6 +8,7 @@ from src.methodologies.scoring import (
     rank_strategies,
     rank_strategy_node_pairs,
     partition_signal_weights,
+    rank_nodes_for_strategy,
 )
 from src.methodologies.registry import StrategyConfig
 
@@ -510,7 +511,10 @@ class TestPartitionSignalWeights:
             "technique.node.strategy_repetition.low": 0.3,
         }
         strategy_weights, node_weights = partition_signal_weights(weights)
-        assert strategy_weights == {"llm.response_depth.low": 0.8, "llm.engagement.high": 0.7}
+        assert strategy_weights == {
+            "llm.response_depth.low": 0.8,
+            "llm.engagement.high": 0.7,
+        }
         assert node_weights == {
             "graph.node.exhaustion_score.low": 1.0,
             "graph.node.focus_streak.high": -0.8,
@@ -539,3 +543,75 @@ class TestPartitionSignalWeights:
         strategy_weights, node_weights = partition_signal_weights(weights)
         assert strategy_weights == {}
         assert node_weights == {"meta.node.opportunity.fresh": 0.6}
+
+
+class TestRankNodesForStrategy:
+    """Tests for node ranking within a selected strategy."""
+
+    def test_ranks_nodes_by_node_signal_score(self):
+        strategy = StrategyConfig(
+            name="deepen",
+            description="Deepen",
+            signal_weights={
+                "llm.response_depth.low": 0.8,
+                "graph.node.exhaustion_score.low": 1.0,
+                "graph.node.focus_streak.high": -0.8,
+            },
+        )
+        node_signals = {
+            "node_a": {
+                "graph.node.exhaustion_score": 0.1,
+                "graph.node.focus_streak": 0.9,
+            },
+            "node_b": {
+                "graph.node.exhaustion_score": 0.1,
+                "graph.node.focus_streak": 0.1,
+            },
+        }
+        ranked, candidates = rank_nodes_for_strategy(strategy, node_signals)
+        assert len(ranked) == 2
+        # node_b wins: exh.low=True(+1.0), streak.high=False(0) = 1.0
+        # node_a: exh.low=True(+1.0), streak.high=True(-0.8) = 0.2
+        assert ranked[0][0] == "node_b"
+        assert ranked[1][0] == "node_a"
+        assert ranked[0][1] > ranked[1][1]
+
+    def test_returns_empty_for_no_nodes(self):
+        strategy = StrategyConfig(
+            name="deepen",
+            description="Deepen",
+            signal_weights={"graph.node.exhaustion_score.low": 1.0},
+        )
+        ranked, candidates = rank_nodes_for_strategy(strategy, {})
+        assert ranked == []
+        assert candidates == []
+
+    def test_only_uses_node_weights(self):
+        strategy = StrategyConfig(
+            name="deepen",
+            description="Deepen",
+            signal_weights={
+                "llm.response_depth.low": 0.8,
+                "graph.node.exhaustion_score.low": 1.0,
+            },
+        )
+        node_signals = {"node_a": {"graph.node.exhaustion_score": 0.1}}
+        ranked, _ = rank_nodes_for_strategy(strategy, node_signals)
+        assert ranked[0][1] == pytest.approx(1.0)  # Only node weight, not global
+
+    def test_returns_scored_candidates(self):
+        strategy = StrategyConfig(
+            name="deepen",
+            description="Deepen",
+            signal_weights={"graph.node.exhaustion_score.low": 1.0},
+        )
+        node_signals = {"node_a": {"graph.node.exhaustion_score": 0.1}}
+        _, candidates = rank_nodes_for_strategy(strategy, node_signals)
+        assert len(candidates) == 1
+        assert candidates[0].strategy == "deepen"
+        assert candidates[0].node_id == "node_a"
+        assert len(candidates[0].signal_contributions) == 1
+        assert (
+            candidates[0].signal_contributions[0].name
+            == "graph.node.exhaustion_score.low"
+        )

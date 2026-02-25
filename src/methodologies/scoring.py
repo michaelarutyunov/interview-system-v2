@@ -350,8 +350,72 @@ def rank_strategy_node_pairs(
         phase_weights=phase_weights,
         phase_bonuses=phase_bonuses,
         top5=[
-            {"strategy": s.name, "node_id": nid, "score": round(sc, 4)} for s, nid, sc in ranked[:5]
+            {"strategy": s.name, "node_id": nid, "score": round(sc, 4)}
+            for s, nid, sc in ranked[:5]
         ],
+    )
+
+    return ranked, candidates
+
+
+def rank_nodes_for_strategy(
+    strategy_config: StrategyConfig,
+    node_signals: Dict[str, Dict[str, Any]],
+) -> tuple[List[Tuple[str, float]], List[ScoredCandidate]]:
+    """Rank nodes for a specific strategy using only node-scoped signal weights.
+
+    Auto-partitions the strategy's signal_weights to extract only node-scoped
+    weights (graph.node.*, technique.node.*, meta.node.*), then scores each
+    node against those weights.
+
+    Args:
+        strategy_config: Strategy config (node weights extracted automatically)
+        node_signals: Dict mapping node_id to per-node signal dict
+
+    Returns:
+        Tuple of (ranked_nodes, candidates) where:
+        - ranked_nodes: List of (node_id, score) sorted descending
+        - candidates: List of ScoredCandidate with per-signal breakdown
+    """
+    _, node_weights = partition_signal_weights(strategy_config.signal_weights)
+
+    if not node_signals or not node_weights:
+        return [], []
+
+    node_strategy = StrategyConfig(
+        name=strategy_config.name,
+        description=strategy_config.description,
+        signal_weights=node_weights,
+    )
+
+    scored: List[Tuple[str, float]] = []
+    candidates: List[ScoredCandidate] = []
+
+    for node_id, signals in node_signals.items():
+        score, contributions = score_strategy_with_decomposition(node_strategy, signals)
+        scored.append((node_id, score))
+        candidates.append(
+            ScoredCandidate(
+                strategy=strategy_config.name,
+                node_id=node_id,
+                signal_contributions=contributions,
+                base_score=score,
+                final_score=score,
+            )
+        )
+
+    ranked = sorted(scored, key=lambda x: x[1], reverse=True)
+
+    ranked_order = {node_id: i for i, (node_id, _) in enumerate(ranked)}
+    for candidate in candidates:
+        rank = ranked_order.get(candidate.node_id, len(ranked))
+        candidate.rank = rank + 1
+        candidate.selected = rank == 0
+
+    log.debug(
+        "nodes_ranked_for_strategy",
+        strategy=strategy_config.name,
+        top3=[(nid, round(sc, 4)) for nid, sc in ranked[:3]],
     )
 
     return ranked, candidates
