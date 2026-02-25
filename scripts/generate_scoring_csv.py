@@ -1,10 +1,10 @@
 """Generate a scoring decomposition CSV from a simulation JSON artifact.
 
-Reads the live score_decomposition field serialized per turn by the pipeline
-(populated during simulation via rank_strategy_node_pairs). This captures the
-actual joint (strategy × node) scoring including node-level signal adjustments,
-phase multipliers, and phase bonuses — the same values that determined strategy
-selection.
+Reads the live score_decomposition field serialized per turn by the pipeline.
+This captures the actual two-stage scoring: Stage 1 (strategy-level scores with
+node_id="") and Stage 2 (node-level scores for the selected strategy). Includes
+signal adjustments, phase multipliers, and phase bonuses — the same values that
+determined strategy and node selection.
 
 For older JSON files without score_decomposition, a placeholder row is emitted
 per turn so the file remains usable with a clear annotation.
