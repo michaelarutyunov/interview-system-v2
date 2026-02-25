@@ -37,16 +37,23 @@ deflection_patterns:
 
 ## Available Personas
 
+### Standard Personas
+
 | Persona ID | Name | Description |
 |------------|------|-------------|
-| `1_health_conscious` | Health-Conscious Millennial | Prioritizes health and wellness, reads nutrition labels, values organic ingredients |
-| `1_price_sensitive` | Budget-Conscious Shopper | Compares prices, looks for sales, seeks cost-effective alternatives |
-| `1_convenience_seeker` | Busy Professional | Values time over cost, prioritizes convenience and ease of use |
-| `1_quality_focused` | Quality Enthusiast | Appreciates premium quality, seeks the best products regardless of price |
-| `1_sustainability_minded` | Environmentally Conscious Consumer | Prioritizes environmental impact, values sustainable packaging and sourcing |
-| `2_skeptical_analyst` | Skeptical Analyst | Questions marketing claims, demands evidence, researches extensively |
-| `2_social_conscious` | Socially Conscious Consumer | Influenced by peers, follows trends, cares about social values and identity |
-| `2_minimalist` | Minimalist Pragmatist | Values simplicity, avoids unnecessary complexity, wants essential features only |
+| `baseline_cooperative` | Baseline Cooperative | Standard respondent — answers directly, follows conversational flow |
+
+### Edge-Case Personas (Testing)
+
+| Persona ID | Name | Purpose |
+|------------|------|---------|
+| `brief_responder` | Brief Responder | Tests `dig_motivation` trigger on short answers |
+| `verbose_tangential` | Verbose Tangential | Tests noise handling and `clarify` firing on low specificity |
+| `emotionally_reactive` | Emotionally Reactive | Tests `explore_emotions` and valence safety gates |
+| `fatiguing_responder` | Fatiguing Responder | Tests `revitalize` mechanism mid-interview |
+| `single_topic_fixator` | Single Topic Fixator | Tests node exhaustion and rotation penalties |
+| `skeptical_analyst` | Skeptical Analyst | Tests `probe_attributions` with challenging engagement |
+| `uncertain_hedger` | Uncertain Hedger | Tests `explore_constructs` and `validate` on hedging |
 
 To see available personas, use the API:
 
