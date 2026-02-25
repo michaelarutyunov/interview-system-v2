@@ -1,0 +1,5 @@
+id: commute_jtbd
+name: "Daily Commute Jobs to be Done"
+methodology: jobs_to_be_done
+
+objective: "Understand the jobs people are trying to do during their daily commute and how they evaluate trade-offs between time, cost, and comfort"

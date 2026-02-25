@@ -26,7 +26,7 @@ def load_concept(name: str, concepts_dir: Optional[Path] = None) -> Concept:
     for performance, so subsequent calls with the same name return instantly.
 
     Args:
-        name: Concept identifier (e.g., 'oat_milk_v2', 'smartphone_v3')
+        name: Concept identifier (e.g., 'headphones_mec', 'restaurant_ci')
         concepts_dir: Override config/concepts/ path (for testing)
 
     Returns:

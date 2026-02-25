@@ -1,5 +1,5 @@
-id: coffee_jtbd_v2
-name: "Coffee Jobs to be Done"
+id: coffee_jtbd_legacy
+name: "Coffee Jobs to be Done (Legacy)"
 methodology: jobs_to_be_done
 
 # Objective describes what we want to explore in this interview

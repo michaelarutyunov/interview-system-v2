@@ -1,0 +1,5 @@
+id: customer_support_ci
+name: "Customer Support Critical Incidents"
+methodology: critical_incident
+
+objective: "Explore memorable customer support interactions to understand what makes support experiences exceptionally good or frustrating"

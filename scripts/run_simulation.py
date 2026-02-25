@@ -3,8 +3,8 @@
 Run a synthetic interview simulation.
 
 Usage:
-    python scripts/run_simulation.py oat_milk_v2 health_conscious 10
-    python scripts/run_simulation.py coffee_jtbd_v2 health_conscious 5
+    python scripts/run_simulation.py headphones_mec health_conscious 10
+    python scripts/run_simulation.py meal_planning_jtbd health_conscious 5
 """
 
 import asyncio
@@ -35,8 +35,12 @@ async def main():
     if len(sys.argv) < 3:
         print("Usage: python run_simulation.py <concept_id> <persona_id> [max_turns]")
         print("\nAvailable concepts:")
-        print("  - oat_milk_v2 (means_end_chain)")
-        print("  - coffee_jtbd_v2 (jobs_to_be_done)")
+        # List available concepts dynamically
+        from pathlib import Path as P
+        for cf in sorted(P("config/concepts").glob("*.yaml")):
+            import yaml
+            cd = yaml.safe_load(cf.read_text())
+            print(f"  - {cd['id']} ({cd['methodology']})")
         print("\nAvailable personas:")
         from src.llm.prompts.synthetic import get_available_personas
 

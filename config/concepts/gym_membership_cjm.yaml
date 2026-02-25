@@ -1,0 +1,5 @@
+id: gym_membership_cjm
+name: "Gym Membership Customer Journey"
+methodology: customer_journey_mapping
+
+objective: "Map the customer journey of joining and using a gym, from initial motivation through sign-up, first visits, and ongoing use or dropout"

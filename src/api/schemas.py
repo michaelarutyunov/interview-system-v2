@@ -299,7 +299,7 @@ class SimulationTurnSchema(BaseModel):
 class SimulationRequest(BaseModel):
     """Request to simulate an interview."""
 
-    concept_id: str = Field(..., description="Concept ID (e.g., 'oat_milk_v2')")
+    concept_id: str = Field(..., description="Concept ID (e.g., 'headphones_mec')")
     persona_id: str = Field(default="health_conscious", description="Persona ID")
     max_turns: int = Field(default=10, description="Maximum turns before forcing stop")
     session_id: Optional[str] = Field(default=None, description="Optional session ID")

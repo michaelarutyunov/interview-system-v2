@@ -69,7 +69,7 @@ class Concept(BaseModel):
     - 'aliases' field on elements for fuzzy matching
     """
 
-    id: str = Field(..., description="Unique concept identifier (e.g., 'oat_milk_v2')")
+    id: str = Field(..., description="Unique concept identifier (e.g., 'headphones_mec')")
     name: str = Field(..., description="Human-readable concept name")
     methodology: str = Field(
         ...,

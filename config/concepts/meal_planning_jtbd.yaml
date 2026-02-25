@@ -1,0 +1,5 @@
+id: meal_planning_jtbd
+name: "Meal Planning Jobs to be Done"
+methodology: jobs_to_be_done
+
+objective: "Understand what jobs people are trying to accomplish when they plan weekday meals, and what triggers them to change their approach"

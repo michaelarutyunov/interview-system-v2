@@ -45,7 +45,7 @@ async def test_extraction():
 
     extraction_service = ExtractionService(
         llm_client=llm_client,
-        concept_id="coffee_jtbd_v2",
+        concept_id="coffee_jtbd_legacy",
     )
 
     # Load schema for validation

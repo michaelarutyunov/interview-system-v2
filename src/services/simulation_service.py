@@ -146,7 +146,7 @@ class SimulationService:
         """Simulate a complete AI-to-AI interview.
 
         Args:
-            concept_id: Concept ID (e.g., 'oat_milk_v2')
+            concept_id: Concept ID (e.g., 'headphones_mec')
             persona_id: Persona ID for synthetic respondent
             max_turns: Maximum turns before forcing stop (controlled by SessionService)
             session_id: Optional session ID (generates new if None)
