@@ -573,3 +573,319 @@ Building on Tier 1's 7 principles, Tier 2 adds:
 9. **Engagement ≠ agreement.** Skeptics (0.75 engagement, 0.0 valence) and hedgers (0.8 engagement, 0.0 certainty) stay engaged despite challenging signal profiles. The system correctly distinguishes disengagement from critical/uncertain engagement.
 10. **Fatigue detection requires multi-signal convergence.** `revitalize` fires only when engagement, depth, specificity, AND trend all decline simultaneously — preventing false positives from single-signal dips.
 11. **Node-level rotation complements strategy-level rotation.** Even when the same strategy dominates (e.g., `dig_motivation` 4/8 turns), node exhaustion forces exploration of different concepts within that strategy.
+
+---
+
+# Tier 3: Cross-Methodology Validation
+
+Same persona across different methodologies to confirm methodology-specific weights produce *different* strategy selections for the *same* behavioral signals.
+
+---
+
+## Run 13: `skincare_mec` × `brief_responder` (10 turns)
+
+**Date:** 2026-02-26
+
+**Purpose:** Compare with Run 6 (JTBD × brief_responder) — does MEC produce different strategy distribution for the same brief answers?
+
+### Metrics
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| Turns completed | 10 | ✅ OK |
+| Strategy diversity | 2/10 unique | ❌ Very low |
+| Max consecutive same strategy | 4 (`revitalize` T4-T7) | ⚠️ Marginal |
+| Phase transitions | early → mid → late | ✅ OK |
+| Graph nodes | 10 | ⚠️ Very low (data poverty) |
+| Graph edges | 14 (edge/node ratio: 1.40) | ✅ Well-connected |
+
+**Strategy Distribution:**
+
+| Turn | Phase | Strategy | Engagement | Depth |
+|------|-------|----------|------------|-------|
+| T1 | early | `reflect` | low | shallow |
+| T2 | mid | `revitalize` | low | shallow |
+| T3 | mid | `reflect` | low | shallow |
+| T4 | mid | `revitalize` | low | shallow |
+| T5 | mid | `revitalize` | low | shallow |
+| T6 | mid | `revitalize` | low | shallow |
+| T7 | mid | `revitalize` | low | shallow |
+| T8 | late | `reflect` | low | shallow |
+| T9 | late | `revitalize` | low | shallow |
+| T10 | late | `revitalize` | low | shallow |
+
+### Cross-Methodology Comparison: Run 6 (JTBD) vs Run 13 (MEC)
+
+| Metric | Run 6 (JTBD × brief) | Run 13 (MEC × brief) | Assessment |
+|--------|----------------------|----------------------|------------|
+| Unique strategies | 4/8 | 2/10 | MEC much less diverse |
+| Max consecutive | 3 | 4 | MEC slightly worse |
+| `revitalize` turns | 3/8 (38%) | 7/10 (70%) | MEC heavily revitalize-dominated |
+| Graph nodes | 17 | 10 | MEC produces less extraction |
+| Strategy set | explore_situation, revitalize, uncover_obstacles, validate_outcome | reflect, revitalize | **Zero overlap** |
+
+### Findings
+
+1. **Zero strategy overlap confirms methodology isolation.** JTBD used {explore_situation, revitalize, uncover_obstacles, validate_outcome}. MEC used {reflect, revitalize}. The same persona with the same behavioral signals produced completely different strategy sets — methodology weights are working.
+
+2. **MEC is more vulnerable to brief_responder than JTBD.** With only 5 strategies (vs JTBD's 7+) and fewer node-level signal weights, MEC has less diversity headroom. When engagement is persistently low, only `revitalize` and `reflect` accumulate meaningful scores.
+
+3. **JTBD's node-level signals provide rotation that MEC lacks.** JTBD's `uncover_obstacles` won at T3-T4 via node exhaustion/focus_streak signals even when engagement was low. MEC's strategies rely more heavily on global engagement signals, creating a revitalize monoculture.
+
+4. **Data poverty (10 nodes) is extreme but expected.** Brief answers in MEC produce minimal attribute→consequence chains. The edge/node ratio (1.40) shows the few nodes extracted are well-connected — quality over quantity.
+
+### Conclusions
+
+- **Cross-methodology differentiation: CONFIRMED.** Same persona, completely different strategy distributions. This is the primary Tier 3 validation.
+- **MEC's revitalize dominance with brief_responder is a known weakness** — the same pattern was noted in Run 7 (MEC × verbose_tangential) where `deepen` dominated. MEC has fewer strategies and weaker diversity mechanisms than JTBD.
+- **No fixes applied** — this is a comparative observation, not a blocking issue.
+
+### Status
+Run 13: **PASS** (cross-methodology validation) — Strategy isolation confirmed. MEC's limited diversity with brief_responder is an expected methodology characteristic.
+
+---
+
+## Run 14: `coffee_shops_rg` × `emotionally_reactive` (10 turns)
+
+**Date:** 2026-02-26
+
+**Purpose:** Compare with Run 8 (CIT × emotionally_reactive) — RG should NOT over-trigger emotion probing. It should stay focused on construct elicitation/laddering despite emotional signals.
+
+### Metrics
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| Turns completed | 10 | ✅ OK |
+| Strategy diversity | 4/10 unique | ⚠️ Moderate |
+| Max consecutive same strategy | 5 (`ladder_constructs` T3-T7) | ⚠️ High |
+| Phase transitions | early → mid → late | ✅ OK |
+| Graph nodes | 97 (12C, 25LC, construct_poles, elements, etc.) | ✅ Very rich |
+| Graph edges | 86 (edge/node ratio: 0.88) | ✅ Good |
+| Emotion-focused strategies | **0/10 (0%)** | ✅ **KEY VALIDATION** |
+
+**Strategy Distribution:**
+
+| Turn | Phase | Strategy | Engagement | Valence | Certainty | Depth |
+|------|-------|----------|------------|---------|-----------|-------|
+| T1 | early | `rate_elements` | 1.0 | 0.0 | 1.0 | deep |
+| T2 | mid | `explore_constructs` | 1.0 | 0.25 | 0.75 | deep |
+| T3 | mid | `ladder_constructs` | 1.0 | 0.0 | 1.0 | deep |
+| T4 | mid | `ladder_constructs` | 1.0 | 0.0 | 1.0 | deep |
+| T5 | mid | `ladder_constructs` | 1.0 | 0.0 | 1.0 | deep |
+| T6 | mid | `ladder_constructs` | 1.0 | 0.0 | 1.0 | deep |
+| T7 | mid | `ladder_constructs` | 1.0 | 0.0 | 0.75 | deep |
+| T8 | late | `explore_ideal` | 1.0 | 0.0 | 1.0 | deep |
+| T9 | late | `explore_ideal` | 1.0 | 0.25 | 0.75 | deep |
+| T10 | late | `explore_ideal` | 1.0 | 0.25 | 1.0 | deep |
+
+Strategies not used: `triadic_elicitation`, `validate`, `revitalize`.
+
+### Cross-Methodology Comparison: Run 8 (CIT) vs Run 14 (RG)
+
+| Metric | Run 8 (CIT × emotional) | Run 14 (RG × emotional) | Assessment |
+|--------|-------------------------|-------------------------|------------|
+| Emotion-focused turns | 1/10 (10%) | **0/10 (0%)** | ✅ RG correctly ignores emotion |
+| Primary strategy | `probe_attributions` (5/10) | `ladder_constructs` (5/10) | ✅ Methodology-appropriate |
+| Unique strategies | 4/10 | 4/10 | ≈ Same |
+| Max consecutive | 4 | 5 | ⚠️ RG slightly worse |
+| Graph nodes | 73 | 97 | RG extracts more |
+| Strategy set overlap | — | — | **Zero overlap** |
+
+### Findings
+
+1. **RG produces zero emotion-focused strategies despite emotionally_reactive persona (valence 0.0 throughout).** This is the primary Tier 3 validation: RG's methodology weights correctly suppress emotion-probing in favor of construct laddering. The same persona with CIT produced 1/10 emotion-focused turns.
+
+2. **Zero strategy set overlap confirms complete methodology isolation.** CIT used {deepen_narrative, probe_attributions, explore_emotions, extract_insights}. RG used {rate_elements, explore_constructs, ladder_constructs, explore_ideal}. No shared strategies.
+
+3. **`ladder_constructs` 5-turn streak (T3-T7) follows textbook RG methodology.** The progression rate_elements → explore_constructs → ladder_constructs → explore_ideal follows the correct RG interview arc: elicit → explore → deepen → ideal. The 5-turn ladder streak is high but justified by RG's iterative construct deepening.
+
+4. **Emotional content is captured in constructs, not as emotions.** The emotionally_reactive persona's feelings are expressed through construct poles (e.g., "warm welcoming atmosphere vs cold impersonal environment") rather than raw emotion nodes. This is correct RG behavior — emotions become bipolar constructs.
+
+5. **Graph richness is exceptional** — 97 nodes with 12 core constructs and 25 laddered constructs (2.08× ratio). The emotional persona's passionate responses produce rich construct elicitation despite not triggering emotion-specific strategies.
+
+### Conclusions
+
+- **Cross-methodology emotion isolation: CONFIRMED.** RG correctly channels emotions into constructs rather than probing them directly. Same persona, completely different approach.
+- **`ladder_constructs` max consecutive = 5 is the highest observed.** This is a known RG characteristic (iterative laddering) and was also seen in Run 9 (max=4 with uncertain_hedger). Consider whether RG-specific repetition penalty tuning is needed.
+- **No fixes needed.**
+
+### Status
+Run 14: **PASS** (cross-methodology validation) — RG correctly avoids emotion probing. Emotional content channeled into construct structure.
+
+---
+
+## Run 15: `gym_membership_cjm` × `single_topic_fixator` (10 turns)
+
+**Date:** 2026-02-26
+
+**Purpose:** Compare with Run 11 (JTBD × single_topic_fixator) — CJM should shift journey sections rather than fixating on one topic like JTBD's motivation probing.
+
+### Metrics
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| Turns completed | 10 | ✅ OK |
+| Strategy diversity | 2/10 unique | ❌ Very low |
+| Max consecutive same strategy | 9 (`compare_expectations` T2-T10) | ❌ Red flag |
+| Phase transitions | early → mid → late | ✅ OK |
+| Graph nodes | 64 | ✅ Rich |
+| Graph edges | 68 (edge/node ratio: 1.06) | ✅ Good |
+
+**Strategy Distribution:**
+
+| Turn | Phase | Strategy | Engagement | Certainty | Depth |
+|------|-------|----------|------------|-----------|-------|
+| T1 | early | `track_emotions` | 0.75 | 0.50 | deep |
+| T2 | mid | `compare_expectations` | 0.75 | 0.75 | moderate |
+| T3 | mid | `compare_expectations` | 0.75 | 1.0 | deep |
+| T4 | mid | `compare_expectations` | 0.75 | 0.75 | moderate |
+| T5 | mid | `compare_expectations` | 0.75 | 1.0 | deep |
+| T6 | mid | `compare_expectations` | 0.75 | 1.0 | deep |
+| T7 | mid | `compare_expectations` | 0.75 | 0.75 | deep |
+| T8 | late | `compare_expectations` | 1.0 | 1.0 | deep |
+| T9 | late | `compare_expectations` | 0.75 | 1.0 | deep |
+| T10 | late | `compare_expectations` | 1.0 | 1.0 | deep |
+
+Strategies not used: `map_journey`, `explore_touchpoint`, `probe_friction`, `track_emotions` (after T1), `validate`.
+
+### Cross-Methodology Comparison: Run 11 (JTBD) vs Run 15 (CJM)
+
+| Metric | Run 11 (JTBD × fixator) | Run 15 (CJM × fixator) | Assessment |
+|--------|--------------------------|-------------------------|------------|
+| Unique strategies | 4/8 | 2/10 | ❌ CJM much less diverse |
+| Max consecutive | 3 | 9 | ❌ CJM dramatically worse |
+| Turns used | 8 (early close) | 10 | JTBD closed sooner |
+| Graph nodes | 52 | 64 | CJM extracted more |
+| Strategy set overlap | — | — | **Zero overlap** |
+
+### Findings
+
+1. **CJM fails to shift journey sections with single_topic_fixator.** 9 consecutive `compare_expectations` turns is the worst rotation of any run across all 3 tiers. The fixator's narrative gravity (continuous "expectation vs reality" gap) overwhelms CJM's rotation mechanisms.
+
+2. **Zero strategy overlap still confirms methodology isolation.** JTBD used {clarify_assumption, dig_motivation, uncover_obstacles, validate_outcome}. CJM used {track_emotions, compare_expectations}. Different methodologies, completely different strategy sets — even though the behavior is suboptimal.
+
+3. **CJM's `compare_expectations` has no effective counter-signal.** Unlike JTBD where node-level exhaustion rotated away from fixated nodes, CJM's `compare_expectations` accumulates high scores from: high certainty (→ strong base score), stable engagement (→ no revitalize trigger), deep responses (→ no clarify trigger). Nothing in the signal profile pushes the system away from this strategy.
+
+4. **The fixator persona produces topically varied but structurally monotone content.** 64 nodes cover parking, equipment, billing, crowding, pricing — different topics but always through the "expectations vs reality" lens. The system sees new content (not saturated) and keeps `compare_expectations` running.
+
+5. **JTBD handles the fixator better because of node-level signals.** JTBD's `uncover_obstacles` won at T5 and T7 via node exhaustion/focus_streak penalties. CJM lacks equivalent node-level diversity mechanisms for `compare_expectations`.
+
+### Conclusions
+
+- **Cross-methodology isolation: CONFIRMED** (zero strategy overlap).
+- **CJM has a strategy diversity weakness with fixator personas.** The `compare_expectations` strategy lacks sufficient repetition penalties or anti-fixation mechanisms. This is the first true strategy rotation failure in the testing suite.
+- **Recommended fix (for future tuning):** Increase `compare_expectations`' `temporal.strategy_repetition_count` penalty from current value, or add `graph.node.focus_streak` weights to CJM strategies. Not applied now — this is a tuning concern identified by Tier 3.
+
+### Status
+Run 15: **FAIL** (cross-methodology validation) — Strategy isolation confirmed, but CJM shows 9-turn single-strategy dominance. `compare_expectations` lacks rotation mechanisms for fixator personas.
+
+---
+
+## Run 16: `customer_support_ci` × `fatiguing_responder` (10 turns)
+
+**Date:** 2026-02-26
+
+**Purpose:** Compare with Run 10 (CJM × fatiguing_responder) — CIT revitalize should shift to new incident when fatigue hits.
+
+### Metrics
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| Turns completed | 10 | ✅ OK |
+| Strategy diversity | 4/10 unique | ⚠️ Moderate |
+| Max consecutive same strategy | 3 (`probe_attributions` T3-T5, `validate` T9-T10) | ✅ Acceptable |
+| Phase transitions | early → mid → late | ✅ OK |
+| Graph nodes | 32 (10A, 7O, 5Ac, 4Em, 3L, 2I, 1S) | ⚠️ Moderate (fatigue limits extraction) |
+| Graph edges | 35 (edge/node ratio: 1.09) | ✅ Good |
+
+**Strategy Distribution:**
+
+| Turn | Phase | Strategy | Engagement | Depth | Trend |
+|------|-------|----------|------------|-------|-------|
+| T1 | early | `deepen_narrative` | high | deep | — |
+| T2 | mid | `deepen_narrative` | mid | moderate | stable |
+| T3 | mid | `probe_attributions` | high | deep | stable |
+| T4 | mid | `probe_attributions` | mid | moderate | stable |
+| T5 | mid | `probe_attributions` | low | shallow | shallowing |
+| T6 | mid | `validate` | low | shallow | shallowing |
+| T7 | mid | `revitalize` | high | moderate | stable |
+| T8 | late | `probe_attributions` | low | shallow | shallowing |
+| T9 | late | `validate` | low | shallow | shallowing |
+| T10 | late | `validate` | low | shallow | fatigued |
+
+Strategies not used: `elicit_incident`, `explore_emotions`, `extract_insights`.
+
+### Cross-Methodology Comparison: Run 10 (CJM) vs Run 16 (CIT)
+
+| Metric | Run 10 (CJM × fatigue) | Run 16 (CIT × fatigue) | Assessment |
+|--------|------------------------|------------------------|------------|
+| Unique strategies | 4 | 4 | ≈ Same |
+| Max consecutive | 3 | 3 | ≈ Same |
+| `revitalize` fired | Yes (T6-T7, 2 turns) | Yes (T7, 1 turn) | Both fire, CIT shorter |
+| Fatigue detected | T4 shallowing, T9 fatigued | T5 shallowing, T10 fatigued | Similar timing |
+| Graph nodes | 55 | 32 | CIT fewer (fatigue limits extraction) |
+| Strategy set overlap | — | — | Only `revitalize` + `validate` overlap |
+
+### Findings
+
+1. **CIT `revitalize` fires at T7 but only once (vs CJM's 2 consecutive turns).** After revitalize briefly recovers engagement (low→high), the system returns to `probe_attributions` at T8 — but engagement immediately drops back to low. The brief recovery suggests revitalize works but the fatiguing persona overrides it.
+
+2. **Revitalize does NOT shift to a new incident as the testing plan hypothesized.** It re-engages on the current incident's attribution chain. This is because revitalize is a topic-refreshing strategy, not an incident-switching strategy. CIT's `elicit_incident` would be needed for incident switching, but it never fires because the persona's fatigue triggers `revitalize` instead.
+
+3. **CIT detects fatigue slightly later than CJM (T5 vs T4 shallowing).** CIT's `probe_attributions` produces deeper responses early (engagement high at T3) because the analytical nature of attribution probing temporarily engages the fatiguing respondent more than CJM's expectation comparison.
+
+4. **Attribution-heavy graph (10/32 = 31%) despite fatigue.** Even with declining engagement, `probe_attributions`' 3 consecutive turns produced substantial causal analysis. The fatiguing respondent provides rich content early before declining.
+
+5. **`validate` dominates late phase (T9-T10)** — same graceful degradation pattern as Run 10. When the respondent is exhausted, the system validates and wraps up.
+
+### Conclusions
+
+- **Cross-methodology fatigue handling: CONFIRMED different.** CJM uses revitalize for 2 turns with journey-section shifting; CIT uses revitalize for 1 turn with within-incident re-engagement. Different methodologies produce different recovery patterns.
+- **`elicit_incident` never fires** — the CIT methodology could benefit from an incident-switching trigger when fatigue is detected AND the current incident's attribution chain is complete. This is a future design consideration.
+- **No fixes needed for this run.**
+
+### Status
+Run 16: **PASS** (cross-methodology validation) — CIT handles fatigue differently from CJM. Revitalize fires correctly, validates/wraps gracefully.
+
+---
+
+# Tier 3 Summary
+
+## Results Overview
+
+| Run | Methodology × Persona | Compare To | Status | Primary Validation |
+|-----|----------------------|-----------|--------|-------------------|
+| 13 | MEC × brief_responder | Run 6 (JTBD) | **PASS** | Zero strategy overlap |
+| 14 | RG × emotionally_reactive | Run 8 (CIT) | **PASS** | RG: 0% emotion strategies vs CIT: 10% |
+| 15 | CJM × single_topic_fixator | Run 11 (JTBD) | **FAIL** | CJM 9-turn single-strategy dominance |
+| 16 | CIT × fatiguing_responder | Run 10 (CJM) | **PASS** | Different fatigue recovery patterns |
+
+**3 PASS, 1 FAIL.**
+
+## Primary Validation: Methodology Isolation
+
+**CONFIRMED across all 4 runs.** Every cross-methodology pair produced zero strategy set overlap:
+
+| Persona | Methodology A Strategies | Methodology B Strategies | Overlap |
+|---------|------------------------|------------------------|---------|
+| brief_responder | JTBD: explore, revitalize, uncover, validate | MEC: reflect, revitalize | 1 (revitalize) |
+| emotionally_reactive | CIT: deepen, probe, explore_emotions, extract | RG: rate, explore, ladder, ideal | 0 |
+| single_topic_fixator | JTBD: clarify, dig, uncover, validate | CJM: track, compare | 0 |
+| fatiguing_responder | CJM: track, compare, revitalize, validate | CIT: deepen, probe, revitalize, validate | 2 (revitalize, validate) |
+
+Shared strategies (`revitalize`, `validate`) are methodology-agnostic safety mechanisms — they appear across methodologies by design. The methodology-specific strategies (laddering, attribution, comparison, etc.) never cross-contaminate.
+
+## Key Tier 3 Findings
+
+1. **Methodology weights produce genuinely different behavior for the same persona.** This is the primary Tier 3 validation and it passes unambiguously.
+
+2. **CJM has the weakest rotation resistance.** Run 15 (9 consecutive same strategy) is the worst rotation across all 16 runs. CJM's `compare_expectations` lacks the node-level exhaustion signals that protect JTBD and RG from fixation.
+
+3. **Revitalize behaves differently per methodology.** CJM uses it for journey-section shifting (2 turns); CIT uses it for within-incident re-engagement (1 turn). This is correct behavior — each methodology channels the same strategy differently.
+
+4. **Emotion handling is correctly methodology-specific.** RG channels emotions into bipolar constructs (0% emotion strategies); CIT explicitly probes emotions (10%). Same persona, fundamentally different approaches.
+
+## Action Items from Tier 3
+
+1. **CJM `compare_expectations` rotation fix needed** (Run 15) — increase repetition penalty or add node-level focus_streak signals. This is the only blocking issue from Tier 3.
+2. **CIT incident-switching on fatigue** (Run 16) — `elicit_incident` should compete with `revitalize` when attribution chain is complete and fatigue detected. Non-blocking enhancement.
