@@ -168,7 +168,7 @@ strategies:
       llm.response_depth.mid: 0.3
       llm.response_depth.moderate: 0.15  # Even moderate answers can benefit from deepening
       graph.max_depth: -0.3
-      graph.chain_completion.has_complete.false: 1.0
+      graph.chain_completion.has_complete.false: 0.6   # Reduced from 1.0 (ST2 fix: persistent state signal was causing 7-turn deepen dominance)
       # Engagement & valence safety checks — mid-engagement now contributes
       llm.engagement.high: 0.5              # Engaged = safe to deepen (was 0.7)
       llm.engagement.mid: 0.3               # Moderate engagement = still OK to deepen (NEW)
