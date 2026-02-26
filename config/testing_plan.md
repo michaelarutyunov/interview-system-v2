@@ -394,3 +394,107 @@ With `baseline_cooperative` producing clear causal statements and high engagemen
 
 ### Status
 Smoke Test 3: **PASS** — Strategy diversity good (5/7), interview arc coherent, CIT methodology validated. Proceeding to Smoke Test 4.
+
+---
+
+## Cross-Smoke-Test Analysis (ST1–ST3)
+
+**Date:** 2026-02-26
+
+### Summary Table
+
+| Run | Methodology | Unique strategies | Max consecutive | Status | Key issue |
+|-----|-------------|------------------|-----------------|--------|-----------|
+| ST1 | JTBD | 4/8 (after fixes) | 4 (`dig_motivation`) | PASS | Phase detection bug + `clarify_assumption` base score too high |
+| ST2 | MEC | 2/5 | 7 (`deepen`) | PARTIAL PASS | Persistent state signal (`chain_completion`) structural veto |
+| ST3 | CIT | 5/7 | 3 (`extract_insights`) | PASS | None — methodology-correct `probe_attributions` dominance |
+
+### Emerging Patterns
+
+**Pattern 1 — Dominant strategy type predicts calibration issue class**
+
+ST1's dominant strategy (`clarify_assumption`) and ST2's dominant strategy (`deepen`) had the same symptom (excessive consecutive turns) but different root causes:
+
+| Run | Dominant strategy type | Root cause | Fix class |
+|-----|----------------------|------------|-----------|
+| ST1 | Respondent-quality specialist | Base score ceiling too high (all 4 quality signals firing together) | Reduce trigger weights; asymmetric repetition penalty |
+| ST2 | Methodology-state driven | Persistent state signal always true | Reduce structural signal weight |
+| ST3 | Attribution probe (method-intrinsic) | None — dominance is correct | No fix needed |
+
+The distinction between "dominance as calibration failure" (ST1, ST2) vs "dominance as methodology expression" (ST3) is the key diagnostic question for each test.
+
+**Pattern 2 — `baseline_cooperative` stresses rotation, not quality**
+
+`baseline_cooperative` produces uniformly high-quality signals every turn: high engagement, high valence, high certainty, high specificity. This is ideal for confirming the basic scoring loop works but actively suppresses strategy rotation by:
+- Preventing any strategy that triggers on low-quality signals (`elicit_incident`, `revitalize`, `clarify`, `explore`)
+- Feeding consistent high scores to the dominant strategy with no signal variation to disrupt it
+
+ST3 achieved the best diversity (5/7) because CIT's strategies compete on graph-structural signals (node type presence, attribution count) rather than purely on respondent quality. Methods with more graph-signal-driven strategies will naturally produce better diversity under this persona.
+
+**Pattern 3 — Signal persistence hierarchy**
+
+Three signal types observed across tests, with distinct calibration implications:
+
+| Type | Example | Persistence | Recommended max weight |
+|------|---------|-------------|----------------------|
+| Transient respondent | `llm.engagement.high`, `llm.certainty.low` | Varies per turn | 0.8–1.0 |
+| Accumulated graph | `graph.node.exhaustion_score`, `graph.edge_count` | Grows monotonically | 0.3–0.5 |
+| Binary state | `graph.chain_completion.has_complete.false` | True until threshold crossed | 0.5–0.7 |
+
+Binary state signals (on/off, true/false, present/absent) need lower weights than transient signals because they create structural advantages independent of respondent behavior. ST2 confirmed: 1.0 on a binary state signal is too high.
+
+**Pattern 4 — Late-phase strategy convergence is consistent**
+
+All three methodologies correctly converged in late phase:
+- JTBD: `validate_outcome`
+- MEC: `reflect`
+- CIT: `extract_insights`
+
+Late-phase bonuses and multipliers are working correctly across all three YAMLs. No calibration needed here.
+
+**Pattern 5 — Knowledge graph shapes are methodology-specific**
+
+Each completed test produced a distinctively shaped graph, confirming the YAML ontologies are correct:
+
+| Methodology | Dominant node types | Design intent |
+|-------------|-------------------|---------------|
+| JTBD | jobs, obstacles, motivations | Functional → emotional job hierarchy |
+| MEC | attributes → functional → psychosocial (no terminal values in 10 turns) | Value chain laddering |
+| CIT | attributions (9) + learnings (8) | Causal attribution and behavioral learning |
+
+### Open Issues Before Proceeding to Tier 2
+
+1. **MEC `explore` suppression with `baseline_cooperative`** — confirmed expected behavior; `verbose_tangential` and `uncertain_hedger` in Tier 2 will verify `explore` fires when its signals are present.
+
+2. **MEC `deepen` post-fix diversity not yet measured** — ST2 was run before Fix 1. A re-run of `headphones_mec × baseline_cooperative` after the chain_completion weight reduction would confirm the fix works, but may not be worth the time given the marginal PARTIAL PASS status. Recommended: verify through Tier 2 `headphones_mec × verbose_tangential` (Run 7).
+
+3. **`elicit_incident` (CIT) and `revitalize` (all methods) untested** — both target degraded signal states. Tier 2 `emotionally_reactive` and `fatiguing_responder` pairings are the designed tests for these strategies.
+
+4. **RG and CJM methodologies unvalidated** — ST4 and ST5 will be the first runs for `streaming_services_rg` and `online_shopping_cjm`. Expect calibration issues similar to ST1 (no prior test data for these YAMLs).
+
+### Recommendations for ST4 (RG) and ST5 (CJM)
+
+**For ST4 (`streaming_services_rg`):**
+- Watch `triadic_elicitation` — its primary trigger is `graph.node.is_orphan.true: 0.8`, a graph-structural binary signal. If orphan nodes are common in early turns, `triadic_elicitation` may dominate similarly to MEC's `deepen`. Threshold: >4 consecutive turns is a calibration flag.
+- Watch `rate_elements` — should fire once sufficient grid elements exist (graph.edge_count). If it never fires in 10 turns, the edge_count threshold may be too high.
+- `explore_constructs` should dominate early when node count is low (`graph.node_count` is the primary signal). This is correct — RG needs breadth of constructs before it can do comparison work.
+
+**For ST5 (`online_shopping_cjm`):**
+- CJM has the most complex ontology (7 node types, 11 edge types) and the most strategies (7) of any methodology. Expect the widest natural variation in strategy selection.
+- Watch `map_journey` vs `explore_touchpoint` — both are broad exploration strategies. If they alternate without producing depth, the touchpoint/journey distinction may need sharpening in YAML weights.
+- `compare_expectations` requires both `touchpoint` and `expectation` nodes to be present. If expectation nodes are not extracted in the first few turns, this strategy will be permanently suppressed. Watch node type distribution for expectation presence.
+- `probe_friction` is the CJM equivalent of CIT's `explore_emotions` — should dominate mid-phase when friction/barrier nodes are present. A friction-free narrative (all positive experiences) would suppress it, similar to how `baseline_cooperative` suppresses `elicit_incident`.
+
+### Weight Calibration Principles (Consolidated)
+
+From ST1–ST3, the following principles are now empirically grounded:
+
+1. **Repetition penalties must exceed half the strategy's ceiling base score.** For `clarify_assumption` (ceiling ~1.76), the effective penalty needed to break dominance was `-1.5`. Rule of thumb: `penalty_weight ≥ 0.85 × ceiling_base_score`.
+
+2. **Binary state signals: max weight 0.6.** `graph.chain_completion.has_complete.false: 1.0` created a 24× score gap. Capped at 0.6 in the fix.
+
+3. **Strategy specialists beat generalists.** `clarify_assumption` failed because it triggered on 4 independent quality signals simultaneously. After weight reduction, it became a specialist (fires only when certainty is the defining signal). Strategies with >3 high-weight positive triggers tend to become generalists.
+
+4. **Phase bonuses compound with structural advantages.** MEC's `deepen` had a structural advantage (chain_completion=1.0) AND a phase bonus (1.3×+0.3). Both together made the score gap unrecoverable. Phase bonuses should not be applied to strategies that already have structural signal advantages.
+
+5. **Late-phase convergence is self-correcting.** Phase weights of 0.5× on non-validate strategies + 1.2× on validate/extract_insights reliably produce late-phase convergence without additional tuning. Don't over-calibrate here.
