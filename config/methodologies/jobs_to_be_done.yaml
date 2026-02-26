@@ -318,6 +318,12 @@ strategies:
       graph.max_depth: 0.5
       llm.response_depth.deep: 0.3       # Deep responses → validate
       llm.response_depth.moderate: 0.2   # Moderate responses → validate
+      # Late-stage gate: prevent premature interview termination
+      # generates_closing_question=true means this strategy ENDS the interview,
+      # so it must not win before late phase. -3.0 overwhelms any positive triggers.
+      # Uses meta.interview.phase signal: early/mid both produce negative weight.
+      meta.interview.phase.early: -3.0
+      meta.interview.phase.mid: -3.0
       # Uncertainty/hedging triggers (Phase 5)
       llm.certainty.low: 1.0  # Trigger on high uncertainty
       llm.certainty.mid: 0.7  # Trigger on medium uncertainty
@@ -349,9 +355,9 @@ strategies:
       llm.engagement.mid: 0.4               # Moderate engagement + fatigue = still revitalize (NEW)
       llm.engagement.high: -0.4             # Already engaged = not needed
       llm.valence.low: 0.5                  # Negative valence = shift gears
-      # Global signals - Symmetric penalty to prevent loops
-      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.8)
-      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
+      # Global signals - Strong penalty to prevent revitalize loops with persistently disengaged respondents
+      temporal.strategy_repetition_count: -1.5   # Increased from -0.7 (Run 6: 8/9 turns revitalize with brief_responder)
+      temporal.strategy_repetition_count.high: -1.0  # Activated from 0 — force strategy switch after 3+ uses
       temporal.turns_since_strategy_change: -0.6  # Penalty for staying too long
       # Node-level signals (Phase 3)
       graph.node.focus_streak.none: 0.8    # Fresh nodes
