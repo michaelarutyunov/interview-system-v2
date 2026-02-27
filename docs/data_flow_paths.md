@@ -1219,13 +1219,13 @@ graph LR
 class ScoredCandidate:
     strategy: str
     node_id: str
-    signal_contributions: list[SignalContribution]  # Per-signal breakdown (node signals only)
+    signal_contributions: list[SignalContribution]  # Per-signal breakdown (global signals in Stage 1, node signals in Stage 2)
     base_score: float        # Sum of signal contributions
-    phase_multiplier: float  # Always 1.0 for node scores (Stage 2 has no phase weights)
-    phase_bonus: float       # Always 0.0 for node scores
-    final_score: float       # base_score (no phase adjustment in Stage 2)
-    rank: int                # 1 = best node
-    selected: bool           # True for the winning node
+    phase_multiplier: float  # Phase weights applied in Stage 1, always 1.0 in Stage 2
+    phase_bonus: float       # Phase bonuses applied in Stage 1, always 0.0 in Stage 2
+    final_score: float       # (base_score × phase_multiplier) + phase_bonus
+    rank: int                # 1 = best candidate
+    selected: bool           # True for the winning candidate
 
 @dataclass
 class SignalContribution:

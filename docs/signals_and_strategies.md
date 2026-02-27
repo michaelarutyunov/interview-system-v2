@@ -2,8 +2,6 @@
 
 **Purpose**: Comprehensive guide to understanding the Signal Pools Architecture for adaptive strategy selection.
 
-**Related Beads**: See ADR-014 (Signal Pools Architecture), Phase 6 implementation beads.
-
 ---
 
 ## Table of Contents
@@ -56,7 +54,7 @@ Result: Dynamic, context-aware conversation flow
 │  │ ...         │  │valence      │  │response_trend│ │            │ │
 │  │             │  │engagement   │  │             │  │conv_sat    │ │
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └─────┬──────┘ │
-│  │             │  │engagement   │  │             │  │can_sat     │ │
+│  │             │  │             │  │             │  │can_sat     │ │
 │         └─────────────────┴─────────────────┴──────────────┘       │
 │                                    │                                │
 │                                    ▼                                │
@@ -67,8 +65,9 @@ Result: Dynamic, context-aware conversation flow
 │                                    │                                │
 │                                    ▼                                │
 │                         ┌─────────────────────┐                     │
-│                         │ STRATEGY SCORING    │                     │
-│                         │  (Weighted Sum)     │                     │
+│                         │ TWO-STAGE SCORING   │                     │
+│                         │  Stage 1: Strategy  │                     │
+│                         │  Stage 2: Node      │                     │
 │                         └──────────┬──────────┘                     │
 │                                    │                                │
 │                                    ▼                                │
@@ -121,6 +120,46 @@ async def execute(self, context: PipelineContext) -> PipelineContext:
     context.signals = result.global_signals
     context.strategy_alternatives = result.alternatives  # List of (strategy_name, score)
     context.score_decomposition = result.score_decomposition  # Stage 1 (node_id="") + Stage 2 (node_id="<uuid>")
+```
+
+### Two-Stage Architecture
+
+The system uses a two-stage approach for strategy and node selection:
+
+**Stage 1: Strategy Selection**
+- Scores all strategies using **global signals only** (graph.*, llm.*, temporal.*, meta.*)
+- `partition_signal_weights()` auto-excludes node-scoped weights (graph.node.*, technique.node.*, meta.node.*)
+- Applies phase-based multipliers (multiplicative) and bonuses (additive)
+- Returns ranked list of strategies
+
+**Stage 2: Node Selection (Conditional)**
+- Conditionally executed only when `node_binding="required"` and node_signals exist
+- Scores nodes for the selected strategy using **node-scoped signals only**
+- No phase weights applied (uses raw signal weights)
+- Returns ranked list of nodes
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    TWO-STAGE ARCHITECTURE                           │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  STAGE 1: Strategy Selection                                        │
+│  ───────────────────────                                            │
+│  Input: global_signals (graph.*, llm.*, temporal.*, meta.*)         │
+│  Process: rank_strategies() with partition_signal_weights()         │
+│  Output: ranked strategies with phase weights/bonuses               │
+│                                                                     │
+│                              ↓                                       │
+│                     Select best_strategy                            │
+│                              ↓                                       │
+│  STAGE 2: Node Selection (Conditional)                              │
+│  ─────────────────────────────────────                              │
+│  Condition: node_binding="required" AND node_signals exist          │
+│  Input: node_signals (graph.node.*, technique.node.*, meta.node.*) │
+│  Process: rank_nodes_for_strategy() with node-scoped weights        │
+│  Output: ranked nodes for selected strategy                         │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Signal Detection Flow
@@ -187,9 +226,9 @@ async def execute(self, context: PipelineContext) -> PipelineContext:
 
 | Signal | Type | Description | Use Case |
 |--------|------|-------------|----------|
-| `graph.node_count` | int | Total concepts extracted | Interview progress (not used in strategy scoring) |
-| `graph.edge_count` | int | Total relationships | Connectivity health (not used in strategy scoring) |
-| `graph.orphan_count` | int | Isolated nodes (no edges) | Needs exploration (not used in strategy scoring) |
+| `graph.node_count` | int | Total concepts extracted | Interview progress |
+| `graph.edge_count` | int | Total relationships | Connectivity health |
+| `graph.orphan_count` | int | Isolated nodes (no edges) | Needs exploration |
 | `graph.max_depth` | float | Longest chain depth, normalized by ontology levels [0,1] | Laddering progress |
 | `graph.avg_depth` | float | Average depth across chains | Overall depth |
 | `graph.chain_completion.ratio` | float | Ratio of complete chains [0,1] | Completion metric |
@@ -222,9 +261,9 @@ async def execute(self, context: PipelineContext) -> PipelineContext:
 | `llm.certainty` | float | 0.0-1.0 | Epistemic confidence |
 | `llm.valence` | float | 0.0-1.0 | Emotional tone (negative-positive) |
 | `llm.engagement` | float | 0.0-1.0 | Willingness to engage (participatory quality) |
-| `llm.intellectual_engagement` | float | 0.0-1.0 | Analytical reasoning and motivational depth (causal chains, value expressions) |
+| `llm.intellectual_engagement` | float | 0.0-1.0 | Analytical reasoning and motivational depth |
 
-**Rubric-Based Detection**: The LLM batch detector loads rubric definitions from `src/signals/llm/prompts/signals.md` using indentation-based parsing. Each signal's rubric defines the scoring criteria and scale anchors that guide the LLM's assessment.
+**Rubric-Based Detection**: The LLM batch detector loads rubric definitions from `src/signals/llm/prompts/signals.md` using indentation-based parsing.
 
 **Scale Interpretation (Float Signals)**:
 ```
@@ -243,12 +282,6 @@ moderate = Moderate elaboration with some explanation
 deep = Detailed response with reasoning or examples
 comprehensive = Rich, layered response exploring multiple angles
 ```
-
-**Question Context**: The LLM scorer receives both the respondent's answer and the preceding interviewer question for context-aware assessment. The question is extracted from `recent_utterances` (last system utterance) and threaded through the signal detection chain:
-```
-GlobalSignalDetectionService → ComposedSignalDetector → LLMBatchDetector
-```
-The prompt template uses `{question}` and `{response}` placeholders. Response text is truncated to 500 characters (~75 words) and question text to 200 characters to balance scoring accuracy with token costs.
 
 **Batch Detection**: All LLM signals are detected in a single API call:
 ```python
@@ -273,18 +306,9 @@ The prompt template uses `{question}` and `{response}` placeholders. Response te
 
 | Signal | Type | Description |
 |--------|------|-------------|
-| `temporal.strategy_repetition_count` | float | Times current strategy used in last 5 turns, normalized [0,1] by dividing by window size (5) |
-| `temporal.turns_since_strategy_change` | float | Consecutive turns using current strategy, normalized [0,1] by dividing by window size (5) |
+| `temporal.strategy_repetition_count` | float | Times current strategy used in last 5 turns, normalized [0,1] |
+| `temporal.turns_since_strategy_change` | float | Consecutive turns using current strategy, normalized [0,1] |
 | `llm.global_response_trend` | str | Trend: `fatigued`, `shallowing`, `engaged`, `stable` |
-
-**Trend Detection**:
-```python
-# Analyzes last 3 LLM signals
-{
-    "llm.global_response_trend": "fatigued"
-    # Detected: response_depth decreasing + engagement dropping
-}
-```
 
 **Usage for Diversity**:
 ```yaml
@@ -306,10 +330,10 @@ signal_weights:
 | `meta.interview_progress` | float | 0.0-1.0 progress through interview (**DEPRECATED** for JTBD, retained for MEC) |
 | `meta.interview.phase` | str | `early`, `mid`, or `late` |
 | `meta.node.opportunity` | str | `exhausted`, `probe_deeper`, or `fresh` |
-| `meta.conversation.saturation` | float | 0.0-1.0 interview saturation from surface graph velocity (NEW) |
-| `meta.canonical.saturation` | float | 0.0-1.0 interview saturation from canonical graph velocity (NEW) |
+| `meta.conversation.saturation` | float | 0.0-1.0 interview saturation from surface graph velocity |
+| `meta.canonical.saturation` | float | 0.0-1.0 interview saturation from canonical graph velocity |
 
-#### Saturation Signals (New in Phase 6)
+#### Saturation Signals
 
 **Purpose**: Replace `meta.interview_progress` with methodology-agnostic saturation detection based on information velocity (EWMA of new concept discovery rate).
 
@@ -335,14 +359,6 @@ signal_weights:
   meta.canonical.saturation: 0.3     # Supportive metric
 ```
 
-**Data Model** (velocity state tracked in SessionState):
-- `surface_velocity_ewma`: EWMA of surface node delta per turn (α=0.4)
-- `surface_velocity_peak`: Peak surface node delta observed
-- `canonical_velocity_ewma`: EWMA of canonical node delta per turn
-- `canonical_velocity_peak`: Peak canonical node delta observed
-
-**See Also**: [Path 16: Saturation Signal Computation](./data_flow_paths.md#path-16-saturation-signal-computation-information-velocity)
-
 **Phase Boundaries** (configurable):
 ```yaml
 phase_boundaries:
@@ -355,7 +371,7 @@ phase_boundaries:
 
 ## Node-Level Signals
 
-Node-level signals provide **per-node** assessments for Stage 2 node selection in the two-stage architecture (D2).
+Node-level signals provide **per-node** assessments for Stage 2 node selection in the two-stage architecture.
 
 ### Signal Namespaces
 
@@ -363,48 +379,23 @@ Node-level signals provide **per-node** assessments for Stage 2 node selection i
 |-----------|-------------|-----------------|
 | `graph.node.*` | Graph-derived per-node signals | exhaustion_score, focus_streak, has_outgoing |
 | `technique.node.*` | Technique-specific signals | strategy_repetition |
-
-### NodeState Field Write Timing
-
-**Critical**: All node signals read from `NodeState` fields, which are written by specific pipeline stages. Understanding this timing is essential for avoiding bugs where signals read stale state.
-
-| NodeState Field | Written By | Pipeline Stage | Signal Detection Timing |
-|-----------------|------------|-----------------|-------------------------|
-| `node_id`, `label`, `created_at_turn`, `depth`, `node_type`, `is_terminal`, `level` | `register_node()` | Stage 4 (GraphUpdateStage) | Fresh at Stage 6 detection |
-| `focus_count`, `last_focus_turn` | `update_focus()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
-| `current_focus_streak` | `update_focus()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 - CRITICAL: Stage 4 `record_yield()` must NOT reset this |
-| `turns_since_last_focus` | `update_focus()` | Stage 9 (ContinuationStage) | Ticked for ALL nodes in Stage 9 |
-| `turns_since_last_yield` | `record_yield()`, `update_focus()` | Stage 4 (GraphUpdateStage), Stage 9 (ContinuationStage) | Reset by Stage 4 on yield, ticked for all nodes in Stage 9 |
-| `last_yield_turn`, `yield_count`, `yield_rate` | `record_yield()` | Stage 4 (GraphUpdateStage) | Fresh at Stage 6 detection |
-| `all_response_depths` | `append_response_signal()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
-| `edge_count_incoming`, `edge_count_outgoing` | `update_edge_counts()` | Stage 4 (GraphUpdateStage) | Fresh at Stage 6 detection |
-| `strategy_usage_count`, `last_strategy_used`, `consecutive_same_strategy` | `update_focus()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
-| `previous_focus` (tracker-level) | `update_focus()` | Stage 9 (ContinuationStage) | From PREVIOUS turn at Stage 6 |
-
-**Key Timing Dependencies**:
-
-1. **Stage 4 → Stage 6**: Signals that read yield metrics (`exhausted`, `exhaustion_score`, `yield_stagnation`) get fresh values because `record_yield()` runs in Stage 4.
-
-2. **Stage 9 (next turn) → Stage 6 (current turn)**: Signals that read focus metrics (`focus_streak`, `recency_score`, `is_current_focus`) are reading values from the PREVIOUS turn's `update_focus()` call in Stage 9 ContinuationStage. This is correct — the focus was selected in the previous turn's Stage 9 and is now being evaluated for signals.
-
-3. **Critical: current_focus_streak timing**: The `current_focus_streak` field is incremented in Stage 9's `update_focus()` call. Signal detection in Stage 6 reads this value, which represents the streak that was set during the previous turn's focus selection. Stage 4's `record_yield()` must NOT reset this value, or signals would always read 0.
-
-4. **Turn counter tick order**: `turns_since_last_yield` is ticked for ALL nodes in Stage 9's `update_focus()` loop, then reset to 0 for the yielding node in Stage 4's `record_yield()`. This means Stage 6 signals see the accumulated value from the previous turn's tick.
+| `meta.node.*` | Meta-derived per-node signals | opportunity |
 
 ### Available Node Signals
 
 | Signal | Type | Reads NodeState Fields | Timing Notes |
 |--------|------|------------------------|--------------|
-| `graph.node.exhaustion_score` | float | `focus_count`, `turns_since_last_yield`, `current_focus_streak`, `all_response_depths` | Fresh: `turns_since_last_yield` updated Stage 4, `current_focus_streak` from previous turn Stage 9 |
-| `graph.node.exhausted` | bool | `focus_count`, `turns_since_last_yield`, `current_focus_streak`, `all_response_depths` | Fresh: `turns_since_last_yield` updated Stage 4, `current_focus_streak` from previous turn Stage 9 |
-| `graph.node.yield_stagnation` | bool | `focus_count`, `turns_since_last_yield` | Fresh: both updated Stage 4 or ticked Stage 9 |
-| `graph.node.focus_streak` | str | `current_focus_streak` | From previous turn Stage 9 - represents streak selected last turn |
-| `graph.node.is_current_focus` | bool | `previous_focus` (tracker-level) | From previous turn Stage 9 - represents focus selected last turn |
-| `graph.node.recency_score` | float | `turns_since_last_focus` | Ticked for all nodes in Stage 9 - represents turns since last focus selection |
+| `graph.node.exhaustion_score` | float | `focus_count`, `turns_since_last_yield`, `current_focus_streak`, `all_response_depths` | Fresh: updated Stage 4 (yield) or Stage 9 (focus) |
+| `graph.node.exhausted` | bool | `focus_count`, `turns_since_last_yield`, `current_focus_streak`, `all_response_depths` | Fresh: updated Stage 4 (yield) or Stage 9 (focus) |
+| `graph.node.yield_stagnation` | bool | `focus_count`, `turns_since_last_yield` | Fresh: updated Stage 4 (yield) or Stage 9 (focus) |
+| `graph.node.focus_streak` | str | `current_focus_streak` | From previous turn Stage 9 |
+| `graph.node.is_current_focus` | bool | `previous_focus` (tracker-level) | From previous turn Stage 9 |
+| `graph.node.recency_score` | float | `turns_since_last_focus` | Ticked for all nodes in Stage 9 |
 | `graph.node.is_orphan` | bool | `edge_count_incoming`, `edge_count_outgoing` | Fresh: updated Stage 4 |
 | `graph.node.edge_count` | int | `edge_count_incoming`, `edge_count_outgoing` | Fresh: updated Stage 4 |
 | `graph.node.has_outgoing` | bool | `edge_count_outgoing` | Fresh: updated Stage 4 |
-| `technique.node.strategy_repetition` | int | `consecutive_same_strategy` | From previous turn Stage 9 - represents strategy usage through last turn |
+| `technique.node.strategy_repetition` | int | `consecutive_same_strategy` | From previous turn Stage 9 |
+| `meta.node.opportunity` | str | Derived from exhaustion + response depth | Computed from node state |
 
 ### Node Signal Detection
 
@@ -432,7 +423,7 @@ Node-level signals provide **per-node** assessments for Stage 2 node selection i
 
 ```
 base_score = Σ(signal_weight × signal_value)
-final_score = (base_score × phase_multiplier) + phase_bonus
+final_score = (base_score × phase_multiplier) + bonus
 ```
 
 > **Note**: All signals are normalized at their source (detector layer) to produce values in [0, 1] or bool. No additional normalization step is needed during scoring.
@@ -466,14 +457,15 @@ signal_weights:
 - `.high` matches values >= 0.75
 - `.mid` matches values in (0.25, 0.75) exclusive
 - `.low` matches values <= 0.25
-- **Important**: Only use with float signals normalized to [0, 1]. Unbounded signals (e.g., `graph.node.edge_count`, `graph.canonical_concept_count`) will produce incorrect results with threshold binning
-- **Categorical signals**: `llm.response_depth` is categorical (surface/shallow/moderate/deep/comprehensive) and uses string equality matching (pattern #2), not threshold binning:
-  ```yaml
-  signal_weights:
-    llm.response_depth.deep: 0.8      # True if response_depth == "deep"
-    llm.response_depth.moderate: 0.3  # True if response_depth == "moderate"
-    llm.response_depth.shallow: 0.3   # True if response_depth == "shallow"
-  ```
+- **Important**: Only use with float signals normalized to [0, 1]
+
+**Categorical signals** like `llm.response_depth` use string equality matching:
+```yaml
+signal_weights:
+  llm.response_depth.deep: 0.8      # True if response_depth == "deep"
+  llm.response_depth.moderate: 0.3  # True if response_depth == "moderate"
+  llm.response_depth.shallow: 0.3   # True if response_depth == "shallow"
+```
 
 ### Phase Weights and Bonuses (Stage 1 Only)
 
@@ -542,7 +534,7 @@ strategies:
   - name: explore
     description: "Find new attributes/branches"
     signal_weights:
-      llm.response_depth.low: 0.8
+      llm.response_depth.shallow: 0.8
       temporal.strategy_repetition_count: -0.5
     node_binding: required  # Optional: "required" (default) or "none"
 
@@ -570,126 +562,12 @@ phases:
 | `signal_weights.{signal}` | YAML (strategy) | Weight for scoring contribution |
 | `signal_weights.{strategy}` | YAML (phase) | Phase-specific multiplier (Stage 1 only) |
 | `phase_bonuses.{strategy}` | YAML (phase) | Phase-specific additive bonus (Stage 1 only) |
-| `node_binding` | YAML (strategy) | Strategy node binding: `"required"` (default) or `"none"` — controls whether Stage 2 node selection runs |
-| `partition_signal_weights()` | `scoring.py` | Auto-separates global vs node-scoped weights using namespace prefixes |
-
----
-
-## Methodology-Aware Concept Naming
-
-Methodologies can define their own concept naming conventions via YAML configuration. This guides the LLM to produce consistent, methodology-appropriate concept labels rather than verbatim user language.
-
-### YAML Configuration
-
-```yaml
-method:
-  name: jobs_to_be_done
-  description: "Jobs-to-be-Done interviews"
-
-ontology:
-  # ... node type definitions ...
-
-  concept_naming_convention: >
-    Name each concept according to its node type role:
-    phrase job_statements as jobs to be done,
-    pain_points as frustrations or obstacles,
-    gain_points as desired outcomes or benefits,
-    solution_approaches as methods or actions,
-    job_contexts as situations or circumstances,
-    emotional_jobs as emotional states sought,
-    social_jobs as social outcomes desired,
-    job_triggers as initiating events.
-    Use the examples in each node type description as naming models.
-```
-
-### How It Works
-
-1. **YAML Loading**: `MethodologySchema` includes `concept_naming_convention: Optional[str]` field
-2. **Prompt Injection**: ExtractionService loads convention from schema and passes to prompt builder
-3. **Dynamic Prompt**: If convention provided, replaces generic naming guidance in system prompt
-4. **Output**: LLM produces concepts like "maintain morning focus" instead of "i just need to stay focused in the mornings"
-
-### Benefits
-
-- **Consistency**: Concepts follow methodology conventions (e.g., JTBD uses job-statement phrasing)
-- **Clarity**: Abstract labels are easier to connect in the graph
-- **Analysis**: Canonical slot mapping works better with normalized language
-
----
-
-## Cross-Turn Edge Resolution
-
-By default, extracted edges could only reference concepts from the current turn because `label_to_node` only contained nodes extracted from the current response.
-
-### The Problem
-
-```
-Turn 1: "I want to avoid sugar"
-  → Extracted: ["avoid_sugar"] node
-
-Turn 2: "It helps reduce inflammation"
-  → Extracted: ["reduce_inflammation"] node
-  → Edge: "avoid_sugar" → "reduce_inflammation"  # ❌ FAILED - "avoid_sugar" not in current turn
-```
-
-### The Solution
-
-**Expand label_to_node with all session nodes**:
-
-```python
-# In graph_service.py:add_extraction_to_graph()
-all_session_nodes = await self.repo.get_nodes_by_session(session_id)
-for node in all_session_nodes:
-    key = node.label.lower()
-    if key not in label_to_node:  # Current-turn concepts take precedence
-        label_to_node[key] = node
-```
-
-**Inject recent node labels into extraction context**:
-
-```
-[Existing graph concepts from previous turns]
-  - "avoid_sugar"
-  - "maintain_energy"
-
-[Task] When creating relationships, reference these exact labels as source_text
-or target_text to connect new concepts to existing ones. Do NOT re-extract these.
-```
-
-### Result
-
-```
-Turn 1: "I want to avoid sugar"
-  → Extracted: ["avoid_sugar"] node
-
-Turn 2: "It helps reduce inflammation"
-  → Extracted: ["reduce_inflammation"] node
-  → Edge: "avoid_sugar" → "reduce_inflammation"  # ✅ RESOLVED - "avoid_sugar" found in session nodes
-```
+| `node_binding` | YAML (strategy) | Strategy node binding: `"required"` (default) or `"none"` |
+| `partition_signal_weights()` | `scoring.py` | Auto-separates global vs node-scoped weights |
 
 ---
 
 ## YAML Configuration Guide
-
-### Minimal Configuration Example
-
-```yaml
-method:
-  name: simple_methodology
-  description: "Basic exploration methodology"
-
-signals:
-  graph:
-    - graph.max_depth
-  llm:
-    - llm.engagement
-
-strategies:
-  - name: explore
-    description: "Explore new topics"
-    signal_weights:
-      graph.max_depth: 1.0
-```
 
 ### Complete Configuration Example
 
@@ -724,21 +602,18 @@ strategies:
   - name: explore
     description: "Find new attributes/branches"
     signal_weights:
-      llm.response_depth.shallow: 0.8    # Categorical match (not .low)
-      llm.response_depth.surface: 0.5    # Even more brief = boost explore
+      llm.response_depth.shallow: 0.8
+      llm.response_depth.surface: 0.5
       temporal.strategy_repetition_count: -0.5
 
   - name: deepen
     description: "Explore why something matters (laddering up)"
     signal_weights:
-      llm.response_depth.shallow: 0.8    # Categorical match
-      llm.response_depth.surface: 0.4    # Surface answers = opportunity to deepen
+      llm.response_depth.shallow: 0.8
       graph.max_depth: -0.3
-      # Engagement & valence safety checks
-      llm.engagement.high: 0.7        # Engaged = safe to deepen
-      llm.engagement.low: -0.5        # Disengaged = avoid deepening
-      llm.valence.high: 0.4           # Positive emotion = safe to probe
-      # Diversity
+      llm.engagement.high: 0.7
+      llm.engagement.low: -0.5
+      llm.valence.high: 0.4
       temporal.strategy_repetition_count: -0.3
       # Node-level signals
       graph.node.exhaustion_score.low: 1.0
@@ -747,9 +622,9 @@ strategies:
   - name: clarify
     description: "Get more detail on vague responses"
     signal_weights:
-      llm.specificity.low: 0.8        # Vague language = clarify
-      llm.certainty.low: 0.5          # Uncertainty = clarify
-      llm.engagement.mid: 0.3         # Moderate engagement = safe to clarify
+      llm.specificity.low: 0.8
+      llm.certainty.low: 0.5
+      llm.engagement.mid: 0.3
       temporal.strategy_repetition_count: -0.3
 
   - name: bridge
@@ -763,7 +638,7 @@ strategies:
     signal_weights:
       meta.interview.phase.late: 1.0
       graph.chain_completion.high: 0.8
-      llm.engagement.low: 0.6         # Low engagement = validate & wrap
+      llm.engagement.low: 0.6
       temporal.strategy_repetition_count: -0.2
 
 phases:
@@ -823,22 +698,9 @@ The `strategy_alternatives` field in `PipelineContext` contains all scored strat
 ```python
 # Access in code or logs
 context.strategy_alternatives = [
-    (strategy_name, score),  # 2-tuple format (changed from 3-tuple)
+    (strategy_name, score),  # 2-tuple format
     ...
 ]
-```
-
-**Note**: The alternatives format changed from 3-tuple `(strategy, node_id, score)` to 2-tuple `(strategy_name, score)` with the D2 two-stage architecture. Node selection is now a separate conditional stage.
-
-### Available Methodologies
-
-```bash
-# List available methodology YAML files
-ls config/methodologies/
-
-# Example output:
-# means_end_chain.yaml
-# jobs_to_be_done.yaml
 ```
 
 ---
@@ -865,7 +727,7 @@ strategies_ranked: [
 strategy_selected: explore
 ```
 
-**Analysis**: Early phase gives `explore` a 1.5x multiplier, boosting its score above `deepen`. Note: `strategies_ranked` shows 2-tuples `(strategy_name, score)` instead of the old 3-tuple format.
+**Analysis**: Early phase gives `explore` a 1.5x multiplier, boosting its score above `deepen`.
 
 ---
 
@@ -922,7 +784,7 @@ strategies:
       temporal.strategy_repetition_count: -0.3  # Negative weight
 ```
 
-Each time `deepen` is used consecutively, its score drops. The temporal signal is normalized [0,1] (e.g., 2 repetitions in a window of 5 = 0.4), so the penalty is `0.3 * 0.4 = 0.12`.
+Each time `deepen` is used consecutively, its score drops.
 
 ---
 
@@ -938,10 +800,10 @@ signals:
 strategies:
   - name: deepen
     signal_weights:
-      graph.node.exhaustion_score.low: 1.0  # Boost nodes with low exhaustion (score <= 0.25)
+      graph.node.exhaustion_score.low: 1.0  # Boost nodes with low exhaustion
 ```
 
-The D2 two-stage architecture scores each node for the selected `deepen` strategy using node-scoped signals, preferring nodes with low exhaustion scores.
+The two-stage architecture scores each node for the selected `deepen` strategy using node-scoped signals, preferring nodes with low exhaustion scores.
 
 ---
 
@@ -956,24 +818,6 @@ The D2 two-stage architecture scores each node for the selected `deepen` strateg
 2. Are required signals declared in `signals:` section?
 3. Check signal values - maybe conditions never match
 
-**Debug**:
-```python
-# Add temporary debug logging
-logger.info(f"All signals: {signals}")
-logger.info(f"Strategy config: {strategy_config}")
-```
-
----
-
-### Problem: All similarity scores are unexpected
-
-**Symptoms**: LLM signals returning unexpected values.
-
-**Check**:
-1. Enable debug logging to see raw LLM responses
-2. Check `LLMBatchDetector` output in logs
-3. Verify signal prompts in `src/signals/llm/`
-
 ---
 
 ### Problem: Phase detection not working
@@ -981,29 +825,9 @@ logger.info(f"Strategy config: {strategy_config}")
 **Symptoms**: Always in `early` phase regardless of turn count.
 
 **Check**:
-1. Verify `phase_boundaries` in YAML:
-   ```yaml
-   phase_boundaries:
-     early_max_turns: 4
-     mid_max_turns: 12
-   ```
-2. Check `meta.interview.phase` signal is declared:
-   ```yaml
-   signals:
-     meta:
-       - meta.interview.phase
-   ```
-3. Check `turn_number` is available in pipeline context (dependency)
-
----
-
-### Problem: Negative weights not penalizing
-
-**Symptoms**: Strategy still selected despite negative weights.
-
-**Check**:
-1. Ensure other positive weights don't outweigh the negative
-2. Check if signal value is actually being detected
+1. Verify `phase_boundaries` in YAML
+2. Check `meta.interview.phase` signal is declared
+3. Check `turn_number` is available in pipeline context
 
 ---
 
@@ -1015,13 +839,11 @@ logger.info(f"Strategy config: {strategy_config}")
 1. Verify the strategy has `node_binding: "required"` (or default, since `"required"` is default)
 2. Check `node_signals` are being passed to scoring function
 3. Ensure node signal names match exactly (e.g., `graph.node.exhausted`)
-4. Check that the strategy actually defines node-scoped signal weights (graph.node.*, technique.node.*, meta.node.*)
 
 ---
 
 ## References
 
-- **ADR-014**: Signal Pools Architecture (`docs/adr/ADR-014-signal-pools-architecture.md`)
 - **Signal Base Class**: `src/signals/signal_base.py`
 - **Signal Registry**: `src/signals/signal_registry.py`
 - **Scoring Logic**: `src/methodologies/scoring.py` — `rank_strategies()`, `rank_nodes_for_strategy()`, `partition_signal_weights()`
@@ -1036,7 +858,7 @@ logger.info(f"Strategy config: {strategy_config}")
 
 ## Quick Reference
 
-### Two-Stage Architecture (D2)
+### Two-Stage Architecture
 
 | Stage | Function | Signals Used | Phase Weights |
 |-------|----------|--------------|---------------|
@@ -1053,6 +875,7 @@ logger.info(f"Strategy config: {strategy_config}")
 | `meta.*` | Meta (global) | `meta.interview.phase` | Stage 1 |
 | `graph.node.*` | Node (graph) | `graph.node.exhausted` | Stage 2 |
 | `technique.node.*` | Node (technique) | `technique.node.strategy_repetition` | Stage 2 |
+| `meta.node.*` | Node (meta) | `meta.node.opportunity` | Stage 2 |
 
 ### `node_binding` Field
 
