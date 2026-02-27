@@ -310,6 +310,9 @@ strategies:
       graph.node.focus_streak.low: 0.5      # First focus on a construct
       graph.node.focus_streak.medium: -0.4
       graph.node.focus_streak.high: -0.7
+      # Saturation suppression — pivot when themes/yield exhausted
+      meta.canonical.saturation.high: -0.5
+      meta.conversation.saturation.high: -0.4
 
   # Strategy 4: Rate elements (probing)
   # "How would you rate oat milk on that creamy-watery scale?"
@@ -425,8 +428,8 @@ strategies:
       graph.node.focus_streak.high: 0.4
       technique.node.strategy_repetition.low: 0.3
       # Saturation triggers
-      meta.conversation.saturation: 0.5
-      meta.canonical.saturation: 0.3
+      meta.conversation.saturation: 0.3
+      meta.canonical.saturation: 0.2
 
 phases:
   early:

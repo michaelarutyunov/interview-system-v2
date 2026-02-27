@@ -181,6 +181,9 @@ strategies:
       # Node-level signals (Phase 3)
       graph.node.exhaustion_score.low: 1.0  # Boost non-exhausted nodes
       graph.node.focus_streak.low: 0.5  # Prefer fresh nodes
+      # Saturation suppression — pivot when themes/yield exhausted
+      meta.canonical.saturation.high: -0.5
+      meta.conversation.saturation.high: -0.4
 
   # Strategy 2: Clarify relationships (probing)
   - name: clarify
@@ -237,8 +240,8 @@ strategies:
       graph.node.focus_streak.high: 0.5  # Often-focused nodes
       technique.node.strategy_repetition.low: 0.3  # Avoid overusing same strategy
       # Saturation triggers (Phase 6)
-      meta.conversation.saturation: 0.5  # High saturation = validate
-      meta.canonical.saturation: 0.3     # Supportive metric
+      meta.conversation.saturation: 0.3  # High saturation = validate
+      meta.canonical.saturation: 0.2     # Supportive metric
 
   # Strategy 5: Revitalize engagement (elaboration) - Phase 5
   - name: revitalize

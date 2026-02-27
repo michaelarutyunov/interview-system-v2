@@ -1,73 +1,54 @@
-"""Canonical saturation signal from canonical graph velocity.
+"""Canonical saturation signal from novelty ratio.
 
-Parallel to ConversationSaturationSignal but uses canonical (deduplicated)
-concept velocity. Enables empirical comparison — hypothesis is that
-conversational graph may produce better results.
+Measures what fraction of this turn's surface extraction was thematically
+redundant at the canonical level. High saturation means new surface nodes
+are deduplicating into existing canonical slots — the respondent is
+elaborating on known themes rather than introducing new ones.
 """
 
 from src.signals.signal_base import SignalDetector
 
 
 class CanonicalSaturationSignal(SignalDetector):
-    """Estimate interview saturation from canonical graph velocity.
+    """Canonical novelty ratio: new canonical slots / new surface nodes.
 
-    Computes saturation score (0.0-1.0) using the same formula as
-    ConversationSaturationSignal but reads from canonical graph state.
+    Formula: saturation = 1.0 - min(canonical_delta / surface_delta, 1.0)
 
-    Returns empty dict if canonical slots are disabled (feature flag).
+    Output: 0.0 (all new themes) to 1.0 (pure deduplication).
+    Returns empty dict if canonical slots are disabled.
+    Instantaneous per-turn, no smoothing.
 
     Namespaced signal: meta.canonical.saturation
-    Cost: low (reads from ContextLoadingOutput and canonical_graph_state)
+    Cost: low (reads from ContextLoadingOutput, graph_state, canonical_graph_state)
     Refresh: per_turn
     """
 
     signal_name = "meta.canonical.saturation"
-    description = "Interview saturation from canonical graph: 0=still learning, 1=saturated. Combines canonical concept velocity decay (primary), canonical edge density (graph richness), and turn floor."
+    description = "Canonical novelty ratio: 0=all extraction is thematically new, 1=pure deduplication into existing canonical slots."
     dependencies = []
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
-        """Calculate canonical saturation from velocity, density, and turns.
-
-        Args:
-            context: Pipeline context with ContextLoadingOutput and
-                canonical_graph_state
-            graph_state: Current knowledge graph state (unused, uses canonical)
-            response_text: User's response text (unused)
-
-        Returns:
-            Dict with meta.canonical.saturation: float (0.0-1.0)
-            Returns empty dict if canonical_graph_state is None.
-        """
-        # Load canonical velocity state from ContextLoadingOutput
         clo = context.context_loading_output
-        ewma = clo.canonical_velocity_ewma
-        peak = clo.canonical_velocity_peak
 
         # Check if canonical graph is available
         cg_state = context.canonical_graph_state
         if cg_state is None:
-            # Canonical slots disabled — signal not applicable
             return {}
 
-        # Component 1: velocity decay (primary, 60%)
-        if peak > 0:
-            velocity_decay = 1.0 - (ewma / peak)
+        # Surface delta this turn
+        prev_surface = clo.prev_surface_node_count
+        current_surface = graph_state.node_count if graph_state else 0
+        surface_delta = max(current_surface - prev_surface, 0)
+
+        # Canonical delta this turn
+        prev_canonical = clo.prev_canonical_node_count
+        current_canonical = cg_state.concept_count
+        canonical_delta = max(current_canonical - prev_canonical, 0)
+
+        if surface_delta > 0:
+            novelty_ratio = min(canonical_delta / surface_delta, 1.0)
         else:
-            velocity_decay = 0.0
-        velocity_decay = max(0.0, min(1.0, velocity_decay))
+            novelty_ratio = 1.0  # no extraction — not saturated
 
-        # Component 2: canonical edge density (25%)
-        concept_count = cg_state.concept_count
-        edge_count = cg_state.edge_count
-        if concept_count > 0:
-            raw_density = edge_count / concept_count
-            edge_density_norm = min(raw_density / 2.0, 1.0)
-        else:
-            edge_density_norm = 0.0
-
-        # Component 3: turn floor (15%)
-        turn_floor = min(context.turn_number / 15.0, 1.0)
-
-        saturation = 0.60 * velocity_decay + 0.25 * edge_density_norm + 0.15 * turn_floor
-
+        saturation = 1.0 - novelty_ratio
         return {self.signal_name: round(saturation, 4)}

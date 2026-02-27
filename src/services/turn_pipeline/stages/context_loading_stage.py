@@ -86,7 +86,9 @@ class ContextLoadingStage(TurnStage):
                 max_turns = config.get("max_turns", default_max_turns)
 
         # Get recent utterances
-        recent_utterances = await self._get_recent_utterances(context.session_id, limit=10)
+        recent_utterances = await self._get_recent_utterances(
+            context.session_id, limit=10
+        )
 
         # Note: Sentiment loading from turn_sentiments has been removed
         # It previously accessed context.graph_state which is not available
@@ -121,10 +123,8 @@ class ContextLoadingStage(TurnStage):
             strategy_history=strategy_history,
             recent_node_labels=recent_node_labels,
             # Velocity state from SessionState
-            surface_velocity_ewma=session.state.surface_velocity_ewma,
             surface_velocity_peak=session.state.surface_velocity_peak,
             prev_surface_node_count=session.state.prev_surface_node_count,
-            canonical_velocity_ewma=session.state.canonical_velocity_ewma,
             canonical_velocity_peak=session.state.canonical_velocity_peak,
             prev_canonical_node_count=session.state.prev_canonical_node_count,
             # Focus history from SessionState

@@ -30,7 +30,9 @@ class ContextLoadingOutput(BaseModel):
     """
 
     # Session metadata
-    methodology: str = Field(description="Methodology identifier (e.g., 'means_end_chain')")
+    methodology: str = Field(
+        description="Methodology identifier (e.g., 'means_end_chain')"
+    )
     concept_id: str = Field(description="Concept identifier")
     concept_name: str = Field(description="Human-readable concept name")
     turn_number: int = Field(ge=0, description="Current turn number (0-indexed)")
@@ -52,12 +54,18 @@ class ContextLoadingOutput(BaseModel):
     )
 
     # Velocity state loaded from SessionState (used by saturation signals)
-    surface_velocity_ewma: float = Field(default=0.0, description="Loaded from SessionState")
-    surface_velocity_peak: float = Field(default=0.0, description="Loaded from SessionState")
-    prev_surface_node_count: int = Field(default=0, description="Loaded from SessionState")
-    canonical_velocity_ewma: float = Field(default=0.0, description="Loaded from SessionState")
-    canonical_velocity_peak: float = Field(default=0.0, description="Loaded from SessionState")
-    prev_canonical_node_count: int = Field(default=0, description="Loaded from SessionState")
+    surface_velocity_peak: float = Field(
+        default=0.0, description="Loaded from SessionState"
+    )
+    prev_surface_node_count: int = Field(
+        default=0, description="Loaded from SessionState"
+    )
+    canonical_velocity_peak: float = Field(
+        default=0.0, description="Loaded from SessionState"
+    )
+    prev_canonical_node_count: int = Field(
+        default=0, description="Loaded from SessionState"
+    )
 
     # Focus history for tracing strategy-node decisions
     focus_history: List[FocusEntry] = Field(
@@ -94,7 +102,9 @@ class SrlPreprocessingOutput(BaseModel):
         default_factory=list,
         description="Predicate-argument frames: {predicate, arguments}",
     )
-    discourse_count: int = Field(default=0, ge=0, description="Number of discourse relations found")
+    discourse_count: int = Field(
+        default=0, ge=0, description="Number of discourse relations found"
+    )
     frame_count: int = Field(default=0, ge=0, description="Number of SRL frames found")
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
@@ -127,7 +137,9 @@ class StateComputationOutput(BaseModel):
     recent_nodes: List[KGNode] = Field(
         default_factory=list, description="Refreshed list of recent nodes"
     )
-    computed_at: datetime = Field(description="When state was computed (for freshness validation)")
+    computed_at: datetime = Field(
+        description="When state was computed (for freshness validation)"
+    )
     saturation_metrics: Optional[SaturationMetrics] = Field(
         default=None,
         description="Saturation indicators computed from graph state and yield tracking",
@@ -159,7 +171,9 @@ class StrategySelectionInput(BaseModel):
     recent_nodes: List[KGNode] = Field(default_factory=list, description="Recent nodes")
 
     # Extraction results
-    extraction: Any = Field(description="ExtractionResult with timestamp for freshness check")
+    extraction: Any = Field(
+        description="ExtractionResult with timestamp for freshness check"
+    )
 
     # Context
     conversation_history: List[Dict[str, Any]] = Field(
@@ -224,12 +238,14 @@ class StrategySelectionOutput(BaseModel):
         description="Per-node signals keyed by node_id. Each value is a dict of signal_name: value.",
     )
     # Joint strategy-node scoring produces tuples with node_id
-    strategy_alternatives: List[Union[tuple[str, float], tuple[str, str, float]]] = Field(
-        default_factory=list,
-        description=(
-            "Alternative strategies with scores for observability. "
-            "Format: [(strategy, score)] or [(strategy, node_id, score)] for joint scoring"
-        ),
+    strategy_alternatives: List[Union[tuple[str, float], tuple[str, str, float]]] = (
+        Field(
+            default_factory=list,
+            description=(
+                "Alternative strategies with scores for observability. "
+                "Format: [(strategy, score)] or [(strategy, node_id, score)] for joint scoring"
+            ),
+        )
     )
     generates_closing_question: bool = Field(
         default=False,
@@ -260,13 +276,17 @@ class ExtractionOutput(BaseModel):
     methodology-specific extraction service.
     """
 
-    extraction: ExtractionResult = Field(description="Extracted concepts and relationships")
+    extraction: ExtractionResult = Field(
+        description="Extracted concepts and relationships"
+    )
     methodology: str = Field(description="Methodology used for extraction")
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         description="When extraction was performed",
     )
-    concept_count: int = Field(default=0, ge=0, description="Number of concepts extracted")
+    concept_count: int = Field(
+        default=0, ge=0, description="Number of concepts extracted"
+    )
     relationship_count: int = Field(
         default=0, ge=0, description="Number of relationships extracted"
     )
@@ -288,7 +308,9 @@ class GraphUpdateOutput(BaseModel):
     relationships, deduplicating against existing nodes.
     """
 
-    nodes_added: List[KGNode] = Field(default_factory=list, description="Nodes added to graph")
+    nodes_added: List[KGNode] = Field(
+        default_factory=list, description="Nodes added to graph"
+    )
     edges_added: List[Dict[str, Any]] = Field(
         default_factory=list, description="Edges added to graph"
     )
@@ -316,7 +338,9 @@ class SlotDiscoveryOutput(BaseModel):
     Implements dual-graph architecture by mapping surface nodes to abstract canonical slots.
     """
 
-    slots_created: int = Field(default=0, ge=0, description="New canonical slots created this turn")
+    slots_created: int = Field(
+        default=0, ge=0, description="New canonical slots created this turn"
+    )
     slots_updated: int = Field(
         default=0, ge=0, description="Existing slots that received new mappings"
     )
@@ -338,8 +362,12 @@ class QuestionGenerationOutput(BaseModel):
 
     question: str = Field(description="Generated question text")
     strategy: str = Field(description="Strategy used to generate question")
-    focus: Optional[Dict[str, Any]] = Field(default=None, description="Focus target for question")
-    has_llm_fallback: bool = Field(default=False, description="Whether LLM fallback was used")
+    focus: Optional[Dict[str, Any]] = Field(
+        default=None, description="Focus target for question"
+    )
+    has_llm_fallback: bool = Field(
+        default=False, description="Whether LLM fallback was used"
+    )
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         description="When question was generated",
@@ -392,7 +420,9 @@ class ScoringPersistenceOutput(BaseModel):
     turn_number: int = Field(ge=0, description="Turn number for scoring")
     strategy: str = Field(description="Strategy that was selected")
     depth_score: float = Field(ge=0.0, description="Depth metric from graph state")
-    saturation_score: float = Field(ge=0.0, description="Saturation metric from graph state")
+    saturation_score: float = Field(
+        ge=0.0, description="Saturation metric from graph state"
+    )
     has_methodology_signals: bool = Field(
         default=False, description="Whether methodology signals were saved"
     )

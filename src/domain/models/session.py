@@ -33,7 +33,9 @@ class FocusEntry(BaseModel):
     """
 
     turn: int = Field(description="Turn number (1-indexed)")
-    node_id: str = Field(default="", description="Target node ID, empty if no node focus")
+    node_id: str = Field(
+        default="", description="Target node ID, empty if no node focus"
+    )
     label: str = Field(default="", description="Human-readable node label")
     strategy: str = Field(description="Strategy selected for this turn")
 
@@ -63,17 +65,11 @@ class SessionState(BaseModel):
     mode: InterviewMode = InterviewMode.EXPLORATORY
 
     # Velocity tracking for saturation signals (updated by ScoringPersistenceStage each turn)
-    surface_velocity_ewma: float = Field(
-        default=0.0, description="EWMA of surface node delta per turn (α=0.4)"
-    )
     surface_velocity_peak: float = Field(
         default=0.0, description="Peak surface node delta observed in this session"
     )
     prev_surface_node_count: int = Field(
         default=0, description="Surface node count at end of previous turn"
-    )
-    canonical_velocity_ewma: float = Field(
-        default=0.0, description="EWMA of canonical node delta per turn (α=0.4)"
     )
     canonical_velocity_peak: float = Field(
         default=0.0, description="Peak canonical node delta observed in this session"
