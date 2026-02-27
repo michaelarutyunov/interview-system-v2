@@ -152,7 +152,9 @@ class ComposedSignalDetector:
                     detect_context = context
 
                 try:
-                    signals = await detector.detect(detect_context, graph_state, response_text)
+                    signals = await detector.detect(
+                        detect_context, graph_state, response_text
+                    )
                     all_signals.update(signals)
                 except Exception as e:
                     log.error(
@@ -161,7 +163,9 @@ class ComposedSignalDetector:
                         error=str(e),
                         exc_info=True,
                     )
-                    raise ScorerFailureError(f"Signal detector '{signal_name}' failed: {e}") from e
+                    raise ScorerFailureError(
+                        f"Signal detector '{signal_name}' failed: {e}"
+                    ) from e
 
         # Detect LLM signals using batch detector
         if self.llm_signal_names and self._llm_detector:

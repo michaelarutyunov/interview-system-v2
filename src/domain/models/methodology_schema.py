@@ -180,7 +180,9 @@ class MethodologySchema(BaseModel):
                     return nt.terminal
         return None
 
-    def is_valid_connection(self, edge_type: str, source_type: str, target_type: str) -> bool:
+    def is_valid_connection(
+        self, edge_type: str, source_type: str, target_type: str
+    ) -> bool:
         """Check if edge_type allows source_type → target_type.
 
         Args:
@@ -204,7 +206,9 @@ class MethodologySchema(BaseModel):
                     else:
                         continue
 
-                    if (src == "*" or src == source_type) and (tgt == "*" or tgt == target_type):
+                    if (src == "*" or src == source_type) and (
+                        tgt == "*" or tgt == target_type
+                    ):
                         return True
         return False
 
@@ -219,7 +223,9 @@ class MethodologySchema(BaseModel):
             for nt in self.ontology.nodes:
                 examples = ", ".join(f"'{e}'" for e in nt.examples[:3])
                 result[nt.name] = (
-                    f"{nt.description} (e.g., {examples})" if examples else nt.description
+                    f"{nt.description} (e.g., {examples})"
+                    if examples
+                    else nt.description
                 )
         return result
 

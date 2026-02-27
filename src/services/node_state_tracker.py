@@ -54,7 +54,9 @@ class NodeStateTracker:
     - Strategy usage patterns
     """
 
-    def __init__(self, canonical_slot_repo: Optional["CanonicalSlotRepository"] = None) -> None:
+    def __init__(
+        self, canonical_slot_repo: Optional["CanonicalSlotRepository"] = None
+    ) -> None:
         """Initialize the NodeStateTracker with optional canonical slot support.
 
         Args:
@@ -304,7 +306,9 @@ class NodeStateTracker:
             nodes_modified=graph_changes.nodes_modified,
         )
 
-    async def append_response_signal(self, focus_node_id: str, response_depth: str) -> None:
+    async def append_response_signal(
+        self, focus_node_id: str, response_depth: str
+    ) -> None:
         """
         Append response depth to the node that was asked about.
 
@@ -489,7 +493,9 @@ class NodeStateTracker:
         states_data = data.get("states", {})
         for node_id, state_dict in states_data.items():
             # Convert list back to Set for connected_node_ids
-            state_dict["connected_node_ids"] = set(state_dict.get("connected_node_ids", []))
+            state_dict["connected_node_ids"] = set(
+                state_dict.get("connected_node_ids", [])
+            )
 
             # Reconstruct NodeState from dict
             tracker.states[node_id] = NodeState(**state_dict)

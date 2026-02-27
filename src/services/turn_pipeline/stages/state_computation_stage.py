@@ -115,8 +115,10 @@ class StateComputationStage(TurnStage):
         # Compute canonical graph state (optional, for dual-graph architecture)
         canonical_graph_state = None
         if self.canonical_graph_service is not None:
-            canonical_graph_state = await self.canonical_graph_service.compute_canonical_state(
-                context.session_id
+            canonical_graph_state = (
+                await self.canonical_graph_service.compute_canonical_state(
+                    context.session_id
+                )
             )
 
             # Log surface vs canonical node counts with reduction percentage
@@ -213,7 +215,10 @@ class StateComputationStage(TurnStage):
             current_max_depth = graph_state.depth_metrics.max_depth
 
         if nodes_added + edges_added == 0:
-            if tracking.prev_max_depth >= 0 and current_max_depth == tracking.prev_max_depth:
+            if (
+                tracking.prev_max_depth >= 0
+                and current_max_depth == tracking.prev_max_depth
+            ):
                 tracking.consecutive_depth_plateau += 1
             else:
                 tracking.consecutive_depth_plateau = 0

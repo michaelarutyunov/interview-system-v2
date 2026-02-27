@@ -76,7 +76,9 @@ class TestIsLLMSignalMethod:
 
         for signal_name in llm_signal_names:
             result = ComposedSignalDetector._is_llm_signal(signal_name)
-            assert result is True, f"Expected _is_llm_signal('{signal_name}') to return True"
+            assert result is True, (
+                f"Expected _is_llm_signal('{signal_name}') to return True"
+            )
 
     def test_is_llm_signal_rejects_non_llm_signals(self):
         """Verify _is_llm_signal() returns False for non-LLM signals."""
@@ -90,7 +92,9 @@ class TestIsLLMSignalMethod:
 
         for signal_name in non_llm_signals:
             result = ComposedSignalDetector._is_llm_signal(signal_name)
-            assert result is False, f"Expected _is_llm_signal('{signal_name}') to return False"
+            assert result is False, (
+                f"Expected _is_llm_signal('{signal_name}') to return False"
+            )
 
     def test_is_llm_signal_no_name_error(self):
         """Verify _is_llm_signal() doesn't raise NameError.
@@ -131,7 +135,9 @@ class TestSignalRegistryLoopLogic:
         detector = detector_class(node_tracker=None)
 
         # Verify it has signal_name attribute
-        assert hasattr(detector, "signal_name"), "Signal detector missing signal_name attribute"
+        assert hasattr(detector, "signal_name"), (
+            "Signal detector missing signal_name attribute"
+        )
         assert detector.signal_name == signal_names[0], (
             f"Expected signal_name='{signal_names[0]}', got '{detector.signal_name}'"
         )
@@ -152,7 +158,9 @@ class TestSignalRegistryLoopLogic:
 
         # Verify each element is a detector instance with signal_name
         for det in detector.non_llm_detectors:
-            assert hasattr(det, "signal_name"), "Detector should have signal_name attribute"
+            assert hasattr(det, "signal_name"), (
+                "Detector should have signal_name attribute"
+            )
             assert hasattr(det, "detect"), "Detector should have detect method"
 
 

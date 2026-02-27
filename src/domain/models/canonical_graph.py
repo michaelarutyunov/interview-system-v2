@@ -54,7 +54,9 @@ class CanonicalSlot(BaseModel):
 
     id: str
     session_id: str
-    slot_name: str = Field(description="LLM-generated canonical name (e.g., 'energy_stability')")
+    slot_name: str = Field(
+        description="LLM-generated canonical name (e.g., 'energy_stability')"
+    )
     description: str = Field(description="LLM-generated description of the concept")
     node_type: str = Field(
         description="Preserves methodology hierarchy - same types as KGNode.node_type"
@@ -83,11 +85,15 @@ class SlotMapping(BaseModel):
     (KGNode instances) map to a single CanonicalSlot via similarity scoring.
     """
 
-    surface_node_id: str = Field(description="ID of the surface node (from kg_nodes table)")
+    surface_node_id: str = Field(
+        description="ID of the surface node (from kg_nodes table)"
+    )
     canonical_slot_id: str = Field(
         description="ID of the canonical slot (from canonical_slots table)"
     )
-    similarity_score: float = Field(ge=0.0, le=1.0, description="Cosine similarity score (0.0-1.0)")
+    similarity_score: float = Field(
+        ge=0.0, le=1.0, description="Cosine similarity score (0.0-1.0)"
+    )
     assigned_turn: int = Field(ge=1, description="Turn when this mapping was created")
 
     model_config = {"from_attributes": True}
@@ -144,14 +150,18 @@ class CanonicalGraphState(BaseModel):
         - Coverage and depth scoring for canonical-level decisions
     """
 
-    concept_count: int = Field(ge=0, description="Active slots only (candidates excluded)")
+    concept_count: int = Field(
+        ge=0, description="Active slots only (candidates excluded)"
+    )
     edge_count: int = Field(ge=0, description="Canonical edges")
     orphan_count: int = Field(
         ge=0,
         description="Active slots with no canonical edges (candidates excluded)",
     )
     max_depth: int = Field(ge=0, description="Longest canonical chain")
-    avg_support: float = Field(ge=0.0, description="Average support_count per active slot")
+    avg_support: float = Field(
+        ge=0.0, description="Average support_count per active slot"
+    )
 
     model_config = {"from_attributes": True}
 

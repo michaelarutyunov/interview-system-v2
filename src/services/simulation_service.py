@@ -341,7 +341,9 @@ class SimulationService:
             SimulationTurn with question and response
         """
         # Get graph state to extract previous concepts
-        assert self.session.graph is not None, "SessionService.graph must be initialized"
+        assert self.session.graph is not None, (
+            "SessionService.graph must be initialized"
+        )
         graph_state = await self.session.graph.get_graph_state(session_id)
 
         # Build interview context for synthetic service
@@ -492,13 +494,17 @@ class SimulationService:
         if self.session.canonical_slot_repo is not None:
             # Fetch canonical slots with provenance (surface_node_ids)
             slots_with_provenance = (
-                await self.session.canonical_slot_repo.get_slots_with_provenance(session_id)
+                await self.session.canonical_slot_repo.get_slots_with_provenance(
+                    session_id
+                )
             )
             canonical_slots_data = slots_with_provenance  # Already in dict format
 
             # Fetch canonical edges with metadata
-            edges_with_metadata = await self.session.canonical_slot_repo.get_edges_with_metadata(
-                session_id
+            edges_with_metadata = (
+                await self.session.canonical_slot_repo.get_edges_with_metadata(
+                    session_id
+                )
             )
             canonical_edges_data = edges_with_metadata  # Already in dict format
 
@@ -562,7 +568,9 @@ class SimulationService:
             counts[node_type] = counts.get(node_type, 0) + 1
         return counts
 
-    def _count_canonical_edges_by_type(self, edges: list[dict[str, Any]]) -> dict[str, int]:
+    def _count_canonical_edges_by_type(
+        self, edges: list[dict[str, Any]]
+    ) -> dict[str, int]:
         """Count canonical edges by their edge_type for summary statistics.
 
         Args:
@@ -668,7 +676,9 @@ class SimulationService:
                     "total_slots": len(result.canonical_slots),
                     "total_edges": len(result.canonical_edges),
                     "slots_by_type": self._count_slots_by_type(result.canonical_slots),
-                    "edges_by_type": self._count_canonical_edges_by_type(result.canonical_edges),
+                    "edges_by_type": self._count_canonical_edges_by_type(
+                        result.canonical_edges
+                    ),
                 },
             },
             "turns": [

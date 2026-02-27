@@ -211,7 +211,8 @@ def _get_signal_value(signal_key: str, signals: Dict[str, Any]) -> Any:
     # Log missing signals at debug level to help with configuration issues
     # Only log for non-trivial lookups (compound keys or non-suffixed signals)
     if "." in signal_key or not any(
-        signal_key.endswith(suffix) for suffix in [".low", ".mid", ".high", ".true", ".false"]
+        signal_key.endswith(suffix)
+        for suffix in [".low", ".mid", ".high", ".true", ".false"]
     ):
         log.debug(
             "signal_value_not_found",
@@ -230,7 +231,7 @@ def rank_strategies(
     return_decomposition: bool = False,
 ) -> Union[
     List[Tuple[StrategyConfig, float]],
-    Tuple[List[Tuple[StrategyConfig, float]], List[ScoredCandidate]]
+    Tuple[List[Tuple[StrategyConfig, float]], List[ScoredCandidate]],
 ]:
     """
     Rank all strategies by score.

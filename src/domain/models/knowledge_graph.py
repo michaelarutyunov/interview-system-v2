@@ -48,8 +48,12 @@ class KGNode(BaseModel):
     properties: Dict[str, Any] = Field(default_factory=dict)
     source_utterance_ids: List[str] = Field(default_factory=list)
     recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    superseded_by: Optional[str] = None  # Node ID that supersedes this one (for REVISES)
-    stance: int = Field(default=0, ge=-1, le=1)  # Stance: -1 (negative), 0 (neutral), +1 (positive)
+    superseded_by: Optional[str] = (
+        None  # Node ID that supersedes this one (for REVISES)
+    )
+    stance: int = Field(
+        default=0, ge=-1, le=1
+    )  # Stance: -1 (negative), 0 (neutral), +1 (positive)
 
     model_config = {"from_attributes": True}
 
@@ -191,7 +195,9 @@ class GraphState(BaseModel):
     orphan_count: int = Field(ge=0, default=0)
 
     # === Structured Metrics (ADR-010) ===
-    depth_metrics: DepthMetrics = Field(description="Depth analysis of the knowledge graph")
+    depth_metrics: DepthMetrics = Field(
+        description="Depth analysis of the knowledge graph"
+    )
     saturation_metrics: Optional[SaturationMetrics] = Field(
         default=None,
         description="Information saturation indicators (expensive to compute)",

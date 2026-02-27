@@ -104,7 +104,9 @@ def main():
 
 def _render_welcome_screen():
     """Render welcome screen when no session is active."""
-    st.info("👋 Welcome! Create a new session or select an existing one from the sidebar to begin.")
+    st.info(
+        "👋 Welcome! Create a new session or select an existing one from the sidebar to begin."
+    )
 
     st.markdown("""
     ## About This System

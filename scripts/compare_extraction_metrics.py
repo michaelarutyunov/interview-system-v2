@@ -87,7 +87,9 @@ async def get_surface_metrics(db_path: Path, session_id: str) -> Dict[str, Any]:
     }
 
 
-async def get_canonical_metrics(db_path: Path, session_id: str) -> Optional[Dict[str, Any]]:
+async def get_canonical_metrics(
+    db_path: Path, session_id: str
+) -> Optional[Dict[str, Any]]:
     """Query canonical graph metrics for a session.
 
     Args:
@@ -136,7 +138,9 @@ async def get_canonical_metrics(db_path: Path, session_id: str) -> Optional[Dict
         orphan_count = row[0] if row else 0
 
     # Edge/concept ratio
-    edge_concept_ratio = canonical_edge_count / concept_count if concept_count > 0 else 0.0
+    edge_concept_ratio = (
+        canonical_edge_count / concept_count if concept_count > 0 else 0.0
+    )
 
     # Orphan percentage
     orphan_pct = (orphan_count / concept_count * 100) if concept_count > 0 else 0.0
@@ -248,7 +252,9 @@ def print_comparison_table(results: List[Dict[str, Any]]) -> None:
         for r in results:
             surface_nodes = r["surface"]["node_count"]
             canonical_nodes = r["canonical"]["concept_count"]
-            reduction = (1 - canonical_nodes / surface_nodes) * 100 if surface_nodes > 0 else 0
+            reduction = (
+                (1 - canonical_nodes / surface_nodes) * 100 if surface_nodes > 0 else 0
+            )
             print(f" {reduction:.1f}% |", end="")
         print()
 
@@ -256,7 +262,9 @@ def print_comparison_table(results: List[Dict[str, Any]]) -> None:
         for r in results:
             surface_edges = r["surface"]["edge_count"]
             canonical_edges = r["canonical"]["canonical_edge_count"]
-            improvement = (1 - canonical_edges / surface_edges) * 100 if surface_edges > 0 else 0
+            improvement = (
+                (1 - canonical_edges / surface_edges) * 100 if surface_edges > 0 else 0
+            )
             print(f" {improvement:.1f}% |", end="")
         print()
 
@@ -274,7 +282,9 @@ def print_comparison_table(results: List[Dict[str, Any]]) -> None:
 async def main():
     """Main entry point."""
     if len(sys.argv) < 2:
-        print("Usage: python compare_extraction_metrics.py <session_id_1> [session_id_2] ...")
+        print(
+            "Usage: python compare_extraction_metrics.py <session_id_1> [session_id_2] ..."
+        )
         sys.exit(1)
 
     session_ids = sys.argv[1:]

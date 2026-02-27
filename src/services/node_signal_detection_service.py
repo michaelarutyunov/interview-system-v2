@@ -76,14 +76,20 @@ class NodeSignalDetectionService:
         if not all_states:
             log.warning(
                 "no_tracked_nodes_for_signals",
-                session_id=context.session_id if hasattr(context, 'session_id') else None,
-                turn_number=context.turn_number if hasattr(context, 'turn_number') else None,
+                session_id=context.session_id
+                if hasattr(context, "session_id")
+                else None,
+                turn_number=context.turn_number
+                if hasattr(context, "turn_number")
+                else None,
                 graph_node_count=graph_state.node_count if graph_state else 0,
             )
             return {}
 
         # Initialize node signals dict
-        node_signals: Dict[str, Dict[str, Any]] = {node_id: {} for node_id in all_states.keys()}
+        node_signals: Dict[str, Dict[str, Any]] = {
+            node_id: {} for node_id in all_states.keys()
+        }
 
         # List of node signal detectors to run
         # These detectors take node_tracker in their constructor

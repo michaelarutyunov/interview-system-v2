@@ -97,7 +97,9 @@ class MetricsPanel:
 
         # Visual coverage bar (10 segments)
         filled = int(coverage * 10)
-        bar = "".join([self.coverage_emoji[1]] * filled + [self.coverage_emoji[0]] * (10 - filled))
+        bar = "".join(
+            [self.coverage_emoji[1]] * filled + [self.coverage_emoji[0]] * (10 - filled)
+        )
         st.markdown(
             f"<p style='font-size: 24px; letter-spacing: 2px;'>{bar}</p>",
             unsafe_allow_html=True,
@@ -264,8 +266,12 @@ def _render_mec_metrics(graph_data: Dict[str, Any]):
 
     with col1:
         st.metric("Attributes", type_counts.get("attribute", 0))
-        st.metric("Functional Consequences", type_counts.get("functional_consequence", 0))
-        st.metric("Psychosocial Consequences", type_counts.get("psychosocial_consequence", 0))
+        st.metric(
+            "Functional Consequences", type_counts.get("functional_consequence", 0)
+        )
+        st.metric(
+            "Psychosocial Consequences", type_counts.get("psychosocial_consequence", 0)
+        )
 
     with col2:
         st.metric("Instrumental Values", type_counts.get("instrumental_value", 0))
@@ -278,7 +284,8 @@ def _render_mec_metrics(graph_data: Dict[str, Any]):
             + type_counts.get("psychosocial_consequence", 0)
         ) > 0
         has_val = (
-            type_counts.get("instrumental_value", 0) + type_counts.get("terminal_value", 0)
+            type_counts.get("instrumental_value", 0)
+            + type_counts.get("terminal_value", 0)
         ) > 0
 
         completeness = (has_attr + has_cons + has_val) / 3
@@ -334,7 +341,9 @@ def render_turn_diagnostics(turn_result: Dict[str, Any]):
         if concepts:
             st.write("**Extracted Concepts:**")
             for concept in concepts[:5]:  # Show first 5
-                st.write(f"- {concept.get('text', 'N/A')} ({concept.get('node_type', 'N/A')})")
+                st.write(
+                    f"- {concept.get('text', 'N/A')} ({concept.get('node_type', 'N/A')})"
+                )
 
             if len(concepts) > 5:
                 st.caption(f"... and {len(concepts) - 5} more")

@@ -39,9 +39,15 @@ class ExtractedConcept(BaseModel):
     """
 
     text: str = Field(description="Normalized concept text")
-    node_type: str = Field(description="Methodology-specific type (attribute, consequence, value)")
-    confidence: float = Field(default=0.8, ge=0.0, le=1.0, description="Confidence score 0-1")
-    source_quote: str = Field(default="", description="Verbatim text from user response")
+    node_type: str = Field(
+        description="Methodology-specific type (attribute, consequence, value)"
+    )
+    confidence: float = Field(
+        default=0.8, ge=0.0, le=1.0, description="Confidence score 0-1"
+    )
+    source_quote: str = Field(
+        default="", description="Verbatim text from user response"
+    )
     source_utterance_id: str = Field(description="Source utterance ID for traceability")
     linked_elements: List[int] = Field(
         default_factory=list,
@@ -58,7 +64,9 @@ class ExtractedConcept(BaseModel):
         default_factory=dict,
         description="Extensible metadata for methodology-specific info",
     )
-    is_terminal: bool = Field(default=False, description="Whether this is a terminal node type")
+    is_terminal: bool = Field(
+        default=False, description="Whether this is a terminal node type"
+    )
     level: int = Field(default=0, description="Hierarchy level in the methodology")
 
 
@@ -82,7 +90,9 @@ class ExtractedRelationship(BaseModel):
     source_text: str = Field(description="Source concept text")
     target_text: str = Field(description="Target concept text")
     relationship_type: str = Field(description="Methodology-specific edge type")
-    confidence: float = Field(default=0.7, ge=0.0, le=1.0, description="Confidence score 0-1")
+    confidence: float = Field(
+        default=0.7, ge=0.0, le=1.0, description="Confidence score 0-1"
+    )
     reasoning: Optional[str] = Field(
         default=None,
         description="Why this edge was created (explicit vs implicit)",

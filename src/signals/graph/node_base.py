@@ -64,7 +64,9 @@ class NodeSignalDetector(SignalDetector):
         """
         return self.node_tracker.get_all_states()
 
-    def _calculate_shallow_ratio(self, state: NodeState, recent_count: int = 3) -> float:
+    def _calculate_shallow_ratio(
+        self, state: NodeState, recent_count: int = 3
+    ) -> float:
         """Calculate ratio of shallow responses in recent N responses.
 
         Args:
@@ -81,6 +83,8 @@ class NodeSignalDetector(SignalDetector):
         recent_responses = state.all_response_depths[-recent_count:]
 
         # Count shallow responses (surface or shallow)
-        shallow_count = sum(1 for depth in recent_responses if depth in ("surface", "shallow"))
+        shallow_count = sum(
+            1 for depth in recent_responses if depth in ("surface", "shallow")
+        )
 
         return shallow_count / len(recent_responses)

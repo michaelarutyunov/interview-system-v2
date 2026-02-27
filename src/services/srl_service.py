@@ -48,7 +48,9 @@ class SRLService:
         """
         self._model_name = model_name
         self._noise_predicates = (
-            noise_predicates if noise_predicates is not None else self.DEFAULT_NOISE_PREDICATES
+            noise_predicates
+            if noise_predicates is not None
+            else self.DEFAULT_NOISE_PREDICATES
         )
         self._nlp = None
 
@@ -106,7 +108,9 @@ class SRLService:
             }
 
         except Exception as e:
-            logger.error("srl_analysis_error", error=str(e), error_type=type(e).__name__)
+            logger.error(
+                "srl_analysis_error", error=str(e), error_type=type(e).__name__
+            )
             # Graceful degradation - return empty structures
             return {"discourse_relations": [], "srl_frames": []}
 
@@ -132,8 +136,12 @@ class SRLService:
 
                 # Consequent: main clause (head's head)
                 if head.head:
-                    consequent_tokens = [t.text for t in head.head.subtree if t not in head.subtree]
-                    consequent = " ".join(consequent_tokens) if consequent_tokens else ""
+                    consequent_tokens = [
+                        t.text for t in head.head.subtree if t not in head.subtree
+                    ]
+                    consequent = (
+                        " ".join(consequent_tokens) if consequent_tokens else ""
+                    )
                 else:
                     consequent = ""
 
@@ -151,7 +159,9 @@ class SRLService:
                 clause_tokens = [t.text for t in token.subtree]
                 clause = " ".join(clause_tokens)
 
-                main_tokens = [t.text for t in token.head.subtree if t not in token.subtree]
+                main_tokens = [
+                    t.text for t in token.head.subtree if t not in token.subtree
+                ]
                 main_clause = " ".join(main_tokens) if main_tokens else ""
 
                 relations.append(

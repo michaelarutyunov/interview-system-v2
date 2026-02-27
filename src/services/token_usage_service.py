@@ -108,7 +108,9 @@ class TokenUsageService:
             client_type: Client type ("extraction", "scoring", "generation")
         """
         # Get pricing for this model
-        input_price_per_million, output_price_per_million = settings.get_pricing_for_model(model)
+        input_price_per_million, output_price_per_million = (
+            settings.get_pricing_for_model(model)
+        )
 
         # Calculate costs (prices are per million tokens)
         input_cost = (input_tokens / 1_000_000) * input_price_per_million

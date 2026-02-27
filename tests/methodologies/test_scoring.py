@@ -663,12 +663,15 @@ class TestRankStrategiesDecomposition:
             StrategyConfig(
                 name="deepen",
                 description="D",
-                signal_weights={"llm.response_depth.low": 0.8, "llm.engagement.high": 0.7}
+                signal_weights={
+                    "llm.response_depth.low": 0.8,
+                    "llm.engagement.high": 0.7,
+                },
             ),
             StrategyConfig(
                 name="explore",
                 description="E",
-                signal_weights={"llm.response_depth.low": 0.5}
+                signal_weights={"llm.response_depth.low": 0.5},
             ),
         ]
         signals = {"llm.response_depth": 0.1, "llm.engagement": 0.9}
@@ -712,7 +715,7 @@ class TestRankStrategiesDecomposition:
             StrategyConfig(
                 name="test",
                 description="T",
-                signal_weights={"llm.engagement.high": 0.5}
+                signal_weights={"llm.engagement.high": 0.5},
             ),
         ]
         signals = {"llm.engagement": 0.8}
@@ -762,4 +765,3 @@ class TestRankStrategiesDecomposition:
         assert len(decomposition) == 1
         assert decomposition[0].node_id == ""  # Empty for strategy-level
         assert decomposition[0].strategy == "test"
-

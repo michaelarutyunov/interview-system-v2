@@ -114,7 +114,9 @@ class GlobalSignalDetectionService:
             "signal_detector_context_prepared",
             methodology=methodology_name,
             has_last_question=bool(last_question),
-            recent_utterance_count=len(context.recent_utterances) if context.recent_utterances else 0,
+            recent_utterance_count=len(context.recent_utterances)
+            if context.recent_utterances
+            else 0,
         )
 
         try:

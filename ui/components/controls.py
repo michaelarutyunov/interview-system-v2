@@ -75,7 +75,9 @@ class SessionControls:
             return
 
         # Concept selection - map concept name/id for display
-        concept_options = {f"{c.get('name', c['id'])} ({c['id']})": c["id"] for c in concepts}
+        concept_options = {
+            f"{c.get('name', c['id'])} ({c['id']})": c["id"] for c in concepts
+        }
         concept_display_id = st.selectbox(
             "Concept",
             options=list(concept_options.keys()),
@@ -110,7 +112,9 @@ class SessionControls:
                 )
 
                 # Start the session to get opening question
-                opening_question = st.session_state.api_client.start_session(session_info.id)
+                opening_question = st.session_state.api_client.start_session(
+                    session_info.id
+                )
 
                 # Store in session state
                 st.session_state.current_session = session_info
@@ -161,7 +165,9 @@ class SessionControls:
             return None
 
         # Session selection
-        session_options = {f"{s['id'][:8]} ({s.get('status', 'unknown')})": s for s in sessions}
+        session_options = {
+            f"{s['id'][:8]} ({s.get('status', 'unknown')})": s for s in sessions
+        }
 
         selected = st.selectbox(
             "Select Session",
@@ -246,7 +252,9 @@ class SessionControls:
         with st.spinner("Deleting session..."):
             try:
                 client = st.session_state.api_client._get_client()
-                client.delete(f"{st.session_state.api_client.base_url}/sessions/{session_id}")
+                client.delete(
+                    f"{st.session_state.api_client.base_url}/sessions/{session_id}"
+                )
 
                 # Clear from state if it was current
                 current = st.session_state.get("current_session")

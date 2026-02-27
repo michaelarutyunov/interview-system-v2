@@ -91,9 +91,13 @@ def validate_api_keys() -> list[str]:
     errors = []
 
     # Determine which providers are in use
-    extraction_provider = settings.llm_extraction_provider or EXTRACTION_DEFAULT_PROVIDER
+    extraction_provider = (
+        settings.llm_extraction_provider or EXTRACTION_DEFAULT_PROVIDER
+    )
     scoring_provider = settings.llm_scoring_provider or SCORING_DEFAULT_PROVIDER
-    generation_provider = settings.llm_generation_provider or GENERATION_DEFAULT_PROVIDER
+    generation_provider = (
+        settings.llm_generation_provider or GENERATION_DEFAULT_PROVIDER
+    )
 
     # Map providers to their API key attributes and env var names
     providers = {
@@ -125,7 +129,9 @@ def validate_api_keys() -> list[str]:
             )
 
     if errors:
-        error_msg = "API Key Validation Failed:\n" + "\n".join(f"  - {e}" for e in errors)
+        error_msg = "API Key Validation Failed:\n" + "\n".join(
+            f"  - {e}" for e in errors
+        )
         raise RuntimeError(error_msg)
 
     log.info(

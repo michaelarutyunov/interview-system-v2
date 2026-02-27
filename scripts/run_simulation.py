@@ -37,8 +37,10 @@ async def main():
         print("\nAvailable concepts:")
         # List available concepts dynamically
         from pathlib import Path as P
+
         for cf in sorted(P("config/concepts").glob("*.yaml")):
             import yaml
+
             cd = yaml.safe_load(cf.read_text())
             print(f"  - {cd['id']} ({cd['methodology']})")
         print("\nAvailable personas:")

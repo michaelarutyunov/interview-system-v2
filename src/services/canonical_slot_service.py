@@ -125,7 +125,8 @@ class CanonicalSlotService:
             *[self.slot_repo.get_active_slots(session_id, nt) for nt in node_types]
         )
         existing_slots_per_type = {
-            nt: [s.slot_name for s in slots] for nt, slots in zip(node_types, slot_lists)
+            nt: [s.slot_name for s in slots]
+            for nt, slots in zip(node_types, slot_lists)
         }
 
         # Single batched LLM call for all node types
@@ -139,7 +140,9 @@ class CanonicalSlotService:
             valid_node_ids = {n.id for n in groups.get(node_type, [])}
             for proposal in proposals:
                 # Guard against LLM returning IDs from other types
-                surface_ids = [nid for nid in proposal["surface_node_ids"] if nid in valid_node_ids]
+                surface_ids = [
+                    nid for nid in proposal["surface_node_ids"] if nid in valid_node_ids
+                ]
                 if not surface_ids:
                     continue
                 slot = await self._find_or_create_slot(
@@ -219,7 +222,9 @@ class CanonicalSlotService:
                     f'"{nt}": {{\n      "proposed_slots": [\n        {slot_example}\n      ]\n    }}'
                 )
             else:
-                type_entries_parts.append(f'"{nt}": {{"proposed_slots": [...same structure...]}}')
+                type_entries_parts.append(
+                    f'"{nt}": {{"proposed_slots": [...same structure...]}}'
+                )
         type_entries = ",\n    ".join(type_entries_parts)
 
         prompt = (
@@ -294,12 +299,16 @@ class CanonicalSlotService:
 
         groupings = data["groupings"]
         if not isinstance(groupings, dict):
-            raise ValueError(f"groupings must be a dict, got {type(groupings).__name__}")
+            raise ValueError(
+                f"groupings must be a dict, got {type(groupings).__name__}"
+            )
 
         result: Dict[str, List[Dict]] = {}
         for node_type, type_data in groupings.items():
             if not isinstance(type_data, dict) or "proposed_slots" not in type_data:
-                raise ValueError(f"node_type '{node_type}' missing 'proposed_slots' key")
+                raise ValueError(
+                    f"node_type '{node_type}' missing 'proposed_slots' key"
+                )
             proposals = type_data["proposed_slots"]
             if not isinstance(proposals, list):
                 raise ValueError(f"proposed_slots for '{node_type}' must be a list")
@@ -424,7 +433,9 @@ class CanonicalSlotService:
 
         # No exact match - proceed with similarity search
         # Embed name + description for richer semantic signal (gjb5)
-        embedding = await self.embedding_service.encode(f"{proposed_name} :: {description}")
+        embedding = await self.embedding_service.encode(
+            f"{proposed_name} :: {description}"
+        )
 
         # Find similar existing slots (both statuses)
         active_matches = await self.slot_repo.find_similar_slots(

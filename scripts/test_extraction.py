@@ -86,7 +86,9 @@ async def test_extraction():
         if result.relationships:
             print("\n  Relationships:")
             for r in result.relationships[:5]:  # Show first 5
-                print(f"    - {r.source_text} --[{r.relationship_type}]--> {r.target_text}")
+                print(
+                    f"    - {r.source_text} --[{r.relationship_type}]--> {r.target_text}"
+                )
             if len(result.relationships) > 5:
                 print(f"    ... and {len(result.relationships) - 5} more")
 

@@ -210,7 +210,7 @@ class TestStage1DecompositionCapture:
         service.global_signal_service = AsyncMock()
         service.global_signal_service.detect.return_value = {
             "llm.response_depth": 0.1,  # low → True
-            "llm.engagement": 0.9,     # high → True
+            "llm.engagement": 0.9,  # high → True
         }
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {
@@ -246,10 +246,12 @@ class TestStage1DecompositionCapture:
         node_entries = [c for c in decomp if c.node_id != ""]
 
         assert len(strategy_entries) == 2  # deepen + explore
-        assert len(node_entries) == 2   # node_a + node_b
+        assert len(node_entries) == 2  # node_a + node_b
 
         # Verify deepen has phase multipliers captured
-        deepen_strat = next((c for c in strategy_entries if c.strategy == "deepen"), None)
+        deepen_strat = next(
+            (c for c in strategy_entries if c.strategy == "deepen"), None
+        )
         assert deepen_strat is not None
         assert deepen_strat.phase_multiplier == 1.3
         assert deepen_strat.phase_bonus == 0.2

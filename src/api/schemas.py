@@ -53,7 +53,9 @@ class SessionListResponse(BaseModel):
 class TurnRequest(BaseModel):
     """Request to process a turn."""
 
-    text: str = Field(..., min_length=1, max_length=5000, description="User's response text")
+    text: str = Field(
+        ..., min_length=1, max_length=5000, description="User's response text"
+    )
 
 
 class ExtractedConceptSchema(BaseModel):
@@ -215,7 +217,9 @@ class SyntheticSequenceRequest(BaseModel):
     questions: List[str] = Field(..., description="List of interview questions")
     session_id: str = Field(..., description="Session identifier")
     persona: str = Field(default="baseline_cooperative", description="Persona ID")
-    product_name: str = Field(default="the product", description="Product name for context")
+    product_name: str = Field(
+        default="the product", description="Product name for context"
+    )
 
 
 # ============ STATUS AND GRAPH SCHEMAS ============

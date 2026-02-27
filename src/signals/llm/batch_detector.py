@@ -38,7 +38,9 @@ class LLMBatchDetector:
         self._signal_rubrics = self._load_signal_rubrics()
         self._output_example = self._load_output_example()
 
-        log.debug("LLMBatchDetector initialized with prompts from %s", self._prompts_dir)
+        log.debug(
+            "LLMBatchDetector initialized with prompts from %s", self._prompts_dir
+        )
 
     @property
     def _prompts_dir(self) -> Path:
@@ -89,7 +91,12 @@ class LLMBatchDetector:
         for line in content.split("\n"):
             stripped = line.strip()
             # Signal header: starts at column 0, contains ":", not a comment
-            if line and not line[0].isspace() and ":" in stripped and not stripped.startswith("#"):
+            if (
+                line
+                and not line[0].isspace()
+                and ":" in stripped
+                and not stripped.startswith("#")
+            ):
                 current_signal = stripped.split(":")[0].strip().lower()
                 # Include the description after the colon as first line of rubric
                 description = ":".join(stripped.split(":")[1:]).strip()
@@ -128,7 +135,9 @@ class LLMBatchDetector:
         """
         # Start with high-level system prompt
         prompt = self._high_level_prompt.format(
-            response=response_text[:500] + "..." if len(response_text) > 500 else response_text,
+            response=response_text[:500] + "..."
+            if len(response_text) > 500
+            else response_text,
             question=question[:200] + "..."
             if question and len(question) > 200
             else (question or "N/A"),
@@ -154,7 +163,9 @@ class LLMBatchDetector:
 
         return prompt
 
-    def _output_format_instructions(self, signal_classes: Optional[List[Type]] = None) -> str:
+    def _output_format_instructions(
+        self, signal_classes: Optional[List[Type]] = None
+    ) -> str:
         """Generate output format instructions from example.
 
         Args:
@@ -262,7 +273,9 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
         # Each signal class has _get_prompt_spec() classmethod from decorator
         prompt = self._build_prompt(response_text, question, signal_classes)
 
-        log.debug(f"Built batch prompt ({len(prompt)} chars) for {len(signal_classes)} signals")
+        log.debug(
+            f"Built batch prompt ({len(prompt)} chars) for {len(signal_classes)} signals"
+        )
 
         # Make single LLM call
         try:
@@ -321,7 +334,9 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
                 try:
                     detected_signals[signal_name] = int(detected_signals[signal_name])
                 except (ValueError, TypeError):
-                    log.error(f"Invalid score for '{signal_name}': {detected_signals[signal_name]}")
+                    log.error(
+                        f"Invalid score for '{signal_name}': {detected_signals[signal_name]}"
+                    )
 
             # Validate score range
             score = detected_signals[signal_name]
@@ -344,7 +359,9 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
                     5: "deep",
                 }
                 if isinstance(score, int):
-                    detected_signals[signal_name] = score_to_category.get(score, "moderate")
+                    detected_signals[signal_name] = score_to_category.get(
+                        score, "moderate"
+                    )
             else:
                 # Normalize Likert 1-5 to [0, 1]: (value - 1) / 4
                 if isinstance(score, int):
@@ -352,7 +369,9 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
 
             # Log raw score vs normalized for observability (cu72.1)
             # Enables distinguishing 'LLM defaulting to 3' vs 'genuinely neutral'
-            rationale = raw_value.get("rationale") if isinstance(raw_value, dict) else None
+            rationale = (
+                raw_value.get("rationale") if isinstance(raw_value, dict) else None
+            )
             log.debug(
                 "llm_signal_scored signal=%s raw_score=%s normalized=%s rationale=%s",
                 signal_name,

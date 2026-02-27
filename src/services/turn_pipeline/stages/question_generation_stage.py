@@ -59,7 +59,10 @@ class QuestionGenerationStage(TurnStage):
                 "ContinuationStage (Stage 7) to complete first."
             )
 
-        if context.should_continue or context.strategy_selection_output.generates_closing_question:
+        if (
+            context.should_continue
+            or context.strategy_selection_output.generates_closing_question
+        ):
             # Add current utterance to recent for context
             updated_utterances = context.recent_utterances + [
                 {"speaker": "user", "text": context.user_input}
@@ -78,9 +81,7 @@ class QuestionGenerationStage(TurnStage):
                 topic=context.concept_name,  # Anchor questions to research topic
             )
         else:
-            next_question = (
-                "Thank you for sharing your thoughts with me today. This has been very helpful."
-            )
+            next_question = "Thank you for sharing your thoughts with me today. This has been very helpful."
 
         # Create contract output (single source of truth)
         # No need to set individual fields - they're derived from the contract
