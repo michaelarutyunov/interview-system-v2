@@ -564,6 +564,8 @@ curl http://localhost:8000/sessions/550e8400-e29b-41d4-a716-446655440000/export?
 
 Generate synthetic responses for testing interviews.
 
+> **See also:** [Interview AI Simulation System](interview_ai_simulation.md) - Comprehensive guide covering available personas, response patterns, simulation API, and creating custom personas.
+
 ### Generate Synthetic Response
 
 Generates a single synthetic respondent response.

@@ -160,6 +160,39 @@ uv run ptw
 - Integration test coverage: >60%
 - Overall coverage: >70%
 
+### Testing with AI Simulation
+
+The system includes an **AI Simulation System** for generating realistic interview transcripts without human respondents. This is useful for:
+
+- Testing interview methodology implementation
+- Validating questioning strategies
+- Benchmarking system performance
+- Generating training data
+
+Run a simulation using the API:
+
+```bash
+curl -X POST "http://localhost:8000/simulation/interview" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "concept_id": "oat_milk_v2",
+    "persona_id": "health_conscious",
+    "max_turns": 10
+  }'
+```
+
+Or use the convenience script:
+
+```bash
+uv run python scripts/run_simulation.py coffee_jtbd_v2 health_conscious 10
+```
+
+**See [Interview AI Simulation System](interview_ai_simulation.md)** for:
+- Available personas (baseline, edge-case, and consumer types)
+- Full API documentation
+- Creating custom personas
+- Response patterns and deflection behaviors
+
 ### Writing Tests
 
 #### Unit Tests

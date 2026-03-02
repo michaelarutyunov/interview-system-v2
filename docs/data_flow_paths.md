@@ -227,7 +227,7 @@ graph LR
     M --> N[Base Score × Phase Weight + Bonus]
     N --> O[Best Strategy]
 
-    O --> P{node_binding == "required"?}
+    O --> P{node_binding required?}
     P -->|Yes| Q[rank_nodes_for_strategy]
     P -->|No| R[No node selection]
 
@@ -284,7 +284,7 @@ final_score = (base_score × multiplier) + bonus
 
 ```mermaid
 graph TB
-    subgraph "1. Context & History Loading"
+    subgraph "1. Context and History Loading"
         A[graph_state] -->|read| B[StrategySelectionStage]
         C[recent_nodes] -->|read| B
         D[recent_utterances] -->|read| B
@@ -356,7 +356,7 @@ graph TB
     end
 
     subgraph "5. Stage 2: Node Selection (Conditional)"
-        AD --> AE{node_binding == "required"?}
+        AD --> AE{node_binding required?}
 
         AE -->|Yes| AF{node_signals exist?}
         AE -->|No| AK[focus_node_id = None]
@@ -375,7 +375,7 @@ graph TB
         AL --> AM[focus_node_id = best node_id]
     end
 
-    subgraph "6. Build Alternatives & Focus Update"
+    subgraph "6. Build Alternatives and Focus Update"
         AD --> AN[strategy_alternatives = [(strategy, score), ...]]
         AN --> AO[2-tuple format for observability]
 
@@ -626,11 +626,11 @@ graph TB
         H -->|edges added| J[NodeStateTracker.update_edge_counts]
         H -->|graph changed| K[NodeStateTracker.record_yield]
         
-        I --> L[Initialize NodeState:<br/>node_id, label, created_at_turn<br/>depth, node_type, is_terminal, level]
+        I --> L["Initialize NodeState:<br/>node_id, label, created_at_turn<br/>depth, node_type, is_terminal, level"]
         
-        J --> M[Update relationship metrics:<br/>connected_node_ids<br/>edge_count_outgoing<br/>edge_count_incoming]
+        J --> M["Update relationship metrics:<br/>connected_node_ids<br/>edge_count_outgoing<br/>edge_count_incoming"]
         
-        K --> N[Update yield metrics:<br/>last_yield_turn<br/>turns_since_last_yield<br/>yield_count, yield_rate]
+        K --> N["Update yield metrics:<br/>last_yield_turn<br/>turns_since_last_yield<br/>yield_count, yield_rate"]
     end
 
     subgraph "Turn Processing: Strategy Selection"
@@ -644,8 +644,8 @@ graph TB
         Q -->|update| R[all_response_depths list]
         
         O -->|after selection| S[NodeStateTracker.update_focus]
-        S --> T[Update engagement metrics:<br/>focus_count++<br/>current_focus_streak<br/>last_focus_turn<br/>turns_since_last_focus]
-        S --> U[Update strategy metrics:<br/>strategy_usage_count<br/>last_strategy_used<br/>consecutive_same_strategy]
+        S --> T["Update engagement metrics:<br/>focus_count++<br/>current_focus_streak<br/>last_focus_turn<br/>turns_since_last_focus"]
+        S --> U["Update strategy metrics:<br/>strategy_usage_count<br/>last_strategy_used<br/>consecutive_same_strategy"]
         S --> V[Set previous_focus<br/>for next turn]
     end
 
@@ -682,7 +682,7 @@ graph TB
         X --> AG
 
         AG --> AH[Select best strategy]
-        AH --> AI{node_binding == "required"?}
+        AH --> AI{node_binding required?}
 
         AI -->|Yes| AJ[Stage 2: rank_nodes_for_strategy]
         AI -->|No| AK[No node selection]
@@ -697,7 +697,7 @@ graph TB
     subgraph "Turn End: Save Node Tracker"
         V --> AM[SessionService._save_node_tracker]
         AM -->|serialize| AN[NodeStateTracker.to_dict]
-        AN --> AO[JSON dict:<br/>schema_version<br/>previous_focus<br/>states dict]
+        AN --> AO["JSON dict:<br/>schema_version<br/>previous_focus<br/>states dict"]
         AO -->|write| AP[(sessions.node_tracker_state)]
         AP -->|next turn| A
     end
@@ -853,7 +853,7 @@ graph LR
     C -->|Yes| D[Return existing node]
     C -->|No| E[Compute embedding]
 
-    E -->|Step 2| F{Similar node exists?<br/>similarity >= 0.80}
+    E -->|Step 2| F{Similar node exists?}
     F -->|Yes| G[Return similar node]
     F -->|No| H[Create new node]
 
@@ -954,7 +954,7 @@ graph LR
     D -->|"Use verb-object format..."| E[LLM Extraction]
 
     E -->|Better labels| F[Concept Labels]
-    F -->|Examples:| G["get reliable quality coffee"<br/>"avoid wasting money"]
+    F -->|Examples:| G["get reliable quality coffee<br/>avoid wasting money"]
 ```
 
 ### Key Points
@@ -1134,8 +1134,8 @@ graph LR
     F -->|lookup label| G[NodeStateTracker.get_state]
     G -->|get node.label| H[node_label or ""]
 
-    H -->|create entry| I[FocusEntry:<br/>turn, node_id, label, strategy]
-    I -->|append| J[updated_history = existing + [entry]]
+    H -->|create entry| I["FocusEntry:<br/>turn, node_id, label, strategy"]
+    I -->|append| J["updated_history = existing + [entry]"]
 
     J -->|persist| K[SessionState.focus_history]
     K -->|save to DB| L[sessions.state]
@@ -1205,11 +1205,11 @@ graph LR
     G -->|context.score_decomposition| H[PipelineContext]
 
     H -->|TurnResult.score_decomposition| I[TurnResult]
-    I -->|_serialize_decomposition| J[List[Dict]]
+    I -->|_serialize_decomposition| J["List[Dict]"]
     J -->|SimulationTurn.score_decomposition| K[SimulationTurn]
     K -->|_save_simulation_result| L[JSON turn.score_decomposition]
 
-    J -->|generate_scoring_csv.py| K[Scoring CSV]
+    J -->|generate_scoring_csv.py| M[Scoring CSV]
 ```
 
 ### ScoredCandidate Structure

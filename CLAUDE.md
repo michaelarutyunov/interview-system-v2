@@ -1,9 +1,9 @@
 # Claude Code Quick Reference - Interview System v2
 
 A graph-led conversational interview system with adaptive strategy selection via Signal Pools.
-Features a dual graph architecture with conversaion (surface) and canonical graphs with semantically deduplicated nodes.
+Features a dual graph architecture with conversation (surface) and canonical graphs with semantically deduplicated nodes.
 Plug-in methodology configuration based on YAML files.
-Includes simulation service to generate sample interviews with YAML-paramterized synthetic personas
+Includes simulation service to generate sample interviews with YAML-parameterized synthetic personas
 
 ---
 
@@ -38,6 +38,7 @@ Any codebase change should follow these principles:
 | Document | Purpose |
 |----------|---------|
 | `docs/SYSTEM_DESIGN.md` | System architecture |
+| `docs/interview_ai_simulation.md` | AI-to-AI simulation system for testing with synthetic personas |
 | `docs/data_flow_paths.md` | 19 critical data flow diagrams (incl. NodeStateTracker lifecycle) |
 | `docs/pipeline_contracts.md` | Stage input/output contracts |
 | `docs/extraction_and_graphs.md` | Extraction and Graphs configuration |
@@ -149,7 +150,7 @@ See `docs/data_flow_paths.md` for full diagrams. Key paths:
 uv run uvicorn src.main:app --reload
 
 # Run simulation
-uv run python scripts/run_simulation.py coffee_jtbd_v2 skeptical_analyst 10
+uv run python scripts/run_simulation.py headphones_mec baseline_cooperative 10
 # Outputs: synthetic_interviews/TIMESTAMP_concept_persona.json
 #          synthetic_interviews/TIMESTAMP_concept_persona_scoring.csv (live decomposition — scores match pipeline exactly)
 # JSON turn fields:
@@ -331,22 +332,34 @@ config/methodologies/
 
 ```bash
 config/personas/
-├── convenience_seeker.yaml
-├── health_conscious.yaml
-├── minimalist.yaml
-├── price_sensitive.yaml
-├── quality_focused.yaml
-├── skeptical_analyst.yaml
-├── social_conscious.yaml
-└── sustainability_minded.yaml
+├── baseline_cooperative.yaml      # Standard respondent (default)
+├── brief_responder.yaml           # Edge-case: short answers
+├── emotionally_reactive.yaml      # Edge-case: emotional responses
+├── fatiguing_responder.yaml       # Edge-case: declining engagement
+├── single_topic_fixator.yaml      # Edge-case: node exhaustion testing
+├── skeptical_analyst.yaml         # Edge-case: challenging engagement
+├── uncertain_hedger.yaml          # Edge-case: hedging behavior
+└── verbose_tangential.yaml        # Edge-case: low specificity
 ```
+
+See [Interview AI Simulation System](docs/interview_ai_simulation.md) for persona descriptions and usage.
 
 ### Concepts
 
 ```bash
 config/concepts/
-├── coffee_jtbd_v2.yaml
-└── oat_milk_v2.yaml
+├── coffee_jtbd_legacy.yaml
+├── coffee_shops_rg.yaml
+├── commute_jtbd.yaml
+├── customer_support_ci.yaml
+├── gym_membership_cjm.yaml
+├── headphones_mec.yaml
+├── meal_planning_jtbd.yaml
+├── oatmilk_mec_legacy.yaml
+├── online_shopping_cjm.yaml
+├── restaurant_ci.yaml
+├── skincare_mec.yaml
+└── streaming_services_rg.yaml
 ```
 
 ---
