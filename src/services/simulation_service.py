@@ -465,6 +465,7 @@ class SimulationService:
                 "confidence": n.confidence,
                 "properties": n.properties,
                 "source_utterance_ids": n.source_utterance_ids,
+                "source_quotes": n.source_quotes,
                 "stance": n.stance,
                 "recorded_at": n.recorded_at.isoformat(),
                 "superseded_by": n.superseded_by,

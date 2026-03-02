@@ -54,6 +54,7 @@ class GraphRepository:
         confidence: float = 0.8,
         properties: Optional[dict] = None,
         source_utterance_ids: Optional[List[str]] = None,
+        source_quotes: Optional[List[str]] = None,
         stance: int = 0,  # Deprecated: no longer extracted. Kept for backward compat.
         embedding: Optional[bytes] = None,
     ) -> KGNode:
@@ -77,13 +78,15 @@ class GraphRepository:
         now = datetime.now().isoformat()
         properties = properties or {}
         source_ids = source_utterance_ids or []
+        quotes = [q for q in (source_quotes or []) if q]
 
         await self.db.execute(
             """
             INSERT INTO kg_nodes (
                 id, session_id, label, node_type, confidence,
-                properties, source_utterance_ids, recorded_at, superseded_by, stance, embedding
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                properties, source_utterance_ids, source_quotes,
+                recorded_at, superseded_by, stance, embedding
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 node_id,
@@ -93,6 +96,7 @@ class GraphRepository:
                 confidence,
                 json.dumps(properties),
                 json.dumps(source_ids),
+                json.dumps(quotes),
                 now,
                 None,
                 stance,
@@ -220,6 +224,9 @@ class GraphRepository:
             elif field == "source_utterance_ids":
                 set_clauses.append("source_utterance_ids = ?")
                 values.append(json.dumps(value))
+            elif field == "source_quotes":
+                set_clauses.append("source_quotes = ?")
+                values.append(json.dumps(value))
 
         if not set_clauses:
             return await self.get_node(node_id)
@@ -235,14 +242,15 @@ class GraphRepository:
         return await self.get_node(node_id)
 
     async def add_source_utterance(
-        self, node_id: str, utterance_id: str
+        self, node_id: str, utterance_id: str, quote: Optional[str] = None
     ) -> Optional[KGNode]:
         """
-        Add a source utterance to a node's provenance.
+        Add a source utterance (and optional verbatim quote) to a node's provenance.
 
         Args:
             node_id: Node ID
             utterance_id: Utterance ID to add
+            quote: Optional verbatim quote from that utterance; empty strings ignored
 
         Returns:
             Updated KGNode or None if not found
@@ -251,10 +259,21 @@ class GraphRepository:
         if not node:
             return None
 
+        updates: dict = {}
+
         source_ids = list(node.source_utterance_ids)
         if utterance_id not in source_ids:
             source_ids.append(utterance_id)
-            return await self.update_node(node_id, source_utterance_ids=source_ids)
+            updates["source_utterance_ids"] = source_ids
+
+        if quote:
+            quotes = list(node.source_quotes)
+            if quote not in quotes:
+                quotes.append(quote)
+                updates["source_quotes"] = quotes
+
+        if updates:
+            return await self.update_node(node_id, **updates)
 
         return node
 
@@ -748,6 +767,9 @@ class GraphRepository:
             properties=json.loads(row["properties"]) if row["properties"] else {},
             source_utterance_ids=json.loads(row["source_utterance_ids"])
             if row["source_utterance_ids"]
+            else [],
+            source_quotes=json.loads(row["source_quotes"])
+            if "source_quotes" in row.keys() and row["source_quotes"]
             else [],
             recorded_at=datetime.fromisoformat(row["recorded_at"]),
             superseded_by=row["superseded_by"],

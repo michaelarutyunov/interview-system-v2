@@ -60,6 +60,14 @@ async def init_database(db_path: Path | None = None) -> None:
         except Exception:
             pass  # Column already exists
 
+        try:
+            await db.execute(
+                "ALTER TABLE kg_nodes ADD COLUMN source_quotes TEXT DEFAULT '[]'"
+            )
+            log.info("migration_applied", migration="kg_nodes_add_source_quotes")
+        except Exception:
+            pass  # Column already exists
+
         await db.commit()
 
     log.info("database_initialized", path=str(db_path))

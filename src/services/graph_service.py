@@ -199,7 +199,9 @@ class GraphService:
                 threshold=None,
                 outcome="exact_match",
             )
-            return await self.repo.add_source_utterance(existing.id, utterance_id)
+            return await self.repo.add_source_utterance(
+                existing.id, utterance_id, quote=concept.source_quote or None
+            )
 
         # Step 2: Semantic similarity match (if embedding_service available)
         embedding_bytes = None
@@ -233,7 +235,9 @@ class GraphService:
                     threshold=settings.surface_similarity_threshold,
                     outcome="semantic_merge",
                 )
-                return await self.repo.add_source_utterance(best_node.id, utterance_id)
+                return await self.repo.add_source_utterance(
+                    best_node.id, utterance_id, quote=concept.source_quote or None
+                )
 
         # Step 3: Create new node (with embedding if computed)
         node_properties = dict(concept.properties)
@@ -257,6 +261,7 @@ class GraphService:
             confidence=concept.confidence,
             properties=node_properties,
             source_utterance_ids=[utterance_id],
+            source_quotes=[concept.source_quote] if concept.source_quote else [],
             stance=concept.stance if concept.stance is not None else 0,
             embedding=embedding_bytes,
         )

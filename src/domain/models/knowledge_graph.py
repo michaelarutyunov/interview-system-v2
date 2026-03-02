@@ -47,6 +47,10 @@ class KGNode(BaseModel):
     confidence: float = Field(default=0.8, ge=0.0, le=1.0)
     properties: Dict[str, Any] = Field(default_factory=dict)
     source_utterance_ids: List[str] = Field(default_factory=list)
+    source_quotes: List[str] = Field(
+        default_factory=list,
+        description="Verbatim quotes from user responses that produced this node",
+    )
     recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     superseded_by: Optional[str] = (
         None  # Node ID that supersedes this one (for REVISES)
