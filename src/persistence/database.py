@@ -68,6 +68,20 @@ async def init_database(db_path: Path | None = None) -> None:
         except Exception:
             pass  # Column already exists
 
+        # Velocity tracking columns for saturation signals
+        for col, ddl in [
+            ("surface_velocity_peak", "REAL NOT NULL DEFAULT 0.0"),
+            ("prev_surface_node_count", "INTEGER NOT NULL DEFAULT 0"),
+            ("canonical_velocity_peak", "REAL NOT NULL DEFAULT 0.0"),
+            ("prev_canonical_node_count", "INTEGER NOT NULL DEFAULT 0"),
+            ("focus_history", "TEXT NOT NULL DEFAULT '[]'"),
+        ]:
+            try:
+                await db.execute(f"ALTER TABLE sessions ADD COLUMN {col} {ddl}")
+                log.info("migration_applied", migration=f"sessions_add_{col}")
+            except Exception:
+                pass  # Column already exists
+
         await db.commit()
 
     log.info("database_initialized", path=str(db_path))

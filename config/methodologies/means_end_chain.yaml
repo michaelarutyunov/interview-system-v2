@@ -193,6 +193,9 @@ strategies:
       llm.specificity.low: 0.8              # Vague language = needs clarification
       llm.certainty.low: 0.5                # Uncertainty = needs validation
       llm.engagement.mid: 0.3               # Moderate engagement = clarify OK
+      # Saturation — clarifying is unproductive when conversation is drying up
+      meta.canonical.saturation.high: -0.5     # Canonical graph saturated = move on
+      meta.conversation.saturation.high: -0.4  # Surface extraction plateaued = move on
       # Diversity
       temporal.strategy_repetition_count: -0.3
       temporal.turns_since_strategy_change: -0.3  # Break strategy lock
@@ -211,6 +214,9 @@ strategies:
       # Engagement & valence
       llm.engagement.mid: 0.4               # Moderate engagement = breadth OK
       llm.valence.low: 0.3                  # Negative emotion = change topic
+      # Saturation — don't expand breadth when conversation is already dry
+      meta.canonical.saturation.high: -0.5     # Canonical graph saturated = move on
+      meta.conversation.saturation.high: -0.4  # Surface extraction plateaued = move on
       # Response quality awareness — suppress exploration during declining quality
       llm.global_response_trend.shallowing: -0.4  # Don't explore when answers declining
       llm.global_response_trend.fatigued: -0.6    # Strongly suppress during fatigue

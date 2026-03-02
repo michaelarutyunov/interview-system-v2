@@ -30,7 +30,16 @@ CREATE TABLE IF NOT EXISTS sessions (
     completed_at TEXT,
 
     -- Metrics (denormalized for quick access)
-    turn_count INTEGER NOT NULL DEFAULT 0
+    turn_count INTEGER NOT NULL DEFAULT 0,
+
+    -- Velocity tracking for saturation signals (updated each turn)
+    surface_velocity_peak REAL NOT NULL DEFAULT 0.0,
+    prev_surface_node_count INTEGER NOT NULL DEFAULT 0,
+    canonical_velocity_peak REAL NOT NULL DEFAULT 0.0,
+    prev_canonical_node_count INTEGER NOT NULL DEFAULT 0,
+
+    -- Focus history for strategy-node tracing (JSON array)
+    focus_history TEXT NOT NULL DEFAULT '[]'
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);

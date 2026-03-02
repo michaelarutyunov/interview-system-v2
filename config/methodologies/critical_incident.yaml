@@ -226,6 +226,9 @@ strategies:
       # Engagement
       llm.engagement.mid: 0.4               # Moderate engagement = breadth OK
       llm.engagement.high: 0.2              # High engagement = story flowing
+      # Saturation — don't elicit new incidents when conversation is already dry
+      meta.canonical.saturation.high: -0.5     # Canonical graph saturated = move on
+      meta.conversation.saturation.high: -0.4  # Surface extraction plateaued = move on
       # Response quality — suppress when answers declining (don't push for new stories)
       llm.global_response_trend.shallowing: -0.3
       llm.global_response_trend.fatigued: -0.5
@@ -263,6 +266,9 @@ strategies:
       llm.intellectual_engagement.mid: 0.3
       # Response quality trend — try deepening when shallowing
       llm.global_response_trend.shallowing: 0.3
+      # Saturation — stop deepening narrative when information velocity has plateaued
+      meta.canonical.saturation.high: -0.5     # Canonical graph saturated = move on
+      meta.conversation.saturation.high: -0.4  # Surface extraction plateaued = move on
       # Diversity — moderate penalty, deepening is natural for CIT
       temporal.strategy_repetition_count: -0.5
       temporal.strategy_repetition_count.high: -0.5
@@ -291,6 +297,9 @@ strategies:
       llm.engagement.high: 0.4
       llm.engagement.mid: 0.3
       llm.engagement.low: -0.4              # Disengaged = don't push emotional topics
+      # Saturation — don't probe emotions when conversation is exhausted
+      meta.canonical.saturation.high: -0.5     # Canonical graph saturated = move on
+      meta.conversation.saturation.high: -0.4  # Surface extraction plateaued = move on
       # Diversity
       temporal.strategy_repetition_count: -0.7
       temporal.strategy_repetition_count.high: 0

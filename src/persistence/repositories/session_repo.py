@@ -6,7 +6,7 @@ from typing import Optional, Dict, Any
 
 import aiosqlite
 
-from src.domain.models.session import Session, SessionState
+from src.domain.models.session import Session, SessionState, FocusEntry
 from src.domain.models.utterance import Utterance
 import structlog
 
@@ -67,8 +67,24 @@ class SessionRepository:
         """Update session state (computed on-demand, no caching)."""
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
-                "UPDATE sessions SET turn_count = ?, updated_at = datetime('now') WHERE id = ?",
-                (state.turn_count, session_id),
+                "UPDATE sessions SET "
+                "turn_count = ?, "
+                "surface_velocity_peak = ?, "
+                "prev_surface_node_count = ?, "
+                "canonical_velocity_peak = ?, "
+                "prev_canonical_node_count = ?, "
+                "focus_history = ?, "
+                "updated_at = datetime('now') "
+                "WHERE id = ?",
+                (
+                    state.turn_count,
+                    state.surface_velocity_peak,
+                    state.prev_surface_node_count,
+                    state.canonical_velocity_peak,
+                    state.prev_canonical_node_count,
+                    json.dumps([e.model_dump() for e in state.focus_history]),
+                    session_id,
+                ),
             )
             await db.commit()
 
@@ -427,5 +443,13 @@ class SessionRepository:
                 concept_name=row["concept_name"],
                 turn_count=row["turn_count"],
                 last_strategy=None,  # Not stored in DB, computed on-demand
+                surface_velocity_peak=row["surface_velocity_peak"] if "surface_velocity_peak" in row.keys() else 0.0,
+                prev_surface_node_count=row["prev_surface_node_count"] if "prev_surface_node_count" in row.keys() else 0,
+                canonical_velocity_peak=row["canonical_velocity_peak"] if "canonical_velocity_peak" in row.keys() else 0.0,
+                prev_canonical_node_count=row["prev_canonical_node_count"] if "prev_canonical_node_count" in row.keys() else 0,
+                focus_history=[
+                    FocusEntry(**e)
+                    for e in json.loads(row["focus_history"] or "[]")
+                ] if "focus_history" in row.keys() else [],
             ),
         )

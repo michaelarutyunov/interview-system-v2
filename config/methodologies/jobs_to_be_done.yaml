@@ -380,6 +380,9 @@ strategies:
       llm.certainty.mid: 0.2                # Respondent expressing doubt about solutions
       # Engagement — can surface obstacles even at mid engagement
       llm.engagement.mid: 0.3               # Moderate engagement = probing OK
+      # Saturation — penalize when conversation is drying up
+      meta.canonical.saturation.high: -0.5     # Canonical graph saturated = stop probing
+      meta.conversation.saturation.high: -0.4  # Surface extraction plateaued = move on
       # Diversity — symmetric penalty to prevent lock
       temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.5)
       temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
@@ -404,6 +407,9 @@ strategies:
       # Self-doubt triggers — moderate certainty = surface the assumption
       llm.certainty.mid: 0.4         # Hedging/self-doubt (reduced from 0.6)
       llm.response_depth.moderate: 0.2  # Moderate depth + uncertainty
+      # Saturation — challenging is unproductive when conversation is exhausted
+      meta.canonical.saturation.high: -0.5     # Canonical graph saturated = stop probing
+      meta.conversation.saturation.high: -0.4  # Surface extraction plateaued = move on
       # Engagement safety check
       llm.engagement.high: 0.2       # Engaged = will respond constructively
       llm.engagement.mid: 0.1        # Moderate engagement = gentle challenge OK
