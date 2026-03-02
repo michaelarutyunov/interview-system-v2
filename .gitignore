@@ -39,8 +39,8 @@ sessions/*
 logs/
 explorations/
 article/
-docs/plans/
-docs/plans
+plans/
+.ruff_cache/
 
 # interview results
 synthetic_interviews/
