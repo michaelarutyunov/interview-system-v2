@@ -71,7 +71,7 @@ class TurnPipeline:
             stage_start = time.perf_counter()
 
             try:
-                self.logger.debug(
+                self.logger.info(
                     "stage_started",
                     stage_name=stage.stage_name,
                     session_id=context.session_id,
@@ -82,10 +82,10 @@ class TurnPipeline:
                 stage_elapsed = (time.perf_counter() - stage_start) * 1000
                 context.stage_timings[stage.stage_name] = stage_elapsed
 
-                self.logger.debug(
+                self.logger.info(
                     "stage_completed",
                     stage_name=stage.stage_name,
-                    duration_ms=stage_elapsed,
+                    duration_ms=round(stage_elapsed, 2),
                 )
 
             except Exception as e:

@@ -36,9 +36,15 @@ build/
 commands.md
 specs/*
 sessions/*
+logs/
+explorations/
+article/
+docs/plans/
+docs/plans
 
-# Synthetic interview results
+# interview results
 synthetic_interviews/
-tests_archive_*/
+interviews_real/
+
 
 
