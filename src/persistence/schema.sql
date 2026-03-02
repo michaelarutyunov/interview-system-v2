@@ -98,6 +98,9 @@ CREATE TABLE IF NOT EXISTS kg_nodes (
     -- Used for surface semantic dedup (threshold 0.80, same node_type required)
     embedding BLOB,
 
+    -- Verbatim quotes from user responses that produced this node (traceability)
+    source_quotes TEXT NOT NULL DEFAULT '[]',
+
     -- Contradiction handling: if this node supersedes another
     superseded_by TEXT REFERENCES kg_nodes(id),
 
