@@ -11,6 +11,7 @@ Supported providers:
 - anthropic: Claude models (Sonnet, Haiku)
 - kimi: Moonshot AI models
 - deepseek: DeepSeek models
+- grok: xAI Grok models
 """
 
 from abc import ABC, abstractmethod
@@ -27,7 +28,9 @@ from src.core.config import settings
 log = structlog.get_logger(__name__)
 
 
-LLMClientType = Literal["extraction", "scoring", "generation"]
+LLMClientType = Literal[
+    "extraction", "slot_scoring", "signal_scoring", "question_generation"
+]
 
 # Context variable for implicitly passing session_id through async call chain
 _session_id_ctx: ContextVar[Optional[str]] = ContextVar("_session_id_ctx", default=None)
@@ -44,44 +47,8 @@ def get_llm_session_id() -> Optional[str]:
 
 
 # =============================================================================
-# Default configurations for each client type
+# LLM configuration is loaded from config/interview_config.yaml (llm: section)
 # =============================================================================
-
-# These defaults document the recommended configuration for each task.
-# Override via environment variables (LLM_EXTRACTION_PROVIDER, etc.) if needed.
-
-EXTRACTION_DEFAULTS = dict(
-    provider="anthropic",
-    model="claude-sonnet-4-6",
-    temperature=0.3,  # Lower for structured, consistent extraction
-    max_tokens=2048,  # Higher for complex graph outputs
-    timeout=30.0,
-    effort="medium",  # Complex agentic reasoning (coding/agentics)
-)
-
-SCORING_DEFAULTS = dict(
-    provider="kimi",
-    model="kimi-k2-0905-preview",
-    temperature=0.3,
-    max_tokens=512,
-    timeout=30.0,  # K2 is larger model, needs more time
-)
-
-GENERATION_DEFAULTS = dict(
-    provider="anthropic",
-    model="claude-sonnet-4-6",
-    temperature=0.7,  # Higher for creative question variations
-    max_tokens=1024,
-    timeout=30.0,
-    effort="low",  # Conversational, speed matters (non-coding)
-)
-
-# Map client types to their defaults
-DEFAULTS_MAP: Dict[LLMClientType, Dict[str, Any]] = {
-    "extraction": EXTRACTION_DEFAULTS,
-    "scoring": SCORING_DEFAULTS,
-    "generation": GENERATION_DEFAULTS,
-}
 
 
 # =============================================================================
@@ -745,6 +712,51 @@ class DeepSeekClient(OpenAICompatibleClient):
 
 
 # =============================================================================
+# Grok Client
+# =============================================================================
+
+
+class GrokClient(OpenAICompatibleClient):
+    """
+    xAI Grok API client.
+
+    API Docs: https://docs.x.ai/developers/rest-api-reference/inference/chat
+    Base URL: https://api.x.ai/v1
+
+    Models (as of 2025):
+    - grok-4.1-fast: Fast non-reasoning Grok 4.1 model (default)
+    - grok-4.1: Full Grok 4.1 model
+    """
+
+    def __init__(
+        self,
+        model: str,
+        temperature: float,
+        max_tokens: int,
+        timeout: float,
+        client_type: LLMClientType,
+        api_key: Optional[str] = None,
+    ):
+        """Initialize Grok client."""
+        api_key = api_key or settings.xai_api_key
+        base_url = "https://api.x.ai/v1"
+
+        if not api_key:
+            raise ValueError("XAI_API_KEY not configured. Set it in .env.")
+
+        super().__init__(
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=timeout,
+            client_type=client_type,
+            base_url=base_url,
+            provider_name="grok",
+            api_key=api_key,
+        )
+
+
+# =============================================================================
 # Client Factory Functions
 # =============================================================================
 
@@ -753,11 +765,10 @@ def get_llm_client(client_type: LLMClientType) -> LLMClient:
     """
     Factory for LLM client based on client type.
 
-    Uses hardcoded defaults for each client type, with optional
-    environment variable overrides (LLM_EXTRACTION_PROVIDER, etc.).
+    Reads provider/model configuration from interview_config.yaml (llm: section).
 
     Args:
-        client_type: "extraction", "scoring", or "generation"
+        client_type: "extraction", "slot_scoring", "signal_scoring", or "question_generation"
 
     Returns:
         LLMClient instance configured for the specified client type
@@ -765,17 +776,15 @@ def get_llm_client(client_type: LLMClientType) -> LLMClient:
     Raises:
         ValueError: If unknown provider configured or API key missing
     """
-    # Get defaults for this client type
-    defaults = DEFAULTS_MAP[client_type]
+    from src.core.config import interview_config
 
-    # Check for environment override
-    env_override_key = f"llm_{client_type}_provider"
-    provider = getattr(settings, env_override_key, None) or defaults["provider"]
-    model = defaults["model"]
-    temperature = defaults["temperature"]
-    max_tokens = defaults["max_tokens"]
-    timeout = defaults["timeout"]
-    effort = defaults.get("effort")  # Optional effort parameter for Sonnet 4.6
+    call_config = getattr(interview_config.llm, client_type)
+    provider = call_config.provider
+    model = call_config.model
+    temperature = call_config.temperature
+    max_tokens = call_config.max_tokens
+    timeout = call_config.timeout
+    effort = call_config.effort
 
     # Create client based on provider
     if provider == "anthropic":
@@ -803,38 +812,16 @@ def get_llm_client(client_type: LLMClientType) -> LLMClient:
             timeout=timeout,
             client_type=client_type,
         )
+    elif provider == "grok":
+        return GrokClient(
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=timeout,
+            client_type=client_type,
+        )
     else:
         raise ValueError(
             f"Unknown LLM provider '{provider}' for {client_type}. "
-            f"Supported providers: anthropic, kimi, deepseek"
+            f"Supported providers: anthropic, kimi, deepseek, grok"
         )
-
-
-def get_extraction_llm_client() -> LLMClient:
-    """
-    Factory for extraction LLM client (nodes/edges).
-
-    Returns:
-        LLMClient instance configured for extraction tasks
-    """
-    return get_llm_client("extraction")
-
-
-def get_scoring_llm_client() -> LLMClient:
-    """
-    Factory for scoring LLM client (diagnostic signals).
-
-    Returns:
-        LLMClient instance configured for scoring tasks
-    """
-    return get_llm_client("scoring")
-
-
-def get_generation_llm_client() -> LLMClient:
-    """
-    Factory for generation LLM client (question generation).
-
-    Returns:
-        LLMClient instance configured for question generation
-    """
-    return get_llm_client("generation")

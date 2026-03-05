@@ -62,25 +62,12 @@ class CorrelationIDMiddleware(BaseHTTPMiddleware):
             clear_context()
 
 
-# =============================================================================
-# LLM Provider Defaults (must match client.py)
-# =============================================================================
-
-# These are copied from src/llm/client.py to validate API keys at startup
-# without importing the client module (avoiding circular imports).
-
-EXTRACTION_DEFAULT_PROVIDER = "anthropic"
-SCORING_DEFAULT_PROVIDER = "kimi"
-GENERATION_DEFAULT_PROVIDER = "anthropic"
-
-
 def validate_api_keys() -> list[str]:
     """
     Validate that required API keys are configured.
 
-    Checks API keys for all configured LLM providers. If a provider is
-    configured (either via default or environment override), its API key
-    must be present.
+    Reads LLM provider configuration from interview_config.yaml and checks
+    that the corresponding API key is set in the environment for each provider.
 
     Returns:
         List of error messages (empty if all keys are valid)
@@ -88,38 +75,35 @@ def validate_api_keys() -> list[str]:
     Raises:
         RuntimeError: If any required API key is missing
     """
+    from src.core.config import interview_config
+
     errors = []
 
-    # Determine which providers are in use
-    extraction_provider = (
-        settings.llm_extraction_provider or EXTRACTION_DEFAULT_PROVIDER
-    )
-    scoring_provider = settings.llm_scoring_provider or SCORING_DEFAULT_PROVIDER
-    generation_provider = (
-        settings.llm_generation_provider or GENERATION_DEFAULT_PROVIDER
-    )
-
     # Map providers to their API key attributes and env var names
-    providers = {
+    provider_keys = {
         "anthropic": ("anthropic_api_key", "ANTHROPIC_API_KEY"),
         "kimi": ("kimi_api_key", "KIMI_API_KEY"),
         "deepseek": ("deepseek_api_key", "DEEPSEEK_API_KEY"),
+        "grok": ("xai_api_key", "XAI_API_KEY"),
     }
 
-    # Check each provider in use
-    for client_type, provider in [
-        ("extraction", extraction_provider),
-        ("scoring", scoring_provider),
-        ("generation", generation_provider),
+    # Check each configured LLM call type
+    llm = interview_config.llm
+    for client_type, call_config in [
+        ("extraction", llm.extraction),
+        ("slot_scoring", llm.slot_scoring),
+        ("signal_scoring", llm.signal_scoring),
+        ("question_generation", llm.question_generation),
     ]:
-        if provider not in providers:
+        provider = call_config.provider
+        if provider not in provider_keys:
             errors.append(
                 f"Unknown LLM provider '{provider}' for {client_type}. "
-                f"Supported providers: {', '.join(providers.keys())}"
+                f"Supported providers: {', '.join(provider_keys.keys())}"
             )
             continue
 
-        attr_name, env_var = providers[provider]
+        attr_name, env_var = provider_keys[provider]
         api_key = getattr(settings, attr_name, None)
 
         if not api_key:
@@ -134,12 +118,9 @@ def validate_api_keys() -> list[str]:
         )
         raise RuntimeError(error_msg)
 
-    log.info(
-        "api_keys_validated",
-        extraction=extraction_provider,
-        scoring=scoring_provider,
-        generation=generation_provider,
-    )
+    # Log unique providers in use
+    providers_in_use = {cfg.provider for cfg in [llm.extraction, llm.slot_scoring, llm.signal_scoring, llm.question_generation]}
+    log.info("api_keys_validated", providers=sorted(providers_in_use))
 
     return []  # No errors
 

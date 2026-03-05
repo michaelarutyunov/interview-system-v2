@@ -47,27 +47,8 @@ class Settings(BaseSettings):
     # ==========================================================================
     # LLM Configuration
     # ==========================================================================
-    #
-    # Three-client architecture for task-optimized LLM selection:
-    # - extraction: Extract nodes/edges from user responses
-    # - scoring: Extract diagnostic signals for strategy scoring
-    # - generation: Generate interview questions
-    #
-    # Defaults are defined in src/llm/client.py. Set environment variables
-    # below only to override defaults (e.g., LLM_EXTRACTION_PROVIDER=kimi)
-
-    # Optional provider overrides (defaults defined in client.py)
-    llm_extraction_provider: Optional[str] = Field(
-        default=None,
-        description="Override extraction LLM provider (default: anthropic)",
-    )
-    llm_scoring_provider: Optional[str] = Field(
-        default=None, description="Override scoring LLM provider (default: kimi)"
-    )
-    llm_generation_provider: Optional[str] = Field(
-        default=None,
-        description="Override generation LLM provider (default: anthropic)",
-    )
+    # Provider and model settings are in config/interview_config.yaml (llm: section).
+    # Only API keys remain here as environment variables.
 
     # API Keys (required for providers you use)
     anthropic_api_key: Optional[str] = Field(
@@ -281,6 +262,69 @@ class DeduplicationConfig(BaseModel):
     )
 
 
+class LLMCallConfig(BaseModel):
+    """Configuration for a single LLM call type (provider + model + parameters)."""
+
+    provider: str = Field(description="LLM provider: anthropic, kimi, deepseek, grok")
+    model: str = Field(description="Model identifier for the provider")
+    temperature: float = Field(default=0.3, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=1024, ge=1, le=16384)
+    timeout: float = Field(default=30.0, ge=1.0, le=120.0)
+    effort: Optional[str] = Field(
+        default=None, description="Anthropic extended thinking effort (low/medium/high)"
+    )
+
+
+class LLMConfig(BaseModel):
+    """LLM provider and model configuration for each pipeline call type.
+
+    Four independent call types, each configurable for A/B testing:
+    - extraction: Stage 3 — concept/relationship extraction
+    - slot_scoring: Stage 4.5 — canonical slot discovery
+    - signal_scoring: Stage 6 — LLM signal detection (response_depth, engagement, etc.)
+    - question_generation: Stage 8 + opening question
+    """
+
+    extraction: LLMCallConfig = Field(
+        default_factory=lambda: LLMCallConfig(
+            provider="anthropic",
+            model="claude-sonnet-4-6",
+            temperature=0.3,
+            max_tokens=2048,
+            timeout=30.0,
+            effort="medium",
+        )
+    )
+    slot_scoring: LLMCallConfig = Field(
+        default_factory=lambda: LLMCallConfig(
+            provider="kimi",
+            model="kimi-k2-0905-preview",
+            temperature=0.3,
+            max_tokens=512,
+            timeout=30.0,
+        )
+    )
+    signal_scoring: LLMCallConfig = Field(
+        default_factory=lambda: LLMCallConfig(
+            provider="kimi",
+            model="kimi-k2-0905-preview",
+            temperature=0.3,
+            max_tokens=512,
+            timeout=30.0,
+        )
+    )
+    question_generation: LLMCallConfig = Field(
+        default_factory=lambda: LLMCallConfig(
+            provider="anthropic",
+            model="claude-sonnet-4-6",
+            temperature=0.7,
+            max_tokens=1024,
+            timeout=30.0,
+            effort="low",
+        )
+    )
+
+
 class InterviewConfig(BaseModel):
     """
     Complete interview configuration loaded from interview_config.yaml.
@@ -293,6 +337,7 @@ class InterviewConfig(BaseModel):
     phases: PhasesConfig = Field(default_factory=PhasesConfig)
     session_service: SessionServiceConfig = Field(default_factory=SessionServiceConfig)
     deduplication: DeduplicationConfig = Field(default_factory=DeduplicationConfig)
+    llm: LLMConfig = Field(default_factory=LLMConfig)
 
     @field_validator("session")
     @classmethod

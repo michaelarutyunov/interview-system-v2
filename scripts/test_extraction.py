@@ -16,7 +16,7 @@ sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent))
 
 from src.services.extraction_service import ExtractionService
 from src.core.schema_loader import load_methodology
-from src.llm.client import get_extraction_llm_client
+from src.llm.client import get_llm_client
 
 
 async def test_extraction():
@@ -37,7 +37,7 @@ async def test_extraction():
     print("=" * 60)
 
     # Initialize extraction service with LLM client
-    llm_client = get_extraction_llm_client()
+    llm_client = get_llm_client("extraction")
     print(f"LLM Client: {type(llm_client).__name__}")
     if hasattr(llm_client, "model"):
         print(f"Model: {llm_client.model}")

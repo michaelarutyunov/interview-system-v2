@@ -70,3 +70,28 @@ deduplication:
   canonical_similarity_threshold: 0.60
   # Minimum surface nodes mapped to a candidate slot before promotion to 'active'.
   canonical_min_support_nodes: 2
+
+# ============================================================================
+# LLM Provider Configuration
+# ============================================================================
+# Each pipeline call type can use a different provider/model for A/B testing.
+# Only provider and model are required — temperature, max_tokens, timeout, effort
+# have sensible defaults in the Pydantic model and can be omitted here.
+# API keys are set via environment variables in .env (not here).
+llm:
+  # Stage 3: concept/relationship extraction from user responses
+  extraction:
+    provider: anthropic
+    model: claude-sonnet-4-6
+  # Stage 4.5: canonical slot discovery (structured JSON extraction)
+  slot_scoring:
+    provider: kimi
+    model: kimi-k2-0905-preview
+  # Stage 6: LLM signal detection (response_depth, engagement, hedging, etc.)
+  signal_scoring:
+    provider: kimi
+    model: kimi-k2-0905-preview
+  # Stage 8 + opening question: next question generation
+  question_generation:
+    provider: anthropic
+    model: claude-sonnet-4-6

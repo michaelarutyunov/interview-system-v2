@@ -82,10 +82,10 @@ class GlobalSignalDetectionService:
         llm_signal_names = signal_detector.llm_signal_names
         if llm_signal_names:
             from src.signals.llm.batch_detector import LLMBatchDetector
-            from src.llm.client import get_scoring_llm_client
+            from src.llm.client import get_llm_client
 
             try:
-                scoring_client = get_scoring_llm_client()
+                scoring_client = get_llm_client("signal_scoring")
                 llm_detector = LLMBatchDetector(scoring_client)
                 signal_detector.set_llm_detector(llm_detector)
                 log.debug(

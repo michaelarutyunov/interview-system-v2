@@ -193,18 +193,16 @@ class SessionService:
         embedding_service = EmbeddingService()  # lazy loads all-MiniLM-L6-v2 + spaCy
 
         if settings.enable_canonical_slots:
-            # Slot discovery uses scoring LLM (KIMI) — cheaper and sufficient
-            # for structured JSON extraction. Falls back to generation client.
-            from src.llm.client import get_scoring_llm_client
+            from src.llm.client import get_llm_client
 
             try:
-                slot_llm_client = get_scoring_llm_client()
+                slot_llm_client = get_llm_client("slot_scoring")
             except ValueError:
-                # KIMI_API_KEY not configured — fall back to generation client
+                # Slot scoring provider API key not configured — fall back to generation client
                 if self.generation_llm_client is None:
                     raise ValueError(
                         "No LLM client available for SlotDiscoveryStage: "
-                        "configure KIMI_API_KEY or provide generation_llm_client"
+                        "configure the slot_scoring provider API key or provide generation_llm_client"
                     )
                 slot_llm_client = self.generation_llm_client
 

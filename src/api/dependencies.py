@@ -11,11 +11,7 @@ from src.persistence.repositories.session_repo import SessionRepository
 from src.persistence.repositories.utterance_repo import UtteranceRepository
 from src.persistence.database import get_db
 from src.persistence.repositories.graph_repo import GraphRepository
-from src.llm.client import (
-    LLMClient,
-    get_extraction_llm_client,
-    get_generation_llm_client,
-)
+from src.llm.client import LLMClient, get_llm_client
 
 
 def get_session_repository() -> SessionRepository:
@@ -54,7 +50,7 @@ def get_shared_extraction_client() -> LLMClient:
     Shared across all extraction requests to avoid re-initializing the client.
     Uses LRU cache so the client is created once per process and reused.
     """
-    return get_extraction_llm_client()
+    return get_llm_client("extraction")
 
 
 @lru_cache(maxsize=1)
@@ -64,7 +60,7 @@ def get_shared_generation_client() -> LLMClient:
     Shared across all question generation requests to avoid re-initializing the client.
     Uses LRU cache so the client is created once per process and reused.
     """
-    return get_generation_llm_client()
+    return get_llm_client("question_generation")
 
 
 # Type aliases for dependency injection
