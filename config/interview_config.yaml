@@ -15,8 +15,6 @@ session:
   # Can be overridden via API: config={"max_turns": custom_value}
   # Default sum: exploratory.n_turns + focused.n_turns + closing.n_turns = 8 + 8 + 4 = 20
   # Note: Omitting max_turns here triggers auto-calculation from phases
-  # Minimum turns before allowing early termination
-  min_turns: 5
 
 # ============================================================================
 # Phase Configuration (deterministic turn-based)
@@ -51,3 +49,24 @@ session_service:
   context_node_limit: 5
   # Number of recent utterances to include in extraction context
   extraction_context_limit: 5
+
+# ============================================================================
+# Deduplication Thresholds
+# ============================================================================
+# Used by:
+# - src/services/graph_service.py (surface_similarity_threshold)
+# - src/services/canonical_slot_service.py (canonical_similarity_threshold, canonical_min_support_nodes)
+# - src/persistence/repositories/canonical_slot_repo.py (canonical_similarity_threshold)
+#
+# Canonical slots have a two-stage lifecycle:
+#   1. "candidate" - Newly proposed, not yet trusted
+#   2. "active" - Promoted after earning sufficient support
+deduplication:
+  # Cosine similarity threshold for surface node semantic dedup.
+  # Higher than canonical to preserve concept granularity at surface layer.
+  surface_similarity_threshold: 0.80
+  # Cosine similarity threshold for merging canonical slots.
+  # 0.60 targets 10-25% compression for JTBD interviews (all-MiniLM-L6-v2).
+  canonical_similarity_threshold: 0.60
+  # Minimum surface nodes mapped to a candidate slot before promotion to 'active'.
+  canonical_min_support_nodes: 2

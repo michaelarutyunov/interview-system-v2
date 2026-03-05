@@ -18,7 +18,7 @@ import aiosqlite
 import numpy as np
 import structlog
 
-from src.core.config import settings
+from src.core.config import interview_config
 from src.domain.models.canonical_graph import (
     CanonicalSlot,
     SlotMapping,
@@ -240,7 +240,7 @@ class CanonicalSlotRepository:
             session_id: Session ID
             node_type: Node type filter (only compare slots of same type)
             embedding: Query embedding (numpy float32 array)
-            threshold: Optional similarity threshold (default: settings.canonical_similarity_threshold)
+            threshold: Optional similarity threshold (default: interview_config.deduplication.canonical_similarity_threshold)
             status: Slot status filter (default: 'active')
 
         Returns:
@@ -249,7 +249,7 @@ class CanonicalSlotRepository:
         """
         if threshold is None:
             # Read from config, NOT hardcoded (AMBIGUITY RESOLUTION 2026-02-07)
-            threshold = settings.canonical_similarity_threshold
+            threshold = interview_config.deduplication.canonical_similarity_threshold
 
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row

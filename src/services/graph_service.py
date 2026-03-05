@@ -176,7 +176,7 @@ class GraphService:
         Returns:
             KGNode (existing or newly created)
         """
-        from src.core.config import settings
+        from src.core.config import interview_config
 
         # Step 1: Exact label match (fast path)
         existing = await self.repo.find_node_by_label_and_type(
@@ -213,7 +213,7 @@ class GraphService:
                 session_id=session_id,
                 node_type=concept.node_type,
                 embedding=embedding,
-                threshold=settings.surface_similarity_threshold,
+                threshold=interview_config.deduplication.surface_similarity_threshold,
             )
 
             if similar:
@@ -232,7 +232,7 @@ class GraphService:
                     new_label=concept.text,
                     matched_label=best_node.label,
                     similarity_score=round(similarity, 4),
-                    threshold=settings.surface_similarity_threshold,
+                    threshold=interview_config.deduplication.surface_similarity_threshold,
                     outcome="semantic_merge",
                 )
                 return await self.repo.add_source_utterance(
@@ -249,7 +249,7 @@ class GraphService:
             new_label=concept.text,
             matched_label=None,
             similarity_score=None,
-            threshold=settings.surface_similarity_threshold
+            threshold=interview_config.deduplication.surface_similarity_threshold
             if self.embedding_service is not None
             else None,
             outcome="new_node",

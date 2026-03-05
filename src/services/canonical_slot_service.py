@@ -15,7 +15,7 @@ from typing import List, Dict
 
 import structlog
 
-from src.core.config import settings
+from src.core.config import interview_config
 from src.core.schema_loader import load_methodology
 from src.domain.models.canonical_graph import CanonicalSlot
 from src.domain.models.knowledge_graph import KGNode
@@ -396,7 +396,7 @@ class CanonicalSlotService:
                 proposed_slot=original_proposed_name,
                 matched_slot=slot.slot_name,
                 similarity=1.0,
-                threshold=settings.canonical_similarity_threshold,
+                threshold=interview_config.deduplication.canonical_similarity_threshold,
                 outcome="exact_match",
                 surface_node_count=len(surface_node_ids),
             )
@@ -415,7 +415,7 @@ class CanonicalSlotService:
 
             if (
                 updated_slot.status == "candidate"
-                and updated_slot.support_count >= settings.canonical_min_support_nodes
+                and updated_slot.support_count >= interview_config.deduplication.canonical_min_support_nodes
             ):
                 await self.slot_repo.promote_slot(updated_slot.id, turn_number)
                 log.info(
@@ -468,7 +468,7 @@ class CanonicalSlotService:
                 proposed_slot=original_proposed_name,
                 matched_slot=slot.slot_name,
                 similarity=round(best_similarity, 4),
-                threshold=settings.canonical_similarity_threshold,
+                threshold=interview_config.deduplication.canonical_similarity_threshold,
                 outcome="merged",
                 surface_node_count=len(surface_node_ids),
             )
@@ -505,7 +505,7 @@ class CanonicalSlotService:
                 proposed_slot=original_proposed_name,
                 matched_slot=None,
                 similarity=None,
-                threshold=settings.canonical_similarity_threshold,
+                threshold=interview_config.deduplication.canonical_similarity_threshold,
                 outcome="new_candidate",
                 surface_node_count=len(surface_node_ids),
             )
@@ -524,7 +524,7 @@ class CanonicalSlotService:
 
         if (
             updated_slot.status == "candidate"
-            and updated_slot.support_count >= settings.canonical_min_support_nodes
+            and updated_slot.support_count >= interview_config.deduplication.canonical_min_support_nodes
         ):
             await self.slot_repo.promote_slot(updated_slot.id, turn_number)
             log.info(

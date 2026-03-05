@@ -82,6 +82,9 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = Field(
         default=None, description="OpenAI API key (optional, for GPT models)"
     )
+    xai_api_key: Optional[str] = Field(
+        default=None, description="xAI API key (for Grok models)"
+    )
 
     # ==========================================================================
     # LLM Pricing (per million tokens)
@@ -120,13 +123,17 @@ class Settings(BaseSettings):
         description="DeepSeek Chat output price per million tokens (USD)",
     )
 
-    # ==========================================================================
-    # Interview Defaults
-    # ==========================================================================
-
-    default_max_turns: int = Field(
-        default=10, ge=1, le=50, description="Default maximum turns per interview"
+    # xAI Grok: https://docs.x.ai/docs/models#models-and-pricing
+    # Note: Not currently used by default in any client type
+    grok_41_fast_input: float = Field(
+        default=0.20,
+        description="Grok 4.1 Fast input price per million tokens (USD)",
     )
+    grok_41_fast_output: float = Field(
+        default=0.50,
+        description="Grok 4.1 Fast output price per million tokens (USD)",
+    )
+
     # ==========================================================================
     # Server Configuration
     # ==========================================================================
@@ -154,66 +161,6 @@ class Settings(BaseSettings):
         description="Enable self-selection prompt for question generation (generates 3 candidates, scores internally, outputs best)",
     )
 
-    # ==========================================================================
-    # Canonical Slot Discovery Thresholds
-    # ==========================================================================
-    #
-    # Canonical slots have a two-stage lifecycle:
-    #   1. "candidate" - Newly proposed, not yet trusted
-    #   2. "active" - Promoted after earning sufficient support
-    #
-    # Promotion prevents ephemeral mentions from polluting the canonical graph.
-
-    surface_similarity_threshold: float = Field(
-        default=0.80,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Cosine similarity threshold for surface node semantic dedup. "
-            "When a new concept is extracted, it's compared against existing nodes "
-            "of the same type via embedding similarity. If >= threshold, the concept "
-            "merges into the existing node instead of creating a duplicate. "
-            "Higher than canonical (0.60) to preserve concept granularity at surface layer."
-        ),
-    )
-    canonical_similarity_threshold: float = Field(
-        default=0.60,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Cosine similarity threshold for merging canonical slots. "
-            "When a new slot is proposed, it's compared against existing slots "
-            "via embedding similarity. If similarity >= this threshold, the new "
-            "slot merges into the existing one instead of creating a duplicate. "
-            "Higher values = more conservative (fewer merges, more slots). "
-            "Lower values = more permissive (more merging, fewer slots). "
-            "0.60 targets 10-25% compression for JTBD interviews (all-MiniLM-L6-v2). "
-            "0.70 produced 5.4% compression (4/74 slots promoted, still below target). "
-            "0.80 was too conservative: produced 2.5% compression (only 2/80 slots promoted)."
-        ),
-    )
-    canonical_min_support_nodes: int = Field(
-        default=2,
-        ge=1,
-        description=(
-            "Minimum number of surface nodes that must map to a candidate slot "
-            "before it can be promoted to 'active' status. Each time a surface "
-            "node (user's actual phrase) maps to this slot, supportCount += 1. "
-            "When supportCount >= this threshold, the slot is promoted. "
-            "Default 2 requires confirmation from a second mention before "
-            "promoting, filtering out ephemeral single-mention concepts."
-        ),
-    )
-    canonical_min_turns: int = Field(
-        default=2,
-        ge=1,
-        description=(
-            "NOT YET IMPLEMENTED. Intended: Minimum number of distinct turns "
-            "in which a slot should have support before promotion. This would "
-            "prevent slots from earning promotion via multiple mentions in a "
-            "single long response. Currently, promotion only checks supportCount."
-        ),
-    )
 
     def get_pricing_for_model(self, model_name: str) -> tuple[float, float]:
         """
@@ -237,10 +184,12 @@ class Settings(BaseSettings):
             return (self.kimi_k2_input, self.kimi_k2_output)
         elif "deepseek" in model_lower:
             return (self.deepseek_chat_input, self.deepseek_chat_output)
+        elif "grok" in model_lower:
+            return (self.grok_41_fast_input, self.grok_41_fast_output)
         else:
             raise ValueError(
                 f"Unknown model '{model_name}' for pricing lookup. "
-                f"Supported models: claude-sonnet-4-6, kimi-k2-0905-preview, deepseek-chat"
+                f"Supported models: claude-sonnet-4-6, kimi-k2-0905-preview, deepseek-chat, grok-4.1-fast"
             )
 
 
@@ -272,9 +221,6 @@ class SessionConfig(BaseModel):
 
     max_turns: int = Field(
         default=20, ge=1, le=100, description="Maximum turns before forcing close"
-    )
-    min_turns: int = Field(
-        default=5, ge=1, le=20, description="Minimum turns before early termination"
     )
 
 
@@ -308,6 +254,33 @@ class PhasesConfig(BaseModel):
     closing: PhaseConfig = Field(default_factory=PhaseConfig)
 
 
+class DeduplicationConfig(BaseModel):
+    """Thresholds for surface and canonical graph deduplication.
+
+    Controls semantic similarity matching during node creation (surface graph)
+    and slot discovery (canonical graph). Also controls the promotion lifecycle
+    from candidate to active canonical slots.
+    """
+
+    surface_similarity_threshold: float = Field(
+        default=0.80,
+        ge=0.0,
+        le=1.0,
+        description="Cosine similarity threshold for surface node semantic dedup",
+    )
+    canonical_similarity_threshold: float = Field(
+        default=0.60,
+        ge=0.0,
+        le=1.0,
+        description="Cosine similarity threshold for merging canonical slots",
+    )
+    canonical_min_support_nodes: int = Field(
+        default=2,
+        ge=1,
+        description="Minimum surface nodes mapped before candidate slot is promoted to active",
+    )
+
+
 class InterviewConfig(BaseModel):
     """
     Complete interview configuration loaded from interview_config.yaml.
@@ -319,6 +292,7 @@ class InterviewConfig(BaseModel):
     session: SessionConfig = Field(default_factory=SessionConfig)
     phases: PhasesConfig = Field(default_factory=PhasesConfig)
     session_service: SessionServiceConfig = Field(default_factory=SessionServiceConfig)
+    deduplication: DeduplicationConfig = Field(default_factory=DeduplicationConfig)
 
     @field_validator("session")
     @classmethod
@@ -394,7 +368,9 @@ def load_interview_config(config_path: Optional[Path] = None) -> InterviewConfig
     if not config_data:
         return InterviewConfig()
 
-    return InterviewConfig(**config_data)
+    # Strip None values from YAML (keys with only comments parse as None)
+    cleaned = {k: v for k, v in config_data.items() if v is not None}
+    return InterviewConfig(**cleaned)
 
 
 # Global settings instance
