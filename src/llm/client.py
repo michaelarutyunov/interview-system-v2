@@ -226,12 +226,23 @@ class AnthropicClient(LLMClient):
         if system:
             payload["system"] = system
 
-        if response_format is not None and "schema" in response_format:
+        if response_format is not None:
+            # Determine JSON schema for tool_use
+            if "schema" in response_format:
+                # Caller provided explicit schema
+                schema = response_format["schema"]
+            else:
+                # Generic JSON mode (e.g. {"type": "json_object"}) —
+                # use permissive schema since Anthropic requires tool_use
+                schema = {
+                    "type": "object",
+                    "additionalProperties": True,
+                }
             payload["tools"] = [
                 {
                     "name": "structured_output",
-                    "description": "Return structured data matching the schema",
-                    "input_schema": response_format["schema"],
+                    "description": "Return structured data as JSON",
+                    "input_schema": schema,
                 }
             ]
             payload["tool_choice"] = {"type": "any"}

@@ -161,3 +161,26 @@ async def test_anthropic_no_tools_without_response_format(anthropic_client):
 
     assert "tools" not in captured_payload
     assert "tool_choice" not in captured_payload
+
+
+@pytest.mark.asyncio
+async def test_anthropic_json_object_uses_permissive_schema(anthropic_client):
+    """{"type": "json_object"} (no schema) triggers tool_use with permissive schema."""
+    captured_payload = {}
+
+    async def mock_post(url, headers=None, json=None):
+        captured_payload.update(json)
+        return _mock_anthropic_tool_response()
+
+    with patch("httpx.AsyncClient.post", side_effect=mock_post):
+        await anthropic_client.complete(
+            prompt="test",
+            response_format={"type": "json_object"},
+        )
+
+    assert "tools" in captured_payload
+    assert captured_payload["tools"][0]["input_schema"] == {
+        "type": "object",
+        "additionalProperties": True,
+    }
+    assert captured_payload["tool_choice"] == {"type": "any"}
