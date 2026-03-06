@@ -273,7 +273,10 @@ class MethodologyStrategyService:
 
         if best_strategy_config.node_binding == "required" and node_signals:
             ranked_nodes, stage2_decomposition = rank_nodes_for_strategy(
-                best_strategy_config, node_signals
+                best_strategy_config,
+                node_signals,
+                phase_weights=phase_weights,
+                phase_bonuses=phase_bonuses,
             )
             if ranked_nodes:
                 focus_node_id = ranked_nodes[0][0]

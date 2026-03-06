@@ -444,16 +444,20 @@ def rank_strategy_node_pairs(
 def rank_nodes_for_strategy(
     strategy_config: StrategyConfig,
     node_signals: Dict[str, Dict[str, Any]],
+    phase_weights: Optional[Dict[str, float]] = None,
+    phase_bonuses: Optional[Dict[str, float]] = None,
 ) -> tuple[List[Tuple[str, float]], List[ScoredCandidate]]:
     """Rank nodes for a specific strategy using only node-scoped signal weights.
 
     Auto-partitions the strategy's signal_weights to extract only node-scoped
     weights (graph.node.*, technique.node.*, meta.node.*), then scores each
-    node against those weights.
+    node against those weights. Applies phase multiplier and bonus to final scores.
 
     Args:
         strategy_config: Strategy config (node weights extracted automatically)
         node_signals: Dict mapping node_id to per-node signal dict
+        phase_weights: Optional phase multipliers by strategy name
+        phase_bonuses: Optional phase bonuses by strategy name
 
     Returns:
         Tuple of (ranked_nodes, candidates) where:
@@ -485,19 +489,30 @@ def rank_nodes_for_strategy(
         signal_weights=node_weights,
     )
 
+    # Phase multiplier and bonus for this strategy
+    multiplier = 1.0
+    if phase_weights and strategy_config.name in phase_weights:
+        multiplier = phase_weights[strategy_config.name]
+    bonus = 0.0
+    if phase_bonuses and strategy_config.name in phase_bonuses:
+        bonus = phase_bonuses[strategy_config.name]
+
     scored: List[Tuple[str, float]] = []
     candidates: List[ScoredCandidate] = []
 
     for node_id, signals in node_signals.items():
         score, contributions = score_strategy_with_decomposition(node_strategy, signals)
-        scored.append((node_id, score))
+        final_score = (score * multiplier) + bonus
+        scored.append((node_id, final_score))
         candidates.append(
             ScoredCandidate(
                 strategy=strategy_config.name,
                 node_id=node_id,
                 signal_contributions=contributions,
                 base_score=score,
-                final_score=score,
+                phase_multiplier=multiplier,
+                phase_bonus=bonus,
+                final_score=final_score,
             )
         )
 
