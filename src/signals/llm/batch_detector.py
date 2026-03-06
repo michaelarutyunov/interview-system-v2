@@ -201,44 +201,18 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
 
     @staticmethod
     def _parse_json_response(text: str) -> dict:
-        """Parse JSON from LLM response, with repair for common errors.
+        """Parse JSON from LLM response.
 
-        Handles markdown fences, missing/trailing commas, and truncation.
+        Args:
+            text: JSON string from LLM (guaranteed valid by structured output)
+
+        Returns:
+            Parsed dict of signal scores
+
+        Raises:
+            json.JSONDecodeError: If response is not valid JSON
         """
-        import re
-
-        # Strip markdown fences
-        text = text.strip()
-        if text.startswith("```json"):
-            text = text[7:]
-        elif text.startswith("```"):
-            text = text[3:]
-        if text.endswith("```"):
-            text = text[:-3]
-        text = text.strip()
-
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
-
-        # Repair: missing commas between properties
-        repaired = re.sub(r"(\")\s*\n\s*(\")", r"\1,\n\2", text)
-        repaired = re.sub(r"(\d)\s*\n\s*(\")", r"\1,\n\2", repaired)
-        repaired = re.sub(r"(\})\s*\n\s*(\")", r"\1,\n\2", repaired)
-        # Trailing commas
-        repaired = re.sub(r",\s*\}", "}", repaired)
-        repaired = re.sub(r",\s*\]", "]", repaired)
-        # Truncation
-        open_braces = repaired.count("{") - repaired.count("}")
-        open_brackets = repaired.count("[") - repaired.count("]")
-        if open_braces > 0 or open_brackets > 0:
-            repaired = repaired.rstrip().rstrip(",")
-            repaired += "]" * open_brackets + "}" * open_braces
-
-        result = json.loads(repaired)
-        log.warning("Scoring JSON repaired before parsing (original had syntax errors)")
-        return result
+        return json.loads(text)
 
     async def detect(
         self,
@@ -281,6 +255,7 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
         try:
             response = await self.llm_client.complete(
                 prompt=prompt,
+                response_format={"type": "json_object"},
             )
             response_text = response.content
 
