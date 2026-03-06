@@ -143,7 +143,7 @@ The D2 architecture replaces joint (strategy, node) pair scoring with a two-stag
 **Stage 2: Node Selection** (`rank_nodes_for_strategy()`)
 - Conditionally executed only when `node_binding="required"` and node_signals exist
 - Scores nodes for the selected strategy using node-scoped signals only
-- No phase weights applied (uses raw signal weights)
+- Receives phase_weights and phase_bonuses for phase-aware node scoring
 - Returns ranked list of (node_id, score) tuples with `ScoredCandidate` decomposition
 
 **Key implementation details**:
@@ -160,7 +160,7 @@ The D2 architecture replaces joint (strategy, node) pair scoring with a two-stag
 - `meta.node.opportunity: "exhausted"` signals exhausted nodes
 - Automatically backtracks to fresh nodes
 
-**Phase-Aware Scoring**: Phase weights and bonuses applied in Stage 1 only (strategy selection), not Stage 2 (node selection)
+**Phase-Aware Scoring**: Phase weights and bonuses applied in both Stage 1 (strategy selection) and Stage 2 (node selection)
 
 **Output**: Returns (strategy_name, focus_node_id, alternatives, ...) where:
 - `strategy_name`: Selected strategy name
@@ -231,8 +231,9 @@ graph LR
     P -->|Yes| Q[rank_nodes_for_strategy]
     P -->|No| R[No node selection]
 
+    J -->|phase_weights, phase_bonuses| Q
     Q --> S[partition_signal_weights extracts node signals]
-    S --> T[Score nodes with node weights]
+    S --> T[Score nodes with node weights + phase multiplier/bonus]
     T --> U[Best Node]
 
     U --> V[Technique Lookup]
@@ -365,9 +366,11 @@ graph TB
         AF -->|No| AK
 
         P --> AG
+        V1 -->|phase_weights| AG
+        V2 -->|phase_bonuses| AG
 
         AG --> AH[partition_signal_weights extracts node weights]
-        AH --> AI[Score each node with node signals]
+        AH --> AI[Score each node with node signals + phase multiplier/bonus]
 
         AI --> AJ[Sort nodes by score descending]
         AJ --> AL[Select best node_id]
@@ -687,7 +690,7 @@ graph TB
         AI -->|Yes| AJ[Stage 2: rank_nodes_for_strategy]
         AI -->|No| AK[No node selection]
 
-        AJ --> AL[Score nodes with node-scoped signals]
+        AJ --> AL[Score nodes with node-scoped signals + phase weights]
         AL --> AM[Select best node]
 
         AM --> AN[negative weight for exhausted → backtrack]
@@ -1221,8 +1224,8 @@ class ScoredCandidate:
     node_id: str
     signal_contributions: list[SignalContribution]  # Per-signal breakdown (global signals in Stage 1, node signals in Stage 2)
     base_score: float        # Sum of signal contributions
-    phase_multiplier: float  # Phase weights applied in Stage 1, always 1.0 in Stage 2
-    phase_bonus: float       # Phase bonuses applied in Stage 1, always 0.0 in Stage 2
+    phase_multiplier: float  # Phase weights applied in both Stage 1 and Stage 2
+    phase_bonus: float       # Phase bonuses applied in both Stage 1 and Stage 2
     final_score: float       # (base_score × phase_multiplier) + phase_bonus
     rank: int                # 1 = best candidate
     selected: bool           # True for the winning candidate
@@ -1239,7 +1242,7 @@ class SignalContribution:
 
 - **Capture time**: Decomposition is captured at both Stage 1 (`rank_strategies()`) and Stage 2 (`rank_nodes_for_strategy()`)
 - **Stage 1 signals**: Global signals only (graph.*, llm.*, temporal.*, meta.*) with phase multipliers/bonuses
-- **Stage 2 signals**: Node-scoped signals only (graph.node.*, technique.node.*, meta.node.*) via `partition_signal_weights()`
+- **Stage 2 signals**: Node-scoped signals only (graph.node.*, technique.node.*, meta.node.*) via `partition_signal_weights()`, with phase multipliers/bonuses
 - **Distinguishing stages**: Stage 1 entries have `node_id=""`; Stage 2 entries have `node_id="<uuid>"`
 - **Accuracy**: CSV scores match pipeline scores exactly (live decomposition, not post-hoc)
 - **Simulation-only**: `score_decomposition` is `Optional` in `TurnResult` and `StrategySelectionOutput`; the live API pipeline sets it to `None`

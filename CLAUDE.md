@@ -159,6 +159,8 @@ uv run python scripts/run_simulation.py headphones_mec baseline_cooperative 10
 #   score_decomposition  — per-candidate joint scoring breakdown (strategy × node)
 #                          each entry: strategy, node_id, signal_contributions, base_score,
 #                          phase_multiplier, phase_bonus, final_score, rank, selected
+#                          Phase multiplier/bonus applied in both Stage 1 (strategy-level,
+#                          node_id="") and Stage 2 (node-level, node_id=<uuid>)
 
 # Generate scoring CSV from existing simulation JSON
 # Reads score_decomposition from JSON — accurate live scores, not post-hoc recomputation

@@ -529,7 +529,7 @@ response_depth: How much elaboration does the response provide?
 - Example: `response_depth:` header followed by indented scale definitions
 
 **Batch Detection**:
-All 6 LLM signals (response_depth, specificity, certainty, valence, engagement, intellectual_engagement) are detected in a single API call via `LLMBatchDetector`. The prompt includes the interviewer's question (for context) and the respondent's answer, with rubrics injected to guide the LLM's scoring. The LLM returns structured JSON:
+All 6 LLM signals (response_depth, specificity, certainty, valence, engagement, intellectual_engagement) are detected in a single API call via `LLMBatchDetector`. The prompt includes the interviewer's question (for context) and the respondent's answer, with rubrics injected to guide the LLM's scoring. The LLM returns structured JSON (guaranteed valid via provider-native structured output — see [LLM Integration](#llm-integration)):
 
 ```json
 {
@@ -1595,6 +1595,8 @@ The system uses a three-client architecture with task-optimized LLM selection, i
 **Sonnet 4.6 Effort Parameter**: Extraction and generation clients support the `effort` parameter for Claude Sonnet 4.6:
 - Extraction: `effort="medium"` (complex agentic reasoning for structured output)
 - Generation: `effort="low"` (conversational, speed matters)
+
+**Structured Output**: All LLM calls that expect JSON responses (extraction, scoring/signal detection, slot discovery) use provider-native structured output to guarantee valid JSON. OpenAI-compatible APIs (Kimi, DeepSeek) use `response_format={"type": "json_object"}`; Anthropic uses tool_use with a JSON schema. This eliminates the need for post-hoc JSON repair, markdown fence stripping, or fallback parsing.
 
 ### Supported Providers
 

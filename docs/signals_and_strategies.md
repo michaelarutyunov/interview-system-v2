@@ -135,7 +135,7 @@ The system uses a two-stage approach for strategy and node selection:
 **Stage 2: Node Selection (Conditional)**
 - Conditionally executed only when `node_binding="required"` and node_signals exist
 - Scores nodes for the selected strategy using **node-scoped signals only**
-- No phase weights applied (uses raw signal weights)
+- Applies phase-based multipliers and bonuses: `(base_score × multiplier) + bonus`
 - Returns ranked list of nodes
 
 ```
@@ -157,7 +157,7 @@ The system uses a two-stage approach for strategy and node selection:
 │  Condition: node_binding="required" AND node_signals exist          │
 │  Input: node_signals (graph.node.*, technique.node.*, meta.node.*) │
 │  Process: rank_nodes_for_strategy() with node-scoped weights        │
-│  Output: ranked nodes for selected strategy                         │
+│  Output: ranked nodes with phase weights/bonuses                    │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -863,7 +863,7 @@ The two-stage architecture scores each node for the selected `deepen` strategy u
 | Stage | Function | Signals Used | Phase Weights |
 |-------|----------|--------------|---------------|
 | **Stage 1** | `rank_strategies()` | Global signals only (graph.*, llm.*, temporal.*, meta.*) | ✅ Applied |
-| **Stage 2** | `rank_nodes_for_strategy()` | Node signals only (graph.node.*, technique.node.*, meta.node.*) | ❌ Not applied |
+| **Stage 2** | `rank_nodes_for_strategy()` | Node signals only (graph.node.*, technique.node.*, meta.node.*) | ✅ Applied |
 
 ### Signal Namespaces
 
