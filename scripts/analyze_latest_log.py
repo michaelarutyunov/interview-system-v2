@@ -11,6 +11,64 @@ from collections import defaultdict
 from pathlib import Path
 
 
+def load_env_file(env_path: Path = Path(".env")) -> dict[str, str]:
+    """Load environment variables from .env file."""
+    env_vars = {}
+    if env_path.exists():
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, _, value = line.partition("=")
+                    env_vars[key] = value.strip('"\'')
+    return env_vars
+
+
+# Load environment variables for pricing
+_env_vars = load_env_file()
+
+# Pricing per million tokens (input, output)
+MODEL_PRICING: dict[str, tuple[float, float]] = {
+    # Anthropic models
+    "claude-sonnet-4-6": (
+        float(_env_vars.get("ANTHROPIC_SONNET_INPUT", "3.00")),
+        float(_env_vars.get("ANTHROPIC_SONNET_OUTPUT", "15.00"))
+    ),
+    "claude-haiku-4-5": (
+        float(_env_vars.get("ANTHROPIC_HAIKU_INPUT", "1.00")),
+        float(_env_vars.get("ANTHROPIC_HAIKU_OUTPUT", "5.00"))
+    ),
+    # Kimi models
+    "kimi-k2-0905-preview": (
+        float(_env_vars.get("KIMI_K2_INPUT", "0.60")),
+        float(_env_vars.get("KIMI_K2_OUTPUT", "2.50"))
+    ),
+    "kimi-k2": (
+        float(_env_vars.get("KIMI_K2_INPUT", "0.60")),
+        float(_env_vars.get("KIMI_K2_OUTPUT", "2.50"))
+    ),
+}
+
+
+def calculate_cost(model: str, tokens_in: int, tokens_out: int) -> float:
+    """Calculate cost in USD for a given model and token usage."""
+    # Normalize model name (handle prefixes)
+    model_key = model
+    for key in MODEL_PRICING:
+        if key in model:
+            model_key = key
+            break
+
+    if model_key not in MODEL_PRICING:
+        # Unknown model, return 0 cost
+        return 0.0
+
+    input_price, output_price = MODEL_PRICING[model_key]
+    input_cost = (tokens_in / 1_000_000) * input_price
+    output_cost = (tokens_out / 1_000_000) * output_price
+    return input_cost + output_cost
+
+
 def strip_ansi(text: str) -> str:
     """Remove ANSI escape sequences from text."""
     ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
@@ -63,7 +121,8 @@ def analyze_log(log_file: Path) -> dict:
     )
     llm_completed_pattern = re.compile(
         r'llm_call_complete\s+.*?client_type=(\S+)'
-        r'.*?input_tokens=(\d+).*?latency_ms=([\d\.]+).*?output_tokens=(\d+)'
+        r'.*?input_tokens=(\d+).*?latency_ms=([\d\.]+)'
+        r'.*?model=(\S+).*?output_tokens=(\d+)'
     )
     pipeline_completed_pattern = re.compile(
         r'pipeline_completed\s+total_duration_ms=([\d\.]+)'
@@ -84,13 +143,20 @@ def analyze_log(log_file: Path) -> dict:
         module = match.group(1)
         tokens_in = int(match.group(2))
         duration = float(match.group(3))
-        tokens_out = int(match.group(4))
+        model = match.group(4)
+        tokens_out = int(match.group(5))
+        cost = calculate_cost(model, tokens_in, tokens_out)
         if module not in llm_calls:
-            llm_calls[module] = {"durations": [], "tokens_in": [], "tokens_out": [], "count": 0}
+            llm_calls[module] = {
+                "durations": [], "tokens_in": [], "tokens_out": [],
+                "count": 0, "models": set(), "costs": []
+            }
         llm_calls[module]["durations"].append(duration)  # type: ignore
         llm_calls[module]["tokens_in"].append(tokens_in)  # type: ignore
         llm_calls[module]["tokens_out"].append(tokens_out)  # type: ignore
+        llm_calls[module]["costs"].append(cost)  # type: ignore
         llm_calls[module]["count"] = llm_calls[module]["count"] + 1  # type: ignore
+        llm_calls[module]["models"].add(model)  # type: ignore
 
     # Pipeline completion
     for match in pipeline_completed_pattern.finditer(clean_content):
@@ -126,7 +192,9 @@ def print_report(data: dict) -> None:
         stats = calc_stats(data_item["durations"])
         tokens_in_stats = calc_stats(data_item["tokens_in"])
         tokens_out_stats = calc_stats(data_item["tokens_out"])
-        llm_stats.append((module, stats, tokens_in_stats, tokens_out_stats))
+        cost_stats = calc_stats(data_item["costs"])
+        models = data_item["models"]
+        llm_stats.append((module, stats, tokens_in_stats, tokens_out_stats, models, cost_stats))
     llm_stats.sort(key=lambda x: x[1]["total"], reverse=True)
 
     total_stage_time = sum(s[1]["total"] for s in stage_stats)
@@ -134,6 +202,7 @@ def print_report(data: dict) -> None:
     total_llm_calls = sum(s[1]["count"] for s in llm_stats)
     total_tokens_in = sum(s[2]["total"] for s in llm_stats)
     total_tokens_out = sum(s[3]["total"] for s in llm_stats)
+    total_cost = sum(s[5]["total"] for s in llm_stats)
 
     # Print report
     width = 85
@@ -163,15 +232,17 @@ def print_report(data: dict) -> None:
     print("\n" + "=" * width)
     print("LLM CALLS BY MODULE (by total time)")
     print("=" * width)
-    print(f"{'Module':<25} {'Calls':>6} {'Total(s)':>10} {'Mean(ms)':>10} {'AvgIn':>8} {'AvgOut':>8}")
+    print(f"{'Module':<20} {'Model':<16} {'Calls':>5} {'Time(s)':>8} {'Cost($)':>8} {'TokIn':>7} {'TokOut':>7}")
     print("-" * width)
 
-    for module, stats, tok_in, tok_out in llm_stats:
-        print(f"{module:<25} {stats['count']:>6} {stats['total']/1000:>10.2f} {stats['mean']:>10.1f} {tok_in['mean']:>8.0f} {tok_out['mean']:>8.0f}")
+    for module, stats, tok_in, tok_out, models, cost_stats in llm_stats:
+        model_str = ", ".join(sorted(models)) if models else "unknown"
+        if len(model_str) > 15:
+            model_str = model_str[:12] + ".."
+        print(f"{module:<20} {model_str:<16} {stats['count']:>5} {stats['total']/1000:>8.2f} {cost_stats['total']:>8.4f} {tok_in['mean']:>7.0f} {tok_out['mean']:>7.0f}")
 
     print("-" * width)
-    avg_llm = total_llm_time/total_llm_calls if total_llm_calls else 0
-    print(f"{'TOTAL':<25} {total_llm_calls:>6} {total_llm_time/1000:>10.2f} {avg_llm:>10.1f}")
+    print(f"{'TOTAL':<20} {'':<16} {total_llm_calls:>5} {total_llm_time/1000:>8.2f} {total_cost:>8.4f}")
 
     print("\n" + "=" * width)
     print("KEY FINDINGS")
@@ -182,10 +253,13 @@ def print_report(data: dict) -> None:
         pct = (stats['total'] / total_stage_time * 100)
         print(f"   {i}. {stage}: {stats['total']/1000:.1f}s ({pct:.1f}%)")
 
-    print("\n2. LLM COST DISTRIBUTION:")
-    for module, stats, _, _ in llm_stats:
+    print("\n2. LLM COST BREAKDOWN:")
+    for module, stats, _, _, models, cost_stats in llm_stats:
         pct = (stats['total'] / total_llm_time * 100)
-        print(f"   - {module}: {pct:.1f}% ({stats['count']} calls)")
+        model_info = f" [{', '.join(sorted(models))}]" if models else ""
+        print(f"   - {module}: ${cost_stats['total']:.4f} ({stats['count']} calls){model_info}")
+
+    print(f"\n   TOTAL ESTIMATED COST: ${total_cost:.4f}")
 
     print("\n3. TOKEN USAGE:")
     print(f"   - Input:  {total_tokens_in:,.0f} tokens")
