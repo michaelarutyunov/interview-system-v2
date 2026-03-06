@@ -18,6 +18,7 @@ from abc import ABC, abstractmethod
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, Literal
+import json
 import time
 
 import httpx
@@ -80,6 +81,7 @@ class LLMClient(ABC):
         effort: Optional[str] = None,
         timeout: Optional[float] = None,
         session_id: Optional[str] = None,
+        response_format: Optional[Dict[str, Any]] = None,
     ) -> LLMResponse:
         """
         Generate a completion from the LLM.
@@ -92,6 +94,10 @@ class LLMClient(ABC):
             effort: Effort level for Sonnet 4.6 ("low", "medium", "high")
             timeout: Optional timeout override in seconds (uses default if None)
             session_id: Optional session ID for usage tracking
+            response_format: Optional structured output format. For OpenAI-compatible
+                APIs, passed directly as response_format in the payload (e.g.,
+                {"type": "json_object"}). For Anthropic, translated to tool_use
+                with schema enforcement when "schema" key is present.
 
         Returns:
             LLMResponse with content and metadata
@@ -163,6 +169,7 @@ class AnthropicClient(LLMClient):
         effort: Optional[str] = None,
         timeout: Optional[float] = None,
         session_id: Optional[str] = None,
+        response_format: Optional[Dict[str, Any]] = None,
     ) -> LLMResponse:
         """
         Call Anthropic Messages API with automatic retry on timeout/rate-limit.
@@ -219,6 +226,16 @@ class AnthropicClient(LLMClient):
         if system:
             payload["system"] = system
 
+        if response_format is not None and "schema" in response_format:
+            payload["tools"] = [
+                {
+                    "name": "structured_output",
+                    "description": "Return structured data matching the schema",
+                    "input_schema": response_format["schema"],
+                }
+            ]
+            payload["tool_choice"] = {"type": "any"}
+
         # Add effort parameter for Sonnet 4.6 (controls output token budget)
         # See: https://platform.claude.com/docs/en/about-claude/models/migration-guide
         if effort is not None:
@@ -266,7 +283,11 @@ class AnthropicClient(LLMClient):
                 # Extract content from response
                 content = ""
                 if data.get("content"):
-                    content = data["content"][0].get("text", "")
+                    first_block = data["content"][0]
+                    if first_block.get("type") == "tool_use":
+                        content = json.dumps(first_block.get("input", {}))
+                    else:
+                        content = first_block.get("text", "")
 
                 usage = {
                     "input_tokens": data.get("usage", {}).get("input_tokens", 0),
@@ -427,6 +448,7 @@ class OpenAICompatibleClient(LLMClient):
         effort: Optional[str] = None,  # Ignored for OpenAI-compatible APIs
         timeout: Optional[float] = None,
         session_id: Optional[str] = None,
+        response_format: Optional[Dict[str, Any]] = None,
     ) -> LLMResponse:
         """
         Call OpenAI-compatible API with automatic retry on timeout/rate-limit.
@@ -486,6 +508,9 @@ class OpenAICompatibleClient(LLMClient):
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
+
+        if response_format is not None:
+            payload["response_format"] = response_format
 
         for attempt in range(max_retries + 1):
             start = time.perf_counter()
