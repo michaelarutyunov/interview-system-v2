@@ -255,100 +255,29 @@ def get_extractability_user_prompt(text: str) -> str:
     return f'Is this utterance extractable?\n\n"{text}"'
 
 
-def _strip_markdown_fences(text: str) -> str:
-    """Strip markdown code fences from LLM response."""
-    text = text.strip()
-    if text.startswith("```json"):
-        text = text[7:]
-    elif text.startswith("```"):
-        text = text[3:]
-    if text.endswith("```"):
-        text = text[:-3]
-    return text.strip()
-
-
-def _repair_json(text: str) -> str:
-    """Attempt to repair common LLM JSON generation errors.
-
-    Handles three frequent failure modes:
-    1. Missing commas between properties ("key": value "key2": value2)
-    2. Trailing commas before closing brackets ([...,] or {...,})
-    3. Truncated JSON (incomplete closing brackets/braces)
-    """
-    import re
-
-    # Fix 1: Missing commas between properties/elements
-    # Pattern: "value" "key" or number "key" (missing comma between them)
-    # e.g. "confidence": 0.9 "source_quote": "..."
-    text = re.sub(r"(\")\s*\n\s*(\")", r"\1,\n\2", text)
-    text = re.sub(r"(\d)\s*\n\s*(\")", r"\1,\n\2", text)
-    text = re.sub(r"(true|false|null)\s*\n\s*(\")", r"\1,\n\2", text)
-    # Also handle same-line missing commas: "value" "key"
-    text = re.sub(r'(\")\s+(\"[a-z_]+"?\s*:)', r"\1, \2", text)
-    text = re.sub(r'(\d)\s+(\"[a-z_]+"?\s*:)', r"\1, \2", text)
-    # Fix missing comma between array elements: } {
-    text = re.sub(r"(\})\s*\n\s*(\{)", r"\1,\n\2", text)
-    # Fix missing comma after ] or } before "key":
-    text = re.sub(r'(\]|\})\s*\n\s*(\"[a-z_]+"?\s*:)', r"\1,\n\2", text)
-
-    # Fix 2: Trailing commas before closing brackets
-    text = re.sub(r",\s*\]", "]", text)
-    text = re.sub(r",\s*\}", "}", text)
-
-    # Fix 3: Truncated JSON — balance brackets/braces
-    open_braces = text.count("{") - text.count("}")
-    open_brackets = text.count("[") - text.count("]")
-    if open_braces > 0 or open_brackets > 0:
-        # Try to close unclosed structures
-        text = text.rstrip().rstrip(",")
-        text += "]" * open_brackets + "}" * open_braces
-
-    return text
-
-
 def parse_extraction_response(response_text: str) -> Dict[str, Any]:
     """
     Parse LLM extraction response into structured data.
 
-    Includes repair logic for common LLM JSON generation errors:
-    missing commas, trailing commas, and truncated responses.
-
     Args:
-        response_text: Raw LLM response (should be JSON)
+        response_text: JSON string from LLM (guaranteed valid by structured output)
 
     Returns:
         Parsed dict with concepts, relationships
 
     Raises:
-        ValueError: If response is not valid JSON even after repair
+        ValueError: If response is not valid JSON or has unexpected structure
     """
     import json
 
-    text = _strip_markdown_fences(response_text)
-
-    # Try strict parse first
     try:
-        data = json.loads(text)
-    except json.JSONDecodeError:
-        # Attempt repair and retry
-        repaired = _repair_json(text)
-        try:
-            data = json.loads(repaired)
-            import structlog
+        data = json.loads(response_text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in extraction response: {e}")
 
-            structlog.get_logger(__name__).warning(
-                "extraction_json_repaired",
-                original_length=len(text),
-                repaired_length=len(repaired),
-            )
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON in extraction response: {e}")
-
-    # Validate structure
     if not isinstance(data, dict):
         raise ValueError("Extraction response must be a JSON object")
 
-    # Ensure required keys exist with defaults
     return {
         "concepts": data.get("concepts", []),
         "relationships": data.get("relationships", []),

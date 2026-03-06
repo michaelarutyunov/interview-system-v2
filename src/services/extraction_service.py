@@ -312,6 +312,7 @@ class ExtractionService:
             system=system_prompt,
             temperature=0.4,  # Balanced temperature for relationship inference
             max_tokens=4000,  # Increased from 2000 to handle long responses
+            response_format={"type": "json_object"},
         )
 
         try:
