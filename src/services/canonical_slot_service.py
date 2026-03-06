@@ -254,6 +254,7 @@ class CanonicalSlotService:
             temperature=0.3,
             max_tokens=2000,
             timeout=60.0,
+            response_format={"type": "json_object"},
         )
 
         return self._parse_batched_proposals(response.content)
@@ -261,7 +262,7 @@ class CanonicalSlotService:
     def _parse_batched_proposals(self, raw_response: str) -> Dict[str, List[Dict]]:
         """Parse batched LLM JSON response into per-type proposal lists.
 
-        Handles markdown code blocks and validates structure.
+        Validates structure of the JSON response.
 
         Args:
             raw_response: Raw LLM response containing JSON
@@ -273,15 +274,6 @@ class CanonicalSlotService:
             ValueError: If response is not valid JSON or has unexpected structure
         """
         text = raw_response.strip()
-
-        # Remove markdown code blocks if present
-        if text.startswith("```json"):
-            text = text[7:]
-        if text.startswith("```"):
-            text = text[3:]
-        if text.endswith("```"):
-            text = text[:-3]
-        text = text.strip()
 
         try:
             data = json.loads(text)
@@ -415,7 +407,8 @@ class CanonicalSlotService:
 
             if (
                 updated_slot.status == "candidate"
-                and updated_slot.support_count >= interview_config.deduplication.canonical_min_support_nodes
+                and updated_slot.support_count
+                >= interview_config.deduplication.canonical_min_support_nodes
             ):
                 await self.slot_repo.promote_slot(updated_slot.id, turn_number)
                 log.info(
@@ -524,7 +517,8 @@ class CanonicalSlotService:
 
         if (
             updated_slot.status == "candidate"
-            and updated_slot.support_count >= interview_config.deduplication.canonical_min_support_nodes
+            and updated_slot.support_count
+            >= interview_config.deduplication.canonical_min_support_nodes
         ):
             await self.slot_repo.promote_slot(updated_slot.id, turn_number)
             log.info(
