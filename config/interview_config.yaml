@@ -83,10 +83,11 @@ llm:
   extraction:
     provider: anthropic
     model: claude-sonnet-4-6
+    # effort: low
   # Stage 4.5: canonical slot discovery (structured JSON extraction)
   slot_scoring:
-    provider: kimi
-    model: kimi-k2-0905-preview
+    provider: anthropic
+    model: claude-haiku-4-5
   # Stage 6: LLM signal detection (response_depth, engagement, hedging, etc.)
   signal_scoring:
     provider: kimi
@@ -94,4 +95,4 @@ llm:
   # Stage 8 + opening question: next question generation
   question_generation:
     provider: anthropic
-    model: claude-sonnet-4-6
+    model: claude-haiku-4-5

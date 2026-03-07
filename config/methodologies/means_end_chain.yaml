@@ -164,8 +164,8 @@ strategies:
     description: "Explore why something matters to understand deeper motivations and values through progressive 'why' questioning"
     signal_weights:
       # Global signals
-      llm.response_depth.low: 0.8
-      llm.response_depth.mid: 0.3
+      llm.response_depth.surface: 0.8
+      llm.response_depth.shallow: 0.3
       llm.response_depth.moderate: 0.15  # Even moderate answers can benefit from deepening
       graph.max_depth: -0.3
       graph.chain_completion.has_complete.false: 0.6   # Reduced from 1.0 (ST2 fix: persistent state signal was causing 7-turn deepen dominance)
@@ -232,7 +232,7 @@ strategies:
     signal_weights:
       # Global signals
       graph.max_depth: 0.7
-      llm.response_depth.high: 0.6
+      llm.response_depth.deep: 0.6
       # Uncertainty/hedging triggers (Phase 5)
       llm.certainty.low: 0.7  # Trigger on high uncertainty
       llm.certainty.mid: 0.7  # Trigger on medium uncertainty

@@ -202,6 +202,7 @@ class NodeStateTracker:
                 s.turns_since_last_focus = 0
             else:
                 s.turns_since_last_focus += 1
+                s.current_focus_streak = 0
             s.turns_since_last_yield += 1
 
         # Update strategy usage

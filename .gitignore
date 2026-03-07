@@ -41,6 +41,7 @@ explorations/
 article/
 plans/
 .ruff_cache/
+arch_queries.md
 
 # interview results
 synthetic_interviews/

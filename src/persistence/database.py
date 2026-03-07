@@ -82,6 +82,28 @@ async def init_database(db_path: Path | None = None) -> None:
             except Exception:
                 pass  # Column already exists
 
+        # Add 'triggers' edge type to kg_edges CHECK constraint (V2 JTBD methodology)
+        # SQLite can't ALTER a CHECK constraint, so patch sqlite_master directly.
+        try:
+            cursor = await db.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='kg_edges'"
+            )
+            row = await cursor.fetchone()
+            if row and "'triggers'" not in row[0] and "'triggered_by'" in row[0]:
+                new_sql = row[0].replace(
+                    "'occurs_in', 'triggered_by',",
+                    "'occurs_in', 'triggered_by', 'triggers',",
+                )
+                await db.execute("PRAGMA writable_schema = ON")
+                await db.execute(
+                    "UPDATE sqlite_master SET sql = ? WHERE type='table' AND name='kg_edges'",
+                    (new_sql,),
+                )
+                await db.execute("PRAGMA writable_schema = OFF")
+                log.info("migration_applied", migration="kg_edges_add_triggers_edge_type")
+        except Exception as e:
+            log.warning("migration_skipped", migration="kg_edges_add_triggers_edge_type", error=str(e))
+
         await db.commit()
 
     log.info("database_initialized", path=str(db_path))
