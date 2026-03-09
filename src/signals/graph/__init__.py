@@ -27,11 +27,14 @@ from src.signals.graph.node_signals import (
     NodeExhaustionScoreSignal,
     NodeYieldStagnationSignal,
     NodeFocusStreakSignal,
+    NodeFocusCountSignal,
     NodeIsCurrentFocusSignal,
     NodeRecencyScoreSignal,
     NodeIsOrphanSignal,
     NodeEdgeCountSignal,
     NodeHasOutgoingSignal,
+    NodeNoveltySignal,
+    NodeCanonicalNoveltySignal,
 )
 
 __all__ = [
@@ -55,10 +58,14 @@ __all__ = [
     "NodeYieldStagnationSignal",
     # Node-level: Engagement
     "NodeFocusStreakSignal",
+    "NodeFocusCountSignal",
     "NodeIsCurrentFocusSignal",
     "NodeRecencyScoreSignal",
     # Node-level: Relationships
     "NodeIsOrphanSignal",
     "NodeEdgeCountSignal",
     "NodeHasOutgoingSignal",
+    # Node-level: Novelty
+    "NodeNoveltySignal",
+    "NodeCanonicalNoveltySignal",
 ]

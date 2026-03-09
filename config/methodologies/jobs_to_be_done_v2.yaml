@@ -218,6 +218,13 @@ strategies:
       graph.node.focus_streak.high: -0.7   # Strongly penalize 4+ turn over-focus
       graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.8)
       graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.7)
+      graph.node.novelty.high: 0.6   # Strong bonus for recently-created nodes
+      graph.node.novelty.medium: 0.3  # Moderate bonus for 3-4 turn old nodes
+      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
+      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
+      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
+      graph.node.canonical_novelty.new: 0.5     # New concept = worth exploring
+      graph.node.canonical_novelty.orphan: 0.3  # Unmapped = also potentially novel
 
   # Strategy 2: Probe alternatives (probing)
   - name: probe_alternatives
@@ -239,6 +246,13 @@ strategies:
       graph.node.focus_streak.none: 0.5    # Fresh nodes without prior focus
       graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.7    # Strongly penalize 4+ turn over-focus
+      graph.node.novelty.high: 0.5
+      graph.node.novelty.medium: 0.2
+      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
+      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
+      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
+      graph.node.canonical_novelty.new: 0.5     # New concept = worth exploring
+      graph.node.canonical_novelty.orphan: 0.3  # Unmapped = also potentially novel
 
   # Strategy 3: Dig into motivation (laddering)
   - name: dig_motivation
@@ -267,6 +281,11 @@ strategies:
       graph.node.focus_streak.low: 0.5       # Prefer nodes in first focus
       graph.node.focus_streak.medium: -0.4   # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.8     # Strongly penalize 4+ turn over-focus
+      graph.node.novelty.high: 0.2
+      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
+      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
+      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
+      graph.node.canonical_novelty.confirming: 0.2  # Confirming = safe to validate/deepen
       # Saturation suppression — pivot when themes/yield exhausted
       meta.canonical.saturation.high: -0.5
       meta.conversation.saturation.high: -0.4
@@ -297,12 +316,16 @@ strategies:
       temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.2)
       temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
       # Node-level signals (Phase 3)
-      graph.node.has_outgoing.true: 0.8  # Well-connected nodes
+      graph.node.has_outgoing.true: 0.4  # Well-connected nodes (reduced from 0.8 to halve first-mover bias)
       graph.node.focus_streak.high: 0.5  # Often-focused nodes
+      graph.node.novelty.high: 0.1
       technique.node.strategy_repetition.low: 0.3  # Avoid overusing same strategy
+      graph.node.focus_count.high: -0.4    # Penalty for overused nodes (consolidation is OK, but repeated = skip)
+      graph.node.focus_count.medium: -0.2  # Moderate penalty for frequently-focused nodes
       # Saturation triggers (Phase 6)
       meta.conversation.saturation: 0.3  # High saturation = validate
       meta.canonical.saturation: 0.2     # Supportive metric
+      graph.node.canonical_novelty.confirming: 0.2  # Confirming = safe to validate/deepen
 
   # Strategy 5: Revitalize engagement (elaboration) - Phase 5
   - name: revitalize
@@ -327,6 +350,10 @@ strategies:
       graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.7    # Strongly penalize 4+ turn over-focus
       graph.node.exhaustion_score.low: 0.5  # Avoid exhausted nodes
+      graph.node.novelty.high: 0.4
+      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
+      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
+      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
 
   # Strategy 6: Uncover obstacles (probing)
   - name: uncover_obstacles
@@ -352,6 +379,13 @@ strategies:
       graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.6)
       graph.node.focus_streak.medium: -0.3  # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.6    # Strongly penalize 4+ turn over-focus
+      graph.node.novelty.high: 0.4
+      graph.node.novelty.medium: 0.2
+      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
+      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
+      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
+      graph.node.canonical_novelty.new: 0.5     # New concept = worth exploring
+      graph.node.canonical_novelty.orphan: 0.3  # Unmapped = also potentially novel
 
   # Strategy 7: Clarify assumption (challenging)
   - name: clarify_assumption

@@ -526,8 +526,182 @@ class NodeHasOutgoingSignal(NodeSignalDetector):
 
 
 # =============================================================================
+# Novelty Signals
+# =============================================================================
+
+
+class NodeNoveltySignal(NodeSignalDetector):
+    """Age-based novelty score for recently-created nodes.
+
+    Detects how recently a node was created relative to the current turn,
+    providing a freshness bonus that decays linearly over DECAY_WINDOW turns.
+    This counteracts the structural advantage of early-created nodes that
+    accumulate more edges and yields over time.
+
+    Scoring formula: max(0.0, 1.0 - (age / DECAY_WINDOW))
+    where age = current_turn - created_at_turn
+
+    Categories:
+    - high: score >= 0.6 (created within last 2 turns)
+    - medium: 0.3 <= score < 0.6 (3-4 turns old)
+    - low: score < 0.3 (5+ turns old, novelty exhausted)
+
+    Namespaced signal: graph.node.novelty
+    Cost: low (reads from NodeStateTracker state)
+    Refresh: per_turn
+    """
+
+    signal_name = "graph.node.novelty"
+    description = "Age-based novelty score: 1.0 for nodes created this turn, decays to 0.0 over 5 turns."
+
+    DECAY_WINDOW: int = 5
+
+    async def detect(self, context, graph_state, response_text):  # noqa: ARG001
+        results = {}
+        current_turn = context.turn_number
+
+        for node_id, state in self._get_all_node_states().items():
+            age = current_turn - state.created_at_turn
+            novelty_score = max(0.0, 1.0 - (age / self.DECAY_WINDOW))
+            results[node_id] = self._categorize_novelty(novelty_score)
+
+        return results
+
+    def _categorize_novelty(self, score: float) -> str:
+        if score >= 0.6:
+            return "high"
+        elif score >= 0.3:
+            return "medium"
+        else:
+            return "low"
+
+
+# =============================================================================
 # Exports
 # =============================================================================
+
+
+class NodeFocusCountSignal(NodeSignalDetector):
+    """Cumulative focus count across entire interview — never resets.
+
+    Unlike NodeFocusStreakSignal (which resets on defocus), this signal
+    tracks the total number of turns a node has ever been selected as focus.
+    Used to penalize nodes that have been overused across the interview,
+    even if questioning alternated between them.
+
+    This is the node-level analogue of temporal.strategy_repetition_count:
+    just as repeated strategy use is penalized, repeated node focus is penalized.
+
+    Categories:
+    - none: 0 total focuses (never explored)
+    - low: 1-2 total focuses
+    - medium: 3-4 total focuses
+    - high: 5+ total focuses (overused node)
+
+    Namespaced signal: graph.node.focus_count
+    Cost: low (reads from NodeStateTracker state)
+    Refresh: per_turn
+    """
+
+    signal_name = "graph.node.focus_count"
+    description = "Cumulative total times this node has been selected as focus across the entire interview. Never resets."
+
+    async def detect(self, context, graph_state, response_text):  # noqa: ARG001
+        results = {}
+
+        for node_id, state in self._get_all_node_states().items():
+            results[node_id] = self._categorize_count(state.focus_count)
+
+        return results
+
+    def _categorize_count(self, count: int) -> str:
+        if count == 0:
+            return "none"
+        elif count <= 2:
+            return "low"
+        elif count <= 4:
+            return "medium"
+        else:
+            return "high"
+
+
+class NodeCanonicalNoveltySignal(NodeSignalDetector):
+    """Canonical-slot-based novelty: new concept vs confirming existing.
+
+    Detects whether a node introduced a NEW canonical concept (a slot
+    not previously seen in the interview) vs confirming existing territory
+    (mapping to a pre-existing canonical slot).
+
+    This provides semantic novelty detection: a node that says the same
+    thing in different words (maps to existing slot) is less novel than
+    one that introduces a genuinely new concept (creates a new slot).
+
+    Categories:
+    - new: node maps to a canonical slot first seen this turn
+    - confirming: node maps to a pre-existing canonical slot
+    - orphan: node has no canonical slot mapping (treat as novel)
+
+    Implementation: Option B — in-memory dict `_slot_first_seen` mapping
+    slot_id → first turn seen during the session. Persists across turns
+    within a session but resets if the process restarts (acceptable
+    because sessions are typically single-process).
+
+    When enable_canonical_slots is False (canonical_slot_repo is None),
+    returns an empty dict to gracefully skip.
+
+    Namespaced signal: graph.node.canonical_novelty
+    Cost: low (reads from NodeStateTracker canonical mapping)
+    Refresh: per_turn
+    """
+
+    signal_name = "graph.node.canonical_novelty"
+    description = "Whether this node introduced a new canonical concept (new) vs confirming existing territory (confirming) or is unmapped (orphan)."
+
+    def __init__(self) -> None:
+        # slot_id -> first turn it was seen in this session
+        self._slot_first_seen: dict[str, int] = {}
+
+    async def detect(self, context, graph_state, response_text):  # noqa: ARG001
+        """Detect canonical novelty for all tracked nodes.
+
+        For each tracked node, resolves its canonical slot mapping and
+        determines whether the slot is new (first seen this turn),
+        confirming (pre-existing slot), or orphan (no mapping).
+
+        Args:
+            context: Pipeline context with turn_number and settings
+            graph_state: Current knowledge graph state (unused)
+            response_text: User's response text (unused)
+
+        Returns:
+            Dict mapping node_id -> "new" | "confirming" | "orphan"
+            Empty dict if canonical slots are disabled.
+        """
+        canonical_repo = self.node_tracker.canonical_slot_repo
+        if canonical_repo is None:
+            # enable_canonical_slots=False — gracefully skip
+            return {}
+
+        current_turn = context.turn_number
+        results: dict[str, str] = {}
+
+        for node_id in self._get_all_node_states():
+            mapping = await canonical_repo.get_mapping_for_node(node_id)
+            if mapping is None:
+                results[node_id] = "orphan"
+                continue
+
+            slot_id = mapping.canonical_slot_id
+            if slot_id not in self._slot_first_seen:
+                self._slot_first_seen[slot_id] = current_turn
+
+            if self._slot_first_seen[slot_id] == current_turn:
+                results[node_id] = "new"
+            else:
+                results[node_id] = "confirming"
+
+        return results
+
 
 __all__ = [
     # Exhaustion
@@ -536,10 +710,14 @@ __all__ = [
     "NodeYieldStagnationSignal",
     # Engagement
     "NodeFocusStreakSignal",
+    "NodeFocusCountSignal",
     "NodeIsCurrentFocusSignal",
     "NodeRecencyScoreSignal",
     # Relationships
     "NodeIsOrphanSignal",
     "NodeEdgeCountSignal",
     "NodeHasOutgoingSignal",
+    # Novelty
+    "NodeNoveltySignal",
+    "NodeCanonicalNoveltySignal",
 ]
