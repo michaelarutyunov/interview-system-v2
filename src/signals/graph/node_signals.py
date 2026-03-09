@@ -657,7 +657,8 @@ class NodeCanonicalNoveltySignal(NodeSignalDetector):
     signal_name = "graph.node.canonical_novelty"
     description = "Whether this node introduced a new canonical concept (new) vs confirming existing territory (confirming) or is unmapped (orphan)."
 
-    def __init__(self) -> None:
+    def __init__(self, node_tracker=None) -> None:
+        super().__init__(node_tracker)
         # slot_id -> first turn it was seen in this session
         self._slot_first_seen: dict[str, int] = {}
 

@@ -61,12 +61,12 @@ def _make_signal(
     mapping_lookup: dict | None = None,
 ) -> NodeCanonicalNoveltySignal:
     """Instantiate NodeCanonicalNoveltySignal with a mocked node_tracker."""
-    signal = NodeCanonicalNoveltySignal()
-    signal.node_tracker = _make_tracker(
+    tracker = _make_tracker(
         node_states,
         has_canonical_repo=has_canonical_repo,
         mapping_lookup=mapping_lookup,
     )
+    signal = NodeCanonicalNoveltySignal(tracker)
     return signal
 
 
