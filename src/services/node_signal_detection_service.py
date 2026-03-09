@@ -65,6 +65,9 @@ class NodeSignalDetectionService:
             NodeIsOrphanSignal,
             NodeEdgeCountSignal,
             NodeHasOutgoingSignal,
+            NodeNoveltySignal,
+            NodeFocusCountSignal,
+            NodeCanonicalNoveltySignal,
         )
         from src.signals.session.node_strategy_repetition import (
             NodeStrategyRepetitionSignal,
@@ -104,6 +107,9 @@ class NodeSignalDetectionService:
             NodeEdgeCountSignal(node_tracker),
             NodeHasOutgoingSignal(node_tracker),
             NodeStrategyRepetitionSignal(node_tracker),
+            NodeNoveltySignal(node_tracker),
+            NodeFocusCountSignal(node_tracker),
+            NodeCanonicalNoveltySignal(node_tracker),
         ]
 
         # Detect all node signals
