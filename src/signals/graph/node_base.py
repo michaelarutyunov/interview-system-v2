@@ -56,6 +56,22 @@ class NodeSignalDetector(SignalDetector):
         """
         return await self.node_tracker.get_state(node_id)
 
+    @classmethod
+    def get_all_node_signal_classes(cls) -> list[type["NodeSignalDetector"]]:
+        """Return all registered NodeSignalDetector subclasses.
+
+        Uses the SignalDetector auto-registration registry populated via
+        __init_subclass__. Filters for classes with requires_node_tracker=True.
+
+        Returns:
+            List of NodeSignalDetector subclasses registered at import time.
+        """
+        return [
+            signal_cls  # type: ignore[misc]
+            for signal_cls in SignalDetector._registry.values()
+            if getattr(signal_cls, "requires_node_tracker", False)
+        ]
+
     def _get_all_node_states(self) -> dict[str, NodeState]:
         """Get all tracked node states.
 

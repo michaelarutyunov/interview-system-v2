@@ -73,6 +73,23 @@ src/
 
 ---
 
+## Scripts Reference
+
+Utility scripts for testing, analysis, and visualization.
+
+| Script | Purpose |
+|--------|---------|
+| `run_simulation.py` | Generate AI-to-AI interviews with synthetic personas |
+| `generate_scoring_csv.py` | Export live score_decomposition from simulation JSON to CSV |
+| `analyze_similarity_distribution.py` | Stats on surface/canonical node similarity scores |
+| `compare_extraction_metrics.py` | Compare surface & canonical metrics across multiple sessions |
+| `review_canonical_slots.py` | Dump canonical slots, mappings, and edges to JSON for review |
+| `generate_mermaid_graph.py` | Visualize interview KG as Mermaid diagram; outputs both .mmd (source) and .png (rendered) |
+| `analyze_latest_log.py` | Quick pipeline timing & LLM cost analysis from latest log |
+| `test_extraction.py` | Quick LLM extraction test without full simulation |
+
+---
+
 ## Pipeline Stages
 
 | Stage | File | Purpose |

@@ -10,7 +10,7 @@ survive an update_state / get round-trip.
 import pytest
 from datetime import datetime, timezone
 
-from src.domain.models.session import Session, SessionState, InterviewMode, FocusEntry
+from src.domain.models.session import Session, SessionState, FocusEntry
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

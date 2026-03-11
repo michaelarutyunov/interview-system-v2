@@ -21,17 +21,13 @@ log = structlog.get_logger(__name__)
 class NodeSignalDetectionService:
     """Detects node-level signals for all tracked nodes.
 
-    Node signals include:
-    - graph.node.exhausted: Whether node has been fully explored
-    - graph.node.exhaustion_score: Continuous exhaustion score (0.0-1.0)
-    - graph.node.yield_stagnation: Turns since last new info from node
-    - graph.node.focus_streak: Consecutive turns focused on node
-    - graph.node.is_current_focus: Whether node is current focus
-    - graph.node.recency_score: How recently node was added
-    - graph.node.is_orphan: Whether node has no edges
-    - graph.node.edge_count: Number of edges connected to node
-    - graph.node.has_outgoing: Whether node has outgoing edges
-    - technique.node.strategy_repetition: Times same strategy used on node
+    Uses auto-discovery via SignalDetector.__init_subclass__ registry.
+    All NodeSignalDetector subclasses with requires_node_tracker=True
+    are automatically included — no manual registration needed.
+
+    To add a new node signal: create a NodeSignalDetector subclass with
+    signal_name defined, and ensure its module is imported in
+    src/signals/__init__.py.
     """
 
     async def detect(
@@ -54,24 +50,8 @@ class NodeSignalDetectionService:
             Dict mapping node_id to dict of signal_name: value
             Example: {"node-123": {"graph.node.exhausted": True, ...}}
         """
-        # Import node signal detectors (consolidated modules)
-        from src.signals.graph.node_signals import (
-            NodeExhaustedSignal,
-            NodeExhaustionScoreSignal,
-            NodeYieldStagnationSignal,
-            NodeFocusStreakSignal,
-            NodeIsCurrentFocusSignal,
-            NodeRecencyScoreSignal,
-            NodeIsOrphanSignal,
-            NodeEdgeCountSignal,
-            NodeHasOutgoingSignal,
-            NodeNoveltySignal,
-            NodeFocusCountSignal,
-            NodeCanonicalNoveltySignal,
-        )
-        from src.signals.session.node_strategy_repetition import (
-            NodeStrategyRepetitionSignal,
-        )
+        import src.signals  # noqa: F401 — ensure all node signal modules are registered
+        from src.signals.graph.node_base import NodeSignalDetector
 
         # Get all tracked nodes
         all_states = node_tracker.get_all_states()
@@ -94,23 +74,20 @@ class NodeSignalDetectionService:
             node_id: {} for node_id in all_states.keys()
         }
 
-        # List of node signal detectors to run
-        # These detectors take node_tracker in their constructor
+        # Auto-discover all registered NodeSignalDetector subclasses
         signal_detectors = [
-            NodeExhaustedSignal(node_tracker),
-            NodeExhaustionScoreSignal(node_tracker),
-            NodeYieldStagnationSignal(node_tracker),
-            NodeFocusStreakSignal(node_tracker),
-            NodeIsCurrentFocusSignal(node_tracker),
-            NodeRecencyScoreSignal(node_tracker),
-            NodeIsOrphanSignal(node_tracker),
-            NodeEdgeCountSignal(node_tracker),
-            NodeHasOutgoingSignal(node_tracker),
-            NodeStrategyRepetitionSignal(node_tracker),
-            NodeNoveltySignal(node_tracker),
-            NodeFocusCountSignal(node_tracker),
-            NodeCanonicalNoveltySignal(node_tracker),
+            cls(node_tracker) for cls in NodeSignalDetector.get_all_node_signal_classes()
         ]
+
+        if not signal_detectors:
+            log.error(
+                "no_node_signal_detectors_registered",
+                registry_size=len(NodeSignalDetector._registry),
+            )
+            raise RuntimeError(
+                "No NodeSignalDetector subclasses found in registry. "
+                "Ensure src/signals/__init__.py is imported before detection."
+            )
 
         # Detect all node signals
         signals_detected_count = 0
