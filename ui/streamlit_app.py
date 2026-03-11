@@ -10,6 +10,7 @@ Integrates all UI components:
 Run with: streamlit run ui/streamlit_app.py
 """
 
+import os
 from typing import Optional, Dict, Any
 import streamlit as st
 
@@ -68,6 +69,10 @@ def main():
     # Initialize session state
     initialize_session_state()
     initialize_chat_state()
+
+    # Seed API URL from environment variable
+    if "api_url" not in st.session_state:
+        st.session_state.api_url = os.environ.get("API_URL", "http://localhost:8000")
 
     # Initialize API client
     api_client = initialize_api_client()
@@ -185,12 +190,22 @@ def _render_interview_tab(
         # Quick stats
         st.subheader("Quick Stats")
 
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Turns", status_data.get("turn_number", 0))
         with col2:
             coverage = status_data.get("coverage", 0.0)
             st.metric("Coverage", f"{coverage * 100:.0f}%")
+        with col3:
+            if graph_data:
+                node_count = len(graph_data.get("nodes", []))
+                edge_count = len(graph_data.get("edges", []))
+                prev_nodes = st.session_state.get("_prev_node_count", node_count)
+                prev_edges = st.session_state.get("_prev_edge_count", edge_count)
+                delta_str = f"+{node_count - prev_nodes}n, +{edge_count - prev_edges}e"
+                st.metric("Graph", f"{node_count}n / {edge_count}e", delta=delta_str)
+                st.session_state._prev_node_count = node_count
+                st.session_state._prev_edge_count = edge_count
 
         # Methodology and strategy indicator
         methodology = status_data.get("methodology", "means_end_chain")

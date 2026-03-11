@@ -360,8 +360,16 @@ def render_graph_stats(graph_data: Dict[str, Any]):
         node_type = node.get("node_type", "unknown")
         node_types[node_type] = node_types.get(node_type, 0) + 1
 
+    # Compute orphan nodes (not in any edge)
+    connected_ids = set()
+    for edge in edges:
+        connected_ids.add(edge.get("source_node_id"))
+        connected_ids.add(edge.get("target_node_id"))
+    orphan_count = sum(1 for n in nodes if n.get("id") not in connected_ids)
+
     st.sidebar.metric("Total Nodes", len(nodes))
     st.sidebar.metric("Total Edges", len(edges))
+    st.sidebar.metric("Orphan Nodes", orphan_count)
 
     if node_types:
         st.sidebar.write("**Nodes by Type:**")

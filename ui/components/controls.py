@@ -91,8 +91,10 @@ class SessionControls:
             options=[
                 "means_end_chain",
                 "jobs_to_be_done",
+                "jobs_to_be_done_v2",
                 "critical_incident",
                 "repertory_grid",
+                "customer_journey_mapping",
             ],
             label_visibility="collapsed",
         )
@@ -304,7 +306,7 @@ class SessionControls:
         # Export format
         export_format = st.selectbox(
             "Format",
-            options=["JSON", "Markdown"],
+            options=["JSON", "Markdown", "CSV"],
         )
 
         # Export button
@@ -329,11 +331,17 @@ class SessionControls:
                     data = response.text
 
                     # Display download button
+                    mime_types = {
+                        "json": "application/json",
+                        "markdown": "text/markdown",
+                        "csv": "text/csv",
+                    }
+                    file_ext = "md" if format.lower() == "markdown" else format.lower()
                     st.download_button(
                         label=f"Download {format}",
                         data=data,
-                        file_name=f"session_{session_id[:8]}.{format.lower()}",
-                        mime=f"application/{format.lower()}",
+                        file_name=f"session_{session_id[:8]}.{file_ext}",
+                        mime=mime_types.get(format.lower(), "text/plain"),
                         type="primary",
                     )
 

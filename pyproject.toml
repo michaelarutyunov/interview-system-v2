@@ -20,6 +20,9 @@ dependencies = [
     "spacy>=3.7.0",
     "sentence-transformers>=5.2.2",
     "pandas>=2.3.3",
+    "google-cloud-storage>=3.9.0",
+    "torch>=2.6.0",
+    "en-core-web-md @ https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl",
 ]
 
 [project.optional-dependencies]
@@ -35,6 +38,9 @@ dev = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
 
@@ -48,6 +54,25 @@ line-length = 100
 [tool.isort]
 profile = "black"
 line_length = 100
+
+[tool.uv]
+# Use CPU-only PyTorch (no CUDA/NVIDIA packages)
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu" },
+]
+torchvision = [
+    { index = "pytorch-cpu" },
+]
+torchaudio = [
+    { index = "pytorch-cpu" },
+]
 
 [dependency-groups]
 dev = [

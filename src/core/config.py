@@ -142,6 +142,14 @@ class Settings(BaseSettings):
         description="Enable self-selection prompt for question generation (generates 3 candidates, scores internally, outputs best)",
     )
 
+    # ==========================================================================
+    # Cloud Storage
+    # ==========================================================================
+
+    gcs_bucket: str = Field(
+        default="",
+        description="GCS bucket for session output uploads. Empty = disabled (local dev).",
+    )
 
     def get_pricing_for_model(self, model_name: str) -> tuple[float, float]:
         """

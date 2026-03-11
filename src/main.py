@@ -14,7 +14,7 @@ from starlette.requests import Request
 
 from src.core.config import settings
 from src.core.logging import configure_logging, get_logger, bind_context, clear_context
-from src.persistence.database import init_database
+from src.persistence.database import init_database, close_shared_connection
 from src.api.routes import health, sessions, synthetic
 from src.api.routes.concepts import router as concepts_router
 from src.api.routes.simulation import router as simulation_router
@@ -119,7 +119,15 @@ def validate_api_keys() -> list[str]:
         raise RuntimeError(error_msg)
 
     # Log unique providers in use
-    providers_in_use = {cfg.provider for cfg in [llm.extraction, llm.slot_scoring, llm.signal_scoring, llm.question_generation]}
+    providers_in_use = {
+        cfg.provider
+        for cfg in [
+            llm.extraction,
+            llm.slot_scoring,
+            llm.signal_scoring,
+            llm.question_generation,
+        ]
+    }
     log.info("api_keys_validated", providers=sorted(providers_in_use))
 
     return []  # No errors
@@ -152,6 +160,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     log.info("application_shutting_down")
+    await close_shared_connection()
 
 
 # Create FastAPI application

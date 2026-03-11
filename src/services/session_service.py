@@ -352,7 +352,35 @@ class SessionService:
             latency_ms=result.latency_ms,
         )
 
+        # Auto-upload session to GCS when interview ends
+        if not result.should_continue and settings.gcs_bucket:
+            await self._upload_session_to_gcs(session_id)
+
         return result
+
+    async def _upload_session_to_gcs(self, session_id: str) -> None:
+        """Upload session export to GCS after interview completion."""
+        try:
+            from src.services.gcs_upload_service import GCSUploadService
+            from src.services.export_service import ExportService
+
+            export_service = ExportService(session_repo=self.session_repo)
+            export_data = await export_service.export_session(session_id, "json")
+
+            gcs_service = GCSUploadService(settings.gcs_bucket)
+            gcs_path = await gcs_service.upload_session(session_id, export_data)
+
+            if gcs_path:
+                log.info(
+                    "session_uploaded_to_gcs", session_id=session_id, gcs_path=gcs_path
+                )
+        except Exception as e:
+            log.warning(
+                "gcs_upload_failed",
+                session_id=session_id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
     async def start_session(
         self,

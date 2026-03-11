@@ -1,0 +1,17 @@
+.git/
+.github/
+.beads/
+.venv/
+.env
+.pytest_cache/
+__pycache__/
+*.pyc
+data/
+logs/
+synthetic_interviews/
+docs/
+tests/
+scripts/
+*.egg-info/
+.ruff_cache/
+.mypy_cache/
