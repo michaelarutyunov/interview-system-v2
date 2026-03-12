@@ -1380,6 +1380,129 @@ src/
 
 ---
 
+## UI Development (Streamlit)
+
+The interview system features a modern Streamlit-based user interface for real-time interview visualization and interaction.
+
+### UI Architecture
+
+```
+ui/
+├── streamlit_app.py          # Main application (sidebar tabs, dark header)
+├── api_client.py              # HTTP client for backend API
+├── components/
+│   ├── chat.py                # Chat interface with message history
+│   └── graph.py               # Knowledge graph visualization (3D/2D)
+└── test_streamlit_app.py      # UI test harness
+```
+
+### Design System
+
+**Typography** (imported via Google Fonts):
+- **Inter** - Chat text, readable content (UI body)
+- **JetBrains Mono** - Form controls, stats, technical labels (monospace)
+
+**Theme** (`.streamlit/config.toml`):
+- Primary color: Teal (`#14B8A6`)
+- Background: Light (`#FAFAFA`)
+- Secondary: White (`#FFFFFF`)
+
+### Layout Structure
+
+**Sidebar** (160px width):
+- Stats: Phase, Turn, Nodes, Canonical, Orphans, Edges
+- Compact mono labels with teal accent values
+
+**Main Content** (radio tab navigation):
+- **Interview Tab**: Chat interface + question input
+- **Graph Tab**: Knowledge graph visualization (3D/2D toggle, Show Labels)
+- **Export Tab**: ObservableHQ link + JSON/Markdown export
+
+**Header Bar** (dark gradient):
+- Title: "Adaptive Interview System" (teal, mono)
+- Stats row aligned with sidebar
+
+### Running the UI
+
+**Development** (local backend + Streamlit):
+```bash
+# Terminal 1: Start backend
+uv run uvicorn src.main:app --reload
+
+# Terminal 2: Start Streamlit
+uv run streamlit run ui/streamlit_app.py
+```
+
+**Production** (single container via `entrypoint.sh`):
+```bash
+./entrypoint.sh  # Starts both uvicorn (bg) + streamlit (fg)
+```
+
+### Key UI Components
+
+**ChatInterface** (`ui/components/chat.py`):
+- Message history with user/system/assistant roles
+- Auto-scroll to latest message
+- Input lock after interview completion
+- Closing assistant message on termination
+
+**GraphVisualizer** (`ui/components/graph.py`):
+- 3D force-directed layout (pyvis network)
+- 2D hierarchical view (networkx + matplotlib)
+- Node filtering (orphans, min connections)
+- Color by node type, size by degree
+
+### Session State Management
+
+Streamlit's `st.session_state` tracks:
+- `session_id`: Current interview session UUID
+- `messages`: Chat history (list of role/content dicts)
+- `question`: Current question to display
+- `should_continue`: Interview active state
+- `focus_node`: Currently focused node label
+
+### API Integration
+
+The UI communicates with the backend via `APIClient` (`ui/api_client.py`):
+
+```python
+client = APIClient(base_url="http://localhost:8000")
+
+# Create session
+session = await client.create_session(methodology, concept_id, config)
+
+# Start interview
+opening = await client.start_session(session_id)
+
+# Submit turn
+result = await client.submit_turn(session_id, user_text)
+
+# Get session status
+status = await client.get_session_status(session_id)
+
+# Get graph data
+graph = await client.get_session_graph(session_id)
+
+# Export session
+export = await client.export_session(session_id, format="json")
+```
+
+### Testing UI Changes
+
+**Test Harness** (`ui/test_streamlit_app.py`):
+- Same layout as production (`streamlit_app.py`)
+- Hardcoded test data for component development
+- Run independently: `uv run streamlit run ui/test_streamlit_app.py`
+
+### Responsive Design Notes
+
+- **Desktop primary**: Layout optimized for 1280px+ width
+- **Sidebar fixed**: Narrow width (160px) for more content space
+- **Graph scaling**: Automatic node sizing based on degree
+- **Header compact**: 44px height for maximum content visibility
+
+---
+
 ## Contributing
 
 ### Development Workflow

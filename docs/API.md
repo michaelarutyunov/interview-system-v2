@@ -160,6 +160,64 @@ curl http://localhost:8000/sessions/550e8400-e29b-41d4-a716-446655440000
 
 ---
 
+### Get Session Status
+
+Retrieves the current status of an active session, including strategy, phase, and canonical node count.
+
+**Endpoint:** `GET /sessions/{session_id}/status`
+
+**Parameters:**
+- `session_id` (string, path parameter): Session UUID
+
+**Response:** `200 OK`
+```json
+{
+  "turn_number": 5,
+  "max_turns": 15,
+  "status": "active",
+  "should_continue": true,
+  "strategy_selected": "deepen",
+  "strategy_reasoning": "High response depth detected, good opportunity to explore further",
+  "phase": "focused",
+  "focus_tracing": [
+    {"turn": 1, "strategy": "broaden", "node_id": null},
+    {"turn": 2, "strategy": "deepen", "node_id": "abc-123"},
+    {"turn": 3, "strategy": "deepen", "node_id": "abc-123"},
+    {"turn": 4, "strategy": "bridge", "node_id": "def-456"},
+    {"turn": 5, "strategy": "deepen", "node_id": "def-456"}
+  ],
+  "canonical_node_count": 8
+}
+```
+
+**Response Fields:**
+- `turn_number` (integer): Current turn number
+- `max_turns` (integer): Maximum turns configured for this session
+- `status` (string): Session status ("active", "completed", "terminated")
+- `should_continue` (boolean): Whether the interview should continue
+- `strategy_selected` (string): Most recently selected strategy
+- `strategy_reasoning` (string, optional): Reasoning for the strategy selection
+- `phase` (string): Current interview phase ("exploratory", "focused", "closing")
+- `focus_tracing` (array): Ordered sequence of strategy-node decisions across turns for post-hoc analysis
+  - `turn` (integer): Turn number
+  - `strategy` (string): Strategy selected
+  - `node_id` (string, optional): Focus node UUID (null for strategy-level targeting)
+- `canonical_node_count` (integer): Number of active canonical slots (deduplicated abstract concepts)
+
+**Error Response:** `404 Not Found`
+```json
+{
+  "detail": "Session 550e8400-e29b-41d4-a716-446655440000 not found"
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8000/sessions/550e8400-e29b-41d4-a716-446655440000/status
+```
+
+---
+
 ### Delete Session
 
 Deletes/closes a session.
@@ -330,9 +388,12 @@ Processes a respondent turn (answer). Extracts concepts, updates the knowledge g
   - `depth` (float): Depth score (0-1)
   - `saturation` (float): Saturation score (0-1)
 - `strategy_selected` (string): Questioning strategy used (broaden, deepen, bridge, pivot, cover_element)
+- `focus_node_id` (string, optional): UUID of the focus node targeted this turn (null for strategy-level targeting)
 - `next_question` (string): Next question to ask respondent
 - `should_continue` (boolean): Whether interview should continue
 - `latency_ms` (integer): Processing time in milliseconds
+- `signals` (object, optional): Methodology signals from signal pools (graph, llm, temporal, meta)
+- `strategy_alternatives` (array, optional): Alternative strategies with scores, including node_id for joint strategy-node scoring
 
 **Coverage State Structure:**
 The `coverage_state` field provides detailed element-level coverage tracking:

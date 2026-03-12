@@ -212,7 +212,7 @@ Note: Prioritize issues with PageRank >= 0.10 (core components) for fixes
 4. (Optional) Add signal_weights in strategy configs
 5. Run tests: `uv run pytest tests/signals/`
 
-# Create a new LLM signal (response quality analysis via Kimi K2.5)
+# Create a new LLM signal (response quality analysis via Claude Haiku)
 1. Add rubric to `src/signals/llm/prompts/signals.md`:
    - Format: `your_signal: How would you phrase the question?`
    - Define 1-5 scale with clear anchors
@@ -379,6 +379,29 @@ config/concepts/
 ├── restaurant_ci.yaml
 ├── skincare_mec.yaml
 └── streaming_services_rg.yaml
+```
+
+---
+
+## GCP Deployment
+
+```bash
+# Check current project
+gcloud config get project
+
+# Deploy (uses default project + us-central1, or pass explicitly)
+./scripts/deploy_cloud_run.sh [PROJECT_ID] [REGION]
+
+# View logs
+gcloud run services logs read interview-system --region=us-central1 --limit=50
+
+# Grant secret access to service account
+gcloud secrets add-iam-policy-binding SECRET_NAME \
+  --member="serviceAccount:909219934053-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+
+# Service URL
+# https://interview-system-909219934053.us-central1.run.app
 ```
 
 ---

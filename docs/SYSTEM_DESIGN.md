@@ -218,9 +218,19 @@ All configurable values live in YAML, not code:
 
 ```
 config/
-├── concepts/              # Domain entities (what to explore)
-│   ├── coffee_jtbd_v2.yaml
-│   └── oat_milk_v2.yaml
+├── concepts/              # Production domain entities (what to explore)
+│   └── meal_planning_jtbd_v2.yaml
+├── concepts_wip/          # Work-in-progress concepts (not loaded in production)
+│   ├── coffee_jtbd_legacy.yaml
+│   ├── coffee_shops_rg.yaml
+│   ├── commute_jtbd.yaml
+│   ├── customer_support_ci.yaml
+│   ├── gym_membership_cjm.yaml
+│   ├── headphones_mec.yaml
+│   ├── online_shopping_cjm.yaml
+│   ├── restaurant_ci.yaml
+│   ├── skincare_mec.yaml
+│   └── streaming_services_rg.yaml
 ├── methodologies/         # Interview logic (how to explore)
 │   ├── jobs_to_be_done.yaml
 │   ├── means_end_chain.yaml
@@ -603,18 +613,27 @@ Computed by `NodeOpportunitySignal` using:
 
 **Interview Phase Signal (`meta.interview.phase`):**
 
-Detects the current interview phase based on turn number with automatically calculated proportional boundaries:
-- **early**: ~10% of max_turns (minimum 2 turns)
-- **mid**: Between early and late phases
-- **late**: Final 2 turns reserved for validation
+Detects the current interview phase based on turn number with boundaries derived from YAML configuration (not heuristics):
 
-Phase boundaries are calculated proportionally from `max_turns`:
-```python
-early_max_turns = max(2, round(max_turns * 0.10))
-mid_max_turns = max_turns - 2
+**Phase Configuration** (`config/interview_config.yaml`):
+```yaml
+phases:
+  exploratory:
+    max_turns: 1        # 1 turn in exploratory phase
+  focused:
+    max_turns: 3        # 3 turns in focused phase (cumulative: 4)
+  closing:
+    max_turns: 5        # 1 turn in closing phase (cumulative: 5)
 ```
 
-Computed by `InterviewPhaseSignal` using context.turn_number and context.max_turns.
+**Phase Detection Logic**:
+- **exploratory**: turn_number <= phases.exploratory.max_turns
+- **focused**: turn_number <= phases.focused.max_turns (and not exploratory)
+- **closing**: turn_number <= phases.closing.max_turns (and not focused/exploratory)
+
+Computed by `InterviewPhaseSignal` using context.turn_number and the `config.phases` configuration. This fix ensures that phase boundaries are consistent across different `max_turns` settings and match the configured interview structure.
+
+**Note**: The phase weights and bonuses for scoring are retrieved from `config.phases[phase].signal_weights` and `config.phases[phase].phase_bonuses` respectively.
 
 **Conversation Saturation Signal (`meta.conversation.saturation`):**
 
@@ -1579,7 +1598,7 @@ The system uses a three-client architecture with task-optimized LLM selection, i
 | Client Type | Purpose | Default Provider | Default Model | Temperature | Max Tokens | Timeout |
 |-------------|---------|------------------|---------------|-------------|------------|---------|
 | `extraction` | Extract nodes/edges from user responses | anthropic | claude-sonnet-4-6 | 0.3 | 2048 | 30s |
-| `scoring` | Extract diagnostic signals for strategy scoring | kimi | kimi-k2-0905-preview | 0.3 | 512 | 30s |
+| `scoring` | Extract diagnostic signals for strategy scoring | anthropic | claude-haiku-4-5 | 0.3 | 512 | 30s |
 | `generation` | Generate interview questions | anthropic | claude-sonnet-4-6 | 0.7 | 1024 | 30s |
 
 **Client Factory Functions**:
@@ -1589,7 +1608,7 @@ The system uses a three-client architecture with task-optimized LLM selection, i
 
 **Configuration Overrides**: Each client type can be overridden via environment variables:
 - `LLM_EXTRACTION_PROVIDER` - Override extraction provider (default: anthropic)
-- `LLM_SCORING_PROVIDER` - Override scoring provider (default: kimi)
+- `LLM_SCORING_PROVIDER` - Override scoring provider (default: anthropic)
 - `LLM_GENERATION_PROVIDER` - Override generation provider (default: anthropic)
 
 **Sonnet 4.6 Effort Parameter**: Extraction and generation clients support the `effort` parameter for Claude Sonnet 4.6:
@@ -1647,9 +1666,10 @@ All LLM calls automatically track token usage when a `session_id` is provided:
 - Pricing configuration in `src/core/config.py` for cost calculations
 
 **Pricing Configuration** (per million tokens):
-- Claude Sonnet: $3.00 input / $15.00 output
-- Kimi K2: $0.60 input / $2.50 output
+- Claude Sonnet 4.6: $3.00 input / $15.00 output
+- Claude Haiku 4.5: $0.80 input / $4.00 output
 - DeepSeek Chat: $0.14 input / $0.28 output
+- Kimi K2: $0.60 input / $2.50 output (alternative provider)
 
 ### Structured Logging
 
@@ -1662,6 +1682,107 @@ All LLM calls emit structured logs via structlog:
 - `llm_rate_limit` - Warning level on 429
 - `llm_retry_after_timeout` / `llm_retry_after_rate_limit` - Info level on retry
 - `llm_http_error` - Error level on non-retryable HTTP errors
+
+---
+
+## Container Deployment (Cloud Run)
+
+The system is containerized for deployment on Google Cloud Run, providing a managed serverless environment with automatic scaling.
+
+### Architecture
+
+The container runs both FastAPI backend and Streamlit frontend in a single process:
+
+```
+┌─────────────────────────────────────┐
+│         Cloud Run Container         │
+├─────────────────────────────────────┤
+│  ┌───────────────────────────────┐  │
+│  │  Uvicorn (FastAPI)           │  │
+│  │  Port 8000 (internal)        │  │
+│  │  Single worker (SQLite safe)  │  │
+│  └───────────────────────────────┘  │
+│                 ↓                   │
+│  ┌───────────────────────────────┐  │
+│  │  Streamlit UI                │  │
+│  │  Port 8501 (exposed)         │  │
+│  │  Headless mode               │  │
+│  └───────────────────────────────┘  │
+└─────────────────────────────────────┘
+```
+
+### Key Configuration
+
+**Database** (`Dockerfile`):
+- File-based SQLite at `/tmp/interview.db` (not `:memory:`)
+- Reason: Multiple aiosqlite connections each get their own in-memory DB
+- Single worker ensures safe concurrent access
+
+**WebSocket Settings** (`entrypoint.sh`):
+- Compression disabled (`--server.enableWebsocketCompression=false`)
+- CORS disabled (`--server.enableCORS=false`)
+- XSRF protection disabled (`--server.enableXsrfProtection=false`)
+- Reason: Cloud Run's load balancer can stall Streamlit's `st.rerun()` with compression enabled
+
+**Python Path** (`entrypoint.sh`):
+- `/app` added to PYTHONPATH for absolute imports
+- Enables `from ui.api_client import ...` patterns
+
+### Deployment Script
+
+```bash
+#!/bin/bash
+# From scripts/deploy_cloud_run.sh
+
+PROJECT_ID="${1:-$(gcloud config get project)}"
+REGION="${2:-us-central1}"
+
+gcloud run deploy interview-system \
+  --source . \
+  --platform managed \
+  --region "$REGION" \
+  --allow-unauthenticated \
+  --memory 2Gi \
+  --timeout 3600 \
+  --set-env-vars "DATABASE_PATH=/tmp/interview.db" \
+  --set-env-vars "ANTHROPIC_API_KEY=secret-manager:anthropic-api-key" \
+  --set-env-vars "KIMI_API_KEY=secret-manager:kimi-api-key"
+```
+
+### Environment Variables
+
+| Variable | Purpose | Default | Secret? |
+|----------|---------|---------|---------|
+| `DATABASE_PATH` | SQLite file location | `/tmp/interview.db` | No |
+| `API_URL` | Backend URL (internal) | `http://localhost:8000` | No |
+| `ANTHROPIC_API_KEY` | Claude API access | - | Yes |
+| `KIMI_API_KEY` | Kimi K2 API access | - | Yes |
+| `GCS_BUCKET` | Export storage (optional) | - | Yes |
+
+### Dockerfile Highlights
+
+```dockerfile
+# Multi-stage build for minimal runtime image
+FROM python:3.12-slim AS builder
+# Install deps with uv sync --frozen --no-dev
+# Pre-download sentence-transformers model
+
+FROM python:3.12-slim
+# Copy only venv + HF model cache (not source)
+# Single EXPOSE 8501 (Streamlit)
+# ENTRYPOINT ["./entrypoint.sh"]
+```
+
+### Service URL
+
+After deployment:
+```
+https://interview-system-<PROJECT_HASH>.<REGION>.run.app
+```
+
+### Health Checks
+
+Cloud Run provides automatic health checking at `/` root endpoint.
 
 ---
 
