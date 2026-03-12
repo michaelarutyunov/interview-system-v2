@@ -33,7 +33,7 @@ COPY ui/ ui/
 COPY config/ config/
 COPY entrypoint.sh .
 
-ENV DATABASE_PATH=":memory:" \
+ENV DATABASE_PATH="/tmp/interview.db" \
     API_URL="http://localhost:8000" \
     GCS_BUCKET="" \
     PYTHONUNBUFFERED=1 \
