@@ -155,7 +155,7 @@ class GraphVisualizer:
 
         # Update layout
         fig.update_layout(
-            title=f"Knowledge Graph ({len(nodes)} nodes, {len(edges)} edges)",
+            title=f"Conversation Graph ({len(nodes)} nodes, {len(edges)} edges)",
             showlegend=False,
             hovermode="closest",
             margin=dict(b=0, l=0, r=0, t=40),
