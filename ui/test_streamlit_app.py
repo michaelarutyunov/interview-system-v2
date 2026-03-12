@@ -401,19 +401,21 @@ if tab_sel == "Interview":
 # --- Graph Tab ---
 elif tab_sel == "Graph":
     if not current_session:
-        st.info("Start an interview to see the knowledge graph.")
+        st.info("Start an interview to see the conversation graph.")
     else:
         # Re-fetch graph fresh inside the tab
         fresh_graph = _get_graph()
         visualizer = GraphVisualizer()
 
-        ctrl1, ctrl2, ctrl3 = st.columns([1, 1, 1])
+        ctrl1, ctrl2 = st.columns([1, 2])
         with ctrl1:
             layout_algo = st.selectbox("Layout", options=list(visualizer.layout_algorithms.keys()), index=0)
         with ctrl2:
-            dimensions = st.radio("View", options=["2D", "3D"], horizontal=True)
-        with ctrl3:
-            show_labels = st.checkbox("Show Labels", value=True)
+            d_col, l_col = st.columns([1, 1])
+            with d_col:
+                dimensions = st.radio("View", options=["2D", "3D"], horizontal=True)
+            with l_col:
+                show_labels = st.checkbox("Show Labels", value=True)
 
         # Use actual node types from data, not hardcoded MEC types
         actual_types = list({n.get("node_type", "unknown") for n in fresh_graph.get("nodes", [])})
