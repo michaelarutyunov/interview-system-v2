@@ -17,8 +17,6 @@ class ChatInterface:
 
     def render(self, session_info: Optional[SessionInfo]) -> Optional[str]:
         """Render the chat interface."""
-        st.subheader("💬 Interview Chat")
-
         if not session_info:
             st.info("👋 Create or select a session to start the interview.")
             return None
@@ -29,6 +27,11 @@ class ChatInterface:
 
         # Display chat history
         self._display_chat_history()
+
+        # Don't show input if interview is complete
+        if st.session_state.get("interview_complete"):
+            st.info("Interview complete. Start a new session to continue.")
+            return None
 
         # Chat input
         user_input = st.chat_input("Your response...")
@@ -45,7 +48,7 @@ class ChatInterface:
     def _display_opening_question(self, question: str):
         """Display the opening question."""
         if "opening_displayed" not in st.session_state:
-            with st.chat_message("assistant"):
+            with st.chat_message("assistant", avatar=":material/help:"):
                 st.write(question)
             st.session_state.opening_displayed = True
             st.session_state.chat_history = [{"role": "assistant", "content": question}]
@@ -56,15 +59,21 @@ class ChatInterface:
             st.session_state.chat_history = []
 
         for message in st.session_state.chat_history:
-            with st.chat_message(message["role"]):
+            avatar = ":material/help:" if message["role"] == "assistant" else ":material/person:"
+            with st.chat_message(message["role"], avatar=avatar):
                 st.write(message["content"])
+                if message.get("caption"):
+                    st.caption(message["caption"])
 
-    def add_assistant_message(self, content: str):
+    def add_assistant_message(self, content: str, caption: str = ""):
         """Add an assistant message to the chat history."""
         if "chat_history" not in st.session_state:
             st.session_state.chat_history = []
 
-        st.session_state.chat_history.append({"role": "assistant", "content": content})
+        msg: Dict[str, str] = {"role": "assistant", "content": content}
+        if caption:
+            msg["caption"] = caption
+        st.session_state.chat_history.append(msg)
 
         # Trim history if needed
         if len(st.session_state.chat_history) > self.max_history:

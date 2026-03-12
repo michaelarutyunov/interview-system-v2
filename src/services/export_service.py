@@ -160,6 +160,7 @@ class ExportService:
         all_signals = await self.session_repo.get_all_qualitative_signals(session_id)
 
         return {
+            "_note": "Upload to https://observablehq.com/d/7c8f49e0dec320fd for detailed visualisation",
             "metadata": {
                 "session_id": session.id,
                 "concept_id": session.concept_id,

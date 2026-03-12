@@ -13,7 +13,7 @@
 session:
   # Calculated from phases (exploratory + focused + closing)
   # Can be overridden via API: config={"max_turns": custom_value}
-  # Default sum: exploratory.n_turns + focused.n_turns + closing.n_turns = 8 + 8 + 4 = 20
+  # Default sum: exploratory.n_turns + focused.n_turns + closing.n_turns = 1 + 3 + 1 = 5
   # Note: Omitting max_turns here triggers auto-calculation from phases
 
 # ============================================================================
@@ -29,11 +29,11 @@ session:
 # Phases control which strategies are boosted via phase_profiles in config/scoring.yaml
 phases:
   exploratory:
-    n_turns: 8  # Focus on breadth exploration
+    n_turns: 1  # [TESTING] normally 8 — focus on breadth exploration
   focused:
-    n_turns: 8  # Balance depth and breadth
+    n_turns: 3  # [TESTING] normally 8 — balance depth and breadth
   closing:
-    n_turns: 4  # Wrap up — begins at turn 17 (8+8+1)
+    n_turns: 1  # [TESTING] normally 4 — begins at turn 5 (1+3+1)
 
 # ============================================================================
 # Session Service Configuration
@@ -90,8 +90,8 @@ llm:
     model: claude-haiku-4-5
   # Stage 6: LLM signal detection (response_depth, engagement, hedging, etc.)
   signal_scoring:
-    provider: kimi
-    model: kimi-k2-0905-preview
+    provider: anthropic
+    model: claude-haiku-4-5
   # Stage 8 + opening question: next question generation
   question_generation:
     provider: anthropic

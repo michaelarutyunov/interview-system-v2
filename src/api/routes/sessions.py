@@ -393,9 +393,12 @@ async def process_turn(
                 saturation=result.scoring["saturation"],
             ),
             strategy_selected=result.strategy_selected,
+            focus_node_id=result.focus_node_id,
             next_question=result.next_question,
             should_continue=result.should_continue,
             latency_ms=result.latency_ms,
+            signals=result.signals,
+            strategy_alternatives=result.strategy_alternatives,
         )
 
     except ValueError as e:

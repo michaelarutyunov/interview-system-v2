@@ -27,6 +27,7 @@ class TurnResult:
     next_question: str
     should_continue: bool
     latency_ms: int = 0
+    focus_node_id: Optional[str] = None  # UUID of focus node (if node-targeted)
     # Methodology-based signal detection observability
     signals: Optional[Dict[str, Any]] = (
         None  # Raw methodology signals from signal pools

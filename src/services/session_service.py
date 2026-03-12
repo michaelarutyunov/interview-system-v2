@@ -7,6 +7,7 @@ and question generation.
 """
 
 import json
+import aiosqlite
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, List, Dict, TYPE_CHECKING
@@ -580,11 +581,16 @@ class SessionService:
         else:
             phase = "closing"
 
-        # Query canonical node count if feature is enabled
+        # Query canonical node count (active + candidate) if feature is enabled
         canonical_node_count = 0
         if self.canonical_slot_repo is not None:
-            active_slots = await self.canonical_slot_repo.get_active_slots(session_id)
-            canonical_node_count = len(active_slots)
+            async with aiosqlite.connect(self.canonical_slot_repo.db_path) as _db:
+                async with _db.execute(
+                    "SELECT COUNT(*) FROM canonical_slots WHERE session_id = ?",
+                    (session_id,),
+                ) as _cur:
+                    row = await _cur.fetchone()
+                    canonical_node_count = row[0] if row else 0
 
         return {
             "turn_number": turn_count,

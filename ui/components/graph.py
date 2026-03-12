@@ -34,7 +34,7 @@ class GraphVisualizer:
         "unknown": "#DFE6E9",  # Gray
     }
 
-    NODE_SIZE_DEFAULT = 30
+    NODE_SIZE_DEFAULT = 20
     EDGE_WIDTH_DEFAULT = 2
 
     def __init__(self):
@@ -43,8 +43,6 @@ class GraphVisualizer:
             "Spring": nx.spring_layout,
             "Kamada-Kawai": nx.kamada_kawai_layout,
             "Circular": nx.circular_layout,
-            "Random": nx.random_layout,
-            "Spectral": nx.spectral_layout,
         }
 
     def render_controls(self) -> Dict[str, Any]:
@@ -162,6 +160,10 @@ class GraphVisualizer:
             hovermode="closest",
             margin=dict(b=0, l=0, r=0, t=40),
             height=500,
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, visible=False),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, visible=False),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
         )
 
         return fig
@@ -222,7 +224,7 @@ class GraphVisualizer:
 
             # Labels
             if controls["show_labels"]:
-                node_text.append(node.get("label", node_id))
+                node_text.append(node.get("label", node_id) or node_id)
 
             # Hover text
             hover = f"<b>{node.get('label', node_id)}</b><br>"
@@ -242,6 +244,7 @@ class GraphVisualizer:
                 ),
                 text=node_text if controls["show_labels"] else None,
                 textposition="middle center",
+                textfont=dict(color="#111111", size=10),
                 hovertext=hover_texts,
                 hoverinfo="text",
                 name="nodes",
@@ -307,24 +310,29 @@ class GraphVisualizer:
             node_colors.append(self.NODE_COLORS.get(node_type, "#888888"))
 
             confidence = node.get("confidence", 0.8)
-            node_sizes.append(self.NODE_SIZE_DEFAULT * (0.5 + confidence) * 2)
+            node_sizes.append(self.NODE_SIZE_DEFAULT * (0.5 + confidence))
 
             hover = f"<b>{node.get('label', node_id)}</b><br>"
             hover += f"Type: {node_type}<br>"
             hover += f"Confidence: {confidence:.2f}"
             hover_texts.append(hover)
 
+        node_labels = [node.get("label", node["id"]) for node in nodes] if controls.get("show_labels") else None
+
         fig.add_trace(
             go.Scatter3d(
                 x=node_x,
                 y=node_y,
                 z=node_z,
-                mode="markers",
+                mode="markers+text" if node_labels else "markers",
                 marker=dict(
                     size=node_sizes,
                     color=node_colors,
                     line=dict(width=1, color="white"),
                 ),
+                text=node_labels,
+                textposition="top center",
+                textfont=dict(size=9, color="#111111"),
                 hovertext=hover_texts,
                 hoverinfo="text",
                 name="nodes",

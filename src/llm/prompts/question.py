@@ -100,7 +100,7 @@ Strategy: {strat_description}{methodology_section}
 ## Output:
 Before outputting your final question:
 1. Generate 3 distinct candidate questions that follow the strategy
-2. Score each silently: clarity (1-5), strategy_fit (1-5), naturalness (1-5), topic_anchor (1-5)
+2. Score each silently: clarity (1-5), strategy_fit (1-5), naturalness (1-5)×2, topic_anchor (1-5)
 3. Select the highest-scoring candidate
 4. Output ONLY the selected question — no candidates, no scores, no explanation"""
 

@@ -114,15 +114,11 @@ class InterviewPhaseSignal(SignalDetector):
         }
 
     def _get_phase_boundaries(self, context) -> dict:
-        """Calculate phase boundaries proportionally from max_turns.
+        """Calculate phase boundaries from YAML interview config phases.
 
-        Phase boundaries are automatically calculated:
-        - early: ~10% of max_turns (minimum 1 turn)
-        - late: last 2 turns reserved for validation
-        - mid: everything in between
-
-        This replaces the old approach of hardcoding boundaries in YAML configs.
-        Phases now scale proportionally with interview length.
+        Uses the configured phase n_turns (exploratory, focused, closing) to
+        derive exact boundaries, so the phase signal aligns with the YAML-defined
+        interview structure. Falls back to the heuristic if config is unavailable.
 
         Args:
             context: Pipeline context with max_turns property
@@ -130,11 +126,27 @@ class InterviewPhaseSignal(SignalDetector):
         Returns:
             Dict with 'early_max_turns' and 'mid_max_turns' keys
         """
-        # Get max_turns from context (set by ContextLoadingStage)
+        try:
+            from src.core.config import interview_config
+
+            phases = interview_config.phases
+            exploratory_n = phases.exploratory.n_turns if phases.exploratory else 0
+            focused_n = phases.focused.n_turns if phases.focused else 0
+            # early ends after exploratory turns; mid ends after exploratory+focused
+            early_max_turns = exploratory_n + 1
+            mid_max_turns = exploratory_n + focused_n + 1
+            if early_max_turns < mid_max_turns:
+                return {
+                    "early_max_turns": early_max_turns,
+                    "mid_max_turns": mid_max_turns,
+                }
+        except Exception:
+            pass
+
+        # Fallback: proportional heuristic
         try:
             max_turns = context.max_turns
         except (AttributeError, RuntimeError):
-            # Fallback if max_turns not accessible (shouldn't happen in normal flow)
             max_turns = self.DEFAULT_MAX_TURNS
 
         return self.calculate_phase_boundaries(max_turns)

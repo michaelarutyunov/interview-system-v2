@@ -277,6 +277,11 @@ class TurnPipeline:
                 "saturation": 0.0,
             },
             strategy_selected=strategy_selected,
+            focus_node_id=(
+                context.strategy_selection_output.focus.get("focus_node_id")
+                if context.strategy_selection_output and context.strategy_selection_output.focus
+                else None
+            ),
             next_question=next_question,
             should_continue=should_continue,
             latency_ms=latency_ms,

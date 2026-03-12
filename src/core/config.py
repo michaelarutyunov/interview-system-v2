@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from pydantic import BaseModel, Field, field_validator, ValidationInfo
+from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -122,6 +122,17 @@ class Settings(BaseSettings):
     host: str = Field(default="127.0.0.1", description="Server host address")
     port: int = Field(default=8000, ge=1, le=65535, description="Server port")
     debug: bool = Field(default=False, description="Enable debug mode")
+
+    # ==========================================================================
+    # UI Client Configuration
+    # ==========================================================================
+
+    ui_timeout: float = Field(
+        default=120.0,
+        ge=10.0,
+        le=300.0,
+        description="UI client HTTP timeout for API calls (seconds)",
+    )
 
     # ==========================================================================
     # Feature Flags
@@ -347,31 +358,23 @@ class InterviewConfig(BaseModel):
     deduplication: DeduplicationConfig = Field(default_factory=DeduplicationConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
 
-    @field_validator("session")
-    @classmethod
-    def sync_max_turns_with_phases(
-        cls, v: SessionConfig, info: ValidationInfo
-    ) -> SessionConfig:
+    @model_validator(mode="after")
+    def sync_max_turns_with_phases(self) -> "InterviewConfig":
         """
         Calculate max_turns from phase n_turns if using default.
 
-        If max_turns is the default value (20), calculate it as the sum of
-        all phase n_turns. This ensures phase configuration changes are
-        automatically reflected in max_turns.
-
-        Note: UI/API can still override via request.config={"max_turns": custom}
+        Runs after all fields are set so phases is always available.
+        Only overrides max_turns if it is still the default (20).
         """
-        phases = info.data.get("phases")
-        if (
-            isinstance(phases, PhasesConfig) and v.max_turns == 20
-        ):  # Only if using default
-            phase_sum = 0
-            for phase in [phases.exploratory, phases.focused, phases.closing]:
-                if phase and phase.n_turns:
-                    phase_sum += phase.n_turns
+        if self.session.max_turns == 20:
+            phase_sum = sum(
+                p.n_turns
+                for p in [self.phases.exploratory, self.phases.focused, self.phases.closing]
+                if p and p.n_turns
+            )
             if phase_sum > 0:
-                v.max_turns = phase_sum
-        return v
+                self.session.max_turns = phase_sum
+        return self
 
 
 def load_interview_config(config_path: Optional[Path] = None) -> InterviewConfig:

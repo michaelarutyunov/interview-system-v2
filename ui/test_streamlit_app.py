@@ -1,10 +1,10 @@
 """
-Main Streamlit application for the interview system demo UI.
+Test Streamlit app — simplified layout v2.
 
 Title + concept selector + start on one row.
 Sidebar for counters/phase (column).
 3 tabs: Interview, Graph, Export.
-Run with: streamlit run ui/streamlit_app.py
+Run with: streamlit run ui/test_streamlit_app.py
 """
 
 import os

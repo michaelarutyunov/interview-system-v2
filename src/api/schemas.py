@@ -107,6 +107,7 @@ class TurnResponse(BaseModel):
     graph_state: GraphStateSchema
     scoring: ScoringSchema
     strategy_selected: str
+    focus_node_id: Optional[str] = Field(default=None, description="UUID of the focus node targeted this turn")
     next_question: str
     should_continue: bool
     latency_ms: int = 0
