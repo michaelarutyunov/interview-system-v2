@@ -269,6 +269,10 @@ class SessionStatusResponse(BaseModel):
         default_factory=list,
         description="Ordered sequence of strategy-node decisions across turns for post-hoc analysis",
     )
+    canonical_node_count: int = Field(
+        default=0,
+        description="Number of active canonical slots (deduplicated abstract concepts)",
+    )
 
 
 # ============ SIMULATION SCHEMAS ============

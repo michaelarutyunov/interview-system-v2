@@ -546,14 +546,15 @@ class SessionService:
 
     async def get_status(self, session_id: str) -> dict:
         """
-        Get session status including current strategy.
+        Get session status including current strategy and canonical node count.
 
         Args:
             session_id: Session ID
 
         Returns:
             Dict with turn_number, max_turns,
-            status, should_continue, strategy_selected, strategy_reasoning, phase
+            status, should_continue, strategy_selected, strategy_reasoning, phase,
+            focus_tracing, and canonical_node_count
         """
         session = await self.session_repo.get(session_id)
         if not session:
@@ -579,6 +580,12 @@ class SessionService:
         else:
             phase = "closing"
 
+        # Query canonical node count if feature is enabled
+        canonical_node_count = 0
+        if self.canonical_slot_repo is not None:
+            active_slots = await self.canonical_slot_repo.get_active_slots(session_id)
+            canonical_node_count = len(active_slots)
+
         return {
             "turn_number": turn_count,
             "max_turns": max_turns,
@@ -590,6 +597,7 @@ class SessionService:
             "focus_tracing": [
                 entry.model_dump() for entry in session.state.focus_history
             ],
+            "canonical_node_count": canonical_node_count,
         }
 
     # ==================== NODE TRACKER STATE PERSISTENCE ====================
