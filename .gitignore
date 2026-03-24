@@ -46,6 +46,9 @@ arch_queries.md
 # interview results
 synthetic_interviews/
 interviews_real/
-
-
+chrome/
+.beads/
+.codegraph/
+.serena/
+analysis/
 

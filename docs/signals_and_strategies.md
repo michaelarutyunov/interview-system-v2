@@ -9,6 +9,7 @@
 1. [What is Signal-Based Strategy Selection?](#what-is-signal-based-strategy-selection)
 2. [How It Works: The Pipeline](#how-it-works-the-pipeline)
 3. [Signal Pools Overview](#signal-pools-overview)
+   - [Signal Design Philosophy](#signal-design-philosophy)
 4. [Node-Level Signals](#node-level-signals)
 5. [Strategy Scoring Mechanics](#strategy-scoring-mechanics)
 6. [Configuration Parameters](#configuration-parameters)
@@ -217,6 +218,117 @@ The system uses a two-stage approach for strategy and node selection:
 ---
 
 ## Signal Pools Overview
+
+### Signal Design Philosophy
+
+The signal system follows three deliberate design patterns that may initially seem like redundancy but serve distinct purposes in YAML-driven scoring.
+
+#### Pattern 1: Raw → Threshold → Composite (The Signal Trio)
+
+Many concepts are expressed as **three complementary signals** at different levels of abstraction:
+
+```
+Raw (float)          →  Threshold (bool/categorical)  →  Composite (meta)
+────────────────────    ───────────────────────────      ──────────────────
+exhaustion_score 0.7    exhausted: true                  opportunity: "exhausted"
+recency_score 0.3       novelty: "low"                   (no composite)
+focus_streak count      focus_streak: "high"             (no composite)
+```
+
+**Why all three?** Each enables a different YAML weighting pattern:
+
+```yaml
+# Soft penalty — gradual, proportional
+graph.node.exhaustion_score.high: -0.8
+
+# Hard gate — binary reject/accept
+graph.node.exhausted.true: -2.0
+
+# Categorical routing — pick the right bucket
+meta.node.opportunity.fresh: 1.0
+meta.node.opportunity.probe_deeper: 0.5
+```
+
+A float alone can't hard-gate; a bool alone can't do gradual penalties; a categorical alone can't express continuous preference. The trio gives methodology authors full expressiveness without writing code.
+
+#### Pattern 2: Namespace by Dependency Tier, Not by Topic
+
+Signals are organized by **when they can be computed**, not by what they measure:
+
+```
+TIER 1 — No dependencies (can run in parallel):
+├── graph.*           Direct from graph snapshot
+├── graph.node.*      Direct from NodeStateTracker
+├── llm.*             Independent LLM analysis
+├── temporal.*        From strategy history
+└── technique.node.*  From node strategy history
+
+TIER 2 — Depends on Tier 1:
+├── meta.interview.phase        Needs turn_number
+├── meta.node.opportunity       Needs graph.node.exhausted + focus_streak + response_depth
+└── meta.interview_progress     Needs graph.chain_completion + graph.max_depth
+
+TIER 3 — Depends on Tier 1-2:
+└── meta.conversation.saturation / meta.canonical.saturation
+```
+
+This is why `meta.node.opportunity` lives in `meta/` rather than alongside `graph.node.*` — it **depends on** tier-1 node signals. The `ComposedSignalDetector` uses topological sort (Kahn's algorithm) to resolve this ordering automatically.
+
+#### Pattern 3: Directory ≠ Namespace (Known Inconsistencies)
+
+Two signals have directory/namespace mismatches:
+
+| Signal | Namespace | Directory | Why |
+|--------|-----------|-----------|-----|
+| `llm.global_response_trend` | `llm.*` | `src/signals/session/` | Aggregates LLM history over time (session-scoped), but measures LLM output quality |
+| `technique.node.strategy_repetition` | `technique.node.*` | `src/signals/session/` | Tracks strategy application history per-node, not graph structure |
+
+These are intentional: the namespace reflects **what the signal measures** (for YAML authors), while the directory reflects **how it's computed** (for developers). YAML authors never see directories.
+
+#### Signal Value Types and Scoring
+
+| Value Type | Examples | How Scoring Uses It |
+|------------|----------|---------------------|
+| **float [0,1]** | `exhaustion_score`, `engagement` | Direct weight OR threshold binning (`.high`/`.mid`/`.low`) |
+| **bool** | `exhausted`, `is_orphan` | Match via `.true`/`.false` suffix |
+| **categorical (str)** | `response_depth`, `focus_streak`, `phase` | String equality match (`.deep`, `.high`, `.early`) |
+| **int** | `node_count`, `edge_count` | Used as-is (context-dependent) |
+
+#### Complete Signal Dependency Diagram
+
+```mermaid
+graph TD
+    subgraph "Tier 1: Independent (parallel execution)"
+        G["graph.*<br/>node_count, edge_count, orphan_count,<br/>max_depth, avg_depth, chain_completion,<br/>canonical_*"]
+        GN["graph.node.*<br/>exhaustion_score, exhausted, yield_stagnation,<br/>focus_streak, focus_count, is_current_focus,<br/>recency_score, novelty, canonical_novelty,<br/>is_orphan, edge_count, has_outgoing"]
+        L["llm.*<br/>response_depth, specificity, certainty,<br/>valence, engagement, intellectual_engagement"]
+        T["temporal.*<br/>strategy_repetition_count,<br/>turns_since_strategy_change"]
+        TN["technique.node.*<br/>strategy_repetition"]
+    end
+
+    subgraph "Tier 2: Depends on Tier 1"
+        MP["meta.interview.phase<br/>(+ phase_reason, is_late_stage)"]
+        MO["meta.node.opportunity<br/>(exhausted | probe_deeper | fresh)"]
+        MI["meta.interview_progress<br/>(DEPRECATED for JTBD)"]
+    end
+
+    subgraph "Tier 3: Depends on Tier 1-2"
+        CS["meta.conversation.saturation"]
+        CAS["meta.canonical.saturation"]
+    end
+
+    GN -->|"exhausted + focus_streak"| MO
+    L -->|"response_depth"| MO
+    G -->|"chain_completion + max_depth"| MI
+    G -->|"surface delta"| CS
+    G -->|"canonical delta"| CAS
+
+    subgraph "Session-scoped (Tier 1, separate pool)"
+        LT["llm.global_response_trend<br/>(deepening | stable | shallowing | fatigued)"]
+    end
+```
+
+---
 
 ### 1. Graph Signals (`graph.*`)
 

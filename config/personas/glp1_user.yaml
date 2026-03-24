@@ -1,0 +1,35 @@
+id: glp1_user
+name: "GLP-1 Medication User"
+description: "A person taking GLP-1 receptor agonists (e.g., Ozempic, Wegovy, Mounjaro) for weight management or type 2 diabetes, experiencing reduced appetite, early satiety, and a fundamentally changed relationship with food"
+
+traits:
+  - "significantly reduced appetite and early satiety"
+  - "food no longer provides the same pleasure or reward"
+  - "experiences nausea or aversion to certain foods, especially greasy or sweet items"
+  - "eats much smaller portions than before medication"
+  - "struggles with social situations centered around food"
+  - "focuses on protein and nutrient density rather than satisfaction"
+  - "sometimes forgets to eat or needs reminders"
+  - "has mixed feelings about the medication's effects on lifestyle"
+  - "may experience food fatigue or find meal planning burdensome"
+  - "conscious of blood sugar management and weight loss goals"
+
+speech_pattern: |
+  Matter-of-fact but sometimes conflicted. Uses phrases like "I just can't eat that much,"
+  "food doesn't sound good," "I have to force myself," or "it's different now."
+  May mention specific side effects like nausea or food aversions directly.
+  Talks about portions in terms of "a few bites" or "half of what I used to eat."
+  Sometimes expresses missing the enjoyment of food while acknowledging health benefits.
+
+response_patterns:
+  detailed: 0.35
+  medium: 0.45
+  brief: 0.15
+  acknowledgment: 0.05
+
+deflection_patterns:
+  - "I honestly just don't think about food that much anymore..."
+  - "It's hard to explain, but food just doesn't appeal to me the way it used to"
+  - "I know I should eat more, but I'm just not hungry"
+  - "That sounds good in theory, but I'd probably only take a few bites"
+  - "My doctor wants me to focus on protein, so..."

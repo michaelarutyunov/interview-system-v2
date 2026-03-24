@@ -208,23 +208,18 @@ class CanonicalSlotService:
             else ""
         )
 
-        # Build example JSON — show concrete slot structure for first type,
-        # collapsed placeholder for the rest (prevents LLM from guessing field names)
+        # Build example JSON — show concrete slot structure for ALL types.
+        # Using placeholder caused LLM to copy it literally, breaking parsing.
         slot_example = (
             '{"slot_name": "example_slot", '
             '"description": "Brief description of the concept", '
             '"surface_node_ids": ["id1", "id2"]}'
         )
         type_entries_parts = []
-        for i, nt in enumerate(groups):
-            if i == 0:
-                type_entries_parts.append(
-                    f'"{nt}": {{\n      "proposed_slots": [\n        {slot_example}\n      ]\n    }}'
-                )
-            else:
-                type_entries_parts.append(
-                    f'"{nt}": {{"proposed_slots": [...same structure...]}}'
-                )
+        for nt in groups:
+            type_entries_parts.append(
+                f'"{nt}": {{\n      "proposed_slots": [\n        {slot_example}\n      ]\n    }}'
+            )
         type_entries = ",\n    ".join(type_entries_parts)
 
         prompt = (
