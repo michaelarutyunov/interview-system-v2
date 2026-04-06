@@ -1638,6 +1638,49 @@ uv sync --dev
 
 ---
 
+## Hooks Setup
+
+Two hooks run automatically to detect doc drift (warnings when source code changes without corresponding documentation updates).
+
+### Session-start hook (Claude Code)
+
+Add to `.claude/settings.local.json` under `"hooks"`:
+
+```json
+"SessionStart": [
+  {
+    "hooks": [
+      {
+        "type": "command",
+        "command": "cd \"$CLAUDE_PROJECT_DIR\" && uv run python scripts/check_doc_drift.py --repo-root \"$CLAUDE_PROJECT_DIR\" 2>/dev/null || true"
+      }
+    ]
+  }
+]
+```
+
+### Pre-commit hook (git)
+
+The pre-commit hook is not tracked by git. After cloning, append the drift check:
+
+```bash
+cat >> .git/hooks/pre-commit << 'EOF'
+
+# Doc drift check (warns, never blocks)
+if command -v uv >/dev/null 2>&1; then
+    uv run python scripts/check_doc_drift.py --repo-root "$(git rev-parse --show-toplevel)" 2>/dev/null || true
+fi
+EOF
+```
+
+### Running manually
+
+```bash
+uv run python scripts/check_doc_drift.py
+```
+
+---
+
 ## License
 
 MIT License - see LICENSE file for details
