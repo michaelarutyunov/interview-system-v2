@@ -1681,6 +1681,114 @@ uv run python scripts/check_doc_drift.py
 
 ---
 
+## Scripts Reference
+
+Utility scripts for testing, analysis, and visualization. All scripts live in `scripts/`.
+
+| Script | Purpose |
+|--------|---------|
+| `run_simulation.py` | Generate AI-to-AI interviews with synthetic personas |
+| `generate_scoring_csv.py` | Export live score_decomposition from simulation JSON to CSV |
+| `analyze_similarity_distribution.py` | Stats on surface/canonical node similarity scores |
+| `compare_extraction_metrics.py` | Compare surface & canonical metrics across multiple sessions |
+| `review_canonical_slots.py` | Dump canonical slots, mappings, and edges to JSON for review |
+| `generate_mermaid_graph.py` | Visualize interview KG as Mermaid diagram; outputs both .mmd and .png |
+| `analyze_latest_log.py` | Quick pipeline timing & LLM cost analysis from latest log |
+| `test_extraction.py` | Quick LLM extraction test without full simulation |
+
+### Simulation output fields
+
+```bash
+uv run python scripts/run_simulation.py headphones_mec baseline_cooperative 10
+# Outputs: synthetic_interviews/TIMESTAMP_concept_persona.json
+#          synthetic_interviews/TIMESTAMP_concept_persona_scoring.csv
+# JSON turn fields:
+#   signals              — global signals (engagement, valence, depth, etc.)
+#   node_signals         — per-node signals (exhaustion, focus, etc.) keyed by node_id
+#   score_decomposition  — per-candidate joint scoring breakdown (strategy × node)
+#                          each entry: strategy, node_id, signal_contributions, base_score,
+#                          phase_multiplier, phase_bonus, final_score, rank, selected
+```
+
+### Generate scoring CSV from existing simulation JSON
+
+```bash
+# Reads score_decomposition from JSON — accurate live scores, not post-hoc recomputation
+uv run python scripts/generate_scoring_csv.py synthetic_interviews/<file>.json
+```
+
+---
+
+## Configuration Reference
+
+### Methodology Schemas
+
+```
+config/methodologies/
+├── jobs_to_be_done.yaml
+├── means_end_chain.yaml
+└── critical_incident.yaml
+```
+
+### Synthetic Personas
+
+```
+config/personas/
+├── baseline_cooperative.yaml      # Standard respondent (default)
+├── brief_responder.yaml           # Edge-case: short answers
+├── emotionally_reactive.yaml      # Edge-case: emotional responses
+├── fatiguing_responder.yaml       # Edge-case: declining engagement
+├── single_topic_fixator.yaml      # Edge-case: node exhaustion testing
+├── skeptical_analyst.yaml         # Edge-case: challenging engagement
+├── uncertain_hedger.yaml          # Edge-case: hedging behavior
+└── verbose_tangential.yaml        # Edge-case: low specificity
+```
+
+See [Interview AI Simulation System](interview_ai_simulation.md) for persona descriptions and usage.
+
+### Concepts
+
+```
+config/concepts/
+├── coffee_jtbd_legacy.yaml
+├── coffee_shops_rg.yaml
+├── commute_jtbd.yaml
+├── customer_support_ci.yaml
+├── gym_membership_cjm.yaml
+├── headphones_mec.yaml
+├── meal_planning_jtbd.yaml
+├── oatmilk_mec_legacy.yaml
+├── online_shopping_cjm.yaml
+├── restaurant_ci.yaml
+├── skincare_mec.yaml
+└── streaming_services_rg.yaml
+```
+
+---
+
+## GCP Deployment
+
+```bash
+# Check current project
+gcloud config get project
+
+# Deploy (uses default project + us-central1, or pass explicitly)
+./scripts/deploy_cloud_run.sh [PROJECT_ID] [REGION]
+
+# View logs
+gcloud run services logs read interview-system --region=us-central1 --limit=50
+
+# Grant secret access to service account
+gcloud secrets add-iam-policy-binding SECRET_NAME \
+  --member="serviceAccount:909219934053-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+
+# Service URL
+# https://interview-system-909219934053.us-central1.run.app
+```
+
+---
+
 ## License
 
 MIT License - see LICENSE file for details
