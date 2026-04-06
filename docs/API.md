@@ -188,6 +188,14 @@ Retrieves the current status of an active session, including strategy, phase, an
   ],
   "canonical_node_count": 8
 }
+    {"turn": 1, "strategy": "broaden", "node_id": null},
+    {"turn": 2, "strategy": "deepen", "node_id": "abc-123"},
+    {"turn": 3, "strategy": "deepen", "node_id": "abc-123"},
+    {"turn": 4, "strategy": "bridge", "node_id": "def-456"},
+    {"turn": 5, "strategy": "deepen", "node_id": "def-456"}
+  ],
+  "canonical_node_count": 8
+}
 ```
 
 **Response Fields:**
@@ -197,7 +205,7 @@ Retrieves the current status of an active session, including strategy, phase, an
 - `should_continue` (boolean): Whether the interview should continue
 - `strategy_selected` (string): Most recently selected strategy
 - `strategy_reasoning` (string, optional): Reasoning for the strategy selection
-- `phase` (string): Current interview phase ("exploratory", "focused", "closing")
+- `phase` (string): Current interview phase ("exploratory", "focused", "closing") — derived from `config/interview_config.yaml` phase boundaries
 - `focus_tracing` (array): Ordered sequence of strategy-node decisions across turns for post-hoc analysis
   - `turn` (integer): Turn number
   - `strategy` (string): Strategy selected
@@ -340,25 +348,6 @@ Processes a respondent turn (answer). Extracts concepts, updates the knowledge g
       "attribute": 4,
       "functional_consequence": 3,
       "psychosocial_consequence": 1
-    },
-    "coverage_state": {
-      "elements": {
-        "1": {
-          "covered": true,
-          "linked_node_ids": ["node-123", "node-456"],
-          "types_found": ["attribute", "psychosocial_consequence"],
-          "depth_score": 0.5
-        },
-        "2": {
-          "covered": false,
-          "linked_node_ids": [],
-          "types_found": [],
-          "depth_score": 0.0
-        }
-      },
-      "elements_covered": 1,
-      "elements_total": 6,
-      "overall_depth": 0.25
     }
   },
   "scoring": {
@@ -367,62 +356,44 @@ Processes a respondent turn (answer). Extracts concepts, updates the knowledge g
     "saturation": 0.05
   },
   "strategy_selected": "deepen",
+  "focus_node_id": "abc-123-def",
   "next_question": "You mentioned that the creamy texture feels satisfying. Why is that feeling important to you?",
   "should_continue": true,
-  "latency_ms": 1250
+  "latency_ms": 1250,
+  "signals": {
+    "graph.max_depth": 0.6,
+    "llm.response_depth": "shallow",
+    "llm.engagement": 0.8,
+    "meta.interview.phase": "focused"
+  },
+  "strategy_alternatives": [
+    {"strategy": "deepen", "score": 0.85},
+    {"strategy": "clarify", "score": 0.62},
+    {"strategy": "broaden", "score": 0.45}
+  ]
 }
 ```
 
 **Response Fields:**
 - `turn_number` (integer): Current turn number
 - `extracted` (object): Extraction results
-  - `concepts` (array): Extracted concepts with text, type, confidence, and linked_elements
+  - `concepts` (array): Extracted concepts with text, type, confidence
   - `relationships` (array): Extracted relationships between concepts
 - `graph_state` (object): Current knowledge graph state
   - `node_count` (integer): Total nodes in graph
   - `edge_count` (integer): Total edges in graph
   - `nodes_by_type` (object): Node count by type
-  - `coverage_state` (object): Per-element coverage tracking (see below)
 - `scoring` (object): Multi-dimensional scoring
   - `coverage` (float): Coverage score (0-1)
   - `depth` (float): Depth score (0-1)
   - `saturation` (float): Saturation score (0-1)
-- `strategy_selected` (string): Questioning strategy used (broaden, deepen, bridge, pivot, cover_element)
+- `strategy_selected` (string): Questioning strategy selected
 - `focus_node_id` (string, optional): UUID of the focus node targeted this turn (null for strategy-level targeting)
 - `next_question` (string): Next question to ask respondent
 - `should_continue` (boolean): Whether interview should continue
 - `latency_ms` (integer): Processing time in milliseconds
-- `signals` (object, optional): Methodology signals from signal pools (graph, llm, temporal, meta)
-- `strategy_alternatives` (array, optional): Alternative strategies with scores, including node_id for joint strategy-node scoring
-
-**Coverage State Structure:**
-The `coverage_state` field provides detailed element-level coverage tracking:
-
-```json
-{
-  "elements": {
-    "1": {
-      "covered": true,
-      "linked_node_ids": ["node-123", "node-456"],
-      "types_found": ["attribute", "psychosocial_consequence"],
-      "depth_score": 0.5
-    }
-  },
-  "elements_covered": 1,
-  "elements_total": 6,
-  "overall_depth": 0.25
-}
-```
-
-Fields:
-- `elements` (object): Map of element_id → coverage data
-  - `covered` (boolean): Whether any nodes are linked to this element
-  - `linked_node_ids` (array): IDs of nodes linked to this element
-  - `types_found` (array): Node types discovered for this element
-  - `depth_score` (float): Chain validation depth (0-1)
-- `elements_covered` (integer): Count of elements with at least one linked node
-- `elements_total` (integer): Total number of elements in concept
-- `overall_depth` (float): Average depth score across all elements
+- `signals` (object, optional): Methodology signals from signal pools (graph, llm, temporal, meta, graph.node, technique.node, meta.node)
+- `strategy_alternatives` (array, optional): Alternative strategies with scores as 2-tuples: `[{"strategy": "name", "score": 0.85}, ...]` (Stage 1 strategy-level scoring)
 
 **Error Responses:**
 - `400 Bad Request` - Session already completed
@@ -474,7 +445,7 @@ Get scoring data for a specific turn.
 }
 ```
 
-**Note:** Returns scoring data from the `scoring_history` table. Each turn returns a single candidate representing the selected strategy. The `tier1_results` and `tier2_results` fields are legacy fields that are not currently populated.
+**Note:** Returns scoring data from the `scoring_history` table. Each turn returns a single candidate representing the selected strategy. For detailed score decomposition including signal contributions and phase multipliers, use the simulation API which exports full `score_decomposition` data.
 
 **Example:**
 ```bash
@@ -621,6 +592,66 @@ curl http://localhost:8000/sessions/550e8400-e29b-41d4-a716-446655440000/export?
 
 ---
 
+## Simulation Endpoints
+
+> **See also:** [Interview AI Simulation System](interview_ai_simulation.md) - Comprehensive guide covering available personas, response patterns, batch simulation, and creating custom personas.
+
+### Run Batch Simulation
+
+Generates a complete AI-to-AI interview simulation with synthetic responses.
+
+**Endpoint:** `POST /simulation/interview`
+
+**Request Body:**
+```json
+{
+  "concept_id": "headphones_mec",
+  "persona_id": "baseline_cooperative",
+  "max_turns": 10,
+  "export_format": "json"
+}
+```
+
+**Parameters:**
+- `concept_id` (string, required): Concept identifier from `config/concepts/`
+- `persona_id` (string, required): Persona ID from `config/personas/`
+- `max_turns` (integer, optional): Maximum turns to simulate (default: from concept config)
+- `export_format` (string, optional): Export format - `json`, `markdown`, or `csv` (default: `json`)
+
+**Response:** `200 OK`
+```json
+{
+  "session_id": "sim-550e8400-e29b",
+  "concept_id": "headphones_mec",
+  "persona_id": "baseline_cooperative",
+  "turns": [...],
+  "metadata": {
+    "total_turns": 10,
+    "llm_usage": {...},
+    "duration_seconds": 45.2
+  }
+}
+```
+
+**Key Features:**
+- Full `score_decomposition` in each turn (Stage 1 + Stage 2 scoring breakdown)
+- Signal contributions per strategy-node pair
+- Phase multiplier and bonus application tracking
+- Exports to `synthetic_interviews/TIMESTAMP_concept_persona.json`
+
+**Example:**
+```bash
+curl -X POST http://localhost:8000/simulation/interview \
+  -H "Content-Type: application/json" \
+  -d '{
+    "concept_id": "headphones_mec",
+    "persona_id": "baseline_cooperative",
+    "max_turns": 10
+  }'
+```
+
+---
+
 ## Synthetic Respondent Endpoints
 
 Generate synthetic responses for testing interviews.
@@ -651,7 +682,7 @@ Generates a single synthetic respondent response.
 **Parameters:**
 - `question` (string, required): The interviewer's question
 - `session_id` (string, required): Session identifier for context tracking
-- `persona` (string, optional): Persona ID (default: "health_conscious")
+- `persona` (string, optional): Persona ID (default: "baseline_cooperative")
 - `interview_context` (object, optional): Interview context
   - `product_name` (string): Product being discussed
   - `turn_number` (integer): Current turn number
@@ -662,8 +693,8 @@ Generates a single synthetic respondent response.
 ```json
 {
   "response": "Well, I always check the nutrition label first. I want something with at least 15g of protein and less than 10g of sugar. Organic is important to me too, because I don't want artificial hormones or antibiotics.",
-  "persona": "health_conscious",
-  "persona_name": "Health-Conscious Professional",
+  "persona": "baseline_cooperative",
+  "persona_name": "Baseline Cooperative",
   "question": "What do you look for when buying yogurt?",
   "latency_ms": 1850.5,
   "tokens_used": {
@@ -686,7 +717,7 @@ curl -X POST http://localhost:8000/synthetic/respond \
   -d '{
     "question": "What do you look for when buying yogurt?",
     "session_id": "test-session-123",
-    "persona": "health_conscious"
+    "persona": "baseline_cooperative"
   }'
 ```
 
@@ -721,8 +752,8 @@ Generates multiple synthetic responses (one per available persona).
 [
   {
     "response": "Well, I always check the nutrition label first...",
-    "persona": "health_conscious",
-    "persona_name": "Health-Conscious Professional",
+    "persona": "baseline_cooperative",
+    "persona_name": "Baseline Cooperative",
     "question": "What do you look for when buying yogurt?",
     "latency_ms": 1850.5,
     "tokens_used": {...},
@@ -730,8 +761,8 @@ Generates multiple synthetic responses (one per available persona).
   },
   {
     "response": "Honestly, I just grab whatever looks good...",
-    "persona": "budget_shopper",
-    "persona_name": "Budget Shopper",
+    "persona": "brief_responder",
+    "persona_name": "Brief Responder",
     "question": "What do you look for when buying yogurt?",
     "latency_ms": 1620.3,
     "tokens_used": {...},
@@ -783,8 +814,8 @@ Generates synthetic responses for an entire interview sequence.
 [
   {
     "response": "I bought some Greek yogurt yesterday...",
-    "persona": "health_conscious",
-    "persona_name": "Health-Conscious Professional",
+    "persona": "baseline_cooperative",
+    "persona_name": "Baseline Cooperative",
     "question": "Tell me about the last time you bought yogurt",
     "latency_ms": 1750.2,
     "tokens_used": {...},
@@ -792,8 +823,8 @@ Generates synthetic responses for an entire interview sequence.
   },
   {
     "response": "I wanted something high in protein...",
-    "persona": "health_conscious",
-    "persona_name": "Health-Conscious Professional",
+    "persona": "baseline_cooperative",
+    "persona_name": "Baseline Cooperative",
     "question": "What motivated that choice?",
     "latency_ms": 1820.8,
     "tokens_used": {...},
@@ -801,8 +832,8 @@ Generates synthetic responses for an entire interview sequence.
   },
   {
     "response": "It makes me feel good about my health...",
-    "persona": "health_conscious",
-    "persona_name": "Health-Conscious Professional",
+    "persona": "baseline_cooperative",
+    "persona_name": "Baseline Cooperative",
     "question": "How did that make you feel?",
     "latency_ms": 1690.4,
     "tokens_used": {...},
@@ -837,11 +868,16 @@ Lists all available synthetic respondent personas.
 **Response:** `200 OK`
 ```json
 {
-  "health_conscious": "Health-Conscious Professional",
-  "budget_shopper": "Budget Shopper",
-  "convenience_seeker": "Convenience Seeker",
-  "gourmet_enthusiast": "Gourmet Enthusiast",
-  "brand_loyal": "Brand Loyal Customer"
+  "baseline_cooperative": "Baseline Cooperative",
+  "brief_responder": "Brief Responder",
+  "emotional_reactive": "Emotionally Reactive",
+  "fatiguing_responder": "Fatiguing Responder",
+  "single_topic_fixator": "Single-Topic Fixator",
+  "skeptical_analyst": "Skeptical Analyst",
+  "uncertain_hedger": "Uncertain Hedger",
+  "verbose_tangential": "Verbose Tangential",
+  "social_conscious": "Social Conscious",
+  "minimalist": "Minimalist"
 }
 ```
 
@@ -1120,7 +1156,7 @@ async def test_with_synthetic():
                 json={
                     "question": question,
                     "session_id": session_id,
-                    "persona": "health_conscious"
+                    "persona": "baseline_cooperative"
                 }
             )
             synthetic_data = response.json()
