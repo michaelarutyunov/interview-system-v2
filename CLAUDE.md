@@ -180,10 +180,10 @@ Specialist agents are invoked based on which files are being modified. Agents li
 
 | Modifying | Invoke agent |
 |-----------|-------------|
-| `src/signals/**`, `config/methodologies/*.yaml` | `signal-specialist` (not yet created) |
-| `src/services/turn_pipeline/**`, `src/domain/models/pipeline_contracts.py` | `pipeline-specialist` (not yet created) |
+| `src/signals/**`, `config/methodologies/*.yaml` (signal weights, signal detection) | `signal-specialist` |
+| `src/services/turn_pipeline/**`, `src/domain/models/pipeline_contracts.py` | `pipeline-specialist` |
 | `src/services/extraction_service.py`, `src/llm/prompts/` | `extraction-specialist` (not yet created) |
-| `src/methodologies/**`, `config/methodologies/*.yaml` | `methodology-specialist` (not yet created) |
+| `src/methodologies/**` (registry, scoring), `config/methodologies/*.yaml` (YAML structure, validation) | `methodology-specialist` |
 
 Agents will be created iteratively as failure patterns are observed. See `docs/codified-context-principles.md` for creation criteria.
 

@@ -176,7 +176,4 @@ Consult these Tier 3 docs for full specifications and edge cases:
 - `.claude/context/strategy-selection.md` — Two-stage D2 selection orchestration, post-selection updates ordering
 - `.claude/context/node-state-tracker.md` — Per-turn lifecycle map, `NodeState` field reference, dual-graph key resolution
 - `.claude/context/node-exhaustion.md` — Exhaustion formula derivation, binary criteria, opportunity classification
-- `docs/NodeStateTracker_mutation.md` — Authoritative per-turn state mutation timing diagram
-- `docs/data_flow_paths.md` — Path 8 (NodeStateTracker lifecycle), Path 19 (node signal detection)
-- `docs/signals_and_strategies.md` — Signal Pools configuration with timing annotations
 - `config/methodologies/means_end_chain.yaml` — Reference methodology YAML (strategies, signal_weights, phases, phase_bonuses)

@@ -132,4 +132,3 @@ Contracts are Pydantic `BaseModel` instances. Use **attribute access** (`output.
 - `src/services/session_service.py` — `_build_pipeline()` stage wiring (the source of truth for ordering)
 - `src/services/turn_pipeline/stages/scoring_persistence_stage.py` — `TurnResult` assembly
 - `src/services/turn_pipeline/result.py` — `TurnResult` shape
-- `docs/data_flow_paths.md` — Path 1 (turn count), Path 3 (graph mutation), Path 8 (NodeStateTracker), Path 5 (traceability)

@@ -107,5 +107,5 @@ Critical ordering: step 1 must run before step 2, so response depth is attribute
 - `src/methodologies/registry.py` — YAML config loader
 - `src/services/global_signal_detection_service.py` — global signal orchestration
 - `src/services/node_signal_detection_service.py` — per-node signal detection
-- `src/signals/meta/signals.py` — `InterviewPhaseSignal`
+- `src/signals/meta/` — Meta signal implementations (InterviewPhaseSignal, etc.)
 - `config/methodologies/*.yaml` — strategy configs, `signal_weights`, `phase_bonuses`, `node_binding`
