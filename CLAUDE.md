@@ -119,13 +119,13 @@ phase_boundaries:
 
 ## Critical Data Flows
 
-See `.claude/context/` for subsystem specs. Key paths:
+See `.claude/context/` for subsystem specs. Key flows:
 
-1. **Turn Count Evolution** (Path 1): Session.state → ContextLoading → turn_number → ... → ScoringPersistence → Session.state updated
-2. **Strategy Selection** (Path 2): graph_state + signals → MethodologyStrategyService → ranked strategies
-3. **Graph State Mutation** (Path 3): extraction → GraphUpdate (dedup) → DB → StateComputation → graph_state
-4. **Traceability Chain** (Path 5): user_input → UtteranceSaving → utterance.id → Extraction → GraphUpdate
-5. **Canonical Slot Discovery** (Path 10): surface_nodes → slot_service → canonical_slots + mappings
+1. **Turn Count Evolution**: Session.state → ContextLoading → turn_number → ... → ScoringPersistence → Session.state updated
+2. **Strategy Selection**: graph_state + signals → MethodologyStrategyService → ranked strategies
+3. **Graph State Mutation**: extraction → GraphUpdate (dedup) → DB → StateComputation → graph_state
+4. **Traceability Chain**: user_input → UtteranceSaving → utterance.id → Extraction → GraphUpdate
+5. **Canonical Slot Discovery**: surface_nodes → slot_service → canonical_slots + mappings
 
 ---
 
@@ -182,7 +182,7 @@ Specialist agents are invoked based on which files are being modified. Agents li
 |-----------|-------------|
 | `src/signals/**`, `config/methodologies/*.yaml` (signal weights, signal detection) | `signal-specialist` |
 | `src/services/turn_pipeline/**`, `src/domain/models/pipeline_contracts.py` | `pipeline-specialist` |
-| `src/services/extraction_service.py`, `src/llm/prompts/` | `extraction-specialist` (not yet created) |
+| `src/services/extraction_service.py`, `src/llm/prompts/` | `extraction-specialist` |
 | `src/methodologies/**` (registry, scoring), `config/methodologies/*.yaml` (YAML structure, validation) | `methodology-specialist` |
 
 Agents will be created iteratively as failure patterns are observed. See `docs/codified-context-principles.md` for creation criteria.
