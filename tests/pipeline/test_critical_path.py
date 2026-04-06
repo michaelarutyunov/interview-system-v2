@@ -179,7 +179,7 @@ async def test_phase_boundaries_calculated_from_max_turns():
     Test that phase boundaries are automatically calculated from max_turns.
 
     Validates the design: phases scale proportionally with interview length.
-    - early: ~10% of max_turns (minimum 1 turn)
+    - early: ~10% of max_turns (minimum MIN_EARLY_TURNS=2 turns)
     - mid: max_turns - 2 (reserving last 2 turns for late)
     - late: final 2 turns for validation
     """
@@ -191,8 +191,9 @@ async def test_phase_boundaries_calculated_from_max_turns():
     assert boundaries_20["mid_max_turns"] == 18  # 20 - 2 = 18
 
     # Test with max_turns = 10 (short interview)
+    # Note: MIN_EARLY_TURNS = 2 overrides the 10% calculation
     boundaries_10 = InterviewPhaseSignal.calculate_phase_boundaries(10)
-    assert boundaries_10["early_max_turns"] == 1  # 10% of 10 = 1
+    assert boundaries_10["early_max_turns"] == 2  # max(10%, MIN_EARLY_TURNS=2) = 2
     assert boundaries_10["mid_max_turns"] == 8  # 10 - 2 = 8
 
     # Test with max_turns = 30 (long interview)
