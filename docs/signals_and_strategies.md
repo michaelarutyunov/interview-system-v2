@@ -84,7 +84,7 @@ Result: Dynamic, context-aware conversation flow
 
 ## How It Works: The Pipeline
 
-### Stage 6: Strategy Selection
+### Stage 8: Strategy Selection
 
 Located in `src/services/turn_pipeline/stages/strategy_selection_stage.py`.
 
@@ -96,16 +96,18 @@ async def execute(self, context: PipelineContext) -> PipelineContext:
 
     # 2. Detect global signals (graph, llm, temporal, meta)
     global_signals = await self.global_service.detect(
-        config=methodology.signals,
+        methodology_name=methodology,
         context=context,
-        graph_state=context.graph_state
+        graph_state=context.graph_state,
+        response_text=response_text
     )
 
     # 3. Detect node-level signals for candidate nodes
-    node_signals = await self.node_service.detect_for_nodes(
-        config=methodology.signals,
+    node_signals = await self.node_service.detect(
         context=context,
-        node_ids=candidate_nodes
+        graph_state=context.graph_state,
+        response_text=response_text,
+        node_tracker=context.node_tracker
     )
 
     # 4. Two-stage strategy→node selection
@@ -119,7 +121,7 @@ async def execute(self, context: PipelineContext) -> PipelineContext:
     context.strategy = result.strategy_name
     context.focus_node_id = result.focus_node_id  # None if node_binding="none"
     context.signals = result.global_signals
-    context.strategy_alternatives = result.alternatives  # List of (strategy_name, score)
+    context.strategy_alternatives = result.alternatives  # List of (strategy_name, score) tuples
     context.score_decomposition = result.score_decomposition  # Stage 1 (node_id="") + Stage 2 (node_id="<uuid>")
 ```
 
@@ -131,13 +133,18 @@ The system uses a two-stage approach for strategy and node selection:
 - Scores all strategies using **global signals only** (graph.*, llm.*, temporal.*, meta.*)
 - `partition_signal_weights()` auto-excludes node-scoped weights (graph.node.*, technique.node.*, meta.node.*)
 - Applies phase-based multipliers (multiplicative) and bonuses (additive)
-- Returns ranked list of strategies
+- Returns ranked list of strategies with full score decomposition
+- Represented in `score_decomposition` with `node_id=""` (empty string)
+- Output format: `strategy_alternatives = [(strategy_name, score), ...]` (2-tuple list)
 
 **Stage 2: Node Selection (Conditional)**
 - Conditionally executed only when `node_binding="required"` and node_signals exist
 - Scores nodes for the selected strategy using **node-scoped signals only**
+- `partition_signal_weights()` extracts only node-scoped weights from strategy config
 - Applies phase-based multipliers and bonuses: `(base_score × multiplier) + bonus`
-- Returns ranked list of nodes
+- Returns ranked list of nodes with full score decomposition
+- Represented in `score_decomposition` with `node_id="<uuid>"`
+- Output format: Each score_decomposition entry includes `node_id`, `strategy`, `base_score`, `phase_multiplier`, `phase_bonus`, `final_score`, `rank`, `selected`
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -148,7 +155,9 @@ The system uses a two-stage approach for strategy and node selection:
 │  ───────────────────────                                            │
 │  Input: global_signals (graph.*, llm.*, temporal.*, meta.*)         │
 │  Process: rank_strategies() with partition_signal_weights()         │
-│  Output: ranked strategies with phase weights/bonuses               │
+│         - Auto-excludes node-scoped weights                         │
+│         - Applies phase multipliers (×) and bonuses (+)             │
+│  Output: ranked strategies with decomposition (node_id="")          │
 │                                                                     │
 │                              ↓                                       │
 │                     Select best_strategy                            │
@@ -158,7 +167,9 @@ The system uses a two-stage approach for strategy and node selection:
 │  Condition: node_binding="required" AND node_signals exist          │
 │  Input: node_signals (graph.node.*, technique.node.*, meta.node.*) │
 │  Process: rank_nodes_for_strategy() with node-scoped weights        │
-│  Output: ranked nodes with phase weights/bonuses                    │
+│         - Extracts only node.* weights from strategy config         │
+│         - Applies phase multipliers (×) and bonuses (+)             │
+│  Output: ranked nodes with decomposition (node_id="<uuid>")         │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -196,28 +207,8 @@ The system uses a two-stage approach for strategy and node selection:
 │  │GraphSignals │  │ LLMSignals  │  │SessionSignals│                  │
 │  │  (async)    │  │  (async)    │  │   (async)    │                  │
 │  └─────────────┘  └─────────────┘  └─────────────┘                  │
-│       O(1) cached      Fresh API         O(1) cached                │
-│                                                                     │
-│  Note: All LLM signals batched into SINGLE API call                 │
-│                                                                     │
-│                           ↓                                         │
-│                                                                     │
-│  Step 4: Signal Aggregation                                         │
-│  ────────────────────────────                                       │
-│  signals = {                                                        │
-│    "graph.max_depth": 0.5,                                          │
-│    "llm.response_depth": 0.75,                                      │
-│    "llm.valence": 0.5,                                              │
-│    "temporal.strategy_repetition_count": 0.4,                       │
-│    "meta.interview.phase": "mid"                                    │
-│  }                                                                  │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Signal Pools Overview
+│       O(1) cached      Batching          O(1) cached                │
+│                         (Single API Call)                           │## Signal Pools Overview
 
 ### Signal Design Philosophy
 
@@ -307,7 +298,7 @@ graph TD
     end
 
     subgraph "Tier 2: Depends on Tier 1"
-        MP["meta.interview.phase<br/>(+ phase_reason, is_late_stage)"]
+        MP["meta.interview.phase<br/>(early/mid/late from<br/>exploratory/focused/closing YAML)<br/>(+ phase_reason, is_late_stage)"]
         MO["meta.node.opportunity<br/>(exhausted | probe_deeper | fresh)"]
         MI["meta.interview_progress<br/>(DEPRECATED for JTBD)"]
     end
@@ -363,7 +354,7 @@ graph TD
 ### 2. LLM Signals (`llm.*`)
 
 **Source**: LLM analysis of user response using rubric-based prompts
-**Cost**: High (1 API call per response, batched)
+**Cost**: High (1 API call per response, batched for all LLM signals)
 **Location**: `src/signals/llm/`
 
 | Signal | Type | Values | Description |
@@ -395,7 +386,7 @@ deep = Detailed response with reasoning or examples
 comprehensive = Rich, layered response exploring multiple angles
 ```
 
-**Batch Detection**: All LLM signals are detected in a single API call:
+**Batch Detection**: All LLM signals are detected in a single API call via `LLMBatchDetector`:
 ```python
 # One API call returns all signals:
 {
@@ -403,10 +394,12 @@ comprehensive = Rich, layered response exploring multiple angles
     "llm.specificity": 0.5,        # Float [0,1]
     "llm.certainty": 1.0,          # Float [0,1]
     "llm.valence": 0.75,           # Float [0,1]
-    "llm.engagement": 1.0,                # Float [0,1]
+    "llm.engagement": 1.0,         # Float [0,1]
     "llm.intellectual_engagement": 0.75   # Float [0,1]
 }
 ```
+
+**Implementation Note**: The `ComposedSignalDetector` automatically separates LLM signals from non-LLM signals. All LLM signals are batched into a single API call (configured via `llm.signal_scoring` provider in `config/interview_config.yaml`) for efficiency. This batched approach significantly reduces latency and API costs compared to per-signal API calls.
 
 ---
 
@@ -429,6 +422,8 @@ signal_weights:
   temporal.strategy_repetition_count: -0.5  # Negative weight
 ```
 
+**Note**: `llm.global_response_trend` is a session-scoped signal that aggregates LLM signal history over time. Despite the `llm.*` namespace, it's implemented in `src/signals/session/` rather than `src/signals/llm/` because it tracks conversation-level trends rather than analyzing individual responses.
+
 ---
 
 ### 4. Meta Signals (`meta.*`)
@@ -440,44 +435,53 @@ signal_weights:
 | Signal | Type | Description |
 |--------|------|-------------|
 | `meta.interview_progress` | float | 0.0-1.0 progress through interview (**DEPRECATED** for JTBD, retained for MEC) |
-| `meta.interview.phase` | str | `early`, `mid`, or `late` |
+| `meta.interview.phase` | str | `early`, `mid`, or `late` (**Note**: Signal outputs early/mid/late for YAML compatibility. Phase boundaries derived from YAML config: exploratory→early, focused→mid, closing→late) |
 | `meta.node.opportunity` | str | `exhausted`, `probe_deeper`, or `fresh` |
-| `meta.conversation.saturation` | float | 0.0-1.0 interview saturation from surface graph velocity |
-| `meta.canonical.saturation` | float | 0.0-1.0 interview saturation from canonical graph velocity |
+| `meta.conversation.saturation` | float | 0.0-1.0 interview saturation from surface graph extraction yield |
+| `meta.canonical.saturation` | float | 0.0-1.0 interview saturation from canonical graph extraction yield |
 
 #### Saturation Signals
 
-**Purpose**: Replace `meta.interview_progress` with methodology-agnostic saturation detection based on information velocity (EWMA of new concept discovery rate).
+**Purpose**: Replace `meta.interview_progress` with methodology-agnostic saturation detection based on extraction yield ratio (current turn vs peak turn).
 
 **Formula**:
 ```
-velocity_decay = 1 - (ewma / max(peak, 1.0))
-edge_density_norm = min(edge_count / node_count / 2.0, 1.0)
-turn_floor = min(turn_number / 15.0, 1.0)
-saturation = 0.60 × velocity_decay + 0.25 × edge_density_norm + 0.15 × turn_floor
+# Conversation saturation (surface graph)
+saturation = 1.0 - min(current_surface_delta / peak_surface_delta, 1.0)
+
+# Canonical saturation (canonical graph)
+saturation = 1.0 - min(current_canonical_delta / peak_canonical_delta, 1.0)
 ```
 
-**Component Weights**:
-| Component | Weight | Description |
-|-----------|--------|-------------|
-| velocity_decay | 60% | Primary indicator — slows as discovery rate decreases |
-| edge_density_norm | 25% | Graph richness — edges/nodes normalized to 2.0 |
-| turn_floor | 15% | Minimum duration — prevents early saturation on turn 1-2 |
+**Interpretation**:
+| Value | Meaning |
+|-------|---------|
+| 0.0 | Extracting at peak rate (respondent producing new concepts) |
+| 0.5 | Extraction yield is 50% of peak (some content drying up) |
+| 1.0 | Zero extraction this turn (fully saturated or non-responsive) |
+
+**Key Insight**: Saturation measures **extraction yield ratio**, not interview progress. A respondent can be at 1.0 (saturated) in early turns if they produce brief answers, or at 0.0 (unsaturated) in late turns if they're still revealing new concepts.
 
 **Usage in validate_outcome strategy**:
 ```yaml
 signal_weights:
   meta.conversation.saturation: 0.5  # High saturation → validate & wrap
-  meta.canonical.saturation: 0.3     # Supportive metric
+  meta.canonical.saturation: 0.3     # Supportive metric from canonical graph
 ```
 
-**Phase Boundaries** (configurable):
+**Phase Boundaries** (configured in YAML):
 ```yaml
-phase_boundaries:
-  early_max_turns: 4    # 0-3 turns = early phase
-  mid_max_turns: 12     # 4-11 turns = mid phase
-                        # 12+ turns = late phase
+# config/interview_config.yaml
+phases:
+  exploratory:
+    n_turns: 6   # Maps to early phase (0-5 turns)
+  focused:
+    n_turns: 7   # Maps to mid phase (6-12 turns)
+  closing:
+    n_turns: 2   # Maps to late phase (13-14 turns)
 ```
+
+**Note**: The `InterviewPhaseSignal` outputs `early`, `mid`, `late` for backward compatibility with existing methodology YAML configs. Internally, it maps from the YAML-configured `exploratory`, `focused`, `closing` phases.
 
 ---
 
@@ -497,35 +501,20 @@ Node-level signals provide **per-node** assessments for Stage 2 node selection i
 
 | Signal | Type | Reads NodeState Fields | Timing Notes |
 |--------|------|------------------------|--------------|
-| `graph.node.exhaustion_score` | float | `focus_count`, `turns_since_last_yield`, `current_focus_streak`, `all_response_depths` | Fresh: updated Stage 4 (yield) or Stage 9 (focus) |
-| `graph.node.exhausted` | bool | `focus_count`, `turns_since_last_yield`, `current_focus_streak`, `all_response_depths` | Fresh: updated Stage 4 (yield) or Stage 9 (focus) |
-| `graph.node.yield_stagnation` | bool | `focus_count`, `turns_since_last_yield` | Fresh: updated Stage 4 (yield) or Stage 9 (focus) |
-| `graph.node.focus_streak` | str | `current_focus_streak` | From previous turn Stage 9 |
-| `graph.node.is_current_focus` | bool | `previous_focus` (tracker-level) | From previous turn Stage 9 |
-| `graph.node.recency_score` | float | `turns_since_last_focus` | Ticked for all nodes in Stage 9 |
-| `graph.node.is_orphan` | bool | `edge_count_incoming`, `edge_count_outgoing` | Fresh: updated Stage 4 |
-| `graph.node.edge_count` | int | `edge_count_incoming`, `edge_count_outgoing` | Fresh: updated Stage 4 |
-| `graph.node.has_outgoing` | bool | `edge_count_outgoing` | Fresh: updated Stage 4 |
-| `technique.node.strategy_repetition` | int | `consecutive_same_strategy` | From previous turn Stage 9 |
+| `graph.node.exhaustion_score` | float | `focus_count`, `turns_since_last_yield`, `current_focus_streak`, `all_response_depths` | Fresh: updated Stage 5 (yield) or Stage 8 (focus) |
+| `graph.node.exhausted` | bool | `focus_count`, `turns_since_last_yield`, `current_focus_streak`, `all_response_depths` | Fresh: updated Stage 5 (yield) or Stage 8 (focus) |
+| `graph.node.yield_stagnation` | bool | `focus_count`, `turns_since_last_yield` | Fresh: updated Stage 5 (yield) or Stage 8 (focus) |
+| `graph.node.focus_streak` | str | `current_focus_streak` | From previous turn Stage 8 |
+| `graph.node.is_current_focus` | bool | `previous_focus` (tracker-level) | From previous turn Stage 8 |
+| `graph.node.focus_count` | int | `focus_count` | Cumulative focus count |
+| `graph.node.recency_score` | float | `turns_since_last_focus` | Ticked for all nodes in Stage 8 |
+| `graph.node.is_orphan` | bool | `edge_count_incoming`, `edge_count_outgoing` | Fresh: updated Stage 5 |
+| `graph.node.edge_count` | int | `edge_count_incoming`, `edge_count_outgoing` | Fresh: updated Stage 5 |
+| `graph.node.has_outgoing` | bool | `edge_count_outgoing` | Fresh: updated Stage 5 |
+| `graph.node.novelty` | str | `turns_since_last_focus` | Categorical: fresh (0-2 turns), stale (3-5), ancient (6+) |
+| `graph.node.canonical_novelty` | str | `turns_since_last_focus` | Same as novelty but for canonical slots |
+| `technique.node.strategy_repetition` | int | `consecutive_same_strategy` | From previous turn Stage 8 |
 | `meta.node.opportunity` | str | Derived from exhaustion + response depth | Computed from node state |
-
-### Node Signal Detection
-
-```python
-# Returns dict mapping node_id -> signal_value
-{
-    "graph.node.exhausted": {
-        "node_1": False,
-        "node_2": True,   # This node is exhausted
-        "node_3": False
-    },
-    "graph.node.focus_streak": {
-        "node_1": "high",    # Focused heavily
-        "node_2": "none",    # Not recently focused
-        "node_3": "low"
-    }
-}
-```
 
 ---
 
@@ -579,17 +568,27 @@ signal_weights:
   llm.response_depth.shallow: 0.3   # True if response_depth == "shallow"
 ```
 
-### Phase Weights and Bonuses (Stage 1 Only)
+### Phase Weights and Bonuses (Stage 1 and Stage 2)
 
-**Important**: Phase weights and bonuses are applied **only during Stage 1** (strategy selection), not during Stage 2 (node selection). Node selection uses raw signal weights.
+**Important**: Phase weights and bonuses are applied in **both stages**:
+
+**Stage 1 (Strategy Selection)**:
+- Phase weights retrieved from `config.phases[phase].signal_weights` (multiplicative)
+- Phase bonuses retrieved from `config.phases[phase].phase_bonuses` (additive)
+- Applied to all strategies during ranking
+
+**Stage 2 (Node Selection)**:
+- Phase weights and bonuses retrieved for the **selected strategy only**
+- Applied to node scores for that strategy
+- Uses the same `config.phases[phase]` values as Stage 1
 
 ```yaml
 phases:
   early:
     signal_weights:
-      explore: 1.5      # 1.5x multiplier (Stage 1 only)
+      explore: 1.5      # 1.5x multiplier (both stages)
     phase_bonuses:
-      explore: 0.2      # +0.2 bonus
+      explore: 0.2      # +0.2 bonus (both stages)
   mid:
     signal_weights:
       deepen: 1.3
@@ -599,16 +598,20 @@ phases:
 
 **Example Calculation**:
 ```
+Stage 1 (Strategy):
 Base explore score: 2.5
 Early phase multiplier: 1.5
 Early phase bonus: 0.2
-
 Final score = (2.5 × 1.5) + 0.2 = 3.95
+
+Stage 2 (Node for explore strategy):
+Base node score: 1.8
+Early phase multiplier: 1.5 (same strategy)
+Early phase bonus: 0.2 (same strategy)
+Final score = (1.8 × 1.5) + 0.2 = 2.9
 ```
 
----
-
-## Configuration Parameters
+## Configuration Parameters## Configuration Parameters
 
 All parameters are defined in methodology YAML files and `src/core/config.py`.
 
@@ -665,17 +668,19 @@ phases:
       explore: 0.2
 ```
 
+**Note**: Phase configuration (`early`, `mid`, `late`) in methodology YAML files maps to the interview phases defined in `config/interview_config.yaml` (`exploratory`, `focused`, `closing`). The `InterviewPhaseSignal` internally converts from the YAML-configured phases to the signal outputs for backward compatibility.
+
 ### Parameter Reference
 
 | Parameter | Location | Description |
 |-----------|----------|-------------|
-| `signals.{pool}` | YAML | List of signals to detect from each pool |
-| `phase_boundaries.{phase}_max_turns` | YAML | Turn count thresholds for phase detection |
+| `signals.{pool}` | YAML (methodology) | List of signals to detect from each pool |
+| `phases.{phase}.signal_weights.{strategy}` | YAML (methodology) | Phase-specific multiplier (Stage 1 only) |
+| `phases.{phase}.phase_bonuses.{strategy}` | YAML (methodology) | Phase-specific additive bonus (Stage 1 only) |
 | `signal_weights.{signal}` | YAML (strategy) | Weight for scoring contribution |
-| `signal_weights.{strategy}` | YAML (phase) | Phase-specific multiplier (Stage 1 only) |
-| `phase_bonuses.{strategy}` | YAML (phase) | Phase-specific additive bonus (Stage 1 only) |
 | `node_binding` | YAML (strategy) | Strategy node binding: `"required"` (default) or `"none"` |
 | `partition_signal_weights()` | `scoring.py` | Auto-separates global vs node-scoped weights |
+| `phases.{phase}.n_turns` | `config/interview_config.yaml` | Turn count for each interview phase |
 
 ---
 
@@ -705,10 +710,6 @@ signals:
   meta:
     - meta.interview.phase
     - meta.node.opportunity
-
-phase_boundaries:
-  early_max_turns: 4
-  mid_max_turns: 12
 
 strategies:
   - name: explore
@@ -957,7 +958,8 @@ The two-stage architecture scores each node for the selected `deepen` strategy u
 ## References
 
 - **Signal Base Class**: `src/signals/signal_base.py`
-- **Signal Registry**: `src/signals/signal_registry.py`
+- **Signal Registry**: `src/signals/signal_registry.py` — `ComposedSignalDetector` with LLM batching
+- **LLM Batch Detector**: `src/signals/llm/batch_detector.py` — `LLMBatchDetector` for single API call
 - **Scoring Logic**: `src/methodologies/scoring.py` — `rank_strategies()`, `rank_nodes_for_strategy()`, `partition_signal_weights()`
 - **Methodology Registry**: `src/methodologies/registry.py` — `StrategyConfig` with `node_binding` field
 - **Strategy Service**: `src/services/methodology_strategy_service.py` — Two-stage orchestration
@@ -974,8 +976,8 @@ The two-stage architecture scores each node for the selected `deepen` strategy u
 
 | Stage | Function | Signals Used | Phase Weights |
 |-------|----------|--------------|---------------|
-| **Stage 1** | `rank_strategies()` | Global signals only (graph.*, llm.*, temporal.*, meta.*) | ✅ Applied |
-| **Stage 2** | `rank_nodes_for_strategy()` | Node signals only (graph.node.*, technique.node.*, meta.node.*) | ✅ Applied |
+| **Stage 1** | `rank_strategies()` | Global signals only (graph.*, llm.*, temporal.*, meta.*) | ✅ Applied (multiplicative + bonus) |
+| **Stage 2** | `rank_nodes_for_strategy()` | Node signals only (graph.node.*, technique.node.*, meta.node.*) | ✅ Applied (multiplicative + bonus) |
 
 ### Signal Namespaces
 
