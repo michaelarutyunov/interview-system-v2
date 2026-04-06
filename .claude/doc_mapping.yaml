@@ -26,7 +26,7 @@ mappings:
   - sources:
       - "src/signals/llm/signals/*.py"
       - "src/signals/llm/prompts/signals.md"
-    doc: "docs/signals_and_strategies.md"
+    doc: "docs/specs/signal-detection-llm.md"
 
   - sources:
       - "src/services/graph_service.py"

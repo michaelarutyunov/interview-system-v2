@@ -353,6 +353,8 @@ graph TD
 
 ---
 
+> LLM Signals moved to [docs/specs/signal-detection-llm.md](specs/signal-detection-llm.md)
+
 ### 2. LLM Signals (`llm.*`)
 
 **Source**: LLM analysis of user response using rubric-based prompts
