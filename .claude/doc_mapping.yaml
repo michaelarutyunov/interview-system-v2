@@ -1,0 +1,72 @@
+# .claude/doc_mapping.yaml
+# Source-of-truth for file→doc relationships.
+# Used by: scripts/check_doc_drift.py, pre-commit hook, CLAUDE.md trigger tables.
+#
+# Each entry maps one or more source glob patterns to a single doc owner.
+# Drift is detected when a source file changes >1 time since the doc was last touched.
+
+mappings:
+  - sources:
+      - "src/methodologies/scoring.py"
+      - "src/methodologies/registry.py"
+      - "config/methodologies/*.yaml"
+    doc: "docs/signals_and_strategies.md"
+
+  - sources:
+      - "src/services/turn_pipeline/stages/strategy_selection_stage.py"
+      - "src/services/methodology_strategy_service.py"
+    doc: "docs/signals_and_strategies.md"
+
+  - sources:
+      - "src/signals/graph/*.py"
+      - "src/services/node_signal_detection_service.py"
+      - "src/services/global_signal_detection_service.py"
+    doc: "docs/signals_and_strategies.md"
+
+  - sources:
+      - "src/signals/llm/signals/*.py"
+      - "src/signals/llm/prompts/signals.md"
+    doc: "docs/signals_and_strategies.md"
+
+  - sources:
+      - "src/services/graph_service.py"
+    doc: "docs/extraction_and_graphs.md"
+
+  - sources:
+      - "src/services/canonical_slot_service.py"
+      - "src/services/turn_pipeline/stages/slot_discovery_stage.py"
+    doc: "docs/extraction_and_graphs.md"
+
+  - sources:
+      - "src/services/extraction_service.py"
+      - "src/services/turn_pipeline/stages/extraction_stage.py"
+      - "src/llm/prompts/extraction.py"
+    doc: "docs/extraction_and_graphs.md"
+
+  - sources:
+      - "src/services/turn_pipeline/stages/*.py"
+      - "src/services/turn_pipeline/context.py"
+      - "src/domain/models/pipeline_contracts.py"
+    doc: "docs/pipeline_contracts.md"
+
+  - sources:
+      - "src/services/node_signal_detection_service.py"
+      - "src/services/node_state_tracker.py"
+    doc: "docs/NodeStateTracker_mutation.md"
+
+  - sources:
+      - "src/methodologies/scoring.py"
+      - "src/services/methodology_strategy_service.py"
+    doc: "docs/SYSTEM_DESIGN.md"
+
+  - sources:
+      - "src/main.py"
+      - "src/routers/*.py"
+    doc: "docs/API.md"
+
+  - sources:
+      - "src/services/synthetic_service.py"
+      - "src/llm/prompts/synthetic.py"
+      - "scripts/run_simulation.py"
+      - "config/personas/*.yaml"
+    doc: "docs/interview_ai_simulation.md"
