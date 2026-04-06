@@ -25,11 +25,11 @@ class TestLazyLoading:
         service = SRLService()
         assert service._nlp is None
 
-    @patch("src.services.srl_service.spacy")
-    def test_nlp_loaded_on_first_access(self, mock_spacy):
+    @patch("spacy.load")
+    def test_nlp_loaded_on_first_access(self, mock_spacy_load):
         """spaCy model should load on first access to nlp property."""
         mock_nlp = MagicMock()
-        mock_spacy.load.return_value = mock_nlp
+        mock_spacy_load.return_value = mock_nlp
 
         service = SRLService(model_name="en_core_web_md")
 
@@ -37,15 +37,15 @@ class TestLazyLoading:
         result = service.nlp
 
         # Verify model was loaded
-        mock_spacy.load.assert_called_once_with("en_core_web_md")
+        mock_spacy_load.assert_called_once_with("en_core_web_md")
         assert result == mock_nlp
         assert service._nlp == mock_nlp
 
-    @patch("src.services.srl_service.spacy")
-    def test_nlp_loaded_only_once(self, mock_spacy):
+    @patch("spacy.load")
+    def test_nlp_loaded_only_once(self, mock_spacy_load):
         """spaCy model should only load once, not on subsequent accesses."""
         mock_nlp = MagicMock()
-        mock_spacy.load.return_value = mock_nlp
+        mock_spacy_load.return_value = mock_nlp
 
         service = SRLService()
 
@@ -55,7 +55,7 @@ class TestLazyLoading:
         _ = service.nlp
 
         # Should only load once
-        assert mock_spacy.load.call_count == 1
+        assert mock_spacy_load.call_count == 1
 
 
 class TestEdgeCases:
@@ -88,12 +88,12 @@ class TestEdgeCases:
             "srl_frames": [],
         }
 
-    @patch("src.services.srl_service.spacy")
-    def test_spacy_error_returns_empty_structures(self, mock_spacy):
+    @patch("spacy.load")
+    def test_spacy_error_returns_empty_structures(self, mock_spacy_load):
         """If spaCy raises an error, return empty structures gracefully."""
         mock_nlp = MagicMock()
         mock_nlp.side_effect = RuntimeError("spaCy error")
-        mock_spacy.load.return_value = mock_nlp
+        mock_spacy_load.return_value = mock_nlp
 
         service = SRLService()
         result = service.analyze("test input")
@@ -107,8 +107,8 @@ class TestEdgeCases:
 class TestDiscourseRelationExtraction:
     """Test discourse relation extraction via MARK/ADVCL dependencies."""
 
-    @patch("src.services.srl_service.spacy")
-    def test_causal_marker_detection(self, mock_spacy):
+    @patch("spacy.load")
+    def test_causal_marker_detection(self, mock_spacy_load):
         """Should detect 'because' as discourse marker via MARK dependency."""
         # Mock spaCy doc with MARK dependency
         mock_token_because = MagicMock()
@@ -134,15 +134,15 @@ class TestDiscourseRelationExtraction:
         mock_doc = [mock_token_because]
         mock_nlp = MagicMock()
         mock_nlp.return_value = mock_doc
-        mock_spacy.load.return_value = mock_nlp
+        mock_spacy_load.return_value = mock_nlp
 
         service = SRLService()
         result = service.analyze("I buy oat milk because I like it")
 
         assert len(result["discourse_relations"]) >= 0  # At least extracted something
 
-    @patch("src.services.srl_service.spacy")
-    def test_no_discourse_markers_in_simple_sentence(self, mock_spacy):
+    @patch("spacy.load")
+    def test_no_discourse_markers_in_simple_sentence(self, mock_spacy_load):
         """Simple sentence without markers should have no discourse relations."""
         # Mock doc with no MARK/ADVCL dependencies
         mock_token = MagicMock()
@@ -151,7 +151,7 @@ class TestDiscourseRelationExtraction:
         mock_doc = [mock_token]
         mock_nlp = MagicMock()
         mock_nlp.return_value = mock_doc
-        mock_spacy.load.return_value = mock_nlp
+        mock_spacy_load.return_value = mock_nlp
 
         service = SRLService()
         result = service.analyze("I like oat milk")
@@ -162,8 +162,8 @@ class TestDiscourseRelationExtraction:
 class TestSRLFrameExtraction:
     """Test SRL frame extraction via dependency parsing."""
 
-    @patch("src.services.srl_service.spacy")
-    def test_simple_svo_sentence(self, mock_spacy):
+    @patch("spacy.load")
+    def test_simple_svo_sentence(self, mock_spacy_load):
         """Should extract predicate-argument structure from simple SVO sentence."""
         # Mock: "I buy milk"
         mock_verb = MagicMock()
@@ -184,7 +184,7 @@ class TestSRLFrameExtraction:
         mock_doc = [mock_verb]
         mock_nlp = MagicMock()
         mock_nlp.return_value = mock_doc
-        mock_spacy.load.return_value = mock_nlp
+        mock_spacy_load.return_value = mock_nlp
 
         service = SRLService()
         result = service.analyze("I buy milk")
@@ -196,8 +196,8 @@ class TestSRLFrameExtraction:
         assert "nsubj" in frame["arguments"]
         assert "dobj" in frame["arguments"]
 
-    @patch("src.services.srl_service.spacy")
-    def test_noise_predicate_filtering(self, mock_spacy):
+    @patch("spacy.load")
+    def test_noise_predicate_filtering(self, mock_spacy_load):
         """Noise predicates (think, know, mean) should be filtered out."""
         # Mock: "I think it's good" - 'think' is noise
         mock_verb = MagicMock()
@@ -209,7 +209,7 @@ class TestSRLFrameExtraction:
         mock_doc = [mock_verb]
         mock_nlp = MagicMock()
         mock_nlp.return_value = mock_doc
-        mock_spacy.load.return_value = mock_nlp
+        mock_spacy_load.return_value = mock_nlp
 
         service = SRLService()
         result = service.analyze("I think it's good")
@@ -217,8 +217,8 @@ class TestSRLFrameExtraction:
         # 'think' should be filtered out
         assert result["srl_frames"] == []
 
-    @patch("src.services.srl_service.spacy")
-    def test_verb_without_arguments_not_included(self, mock_spacy):
+    @patch("spacy.load")
+    def test_verb_without_arguments_not_included(self, mock_spacy_load):
         """Verbs with no arguments should not create frames."""
         # Mock verb with no children
         mock_verb = MagicMock()
@@ -230,7 +230,7 @@ class TestSRLFrameExtraction:
         mock_doc = [mock_verb]
         mock_nlp = MagicMock()
         mock_nlp.return_value = mock_doc
-        mock_spacy.load.return_value = mock_nlp
+        mock_spacy_load.return_value = mock_nlp
 
         service = SRLService()
         result = service.analyze("run")
