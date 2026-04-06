@@ -160,6 +160,41 @@ See `docs/data_flow_paths.md` for full diagrams. Key paths:
 
 ---
 
+## Documentation Routing
+
+Run `uv run python scripts/check_doc_drift.py` any time to check for drift. The session-start and pre-commit hooks do this automatically.
+
+### Before editing — read first
+| Editing | Read first |
+|---------|-----------|
+| `src/methodologies/scoring.py`, `src/methodologies/registry.py`, `config/methodologies/*.yaml` | `docs/signals_and_strategies.md` |
+| `src/services/turn_pipeline/stages/strategy_selection_stage.py`, `src/services/methodology_strategy_service.py` | `docs/signals_and_strategies.md` |
+| `src/signals/graph/*.py`, `src/services/*signal_detection_service.py` | `docs/signals_and_strategies.md` |
+| `src/signals/llm/signals/*.py` | `docs/signals_and_strategies.md` |
+| `src/services/graph_service.py` | `docs/extraction_and_graphs.md` |
+| `src/services/canonical_slot_service.py` | `docs/extraction_and_graphs.md` |
+| `src/services/extraction_service.py` | `docs/extraction_and_graphs.md` |
+| Any pipeline stage (`stages/*.py`), `context.py`, `pipeline_contracts.py` | `docs/pipeline_contracts.md` |
+| `src/services/node_state_tracker.py`, `src/services/node_signal_detection_service.py` | `docs/NodeStateTracker_mutation.md` |
+| `src/main.py`, `src/routers/*.py` | `docs/API.md` |
+
+### After editing — update the same doc
+Same mappings apply symmetrically. Update the corresponding doc in the same commit or the commit immediately after.
+
+### Freshness policy
+One deferred update is acceptable — the drift detector allows it. Two commits without a doc update triggers a warning. When you see a warning, update the doc before continuing.
+
+---
+
+## Known Failure Modes
+
+- **Stage ordering (Stage 4 < Stage 6):** Any state reset in Stage 4 (GraphUpdateStage) is invisible to Stage 6 signal detectors. Do not reset signal-relevant state in early stages. See `docs/NodeStateTracker_mutation.md`.
+- **Stale specs:** Agents trust docs absolutely. An outdated doc produces silent failures — correct-looking code based on wrong assumptions. The drift detector warns but does not prevent this. When in doubt, verify the doc against source.
+- **Canonical slot timing:** Canonical slots are only `active` after `support_count >= canonical_min_support_nodes` (default 2). Signals depending on canonical data return empty/zero on first occurrence.
+- **`select_strategy_and_focus()` is D2:** The current architecture uses `rank_strategy_node_pairs()` for joint strategy-node scoring. Any doc or code referencing the old single-strategy D1 flow is outdated.
+
+---
+
 ## Common Tasks
 
 ```bash
