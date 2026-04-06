@@ -10,12 +10,12 @@ mappings:
       - "src/methodologies/scoring.py"
       - "src/methodologies/registry.py"
       - "config/methodologies/*.yaml"
-    doc: "docs/signals_and_strategies.md"
+    doc: "docs/specs/strategy-scoring.md"
 
   - sources:
       - "src/services/turn_pipeline/stages/strategy_selection_stage.py"
       - "src/services/methodology_strategy_service.py"
-    doc: "docs/signals_and_strategies.md"
+    doc: "docs/specs/strategy-scoring.md"
 
   - sources:
       - "src/signals/graph/*.py"
@@ -55,7 +55,6 @@ mappings:
     doc: "docs/NodeStateTracker_mutation.md"
 
   - sources:
-      - "src/methodologies/scoring.py"
       - "src/services/methodology_strategy_service.py"
     doc: "docs/SYSTEM_DESIGN.md"
 
