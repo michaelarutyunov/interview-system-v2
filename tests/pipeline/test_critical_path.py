@@ -58,14 +58,14 @@ async def test_pipeline_critical_path_minimal(session_repo, graph_repo, utteranc
     session = Session(
         id=session_id,
         methodology="means_end_chain",
-        concept_id="oatmilk_mec_legacy",
-        concept_name="Oat Milk",
+        concept_id="glp1_food_mec",
+        concept_name="GLP1 Food",
         created_at=now,
         updated_at=now,
         state=SessionState(
             methodology="means_end_chain",
-            concept_id="oatmilk_mec_legacy",
-            concept_name="Oat Milk",
+            concept_id="glp1_food_mec",
+            concept_name="GLP1 Food",
             turn_count=0,
             mode=InterviewMode.EXPLORATORY,
         ),
@@ -121,7 +121,7 @@ async def test_pipeline_critical_path_minimal(session_repo, graph_repo, utteranc
     # Verify context was populated
     assert context.session_id == session_id
     assert context.methodology == "means_end_chain"
-    assert context.concept_id == "oatmilk_mec_legacy"
+    assert context.concept_id == "glp1_food_mec"
     assert context.turn_number == 1
 
     # Verify extraction was called with methodology
