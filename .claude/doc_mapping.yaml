@@ -30,18 +30,18 @@ mappings:
 
   - sources:
       - "src/services/graph_service.py"
-    doc: "docs/extraction_and_graphs.md"
+    doc: "docs/specs/graph-dedup.md"
 
   - sources:
       - "src/services/canonical_slot_service.py"
       - "src/services/turn_pipeline/stages/slot_discovery_stage.py"
-    doc: "docs/extraction_and_graphs.md"
+    doc: "docs/specs/canonical-slots.md"
 
   - sources:
       - "src/services/extraction_service.py"
       - "src/services/turn_pipeline/stages/extraction_stage.py"
       - "src/llm/prompts/extraction.py"
-    doc: "docs/extraction_and_graphs.md"
+    doc: "docs/specs/extraction.md"
 
   - sources:
       - "src/services/turn_pipeline/stages/*.py"
