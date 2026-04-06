@@ -22,14 +22,14 @@ Signals are organized into categories based on what they measure:
 
 ## LLM Signals: Response Quality
 
-**What they measure:** The quality and nature of each response, scored on 1-5 scales.
+**What they measure:** The quality and nature of each response, scored on normalized scales.
 
 | Signal | Moderator Meaning | What to Look For |
 |--------|------------------|------------------|
-| **response_depth** | How much information is being shared | 1-2 = brief, minimal detail; 3-4 = good substance; 5 = rich, multi-faceted |
-| **specificity** | How concrete vs abstract the response is | Low = vague generalities; High = specific examples, details, named entities |
+| **response_depth** | How much information is being shared | surface/shallow = brief, minimal; moderate/deep = good substance; comprehensive = rich, multi-faceted |
+| **specificity** | How concrete vs abstract the response is | Low (0.0-0.25) = vague generalities; High (0.75-1.0) = specific examples, details, named entities |
 | **certainty** | How confident the respondent sounds | Low = hedging, "maybe", "I guess"; High = unqualified statements |
-| **emotional_valence** | Emotional tone of response | 1-2 = negative/critical; 3 = neutral; 4-5 = positive/enthusiastic |
+| **valence** | Emotional tone of response | Low = negative/critical; Mid (0.5) = neutral; High = positive/enthusiastic |
 | **intellectual_engagement** | Presence of reasoning and "why" | Low = bare facts; High = explains motivations, tradeoffs, value hierarchies |
 | **engagement** | Willingness to participate | Low = minimal effort, deflections; High = enthusiastic, extends beyond question |
 | **global_response_trend** | How quality is changing over time | `deepening` = more engaged; `stable` = consistent; `shallowing` = declining; `fatigued` = disengaged |
@@ -39,6 +39,8 @@ Signals are organized into categories based on what they measure:
 - **High specificity + high certainty** → Good time to probe deeper
 - **Fatigued trend** → Time to switch topics or wrap up
 - **Negative valence** → Handle with care, may need rapport repair
+
+**Phase Configuration Note:** The interview phase (early/mid/late) is automatically calculated from the turn boundaries configured in `config/interview_config.yaml`. The YAML uses descriptive phase names (exploratory/focused/closing) that map to signal outputs (early/mid/late) for backward compatibility with existing methodology configurations.
 
 ---
 
@@ -71,14 +73,15 @@ Signals are organized into categories based on what they measure:
 | Signal | Moderator Meaning | What to Look For |
 |--------|------------------|------------------|
 | **graph.node.exhausted** | Topic has been explored without yield | True = move to a different topic |
-| **graph.node.exhaustion_score** | 0-1 score of exploration depth | Higher = more thoroughly explored |
+| **graph.node.exhaustion_score** | 0.0-1.0 score of exploration depth | Higher (0.7+) = thoroughly explored; Lower (0.0-0.3) = fresh territory |
 | **graph.node.yield_stagnation** | No new information for 3+ turns | True = time to switch topics |
-| **graph.node.focus_streak** | Consecutive turns on same topic | none/low = fine; medium = monitor; high = consider rotating |
+| **graph.node.focus_streak** | Consecutive turns on same topic | low = fine; medium = monitor; high = consider rotating |
 | **graph.node.is_current_focus** | Which topic is currently active | Used for strategy targeting |
 | **graph.node.recency_score** | How recently topic was discussed | 1.0 = just now; 0.0 = 20+ turns ago |
 | **graph.node.is_orphan** | Topic has no connections to others | True = opportunity to connect to other concepts |
 | **graph.node.edge_count** | How connected this topic is | Higher = more central to the discussion |
-| **graph.node.has_outgoing**** | Whether topic has been explored downstream | False = may be an unexplored leaf |
+| **graph.node.has_outgoing** | Whether topic has been explored downstream | False = may be an unexplored leaf |
+| **technique.node.strategy_repetition** | Same strategy used consecutively on this topic | High (3+) = avoid repetitive questioning |
 
 **Moderator Use Cases:**
 - **High focus_streak** → Consider switching topics for variety
@@ -94,11 +97,11 @@ Signals are organized into categories based on what they measure:
 
 | Signal | Moderator Meaning | What to Look For |
 |--------|------------------|------------------|
-| **meta.interview.phase** | Current stage of interview | `early` = explore broadly; `mid` = build depth; `late` = validate and close |
-| **meta.interview_progress** | How complete the interview is | 0 = just started; 1 = near completion (based on chains and depth) |
-| **meta.conversation.saturation** | Are responses drying up? | 0 = extracting at peak rate; 1 = zero extraction (regardless of quality) |
-| **meta.canonical.saturation** | Are we in redundant territory? | 0 = all new themes; 1 = pure elaboration on existing themes |
-| **meta.node.opportunity** | What's the best action for each topic? | `exhausted` = skip; `probe_deeper` = extraction opportunity; `fresh` = explore |
+| **meta.interview.phase** | Current stage of interview | early = explore broadly; mid = build depth; late = validate and close (**Note**: Phase boundaries configured in `config/interview_config.yaml` as exploratory/focused/closing) |
+| **meta.interview_progress** | How complete the interview is | 0.0 = just started; 1.0 = near completion (based on chains and depth; **DEPRECATED** for JTBD) |
+| **meta.conversation.saturation** | Are responses drying up? | 0.0 = extracting at peak rate; 1.0 = zero extraction (regardless of quality) |
+| **meta.canonical.saturation** | Are we in redundant territory? | 0.0 = all new themes; 1.0 = pure elaboration on existing themes |
+| **meta.node.opportunity** | What's the best action for each topic? | exhausted = skip; probe_deeper = extraction opportunity; fresh = explore |
 
 ### Canonical Saturation: A Deeper Look
 
@@ -118,7 +121,9 @@ Signals are organized into categories based on what they measure:
 
 ### Conversation Saturation: The "Drying Up" Signal
 
-**meta.conversation.saturation** measures extraction yield ratio — how many new concepts we're getting compared to the best turn in this interview.
+**meta.conversation.saturation** measures extraction yield ratio — how many new surface concepts we're getting this turn compared to the best turn in this interview.
+
+**Formula:** `saturation = 1.0 - min(current_delta / peak_delta, 1.0)`
 
 | Value | Meaning | Moderator Action |
 |-------|---------|------------------|
@@ -128,6 +133,8 @@ Signals are organized into categories based on what they measure:
 
 **Important:** High saturation doesn't mean low engagement! A respondent can give long, thoughtful answers (high engagement) that don't yield new concepts (high saturation). This is the "elaboration without exploration" pattern.
 
+**Key insight:** Saturation measures **extraction yield ratio**, not interview progress. A respondent can be at 1.0 (saturated) in early turns if they produce brief answers, or at 0.0 (unsaturated) in late turns if they're still revealing new concepts.
+
 ---
 
 ## Temporal Signals: Pattern Detection
@@ -136,9 +143,9 @@ Signals are organized into categories based on what they measure:
 
 | Signal | Moderator Meaning | What to Look For |
 |--------|------------------|------------------|
-| **temporal.strategy_repetition_count** | How often we've used the current strategy recently | High (3+) = overuse, need variety |
-| **temporal.turns_since_strategy_change** | How long since we switched strategies | High (3+) = time to try something different |
-| **technique.node.strategy_repetition** | How many times same strategy used on a specific topic | high = 5+ consecutive — avoid repetitive questioning |
+| **temporal.strategy_repetition_count** | How often we've used the current strategy recently (normalized 0.0-1.0) | High (0.6+) = overuse, need variety |
+| **temporal.turns_since_strategy_change** | How long since we switched strategies (normalized 0.0-1.0) | High (0.6+) = time to try something different |
+| **technique.node.strategy_repetition** | How many times same strategy used consecutively on a specific topic | High (3+) = avoid repetitive questioning |
 
 **Moderator Use Cases:**
 - **High repetition** → The system will automatically diversify strategies
@@ -170,9 +177,9 @@ Signals are most powerful when interpreted together. Here are common patterns:
 - Action: Use deepen/laddering strategies
 
 ### Pattern: "The Topic Monologue"
-- **focus_streak = high** (4+ on same topic)
-- **exhaustion_score rising**
-- **saturation increasing**
+- **graph.node.focus_streak = high** (4+ on same topic)
+- **graph.node.exhaustion_score rising** (0.7+)
+- **saturation increasing** (0.7+)
 - Meaning: We're overworking this topic
 - Action: Force topic rotation
 
@@ -201,21 +208,22 @@ The key is to answer: **"What does this tell a moderator about the interview?"**
 
 | Signal | High Value Means... | Low Value Means... |
 |--------|-------------------|-------------------|
-| response_depth | Rich, multi-faceted answers | Brief, minimal detail |
-| specificity | Concrete examples | Vague generalities |
-| engagement | Enthusiastic participation | Minimal effort |
-| intellectual_engagement | Shows reasoning/motivation | Bare facts only |
-| global_response_trend (fatigued) | Disengaged (4+ shallow) | Stable or deepening |
+| response_depth (comprehensive) | Rich, multi-faceted answers | surface/shallow = brief, minimal |
+| specificity (0.75-1.0) | Concrete examples | Low (0.0-0.25) = vague |
+| engagement (0.75-1.0) | Enthusiastic participation | Minimal effort |
+| intellectual_engagement (0.75-1.0) | Shows reasoning/motivation | Bare facts only |
+| global_response_trend (fatigued) | Disengaged (4+ shallow) | stable or deepening |
+| valence (0.75-1.0) | Positive/enthusiastic | Negative/critical |
 | graph.node_count | Broad coverage | Narrow focus |
 | graph.edge_count | Well-connected concepts | Isolated concepts |
 | graph.orphan_count | Missed connections | Well-integrated |
-| graph.max_depth | Deep causal chains | Surface exploration |
-| conversation.saturation | Low extraction yield | High extraction yield |
-| canonical.saturation | Redundant themes | Fresh themes |
-| node.exhaustion_score | Thoroughly explored | Fresh territory |
-| node.focus_streak | Persistent questioning | Varied focus |
-| strategy_repetition | Overused strategy | Good variety |
-| interview_progress | Near completion | Just started |
-| node.opportunity (probe_deeper) | Extraction opportunity | Not ready to probe |
-| node.opportunity (exhausted) | Move on | Has potential |
-| node.opportunity (fresh) | Ready to explore | May need attention |
+| graph.max_depth (0.75-1.0) | Deep causal chains | Surface exploration |
+| conversation.saturation (0.7-1.0) | Low extraction yield | High extraction yield |
+| canonical.saturation (0.7-1.0) | Redundant themes | Fresh themes |
+| graph.node.exhaustion_score (0.7-1.0) | Thoroughly explored | Fresh territory |
+| graph.node.focus_streak (high) | Persistent questioning | Varied focus |
+| temporal.strategy_repetition_count (0.6+) | Overused strategy | Good variety |
+| meta.interview_progress (0.75-1.0) | Near completion | Just started |
+| meta.node.opportunity (probe_deeper) | Extraction opportunity | Not ready to probe |
+| meta.node.opportunity (exhausted) | Move on | Has potential |
+| meta.node.opportunity (fresh) | Ready to explore | May need attention |
