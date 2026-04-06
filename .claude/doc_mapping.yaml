@@ -52,7 +52,7 @@ mappings:
   - sources:
       - "src/services/node_signal_detection_service.py"
       - "src/services/node_state_tracker.py"
-    doc: "docs/NodeStateTracker_mutation.md"
+    doc: "docs/specs/node-state-tracker.md"
 
   - sources:
       - "src/services/methodology_strategy_service.py"
