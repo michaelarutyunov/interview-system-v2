@@ -323,6 +323,8 @@ graph TD
 
 ### 1. Graph Signals (`graph.*`)
 
+> Graph & Node Signals moved to [docs/specs/signal-detection-graph.md](specs/signal-detection-graph.md)
+
 **Source**: Knowledge graph snapshot
 **Cost**: O(1) - cached on graph update
 **Location**: `src/signals/graph/`

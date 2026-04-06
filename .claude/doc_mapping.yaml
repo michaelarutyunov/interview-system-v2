@@ -21,7 +21,7 @@ mappings:
       - "src/signals/graph/*.py"
       - "src/services/node_signal_detection_service.py"
       - "src/services/global_signal_detection_service.py"
-    doc: "docs/signals_and_strategies.md"
+    doc: "docs/specs/signal-detection-graph.md"
 
   - sources:
       - "src/signals/llm/signals/*.py"
