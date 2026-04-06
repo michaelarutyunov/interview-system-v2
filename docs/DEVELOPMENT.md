@@ -18,7 +18,7 @@ Guide for setting up development environment, running tests, and contributing to
 
 ### Prerequisites
 
-- Python 3.11 or higher
+- Python 3.12 or higher (Python 3.14+ not supported due to compatibility)
 - Git
 - Anthropic API key
 
@@ -30,15 +30,7 @@ Guide for setting up development environment, running tests, and contributing to
    cd interview-system-v2
    ```
 
-2. **Create virtual environment:**
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # Linux/Mac
-   # or
-   .venv\Scripts\activate  # Windows
-   ```
-
-3. **Install uv (if not already installed):**
+2. **Install uv (if not already installed):**
    ```bash
    curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
@@ -51,6 +43,7 @@ Guide for setting up development environment, running tests, and contributing to
    This installs:
    - Core dependencies (FastAPI, uvicorn, aiosqlite, etc.)
    - Dev dependencies (pytest, ruff, pyright)
+   - spaCy model (en_core_web_md) for SRL preprocessing
 
 5. **Configure environment:**
    ```bash
@@ -117,13 +110,13 @@ Create `.vscode/settings.json`:
 ```
 tests/
 ├── unit/              # Unit tests (fast, isolated)
-│   ├── test_extraction_service.py
-│   ├── test_session_service.py
-│   ├── test_graph_service.py
-│   └── ...
-└── integration/       # Integration tests (slower, real dependencies)
-    ├── test_session_flow.py
-    └── test_turn_api.py
+├── integration/       # Integration tests (slower, real dependencies)
+├── signals/           # Signal detection tests
+├── methodologies/     # Methodology and scoring tests
+├── pipeline/          # Pipeline stage tests
+├── persistence/       # Repository tests
+├── llm/               # LLM client tests
+└── conftest.py        # Shared fixtures
 ```
 
 ### Running Tests
@@ -175,8 +168,8 @@ Run a simulation using the API:
 curl -X POST "http://localhost:8000/simulation/interview" \
   -H "Content-Type: application/json" \
   -d '{
-    "concept_id": "oat_milk_v2",
-    "persona_id": "health_conscious",
+    "concept_id": "headphones_mec",
+    "persona_id": "baseline_cooperative",
     "max_turns": 10
   }'
 ```
@@ -184,7 +177,7 @@ curl -X POST "http://localhost:8000/simulation/interview" \
 Or use the convenience script:
 
 ```bash
-uv run python scripts/run_simulation.py coffee_jtbd_v2 health_conscious 10
+uv run python scripts/run_simulation.py headphones_mec baseline_cooperative 10
 ```
 
 **See [Interview AI Simulation System](interview_ai_simulation.md)** for:
@@ -525,15 +518,6 @@ All checks must pass before committing.
    # Load methodology
    registry = get_registry()
    config = registry.get_methodology("my_methodology")
-
-   # Use with MethodologyStrategyService (D1 Architecture)
-   from src.services.methodology_strategy_service import MethodologyStrategyService
-   service = MethodologyStrategyService()
-   strategy, focus_node_id, alternatives, signals = await service.select_strategy_and_focus(
-       context, graph_state, response_text
-   )
-   # Returns: (strategy_name, focus_node_id, alternatives_list, signals_dict)
-   # alternatives_list: [(strategy, node_id, score), ...] for debugging
    ```
 
 3. **Key components:**
@@ -567,7 +551,7 @@ All checks must pass before committing.
 
 2. **Create signal class:**
    ```python
-   # src/methodologies/signals/graph/my_signal.py
+   # src/signals/graph/my_signal.py
    from typing import Any
    from src.methodologies.signals.common import SignalDetector, SignalCostTier, RefreshTrigger
 
@@ -595,7 +579,7 @@ All checks must pass before committing.
 
 3. **Export from pool `__init__.py`:**
    ```python
-   # src/methodologies/signals/graph/__init__.py
+   # src/signals/graph/__init__.py
    from .my_signal import MySignal
 
    __all__ = ["MySignal"]
@@ -603,7 +587,7 @@ All checks must pass before committing.
 
 4. **Register in signal registry:**
    ```python
-   # src/methodologies/signals/registry.py
+   # src/signals/registry.py
    SIGNAL_CLASSES = {
        # ... existing signals
        "graph.my_signal": MySignal,
@@ -652,7 +636,7 @@ All checks must pass before committing.
 
 **LLM Signals** (fresh per response):
 ```python
-# src/methodologies/signals/llm/my_llm_signal.py
+# src/signals/llm/my_llm_signal.py
 from src.methodologies.signals.llm.common import BaseLLMSignal
 
 class MyLLMSignal(BaseLLMSignal):
@@ -670,7 +654,7 @@ class MyLLMSignal(BaseLLMSignal):
 
 **Node-Level Signals** (per-node values):
 ```python
-# src/methodologies/signals/graph/my_node_signal.py
+# src/signals/graph/my_node_signal.py
 from typing import Any
 from src.methodologies.signals.graph.common import NodeSignalDetector
 from src.domain.models.node_state import NodeState
@@ -701,7 +685,7 @@ class MyNodeSignal(NodeSignalDetector):
 
 **Node-Level Technique Signals**:
 ```python
-# src/methodologies/signals/technique/my_technique_node_signal.py
+# src/signals/technique/my_technique_node_signal.py
 from src.methodologies.signals.technique.common import TechniqueNodeSignal
 
 class MyTechniqueNodeSignal(TechniqueNodeSignal):
@@ -722,7 +706,7 @@ class MyTechniqueNodeSignal(TechniqueNodeSignal):
 ```
 
 **Registering Node-Level Signals**:
-In `src/methodologies/signals/registry.py`, node-level signals are registered with a special marker:
+In `src/signals/registry.py`, node-level signals are registered with a special marker:
 ```python
 SIGNAL_CLASSES = {
     # Global signals
@@ -1354,7 +1338,13 @@ src/
 │   │   └── validation.py
 │   ├── config/            # YAML methodology definitions
 │   │   ├── means_end_chain.yaml
-│   │   └── jobs_to_be_done.yaml
+│   │   ├── means_end_chain_v2_strict.yaml
+│   │   ├── means_end_chain_v3_flex.yaml
+│   │   ├── jobs_to_be_done.yaml
+│   │   ├── jobs_to_be_done_v2.yaml
+│   │   ├── critical_incident.yaml
+│   │   ├── customer_journey_mapping.yaml
+│   │   └── repertory_grid.yaml
 │   ├── registry.py        # MethodologyRegistry (YAML loader)
 │   └── scoring.py         # Strategy scoring with signal weights
 ├── persistence/           # Data persistence
@@ -1500,6 +1490,21 @@ export = await client.export_session(session_id, format="json")
 - **Sidebar fixed**: Narrow width (160px) for more content space
 - **Graph scaling**: Automatic node sizing based on degree
 - **Header compact**: 44px height for maximum content visibility
+
+---
+
+## Essential Documentation
+
+| Document | Purpose |
+|----------|---------|
+| `docs/SYSTEM_DESIGN.md` | System architecture overview |
+| `docs/interview_ai_simulation.md` | AI-to-AI simulation system |
+| `docs/data_flow_paths.md` | 19 critical data flow diagrams |
+| `docs/pipeline_contracts.md` | Stage input/output contracts |
+| `docs/extraction_and_graphs.md` | Extraction and Graphs configuration |
+| `docs/signals_and_strategies.md` | Signal Pools configuration |
+| `docs/signals_moderator_guide.md` | Signal moderation guide |
+| `docs/NodeStateTracker_mutation.md` | NodeStateTracker lifecycle |
 
 ---
 
