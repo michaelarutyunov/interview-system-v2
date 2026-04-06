@@ -47,7 +47,7 @@ mappings:
       - "src/services/turn_pipeline/stages/*.py"
       - "src/services/turn_pipeline/context.py"
       - "src/domain/models/pipeline_contracts.py"
-    doc: "docs/pipeline_contracts.md"
+    doc: "docs/specs/pipeline-contracts.md"
 
   - sources:
       - "src/services/node_signal_detection_service.py"
