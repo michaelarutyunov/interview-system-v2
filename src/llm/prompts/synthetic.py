@@ -22,14 +22,47 @@ from typing import Dict, Any, List, Optional
 from src.core.persona_loader import load_persona, list_personas as load_list_personas
 
 
-def get_synthetic_system_prompt() -> str:
+def _format_response_patterns(response_patterns: Optional[Dict[str, float]] = None) -> str:
+    """Format response patterns section for system prompt.
+
+    Args:
+        response_patterns: Dict mapping response type to probability (0.0-1.0).
+            Expected keys: detailed, medium, brief, acknowledgment.
+            Falls back to hardcoded defaults if None.
+
+    Returns:
+        Formatted response patterns section string.
+    """
+    defaults = {"detailed": 0.40, "medium": 0.40, "brief": 0.15, "acknowledgment": 0.05}
+    patterns = response_patterns or defaults
+
+    detailed = int(patterns.get("detailed", defaults["detailed"]) * 100)
+    medium = int(patterns.get("medium", defaults["medium"]) * 100)
+    brief = int(patterns.get("brief", defaults["brief"]) * 100)
+    ack = int(patterns.get("acknowledgment", defaults["acknowledgment"]) * 100)
+
+    return f"""## Response Patterns:
+- **Detailed responses**: 2-3 sentences sharing thoughts and reasons ({detailed}% of responses)
+- **Medium responses**: 1-2 sentences with some explanation ({medium}% of responses)
+- **Brief responses**: Short phrases or simple answers ({brief}% of responses)
+- **Acknowledgments**: "Okay", "I see", "That makes sense" ({ack}% of responses)"""
+
+
+def get_synthetic_system_prompt(
+    response_patterns: Optional[Dict[str, float]] = None,
+) -> str:
     """
     Get system prompt for synthetic respondent generation.
+
+    Args:
+        response_patterns: Optional dict of response type probabilities from persona YAML.
 
     Returns:
         System prompt string for LLM
     """
-    return """You are a synthetic respondent for testing an adaptive interview system.
+    patterns_section = _format_response_patterns(response_patterns)
+
+    return f"""You are a synthetic respondent for testing an adaptive interview system.
 
 Generate natural, realistic responses to interview questions about products and consumer preferences.
 
@@ -41,11 +74,7 @@ Generate natural, realistic responses to interview questions about products and 
 5. Feel comfortable with simple acknowledgments or brief answers
 6. Don't always provide elaborate explanations - sometimes short answers are natural
 
-## Response Patterns:
-- **Detailed responses**: 2-3 sentences sharing thoughts and reasons (40% of responses)
-- **Medium responses**: 1-2 sentences with some explanation (40% of responses)
-- **Brief responses**: Short phrases or simple answers (15% of responses)
-- **Acknowledgments**: "Okay", "I see", "That makes sense" (5% of responses)
+{patterns_section}
 
 ## What to Avoid:
 - Don't be overly helpful or eager to please
@@ -57,17 +86,22 @@ Generate natural, realistic responses to interview questions about products and 
 Remember: Real people are sometimes brief, sometimes detailed, sometimes distracted. Be authentic."""
 
 
-def get_synthetic_system_prompt_with_deflection() -> str:
+def get_synthetic_system_prompt_with_deflection(
+    response_patterns: Optional[Dict[str, float]] = None,
+) -> str:
     """
     Get system prompt with deflection guidance.
 
     Adds instructions for including deflection patterns to simulate
     authentic respondent behavior where they redirect the conversation.
 
+    Args:
+        response_patterns: Optional dict of response type probabilities from persona YAML.
+
     Returns:
         System prompt string with deflection guidance
     """
-    base_prompt = get_synthetic_system_prompt()
+    base_prompt = get_synthetic_system_prompt(response_patterns)
 
     deflection_guidance = """
 

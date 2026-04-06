@@ -39,16 +39,16 @@ Any codebase change should follow these principles:
 |----------|---------|
 | `docs/SYSTEM_DESIGN.md` | System architecture overview |
 | `docs/interview_ai_simulation.md` | AI-to-AI simulation system for testing with synthetic personas |
-| `docs/specs/` | Subsystem specs — primary reference for implementation and debugging |
-| `docs/specs/pipeline-contracts.md` | Stage input/output contracts |
-| `docs/specs/signal-detection-graph.md` | Graph & node signal detection |
-| `docs/specs/signal-detection-llm.md` | LLM signal detection |
-| `docs/specs/strategy-scoring.md` | Joint strategy-node scoring |
-| `docs/specs/node-state-tracker.md` | NodeStateTracker per-turn lifecycle |
-| `docs/specs/turn-count.md` | Turn count evolution and phase detection |
-| `docs/specs/extraction.md` | LLM concept/relationship extraction |
-| `docs/specs/graph-dedup.md` | Surface graph deduplication |
-| `docs/specs/canonical-slots.md` | Canonical slot discovery |
+| `.claude/context/` | Subsystem specs — primary reference for implementation and debugging |
+| `.claude/context/pipeline-contracts.md` | Stage input/output contracts |
+| `.claude/context/signal-detection-graph.md` | Graph & node signal detection |
+| `.claude/context/signal-detection-llm.md` | LLM signal detection |
+| `.claude/context/strategy-scoring.md` | Joint strategy-node scoring |
+| `.claude/context/node-state-tracker.md` | NodeStateTracker per-turn lifecycle |
+| `.claude/context/turn-count.md` | Turn count evolution and phase detection |
+| `.claude/context/extraction.md` | LLM concept/relationship extraction |
+| `.claude/context/graph-dedup.md` | Surface graph deduplication |
+| `.claude/context/canonical-slots.md` | Canonical slot discovery |
 
 ---
 
@@ -119,7 +119,7 @@ phase_boundaries:
 
 ## Critical Data Flows
 
-See `docs/specs/` for subsystem specs. Key paths:
+See `.claude/context/` for subsystem specs. Key paths:
 
 1. **Turn Count Evolution** (Path 1): Session.state → ContextLoading → turn_number → ... → ScoringPersistence → Session.state updated
 2. **Strategy Selection** (Path 2): graph_state + signals → MethodologyStrategyService → ranked strategies
@@ -155,15 +155,15 @@ Run `uv run python scripts/check_doc_drift.py` any time to check for drift. The 
 ### Before editing — read first
 | Editing | Read first |
 |---------|-----------|
-| `src/methodologies/scoring.py`, `src/methodologies/registry.py`, `config/methodologies/*.yaml` | `docs/specs/strategy-scoring.md` |
-| `src/services/turn_pipeline/stages/strategy_selection_stage.py`, `src/services/methodology_strategy_service.py` | `docs/specs/strategy-selection.md` |
-| `src/signals/graph/*.py`, `src/services/*signal_detection_service.py` | `docs/specs/signal-detection-graph.md` |
-| `src/signals/llm/signals/*.py` | `docs/specs/signal-detection-llm.md` |
-| `src/services/graph_service.py` | `docs/specs/graph-dedup.md` |
-| `src/services/canonical_slot_service.py` | `docs/specs/canonical-slots.md` |
-| `src/services/extraction_service.py` | `docs/specs/extraction.md` |
-| Any pipeline stage (`stages/*.py`), `context.py`, `pipeline_contracts.py` | `docs/specs/pipeline-contracts.md` |
-| `src/services/node_state_tracker.py`, `src/services/node_signal_detection_service.py` | `docs/specs/node-state-tracker.md` |
+| `src/methodologies/scoring.py`, `src/methodologies/registry.py`, `config/methodologies/*.yaml` | `.claude/context/strategy-scoring.md` |
+| `src/services/turn_pipeline/stages/strategy_selection_stage.py`, `src/services/methodology_strategy_service.py` | `.claude/context/strategy-selection.md` |
+| `src/signals/graph/*.py`, `src/services/*signal_detection_service.py` | `.claude/context/signal-detection-graph.md` |
+| `src/signals/llm/signals/*.py` | `.claude/context/signal-detection-llm.md` |
+| `src/services/graph_service.py` | `.claude/context/graph-dedup.md` |
+| `src/services/canonical_slot_service.py` | `.claude/context/canonical-slots.md` |
+| `src/services/extraction_service.py` | `.claude/context/extraction.md` |
+| Any pipeline stage (`stages/*.py`), `context.py`, `pipeline_contracts.py` | `.claude/context/pipeline-contracts.md` |
+| `src/services/node_state_tracker.py`, `src/services/node_signal_detection_service.py` | `.claude/context/node-state-tracker.md` |
 | `src/main.py`, `src/routers/*.py` | `docs/API.md` |
 
 ### After editing — update the same doc
@@ -191,7 +191,7 @@ Agents will be created iteratively as failure patterns are observed. See `docs/c
 
 ## Known Failure Modes
 
-- **Stage ordering (Stage 4 < Stage 6):** Any state reset in Stage 4 (GraphUpdateStage) is invisible to Stage 6 signal detectors. Do not reset signal-relevant state in early stages. See `docs/specs/node-state-tracker.md`.
+- **Stage ordering (Stage 4 < Stage 6):** Any state reset in Stage 4 (GraphUpdateStage) is invisible to Stage 6 signal detectors. Do not reset signal-relevant state in early stages. See `.claude/context/node-state-tracker.md`.
 - **Stale specs:** Agents trust docs absolutely. An outdated doc produces silent failures — correct-looking code based on wrong assumptions. The drift detector warns but does not prevent this. When in doubt, verify the doc against source.
 - **Canonical slot timing:** Canonical slots are only `active` after `support_count >= canonical_min_support_nodes` (default 2). Signals depending on canonical data return empty/zero on first occurrence.
 - **`select_strategy_and_focus()` is D2:** The current architecture uses `rank_strategy_node_pairs()` for joint strategy-node scoring. Any doc or code referencing the old single-strategy D1 flow is outdated.
@@ -220,8 +220,8 @@ See `docs/DEVELOPMENT.md` for full scripts reference, configuration locations, a
 
 ## When in Doubt
 
-1. Check `docs/specs/` for the relevant subsystem spec
-2. Check `docs/specs/pipeline-contracts.md` for stage contracts
+1. Check `.claude/context/` for the relevant subsystem spec
+2. Check `.claude/context/pipeline-contracts.md` for stage contracts
 3. Check `src/services/turn_pipeline/context.py` for PipelineContext
 4. Check `.claude/context/debugging-protocol.md` for root cause analysis methodology
 5. Check `.claude/context/debugging-subsystems.md` for subsystem-specific debug guides

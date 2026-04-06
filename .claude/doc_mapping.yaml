@@ -10,49 +10,49 @@ mappings:
       - "src/methodologies/scoring.py"
       - "src/methodologies/registry.py"
       - "config/methodologies/*.yaml"
-    doc: "docs/specs/strategy-scoring.md"
+    doc: ".claude/context/strategy-scoring.md"
 
   - sources:
       - "src/services/turn_pipeline/stages/strategy_selection_stage.py"
       - "src/services/methodology_strategy_service.py"
-    doc: "docs/specs/strategy-scoring.md"
+    doc: ".claude/context/strategy-scoring.md"
 
   - sources:
       - "src/signals/graph/*.py"
       - "src/services/node_signal_detection_service.py"
       - "src/services/global_signal_detection_service.py"
-    doc: "docs/specs/signal-detection-graph.md"
+    doc: ".claude/context/signal-detection-graph.md"
 
   - sources:
       - "src/signals/llm/signals/*.py"
       - "src/signals/llm/prompts/signals.md"
-    doc: "docs/specs/signal-detection-llm.md"
+    doc: ".claude/context/signal-detection-llm.md"
 
   - sources:
       - "src/services/graph_service.py"
-    doc: "docs/specs/graph-dedup.md"
+    doc: ".claude/context/graph-dedup.md"
 
   - sources:
       - "src/services/canonical_slot_service.py"
       - "src/services/turn_pipeline/stages/slot_discovery_stage.py"
-    doc: "docs/specs/canonical-slots.md"
+    doc: ".claude/context/canonical-slots.md"
 
   - sources:
       - "src/services/extraction_service.py"
       - "src/services/turn_pipeline/stages/extraction_stage.py"
       - "src/llm/prompts/extraction.py"
-    doc: "docs/specs/extraction.md"
+    doc: ".claude/context/extraction.md"
 
   - sources:
       - "src/services/turn_pipeline/stages/*.py"
       - "src/services/turn_pipeline/context.py"
       - "src/domain/models/pipeline_contracts.py"
-    doc: "docs/specs/pipeline-contracts.md"
+    doc: ".claude/context/pipeline-contracts.md"
 
   - sources:
       - "src/services/node_signal_detection_service.py"
       - "src/services/node_state_tracker.py"
-    doc: "docs/specs/node-state-tracker.md"
+    doc: ".claude/context/node-state-tracker.md"
 
   - sources:
       - "src/services/methodology_strategy_service.py"

@@ -32,24 +32,20 @@ dist/
 build/
 *.egg-info/
 
-# Custom
-commands.md
-specs/*
-sessions/*
-logs/
-explorations/
-article/
-plans/
-.ruff_cache/
-arch_queries.md
-
-# interview results
-synthetic_interviews/
-interviews_real/
-chrome/
+# Cache
 .beads/
 .codegraph/
 .serena/
-analysis/
+.ruff_cache/
+.streamlit/
 
+# working docs
+synthetic_interviews/
+interviews_real/
+analysis/
 docs/archive/
+docs/superpowers/
+arch_queries.md
+commands.md
+logs/
+explorations/

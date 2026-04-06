@@ -10,6 +10,7 @@ Generates contextually appropriate respondent answers using:
 import random
 from typing import Dict, Any, List, Optional
 
+from src.core.persona_loader import load_persona
 from src.llm.client import LLMClient, get_llm_client
 from src.llm.prompts.synthetic import (
     get_available_personas,
@@ -86,11 +87,15 @@ class SyntheticService:
         if use_deflection is None:
             use_deflection = random.random() < self.deflection_chance
 
+        # Load persona response patterns for system prompt
+        persona_config = load_persona(persona)
+        response_patterns = persona_config.response_patterns
+
         # Build prompts
         system_prompt = (
-            get_synthetic_system_prompt_with_deflection()
+            get_synthetic_system_prompt_with_deflection(response_patterns)
             if use_deflection
-            else get_synthetic_system_prompt()
+            else get_synthetic_system_prompt(response_patterns)
         )
         user_prompt = get_synthetic_user_prompt(
             question=question,
