@@ -641,10 +641,9 @@ class NodeCanonicalNoveltySignal(NodeSignalDetector):
     - confirming: node maps to a pre-existing canonical slot
     - orphan: node has no canonical slot mapping (treat as novel)
 
-    Implementation: Option B — in-memory dict `_slot_first_seen` mapping
-    slot_id → first turn seen during the session. Persists across turns
-    within a session but resets if the process restarts (acceptable
-    because sessions are typically single-process).
+    Implementation: Reads/writes `canonical_slot_first_seen` dict from
+    NodeStateTracker, which persists via to_dict/from_dict to the database.
+    Cross-turn memory survives signal re-instantiation and process restarts.
 
     When enable_canonical_slots is False (canonical_slot_repo is None),
     returns an empty dict to gracefully skip.
@@ -659,8 +658,6 @@ class NodeCanonicalNoveltySignal(NodeSignalDetector):
 
     def __init__(self, node_tracker=None) -> None:
         super().__init__(node_tracker)
-        # slot_id -> first turn it was seen in this session
-        self._slot_first_seen: dict[str, int] = {}
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
         """Detect canonical novelty for all tracked nodes.
@@ -693,10 +690,11 @@ class NodeCanonicalNoveltySignal(NodeSignalDetector):
                 continue
 
             slot_id = mapping.canonical_slot_id
-            if slot_id not in self._slot_first_seen:
-                self._slot_first_seen[slot_id] = current_turn
+            slot_first_seen = self.node_tracker.canonical_slot_first_seen
+            if slot_id not in slot_first_seen:
+                slot_first_seen[slot_id] = current_turn
 
-            if self._slot_first_seen[slot_id] == current_turn:
+            if slot_first_seen[slot_id] == current_turn:
                 results[node_id] = "new"
             else:
                 results[node_id] = "confirming"

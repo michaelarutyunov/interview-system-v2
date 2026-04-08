@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 # Schema version for node_tracker_state serialization
 # Increment when structure changes to handle migration
-NODE_TRACKER_SCHEMA_VERSION = 1
+NODE_TRACKER_SCHEMA_VERSION = 2
 
 
 @dataclass
@@ -73,6 +73,7 @@ class NodeStateTracker:
         self.states: Dict[str, NodeState] = {}
         self.previous_focus: Optional[str] = None
         self.canonical_slot_repo = canonical_slot_repo
+        self.canonical_slot_first_seen: Dict[str, int] = {}
         self.log = structlog.get_logger(__name__)
 
     async def _resolve_canonical_slot_id(self, surface_node_id: str) -> str:
@@ -459,6 +460,7 @@ class NodeStateTracker:
             "schema_version": NODE_TRACKER_SCHEMA_VERSION,
             "previous_focus": self.previous_focus,
             "states": states_dict,
+            "canonical_slot_first_seen": self.canonical_slot_first_seen,
         }
 
     @classmethod
@@ -477,12 +479,12 @@ class NodeStateTracker:
         Raises:
             ValueError: If schema version is incompatible
         """
-        # Validate schema version
+        # Validate schema version (support v1 and v2)
         schema_version = data.get("schema_version", 1)
-        if schema_version != NODE_TRACKER_SCHEMA_VERSION:
+        if schema_version not in (1, 2):
             raise ValueError(
                 f"Incompatible node_tracker_state schema version: "
-                f"expected {NODE_TRACKER_SCHEMA_VERSION}, got {schema_version}"
+                f"expected 1 or 2, got {schema_version}"
             )
 
         tracker = cls()
@@ -500,6 +502,9 @@ class NodeStateTracker:
 
             # Reconstruct NodeState from dict
             tracker.states[node_id] = NodeState(**state_dict)
+
+        # Restore canonical_slot_first_seen (schema v2+, defaults to empty for v1)
+        tracker.canonical_slot_first_seen = data.get("canonical_slot_first_seen", {})
 
         return tracker
 
