@@ -333,13 +333,18 @@ class CanonicalEdgeDensitySignal(SignalDetector):
 
     Higher values indicate more connected structure among deduplicated
     concepts. Replaces coverage breadth signal (not relevant for exploration).
+
+    **IMPORTANT**: This signal is UNBOUNDED above 1.0 (e.g., 3 edges / 2 nodes = 1.5).
+    Safe for bare-key direct multiplication in YAML weights (e.g., `graph.canonical_edge_density: 0.5`).
+    NOT SAFE with threshold suffixes (.low/.mid/.high) which assume [0,1] input.
+    When canonical_graph_state is None, returns {} (absent), not 0.0.
     """
 
     signal_name = "graph.canonical_edge_density"
     description = (
         "Edge-to-concept ratio in canonical graph. Higher = more connected structure. "
         "Uses deduplicated concepts, so reflects relationship density among stable concepts "
-        "rather than surface paraphrases."
+        "rather than surface paraphrases. UNBOUNDED above 1.0 — use bare-key weights only."
     )
     dependencies = []
 

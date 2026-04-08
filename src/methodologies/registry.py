@@ -225,6 +225,31 @@ class MethodologyRegistry:
                         f"unknown signal weight key '{weight_key}'"
                     )
 
+                # Guard against unbounded int signals in signal_weights
+                # These return raw counts (node_count, edge_count, orphan_count)
+                # which can wildly miscalibrate scoring when multiplied by weights
+                unbounded_signals = {
+                    "graph.node_count",
+                    "graph.edge_count",
+                    "graph.orphan_count",
+                }
+                # Extract base signal name by removing threshold suffixes (.low/.mid/.high/.true/.false)
+                # weight_key format: "signal.name" or "signal.name.suffix"
+                parts = weight_key.split(".")
+                if len(parts) >= 2:
+                    # Reconstruct base signal (first two parts: pool.name)
+                    base_signal = f"{parts[0]}.{parts[1]}"
+                else:
+                    base_signal = weight_key
+
+                if base_signal in unbounded_signals:
+                    errors.append(
+                        f"strategies[{i}] '{strategy.name}': "
+                        f"unbounded count signal '{base_signal}' not allowed in signal_weights. "
+                        f"Raw integer counts can't be safely multiplied by weights. "
+                        f"Use normalized signals or remove this weight key."
+                    )
+
         # 3. Validate phases reference defined strategies
         if config.phases:
             for phase_name, phase_config in config.phases.items():

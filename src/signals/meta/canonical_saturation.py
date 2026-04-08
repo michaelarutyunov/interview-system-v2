@@ -14,7 +14,9 @@ class CanonicalSaturationSignal(SignalDetector):
 
     Formula: saturation = 1.0 - min(canonical_delta / surface_delta, 1.0)
 
-    Output: 0.0 (all new themes) to 1.0 (pure deduplication).
+    Output: 0.0 (all new themes) to 1.0 (pure deduplication or no extraction).
+    Edge case: When surface_delta == 0 (no extraction), returns 1.0 (fully saturated)
+    on the principle that no new information = maximum saturation.
     Returns empty dict if canonical slots are disabled.
     Instantaneous per-turn, no smoothing.
 
@@ -48,7 +50,10 @@ class CanonicalSaturationSignal(SignalDetector):
         if surface_delta > 0:
             novelty_ratio = min(canonical_delta / surface_delta, 1.0)
         else:
-            novelty_ratio = 1.0  # no extraction — not saturated
+            # No extraction this turn — treat as fully saturated (nothing new emerged)
+            # This is semantically coherent: if the conversation produces no new
+            # surface nodes, the respondent has exhausted topical contributions.
+            novelty_ratio = 0.0  # no novelty = fully saturated
 
         saturation = 1.0 - novelty_ratio
         return {self.signal_name: round(saturation, 4)}
