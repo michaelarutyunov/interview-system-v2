@@ -120,37 +120,6 @@ class GraphMaxDepthSignal(SignalDetector):
         return 5.0
 
 
-class GraphAvgDepthSignal(SignalDetector):
-    """Average depth of all nodes in the graph.
-
-    Namespaced signal: graph.avg_depth
-    """
-
-    signal_name = "graph.avg_depth"
-    description = "Average depth across all chains. Indicates overall depth of exploration. Values below 2 suggest surface-focused conversation, 2-3 indicate balanced depth, above 3 indicate consistently deep exploration."
-    dependencies = []
-
-    async def detect(self, context, graph_state, response_text):
-        """Return average depth from depth metrics."""
-        return {self.signal_name: graph_state.depth_metrics.avg_depth}
-
-
-class DepthByElementSignal(SignalDetector):
-    """Depth of each element in the graph.
-
-    Namespaced signal: graph.depth_by_element
-
-    Returns a dict mapping element_id → depth.
-    """
-
-    signal_name = "graph.depth_by_element"
-    description = "Depth of each specific element/node. Used to identify which concepts are at surface vs deep levels. Helps select focus concepts for deepening or broadening."
-    dependencies = []
-
-    async def detect(self, context, graph_state, response_text):
-        """Return depth by element from depth metrics."""
-        return {self.signal_name: graph_state.depth_metrics.depth_by_element}
-
 
 # =============================================================================
 # Chain Completion Signal (from chain_completion.py)
@@ -479,8 +448,6 @@ __all__ = [
     "OrphanCountSignal",
     # Depth
     "GraphMaxDepthSignal",
-    "GraphAvgDepthSignal",
-    "DepthByElementSignal",
     # Chain completion
     "ChainCompletionSignal",
     # Canonical

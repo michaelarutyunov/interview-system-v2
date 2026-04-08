@@ -136,7 +136,6 @@ signals:
   graph:
     - graph.node_count
     - graph.max_depth
-    - graph.avg_depth
     - graph.orphan_count
     - graph.chain_completion
     # Canonical graph signals (Phase 4, experimental)

@@ -13,8 +13,6 @@ from src.signals.graph.graph_signals import (
     GraphEdgeCountSignal,
     OrphanCountSignal,
     GraphMaxDepthSignal,
-    GraphAvgDepthSignal,
-    DepthByElementSignal,
     ChainCompletionSignal,
     CanonicalConceptCountSignal,
     CanonicalEdgeDensitySignal,
@@ -48,8 +46,6 @@ __all__ = [
     "OrphanCountSignal",
     # Depth
     "GraphMaxDepthSignal",
-    "GraphAvgDepthSignal",
-    "DepthByElementSignal",
     # Chain completion
     "ChainCompletionSignal",
     # Node-level: Exhaustion

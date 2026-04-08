@@ -170,6 +170,7 @@ Each entry below records a real failure observed in this codebase or a design co
 
 Consult these Tier 3 docs for full specifications and edge cases:
 
+- `.claude/context/signal-semantics.md` — Per-signal catalog mapping stated intent to actual computation. **Consult before adding, renaming, or removing any signal.** Records known semantic drift and the fixes needed.
 - `.claude/context/signal-detection-graph.md` — graph/node signal mechanics, correctness requirements, full symptom→cause→fix table
 - `.claude/context/signal-detection-llm.md` — LLM batch detector, `@llm_signal` decorator, rubric format
 - `.claude/context/strategy-scoring.md` — `ScoredCandidate` schema, `partition_signal_weights`, full weight resolution table

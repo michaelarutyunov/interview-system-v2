@@ -16,8 +16,6 @@ from src.signals.graph import (
     GraphEdgeCountSignal,
     OrphanCountSignal,
     GraphMaxDepthSignal,
-    GraphAvgDepthSignal,
-    DepthByElementSignal,
     ChainCompletionSignal,
     CanonicalConceptCountSignal,
     CanonicalEdgeDensitySignal,
@@ -57,7 +55,6 @@ from src.signals.session import (
 
 # Meta signals - imports all meta signals via meta/__init__.py
 from src.signals.meta import (
-    InterviewProgressSignal,
     InterviewPhaseSignal,
     NodeOpportunitySignal,
 )
@@ -72,8 +69,6 @@ __all__ = [
     "GraphEdgeCountSignal",
     "OrphanCountSignal",
     "GraphMaxDepthSignal",
-    "GraphAvgDepthSignal",
-    "DepthByElementSignal",
     "ChainCompletionSignal",
     "CanonicalConceptCountSignal",
     "CanonicalEdgeDensitySignal",
@@ -98,7 +93,6 @@ __all__ = [
     "NodeStrategyRepetitionSignal",
     "GlobalResponseTrendSignal",
     # Meta signals
-    "InterviewProgressSignal",
     "InterviewPhaseSignal",
     "NodeOpportunitySignal",
 ]
