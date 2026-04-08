@@ -14,6 +14,8 @@ After processing the current turn's concepts, the full session node map is loade
 
 **Edge deduplication:** duplicate edges (same source, target, and `edge_type`) are merged — the utterance is added to the existing edge's provenance rather than creating a new edge.
 
+**Supersession on revises edges:** when `_add_edge_from_relationship()` encounters `relationship_type == "revises"`, it calls `repo.supersede_node(target_node.id, source_node.id)` to mark the target (old belief) as superseded by the source (new belief). This sets `superseded_by` on the old node, which causes it to be excluded from `get_nodes_by_session()` queries (filtered by `WHERE superseded_by IS NULL`). The revises edge itself is still created normally. Superseded nodes are filtered out of chain walking and graph state counts.
+
 **Scope:** deduplication is session-scoped. The same concept text in different sessions creates independent nodes.
 
 ## Correctness Requirements
@@ -34,6 +36,7 @@ After processing the current turn's concepts, the full session node map is loade
 | Edges lost after dedup | Edge dedup merge not adding utterance to provenance | Check `edge_deduplicated` log and `repo.add_edge_source_utterance()` path |
 | Nodes created without embeddings | `embedding_service` unavailable or encoding failed | Check `embedding_service` initialization; verify spaCy model (`en_core_web_md`) is installed |
 | `aggregate_surface_edges_to_canonical` raises `AttributeError` | `canonical_slot_repo` is `None` but `enable_canonical_slots=True` | Verify `GraphService` is constructed with `canonical_slot_repo` when dual-graph mode is enabled |
+| Revises edges exist but `superseded_by` is always `NULL` | Supersession logic in `_add_edge_from_relationship` not triggered — edge created without calling `supersede_node()` | Check `node_superseded_via_revises` log; verify revises edge type matches methodology YAML definition |
 
 ## Key Files
 
