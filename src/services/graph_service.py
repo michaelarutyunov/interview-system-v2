@@ -321,6 +321,17 @@ class GraphService:
             )
             return None
 
+        # Handle revises edges: mark target node as superseded by source
+        if relationship.relationship_type == "revises":
+            await self.repo.supersede_node(target_node.id, source_node.id)
+            log.info(
+                "node_superseded_via_revises",
+                old_node_id=target_node.id,
+                old_label=target_node.label,
+                new_node_id=source_node.id,
+                new_label=source_node.label,
+            )
+
         # Check for existing edge (deduplication)
         existing = await self.repo.find_edge(
             session_id=session_id,
@@ -417,58 +428,6 @@ class GraphService:
         nodes = await self.repo.get_nodes_by_session(session_id)
         sorted_nodes = sorted(nodes, key=lambda n: n.recorded_at, reverse=True)
         return sorted_nodes[:limit]
-
-    async def handle_contradiction(
-        self,
-        session_id: str,
-        old_node_id: str,
-        new_concept: ExtractedConcept,
-        utterance_id: str,
-    ) -> Tuple[KGNode, KGEdge]:
-        """
-        Handle a contradiction between old and new beliefs.
-
-        Creates new node and REVISES edge, marks old node as superseded.
-
-        Args:
-            session_id: Session ID
-            old_node_id: ID of node being contradicted
-            new_concept: New contradicting concept
-            utterance_id: Source utterance ID
-
-        Returns:
-            (new_node, revises_edge) tuple
-        """
-        # Create new node for the new belief
-        new_node = await self.repo.create_node(
-            session_id=session_id,
-            label=new_concept.text,
-            node_type=new_concept.node_type,
-            confidence=new_concept.confidence,
-            source_utterance_ids=[utterance_id],
-            stance=new_concept.stance if new_concept.stance is not None else 0,
-        )
-
-        # Mark old node as superseded
-        await self.repo.supersede_node(old_node_id, new_node.id)
-
-        # Create REVISES edge
-        edge = await self.repo.create_edge(
-            session_id=session_id,
-            source_node_id=new_node.id,
-            target_node_id=old_node_id,
-            edge_type="revises",
-            confidence=new_concept.confidence,
-            source_utterance_ids=[utterance_id],
-        )
-
-        log.info(
-            "contradiction_handled",
-            old_node_id=old_node_id,
-            new_node_id=new_node.id,
-        )
-
-        return new_node, edge
 
     async def aggregate_surface_edges_to_canonical(
         self,
