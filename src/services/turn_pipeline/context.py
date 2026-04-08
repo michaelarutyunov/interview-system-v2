@@ -120,6 +120,16 @@ class PipelineContext:
     scoring_persistence_output: Optional[ScoringPersistenceOutput] = None
 
     # =============================================================================
+    # Ephemeral intra-stage state (not persisted, not part of any contract)
+    # =============================================================================
+
+    # Set by MethodologyStrategyService after global signal detection and before
+    # node signal detection, so node-level detectors (e.g. meta.node.opportunity)
+    # can read current-turn LLM signals rather than the stale previous-turn
+    # context.signals. Cleared / unused after strategy selection completes.
+    current_turn_global_signals: Optional[Dict[str, Any]] = None
+
+    # =============================================================================
     # Convenience Properties (derive from contracts, don't duplicate state)
     # =============================================================================
     # These provide backward compatibility while keeping contracts as source of truth

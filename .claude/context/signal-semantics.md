@@ -80,7 +80,7 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 
 7. **`graph.node.exhaustion_score` shallow_ratio counts both `surface` AND `shallow`** (graph-node).
    Agent doc Section 4 says "fraction of entries equal to `surface`." Base class counts both `surface` and `shallow`. The two-category count is more nuanced and probably correct, but the agent doc lies.
-   **Fix:** Update Section 4 of `signal-specialist/AGENT.md`.
+   **Fix:** ✅ **FIXED** — Updated Section 4 of `signal-specialist/AGENT.md` (line 69) and `docs/signals_moderator_guide.md` (line 89) to correctly state "counts both `surface` AND `shallow`". Also updated the quick reference to clarify the moderator interpretation of the signal.
 
 8. **`llm.response_depth` name vs computation** (LLM).
    Name evokes laddering depth (semantic). Rubric measures *number of distinct propositions* introduced (informational breadth). A respondent giving five surface facts scores 4–5 ("deep"); a respondent giving one introspective insight scores 2. YAML strategies treating `response_depth.deep` as "respondent is going deep" silently misuse the signal.
@@ -129,7 +129,7 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 | P1 | Decide rename or document for `llm.response_depth` (depth vs richness) | Low (decision); medium (rename) |
 | P1 | Fix `meta.node.opportunity` stale `response_depth` read | Medium |
 | P1 | Fix `meta.canonical.saturation` empty-extraction edge case (or accept design) | Low (decision) |
-| P2 | Update `signal-specialist/AGENT.md` Section 4 shallow_ratio definition | Trivial |
+| ✅ | **DONE:** Fix `signal-specialist/AGENT.md` Section 4 shallow_ratio definition | Trivial |
 | P2 | Fix `llm.specificity` inverted class docstring | Trivial |
 | P2 | Update moderator guide for the documented likely-trivial drifts | Low |
 
@@ -160,10 +160,10 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 | Signal | Stated intent (guide) | Actual computation | Match | Failure mode | Severity | Recommended action |
 |---|---|---|---|---|---|---|
 | `graph.node.exhausted` | Focused before, no yield 3+ turns, ≥66% of last 3 shallow | `focus_count >= 1` AND `turns_since_last_yield >= 2` (not 3) AND `focus_streak >= 2` AND `shallow_ratio >= 0.66` | ⚠️ | Mode 2+5: docstring/guide say 3 turns, code uses 2; can fire before sibling `yield_stagnation` | plausible-impact | Pick canonical threshold; align code, docstring, guide, sibling signal |
-| `graph.node.exhaustion_score` | 0–1 weighted sum: 40% turns_since_yield + 30% focus_streak + 30% shallow_ratio | Formula matches exactly. `shallow_ratio` counts both `surface` AND `shallow` (agent doc says only `surface`) | ⚠️ | Mode 2: agent doc Section 4 mismatch | plausible-impact | Fix agent doc Section 4 |
+| `graph.node.exhaustion_score` | 0–1 weighted sum: 40% turns_since_yield + 30% focus_streak + 30% shallow_ratio | Formula matches exactly. `shallow_ratio` counts both `surface` AND `shallow`. ✅ **FIXED** — agent doc and moderator guide now correctly state both categories are counted | ✅ | none | none | None — all docs now align |
 | `graph.node.yield_stagnation` | Boolean: no yield for 3+ consecutive turns on previously-focused node | `focus_count > 0` AND `turns_since_last_yield >= 3` | ✅ | none | none | None |
 | `graph.node.focus_streak` | Categorical count of consecutive focus turns: none=0, low=1, medium=2-3, high=4+ | Bins exactly as documented; reads `state.current_focus_streak` (correctly NOT reset in `record_yield()`) | ✅ | none | none | None — bin thresholds match guide |
-| `graph.node.is_current_focus` | Boolean: true for currently active focus node | Compares each `node_id` to `node_tracker.previous_focus` | ⚠️ | Mode 2: name says "current," reads "previous" — correct given stage timing but misleading | plausible-impact | Rename to `is_prior_focus` OR clarify in guide |
+| `graph.node.is_current_focus` | Boolean: true for currently active focus node | Compares each `node_id` to `node_tracker.previous_focus` | ⚠️ | Mode 2: name says "current," reads "previous" — correct given stage timing but misleading | plausible-impact | Rename to `graph.node.is_prior_focus` OR add a clarifying note in the moderator guide. ✅ **CLARIFIED** — moderator guide updated (line 92) to note that signal reads previous_focus due to pipeline stage ordering |
 | `graph.node.recency_score` | Float 1.0→0.0 decaying over 20 turns since last focus | `max(0.0, 1.0 - turns_since_last_focus / 20.0)`; 0.0 if never focused | ✅ | none | none | None |
 | `graph.node.is_orphan` | Boolean: zero incoming AND zero outgoing edges | Reads `state.is_orphan` property | ✅ | none | none | None |
 | `graph.node.edge_count` | Sum of incoming + outgoing edges per node | `state.edge_count_incoming + state.edge_count_outgoing` | ✅ | none | none | None |

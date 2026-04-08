@@ -200,20 +200,38 @@ class NodeOpportunitySignal(NodeSignalDetector):
         return prev_opportunities.get(node_id)
 
     def _get_response_depth(self, context) -> Optional[str]:
-        """Get response depth from context signals.
+        """Get response depth from the current-turn global signals.
+
+        Reads ``context.current_turn_global_signals`` which is set by
+        ``MethodologyStrategyService.select_strategy_and_focus()`` immediately
+        after global signal detection and before node signal detection runs.
+        This guarantees the value reflects the *current* turn's LLM assessment.
+
+        Falls back to ``context.signals`` (previous-turn StrategySelectionOutput)
+        only when called outside the normal detection flow (e.g. in unit tests
+        that do not set ``current_turn_global_signals``).
 
         Args:
             context: Pipeline context
 
         Returns:
-            Response depth string or None
+            Response depth string (e.g. "deep", "moderate", "shallow", "surface")
+            or None if unavailable.
         """
-        # Try to get from context.signals if available
+        # Prefer current-turn global signals (set by MethodologyStrategyService
+        # before node detection begins — always fresh, never stale).
+        if (
+            hasattr(context, "current_turn_global_signals")
+            and context.current_turn_global_signals
+        ):
+            return context.current_turn_global_signals.get("llm.response_depth")
+
+        # Fallback: previous-turn signals from StrategySelectionOutput.
+        # NOTE: this path is intentionally stale — it is only reached when
+        # current_turn_global_signals is absent (e.g. isolated unit tests).
         if hasattr(context, "signals") and context.signals:
             return context.signals.get("llm.response_depth")
 
-        # Try to get from response_text analysis
-        # This is a simplified fallback - in production would use LLM
         return None
 
     def _calculate_shallow_ratio(self, state, recent_count: int = 3) -> float:

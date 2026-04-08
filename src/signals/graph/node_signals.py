@@ -309,6 +309,15 @@ class NodeIsCurrentFocusSignal(NodeSignalDetector):
     focus), all others return False. Used for strategy selection
     rules that need to know the active focus.
 
+    CRITICAL TIMING NOTE: This signal is detected at Stage 6 (StrategySelectionStage),
+    but the focus update happens in Stage 6.1 (update_focus() at the end of strategy
+    selection). At signal-detection time, update_focus() has NOT yet been called,
+    so this signal reflects the PREVIOUS TURN's focus node, not the turn being
+    currently processed. Strategy YAML weights should account for this: if targeting
+    a "current" node, you're actually targeting the node that was focused in the
+    prior turn. This is by design (to allow strategies to reference the incumbent
+    focus) but the name is slightly misleading due to pipeline stage ordering.
+
     Namespaced signal: graph.node.is_current_focus
     Cost: low (reads from NodeStateTracker.previous_focus)
     Refresh: per_turn (recomputed each turn after state updates)

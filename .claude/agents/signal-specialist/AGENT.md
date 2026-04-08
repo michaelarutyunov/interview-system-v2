@@ -66,7 +66,7 @@ exhaustion_score = (
 ```
 
 - Bounded `[0.0, 1.0]`. Bands: `[0.0, 0.3)` fresh, `[0.3, 0.6)` moderate, `[0.6, 1.0]` exhausted.
-- `shallow_response_ratio` = fraction of recent `all_response_depths` entries equal to `"surface"`.
+- `shallow_response_ratio` = fraction of recent `all_response_depths` entries equal to `"surface"` or `"shallow"`.
 - Nodes never focused (`focus_count == 0`) return `0.0` regardless of other state.
 
 Binary `NodeExhaustedSignal` requires **all four**: `focus_count >= 1`, `turns_since_last_yield >= 2`, `current_focus_streak >= 2`, and at least 2/3 of recent responses are `"surface"`.

@@ -8,6 +8,8 @@ Signal classes are defined with zero boilerplate using the `@llm_signal` decorat
 
 Rubrics in `signals.md` define a 1–5 integer scale. At detection time all six per-turn signals are **normalised to [0, 1]** via `(score - 1) / 4`. The exception is `response_depth`, which is treated categorically (the integer band drives discrete strategy weights such as `response_depth.low`).
 
+**Important: `response_depth` specifically measures the COUNT OF DISTINCT PROPOSITIONS/CONCEPTS introduced, not semantic depth or laddering.** Scores 1–5 map to: 1 = single restated fact; 2 = one main point; 3 = two to three propositions; 4–5 = four or more propositions, reasoning chains, or examples. Both scores 4 and 5 map to the `deep` category in the downstream bin mapping (see `src/signals/llm/batch_detector.py` lines 329–335). This is a breadth-of-content measurement, not a depth-of-reasoning measurement. Use `intellectual_engagement` in combination with `response_depth` to assess whether the respondent is reasoning deeply about those propositions.
+
 `llm.global_response_trend` is **not** a per-turn signal. It is a session-level aggregate computed separately in `GlobalSignalDetectionService` from the rolling history of per-turn scores. Its values are categorical strings (`improving`, `degrading`, `stable`).
 
 A signal is **only active** if it appears in the methodology YAML under `signals: llm:`. Signals absent from that list are never sent to the LLM and never appear in scoring.

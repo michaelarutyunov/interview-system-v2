@@ -182,6 +182,13 @@ class MethodologyStrategyService:
             signals=global_signals,
         )
 
+        # Expose current-turn global signals on context so node-level detectors
+        # (e.g. meta.node.opportunity) can read llm.response_depth for the
+        # *current* turn rather than the stale previous-turn context.signals.
+        # This attribute is ephemeral — set here, consumed during node detection,
+        # not persisted to any contract output.
+        context.current_turn_global_signals = global_signals
+
         # Detect node-level signals (delegated to NodeSignalDetectionService)
         node_signals = await self.node_signal_service.detect(
             context=context,
