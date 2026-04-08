@@ -70,10 +70,14 @@ class GraphUpdateStage(TurnStage):
         extraction = context.extraction_output.extraction
         utterance_id = context.utterance_saving_output.user_utterance.id
 
+        # Get methodology from context for permitted_connections validation
+        methodology = context.methodology
+
         nodes, edges = await self.graph.add_extraction_to_graph(
             session_id=context.session_id,
             extraction=extraction,
             utterance_id=utterance_id,
+            methodology=methodology,
         )
 
         # Convert edges to dicts for contract output

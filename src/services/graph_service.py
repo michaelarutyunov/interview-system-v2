@@ -72,6 +72,7 @@ class GraphService:
         session_id: str,
         extraction: ExtractionResult,
         utterance_id: str,
+        methodology: Optional[str] = None,
     ) -> Tuple[List[KGNode], List[KGEdge]]:
         """
         Add extraction results to the knowledge graph.
@@ -79,12 +80,14 @@ class GraphService:
         Pipeline:
         1. For each concept: deduplicate or create node
         2. Link nodes to source utterance
-        3. For each relationship: create edge between nodes
+        3. For each relationship: create edge between nodes (with permitted_connections validation)
 
         Args:
             session_id: Session ID
             extraction: Extraction result from ExtractionService
             utterance_id: Source utterance ID for provenance
+            methodology: Optional methodology schema name for permitted_connections validation.
+                        When provided, validates edges against schema after dedup resolution.
 
         Returns:
             (added_nodes, added_edges) tuple
@@ -141,6 +144,7 @@ class GraphService:
                 relationship=relationship,
                 label_to_node=label_to_node,
                 utterance_id=utterance_id,
+                methodology=methodology,
             )
             if edge:
                 added_edges.append(edge)
@@ -272,18 +276,23 @@ class GraphService:
         relationship: ExtractedRelationship,
         label_to_node: dict,
         utterance_id: str,
+        methodology: Optional[str] = None,
     ) -> Optional[KGEdge]:
         """
         Create edge from extracted relationship.
+
+        Performs permitted_connections validation after dedup resolution
+        to catch cross-turn edges that bypass extraction-time validation.
 
         Args:
             session_id: Session ID
             relationship: Extracted relationship
             label_to_node: Map of concept text to node
             utterance_id: Source utterance ID
+            methodology: Optional methodology schema name for permitted_connections validation
 
         Returns:
-            KGEdge or None if nodes not found
+            KGEdge or None if nodes not found or validation fails
         """
         # Find source and target nodes
         source_node = label_to_node.get(relationship.source_text.lower())
@@ -320,6 +329,29 @@ class GraphService:
                 target_found=target_node is not None,
             )
             return None
+
+        # Permitted_connections validation (post-dedup)
+        # This validates cross-turn edges that bypass extraction-time validation
+        # because concept_types only contains current-turn concepts
+        if methodology:
+            from src.core.schema_loader import load_methodology
+
+            schema = load_methodology(methodology)
+            if not schema.is_valid_connection(
+                relationship.relationship_type,
+                source_node.node_type,
+                target_node.node_type,
+            ):
+                log.warning(
+                    "invalid_connection_post_dedup",
+                    edge_type=relationship.relationship_type,
+                    source_type=source_node.node_type,
+                    target_type=target_node.node_type,
+                    source_label=source_node.label,
+                    target_label=target_node.label,
+                    is_cross_turn=is_cross_turn,
+                )
+                return None
 
         # Handle revises edges: mark target node as superseded by source
         if relationship.relationship_type == "revises":
