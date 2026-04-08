@@ -26,11 +26,15 @@ The `current_focus_streak` on a node resets only when focus changes — in `upda
 
 4. **`turns_since_last_yield` increments for ALL nodes every turn**, not just the focused node. This tick happens inside `update_focus()` — the loop that sets the new focus also increments `turns_since_last_yield` for nodes that were not yielded this turn. Without this global tick, the counter stalls and `exhaustion_score` never grows.
 
-5. **`meta.node.opportunity` depends on LLM signals being detected first.** It combines `graph.node.exhaustion_score` with `llm.response_depth` to classify nodes as `exhausted`, `probe_deeper`, or `fresh`. It must run after the LLM signal pool is evaluated.
+5. **`meta.node.opportunity` reads `llm.response_depth` from the current turn via `context.current_turn_global_signals`.** `MethodologyStrategyService.select_strategy_and_focus()` sets `context.current_turn_global_signals = global_signals` immediately after global signal detection and before calling `NodeSignalDetectionService`. `meta.node.opportunity._get_response_depth()` reads this attribute first, and falls back to `context.signals` (previous-turn output) only if the attribute is absent. Do NOT read `context.signals` directly for current-turn LLM data — it holds the prior turn's `StrategySelectionOutput.signals`.
 
 6. **Boolean weight keys must use `.true` or `.false` suffix.** For signals that return `True`/`False` per node (e.g., `graph.node.exhausted`, `graph.node.is_orphan`), YAML weight keys must be `graph.node.exhausted.true` and `graph.node.exhausted.false`. Using `.yes` / `.no` or omitting the suffix causes the weight to never match.
 
 7. **`NodeCanonicalNoveltySignal` returns `{}` when `enable_canonical_slots=False`.** This is a valid empty-result, not an error. Downstream scoring must handle empty node signal dicts without crashing.
+
+8. **`graph.canonical_exhaustion_score` returns `{}` (absent) when `canonical_slot_repo is None`.** When `enable_canonical_slots=False`, the signal skips computation entirely rather than silently falling back to surface-node exhaustion — which would contradict its name/semantics. Consistent with `graph.canonical_edge_density`, which uses the same guard. Location: `src/signals/graph/graph_signals.py`, `CanonicalExhaustionScoreSignal.detect()`.
+
+9. **`graph.node.is_current_focus` reflects the PREVIOUS turn's focus node at signal-detection time.** `update_focus()` has not yet been called when node signals are detected (it runs later in Stage 6 strategy selection). The signal reads `node_tracker.previous_focus`, so the node that was focused last turn returns `True`. This is by design — strategies reference the incumbent focus — but the name is slightly misleading. Do not rename; add this timing context to any documentation or agent instructions referencing this signal.
 
 ---
 
@@ -43,7 +47,10 @@ The `current_focus_streak` on a node resets only when focus changes — in `upda
 | `graph.node.exhaustion_score` stays near 0.0 despite repeated focus | `turns_since_last_yield` never increments because the tick in `update_focus()` is missing for non-focused nodes | Ensure `update_focus()` ticks `turns_since_last_yield += 1` for ALL nodes in the loop, not only the new focus |
 | Signal weight key never matches; strategy score ignores the signal | Wrong bin name in YAML — used `.medium` instead of `.mid`, or `.yes`/`.no` instead of `.true`/`.false` | Valid bins for floats: `.low`, `.mid`, `.high`; for booleans: `.true`, `.false`; for categories: match the exact string (e.g., `.none`, `.low`, `.medium`, `.high`) |
 | `meta.node.opportunity` always returns `fresh` even for exhausted nodes | `meta.node.opportunity` evaluated before `llm.response_depth` is available | Check signal dependency ordering; LLM signals must resolve before meta signals that depend on them |
+| `meta.node.opportunity.probe_deeper` fires based on prior-turn response depth | `_get_response_depth()` was reading `context.signals` (previous-turn output) instead of current-turn LLM signals | Read `context.current_turn_global_signals` (set by `MethodologyStrategyService` post-global-detection); see Requirement #5 |
 | `graph.node.canonical_novelty` missing from signals dict | `enable_canonical_slots=False` — the signal returns `{}` by design | No fix needed; downstream code must handle empty node signal dicts gracefully |
+| `graph.canonical_exhaustion_score` not in signal output despite canonical slots being active | `node_tracker.canonical_slot_repo is None` — canonical slot repo was not injected into NodeStateTracker | Ensure `canonical_slot_service` is passed when constructing `NodeStateTracker`; see Requirement #8 |
+| `graph.node.is_current_focus` returns `True` for last turn's focus, not this turn's chosen node | By design — `update_focus()` hasn't run yet at detection time | Expected behavior; see Requirement #9. Do not attempt to read post-update focus during signal detection. |
 
 ---
 
