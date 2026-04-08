@@ -8,7 +8,7 @@
 1. **Fast extractability check** — heuristics filter out responses that are too short (< `min_word_count`, default 3), single words, or pure yes/no affirmatives. Returns `is_extractable=False` without calling LLM.
 2. **LLM extraction** — calls `_extract_via_llm()` with a methodology-aware system prompt (node types, edge types, naming convention from `MethodologySchema`) and a user prompt containing the response text plus conversation context. Temperature 0.4, max tokens 4000, `response_format={"type": "json_object"}`.
 3. **Concept parsing** (`_parse_concepts`) — validates each concept's `node_type` against the methodology schema. Enriches valid concepts with `is_terminal` and `level` from the schema. Sets `source_utterance_id` for traceability. Invalid node types are skipped with a warning log (`invalid_node_type`).
-4. **Relationship parsing** (`_parse_relationships`) — validates `relationship_type` against the methodology schema. Note: `permitted_connections` validation is **disabled** (commented out) to allow unrestricted edge extraction; the LLM is already methodology-aware from the system prompt.
+4. **Relationship parsing** (`_parse_relationships`) — validates `relationship_type` against the methodology schema. `permitted_connections` is validated via `schema.is_valid_connection()`: strict methodologies (with `permitted_connections` defined) reject invalid type pairs; flex methodologies (no `permitted_connections`) allow all connections. Validation only covers current-turn concepts — cross-turn edges referencing prior-turn nodes bypass this check (see known gap in ui0f). The prompt includes type-pair hints for strict methodologies via `get_edge_descriptions_with_connections()`.
 5. **Element linking** — if `concept_id` is configured, concepts are linked to methodology elements via LLM-provided `linked_elements` field, with an alias-matching fallback.
 
 Returns `ExtractionResult` with `concepts`, `relationships`, `is_extractable`, and `latency_ms`.
@@ -20,7 +20,7 @@ Returns `ExtractionResult` with `concepts`, `relationships`, `is_extractable`, a
 1. **`node_type` must match the methodology ontology** — validation in `_parse_concepts` skips invalid types. If the extraction prompt doesn't reflect the current ontology, nodes with stale types will be silently dropped.
 2. **`source_utterance_id` must be set** — the traceability chain (utterance → concept → graph node) depends on this. If `source_utterance_id` is `None`, the fallback value `"unknown"` is used, breaking provenance.
 3. **Empty extraction is valid** — `ExtractionResult(is_extractable=False)` with empty `concepts` and `relationships` is a normal outcome for short or ambiguous responses. Do not treat as error.
-4. **`edge_type` is validated; `permitted_connections` is not** — only `is_valid_edge_type()` runs. The LLM is expected to produce valid connections from the methodology prompt alone.
+4. **`permitted_connections` is conditionally enforced** — `is_valid_edge_type()` always runs. `is_valid_connection()` runs only for edges where both source and target types are found in the current extraction batch. Strict methodologies enforce the whitelist; flex methodologies (no `permitted_connections` on the edge type) allow all. Cross-turn edges bypass validation (known gap — bead ui0f).
 5. **Temperature 0.4** — intentionally higher than pure retrieval tasks to allow relationship inference across the conversation context.
 
 ## Symptom → Cause → Fix
@@ -33,6 +33,7 @@ Returns `ExtractionResult` with `concepts`, `relationships`, `is_extractable`, a
 | Extraction always returns empty | Response too short or triggers yes/no filter | Check `extraction_skipped_heuristic` log; check `llm.response_depth` signal for shallow/surface values |
 | `ExtractionError` raised | LLM call failed or returned invalid JSON | Check `extraction_llm_error` / `extraction_json_parse_failed` logs; verify LLM client config |
 | Concepts lack element links | `concept_id` not configured, or alias match failed | Verify `concept_id` is set in service init; check `concept_linked_via_alias_fallback` debug logs |
+| Strict mode edges violate `permitted_connections` | Cross-turn edge references prior-turn concept not in `concept_types` map — validation skipped | Known gap (bead ui0f); will be fixed at graph_service level after dedup resolution |
 
 ## Key Files
 
