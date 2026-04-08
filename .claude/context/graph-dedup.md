@@ -16,6 +16,8 @@ After processing the current turn's concepts, the full session node map is loade
 
 **Supersession on revises edges:** when `_add_edge_from_relationship()` encounters `relationship_type == "revises"`, it calls `repo.supersede_node(target_node.id, source_node.id)` to mark the target (old belief) as superseded by the source (new belief). This sets `superseded_by` on the old node, which causes it to be excluded from `get_nodes_by_session()` queries (filtered by `WHERE superseded_by IS NULL`). The revises edge itself is still created normally. Superseded nodes are filtered out of chain walking and graph state counts.
 
+**Permitted connections validation (post-dedup):** after both source and target nodes are resolved, `_add_edge_from_relationship()` validates the edge against the methodology's `permitted_connections` schema when `methodology` parameter is provided. This validation uses the **post-dedup node types** (actual KGNode types after semantic merge), not the LLM-assigned types from extraction. This catches cross-turn edges that bypass extraction-time validation (which only checks current-turn concepts). Invalid edges are rejected with `invalid_connection_post_dedup` log. The `revises` edge type is always permitted (wildcard `["*", "*"]` in schema). Validation is skipped when `methodology=None` for backward compatibility.
+
 **Scope:** deduplication is session-scoped. The same concept text in different sessions creates independent nodes.
 
 ## Correctness Requirements
@@ -25,6 +27,7 @@ After processing the current turn's concepts, the full session node map is loade
 3. **Same `node_type` required for semantic merge** — two concepts of different types (e.g., `attribute` vs. `functional_consequence`) will never merge even if text is similar.
 4. **Cross-turn edge resolution loads all session nodes** — edges referencing prior-turn concepts are correctly wired only because the full session graph is loaded at Step 1.5. If this load fails or returns stale data, cross-turn edges will be silently dropped (`edge_skipped_missing_node`).
 5. **Dedup is session-scoped** — no global or cross-session merging occurs.
+6. **Permitted connections validation uses post-dedup node types** — validation occurs after semantic dedup, so the validated types are the actual KGNode types in the database, not the LLM-assigned types from extraction. This is critical for correctness: a concept extracted as `attribute` might merge into an existing `functional_consequence` node, and the validation must use the resolved type.
 
 ## Symptom → Cause → Fix
 
@@ -37,11 +40,13 @@ After processing the current turn's concepts, the full session node map is loade
 | Nodes created without embeddings | `embedding_service` unavailable or encoding failed | Check `embedding_service` initialization; verify spaCy model (`en_core_web_md`) is installed |
 | `aggregate_surface_edges_to_canonical` raises `AttributeError` | `canonical_slot_repo` is `None` but `enable_canonical_slots=True` | Verify `GraphService` is constructed with `canonical_slot_repo` when dual-graph mode is enabled |
 | Revises edges exist but `superseded_by` is always `NULL` | Supersession logic in `_add_edge_from_relationship` not triggered — edge created without calling `supersede_node()` | Check `node_superseded_via_revises` log; verify revises edge type matches methodology YAML definition |
+| Cross-turn edges bypass permitted_connections validation | ExtractionService only validates current-turn concepts; concept_types map doesn't include prior-turn nodes | Validation moved to `_add_edge_from_relationship()` post-dedup; check `invalid_connection_post_dedup` log for rejected edges |
 
 ## Key Files
 
-- `src/services/graph_service.py` — `GraphService` (dedup logic in `_add_or_get_node`, edge resolution in `_add_edge_from_relationship`)
-- `src/services/turn_pipeline/stages/graph_update_stage.py` — Stage 4 wiring
+- `src/services/graph_service.py` — `GraphService` (dedup logic in `_add_or_get_node`, edge resolution and permitted_connections validation in `_add_edge_from_relationship`)
+- `src/services/turn_pipeline/stages/graph_update_stage.py` — Stage 4 wiring; passes `methodology` to GraphService for validation
 - `src/persistence/repositories/graph_repo.py` — `find_node_by_label_and_type`, `find_similar_nodes`, `create_node`
 - `src/domain/models/knowledge_graph.py` — `KGNode`, `KGEdge`, `GraphState`
 - `src/core/config.py` — `deduplication.surface_similarity_threshold` (default 0.80)
+- `src/domain/models/methodology_schema.py` — `MethodologySchema.is_valid_connection()` for permitted_connections check

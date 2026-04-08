@@ -16,7 +16,7 @@ Convenience properties on `PipelineContext` derive computed values from contract
 | 2 | UtteranceSavingStage | `UtteranceSavingOutput` | `turn_number`, `user_utterance_id`, `user_utterance` |
 | 2.5 | SRLPreprocessingStage | `SrlPreprocessingOutput` | `discourse_relations`, `srl_frames`, `discourse_count`, `frame_count`, `timestamp` |
 | 3 | ExtractionStage | `ExtractionOutput` | `extraction` (ExtractionResult), `methodology`, `timestamp`, `concept_count`, `relationship_count` |
-| 4 | GraphUpdateStage | `GraphUpdateOutput` | `nodes_added`, `edges_added`, `node_count`, `edge_count`, `timestamp` |
+| 4 | GraphUpdateStage | `GraphUpdateOutput` | `nodes_added`, `edges_added`, `node_count`, `edge_count`, `timestamp`. Performs permitted_connections validation for cross-turn edges after dedup resolution. |
 | 4.5 | SlotDiscoveryStage | `SlotDiscoveryOutput` | `slots_created`, `slots_updated`, `mappings_created`, `timestamp` |
 | 5 | StateComputationStage | `StateComputationOutput` | `graph_state`, `recent_nodes`, `computed_at`, `saturation_metrics`, `canonical_graph_state` |
 | 6 | StrategySelectionStage | `StrategySelectionOutput` | `strategy`, `focus`, `selected_at`, `signals`, `node_signals`, `strategy_alternatives`, `generates_closing_question`, `focus_mode`, `score_decomposition` |
@@ -46,6 +46,7 @@ Stage 2.5 (SRL) is gated by `settings.enable_srl`. Stage 4.5 (SlotDiscovery) is 
 3. `StateComputationOutput` must be written before `StrategySelectionOutput` is produced. The graph-state freshness validator on `StrategySelectionInput` enforces this by checking that `computed_at >= extraction.timestamp`.
 4. Optional stages (2.5 and 4.5) write their contracts even when skipped — they write empty/default contracts, not `None`. This ensures downstream code accessing e.g. `context.srl_preprocessing_output.discourse_relations` gets an empty list rather than an `AttributeError`.
 5. `TurnResult` is assembled from the final context in `ScoringPersistenceStage` — missing fields there propagate directly as missing fields in the API response.
+6. GraphUpdateStage performs permitted_connections validation for cross-turn edges after dedup resolution. Edges violating the methodology schema are rejected with `invalid_connection_post_dedup` log. This validation uses the resolved KGNode types (post-dedup), not the LLM-assigned types from extraction.
 
 ---
 
@@ -58,12 +59,14 @@ Stage 2.5 (SRL) is gated by `settings.enable_srl`. Stage 4.5 (SlotDiscovery) is 
 | Skipped optional stage causes `AttributeError` or `NoneType` error downstream | Skip logic set the context field to `None` instead of writing a default contract | Verify that the skip path in the optional stage writes an empty contract (all-defaults instance), not `None` |
 | API response missing a field that is computed in the pipeline | `ScoringPersistenceStage` assembly did not forward the field into `TurnResult` | Inspect `ScoringPersistenceStage` to find where `TurnResult` is constructed and add the missing field mapping |
 | `ValueError: State is stale!` raised during strategy selection | `StateComputationStage` (Stage 5) ran before `ExtractionStage` (Stage 3), so `computed_at < extraction.timestamp` | Ensure pipeline stage order places Stage 5 after Stage 3 |
+| Cross-turn edges accepted despite violating permitted_connections | ExtractionService only validates current-turn concepts; cross-turn edges bypass validation | GraphUpdateStage now validates post-dedup; check for `invalid_connection_post_dedup` log if edges are unexpectedly rejected |
 
 ---
 
 ## Key Files
 
-- `src/services/turn_pipeline/context.py` — `PipelineContext` dataclass: contract fields, ordering-enforced convenience properties
+- `src/services/turn_pipeline/context.py` — `PipelineContext` dataclass: contract fields, ordering-enforced convenience properties, `current_turn_global_signals` for current-turn LLM signal access
 - `src/domain/models/pipeline_contracts.py` — All 12 contract Pydantic models
 - `src/services/session_service.py` — `_build_pipeline()`: stage wiring and execution order
 - `src/services/turn_pipeline/stages/scoring_persistence_stage.py` — `TurnResult` assembly from final context
+- `src/services/graph_service.py` — Cross-turn edge validation in `_add_edge_from_relationship()` (see `graph-dedup.md`)
