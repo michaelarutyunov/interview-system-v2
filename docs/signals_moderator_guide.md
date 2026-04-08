@@ -85,7 +85,7 @@ These signals are most meaningful for **Means-End Chain (MEC)** methodology, whe
 
 | Signal | Moderator Meaning | How It's Computed | What to Look For |
 |--------|------------------|-------------------|------------------|
-| **graph.node.exhausted** | Topic has been explored without yield | Boolean: true if the node has been focused, has had no yield for 3+ turns, and ≥66% of its last 3 responses were shallow | True = move to a different topic |
+| **graph.node.exhausted** | Topic has been explored without yield | Boolean: true if the node has been focused, has had no yield for 2+ turns, and ≥66% of its last 3 responses were shallow | True = move to a different topic |
 | **graph.node.exhaustion_score** | 0.0-1.0 score of exploration depth | Weighted sum of three factors: (1) `turns_since_last_yield / 10 × 0.4` + (2) `focus_streak / 5 × 0.3` + (3) `shallow_response_ratio × 0.3` | Higher (0.7+) = thoroughly explored; Lower (0.0-0.3) = fresh territory |
 | **graph.node.yield_stagnation** | No new information for 3+ turns | Boolean: true when `turns_since_last_yield ≥ 3` for a previously focused node | True = time to switch topics |
 | **graph.node.focus_streak** | Consecutive turns on same topic | Count of consecutive turns where this node was the focus target, reset to 0 when focus changes to a different node. Bins: `none`=0 turns, `low`=1 turn, `medium`=2-3 turns, `high`=4+ turns | none/low = fine; medium = monitor; high = consider rotating |

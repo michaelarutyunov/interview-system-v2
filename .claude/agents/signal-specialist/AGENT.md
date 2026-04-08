@@ -35,7 +35,7 @@ Distinction: anything with `.node.` in the namespace is **node-scoped** and is p
 |---|---|---|
 | Continuous float ∈ [0,1] | `.low`, `.mid`, `.high` | `.low` if `value <= 0.25`; `.mid` if `0.25 < value < 0.75`; `.high` if `value >= 0.75` |
 | Boolean | `.true`, `.false` | exact match against `True`/`False` |
-| Categorical (e.g. `response_depth`, `phase`, `focus_streak`) | exact category name (`.deep`, `.shallow`, `.surface`, `.early`, `.mid`, `.late`, `.none`, `.low`, `.medium`, `.high`, `improving`, `degrading`, `stable`) | string equality |
+| Categorical (e.g. `response_depth`, `phase`, `focus_streak`) | exact category name (`.deep`, `.shallow`, `.surface`, `.early`, `.mid`, `.late`, `.none`, `.low`, `.medium`, `.high`, `deepening`, `shallowing`, `fatigued`, `stable`) | string equality |
 
 **The single most common bug**: writing `.medium` for a *continuous* signal where the engine expects `.mid`. `.medium` is only valid as a category name on signals that explicitly emit `"medium"` as a string (notably `graph.node.focus_streak`). For floats like `graph.node.exhaustion_score`, only `.low`/`.mid`/`.high` match.
 
@@ -125,7 +125,7 @@ A `rubric_key` mismatch raises `ValueError` at first call. Missing from `__all__
 
 `response_depth` is the only LLM signal treated **categorically** (`surface`/`shallow`/`deep`); all others normalize via `(score - 1) / 4` to `[0, 1]` and use `.low`/`.mid`/`.high`.
 
-`llm.global_response_trend` is **session-level**, computed in `GlobalSignalDetectionService` from rolling per-turn history; categorical values `improving`/`degrading`/`stable`. Requires ≥2 turns of history.
+`llm.global_response_trend` is **session-level**, computed in `GlobalResponseTrendSignal` from rolling per-turn history; categorical values `deepening`/`stable`/`shallowing`/`fatigued`. Uses last-6 window with 4-sample minimum gate (not "last 4"). Requires ≥4 turns of history for trend classification.
 
 ### 11. YAML Activation Gate
 

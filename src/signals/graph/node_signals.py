@@ -23,7 +23,7 @@ class NodeExhaustedSignal(NodeSignalDetector):
 
     A node is considered exhausted when:
     - It has been focused on at least once (focus_count > 0)
-    - No yield for 3+ turns (turns_since_last_yield >= 3)
+    - No yield for 2+ turns (turns_since_last_yield >= 2)
     - Current focus streak is 2+ (persistent focus without yield)
     - 2/3 of recent responses are shallow (shallow_ratio >= 0.66)
 
@@ -63,7 +63,7 @@ class NodeExhaustedSignal(NodeSignalDetector):
 
         Applies four exhaustion filters in sequence:
         1. Must have been focused (focus_count > 0)
-        2. No recent yield (turns_since_last_yield >= 3)
+        2. No recent yield (turns_since_last_yield >= 2)
         3. Persistent focus streak (current_focus_streak >= 2)
         4. High shallow ratio in recent responses (>= 66%)
 
@@ -77,7 +77,7 @@ class NodeExhaustedSignal(NodeSignalDetector):
         if state.focus_count == 0:
             return False
 
-        # No yield for 2+ turns (tightened from 3 to flag stale nodes faster)
+        # No yield for 2+ turns (flags stale nodes before yield_stagnation at 3+)
         if state.turns_since_last_yield < 2:
             return False
 

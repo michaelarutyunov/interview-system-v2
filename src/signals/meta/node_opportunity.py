@@ -36,7 +36,7 @@ class NodeOpportunitySignal(NodeSignalDetector):
 
     Exhaustion criteria (all must be true):
     - Has been focused (focus_count > 0)
-    - No recent yield (turns_since_last_yield >= 3)
+    - No recent yield (turns_since_last_yield >= 2)
     - High shallow ratio (>= 66% of recent 3 responses are shallow)
 
     Probe_deeper criteria:
@@ -107,7 +107,7 @@ class NodeOpportunitySignal(NodeSignalDetector):
 
         A node is exhausted when:
         - Has been focused (focus_count > 0)
-        - No recent yield (turns_since_last_yield >= 3)
+        - No recent yield (turns_since_last_yield >= 2)
         - High shallow ratio in recent responses (>= 66%)
 
         Args:
@@ -119,7 +119,7 @@ class NodeOpportunitySignal(NodeSignalDetector):
         if state.focus_count == 0:
             return False
 
-        if state.turns_since_last_yield < 3:
+        if state.turns_since_last_yield < 2:
             return False
 
         shallow_ratio = self._calculate_shallow_ratio(state, recent_count=3)
