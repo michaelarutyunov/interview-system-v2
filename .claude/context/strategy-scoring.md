@@ -101,6 +101,12 @@ Every scored pair produces a `ScoredCandidate` dataclass with:
 6. **All signals must be declared in `signals:`** — the registry validates every
    `signal_weights` key against known signal names at load time.
 
+7. **Unbounded count signals are rejected in `signal_weights`** — `graph.node_count`,
+   `graph.edge_count`, and `graph.orphan_count` return raw integers that can't be
+   safely multiplied by weights. The registry raises `ValueError` at load time if
+   any of these appear in a strategy's `signal_weights`. Use normalized or
+   threshold-binned variants instead (e.g., `graph.node_count.low`).
+
 ---
 
 ## Symptom → Cause → Fix
@@ -113,6 +119,7 @@ Every scored pair produces a `ScoredCandidate` dataclass with:
 | All strategies scoring equally (≈ 0) | No `signal_weights` defined, or no declared signals are firing | Verify `signal_weights` in YAML and check that signals listed under `signals:` are detected at runtime |
 | `strategies_ranked` log shows unexpected order | `node_binding: none` strategy competing against node-binding strategies in Stage 2 | `node_binding: none` strategies are Stage 1 only; ensure the consuming code picks from the right ranking list |
 | `ValueError` at startup: unknown strategy in phases | Strategy renamed in `strategies:` but not updated in `phases:` | Sync both sections; registry enforces referential integrity |
+| `ValueError` at startup: unbounded count signal in signal_weights | `graph.node_count`, `graph.edge_count`, or `graph.orphan_count` used as weight key | Remove the raw count key; use a normalized or binned variant |
 
 ---
 
