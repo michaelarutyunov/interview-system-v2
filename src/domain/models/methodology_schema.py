@@ -185,6 +185,12 @@ class MethodologySchema(BaseModel):
     ) -> bool:
         """Check if edge_type allows source_type → target_type.
 
+        Returns True when the connection is permitted:
+        - If the edge type has no `permitted_connections` defined: all connections
+          are allowed (flex mode — LLM judgment trusted).
+        - If `permitted_connections` is defined: only listed pairs (or wildcards)
+          pass (strict mode — schema enforced).
+
         Args:
             edge_type: The edge/relationship type
             source_type: The source node type
@@ -194,10 +200,13 @@ class MethodologySchema(BaseModel):
             True if this connection is allowed by the schema
         """
         if not self.ontology:
-            return False
+            return True
 
         for et in self.ontology.edges:
-            if et.name == edge_type and et.permitted_connections:
+            if et.name == edge_type:
+                # No restrictions defined → allow all (flex mode)
+                if not et.permitted_connections:
+                    return True
                 for conn in et.permitted_connections:
                     if isinstance(conn, EdgeConnectionSpec):
                         src, tgt = conn.from_, conn.to
@@ -210,7 +219,10 @@ class MethodologySchema(BaseModel):
                         tgt == "*" or tgt == target_type
                     ):
                         return True
-        return False
+                # Restrictions defined but no match → invalid
+                return False
+        # Edge type not found → allow (not our constraint)
+        return True
 
     def get_node_descriptions(self) -> Dict[str, str]:
         """For LLM prompt generation: {name: "description (e.g., ex1, ex2)"}.

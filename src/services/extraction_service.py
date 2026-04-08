@@ -476,23 +476,23 @@ class ExtractionService:
                     )
                     continue  # Skip invalid edge type
 
-                # NOTE: permitted_connections validation disabled for experimentation.
-                # The LLM is already methodology-aware from the extraction prompt.
-                # Remove entirely if unrestricted edge extraction proves effective.
-                # source_type = concept_types.get(rel.source_text.lower())
-                # target_type = concept_types.get(rel.target_text.lower())
-                #
-                # if source_type and target_type:
-                #     if not schema.is_valid_connection(
-                #         rel.relationship_type, source_type, target_type
-                #     ):
-                #         log.warning(
-                #             "invalid_connection",
-                #             edge_type=rel.relationship_type,
-                #             source_type=source_type,
-                #             target_type=target_type,
-                #         )
-                #         continue  # Skip invalid connection
+                # Schema validation: check connection is allowed
+                # Strict methodologies define permitted_connections (enforced).
+                # Flex methodologies omit them (all connections allowed, LLM trusted).
+                source_type = concept_types.get(rel.source_text.lower())
+                target_type = concept_types.get(rel.target_text.lower())
+
+                if source_type and target_type:
+                    if not schema.is_valid_connection(
+                        rel.relationship_type, source_type, target_type
+                    ):
+                        log.warning(
+                            "invalid_connection",
+                            edge_type=rel.relationship_type,
+                            source_type=source_type,
+                            target_type=target_type,
+                        )
+                        continue  # Skip invalid connection
 
                 if rel.source_text and rel.target_text:  # Skip incomplete
                     relationships.append(rel)

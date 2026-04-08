@@ -38,9 +38,9 @@ def get_extraction_system_prompt(
     # Load schema and get descriptions
     schema = load_methodology(methodology)
     node_descriptions = schema.get_node_descriptions()
-    # Was get_edge_descriptions_with_connections() — removed type-pair hints
-    # to allow LLM to use its own methodology-aware judgment for connections
-    edge_descriptions = schema.get_edge_descriptions()
+    # Strict methodologies define permitted_connections — include type-pair hints
+    # so the LLM sees valid routes. Flex methodologies omit them — plain descriptions.
+    edge_descriptions = schema.get_edge_descriptions_with_connections()
 
     # Load concept elements for element linking (LEGACY - exploratory interviews don't use elements)
     # For exploratory research, elements list is always empty, so this section is not added to prompt
