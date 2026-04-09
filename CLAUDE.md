@@ -143,7 +143,7 @@ See `.claude/context/` for subsystem specs. Key flows:
               rows = await cursor.fetchall()
   asyncio.run(main())
   ```
-- **Key tables**: `sessions`, `utterances`, `kg_nodes`, `kg_edges`, `canonical_slots`, `scoring_history`, `qualitative_signals`
+- **Key tables**: `sessions`, `utterances`, `kg_nodes`, `kg_edges`, `canonical_slots`, `scoring_history`, `methodology_signals`
 - **Token/cost data**: `json.loads(session['config'])['metadata']['llm_usage']`
 
 ---

@@ -1235,15 +1235,6 @@ ExtractedConcept(
     node_type="attribute",
     source_utterance_id="utter_123",  # Links to UtteranceSavingOutput
 )
-
-# QualitativeSignalSet
-QualitativeSignalSet(
-    turn_number=5,
-    source_utterance_id="utter_123",  # Same utterance
-    generated_at=datetime.now(timezone.utc),
-    llm_model="moonshot-v1-8k",
-    prompt_version="v2.1",
-)
 ```
 
 **For more details:**

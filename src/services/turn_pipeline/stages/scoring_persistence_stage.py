@@ -66,9 +66,6 @@ class ScoringPersistenceStage(TurnStage):
             saturation_score=saturation_score,
         )
 
-        # Save qualitative signals if available
-        await self._save_qualitative_signals(context)
-
         # Save methodology signals if available
         await self._save_methodology_signals(context)
 
@@ -137,86 +134,15 @@ class ScoringPersistenceStage(TurnStage):
             )
             await db.commit()
 
-    async def _save_qualitative_signals(self, context: "PipelineContext") -> None:
-        """Save LLM-extracted qualitative signals from graph_state.
-
-        Extracts signals from graph_state.extended_properties["qualitative_signals"]
-        and persists them to the qualitative_signals table.
-        """
-        if not context.graph_state:
-            return
-
-        signals_data = context.graph_state.extended_properties.get(
-            "qualitative_signals"
-        )
-        if not signals_data:
-            return
-
-        # Extract signal metadata
-        llm_model = signals_data.get("llm_model", "unknown")
-        extraction_latency_ms = signals_data.get("extraction_latency_ms", 0)
-        extraction_errors = signals_data.get("extraction_errors", [])
-
-        # Extract individual signals
-        signals = {}
-        for signal_type in [
-            "uncertainty",
-            "reasoning",
-            "emotional",
-            "contradiction",
-            "knowledge_ceiling",
-            "concept_depth",
-        ]:
-            signal = signals_data.get(signal_type)
-            if signal:
-                # Handle both dict and model representations
-                if hasattr(signal, "model_dump"):
-                    signals[signal_type] = signal.model_dump()
-                elif isinstance(signal, dict):
-                    signals[signal_type] = signal
-                else:
-                    signals[signal_type] = {"data": signal}
-
-        if signals:  # Only save if we have at least one signal
-            signal_id = str(uuid.uuid4())
-            try:
-                await self.session_repo.save_qualitative_signals(
-                    signal_id=signal_id,
-                    session_id=context.session_id,
-                    turn_number=context.turn_number,
-                    signals=signals,
-                    llm_model=llm_model,
-                    extraction_latency_ms=extraction_latency_ms,
-                    extraction_errors=extraction_errors,
-                )
-                log.debug(
-                    "qualitative_signals_saved",
-                    session_id=context.session_id,
-                    turn_number=context.turn_number,
-                    signal_types=list(signals.keys()),
-                )
-            except Exception as e:
-                log.warning(
-                    "failed_to_save_qualitative_signals",
-                    session_id=context.session_id,
-                    turn_number=context.turn_number,
-                    error=str(e),
-                    error_type=type(e).__name__,
-                )
-
     async def _save_methodology_signals(self, context: "PipelineContext") -> None:
-        """Save methodology-based signals from strategy_selection_output.
+        """Save methodology signal pool data for observability.
 
         Extracts signals from context.signals (populated by StrategySelectionStage)
-        and persists them to the qualitative_signals table for observability.
-
-        This provides traceability for the new signal-based strategy selection.
+        and persists them to the methodology_signals table.
         """
         if not context.signals:
             return
 
-        # Convert methodology signals to format compatible with qualitative_signals table
-        # We're reusing the qualitative_signals table for simplicity
         signal_id = str(uuid.uuid4())
         try:
             # Flatten signals for storage
@@ -228,14 +154,11 @@ class ScoringPersistenceStage(TurnStage):
                 else:
                     flattened_signals[pool_name] = {"value": pool_signals}
 
-            await self.session_repo.save_qualitative_signals(
+            await self.session_repo.save_methodology_signals(
                 signal_id=signal_id,
                 session_id=context.session_id,
                 turn_number=context.turn_number,
-                signals=flattened_signals,
-                llm_model="methodology_signals",
-                extraction_latency_ms=0,
-                extraction_errors=[],
+                signal_pools=flattened_signals,
             )
             log.debug(
                 "methodology_signals_saved",

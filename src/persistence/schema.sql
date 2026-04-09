@@ -269,26 +269,17 @@ CREATE TABLE IF NOT EXISTS scoring_history (
 CREATE INDEX IF NOT EXISTS idx_scoring_session ON scoring_history(session_id);
 
 -- =============================================================================
--- Qualitative Signals (LLM-extracted diagnostic signals)
+-- Methodology Signals (Signal Pool observability)
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS qualitative_signals (
+CREATE TABLE IF NOT EXISTS methodology_signals (
     id TEXT PRIMARY KEY,
     session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     turn_number INTEGER NOT NULL,
 
-    -- Signal extraction metadata
-    llm_model TEXT,
-    extraction_latency_ms INTEGER,
-    extraction_errors TEXT,  -- JSON array of error messages
-
-    -- Individual signals (JSON)
-    uncertainty_signal TEXT,  -- JSON or NULL
-    reasoning_signal TEXT,    -- JSON or NULL
-    emotional_signal TEXT,   -- JSON or NULL
-    contradiction_signal TEXT,  -- JSON or NULL
-    knowledge_ceiling_signal TEXT,  -- JSON or NULL
-    concept_depth_signal TEXT,  -- JSON or NULL
+    -- All signal pool data as a single JSON blob
+    -- Format: {"graph": {...}, "llm": {...}, "temporal": {...}, "meta": {...}}
+    signal_pools JSON NOT NULL DEFAULT '{}',
 
     -- Timestamp
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -297,5 +288,5 @@ CREATE TABLE IF NOT EXISTS qualitative_signals (
     UNIQUE(session_id, turn_number)
 );
 
-CREATE INDEX IF NOT EXISTS idx_qualitative_signals_session ON qualitative_signals(session_id);
-CREATE INDEX IF NOT EXISTS idx_qualitative_signals_turn ON qualitative_signals(session_id, turn_number);
+CREATE INDEX IF NOT EXISTS idx_methodology_signals_session ON methodology_signals(session_id);
+CREATE INDEX IF NOT EXISTS idx_methodology_signals_turn ON methodology_signals(session_id, turn_number);

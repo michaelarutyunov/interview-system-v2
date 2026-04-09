@@ -257,79 +257,51 @@ class SessionRepository:
             # Reverse to get chronological order (oldest first)
             return list(reversed([row[0] for row in rows]))
 
-    async def save_qualitative_signals(
+    # ==================== METHODOLOGY SIGNALS ====================
+
+    async def save_methodology_signals(
         self,
         signal_id: str,
         session_id: str,
         turn_number: int,
-        signals: Dict[str, Any],
-        llm_model: str = "unknown",
-        extraction_latency_ms: int = 0,
-        extraction_errors: Optional[list] = None,
+        signal_pools: Dict[str, Any],
     ) -> None:
-        """Save LLM-extracted qualitative signals for a turn.
+        """Save methodology signal pool data for a turn.
 
         Args:
             signal_id: Unique identifier for this signal record
             session_id: Session ID
             turn_number: Turn number
-            signals: Dict with keys uncertainty, reasoning, emotional, contradiction,
-                     knowledge_ceiling, concept_depth (each a dict or None)
-            llm_model: Model used for extraction
-            extraction_latency_ms: Time taken to extract signals
-            extraction_errors: List of error messages (if any)
+            signal_pools: Dict of signal pool data, e.g.
+                {"graph": {...}, "llm": {...}, "temporal": {...}, "meta": {...}}
         """
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
-                """INSERT INTO qualitative_signals (
-                    id, session_id, turn_number,
-                    llm_model, extraction_latency_ms, extraction_errors,
-                    uncertainty_signal, reasoning_signal, emotional_signal,
-                    contradiction_signal, knowledge_ceiling_signal, concept_depth_signal
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                """INSERT INTO methodology_signals (
+                    id, session_id, turn_number, signal_pools
+                ) VALUES (?, ?, ?, ?)
+                ON CONFLICT(session_id, turn_number) DO UPDATE SET
+                    signal_pools = excluded.signal_pools""",
                 (
                     signal_id,
                     session_id,
                     turn_number,
-                    llm_model,
-                    extraction_latency_ms,
-                    json.dumps(extraction_errors or []),
-                    json.dumps(signals.get("uncertainty"))
-                    if signals.get("uncertainty")
-                    else None,
-                    json.dumps(signals.get("reasoning"))
-                    if signals.get("reasoning")
-                    else None,
-                    json.dumps(signals.get("emotional"))
-                    if signals.get("emotional")
-                    else None,
-                    json.dumps(signals.get("contradiction"))
-                    if signals.get("contradiction")
-                    else None,
-                    json.dumps(signals.get("knowledge_ceiling"))
-                    if signals.get("knowledge_ceiling")
-                    else None,
-                    json.dumps(signals.get("concept_depth"))
-                    if signals.get("concept_depth")
-                    else None,
+                    json.dumps(signal_pools, default=str),
                 ),
             )
             await db.commit()
 
-    async def get_all_qualitative_signals(self, session_id: str) -> Dict[int, Dict]:
-        """Get all qualitative signals for a session, grouped by turn_number.
+    async def get_all_methodology_signals(self, session_id: str) -> Dict[int, Dict]:
+        """Get all methodology signals for a session, keyed by turn_number.
 
         Returns:
-            Dict mapping turn_number to signal dict with all signal types.
+            Dict mapping turn_number to signal pool dict.
         """
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
-                """SELECT
-                    turn_number, llm_model, extraction_latency_ms, extraction_errors,
-                    uncertainty_signal, reasoning_signal, emotional_signal,
-                    contradiction_signal, knowledge_ceiling_signal, concept_depth_signal
-                   FROM qualitative_signals
+                """SELECT turn_number, signal_pools
+                   FROM methodology_signals
                    WHERE session_id = ?
                    ORDER BY turn_number ASC""",
                 (session_id,),
@@ -338,32 +310,9 @@ class SessionRepository:
             result = {}
             for row in rows:
                 turn = row["turn_number"]
-                result[turn] = {
-                    "turn_number": turn,
-                    "llm_model": row["llm_model"],
-                    "extraction_latency_ms": row["extraction_latency_ms"],
-                    "extraction_errors": json.loads(row["extraction_errors"])
-                    if row["extraction_errors"]
-                    else [],
-                    "uncertainty": json.loads(row["uncertainty_signal"])
-                    if row["uncertainty_signal"]
-                    else None,
-                    "reasoning": json.loads(row["reasoning_signal"])
-                    if row["reasoning_signal"]
-                    else None,
-                    "emotional": json.loads(row["emotional_signal"])
-                    if row["emotional_signal"]
-                    else None,
-                    "contradiction": json.loads(row["contradiction_signal"])
-                    if row["contradiction_signal"]
-                    else None,
-                    "knowledge_ceiling": json.loads(row["knowledge_ceiling_signal"])
-                    if row["knowledge_ceiling_signal"]
-                    else None,
-                    "concept_depth": json.loads(row["concept_depth_signal"])
-                    if row["concept_depth_signal"]
-                    else None,
-                }
+                result[turn] = (
+                    json.loads(row["signal_pools"]) if row["signal_pools"] else {}
+                )
             return result
 
     # ==================== NODE TRACKER STATE PERSISTENCE ====================
@@ -443,13 +392,22 @@ class SessionRepository:
                 concept_name=row["concept_name"],
                 turn_count=row["turn_count"],
                 last_strategy=None,  # Not stored in DB, computed on-demand
-                surface_velocity_peak=row["surface_velocity_peak"] if "surface_velocity_peak" in row.keys() else 0.0,
-                prev_surface_node_count=row["prev_surface_node_count"] if "prev_surface_node_count" in row.keys() else 0,
-                canonical_velocity_peak=row["canonical_velocity_peak"] if "canonical_velocity_peak" in row.keys() else 0.0,
-                prev_canonical_node_count=row["prev_canonical_node_count"] if "prev_canonical_node_count" in row.keys() else 0,
+                surface_velocity_peak=row["surface_velocity_peak"]
+                if "surface_velocity_peak" in row.keys()
+                else 0.0,
+                prev_surface_node_count=row["prev_surface_node_count"]
+                if "prev_surface_node_count" in row.keys()
+                else 0,
+                canonical_velocity_peak=row["canonical_velocity_peak"]
+                if "canonical_velocity_peak" in row.keys()
+                else 0.0,
+                prev_canonical_node_count=row["prev_canonical_node_count"]
+                if "prev_canonical_node_count" in row.keys()
+                else 0,
                 focus_history=[
-                    FocusEntry(**e)
-                    for e in json.loads(row["focus_history"] or "[]")
-                ] if "focus_history" in row.keys() else [],
+                    FocusEntry(**e) for e in json.loads(row["focus_history"] or "[]")
+                ]
+                if "focus_history" in row.keys()
+                else [],
             ),
         )

@@ -156,8 +156,8 @@ class ExportService:
         # Get scoring history
         scoring_history = await self.session_repo.get_scoring_history(session_id)
 
-        # Get all qualitative signals for diagnostics
-        all_signals = await self.session_repo.get_all_qualitative_signals(session_id)
+        # Get all methodology signals for diagnostics
+        all_signals = await self.session_repo.get_all_methodology_signals(session_id)
 
         return {
             "_note": "Upload to https://observablehq.com/d/7c8f49e0dec320fd for detailed visualisation",
@@ -217,8 +217,8 @@ class ExportService:
             },
             "scoring_history": scoring_history,
             "diagnostics": {
-                "scoring_history": scoring_history,  # Already fetched above
-                "llm_signals": {
+                "scoring_history": scoring_history,
+                "methodology_signals": {
                     f"turn_{turn}": signals
                     for turn, signals in sorted(all_signals.items())
                 },
