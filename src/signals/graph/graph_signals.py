@@ -6,13 +6,17 @@ These signals are derived from the knowledge graph snapshot and are
 refreshed after each graph update (PER_TURN). They are free or low cost.
 """
 
-from collections import deque
-from typing import TYPE_CHECKING, Any, Dict, List, Set
+from typing import TYPE_CHECKING, Any, List
 
 import structlog
 
 from src.core.exceptions import ConfigurationError, GraphError
 from src.core.schema_loader import load_methodology
+from src.signals.graph.graph_traversal import (
+    bfs_to_target,
+    build_adjacency_list,
+    get_node_type_map,
+)
 from src.signals.signal_base import SignalDetector
 
 if TYPE_CHECKING:
@@ -120,7 +124,6 @@ class GraphMaxDepthSignal(SignalDetector):
         return 5.0
 
 
-
 # =============================================================================
 # Chain Completion Signal (from chain_completion.py)
 # =============================================================================
@@ -191,8 +194,9 @@ class ChainCompletionSignal(SignalDetector):
                 "graph.chain_completion.has_complete": False,
             }
 
-        # Build adjacency list for BFS
-        adj_list = self._build_adjacency_list(nodes, edges)
+        # Build adjacency list and type map for BFS
+        adj_list = build_adjacency_list(nodes, edges)
+        node_type_map = get_node_type_map(nodes)
 
         # Filter level 1 nodes
         level_1_nodes = [n for n in nodes if n.node_type in level_1_types]
@@ -201,7 +205,7 @@ class ChainCompletionSignal(SignalDetector):
         # Count chains that reach terminal nodes
         complete_chain_count = 0
         for start_node in level_1_nodes:
-            if self._bfs_to_terminal(start_node.id, adj_list, terminal_types, nodes):
+            if bfs_to_target(start_node.id, adj_list, terminal_types, node_type_map):
                 complete_chain_count += 1
 
         has_complete_chain = complete_chain_count > 0
@@ -249,46 +253,6 @@ class ChainCompletionSignal(SignalDetector):
             raise GraphError(
                 f"ChainCompletionSignal failed to load edges for session '{session_id}': {e}"
             ) from e
-
-    def _build_adjacency_list(
-        self, nodes: List[Any], edges: List[Any]
-    ) -> Dict[str, List[str]]:
-        """Build adjacency list from nodes and edges."""
-        adj_list = {node.id: [] for node in nodes}
-
-        for edge in edges:
-            if edge.source_node_id in adj_list:
-                adj_list[edge.source_node_id].append(edge.target_node_id)
-
-        return adj_list
-
-    def _bfs_to_terminal(
-        self,
-        start_node_id: str,
-        adj_list: Dict[str, List[str]],
-        terminal_types: Set[str],
-        nodes: List[Any],
-    ) -> bool:
-        """BFS from start node to check if path to terminal exists."""
-        node_type_map = {node.id: node.node_type for node in nodes}
-
-        visited = set()
-        queue = deque([start_node_id])
-        visited.add(start_node_id)
-
-        while queue:
-            current_id = queue.popleft()
-
-            current_type = node_type_map.get(current_id)
-            if current_type in terminal_types:
-                return True
-
-            for neighbor_id in adj_list.get(current_id, []):
-                if neighbor_id not in visited:
-                    visited.add(neighbor_id)
-                    queue.append(neighbor_id)
-
-        return False
 
 
 # =============================================================================
@@ -403,7 +367,7 @@ class CanonicalExhaustionScoreSignal(SignalDetector):
             log.debug(
                 "canonical_slots_disabled",
                 signal=self.signal_name,
-                message="Canonical slots not enabled, skipping canonical exhaustion signal"
+                message="Canonical slots not enabled, skipping canonical exhaustion signal",
             )
             return {}
 
