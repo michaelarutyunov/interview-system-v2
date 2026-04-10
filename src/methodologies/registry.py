@@ -7,7 +7,7 @@ composed signal detectors with signal pools.
 import yaml
 from pathlib import Path
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from src.signals.signal_registry import ComposedSignalDetector
@@ -73,6 +73,7 @@ class MethodologyConfig:
     signals: dict[str, list[str]]  # graph, llm, temporal, meta
     strategies: list["StrategyConfig"]  # List of strategy definitions
     phases: dict[str, PhaseConfig] | None = None  # phase_name -> config
+    chain_completion: dict[str, Any] | None = None  # Chain completion config
 
 
 @dataclass
@@ -150,6 +151,9 @@ class MethodologyRegistry:
                     phase_bonuses=phase_data.get("phase_bonuses", {}),
                 )
 
+        # Parse chain_completion section
+        chain_completion = data.get("chain_completion")
+
         config = MethodologyConfig(
             name=method_data["name"],
             description=method_data.get("description", ""),
@@ -168,6 +172,7 @@ class MethodologyRegistry:
                 for s in data.get("strategies", [])
             ],
             phases=phases,
+            chain_completion=chain_completion,
         )
 
         self._validate_config(config, config_path)

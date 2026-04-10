@@ -268,6 +268,14 @@ strategies:
       graph.node.focus_streak.none: 0.8  # Fresh nodes
       graph.node.exhaustion_score.low: 0.5  # Avoid exhausted nodes
 
+chain_completion:
+  expected_branching:
+    attribute: 3
+    functional_consequence: 2
+    psychosocial_consequence: 1
+    instrumental_value: 1
+    terminal_value: 1
+
 phases:
   early:
     description: "Initial exploration, building graph structure"

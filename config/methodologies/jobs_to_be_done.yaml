@@ -423,6 +423,17 @@ strategies:
       graph.node.focus_streak.medium: -0.4   # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.7     # Strongly penalize 4+ turn over-focus
 
+chain_completion:
+  expected_branching:
+    job_statement: 3
+    job_context: 2
+    job_trigger: 2
+    pain_point: 3
+    gain_point: 2
+    solution_approach: 2
+    emotional_job: 1
+    social_job: 1
+
 phases:
   early:
     description: "Initial exploration, building graph structure"

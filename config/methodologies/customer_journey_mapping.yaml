@@ -453,6 +453,8 @@ strategies:
       meta.conversation.saturation: 0.3
       meta.canonical.saturation: 0.2
 
+chain_completion: {}
+
 phases:
   early:
     description: "Map the journey arc — stages and key touchpoints"

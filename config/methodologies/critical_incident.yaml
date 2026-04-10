@@ -430,6 +430,8 @@ strategies:
       meta.conversation.saturation: 0.3
       meta.canonical.saturation: 0.2
 
+chain_completion: {}
+
 phases:
   early:
     description: "Elicit the incident — get the story, set the scene"

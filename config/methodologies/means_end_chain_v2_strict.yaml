@@ -312,6 +312,14 @@ strategies:
       graph.node.focus_count.medium: -0.3
       graph.node.focus_count.none: 0.3            # Bonus for never-focused nodes
 
+chain_completion:
+  expected_branching:
+    attribute: 3
+    functional_consequence: 2
+    psychosocial_consequence: 1
+    instrumental_value: 1
+    terminal_value: 1
+
 phases:
   early:
     description: "Initial exploration, building graph structure"
