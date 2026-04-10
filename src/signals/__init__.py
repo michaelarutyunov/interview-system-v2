@@ -20,6 +20,9 @@ from src.signals.graph import (
     CanonicalConceptCountSignal,
     CanonicalEdgeDensitySignal,
     CanonicalExhaustionScoreSignal,
+    # Chain topology signals
+    ChainTopologySignalDetector,
+    GlobalChainTopologySignal,
     # Node-level graph signals
     NodeExhaustedSignal,
     NodeExhaustionScoreSignal,

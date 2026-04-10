@@ -19,6 +19,10 @@ from src.signals.graph.graph_signals import (
     CanonicalExhaustionScoreSignal,
 )
 
+# Chain topology signals
+from src.signals.graph.chain_topology_signals import ChainTopologySignalDetector
+from src.signals.graph.global_chain_signals import GlobalChainTopologySignal
+
 # Node-level signals (consolidated)
 from src.signals.graph.node_signals import (
     NodeExhaustedSignal,
@@ -48,6 +52,9 @@ __all__ = [
     "GraphMaxDepthSignal",
     # Chain completion
     "ChainCompletionSignal",
+    # Chain topology
+    "ChainTopologySignalDetector",
+    "GlobalChainTopologySignal",
     # Node-level: Exhaustion
     "NodeExhaustedSignal",
     "NodeExhaustionScoreSignal",
