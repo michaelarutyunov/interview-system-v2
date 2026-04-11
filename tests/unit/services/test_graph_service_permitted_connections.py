@@ -9,7 +9,6 @@ methodology's permitted_connections schema.
 
 import pytest
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock
 
 from src.services.graph_service import GraphService
 from src.domain.models.extraction import (
@@ -19,7 +18,6 @@ from src.domain.models.extraction import (
 )
 from src.domain.models.session import Session, SessionState
 from src.domain.models.interview_state import InterviewMode
-from src.persistence.repositories.session_repo import SessionRepository
 
 
 @pytest.mark.asyncio

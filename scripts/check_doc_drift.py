@@ -310,7 +310,7 @@ def check_orphaned_context_docs(repo_root: Path, context_dir: Path) -> list[Refe
                 category="orphan_doc",
                 location=f".claude/context/{doc_file.name}",
                 reference=doc_file.name,
-                detail=f"Context doc exists but is not referenced by CLAUDE.md or any agent spec"
+                detail="Context doc exists but is not referenced by CLAUDE.md or any agent spec"
             ))
 
     return warnings

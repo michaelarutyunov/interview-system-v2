@@ -216,7 +216,7 @@ def main() -> None:
 
     # Quick stats
     if not df_interviews.empty:
-        print(f"\nPersona distribution:")
+        print("\nPersona distribution:")
         print(df_interviews["persona"].value_counts().to_string())
         print(f"\nMean turns: {df_interviews['total_turns'].mean():.1f}")
         print(f"Mean final nodes: {df_interviews['final_nodes'].mean():.1f}")
