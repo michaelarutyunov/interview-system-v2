@@ -371,6 +371,22 @@ def rank_strategy_node_pairs(
 
     for strategy in strategies:
         for node_id, node_signal_dict in node_signals.items():
+            # Check valid_when gate - skip (strategy, node) pairs where gate is False
+            if strategy.valid_when is not None:
+                gate_signal = strategy.valid_when
+                gate_value = node_signal_dict.get(gate_signal)
+
+                # Skip if gate signal is not True (False, None, or missing)
+                if gate_value is not True:
+                    log.debug(
+                        "strategy_node_pair_gated",
+                        strategy=strategy.name,
+                        node_id=node_id,
+                        valid_when=strategy.valid_when,
+                        gate_value=gate_value,
+                    )
+                    continue  # Skip this pair - don't score it
+
             # Merge global + node signals
             # Node signals take precedence when keys overlap
             combined_signals = {**global_signals, **node_signal_dict}

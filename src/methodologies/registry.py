@@ -86,6 +86,7 @@ class StrategyConfig:
     generates_closing_question: bool = False
     focus_mode: str = "recent_node"
     node_binding: str = "required"
+    valid_when: str | None = None  # Signal name that must be True for strategy to be scored
 
 
 class MethodologyRegistry:
@@ -168,6 +169,7 @@ class MethodologyRegistry:
                     ),
                     focus_mode=s.get("focus_mode", "recent_node"),
                     node_binding=s.get("node_binding", "required"),
+                    valid_when=s.get("valid_when"),
                 )
                 for s in data.get("strategies", [])
             ],
@@ -222,6 +224,23 @@ class MethodologyRegistry:
                     f"invalid focus_mode '{strategy.focus_mode}' "
                     f"(valid: {sorted(VALID_FOCUS_MODES)})"
                 )
+
+            # Validate valid_when if set
+            if strategy.valid_when is not None:
+                # valid_when must reference a known signal
+                if strategy.valid_when not in known_signals:
+                    errors.append(
+                        f"strategies[{i}] '{strategy.name}': "
+                        f"valid_when references unknown signal '{strategy.valid_when}' "
+                        f"(known signals: {sorted(known_signals)})"
+                    )
+                # valid_with should only be set for node_binding='required' strategies
+                if strategy.node_binding == "none":
+                    errors.append(
+                        f"strategies[{i}] '{strategy.name}': "
+                        f"valid_when cannot be set for node_binding='none' strategies "
+                        f"(they don't bind to nodes)"
+                    )
 
             for weight_key in strategy.signal_weights:
                 if not _is_valid_signal_weight_key(weight_key, known_signals):
