@@ -40,7 +40,9 @@ graph LR
 - Uses node-scoped weights only (extracted via `partition_signal_weights()`)
 - Same phase multiplier/bonus applied at node level
 
-**Strategies with `node_binding: none`** (e.g., `reflect`, `revitalize`) operate at conversation level — `focus_node_id` is `None`, and `node_id = ""` appears in `score_decomposition`.
+**Strategies with `node_binding: none`** (e.g., `revitalize`) operate at conversation level — `focus_node_id` is `None`, and `node_id = ""` appears in `score_decomposition`.
+
+**Strategies with `valid_when` gate** (MEC chain-aware strategies: `ascend`, `ground`, `bridge`, `branch`, `anchor`) are only scored for nodes where the gate signal evaluates to `True`. A strategy with `valid_when: graph.node.gap_above` will never appear in candidates for terminal nodes. This filtering happens in `rank_strategy_node_pairs()` before scoring. See `.claude/context/strategy-scoring.md` for full chain-aware strategy documentation.
 
 ### Signal Detection
 
@@ -64,9 +66,10 @@ Phase weights are loaded from `config.phases[phase]`:
 phases:
   early:
     signal_weights:      # multiplicative
-      deepen: 1.5
+      branch: 1.5
+      ascend: 0.8
     phase_bonuses:       # additive
-      broaden: 0.2
+      branch: 0.1
 ```
 
 ### Post-Selection Updates
