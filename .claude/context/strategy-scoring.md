@@ -107,6 +107,24 @@ Every scored pair produces a `ScoredCandidate` dataclass with:
    any of these appear in a strategy's `signal_weights`. Use normalized or
    threshold-binned variants instead (e.g., `graph.node_count.low`).
 
+8. **`valid_when` gates strategy-node pairs** — a strategy with `valid_when: graph.node.gap_above`
+   is only scored for nodes where that signal is `True`. Invalid pairs are skipped entirely
+   (no score, no contribution). This is a hard gate, not a weight.
+   - `valid_when` must reference a known signal name (validated at load time)
+   - Only valid for `node_binding: required` strategies (not `node_binding: none`)
+
+9. **Chain topology signals are flat per-node** — `ChainTopologySignalDetector` returns a
+   nested dict per node. `NodeSignalDetectionService` flattens it into individual signal keys:
+   - `graph.node.gap_above`, `graph.node.gap_below`, `graph.node.level_skip`
+   - `graph.node.branching_deficit`, `graph.node.fan_in`, `graph.node.level_gap_size`
+   Use these flat keys in `signal_weights` and `valid_when`. The parent key
+   `graph.node.chain_topology` also remains available but holds the full dict.
+
+10. **Score threshold fallback** — `MethodologyStrategyService` checks `chain_completion.score_threshold`
+    from the methodology config. If `best_strategy_score < threshold` AND fatigue/low-engagement
+    detected, `revitalize` is selected instead. Set `score_threshold: 0.0` (Phase 2 default)
+    to disable fallback during cross-strategy comparison.
+
 ---
 
 ## Symptom → Cause → Fix
@@ -120,6 +138,8 @@ Every scored pair produces a `ScoredCandidate` dataclass with:
 | `strategies_ranked` log shows unexpected order | `node_binding: none` strategy competing against node-binding strategies in Stage 2 | `node_binding: none` strategies are Stage 1 only; ensure the consuming code picks from the right ranking list |
 | `ValueError` at startup: unknown strategy in phases | Strategy renamed in `strategies:` but not updated in `phases:` | Sync both sections; registry enforces referential integrity |
 | `ValueError` at startup: unbounded count signal in signal_weights | `graph.node_count`, `graph.edge_count`, or `graph.orphan_count` used as weight key | Remove the raw count key; use a normalized or binned variant |
+| `valid_when` strategy never fires | `valid_when` references a known signal but the signal is never True for any node | Check that chain topology signals are computed (methodology must be chain-based, graph must have nodes) |
+| New strategy scores near zero despite valid_when passing | Chain topology signal sub-keys not resolving | Ensure flat sentinel classes are imported via `src/signals/__init__.py`; check flattening in `NodeSignalDetectionService` |
 
 ---
 
