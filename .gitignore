@@ -49,3 +49,8 @@ arch_queries.md
 commands.md
 logs/
 explorations/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
