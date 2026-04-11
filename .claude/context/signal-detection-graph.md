@@ -6,7 +6,21 @@ Graph and node signals are computed from in-memory state — no LLM calls, no DB
 
 **Global graph signals** (`graph.*`) return a single value keyed by the signal name and are derived from `GraphState` metrics: node count, edge count, max depth, chain completion, canonical concept count, etc. A float value like `graph.max_depth = 0.6` is matched against YAML weight keys via threshold binning (`.low`, `.mid`, `.high`). A boolean like `graph.chain_completion.has_complete` is matched via `.true` / `.false`.
 
+**Chain topology global signals** (`graph.global.*`) return aggregate metrics about chain structure:
+- `graph.global.frontier_count` (int): Count of nodes with `gap_above=True` (chain frontiers waiting to be extended)
+- `graph.global.ungrounded_count` (int): Count of nodes with `gap_below=True` (high-level nodes without causal antecedents)
+
 **Node-level signals** (`graph.node.*`, `graph.node.canonical_*`) return `dict[node_id, value]` — one entry per tracked node. They inherit from `NodeSignalDetector` (which wraps `NodeStateTracker`) and always call `self._get_all_node_states()` to iterate every tracked node. Categorical signals (e.g., `graph.node.focus_streak`) return string values (`none`, `low`, `medium`, `high`) matched directly. Float signals (`graph.node.exhaustion_score`, `graph.node.recency_score`) use threshold binning.
+
+**Chain topology node signals** (`graph.node.chain_topology`) return a nested structure per node with 6 boolean/int/float values:
+- `gap_above` (bool): Node is highest in its chain AND non-terminal (chain frontier)
+- `gap_below` (bool): Node has no incoming edges from lower level AND above origin (ungrounded)
+- `level_skip` (bool): Node has direct edge skipping >1 ontology level
+- `branching_deficit` (float [0,1]): `1 - (actual_siblings / expected_siblings)` at this node's level
+- `fan_in` (int): Distinct origin-level nodes with paths to this node
+- `level_gap_size` (int): Ontology levels between this node and terminal/origin
+
+These signals are auto-discovered via the `NodeSignalDetector` registry (not specified in YAML) and require graph traversal to compute chain structure.
 
 The `current_focus_streak` on a node resets only when focus changes — in `update_focus()` during Stage 8. It is NOT reset in `record_yield()` (Stage 5). This ordering is fundamental: Stage 5 runs before Stage 8, so any reset in `record_yield()` would make the streak appear as 0 to all signal detectors.
 

@@ -137,6 +137,10 @@ signals:
     - graph.canonical_concept_count
     - graph.canonical_edge_density
     - graph.canonical_exhaustion_score
+    # Chain topology signals (Phase 1, additive)
+    - graph.global.chain_topology
+    # Note: Node-level chain topology signals (graph.node.chain_topology) are auto-discovered
+    # via NodeSignalDetector registry and do not need to be specified here
 
   llm:
     - llm.response_depth

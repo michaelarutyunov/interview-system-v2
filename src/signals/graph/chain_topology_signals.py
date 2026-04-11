@@ -16,12 +16,12 @@ from src.signals.graph.graph_traversal import (
     build_reverse_adjacency_list,
     get_node_type_map,
 )
-from src.signals.signal_base import SignalDetector
+from src.signals.graph.node_base import NodeSignalDetector
 
 log = structlog.get_logger(__name__)
 
 
-class ChainTopologySignalDetector(SignalDetector):
+class ChainTopologySignalDetector(NodeSignalDetector):
     """Chain topology signals per node for chain-aware strategy selection.
 
     Namespaced signals (all per-node):
@@ -153,7 +153,9 @@ class ChainTopologySignalDetector(SignalDetector):
                 "level_gap_size": level_gap_size,
             }
 
-        return {self.signal_name: results}
+        # Return in node signal format: {node_id: signal_value}
+        # where signal_value is the dict of all chain topology metrics for that node
+        return results
 
     def _compute_gap_above(
         self,
