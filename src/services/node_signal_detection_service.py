@@ -96,10 +96,24 @@ class NodeSignalDetectionService:
                 detected = await detector.detect(context, graph_state, response_text)
 
                 # Merge results into node_signals
+                # If a detector returns a dict value per node, flatten its sub-keys
+                # into individual flat signal entries (e.g. graph.node.chain_topology
+                # {gap_above: True} → graph.node.gap_above: True).  This lets YAML
+                # weight keys and valid_when gates reference sub-signals directly.
                 detector_count = 0
                 for node_id, signal_value in detected.items():
                     if node_id in node_signals:
-                        node_signals[node_id][detector.signal_name] = signal_value
+                        if isinstance(signal_value, dict):
+                            # Flatten: store parent key AND individual sub-keys
+                            node_signals[node_id][detector.signal_name] = signal_value
+                            # Derive namespace prefix from signal_name
+                            # e.g. "graph.node.chain_topology" → "graph.node."
+                            parts = detector.signal_name.rsplit(".", 1)
+                            prefix = parts[0] + "." if len(parts) == 2 else ""
+                            for sub_key, sub_val in signal_value.items():
+                                node_signals[node_id][f"{prefix}{sub_key}"] = sub_val
+                        else:
+                            node_signals[node_id][detector.signal_name] = signal_value
                         detector_count += 1
 
                 signals_detected_count += detector_count

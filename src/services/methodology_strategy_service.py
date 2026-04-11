@@ -265,6 +265,50 @@ class MethodologyStrategyService:
 
         best_strategy_config, best_strategy_score = ranked_strategies[0]
 
+        # --- Threshold fallback check ---
+        # If best score is below the configured threshold, try conversation-level
+        # fallback strategies (revitalize / close) before committing to best.
+        score_threshold = 0.0
+        if config.chain_completion and isinstance(config.chain_completion, dict):
+            score_threshold = float(
+                config.chain_completion.get("score_threshold", 0.0)
+            )
+
+        if best_strategy_score < score_threshold:
+            global_fatigue = global_signals.get("llm.global_response_trend") == "fatigued"
+            engagement = global_signals.get("llm.engagement", 1.0)
+            low_engagement = isinstance(engagement, (int, float)) and engagement < 0.3
+
+            fallback_strategy_name: str | None = None
+            if global_fatigue or low_engagement:
+                fallback_strategy_name = "revitalize"
+            # Note: termination / close detection left for Phase 3
+
+            if fallback_strategy_name:
+                fallback_config = next(
+                    (s for s in strategies if s.name == fallback_strategy_name),
+                    None,
+                )
+                if fallback_config:
+                    log.info(
+                        "strategy_threshold_fallback",
+                        methodology=methodology_name,
+                        best_score=best_strategy_score,
+                        threshold=score_threshold,
+                        fallback_strategy=fallback_strategy_name,
+                        reason="global_fatigue_or_low_engagement",
+                    )
+                    best_strategy_config = fallback_config
+                    best_strategy_score = 0.0
+            else:
+                # No fallback condition met — take best anyway
+                log.debug(
+                    "strategy_threshold_below_but_no_fallback",
+                    methodology=methodology_name,
+                    best_score=best_strategy_score,
+                    threshold=score_threshold,
+                )
+
         # --- Stage 2: Select node (conditional on node_binding) ---
         focus_node_id = None
         stage2_decomposition: list[ScoredCandidate] = []

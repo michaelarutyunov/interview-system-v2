@@ -66,6 +66,14 @@ def test_all_node_signals_auto_registered():
         "graph.node.canonical_novelty",
         "technique.node.strategy_repetition",
         "meta.node.opportunity",
+        # Chain topology (computed by ChainTopologySignalDetector, flat sentinels register names)
+        "graph.node.chain_topology",
+        "graph.node.gap_above",
+        "graph.node.gap_below",
+        "graph.node.level_skip",
+        "graph.node.branching_deficit",
+        "graph.node.fan_in",
+        "graph.node.level_gap_size",
     }
     assert signal_names == expected, (
         f"Missing: {expected - signal_names}, Extra: {signal_names - expected}"

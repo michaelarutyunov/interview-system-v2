@@ -312,6 +312,60 @@ strategies:
       graph.node.focus_count.medium: -0.3
       graph.node.focus_count.none: 0.3            # Bonus for never-focused nodes
 
+  # Strategy 6: Ascend — extend incomplete chain upward toward terminal values
+  - name: ascend
+    description: "Extend an incomplete chain upward by asking what the current concept leads to at the next ontology level"
+    node_binding: required
+    valid_when: graph.node.gap_above
+    signal_weights:
+      graph.node.gap_above.true: 0.3
+      graph.node.fan_in: 0.067
+      graph.node.recency_score: 0.2
+      graph.node.exhaustion_score: -0.4
+      llm.response_depth.deep: 0.1
+
+  # Strategy 7: Ground — establish causal antecedents for ungrounded high-level node
+  - name: ground
+    description: "Ground an ungrounded node by asking what attributes or lower-level concepts lead to it"
+    node_binding: required
+    valid_when: graph.node.gap_below
+    signal_weights:
+      graph.node.gap_below.true: 0.3
+      graph.node.recency_score: 0.25
+      graph.node.exhaustion_score: -0.4
+      llm.response_depth.deep: 0.05
+
+  # Strategy 8: Bridge — fill missing intermediate level in a skipped chain
+  - name: bridge
+    description: "Fill a structural gap by asking what happens between a lower and higher concept that are directly connected but skip ontology levels"
+    node_binding: required
+    valid_when: graph.node.level_skip
+    signal_weights:
+      graph.node.level_skip.true: 0.35
+      graph.node.recency_score: 0.2
+      graph.node.exhaustion_score: -0.3
+
+  # Strategy 9: Branch — expand breadth at a level where methodology expects more siblings
+  - name: branch
+    description: "Expand breadth by asking whether there are other concepts at the same level that also connect to the same parent or child"
+    node_binding: required
+    valid_when: graph.node.branching_deficit
+    signal_weights:
+      graph.node.branching_deficit: 0.25
+      graph.node.recency_score: 0.15
+      graph.node.exhaustion_score: -0.3
+      llm.engagement.high: 0.1
+
+  # Strategy 10: Anchor — connect isolated node to existing graph structure
+  - name: anchor
+    description: "Connect an isolated concept to the existing graph by exploring how it relates to other known concepts"
+    node_binding: required
+    valid_when: graph.node.is_orphan
+    signal_weights:
+      graph.node.is_orphan.true: 0.35
+      graph.node.recency_score: 0.2
+      graph.node.exhaustion_score: -0.2
+
 chain_completion:
   expected_branching:
     attribute: 3
@@ -319,6 +373,7 @@ chain_completion:
     psychosocial_consequence: 1
     instrumental_value: 1
     terminal_value: 1
+  score_threshold: 0.0  # Phase 2: set low so fallback doesn't interfere with comparison
 
 phases:
   early:
@@ -328,6 +383,11 @@ phases:
       clarify: 1.2
       deepen: 0.5
       reflect: 0.2
+      branch: 1.5
+      ascend: 0.8
+      ground: 1.0
+      bridge: 0.5
+      anchor: 1.2
     phase_bonuses:
       explore: 0.2  # Additive bonus to encourage exploration even with zero base score
 
@@ -339,6 +399,11 @@ phases:
       revitalize: 1.0
       explore: 0.6
       reflect: 0.7
+      ascend: 1.5
+      ground: 1.2
+      bridge: 1.3
+      branch: 0.8
+      anchor: 1.0
     phase_bonuses:
       deepen: 0.3  # Additive bonus to prioritize deepening in mid-phase
 
@@ -349,6 +414,11 @@ phases:
       revitalize: 1.2
       deepen: 0.5
       explore: 0.3
+      ascend: 1.8
+      ground: 0.8
+      bridge: 1.5
+      branch: 0.5
+      anchor: 0.6
     phase_bonuses:
       reflect: 0.2   # Additive bonus to ensure reflection gets selected
       revitalize: 0.2

@@ -392,4 +392,73 @@ class ChainTopologySignalDetector(NodeSignalDetector):
             ) from e
 
 
-__all__ = ["ChainTopologySignalDetector"]
+# ---------------------------------------------------------------------------
+# Virtual flat-signal sentinels
+#
+# NodeSignalDetectionService flattens the nested dict returned by
+# ChainTopologySignalDetector into individual keys per node
+# (e.g. graph.node.gap_above, graph.node.fan_in).  These sentinel classes
+# register those names in the SignalDetector registry so the YAML validator
+# accepts them in `valid_when` and `signal_weights` without needing real
+# detector logic (values always come from the flattening step).
+# ---------------------------------------------------------------------------
+
+
+class _ChainTopoFlatSentinel(NodeSignalDetector):
+    """Abstract base for flat chain-topology sentinel registrations.
+
+    Appears in get_all_node_signal_classes() (requires_node_tracker=True from
+    NodeSignalDetector).  detect() always returns {} — actual values are injected
+    by NodeSignalDetectionService when it flattens ChainTopologySignalDetector output.
+    """
+
+    async def detect(self, context: Any, graph_state: Any, response_text: str) -> dict:  # type: ignore[override]
+        # Never called; values come from NodeSignalDetectionService flattening.
+        return {}
+
+
+class _GapAboveSentinel(_ChainTopoFlatSentinel):
+    signal_name = "graph.node.gap_above"
+    description = "True if node has no outgoing edge to a higher ontology level (chain frontier)."
+    dependencies = []
+
+
+class _GapBelowSentinel(_ChainTopoFlatSentinel):
+    signal_name = "graph.node.gap_below"
+    description = "True if node has no incoming edge from a lower ontology level (ungrounded)."
+    dependencies = []
+
+
+class _LevelSkipSentinel(_ChainTopoFlatSentinel):
+    signal_name = "graph.node.level_skip"
+    description = "True if node has a direct leads_to edge that skips one or more ontology levels."
+    dependencies = []
+
+
+class _BranchingDeficitSentinel(_ChainTopoFlatSentinel):
+    signal_name = "graph.node.branching_deficit"
+    description = "Branching deficit: 1 - (actual_siblings / expected_siblings) in [0,1]."
+    dependencies = []
+
+
+class _FanInSentinel(_ChainTopoFlatSentinel):
+    signal_name = "graph.node.fan_in"
+    description = "Count of distinct origin-level nodes with paths to this node."
+    dependencies = []
+
+
+class _LevelGapSizeSentinel(_ChainTopoFlatSentinel):
+    signal_name = "graph.node.level_gap_size"
+    description = "Number of ontology levels between this node and terminal/origin."
+    dependencies = []
+
+
+__all__ = [
+    "ChainTopologySignalDetector",
+    "_GapAboveSentinel",
+    "_GapBelowSentinel",
+    "_LevelSkipSentinel",
+    "_BranchingDeficitSentinel",
+    "_FanInSentinel",
+    "_LevelGapSizeSentinel",
+]
