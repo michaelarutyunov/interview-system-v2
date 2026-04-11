@@ -239,8 +239,8 @@ def rank_strategies(
     Args:
         strategy_configs: List of strategy configs from YAML
         signals: Dict of detected signals
-        phase_weights: Optional dict of phase-based weight multipliers (e.g., {"deepen": 1.5, "reflect": 0.5})
-        phase_bonuses: Optional dict of phase-based additive bonuses (e.g., {"reflect": 0.3})
+        phase_weights: Optional dict of phase-based weight multipliers (e.g., {"ascend": 1.5, "branch": 0.8})
+        phase_bonuses: Optional dict of phase-based additive bonuses (e.g., {"ascend": 0.15})
                         Applied additively: final_score = (base_score * multiplier) + bonus
         return_decomposition: If True, return (ranked_strategies, List[ScoredCandidate]) tuple
 

@@ -19,7 +19,7 @@ Convenience properties on `PipelineContext` derive computed values from contract
 | 4 | GraphUpdateStage | `GraphUpdateOutput` | `nodes_added`, `edges_added`, `node_count`, `edge_count`, `timestamp`. Performs permitted_connections validation for cross-turn edges after dedup resolution. |
 | 4.5 | SlotDiscoveryStage | `SlotDiscoveryOutput` | `slots_created`, `slots_updated`, `mappings_created`, `timestamp` |
 | 5 | StateComputationStage | `StateComputationOutput` | `graph_state`, `recent_nodes`, `computed_at`, `saturation_metrics`, `canonical_graph_state` |
-| 6 | StrategySelectionStage | `StrategySelectionOutput` | `strategy`, `focus`, `selected_at`, `signals`, `node_signals`, `strategy_alternatives`, `generates_closing_question`, `focus_mode`, `score_decomposition` |
+| 6 | StrategySelectionStage | `StrategySelectionOutput` | `strategy`, `focus`, `selected_at`, `signals`, `node_signals`, `strategy_alternatives`, `generates_closing_question`, `focus_mode`, `score_decomposition`, `threshold_fallback` |
 | 7 | ContinuationStage | `ContinuationOutput` | `should_continue`, `focus_concept`, `reason`, `turns_remaining`, `timestamp` |
 | 8 | QuestionGenerationStage | `QuestionGenerationOutput` | `question`, `strategy`, `focus`, `has_llm_fallback`, `timestamp` |
 | 9 | ResponseSavingStage | `ResponseSavingOutput` | `turn_number`, `system_utterance_id`, `system_utterance`, `question_text`, `timestamp` |
@@ -36,6 +36,16 @@ Stage 2.5 (SRL) is gated by `settings.enable_srl`. Stage 4.5 (SlotDiscovery) is 
 ### TurnResult Assembly
 
 `ScoringPersistenceStage` (Stage 10) assembles the final `TurnResult` from the completed context. Any field that is not forwarded from a contract at this point will be absent from the API response. Missing fields in the API response always trace back to this assembly, not to the pipeline stages themselves.
+
+### Strategy Selection (Stage 6) Details
+
+**StrategyConfig.valid_when gate.** Each `StrategyConfig` (defined in `src/methodologies/registry.py`) has an optional `valid_when` field — a string naming a boolean signal. When set, the (strategy, node) pair is skipped during joint scoring if the named signal is not `True` in the node's signal dict. This gates chain-aware strategies (e.g., `bridge`, `branch`, `anchor`) so they are only scored when chain topology signals indicate a relevant graph structure. Strategies without `valid_when` are always eligible.
+
+**Threshold fallback.** When the best joint-scored candidate falls below the configured score threshold, `MethodologyStrategyService` checks for global fatigue (`graph.global_fatigue`) or low engagement (`llm.engagement < 0.3`). If either condition is true, the `revitalize` strategy is selected as a fallback and the event is logged as `strategy_threshold_fallback` with the reason `global_fatigue_or_low_engagement`. If no fallback condition is met, the best candidate is used despite the low score (logged as `strategy_threshold_below_but_no_fallback`). The `StrategySelectionOutput.threshold_fallback` field records whether this fallback was activated.
+
+**MEC methodology strategies.** The Means-End Chain methodology family (means_end_chain, means_end_chain_v2_strict, means_end_chain_v3_flex) now defines six strategies: `ascend`, `ground`, `bridge`, `branch`, `anchor`, `revitalize`. The first five are chain-aware (some use `valid_when` gates); `revitalize` serves as the engagement-recovery fallback.
+
+**Default strategy.** The code default is `ascend` (was `deepen`). This is the strategy used when no strategy is explicitly specified, e.g., in `QuestionService` and as the initial strategy before signal-driven selection produces a result.
 
 ---
 
@@ -60,6 +70,8 @@ Stage 2.5 (SRL) is gated by `settings.enable_srl`. Stage 4.5 (SlotDiscovery) is 
 | API response missing a field that is computed in the pipeline | `ScoringPersistenceStage` assembly did not forward the field into `TurnResult` | Inspect `ScoringPersistenceStage` to find where `TurnResult` is constructed and add the missing field mapping |
 | `ValueError: State is stale!` raised during strategy selection | `StateComputationStage` (Stage 5) ran before `ExtractionStage` (Stage 3), so `computed_at < extraction.timestamp` | Ensure pipeline stage order places Stage 5 after Stage 3 |
 | Cross-turn edges accepted despite violating permitted_connections | ExtractionService only validates current-turn concepts; cross-turn edges bypass validation | GraphUpdateStage now validates post-dedup; check for `invalid_connection_post_dedup` log if edges are unexpectedly rejected |
+| Strategy never appears in scored candidates despite being in YAML | Strategy has `valid_when` gate and the named signal is `False`/`None`/missing for all nodes | Check `strategy_node_pair_gated` log entries; verify the gate signal is being produced by the relevant signal detector |
+| `revitalize` selected unexpectedly (score was adequate for another strategy) | Global fatigue or low engagement triggered threshold fallback, overriding the best-scored candidate | Check `strategy_threshold_fallback` log for `global_fatigue_or_low_engagement` reason; inspect `graph.global_fatigue` and `llm.engagement` signal values |
 
 ---
 
@@ -70,3 +82,5 @@ Stage 2.5 (SRL) is gated by `settings.enable_srl`. Stage 4.5 (SlotDiscovery) is 
 - `src/services/session_service.py` — `_build_pipeline()`: stage wiring and execution order
 - `src/services/turn_pipeline/stages/scoring_persistence_stage.py` — `TurnResult` assembly from final context
 - `src/services/graph_service.py` — Cross-turn edge validation in `_add_edge_from_relationship()` (see `graph-dedup.md`)
+- `src/methodologies/registry.py` — `StrategyConfig` with `valid_when` gate; `MethodologyConfig` with strategy list
+- `src/methodologies/scoring.py` — Joint strategy-node scoring with `valid_when` gate filtering; `ScoredCandidate` decomposition

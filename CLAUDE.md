@@ -113,6 +113,19 @@ enable_canonical_slots: bool = True
 phase_boundaries:
   early_max_turns: 4
   mid_max_turns: 12
+
+# Chain-aware strategies (MEC only)
+chain_completion:
+  expected_branching: {attribute: 3, functional_consequence: 2, ...}
+  score_threshold: 0.15  # Below this, conversation-level strategies activate
+
+# Strategy valid_when gates (MEC)
+# ascend:   graph.node.gap_above
+# ground:   graph.node.gap_below
+# bridge:   graph.node.level_skip
+# branch:   graph.node.branching_deficit
+# anchor:   graph.node.is_orphan
+# revitalize: no gate (conversation-level fallback)
 ```
 
 ---
@@ -212,6 +225,8 @@ Run `/deep-code-quality` for the full framework when a diagnostic doesn't obviou
 - **Stale specs:** Agents trust docs absolutely. An outdated doc produces silent failures — correct-looking code based on wrong assumptions. The drift detector warns but does not prevent this. When in doubt, verify the doc against source.
 - **Canonical slot timing:** Canonical slots are only `active` after `support_count >= canonical_min_support_nodes` (default 2). Signals depending on canonical data return empty/zero on first occurrence.
 - **`select_strategy_and_focus()` is D2:** The current architecture uses `rank_strategy_node_pairs()` for joint strategy-node scoring. Any doc or code referencing the old single-strategy D1 flow is outdated.
+- **MEC uses chain-aware strategies:** MEC methodologies use 6 strategies (ascend, ground, bridge, branch, anchor, revitalize) with `valid_when` gates. Legacy strategies (deepen, explore, clarify, reflect) have been removed. Other methodologies (JTBD, CJM, CIT, Repertory Grid) use their own strategy names — do NOT apply MEC strategy changes to those.
+- **valid_when hard gate:** Chain-aware strategies are only scored for nodes where the gate signal is True. A strategy with `valid_when: graph.node.gap_above` will never be scored for terminal nodes.
 
 ---
 

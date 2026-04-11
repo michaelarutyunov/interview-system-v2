@@ -1,7 +1,7 @@
 """Question generation service for semi-structured interviews.
 
 Generates natural, conversational follow-up questions using LLM based on:
-- Selected strategy from methodology config (deepen, explore, clarify, etc.)
+- Selected strategy from methodology config (ascend, ground, bridge, branch, anchor, etc.)
 - Recent conversation context and utterances
 - Current graph state (depth, node counts, recent concepts)
 - Focus concept or node
@@ -37,7 +37,7 @@ class QuestionService:
     """Service for generating interview questions using LLM.
 
     Generates natural, conversational questions based on:
-    - Selected questioning strategy (deepen, explore, clarify, reflect, revitalize)
+    - Selected questioning strategy (ascend, ground, bridge, branch, anchor, revitalize)
     - Current conversation context and recent utterances
     - Graph state (depth, node counts, recent concepts)
     - Focus concept or node ID
@@ -50,14 +50,14 @@ class QuestionService:
     def __init__(
         self,
         llm_client: LLMClient,
-        default_strategy: str = "deepen",
+        default_strategy: str = "ascend",
         methodology: str = "means_end_chain",
     ):
         """Initialize question service with LLM client and methodology configuration.
 
         Args:
             llm_client: LLM client instance for question generation (required)
-            default_strategy: Default strategy name when not specified (e.g., "deepen")
+            default_strategy: Default strategy name when not specified (e.g., "ascend")
             methodology: Methodology name for opening question generation
                 (loaded from config/methodologies/*.yaml)
         """

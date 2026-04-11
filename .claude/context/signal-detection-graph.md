@@ -2,7 +2,7 @@
 
 ## Core Mechanics
 
-Graph and node signals are computed from in-memory state — no LLM calls, no DB queries (except `ChainCompletionSignal` which loads nodes/edges once). They run after Stage 7 (StateComputation) so graph_state and NodeStateTracker are fresh when signal detection occurs in Stage 8.
+Graph and node signals are computed from in-memory state — no LLM calls, no DB queries (except `ChainCompletionSignal`, `ChainTopologySignalDetector`, and `GlobalChainTopologySignal` which each load nodes/edges once per detection pass). They run after Stage 7 (StateComputation) so graph_state and NodeStateTracker are fresh when signal detection occurs in Stage 8.
 
 **Global graph signals** (`graph.*`) return a single value keyed by the signal name and are derived from `GraphState` metrics: node count, edge count, max depth, chain completion, canonical concept count, etc. A float value like `graph.max_depth = 0.6` is matched against YAML weight keys via threshold binning (`.low`, `.mid`, `.high`). A boolean like `graph.chain_completion.has_complete` is matched via `.true` / `.false`.
 
@@ -30,6 +30,60 @@ The parent key `graph.node.chain_topology` also remains available (holds the raw
 These signals require graph traversal (O(N×D) for N nodes and D depth) and are only non-trivial for chain methodologies (MEC). For non-chain methodologies (JTBD, CJM, Repertory Grid), the detector returns `{}` and all 6 signals are absent from scoring.
 
 The `current_focus_streak` on a node resets only when focus changes — in `update_focus()` during Stage 8. It is NOT reset in `record_yield()` (Stage 5). This ordering is fundamental: Stage 5 runs before Stage 8, so any reset in `record_yield()` would make the streak appear as 0 to all signal detectors.
+
+---
+
+## Graph Traversal Utilities
+
+Shared synchronous helpers in `src/signals/graph/graph_traversal.py`. All functions operate on in-memory node/edge lists already loaded from the database by the calling signal detector. No LLM calls, no async, no DB access.
+
+| Function | Input | Output | Purpose |
+|----------|-------|--------|----------|
+| `build_adjacency_list(nodes, edges)` | Node/edge lists | `Dict[node_id, List[node_id]]` | Forward adjacency: source -> targets |
+| `build_reverse_adjacency_list(nodes, edges)` | Node/edge lists | `Dict[node_id, List[node_id]]` | Reverse adjacency: target -> sources |
+| `get_node_type_map(nodes)` | Node list | `Dict[node_id, node_type]` | node_id -> node_type mapping |
+| `bfs_to_target(start, adj_list, target_types, type_map)` | Start node, adjacency, target types | `bool` | Whether a path exists to any node of a given type |
+| `bfs_reachable(start, adj_list)` | Start node, adjacency | `Dict[node_id, int]` | Shortest-path distance to all reachable nodes |
+
+Used by `ChainCompletionSignal` (bfs_to_target), `ChainTopologySignalDetector` (bfs_reachable, adjacency builders, type map), and `GlobalChainTopologySignal` (adjacency builders). Any future graph-walking signal detector should reuse these rather than reimplementing BFS.
+
+---
+
+## Chain Completion Signal
+
+`ChainCompletionSignal` (in `src/signals/graph/graph_signals.py`) computes chain completeness from level-1 nodes to terminal nodes using BFS:
+
+- `graph.chain_completion.ratio` (float [0,1]): Fraction of level-1 nodes with a complete path to a terminal node.
+- `graph.chain_completion.has_complete` (bool): True if at least one complete chain exists.
+
+This is distinct from the chain topology signals above -- it measures end-to-end chain completeness, not per-node structural gaps. Used by chain-aware strategies as a progress indicator.
+
+---
+
+## Global Chain Topology Signal
+
+`GlobalChainTopologySignal` (in `src/signals/graph/global_chain_signals.py`) produces aggregate counts used by chain-aware strategy `valid_when` gates for threshold checks:
+
+| Signal | Type | Meaning |
+|--------|------|----------|
+| `graph.global.frontier_count` | int | Nodes with `gap_above=True` (chain frontiers waiting to be extended) |
+| `graph.global.ungrounded_count` | int | Nodes with `gap_below=True` (high-level nodes without causal antecedents) |
+
+Returns `{}` for non-chain methodologies (fewer than 2 distinct ontology levels), consistent with `ChainTopologySignalDetector` behavior. When the graph has no nodes, returns zero counts rather than `{}`.
+
+---
+
+## Strategy Integration
+
+Chain topology signals (both node-level and global) are consumed by chain-aware strategies via `valid_when` gates in methodology YAML files:
+
+- **ascend**: Targets nodes with `gap_above=True` to extend chains upward toward terminal values.
+- **ground**: Targets nodes with `gap_below=True` to establish causal antecedents from origin level.
+- **bridge**: Targets nodes with `level_skip=True` to fill skipped ontology levels.
+- **branch**: Targets nodes with high `branching_deficit` to increase sibling coverage.
+- **anchor**: Targets nodes with high `fan_in` to reinforce convergence from multiple origins.
+
+Global signals (`frontier_count`, `ungrounded_count`) provide threshold guards -- e.g., `ascend` is only valid when `graph.global.frontier_count > 0`.
 
 ---
 
@@ -85,6 +139,8 @@ The `current_focus_streak` on a node resets only when focus changes — in `upda
 | File | Purpose |
 |------|---------|
 | `src/signals/graph/graph_signals.py` | Global graph signals: `graph.node_count`, `graph.max_depth`, `graph.chain_completion.*`, `graph.canonical_*` |
+| `src/signals/graph/global_chain_signals.py` | Global chain topology aggregates: `graph.global.frontier_count`, `graph.global.ungrounded_count` |
+| `src/signals/graph/graph_traversal.py` | Shared BFS and adjacency utilities used by chain topology, chain completion, and global chain signal detectors |
 | `src/signals/graph/node_signals.py` | Node-level detectors: exhaustion, focus streak, recency, novelty, edge count, canonical novelty |
 | `src/signals/graph/node_base.py` | `NodeSignalDetector` base class; provides `_get_all_node_states()` and `_calculate_shallow_ratio()` |
 | `src/signals/graph/__init__.py` | `__all__` exports for both global and node signal classes |

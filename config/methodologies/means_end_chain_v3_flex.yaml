@@ -1,5 +1,11 @@
 # Means-End Chain Methodology Configuration (V3 Flex)
 #
+# Phase 3 changes:
+#   - Removed legacy strategies (deepen, clarify, explore, reflect)
+#   - Retained chain-aware strategies: ascend, ground, bridge, branch, anchor, revitalize
+#   - Updated phase weights to reference only retained strategies
+#   - Raised score_threshold to 0.15 (production threshold)
+#
 # V3 Flex changes from V2 Strict (3.1):
 #   - permitted_connections REMOVED from leads_to edge
 #     The edge type and its semantic description remain — the LLM uses them to
@@ -163,109 +169,7 @@ signals:
     - meta.canonical.saturation
 
 strategies:
-  # Strategy 1: Deepen the chain (laddering)
-  - name: deepen
-    description: "Explore why something matters to understand deeper motivations and values through progressive 'why' questioning"
-    signal_weights:
-      llm.response_depth.surface: 0.8
-      llm.response_depth.shallow: 0.3
-      llm.response_depth.moderate: 0.15
-      graph.max_depth: -0.3
-      graph.chain_completion.has_complete.false: 0.6
-      llm.engagement.high: 0.5
-      llm.engagement.mid: 0.3
-      llm.engagement.low: -0.5
-      llm.valence.high: 0.4
-      llm.global_response_trend.shallowing: 0.4
-      temporal.strategy_repetition_count: -0.8
-      graph.node.exhaustion_score.low: 0.3
-      graph.node.focus_streak.low: 0.5
-      graph.node.focus_streak.medium: -0.4
-      graph.node.focus_streak.high: -0.8
-      graph.node.novelty.high: 0.3
-      graph.node.novelty.medium: 0.15
-      graph.node.focus_count.high: -0.6
-      graph.node.focus_count.medium: -0.3
-      graph.node.focus_count.none: 0.3
-      graph.node.canonical_novelty.confirming: 0.2
-      meta.canonical.saturation.high: -0.5
-      meta.conversation.saturation.high: -0.4
-
-  # Strategy 2: Clarify relationships (probing)
-  - name: clarify
-    description: "Rephrase the question in simpler, clearer words when user shows confusion or lack of understanding"
-    signal_weights:
-      llm.specificity.low: 0.8
-      llm.certainty.low: 0.5
-      llm.engagement.mid: 0.3
-      meta.canonical.saturation.high: -0.5
-      meta.conversation.saturation.high: -0.4
-      temporal.strategy_repetition_count: -0.3
-      temporal.turns_since_strategy_change: -0.3
-      graph.node.is_orphan.true: 0.7
-      graph.node.exhaustion_score.low: 0.4
-      graph.node.focus_streak.none: 0.3
-      graph.node.novelty.high: 0.4
-      graph.node.novelty.medium: 0.2
-      graph.node.focus_count.high: -0.5
-      graph.node.focus_count.medium: -0.2
-      graph.node.focus_count.none: 0.3
-      graph.node.canonical_novelty.new: 0.4
-      graph.node.canonical_novelty.orphan: 0.3
-
-  # Strategy 3: Explore new areas (elaboration)
-  - name: explore
-    description: "Find new branches and related concepts by asking 'what else?' to expand breadth"
-    signal_weights:
-      llm.certainty.low: 0.4
-      temporal.strategy_repetition_count: -0.8
-      llm.engagement.mid: 0.4
-      llm.valence.low: 0.3
-      meta.canonical.saturation.high: -0.5
-      meta.conversation.saturation.high: -0.4
-      llm.global_response_trend.shallowing: -0.4
-      llm.global_response_trend.fatigued: -0.6
-      graph.node.focus_streak.none: 0.6
-      graph.node.focus_streak.medium: -0.4
-      graph.node.focus_streak.high: -0.7
-      graph.node.yield_stagnation.false: 0.5
-      graph.node.exhaustion_score.low: 0.4
-      graph.node.novelty.high: 0.6
-      graph.node.novelty.medium: 0.3
-      graph.node.focus_count.high: -0.6
-      graph.node.focus_count.medium: -0.3
-      graph.node.focus_count.none: 0.3
-      graph.node.canonical_novelty.new: 0.5
-      graph.node.canonical_novelty.orphan: 0.3
-
-  # Strategy 4: Reflect and validate (validation)
-  - name: reflect
-    node_binding: none
-    description: "Summarize what you've heard and invite correction or addition to validate understanding"
-    signal_weights:
-      graph.max_depth: 0.7
-      llm.response_depth.deep: 0.6
-      llm.certainty.low: 0.7
-      llm.certainty.mid: 0.7
-      meta.node.opportunity.probe_deeper: 0.6
-      llm.engagement.low: 0.6
-      # Phase gates — reflect is high-base; must not win in early/mid phase
-      meta.interview.phase.early: -3.0
-      meta.interview.phase.mid: -1.0
-      # Diversity
-      temporal.strategy_repetition_count: -1.5
-      temporal.strategy_repetition_count.high: -1.0
-      graph.node.has_outgoing.true: 0.8
-      graph.node.focus_streak.high: 0.5
-      technique.node.strategy_repetition.low: 0.3
-      graph.node.novelty.high: 0.1
-      graph.node.focus_count.high: -0.4
-      graph.node.focus_count.medium: -0.2
-      graph.node.canonical_novelty.confirming: 0.2
-      meta.conversation.saturation: 0.3
-      meta.canonical.saturation: 0.2
-
-  # Strategy 5: Revitalize engagement (elaboration)
+  # Strategy 1: Revitalize engagement (elaboration)
   - name: revitalize
     node_binding: none
     description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
@@ -288,7 +192,7 @@ strategies:
       graph.node.focus_count.medium: -0.3
       graph.node.focus_count.none: 0.3
 
-  # Strategy 6: Ascend — extend incomplete chain upward toward terminal values
+  # Strategy 2: Ascend — extend incomplete chain upward toward terminal values
   - name: ascend
     description: "Extend an incomplete chain upward by asking what the current concept leads to at the next ontology level"
     node_binding: required
@@ -300,7 +204,7 @@ strategies:
       graph.node.exhaustion_score: -0.4
       llm.response_depth.deep: 0.1
 
-  # Strategy 7: Ground — establish causal antecedents for ungrounded high-level node
+  # Strategy 3: Ground — establish causal antecedents for ungrounded high-level node
   - name: ground
     description: "Ground an ungrounded node by asking what attributes or lower-level concepts lead to it"
     node_binding: required
@@ -311,7 +215,7 @@ strategies:
       graph.node.exhaustion_score: -0.4
       llm.response_depth.deep: 0.05
 
-  # Strategy 8: Bridge — fill missing intermediate level in a skipped chain
+  # Strategy 4: Bridge — fill missing intermediate level in a skipped chain
   - name: bridge
     description: "Fill a structural gap by asking what happens between a lower and higher concept that are directly connected but skip ontology levels"
     node_binding: required
@@ -321,7 +225,7 @@ strategies:
       graph.node.recency_score: 0.2
       graph.node.exhaustion_score: -0.3
 
-  # Strategy 9: Branch — expand breadth at a level where methodology expects more siblings
+  # Strategy 5: Branch — expand breadth at a level where methodology expects more siblings
   - name: branch
     description: "Expand breadth by asking whether there are other concepts at the same level that also connect to the same parent or child"
     node_binding: required
@@ -332,7 +236,7 @@ strategies:
       graph.node.exhaustion_score: -0.3
       llm.engagement.high: 0.1
 
-  # Strategy 10: Anchor — connect isolated node to existing graph structure
+  # Strategy 6: Anchor — connect isolated node to existing graph structure
   - name: anchor
     description: "Connect an isolated concept to the existing graph by exploring how it relates to other known concepts"
     node_binding: required
@@ -349,52 +253,41 @@ chain_completion:
     psychosocial_consequence: 1
     instrumental_value: 1
     terminal_value: 1
-  score_threshold: 0.0  # Phase 2: set low so fallback doesn't interfere with comparison
+  score_threshold: 0.15  # Production threshold — below this, conversation-level strategies may activate
 
 phases:
   early:
     description: "Initial exploration, building graph structure"
     signal_weights:
-      explore: 1.5
-      clarify: 1.2
-      deepen: 0.5
-      reflect: 0.2
       branch: 1.5
       ascend: 0.8
       ground: 1.0
       bridge: 0.5
       anchor: 1.2
+      revitalize: 1.0
     phase_bonuses:
-      explore: 0.2
+      branch: 0.1
 
   mid:
     description: "Building depth and connections"
     signal_weights:
-      deepen: 1.3
-      clarify: 0.8
-      revitalize: 1.0
-      explore: 0.6
-      reflect: 0.7
       ascend: 1.5
       ground: 1.2
       bridge: 1.3
       branch: 0.8
       anchor: 1.0
+      revitalize: 1.0
     phase_bonuses:
-      deepen: 0.3
+      ascend: 0.15
 
   late:
     description: "Validation and verification"
     signal_weights:
-      reflect: 1.2
-      revitalize: 1.2
-      deepen: 0.5
-      explore: 0.3
       ascend: 1.8
       ground: 0.8
       bridge: 1.5
       branch: 0.5
       anchor: 0.6
+      revitalize: 1.2
     phase_bonuses:
-      reflect: 0.2
       revitalize: 0.2

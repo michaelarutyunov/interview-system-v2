@@ -22,7 +22,7 @@ log = structlog.get_logger(__name__)
 
 def get_question_system_prompt(
     methodology: MethodologySchema,
-    strategy: str = "deepen",
+    strategy: str = "ascend",
     topic: Optional[str] = None,
 ) -> str:
     """
@@ -30,7 +30,7 @@ def get_question_system_prompt(
 
     Args:
         methodology: Methodology schema for method-specific context (required)
-        strategy: Strategy name (e.g., deepen, explore, clarify, reflect, revitalize)
+        strategy: Strategy name (e.g., ascend, ground, bridge, branch, anchor, revitalize)
                   - must match methodology config
         topic: Research topic to anchor questions to (prevents drift)
 
@@ -111,7 +111,7 @@ def get_question_user_prompt(
     methodology: MethodologySchema,
     recent_utterances: Optional[List[Dict[str, str]]] = None,
     graph_summary: Optional[str] = None,
-    strategy: str = "deepen",
+    strategy: str = "ascend",
     topic: Optional[str] = None,
     depth_achieved: int = 0,
     signals: Optional[Dict[str, Any]] = None,

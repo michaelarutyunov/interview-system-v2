@@ -147,7 +147,7 @@ class TurnResponse(BaseModel):
                     "depth_achieved": {"attribute": 3, "functional_consequence": 2},
                 },
                 "scoring": {"depth": 0.15, "saturation": 0.0},
-                "strategy_selected": "deepen",
+                "strategy_selected": "ascend",
                 "next_question": "You mentioned the creamy texture feels satisfying. Why is that feeling important to you?",
                 "should_continue": True,
                 "latency_ms": 1250,
