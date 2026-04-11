@@ -185,7 +185,24 @@ Specialist agents are invoked based on which files are being modified. Agents li
 | `src/services/extraction_service.py`, `src/llm/prompts/` | `extraction-specialist` |
 | `src/methodologies/**` (registry, scoring), `config/methodologies/*.yaml` (YAML structure, validation) | `methodology-specialist` |
 
-Agents will be created iteratively as failure patterns are observed. See `docs/codified-context-principles.md` for creation criteria.
+Agents will be created iteratively as failure patterns are observed. See `.claude/codified-context-principles.md` for creation criteria.
+
+---
+
+## Diagnostic Triage (ruff / pyright)
+
+Before fixing any ruff or pyright diagnostic, **categorize first** using `/deep-code-quality`:
+
+- **Safe auto-fix**: unused imports (F401), formatting, line length — apply immediately
+- **Investigate first**: unused variables (F841), `Optional` type errors, complexity warnings (C901) — read surrounding context, fix the root cause not the symptom
+- **Never suppress**: security warnings (S-series), type errors in error-handling code
+
+**Red flags — stop and investigate:**
+- Unused variable that looks like validation logic → likely a forgotten guard
+- Type error suggesting `Optional` on a function that shouldn't fail → raise an exception instead
+- Multiple related type errors in the same module → design issue, not isolated bug
+
+Run `/deep-code-quality` for the full framework when a diagnostic doesn't obviously fit category 1.
 
 ---
 
@@ -204,8 +221,9 @@ Agents will be created iteratively as failure patterns are observed. See `docs/c
 # Start API server locally
 uv run uvicorn src.main:app --reload
 
-# Run simulation
-uv run python scripts/run_simulation.py headphones_mec baseline_cooperative 10
+# Run simulation (valid concept IDs: glp1_food_mec, glp1_food_mec_strict, glp1_food_mec_flex, glp1_food_jtbd, coffee_jtbd_v2, meal_planning_jtbd_v2)
+# Personas: baseline_cooperative, skeptical_analyst, glp1_user, health_conscious, price_sensitive, convenience_seeker, quality_focused, sustainability_minded, social_conscious, minimalist
+uv run python scripts/run_simulation.py glp1_food_mec baseline_cooperative 10
 
 # Run tests
 uv run pytest
