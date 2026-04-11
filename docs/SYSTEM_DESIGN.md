@@ -179,7 +179,7 @@ The pipeline returns `TurnResult` (`src/services/turn_pipeline/result.py`) with:
 | Pool | Namespace | Key Signals |
 |------|-----------|-------------|
 | **Graph (Global)** | `graph.*` | `node_count`, `max_depth`, `orphan_count`, `chain_completion.ratio`, `chain_completion.has_complete`, `canonical_concept_count`, `canonical_edge_density`, `canonical_exhaustion_score` |
-| **Graph (Node)** | `graph.node.*` | `exhausted`, `exhaustion_score`, `yield_stagnation`, `focus_streak`, `recency_score`, `is_current_focus`, `is_orphan`, `edge_count`, `has_outgoing` |
+| **Graph (Node)** | `graph.node.*` | `exhausted`, `exhaustion_score`, `yield_stagnation`, `focus_streak`, `recency_score`, `is_current_focus`, `is_orphan`, `edge_count`, `has_outgoing`; chain topology: `gap_above`, `gap_below`, `level_skip`, `branching_deficit`, `fan_in`, `level_gap_size` (MEC only) |
 | **LLM** | `llm.*` | `response_depth` (categorical: surface/shallow/moderate/deep), `valence`, `certainty`, `specificity`, `engagement`, `intellectual_engagement` (all float [0,1]), `global_response_trend` |
 | **Temporal** | `temporal.*` | `strategy_repetition_count`, `turns_since_strategy_change` |
 | **Meta (Global)** | `meta.*` | `interview.phase`, `conversation.saturation`, `canonical.saturation` |

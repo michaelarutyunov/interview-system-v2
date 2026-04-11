@@ -130,6 +130,8 @@ When `canonical_slot_repo` is provided (i.e. `enable_canonical_slots=True`), sur
 
 7. **`record_yield` is conditional**: No yield is recorded if `graph_changes.nodes_added == 0 and edges_added == 0 and nodes_modified == 0`. This prevents spurious yield credit on turns with no graph mutations.
 
+8. **`NodeStateTracker` is strategy-agnostic**: The tracker records which strategy was used (`strategy_usage_count`, `last_strategy_used`, `consecutive_same_strategy`) but does not know about chain topology strategies (ascend/ground/bridge/branch/anchor) vs legacy strategies. No changes to this subsystem were needed for Phase 2 chain-aware strategy selection.
+
 ---
 
 ## Symptom → Cause → Fix

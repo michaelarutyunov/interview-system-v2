@@ -12,15 +12,22 @@ Graph and node signals are computed from in-memory state — no LLM calls, no DB
 
 **Node-level signals** (`graph.node.*`, `graph.node.canonical_*`) return `dict[node_id, value]` — one entry per tracked node. They inherit from `NodeSignalDetector` (which wraps `NodeStateTracker`) and always call `self._get_all_node_states()` to iterate every tracked node. Categorical signals (e.g., `graph.node.focus_streak`) return string values (`none`, `low`, `medium`, `high`) matched directly. Float signals (`graph.node.exhaustion_score`, `graph.node.recency_score`) use threshold binning.
 
-**Chain topology node signals** (`graph.node.chain_topology`) return a nested structure per node with 6 boolean/int/float values:
-- `gap_above` (bool): Node is highest in its chain AND non-terminal (chain frontier)
-- `gap_below` (bool): Node has no incoming edges from lower level AND above origin (ungrounded)
-- `level_skip` (bool): Node has direct edge skipping >1 ontology level
-- `branching_deficit` (float [0,1]): `1 - (actual_siblings / expected_siblings)` at this node's level
-- `fan_in` (int): Distinct origin-level nodes with paths to this node
-- `level_gap_size` (int): Ontology levels between this node and terminal/origin
+**Chain topology node signals** are computed by `ChainTopologySignalDetector` and cover 6 structural properties per node. The detector internally produces a nested dict per node; `NodeSignalDetectionService` **flattens** this into individual signal keys so they are directly addressable in YAML `signal_weights` and `valid_when`:
 
-These signals are auto-discovered via the `NodeSignalDetector` registry (not specified in YAML) and require graph traversal to compute chain structure.
+| Flat key | Type | Meaning |
+|---|---|---|
+| `graph.node.gap_above` | bool | Node is highest in its chain AND non-terminal (chain frontier) |
+| `graph.node.gap_below` | bool | No incoming edges from lower level AND above origin (ungrounded) |
+| `graph.node.level_skip` | bool | Direct edge to a node that skips >1 ontology level |
+| `graph.node.branching_deficit` | float [0,1] | `1 - (actual_siblings / expected_siblings)` at this node's level |
+| `graph.node.fan_in` | int | Distinct origin-level nodes with paths to this node |
+| `graph.node.level_gap_size` | int | Ontology levels between this node and terminal/origin |
+
+The parent key `graph.node.chain_topology` also remains available (holds the raw dict). The 6 flat keys are registered via sentinel classes in `chain_topology_signals.py` so the YAML registry validator accepts them in `valid_when` and `signal_weights`.
+
+**Flattening mechanics** (`NodeSignalDetectionService.detect_all()`): when a detector returns a dict value per node (as `ChainTopologySignalDetector` does), the service derives a namespace prefix from the detector's `signal_name` (`graph.node.chain_topology` → prefix `graph.node.`) and writes each sub-key as `{prefix}{sub_key}`. The parent key is also written. This is a general mechanism; any future detector returning a nested dict per node will auto-flatten the same way.
+
+These signals require graph traversal (O(N×D) for N nodes and D depth) and are only non-trivial for chain methodologies (MEC). For non-chain methodologies (JTBD, CJM, Repertory Grid), the detector returns `{}` and all 6 signals are absent from scoring.
 
 The `current_focus_streak` on a node resets only when focus changes — in `update_focus()` during Stage 8. It is NOT reset in `record_yield()` (Stage 5). This ordering is fundamental: Stage 5 runs before Stage 8, so any reset in `record_yield()` would make the streak appear as 0 to all signal detectors.
 
@@ -48,7 +55,9 @@ The `current_focus_streak` on a node resets only when focus changes — in `upda
 
 8. **`graph.canonical_exhaustion_score` returns `{}` (absent) when `canonical_slot_repo is None`.** When `enable_canonical_slots=False`, the signal skips computation entirely rather than silently falling back to surface-node exhaustion — which would contradict its name/semantics. Consistent with `graph.canonical_edge_density`, which uses the same guard. Location: `src/signals/graph/graph_signals.py`, `CanonicalExhaustionScoreSignal.detect()`.
 
-9. **`graph.node.is_current_focus` reflects the PREVIOUS turn's focus node at signal-detection time.** `update_focus()` has not yet been called when node signals are detected (it runs later in Stage 6 strategy selection). The signal reads `node_tracker.previous_focus`, so the node that was focused last turn returns `True`. This is by design — strategies reference the incumbent focus — but the name is slightly misleading. Do not rename; add this timing context to any documentation or agent instructions referencing this signal.
+9. **Chain topology flat signals require sentinel registration.** The 6 flat keys (`graph.node.gap_above` etc.) are not backed by real detector logic — their values are injected by `NodeSignalDetectionService` flattening. Six sentinel classes in `chain_topology_signals.py` (e.g. `_GapAboveSentinel`) register the names in `SignalDetector._registry` so the YAML validator and `ComposedSignalDetector.get_known_signal_names()` accept them. If a new chain topology sub-signal is added to `ChainTopologySignalDetector.detect()`, a matching sentinel class must also be added; otherwise the registry validator will reject any YAML referencing the new key.
+
+10. **`graph.node.is_current_focus` reflects the PREVIOUS turn's focus node at signal-detection time.** `update_focus()` has not yet been called when node signals are detected (it runs later in Stage 6 strategy selection). The signal reads `node_tracker.previous_focus`, so the node that was focused last turn returns `True`. This is by design — strategies reference the incumbent focus — but the name is slightly misleading. Do not rename; add this timing context to any documentation or agent instructions referencing this signal.
 
 ---
 
@@ -63,6 +72,9 @@ The `current_focus_streak` on a node resets only when focus changes — in `upda
 | `meta.node.opportunity` always returns `fresh` even for exhausted nodes | `meta.node.opportunity` evaluated before `llm.response_depth` is available | Check signal dependency ordering; LLM signals must resolve before meta signals that depend on them |
 | `meta.node.opportunity.probe_deeper` fires based on prior-turn response depth | `_get_response_depth()` was reading `context.signals` (previous-turn output) instead of current-turn LLM signals | Read `context.current_turn_global_signals` (set by `MethodologyStrategyService` post-global-detection); see Requirement #5 |
 | `graph.node.canonical_novelty` missing from signals dict | `enable_canonical_slots=False` — the signal returns `{}` by design | No fix needed; downstream code must handle empty node signal dicts gracefully |
+| `graph.node.gap_above` / chain topology flat keys missing from node signals at runtime | ChainTopologySignalDetector returned `{}` (non-chain methodology or empty graph) | Expected; signals absent for non-MEC methodologies. If on MEC, check graph has nodes and edges. |
+| `ValueError` at YAML load: `valid_when references unknown signal 'graph.node.gap_above'` | Sentinel classes not imported (module not loaded before validation) | Ensure `src/signals/__init__.py` imports `chain_topology_signals` before registry validation runs |
+| New chain topology sub-signal added but not in scoring | Sub-key added to `ChainTopologySignalDetector.detect()` but no sentinel class created | Add a sentinel class in `chain_topology_signals.py` and update `__all__`; see Requirement #9 |
 | `graph.canonical_exhaustion_score` not in signal output despite canonical slots being active | `node_tracker.canonical_slot_repo is None` — canonical slot repo was not injected into NodeStateTracker | Ensure `canonical_slot_service` is passed when constructing `NodeStateTracker`; see Requirement #8 |
 | `graph.node.is_current_focus` returns `True` for last turn's focus, not this turn's chosen node | By design — `update_focus()` hasn't run yet at detection time | Expected behavior; see Requirement #9. Do not attempt to read post-update focus during signal detection. |
 
@@ -76,7 +88,8 @@ The `current_focus_streak` on a node resets only when focus changes — in `upda
 | `src/signals/graph/node_signals.py` | Node-level detectors: exhaustion, focus streak, recency, novelty, edge count, canonical novelty |
 | `src/signals/graph/node_base.py` | `NodeSignalDetector` base class; provides `_get_all_node_states()` and `_calculate_shallow_ratio()` |
 | `src/signals/graph/__init__.py` | `__all__` exports for both global and node signal classes |
-| `src/services/node_signal_detection_service.py` | Runs all node-level detectors and merges results per node |
+| `src/signals/graph/chain_topology_signals.py` | `ChainTopologySignalDetector` + 6 flat sentinel classes (`_GapAboveSentinel` etc.) |
+| `src/services/node_signal_detection_service.py` | Runs all node-level detectors; flattens nested dict signals into individual flat keys |
 | `src/services/global_signal_detection_service.py` | Runs all global detectors and returns flat signal dict |
 | `src/services/node_state_tracker.py` | `NodeStateTracker` — `update_focus()`, `record_yield()`, `get_all_states()` |
 | `docs/NodeStateTracker_mutation.md` | Per-turn lifecycle map; Stage 5 vs Stage 8 ordering explained |
