@@ -132,3 +132,7 @@ Contracts are Pydantic `BaseModel` instances. Use **attribute access** (`output.
 - `src/services/session_service.py` — `_build_pipeline()` stage wiring (the source of truth for ordering)
 - `src/services/turn_pipeline/stages/scoring_persistence_stage.py` — `TurnResult` assembly
 - `src/services/turn_pipeline/result.py` — `TurnResult` shape
+
+## Diagnostic Triage
+
+When fixing ruff or pyright diagnostics, invoke `/deep-code-quality` to categorize before fixing. Never suppress security warnings or add `Optional` to mask missing error handling — fix the root cause.

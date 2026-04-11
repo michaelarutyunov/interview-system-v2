@@ -212,3 +212,7 @@ When editing `src/methodologies/scoring.py`:
 - `src/methodologies/registry.py` — `MethodologyRegistry`, `MethodologyConfig`, `StrategyConfig`, validation logic
 - `src/methodologies/scoring.py` — `rank_strategies`, `rank_strategy_node_pairs`, `partition_signal_weights`
 - `config/methodologies/means_end_chain.yaml` — Reference methodology with full structure (strategies, signals, phases, ontology)
+
+## Diagnostic Triage
+
+When fixing ruff or pyright diagnostics, invoke `/deep-code-quality` to categorize before fixing. Never suppress security warnings or add `Optional` to mask missing error handling — fix the root cause.

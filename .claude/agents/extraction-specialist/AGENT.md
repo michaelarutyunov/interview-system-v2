@@ -272,3 +272,7 @@ Consult these Tier 3 docs for full specifications and edge cases:
 - `src/services/turn_pipeline/stages/srl_preprocessing_stage.py` — Stage 2.5 SRL enrichment
 - `src/services/turn_pipeline/stages/graph_update_stage.py` — Stage 4 consumption of ExtractionResult
 - `config/methodologies/*.yaml` — methodology-specific extraction control (ontology, guidelines, examples, naming)
+
+## Diagnostic Triage
+
+When fixing ruff or pyright diagnostics, invoke `/deep-code-quality` to categorize before fixing. Never suppress security warnings or add `Optional` to mask missing error handling — fix the root cause.

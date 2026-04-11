@@ -178,3 +178,7 @@ Consult these Tier 3 docs for full specifications and edge cases:
 - `.claude/context/node-state-tracker.md` — Per-turn lifecycle map, `NodeState` field reference, dual-graph key resolution
 - `.claude/context/node-exhaustion.md` — Exhaustion formula derivation, binary criteria, opportunity classification
 - `config/methodologies/means_end_chain.yaml` — Reference methodology YAML (strategies, signal_weights, phases, phase_bonuses)
+
+## Diagnostic Triage
+
+When fixing ruff or pyright diagnostics, invoke `/deep-code-quality` to categorize before fixing. Never suppress security warnings or add `Optional` to mask missing error handling — fix the root cause.
