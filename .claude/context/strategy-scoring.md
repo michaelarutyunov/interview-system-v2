@@ -2,28 +2,27 @@
 
 ## Core Mechanics
 
-Strategy selection runs in two stages, both using the same scoring formula:
+Strategy selection uses joint scoring — all eligible (strategy, node) pairs are
+scored simultaneously and the globally highest-scoring pair is selected.
 
 ```
 base_score = Σ(signal_weight × signal_value)
 final_score = (base_score × phase_multiplier) + phase_bonus
 ```
 
-### Stage 1 — Strategy Ranking (`rank_strategies`)
+### Joint Strategy-Node Scoring
 
-Scores each strategy against global signals only. Node-scoped weight keys
-(`graph.node.*`, `technique.node.*`, `meta.node.*`) are stripped before Stage 1
-scoring via `partition_signal_weights()`. The top-ranked strategy is selected.
+`MethodologyStrategyService.select_strategy_and_focus()` partitions strategies
+by `node_binding`:
 
-### Stage 2 — Joint Strategy-Node Ranking (`rank_strategy_node_pairs`)
+- **node_binding='required'**: scored via `rank_strategy_node_pairs()` — each
+  (strategy, node) pair gets merged global+node signals, valid_when gates filter
+  ineligible pairs, and the pair is scored.
+- **node_binding='none'**: scored via `rank_strategies()` — global signals only,
+  node_id is None in the output.
 
-Scores every `(strategy, node_id)` combination. For each pair, global signals
-and node-specific signals are merged (`{**global_signals, **node_signals}`);
-node-signal keys take precedence on collision. The top-ranked pair determines
-both the selected strategy and the target node for question generation.
-
-Strategies with `node_binding: none` are handled by Stage 1 only — they receive
-a single score with no node component.
+Both candidate pools are merged and sorted by score. The highest-scoring pair
+determines both the selected strategy and the target node for question generation.
 
 ### Signal Value Resolution
 

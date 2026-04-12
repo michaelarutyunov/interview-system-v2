@@ -64,12 +64,16 @@ def extract_interview(path: Path) -> dict:
         alt_scores = sorted([a["score"] for a in alts], reverse=True) if alts else []
         score_margin = (alt_scores[0] - alt_scores[1]) if len(alt_scores) >= 2 else None
 
+        # Best alternative node_id (may be None for conversation strategies)
+        best_alt_node_id = alts[0].get("node_id") if alts else None
+
         turn_row = {
             **common,
             "turn": turn_num,
             "phase": signals.get("meta.interview.phase"),
             "strategy_selected": t.get("strategy_selected"),
             "score_margin": score_margin,
+            "best_alt_node_id": best_alt_node_id,
             "rank1_score": alt_scores[0] if alt_scores else None,
             # Graph growth this turn
             "nodes_added": len(t.get("nodes_added") or []),

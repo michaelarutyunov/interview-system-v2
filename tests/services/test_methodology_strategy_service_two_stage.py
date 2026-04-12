@@ -1,9 +1,9 @@
-"""Tests for two-stage strategy selection in MethodologyStrategyService."""
+"""Tests for joint strategy-node scoring in MethodologyStrategyService."""
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.core.exceptions import ConfigurationError, ScoringError
+from src.core.exceptions import ScoringError
 from src.methodologies.registry import (
     StrategyConfig,
     MethodologyConfig,
@@ -33,7 +33,7 @@ def _make_graph_state():
 
 
 @pytest.mark.asyncio
-class TestTwoStageSelection:
+class TestJointScoring:
     async def test_node_binding_none_skips_node_selection(self):
         """Strategy with node_binding='none' returns focus_node_id=None."""
         reflect = StrategyConfig(
