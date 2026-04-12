@@ -1,15 +1,10 @@
-"""Strategy selection service using two-stage scoring architecture.
+"""Strategy selection service using joint scoring architecture.
 
-Implements two-stage strategy selection: first selects strategy from global
-signals, then conditionally selects node for that strategy using node signals.
-Delegates signal detection to specialized services for single responsibility.
-
-Domain decomposition:
-- GlobalSignalDetectionService: Detects graph/LLM/temporal signals from response
-- NodeSignalDetectionService: Detects node-level signals with exhaustion tracking
+Implements joint strategy-node selection where all eligible (strategy, node)
+pairs are scored simultaneously using combined global and node signals.
 
 Key concepts:
-- Two-stage selection: Stage 1 picks strategy, Stage 2 conditionally picks node
+- Joint scoring: All (strategy, node) pairs scored together, best pair wins
 - Phase weights: Multiplicative signal weights per interview phase (early/mid/late)
 - Phase bonuses: Additive strategy bonuses per interview phase
 - Node exhaustion: Penalty for over-probing the same node
@@ -23,7 +18,7 @@ from src.core.exceptions import ConfigurationError, ScoringError
 from src.methodologies import get_registry
 from src.methodologies.scoring import (
     rank_strategies,
-    rank_nodes_for_strategy,
+    rank_strategy_node_pairs,
     ScoredCandidate,
 )
 from src.services.global_signal_detection_service import GlobalSignalDetectionService
@@ -39,19 +34,16 @@ log = structlog.get_logger(__name__)
 
 
 class MethodologyStrategyService:
-    """Two-stage strategy selection service using methodology YAML configs.
+    """Strategy selection service using joint scoring architecture.
 
-    Orchestrates two-stage strategy selection: first selects strategy from global
-    signals, then conditionally selects node for strategies with node_binding='required'.
-    Applies phase-based weights (multiplicative) and bonuses (additive) for adaptive
-    interviewing.
+    Evaluates all eligible (strategy, node) pairs simultaneously and selects
+    the globally highest-scoring pair. Node-bound strategies (node_binding='required')
+    are scored via rank_strategy_node_pairs(); conversation strategies
+    (node_binding='none') are scored via rank_strategies() with node_id=None.
 
     Signal detection is delegated to specialized services:
     - GlobalSignalDetectionService: graph.*, llm.*, temporal.*, meta.* signals
     - NodeSignalDetectionService: graph.node.*, technique.node.* signals per node
-
-    The service uses methodology configs from YAML files in config/methodologies/
-    which define signals, strategies, and phase-specific weights/bonuses.
     """
 
     def __init__(
@@ -97,17 +89,14 @@ class MethodologyStrategyService:
     ]:
         """Select best (strategy, node) pair using joint scoring with phase weights.
 
-        Implements D1 architecture for strategy selection by combining global
-        signals (response depth, graph metrics) with node-level signals
-        (exhaustion, opportunity) to score all (strategy, node) pairs.
-        Applies phase-based weights (multiplicative) and bonuses (additive)
-        for adaptive interview behavior.
+        Evaluates all eligible (strategy, node) pairs by combining global signals
+        with node-level signals. Selects the globally highest-scoring pair.
 
         Detection flow:
         1. Detect global signals (llm.response_depth, graph.*, temporal.*)
         2. Detect node-level signals (graph.node.exhausted, meta.node.opportunity)
         3. Detect interview phase (early/mid/late) for phase weights/bonuses
-        4. Score all (strategy, node) pairs using combined signals
+        4. Score all eligible (strategy, node) pairs using combined signals
         5. Select highest-scoring pair
 
         Args:
@@ -116,14 +105,14 @@ class MethodologyStrategyService:
             response_text: User's response text for LLM signal analysis
 
         Returns:
-            Tuple of (strategy_name, focus_node_id, alternatives, global_signals, node_signals):
-            - strategy_name: Name of selected strategy from YAML config
-            - focus_node_id: ID of selected focus node (UUID, not label)
-            - alternatives: List of (strategy_name, node_id, score) tuples for
-                observability and debugging, sorted by score descending
-            - global_signals: Dict of detected global signals (e.g.,
-                {"llm.response_depth": "deep", "graph.node_count": 42})
+            Tuple of (strategy_name, focus_node_id, alternatives, global_signals,
+            node_signals, decomposition):
+            - strategy_name: Name of selected strategy
+            - focus_node_id: UUID of selected focus node, or None for conversation strategies
+            - alternatives: List of (strategy, node_id_or_None, score) tuples sorted by score
+            - global_signals: Dict of detected global signals
             - node_signals: Dict mapping node_id to per-node signal dict
+            - decomposition: List of ScoredCandidate with per-signal breakdown
 
         Raises:
             ConfigurationError: If methodology not found or has no strategies defined
@@ -242,39 +231,83 @@ class MethodologyStrategyService:
                 f"to ensure at least one strategy is defined under the 'strategies' key."
             )
 
-        # --- Stage 1: Select strategy using global signals only ---
-        ranked_strategies, stage1_decomposition = rank_strategies(
-            strategy_configs=strategies,
-            signals=global_signals,
-            phase_weights=phase_weights,
-            phase_bonuses=phase_bonuses,
-            return_decomposition=True,  # Capture Stage 1 decomposition
-        )
+        # --- Joint scoring: evaluate all eligible (strategy, node) pairs ---
 
-        if not ranked_strategies:
-            log.error(
-                "no_ranked_strategies",
+        # Partition strategies by node_binding
+        node_bound_strategies = [s for s in strategies if s.node_binding == "required"]
+        conversation_strategies = [s for s in strategies if s.node_binding == "none"]
+
+        all_ranked: list[tuple[Any, Optional[str], float]] = []
+        all_decomposition: list[ScoredCandidate] = []
+
+        # Score node-bound strategies via joint scoring
+        if node_bound_strategies:
+            ranked_pairs, pair_decomposition = rank_strategy_node_pairs(
+                node_bound_strategies,
+                global_signals,
+                node_signals,
+                node_tracker=node_tracker,
+                phase_weights=phase_weights,
+                phase_bonuses=phase_bonuses,
+            )
+            all_ranked.extend(ranked_pairs)
+            all_decomposition.extend(pair_decomposition)
+
+            log.info(
+                "joint_scoring_complete",
                 methodology=methodology_name,
-                strategy_count=len(strategies),
+                node_bound_count=len(node_bound_strategies),
+                pairs_scored=len(ranked_pairs),
+            )
+
+        # Score conversation strategies via global-only scoring
+        if conversation_strategies:
+            ranked_conv, conv_decomposition = rank_strategies(
+                conversation_strategies,
+                global_signals,
+                phase_weights=phase_weights,
+                phase_bonuses=phase_bonuses,
+                return_decomposition=True,
+            )
+            # Convert (StrategyConfig, score) → (StrategyConfig, None, score)
+            for strat, score in ranked_conv:
+                all_ranked.append((strat, None, score))
+            all_decomposition.extend(conv_decomposition)
+
+            log.info(
+                "conversation_scoring_complete",
+                methodology=methodology_name,
+                conversation_count=len(conversation_strategies),
+            )
+
+        # Sort merged candidates by score descending
+        all_ranked.sort(key=lambda x: x[2], reverse=True)
+
+        if not all_ranked:
+            log.error(
+                "no_ranked_candidates",
+                methodology=methodology_name,
+                node_bound_count=len(node_bound_strategies),
+                conversation_count=len(conversation_strategies),
                 exc_info=True,
             )
             raise ScoringError(
-                f"No strategies could be scored for methodology '{methodology_name}'. "
-                f"Strategies available: {len(strategies)}."
+                f"No valid (strategy, node) pairs could be scored for "
+                f"methodology '{methodology_name}'. "
+                f"Node-bound strategies: {len(node_bound_strategies)}, "
+                f"Conversation strategies: {len(conversation_strategies)}."
             )
 
-        best_strategy_config, best_strategy_score = ranked_strategies[0]
+        best_strategy_config, best_node_id, best_score = all_ranked[0]
 
         # --- Threshold fallback check ---
-        # If best score is below the configured threshold, try conversation-level
-        # fallback strategies (revitalize / close) before committing to best.
         score_threshold = 0.0
         if config.chain_completion and isinstance(config.chain_completion, dict):
             score_threshold = float(
                 config.chain_completion.get("score_threshold", 0.0)
             )
 
-        if best_strategy_score < score_threshold:
+        if best_score < score_threshold:
             global_fatigue = global_signals.get("llm.global_response_trend") == "fatigued"
             engagement = global_signals.get("llm.engagement", 1.0)
             low_engagement = isinstance(engagement, (int, float)) and engagement < 0.3
@@ -282,105 +315,61 @@ class MethodologyStrategyService:
             fallback_strategy_name: str | None = None
             if global_fatigue or low_engagement:
                 fallback_strategy_name = "revitalize"
-            # Note: termination / close detection left for Phase 3
 
             if fallback_strategy_name:
-                fallback_config = next(
-                    (s for s in strategies if s.name == fallback_strategy_name),
+                # Find the fallback in the ranked list
+                fallback_pair = next(
+                    (
+                        (s, nid, sc)
+                        for s, nid, sc in all_ranked
+                        if s.name == fallback_strategy_name
+                    ),
                     None,
                 )
-                if fallback_config:
+                if fallback_pair:
                     log.info(
                         "strategy_threshold_fallback",
                         methodology=methodology_name,
-                        best_score=best_strategy_score,
+                        best_score=best_score,
                         threshold=score_threshold,
                         fallback_strategy=fallback_strategy_name,
                         reason="global_fatigue_or_low_engagement",
                     )
-                    best_strategy_config = fallback_config
-                    best_strategy_score = 0.0
-            else:
-                # No fallback condition met — take best anyway
-                log.debug(
-                    "strategy_threshold_below_but_no_fallback",
-                    methodology=methodology_name,
-                    best_score=best_strategy_score,
-                    threshold=score_threshold,
-                )
+                    best_strategy_config, best_node_id, best_score = fallback_pair
+                else:
+                    log.debug(
+                        "strategy_threshold_below_but_no_fallback",
+                        methodology=methodology_name,
+                        best_score=best_score,
+                        threshold=score_threshold,
+                    )
 
-        # --- Stage 2: Select node (conditional on node_binding) ---
-        focus_node_id = None
-        stage2_decomposition: list[ScoredCandidate] = []
+        # Assign rank and selected flags to decomposition
+        ranked_order = {
+            (s.name, nid): i
+            for i, (s, nid, _) in enumerate(all_ranked)
+        }
+        for candidate in all_decomposition:
+            key = (candidate.strategy, candidate.node_id if candidate.node_id else None)
+            rank = ranked_order.get(key, len(all_ranked))
+            candidate.rank = rank + 1
+            candidate.selected = rank == 0
 
-        log.info(
-            "stage2_node_selection_start",
-            methodology=methodology_name,
-            strategy=best_strategy_config.name,
-            node_binding=best_strategy_config.node_binding,
-            has_node_signals=bool(node_signals),
-            node_count=len(node_signals) if node_signals else 0,
-        )
+        # Build alternatives as uniform 3-tuples
+        alternatives = [(s.name, nid, score) for s, nid, score in all_ranked]
 
-        if best_strategy_config.node_binding == "required" and node_signals:
-            ranked_nodes, stage2_decomposition = rank_nodes_for_strategy(
-                best_strategy_config,
-                node_signals,
-                phase_weights=phase_weights,
-                phase_bonuses=phase_bonuses,
-            )
-            if ranked_nodes:
-                focus_node_id = ranked_nodes[0][0]
-                log.info(
-                    "node_selected_for_strategy",
-                    methodology=methodology_name,
-                    strategy=best_strategy_config.name,
-                    node_id=focus_node_id,
-                    node_count=len(ranked_nodes),
-                    top3=[(nid, round(sc, 4)) for nid, sc in ranked_nodes[:3]],
-                )
-            else:
-                log.error(
-                    "node_selection_failed_no_ranked_nodes",
-                    methodology=methodology_name,
-                    strategy=best_strategy_config.name,
-                    node_binding=best_strategy_config.node_binding,
-                    node_signals_count=len(node_signals),
-                    signal_weights=list(best_strategy_config.signal_weights.keys()),
-                )
-        elif best_strategy_config.node_binding == "required" and not node_signals:
-            log.error(
-                "node_selection_failed_no_signals",
-                methodology=methodology_name,
-                strategy=best_strategy_config.name,
-                node_binding=best_strategy_config.node_binding,
-                reason="node_binding_required_but_no_node_signals_detected",
-            )
-        else:
-            log.info(
-                "node_selection_skipped",
-                methodology=methodology_name,
-                strategy=best_strategy_config.name,
-                node_binding=best_strategy_config.node_binding,
-            )
-
-        # Build alternatives for observability (strategy-level, not node-level)
-        alternatives = [(s.name, score) for s, score in ranked_strategies]
-
-        # Combine Stage 1 (strategy-level) and Stage 2 (node-level) decompositions
-        combined_decomposition = list(stage1_decomposition) + list(stage2_decomposition)
+        focus_node_id = best_node_id
 
         log.info(
             "strategy_selected",
             methodology=methodology_name,
             strategy=best_strategy_config.name,
             node_id=focus_node_id,
-            score=best_strategy_score,
+            score=best_score,
             node_binding=best_strategy_config.node_binding,
             alternatives_count=len(alternatives),
             top_3_alternatives=alternatives[:3],
-            stage1_decomp_count=len(stage1_decomposition),
-            stage2_decomp_count=len(stage2_decomposition),
+            decomposition_count=len(all_decomposition),
         )
 
         return (
@@ -389,5 +378,5 @@ class MethodologyStrategyService:
             alternatives,
             global_signals,
             node_signals,
-            combined_decomposition,
+            all_decomposition,
         )
