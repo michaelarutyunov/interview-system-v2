@@ -45,6 +45,52 @@ Use `non_attribute_examples` when a node type boundary is ambiguous — e.g., wh
 | Concepts lack element links | `concept_id` not configured, or alias match failed | Verify `concept_id` is set in service init; check `concept_linked_via_alias_fallback` debug logs |
 | Strict mode edges violate `permitted_connections` | Cross-turn edge references prior-turn concept not in `concept_types` map — validation skipped | Known gap (bead ui0f); will be fixed at graph_service level after dedup resolution |
 
+## Cross-Turn Bridging
+
+The extraction context (built by `ExtractionStage._format_context_for_extraction`) includes prior conversation to enable cross-turn relationship edges — connecting a concept from the respondent's current answer to a concept they mentioned in a previous turn.
+
+### Context assembly order (correctness requirement)
+
+Sections are assembled in this exact order. Order matters: the task instruction references the node label list, so the list **must appear before the instruction** or the LLM will infer the source concept from raw question text rather than from the validated label.
+
+```
+1. Conversation turns (last 5, both speakers)
+2. SRL hints (if SRL stage produced output)
+3. [Existing graph concepts from previous turns]   ← label list first
+4. [Most recent question] + bridge task instruction ← instruction after list
+```
+
+### Bridge task instruction
+
+Only emitted when the most recent utterance is an interviewer question (`speaker == "system"`).
+
+**When `focus_history` is non-empty** (turn 2+):
+
+> *"Extract concepts ONLY from the Respondent's answer above. Then create one cross-turn relationship using `source_text="{focus_label}"` (the concept the question probed) → the primary new concept you extracted. Do NOT extract new concepts from the interviewer's question text."*
+
+The `focus_label` is `focus_history[-1].label` from `ContextLoadingOutput` — the node the previous turn's question was built around. This makes the bridge source deterministic: the LLM receives the exact node label rather than inferring "the question's topic" from the raw question text.
+
+**When `focus_history` is empty** (turn 1):
+
+> *"Extract concepts ONLY from the Respondent's answer above. Do NOT extract new concepts from the interviewer's question text."*
+
+No bridge relationship is requested on turn 1 because there is no prior focus node.
+
+### Why "extract from respondent only"
+
+The graph represents the respondent's mental model, not the interviewer's framing. Without the explicit prohibition, the LLM may extract concepts from the interviewer's question text (e.g., follow-up framing language that was not in the respondent's prior answers), creating interviewer-authored nodes indistinguishable from respondent-generated ones.
+
+### Known gap: `source_quote` on bridge relationships
+
+Bridge relationships have an inherent `source_quote` problem: the source node was mentioned in a prior turn, so there is no verbatim text in the current utterance to quote. The LLM may hallucinate a `source_quote` for bridge edges. This is a secondary issue — `source_quote` is not validated or used for graph construction — but may affect traceability audits.
+
+### Diagnostic logs
+
+| Log key | Meaning |
+|---------|---------|
+| `cross_turn_node_context_injected` | Node label list included; shows `node_label_count` and `context_length` |
+| `cross_turn_node_context_skipped` | No existing nodes yet (turn 1 or empty graph) |
+
 ## Key Files
 
 - `src/services/extraction_service.py` — `ExtractionService` class

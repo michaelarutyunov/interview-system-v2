@@ -119,9 +119,14 @@ class ExtractionStage(TurnStage):
         """
         Format context for extraction prompt.
 
-        Highlights interviewer's most recent question for conversational
-        implicit relationship extraction. Optionally injects SRL hints
-        if available from preprocessing stage.
+        Assembles three sections in order:
+        1. Conversation turns (last 5)
+        2. Existing node labels — shown BEFORE the task instruction so the LLM
+           can reference exact labels when it reads the bridge instruction
+        3. Bridge task instruction — pins the source_text to the previous turn's
+           focus node label rather than asking the LLM to infer "the question's topic"
+
+        Optionally injects SRL hints if available from preprocessing stage.
 
         Args:
             context: Turn context
@@ -142,16 +147,6 @@ class ExtractionStage(TurnStage):
             speaker = "Respondent" if utt["speaker"] == "user" else "Interviewer"
             lines.append(f"{speaker}: {utt['text']}")
 
-        # Highlight the most recent interviewer question if present
-        # This helps LLM create implicit Q→A relationships (laddering)
-        if len(recent) >= 1 and recent[-1]["speaker"] == "system":
-            interviewer_question = recent[-1]["text"]
-            lines.append("")
-            lines.append(f"[Most recent question] Interviewer: {interviewer_question}")
-            lines.append(
-                "[Task] Extract concepts from the Respondent's answer AND create a relationship from the question's topic to the answer concept."
-            )
-
         # Inject SRL hints if available
         srl_hints = self._format_srl_hints(context.srl_preprocessing_output)
         if srl_hints:
@@ -163,7 +158,8 @@ class ExtractionStage(TurnStage):
                 approximate_token_count=len(srl_hints) // 4,  # Rough estimate
             )
 
-        # Inject existing node labels for cross-turn relationship bridging
+        # Inject existing node labels BEFORE the bridge task instruction so the
+        # LLM sees the exact label list when it reads the source_text constraint.
         node_labels = self._format_node_labels(context)
         if node_labels:
             lines.append("")
@@ -185,7 +181,55 @@ class ExtractionStage(TurnStage):
                 reason="no_existing_nodes",
             )
 
+        # Bridge task instruction: only when there is a previous-turn focus node
+        # and the most recent utterance is an interviewer question.
+        # Uses the explicit focus node label so the LLM doesn't have to infer
+        # "the question's topic" from raw question text — preventing interviewer-
+        # introduced concepts from entering the graph as new nodes.
+        if len(recent) >= 1 and recent[-1]["speaker"] == "system":
+            focus_label = self._get_previous_focus_label(context)
+            lines.append("")
+            lines.append(f"[Most recent question] Interviewer: {recent[-1]['text']}")
+            if focus_label:
+                lines.append(
+                    f'[Task] Extract concepts ONLY from the Respondent\'s answer above. '
+                    f'Then create one cross-turn relationship using source_text="{focus_label}" '
+                    f'(the concept the question probed) → the primary new concept you extracted. '
+                    f'Do NOT extract new concepts from the interviewer\'s question text.'
+                )
+            else:
+                # Turn 1 or no focus history: generic bridge without pinned source
+                lines.append(
+                    "[Task] Extract concepts ONLY from the Respondent's answer above. "
+                    "Do NOT extract new concepts from the interviewer's question text."
+                )
+
         return "\n".join(lines)
+
+    def _get_previous_focus_label(self, context: "PipelineContext") -> str:
+        """
+        Return the focus node label from the previous turn, or empty string.
+
+        The question the respondent just answered was generated around this node.
+        Passing the label explicitly into the bridge instruction prevents the
+        extractor from inferring (and potentially hallucinating) the source concept
+        from the raw question text.
+
+        Args:
+            context: Turn context with context_loading_output.focus_history
+
+        Returns:
+            Label string, or empty string if no prior focus exists
+        """
+        focus_history = (
+            context.context_loading_output.focus_history
+            if context.context_loading_output
+            else []
+        )
+        if not focus_history:
+            return ""
+        last_focus = focus_history[-1]
+        return last_focus.label or ""
 
     def _format_node_labels(self, context: "PipelineContext") -> str:
         """
@@ -216,7 +260,7 @@ class ExtractionStage(TurnStage):
         return (
             f"[Existing graph concepts from previous turns]\n"
             f"{label_items}\n"
-            f"[Task] When creating relationships, you may reference these exact labels as source_text "
+            f"When creating relationships, you may reference these exact labels as source_text "
             f"or target_text to connect new concepts to existing ones. Do NOT re-extract these as new concepts."
         )
 
