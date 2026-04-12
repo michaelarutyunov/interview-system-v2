@@ -198,16 +198,10 @@ class TurnPipeline:
             if alternatives:
                 strategy_alternatives = []
                 for alt in alternatives:
-                    if len(alt) == 2:
-                        strategy, score = alt
-                        strategy_alternatives.append(
-                            {"strategy": strategy, "score": score}
-                        )
-                    elif len(alt) == 3:
-                        strategy, node_id, score = alt
-                        strategy_alternatives.append(
-                            {"strategy": strategy, "node_id": node_id, "score": score}
-                        )
+                    strategy, node_id, score = alt  # Uniform 3-tuple
+                    strategy_alternatives.append(
+                        {"strategy": strategy, "node_id": node_id, "score": score}
+                    )
 
         # Build canonical_graph and graph_comparison
         canonical_graph = None
