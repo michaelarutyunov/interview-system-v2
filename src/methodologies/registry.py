@@ -86,7 +86,9 @@ class StrategyConfig:
     generates_closing_question: bool = False
     focus_mode: str = "recent_node"
     node_binding: str = "required"
-    valid_when: str | None = None  # Signal name that must be True for strategy to be scored
+    valid_when: str | None = (
+        None  # Signal name that must be True for strategy to be scored
+    )
 
 
 class MethodologyRegistry:

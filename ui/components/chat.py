@@ -59,7 +59,11 @@ class ChatInterface:
             st.session_state.chat_history = []
 
         for message in st.session_state.chat_history:
-            avatar = ":material/help:" if message["role"] == "assistant" else ":material/person:"
+            avatar = (
+                ":material/help:"
+                if message["role"] == "assistant"
+                else ":material/person:"
+            )
             with st.chat_message(message["role"], avatar=avatar):
                 st.write(message["content"])
                 if message.get("caption"):

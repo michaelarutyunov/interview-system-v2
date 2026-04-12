@@ -141,7 +141,9 @@ class InterviewPhaseSignal(SignalDetector):
                     max_turns = context.max_turns
                 except (AttributeError, RuntimeError):
                     max_turns = self.DEFAULT_MAX_TURNS
-                early_max_turns = max(1, round(max_turns * exploratory_n / total_yaml_turns))
+                early_max_turns = max(
+                    1, round(max_turns * exploratory_n / total_yaml_turns)
+                )
                 mid_max_turns = max(
                     early_max_turns + 1,
                     round(max_turns * (exploratory_n + focused_n) / total_yaml_turns),

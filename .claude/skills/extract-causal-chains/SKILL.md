@@ -49,6 +49,32 @@ ANALYTICAL_OVERRIDES: dict[str, list[list[str]]] = {
 
 When you add an entry: include a comment with the reason and date. When the analytical layer ships: delete this block and the skill entirely.
 
+## Tiered chain reporting
+
+Chains are classified into **laddering tiers** based on the highest ontology level they reach. A chain is placed in the **highest tier** it qualifies for. Same-type (lateral) chains are excluded entirely.
+
+### Tier definitions
+
+| Tier | Qualification | Example |
+|------|---------------|---------|
+| **Full** | Spans from min level to max terminal level, visiting every intermediate level in order with no skips | `attribute → functional_consequence → psychosocial_consequence → instrumental_value → terminal_value` |
+| **Advanced** | Reaches `instrumental_value` or `terminal_value`, but skips at least one level or is out of strict order | `attribute → functional_consequence → terminal_value` |
+| **Developing** | Reaches `psychosocial_consequence` but does not reach values | `attribute → functional_consequence → psychosocial_consequence` |
+| **Started** | Reaches `functional_consequence` only (lowest rung) | `attribute → functional_consequence` |
+| **Excluded** | Same-type only (lateral chains like `attribute → attribute`) | — |
+
+### Computation rules
+
+1. Build all maximal paths over `leads_to` edges (length ≥ 2), filtering superseded nodes.
+2. Exclude any path where **all node types are identical** (lateral clustering).
+3. For each remaining path, compute the ordered list of ontology levels.
+4. Determine the **max level reached** in the path.
+5. Assign to the highest qualifying tier:
+   - **Full**: levels == `[1, 2, 3, 4, 5]` (or the methodology's full sequence)
+   - **Advanced**: max level ≥ 4 (instrumental_value) AND not Full
+   - **Developing**: max level == 3 (psychosocial_consequence)
+   - **Started**: max level == 2 (functional_consequence)
+
 ## Procedure
 
 When invoked with a source file path, run this Python inline via `uv run python -c "..."` (or write to a temp file and run). The code:
@@ -75,8 +101,9 @@ assert meth_path.exists(), f"Methodology YAML not found: {meth_path}"
 meth = yaml.safe_load(meth_path.read_text())
 ontology = meth.get("ontology", {})
 
-# Build: node_type -> level (for display only)
+# Build: node_type -> level
 node_levels = {n["name"]: n.get("level", 0) for n in ontology.get("nodes", [])}
+terminal_levels = {n["name"]: n.get("terminal", False) for n in ontology.get("nodes", [])}
 
 # Build: edge_type -> permitted_connections
 edge_rules = {}
@@ -104,6 +131,14 @@ def is_conforming(src_type, tgt_type):
             return True
     return False
 
+# Determine expected full chain sequence from ontology
+sorted_types = [t for t, _ in sorted(node_levels.items(), key=lambda x: x[1])]
+full_chain_levels = sorted(set(node_levels.values()) - {0})
+full_chain_types = [t for t in sorted_types if node_levels.get(t, 0) in full_chain_levels]
+max_terminal_level = max(
+    (node_levels[t] for t in terminal_levels if terminal_levels[t]), default=max(full_chain_levels, default=0)
+)
+
 # Build utterance_id -> turn_number map via quote-in-response matching.
 # VERIFIED APPROACH (dry-run on 20260325_111835_glp1_food_mec_strict_glp1_user.json):
 # turns[].nodes_added and turns[].edges_added are None in saved interviews — do NOT rely on them.
@@ -124,6 +159,20 @@ for node in data["graph"]["nodes"]:
             for uid in utt_ids:
                 utt_to_turn[uid] = turn["turn_number"]
             break
+
+# Canonical slot utterance mapping via surface nodes
+surface_by_id = {n["id"]: n for n in data["graph"]["nodes"]}
+for slot in data["canonical_graph"]["slots"]:
+    all_utt_ids = []
+    all_quotes = []
+    for snid in slot.get("surface_node_ids", []):
+        snode = surface_by_id.get(snid)
+        if snode:
+            all_utt_ids.extend(snode.get("source_utterance_ids", []) or [])
+            all_quotes.extend(snode.get("source_quotes", []) or [])
+    slot["_mapped_utt_ids"] = all_utt_ids
+    slot["_mapped_quotes"] = all_quotes[:5]
+
 # Do the same pass over canonical slots' underlying surface nodes for canonical chain turn mapping.
 # Sanity check: compute coverage and fail loud if < 100%.
 all_utts = set()
@@ -139,29 +188,25 @@ def edge_min_turn(edge):
     turns_seen = [utt_to_turn[u] for u in edge.get("source_utterance_ids", []) if u in utt_to_turn]
     return min(turns_seen) if turns_seen else None
 
-def walk_chains(nodes, edges, edge_type="leads_to", require_conforming=False):
+def walk_chains(nodes, edges, node_by_id, edge_type="leads_to"):
     """Return maximal paths of length >= 2 over edges of given type.
     Filters superseded nodes. Never traverses revises.
-    Maximal = drop any path that is a strict prefix/suffix of another."""
-    node_by_id = {n["id"]: n for n in nodes if not n.get("superseded_by")}
+    Maximal = drop any path that is a strict prefix of another."""
+    active_nodes = {nid: n for nid, n in node_by_id.items() if not n.get("superseded_by")}
     adj = defaultdict(list)
     for e in edges:
         if e["edge_type"] != edge_type:
             continue
         s, t = e["source_node_id"], e["target_node_id"]
-        if s not in node_by_id or t not in node_by_id:
+        if s not in active_nodes or t not in active_nodes:
             continue
-        if require_conforming:
-            if not is_conforming(node_by_id[s]["node_type"], node_by_id[t]["node_type"]):
-                continue
         adj[s].append((t, e))
 
-    # Find all maximal paths via DFS from nodes with no incoming edge (roots)
     incoming = defaultdict(int)
     for s, outs in adj.items():
         for t, _ in outs:
             incoming[t] += 1
-    roots = [nid for nid in node_by_id if incoming[nid] == 0 and nid in adj]
+    roots = [nid for nid in active_nodes if incoming[nid] == 0 and nid in adj]
 
     all_paths = []
     def dfs(node_id, path_nodes, path_edges):
@@ -181,7 +226,7 @@ def walk_chains(nodes, edges, edge_type="leads_to", require_conforming=False):
     for r in roots:
         dfs(r, [r], [])
 
-    # Maximal filter: drop paths that are prefixes of longer paths
+    # Maximal filter: drop paths that are strict prefixes of longer paths
     all_paths.sort(key=lambda p: -len(p[0]))
     maximal = []
     seen_sequences = set()
@@ -194,16 +239,229 @@ def walk_chains(nodes, edges, edge_type="leads_to", require_conforming=False):
         if not is_prefix:
             maximal.append((nodes_p, edges_p))
             seen_sequences.add(key)
-    return maximal, node_by_id
+    return maximal
+
+def classify_chain(path_nodes, node_by_id):
+    """Return tier name for a chain path. Tiers: full, advanced, developing, started, lateral."""
+    types = [node_by_id[nid]["node_type"] for nid in path_nodes]
+    levels = [node_levels.get(t, 0) for t in types]
+
+    # Exclude lateral (same-type) chains
+    if len(set(types)) == 1:
+        return "lateral"
+
+    # Full chain: visits every expected level in order, from min to max terminal
+    if levels == list(range(min(full_chain_levels), max_terminal_level + 1)):
+        return "full"
+
+    max_level = max(levels)
+    if max_level >= 4:
+        return "advanced"
+    if max_level == 3:
+        return "developing"
+    if max_level == 2:
+        return "started"
+    return "other"
+
+def render_chain(path_nodes, path_edges, node_by_id):
+    parts = [' → '.join(
+        f"`{node_by_id[nid]['label']}` ({node_by_id[nid]['node_type']}, t={edge_min_turn(path_edges[i]) if i < len(path_edges) else None or '?'})"
+        for i, nid in enumerate(path_nodes)
+    )]
+    lines = ['### Chain', f'**Path**: {parts[0]}', '']
+    lines.append('**Evidence**:')
+    for i, e in enumerate(path_edges):
+        src = node_by_id[e['source_node_id']]
+        tgt = node_by_id[e['target_node_id']]
+        t = edge_min_turn(e)
+        quotes = e.get('source_quotes', []) or []
+        quote = quotes[0] if quotes else '(no quote)'
+        lines.append(f'- `{src["label"]} → {tgt["label"]}` (t={t or "?"}): _"{quote}"_')
+    lines.append('')
+    return '\n'.join(lines)
 
 # Extract chains from both layers
 surface_nodes = data["graph"]["nodes"]
 surface_edges = data["graph"]["edges"]
 canon_slots = data["canonical_graph"]["slots"]
-canon_edges = data["canonical_graph"]["edges"]
+# Normalize canonical edge keys to match surface edge format
+canon_edges = []
+for e in data["canonical_graph"]["edges"]:
+    ce = dict(e)
+    ce["source_node_id"] = ce.pop("source_slot_id", e.get("source_node_id"))
+    ce["target_node_id"] = ce.pop("target_slot_id", e.get("target_node_id"))
+    canon_edges.append(ce)
 
-# Render report — see output template below
-# ... (build markdown sections, write to causal_chain/<timestamp>_causal_chains.md)
+def slot_to_node(slot):
+    return {
+        'id': slot['slot_id'],
+        'label': slot['slot_name'],
+        'node_type': slot['node_type'],
+        'source_utterance_ids': slot.get('_mapped_utt_ids', []),
+        'source_quotes': slot.get('_mapped_quotes', []),
+    }
+
+canon_nodes = [slot_to_node(s) for s in canon_slots]
+canon_by_id = {n['id']: n for n in canon_nodes}
+
+surf_paths = walk_chains(surface_nodes, surface_edges, {n['id']: n for n in surface_nodes})
+can_paths = walk_chains(canon_nodes, canon_edges, canon_by_id)
+
+# Classify and bucket
+surf_by_tier = defaultdict(list)
+for path_nodes, path_edges in surf_paths:
+    tier = classify_chain(path_nodes, {n['id']: n for n in surface_nodes})
+    if tier != "lateral":
+        surf_by_tier[tier].append((path_nodes, path_edges))
+
+can_by_tier = defaultdict(list)
+for path_nodes, path_edges in can_paths:
+    tier = classify_chain(path_nodes, canon_by_id)
+    if tier != "lateral":
+        can_by_tier[tier].append((path_nodes, path_edges))
+
+superseded_count = sum(1 for n in surface_nodes if n.get('superseded_by'))
+rev_count_surface = sum(1 for e in surface_edges if e['edge_type'] == 'revises')
+rev_count_canon = sum(1 for e in canon_edges if e['edge_type'] == 'revises')
+
+surf_leads_to = sum(1 for e in surface_edges if e['edge_type'] == 'leads_to')
+can_leads_to = sum(1 for e in canon_edges if e['edge_type'] == 'leads_to')
+
+surf_node_types = sorted(set(n['node_type'] for n in surface_nodes))
+can_node_types = sorted(set(s['node_type'] for s in canon_slots))
+
+# Orphans: nodes with no leads_to edges at all
+surf_involved = set()
+for e in surface_edges:
+    if e['edge_type'] == 'leads_to':
+        surf_involved.add(e['source_node_id'])
+        surf_involved.add(e['target_node_id'])
+surf_orphans = [n for n in surface_nodes if n['id'] not in surf_involved and not n.get('superseded_by')]
+
+# Revisions
+revisions = []
+surf_by_id_all = {n['id']: n for n in surface_nodes}
+for e in surface_edges:
+    if e['edge_type'] == 'revises':
+        old = surf_by_id_all.get(e['source_node_id'])
+        new = surf_by_id_all.get(e['target_node_id'])
+        if old and new:
+            revisions.append((old, new))
+
+# Build markdown
+out_path = Path(f'causal_chain/{SOURCE.stem}_causal_chains.md')
+out_path.parent.mkdir(exist_ok=True)
+
+md = f"""# Causal Chain Extraction — {SOURCE.name}
+
+## Source specs
+- **Session ID**: {meta.get('session_id', 'N/A')}
+- **Concept**: {meta.get('concept_name', 'N/A')} (`{meta.get('concept_id', 'N/A')}`)
+- **Methodology**: `{methodology}`
+- **Persona**: {meta.get('persona_name', 'N/A')} (`{meta.get('persona_id', 'N/A')}`)
+- **Total turns**: {meta.get('total_turns', 'N/A')}
+- **Status**: {meta.get('status', 'N/A')}
+- **Saved at**: {meta.get('saved_at', 'N/A')}
+
+## Extraction config
+- **Constraint source**: {constraint_source}
+- **Permitted connections** (leads_to):
+"""
+if has_constraints:
+    for pair in leads_to_rules:
+        md += f"  - {pair[0]} → {pair[1]}\n"
+else:
+    md += '  - (permissive only — no constraints defined)\n'
+
+md += f"""- **Superseded nodes excluded**: {superseded_count}
+- **Revises edges excluded from traversal**: {rev_count_surface + rev_count_canon} ({rev_count_surface} surface, {rev_count_canon} canonical)
+
+## Graph summary
+| | Surface | Canonical |
+|--|--|--|
+| Nodes | {len(surface_nodes)} | {len(canon_slots)} |
+| Edges (leads_to) | {surf_leads_to} | {can_leads_to} |
+| Edges (revises) | {rev_count_surface} | {rev_count_canon} |
+| Node types | {', '.join(surf_node_types)} | {', '.join(can_node_types)} |
+
+## Chain completeness summary
+| Tier | Description | Surface Count | Canonical Count |
+|------|-------------|---------------|-----------------|
+| Full | {' → '.join(full_chain_types)} | {len(surf_by_tier.get('full', []))} | {len(can_by_tier.get('full', []))} |
+| Advanced | Reaches instrumental_value or terminal_value, but incomplete | {len(surf_by_tier.get('advanced', []))} | {len(can_by_tier.get('advanced', []))} |
+| Developing | Reaches psychosocial_consequence but not values | {len(surf_by_tier.get('developing', []))} | {len(can_by_tier.get('developing', []))} |
+| Started | attribute → functional_consequence only | {len(surf_by_tier.get('started', []))} | {len(can_by_tier.get('started', []))} |
+| Lateral (excluded) | Same-type only chains | {len(surf_paths) - sum(len(v) for v in surf_by_tier.values())} | {len(can_paths) - sum(len(v) for v in can_by_tier.values())} |
+
+---
+
+## Full chains — complete laddering
+"""
+for i, (path_nodes, path_edges) in enumerate(surf_by_tier.get('full', []), 1):
+    md += render_chain(path_nodes, path_edges, {n['id']: n for n in surface_nodes}).replace('### Chain', f'### Chain {i} [surface]')
+for i, (path_nodes, path_edges) in enumerate(can_by_tier.get('full', []), 1):
+    md += render_chain(path_nodes, path_edges, canon_by_id).replace('### Chain', f'### Chain {i} [canonical]')
+if not surf_by_tier.get('full') and not can_by_tier.get('full'):
+    md += '_No full chains found._\n\n'
+
+md += '## Advanced chains — value-reaching but incomplete\n\n'
+for i, (path_nodes, path_edges) in enumerate(surf_by_tier.get('advanced', []), 1):
+    md += render_chain(path_nodes, path_edges, {n['id']: n for n in surface_nodes}).replace('### Chain', f'### Chain {i} [surface]')
+for i, (path_nodes, path_edges) in enumerate(can_by_tier.get('advanced', []), 1):
+    md += render_chain(path_nodes, path_edges, canon_by_id).replace('### Chain', f'### Chain {i} [canonical]')
+if not surf_by_tier.get('advanced') and not can_by_tier.get('advanced'):
+    md += '_No advanced chains found._\n\n'
+
+md += '## Developing chains — consequence-level progression\n\n'
+for i, (path_nodes, path_edges) in enumerate(surf_by_tier.get('developing', []), 1):
+    md += render_chain(path_nodes, path_edges, {n['id']: n for n in surface_nodes}).replace('### Chain', f'### Chain {i} [surface]')
+for i, (path_nodes, path_edges) in enumerate(can_by_tier.get('developing', []), 1):
+    md += render_chain(path_nodes, path_edges, canon_by_id).replace('### Chain', f'### Chain {i} [canonical]')
+if not surf_by_tier.get('developing') and not can_by_tier.get('developing'):
+    md += '_No developing chains found._\n\n'
+
+md += '## Started chains — attribute-to-functional only\n\n'
+for i, (path_nodes, path_edges) in enumerate(surf_by_tier.get('started', []), 1):
+    md += render_chain(path_nodes, path_edges, {n['id']: n for n in surface_nodes}).replace('### Chain', f'### Chain {i} [surface]')
+for i, (path_nodes, path_edges) in enumerate(can_by_tier.get('started', []), 1):
+    md += render_chain(path_nodes, path_edges, canon_by_id).replace('### Chain', f'### Chain {i} [canonical]')
+if not surf_by_tier.get('started') and not can_by_tier.get('started'):
+    md += '_No started chains found._\n\n'
+
+md += '## Revisions (positive validation signal)\n\n'
+if revisions:
+    for old, new in revisions:
+        md += f'- `{old["label"]}` → `{new["label"]}`\n'
+        old_q = (old.get('source_quotes') or ['(no quote)'])[0]
+        new_q = (new.get('source_quotes') or ['(no quote)'])[0]
+        md += f'  - Original: _"{old_q}"_\n'
+        md += f'  - Revision: _"{new_q}"_\n'
+else:
+    md += '_No revisions found._\n\n'
+
+md += '## Orphan nodes (no incoming or outgoing leads_to edges)\n\n'
+if surf_orphans:
+    for n in surf_orphans:
+        q = (n.get('source_quotes') or ['(no quote)'])[0]
+        md += f'- `{n["label"]}` ({n["node_type"]}) — _"{q}"_\n'
+else:
+    md += '_No orphan nodes found._\n\n'
+
+md += f"""\n## Retracted chains (dropped due to supersession)
+- **Count**: {superseded_count}
+- **Not printed in full** — these chains passed through nodes later marked as superseded.
+
+## Methodology notes
+- Constraints from: `{constraint_source}`
+- Overrides applied: {'yes' if methodology in ANALYTICAL_OVERRIDES else 'no'}
+- Known limitations: Canonical slot layer may hide language variation relevant to laddering validity.
+"""
+
+out_path.write_text(md)
+print(f'Wrote {out_path}')
+for tier in ['full', 'advanced', 'developing', 'started']:
+    print(f'{tier}: surface={len(surf_by_tier.get(tier, []))}, canonical={len(can_by_tier.get(tier, []))}')
+"""
 ```
 
 **Turn mapping is quote-based, verified**: `turns[].nodes_added` / `edges_added` are `None` in saved interviews; do not rely on them. The code above matches `node.source_quotes[0]` against each turn's `response` text. Validated on `20260325_111835_glp1_food_mec_strict_glp1_user.json` (16/16 utterance coverage). If coverage drops below 100% on a new file, investigate rather than silently reporting `?` turn numbers — it likely means quote truncation or response reformatting.
@@ -239,16 +497,22 @@ canon_edges = data["canonical_graph"]["edges"]
 | Edges (revises) | <n> | <n> |
 | Node types | <list> | <list> |
 
-## Conformance metric
-- **Surface**: <C> conforming / <P> permissive chains = <ratio>%
-- **Canonical**: <C> conforming / <P> permissive chains = <ratio>%
-- **Interpretation**: <one sentence — e.g., "High conformance ratio indicates the system respects MEC ladder ordering in most extracted paths.">
+## Chain completeness summary
+| Tier | Description | Surface Count | Canonical Count |
+|------|-------------|---------------|-----------------|
+| Full | attribute → functional_consequence → psychosocial_consequence → instrumental_value → terminal_value | 0 | 0 |
+| Advanced | Reaches instrumental_value or terminal_value, but incomplete | 12 | 3 |
+| Developing | Reaches psychosocial_consequence but not values | 34 | 8 |
+| Started | attribute → functional_consequence only | 46 | 9 |
+| Lateral (excluded) | Same-type only chains | 15 | 2 |
 
 ---
 
-## Surface chains — conforming
+## Full chains — complete laddering
+_No full chains found._
 
-### Chain 1 [MEC-valid]
+## Advanced chains — value-reaching but incomplete
+### Chain 1 [surface]
 **Path**: `creamy texture` (attribute, t=2) → `easier to digest` (functional_consequence, t=2) → `feel healthier` (psychosocial_consequence, t=5) → `self-respect` (terminal_value, t=9)
 
 **Evidence**:
@@ -256,25 +520,10 @@ canon_edges = data["canonical_graph"]["edges"]
 - `easier to digest → feel healthier` (t=5): *"When I'm not bloated I actually feel like I'm taking care of myself."*
 - ⚠ weak: `feel healthier → self-respect` (t=9, single utterance): *"...and that kind of matters to how I see myself."*
 
-### Chain 2 [MEC-valid] ⚠ reconstructed
-**Path**: A (t=8) → B (t=2) → C (t=5)
-**Note**: Turn order inversion — downstream element appeared before upstream. Respondent likely reconstructed under probing.
-
+## Developing chains — consequence-level progression
 ...
 
-## Surface chains — permissive only (violates methodology)
-
-### Chain 3 [MEC-violating]
-**Path**: `terminal_value` → `attribute` (goes backwards down the ladder)
-**Evidence**: ...
-**Why flagged**: violation of `means_end_chain_v2_strict` permitted connections. Possible extraction error or respondent-led inversion.
-
-...
-
-## Canonical chains — conforming
-...
-
-## Canonical chains — permissive only
+## Started chains — attribute-to-functional only
 ...
 
 ## Revisions (positive validation signal)
@@ -285,7 +534,6 @@ canon_edges = data["canonical_graph"]["edges"]
 ## Orphan nodes (no incoming or outgoing leads_to edges)
 - `<label>` (node_type, t=<turn>) — *"<quote>"*
 - ...
-**Interpretation**: <N> orphans suggest <extraction gaps | isolated concepts | first-mention decay>.
 
 ## Retracted chains (dropped due to supersession)
 - **Count**: <N>

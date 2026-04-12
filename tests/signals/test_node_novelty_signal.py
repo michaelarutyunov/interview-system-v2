@@ -107,7 +107,9 @@ async def test_decay_at_turn_0_is_1_0():
 async def test_decay_at_turn_2_is_0_6():
     """At age=2, raw score = 1.0 - (2/5) = 0.6 -> boundary between high and medium."""
     current_turn = 5
-    states = {"node-e": _make_node_state("node-e", created_at_turn=3)}  # age=2, score=0.6
+    states = {
+        "node-e": _make_node_state("node-e", created_at_turn=3)
+    }  # age=2, score=0.6
     signal = _make_signal(states)
     ctx = _make_context(current_turn)
 
@@ -121,7 +123,9 @@ async def test_decay_at_turn_2_is_0_6():
 async def test_decay_at_turn_5_is_0_0():
     """At age=5 (DECAY_WINDOW), raw score = 0.0 -> low."""
     current_turn = 10
-    states = {"node-f": _make_node_state("node-f", created_at_turn=5)}  # age=5, score=0.0
+    states = {
+        "node-f": _make_node_state("node-f", created_at_turn=5)
+    }  # age=5, score=0.0
     signal = _make_signal(states)
     ctx = _make_context(current_turn)
 
@@ -140,9 +144,9 @@ async def test_multiple_nodes_different_ages():
     """Mixture of node ages produces correct category for each."""
     current_turn = 10
     states = {
-        "fresh": _make_node_state("fresh", created_at_turn=10),   # age=0 -> high
-        "mid": _make_node_state("mid", created_at_turn=7),        # age=3, score=0.4 -> medium
-        "old": _make_node_state("old", created_at_turn=5),        # age=5, score=0.0 -> low
+        "fresh": _make_node_state("fresh", created_at_turn=10),  # age=0 -> high
+        "mid": _make_node_state("mid", created_at_turn=7),  # age=3, score=0.4 -> medium
+        "old": _make_node_state("old", created_at_turn=5),  # age=5, score=0.0 -> low
     }
     signal = _make_signal(states)
     ctx = _make_context(current_turn)

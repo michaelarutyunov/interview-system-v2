@@ -192,10 +192,10 @@ class ExtractionStage(TurnStage):
             lines.append(f"[Most recent question] Interviewer: {recent[-1]['text']}")
             if focus_label:
                 lines.append(
-                    f'[Task] Extract concepts ONLY from the Respondent\'s answer above. '
+                    f"[Task] Extract concepts ONLY from the Respondent's answer above. "
                     f'Then create one cross-turn relationship using source_text="{focus_label}" '
-                    f'(the concept the question probed) → the primary new concept you extracted. '
-                    f'Do NOT extract new concepts from the interviewer\'s question text.'
+                    f"(the concept the question probed) → the primary new concept you extracted. "
+                    f"Do NOT extract new concepts from the interviewer's question text."
                 )
             else:
                 # Turn 1 or no focus history: generic bridge without pinned source

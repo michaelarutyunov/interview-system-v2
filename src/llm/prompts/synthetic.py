@@ -22,7 +22,9 @@ from typing import Dict, Any, List, Optional
 from src.core.persona_loader import load_persona, list_personas as load_list_personas
 
 
-def _format_response_patterns(response_patterns: Optional[Dict[str, float]] = None) -> str:
+def _format_response_patterns(
+    response_patterns: Optional[Dict[str, float]] = None,
+) -> str:
     """Format response patterns section for system prompt.
 
     Args:

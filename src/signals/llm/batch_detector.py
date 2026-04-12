@@ -295,7 +295,10 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
                 # Neutral fallback: score 3 (mid-point) normalizes to 0.5
                 # Prevents a missing key from silently removing a signal's contribution
                 # (e.g. engagement suppressor disappearing and unblocking revitalize)
-                raw_value = {"score": 3, "rationale": "fallback: key absent from LLM response"}
+                raw_value = {
+                    "score": 3,
+                    "rationale": "fallback: key absent from LLM response",
+                }
             else:
                 raw_value = result[lookup_key]
 

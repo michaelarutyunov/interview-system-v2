@@ -41,10 +41,13 @@ import pandas as pd
 
 # ── Data loading ──────────────────────────────────────────────────────────────
 
+
 def _load_from_parquet(parquet_dir: Path) -> pd.DataFrame:
     scoring_path = parquet_dir / "scoring.parquet"
     if not scoring_path.exists():
-        sys.exit(f"scoring.parquet not found in {parquet_dir}. Run extract_simulation_data.py first.")
+        sys.exit(
+            f"scoring.parquet not found in {parquet_dir}. Run extract_simulation_data.py first."
+        )
     return pd.read_parquet(scoring_path)
 
 
@@ -72,26 +75,28 @@ def _load_from_jsons(json_dir: Path) -> pd.DataFrame:
 
             for entry in turn.get("score_decomposition") or []:
                 for sc in entry.get("signal_contributions") or []:
-                    records.append({
-                        "interview_id": interview_id,
-                        "persona": persona,
-                        "concept": concept,
-                        "methodology": methodology,
-                        "turn": turn_num,
-                        "phase": phase,
-                        "strategy": entry["strategy"],
-                        "node_id": entry.get("node_id", ""),
-                        "signal_name": sc["name"],
-                        "signal_value": str(sc["value"]),
-                        "signal_weight": sc["weight"],
-                        "contribution": sc["contribution"],
-                        "base_score": entry["base_score"],
-                        "phase_multiplier": entry["phase_multiplier"],
-                        "phase_bonus": entry["phase_bonus"],
-                        "final_score": entry["final_score"],
-                        "rank": entry["rank"],
-                        "selected": entry["selected"],
-                    })
+                    records.append(
+                        {
+                            "interview_id": interview_id,
+                            "persona": persona,
+                            "concept": concept,
+                            "methodology": methodology,
+                            "turn": turn_num,
+                            "phase": phase,
+                            "strategy": entry["strategy"],
+                            "node_id": entry.get("node_id", ""),
+                            "signal_name": sc["name"],
+                            "signal_value": str(sc["value"]),
+                            "signal_weight": sc["weight"],
+                            "contribution": sc["contribution"],
+                            "base_score": entry["base_score"],
+                            "phase_multiplier": entry["phase_multiplier"],
+                            "phase_bonus": entry["phase_bonus"],
+                            "final_score": entry["final_score"],
+                            "rank": entry["rank"],
+                            "selected": entry["selected"],
+                        }
+                    )
 
     if not records:
         sys.exit(f"No score_decomposition data found in {json_dir}.")
@@ -107,6 +112,7 @@ def load_scoring(input_path: Path) -> pd.DataFrame:
 
 
 # ── Knockout analysis ─────────────────────────────────────────────────────────
+
 
 def compute_decisiveness(df: pd.DataFrame) -> pd.Series:
     """For each signal, compute the fraction of turns where removing it flips the winner.
@@ -124,7 +130,9 @@ def compute_decisiveness(df: pd.DataFrame) -> pd.Series:
     # But phase multiplier complicates this: contribution is pre-multiplier in the
     # base_score, then multiplied. We re-derive: contribution_in_final = contribution * phase_multiplier.
     stage1 = stage1.copy()
-    stage1["contribution_in_final"] = stage1["contribution"] * stage1["phase_multiplier"]
+    stage1["contribution_in_final"] = (
+        stage1["contribution"] * stage1["phase_multiplier"]
+    )
 
     decisive_counts: dict[str, int] = {}
     total_turns_per_signal: dict[str, int] = {}
@@ -148,7 +156,9 @@ def compute_decisiveness(df: pd.DataFrame) -> pd.Series:
         decisive = 0
         for _, trow in turns_with_signal.iterrows():
             iid, tnum = trow["interview_id"], trow["turn"]
-            turn_data = stage1[(stage1["interview_id"] == iid) & (stage1["turn"] == tnum)]
+            turn_data = stage1[
+                (stage1["interview_id"] == iid) & (stage1["turn"] == tnum)
+            ]
 
             # Original winner
             strategy_scores = turn_data.groupby("strategy")["final_score"].first()
@@ -179,6 +189,7 @@ def compute_decisiveness(df: pd.DataFrame) -> pd.Series:
 
 
 # ── Report ────────────────────────────────────────────────────────────────────
+
 
 def classify(row: pd.Series) -> str:
     if row["fire_rate"] == 0:
@@ -213,10 +224,14 @@ def build_report(df: pd.DataFrame) -> pd.DataFrame:
 
     # Knockout decisiveness
     decisive_counts, total_turns = compute_decisiveness(df)
-    fire["decisive_turns"] = fire["signal_name"].map(decisive_counts).fillna(0).astype(int)
+    fire["decisive_turns"] = (
+        fire["signal_name"].map(decisive_counts).fillna(0).astype(int)
+    )
     fire["signal_turns"] = fire["signal_name"].map(total_turns).fillna(0).astype(int)
     fire["decisive_rate"] = fire.apply(
-        lambda r: r["decisive_turns"] / r["signal_turns"] if r["signal_turns"] > 0 else 0.0,
+        lambda r: (
+            r["decisive_turns"] / r["signal_turns"] if r["signal_turns"] > 0 else 0.0
+        ),
         axis=1,
     )
 
@@ -225,7 +240,9 @@ def build_report(df: pd.DataFrame) -> pd.DataFrame:
     return fire.sort_values(["verdict", "fire_rate"], ascending=[True, True])
 
 
-def print_report(report: pd.DataFrame, methodology: str | None, personas: list[str] | None) -> None:
+def print_report(
+    report: pd.DataFrame, methodology: str | None, personas: list[str] | None
+) -> None:
     filters = []
     if methodology:
         filters.append(f"methodology={methodology}")
@@ -234,9 +251,9 @@ def print_report(report: pd.DataFrame, methodology: str | None, personas: list[s
     filter_str = f" [{', '.join(filters)}]" if filters else ""
 
     total_turns = report["appearances"].sum()
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"SIGNAL REDUNDANCY AUDIT{filter_str}")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"Total signal×strategy×turn rows: {total_turns:,}")
     print(f"Unique signals: {len(report)}")
     print()
@@ -253,7 +270,7 @@ def print_report(report: pd.DataFrame, methodology: str | None, personas: list[s
             "ACTIVE": "ACTIVE — at least occasionally decisive",
         }[verdict]
 
-        print(f"── {label} ({len(subset)}) {'─'*max(0, 60-len(label))}")
+        print(f"── {label} ({len(subset)}) {'─' * max(0, 60 - len(label))}")
         for _, row in subset.iterrows():
             decisive_str = (
                 f"decisive {row['decisive_rate']:.0%} ({row['decisive_turns']}/{row['signal_turns']} turns)"
@@ -270,23 +287,40 @@ def print_report(report: pd.DataFrame, methodology: str | None, personas: list[s
 
     # Removal candidates summary
     removable = report[report["verdict"].isin(["DEAD", "DORMANT", "MARGINAL"])]
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"REMOVAL CANDIDATES: {len(removable)}/{len(report)} signals")
-    print(f"  DEAD:     {len(report[report['verdict']=='DEAD'])} — safe to remove immediately")
-    print(f"  DORMANT:  {len(report[report['verdict']=='DORMANT'])} — verify edge case intent, then remove")
-    print(f"  MARGINAL: {len(report[report['verdict']=='MARGINAL'])} — fires but adds no selectivity; review")
+    print(
+        f"  DEAD:     {len(report[report['verdict'] == 'DEAD'])} — safe to remove immediately"
+    )
+    print(
+        f"  DORMANT:  {len(report[report['verdict'] == 'DORMANT'])} — verify edge case intent, then remove"
+    )
+    print(
+        f"  MARGINAL: {len(report[report['verdict'] == 'MARGINAL'])} — fires but adds no selectivity; review"
+    )
     print()
-    print("NOTE: 'no stage-1 data' means the signal is node-scoped (graph.node.*, meta.node.*,")
-    print("technique.node.*) and only applies in Stage 2 (node selection), not strategy ranking.")
-    print("Decisive rate is not computable for these from strategy-level scoring alone.")
-    print("For node-scoped signals, fire_rate and avg_magnitude are the primary quality indicators.")
-    print(f"{'='*70}\n")
+    print(
+        "NOTE: 'no stage-1 data' means the signal is node-scoped (graph.node.*, meta.node.*,"
+    )
+    print(
+        "technique.node.*) and only applies in Stage 2 (node selection), not strategy ranking."
+    )
+    print(
+        "Decisive rate is not computable for these from strategy-level scoring alone."
+    )
+    print(
+        "For node-scoped signals, fire_rate and avg_magnitude are the primary quality indicators."
+    )
+    print(f"{'=' * 70}\n")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Audit signal redundancy in simulation scoring data.")
+    parser = argparse.ArgumentParser(
+        description="Audit signal redundancy in simulation scoring data."
+    )
     parser.add_argument(
         "input",
         type=Path,
@@ -315,7 +349,10 @@ def main() -> None:
 
     if args.methodology:
         if "methodology" not in df.columns:
-            print("WARN: methodology column not found in data — filter ignored.", file=sys.stderr)
+            print(
+                "WARN: methodology column not found in data — filter ignored.",
+                file=sys.stderr,
+            )
         else:
             df = df[df["methodology"] == args.methodology]
             if df.empty:
@@ -323,7 +360,10 @@ def main() -> None:
 
     if args.personas:
         if "persona" not in df.columns:
-            print("WARN: persona column not found in data — filter ignored.", file=sys.stderr)
+            print(
+                "WARN: persona column not found in data — filter ignored.",
+                file=sys.stderr,
+            )
         else:
             df = df[df["persona"].isin(args.personas)]
             if df.empty:

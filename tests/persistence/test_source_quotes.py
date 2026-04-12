@@ -10,6 +10,7 @@ import pytest_asyncio
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
+
 @pytest_asyncio.fixture
 async def session_and_utterance(session_repo, utterance_repo):
     """Create a session and utterance to satisfy FK constraints."""
@@ -66,6 +67,7 @@ async def second_utterance(session_and_utterance, utterance_repo):
 
 # ── Domain model ──────────────────────────────────────────────────────────────
 
+
 def test_kgnode_has_source_quotes_field():
     """KGNode must have a source_quotes field (List[str]) defaulting to []."""
     from src.domain.models.knowledge_graph import KGNode
@@ -98,6 +100,7 @@ def test_kgnode_source_quotes_accepts_list():
 
 # ── Repository: create_node ───────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_create_node_stores_source_quotes(graph_repo, session_and_utterance):
     """create_node persists source_quotes to the database."""
@@ -115,7 +118,9 @@ async def test_create_node_stores_source_quotes(graph_repo, session_and_utteranc
 
 
 @pytest.mark.asyncio
-async def test_create_node_defaults_source_quotes_to_empty(graph_repo, session_and_utterance):
+async def test_create_node_defaults_source_quotes_to_empty(
+    graph_repo, session_and_utterance
+):
     """create_node without source_quotes stores an empty list."""
     session, utterance = session_and_utterance
 
@@ -148,6 +153,7 @@ async def test_get_node_returns_source_quotes(graph_repo, session_and_utterance)
 
 
 # ── Repository: add_source_utterance with quote ───────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_add_source_utterance_with_quote_appends_quote(
@@ -221,6 +227,7 @@ async def test_add_source_utterance_deduplicates_quotes(
 
 # ── Repository: update_node ───────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_update_node_source_quotes(graph_repo, session_and_utterance):
     """update_node with source_quotes kwarg persists the new list."""
@@ -243,8 +250,11 @@ async def test_update_node_source_quotes(graph_repo, session_and_utterance):
 
 # ── Empty string guard ────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
-async def test_create_node_filters_empty_source_quote(graph_repo, session_and_utterance):
+async def test_create_node_filters_empty_source_quote(
+    graph_repo, session_and_utterance
+):
     """create_node with source_quotes=[''] stores empty list (empty strings filtered)."""
     session, utterance = session_and_utterance
 
@@ -274,7 +284,9 @@ async def test_add_source_utterance_filters_empty_quote(
         source_quotes=["original"],
     )
 
-    updated = await graph_repo.add_source_utterance(node.id, second_utterance.id, quote="")
+    updated = await graph_repo.add_source_utterance(
+        node.id, second_utterance.id, quote=""
+    )
 
     assert updated is not None
     assert updated.source_quotes == ["original"]

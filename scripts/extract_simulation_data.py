@@ -88,7 +88,9 @@ def extract_interview(path: Path) -> dict:
             "orphan_count": signals.get("graph.orphan_count"),
             "max_depth": signals.get("graph.max_depth"),
             "strategy_repetition": signals.get("temporal.strategy_repetition_count"),
-            "turns_since_strategy_change": signals.get("temporal.turns_since_strategy_change"),
+            "turns_since_strategy_change": signals.get(
+                "temporal.turns_since_strategy_change"
+            ),
             "conversation_saturation": signals.get("meta.conversation.saturation"),
             "canonical_saturation": signals.get("meta.canonical.saturation"),
             "is_late_stage": signals.get("meta.interview.is_late_stage"),
@@ -180,8 +182,12 @@ def extract_interview(path: Path) -> dict:
 
 
 def main() -> None:
-    input_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("synthetic_interviews/v2")
-    output_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("analysis/simulation_extract")
+    input_dir = (
+        Path(sys.argv[1]) if len(sys.argv) > 1 else Path("synthetic_interviews/v2")
+    )
+    output_dir = (
+        Path(sys.argv[2]) if len(sys.argv) > 2 else Path("analysis/simulation_extract")
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
 
     json_files = sorted(input_dir.glob("*.json"))
@@ -224,7 +230,9 @@ def main() -> None:
         print(df_interviews["persona"].value_counts().to_string())
         print(f"\nMean turns: {df_interviews['total_turns'].mean():.1f}")
         print(f"Mean final nodes: {df_interviews['final_nodes'].mean():.1f}")
-        print(f"Mean strategy diversity: {df_interviews['strategy_diversity'].mean():.2f}")
+        print(
+            f"Mean strategy diversity: {df_interviews['strategy_diversity'].mean():.2f}"
+        )
 
     # Signal effectiveness preview: % of rows where contribution != 0
     if not df_scoring.empty:

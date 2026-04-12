@@ -89,7 +89,9 @@ async def test_detect_raises_on_empty_registry(monkeypatch):
 
     # Temporarily empty the registry and the node signal class list
     monkeypatch.setattr(SignalDetector, "_registry", {})
-    monkeypatch.setattr(NodeSignalDetector, "get_all_node_signal_classes", classmethod(lambda cls: []))
+    monkeypatch.setattr(
+        NodeSignalDetector, "get_all_node_signal_classes", classmethod(lambda cls: [])
+    )
 
     service = NodeSignalDetectionService()
     mock_context = MagicMock()

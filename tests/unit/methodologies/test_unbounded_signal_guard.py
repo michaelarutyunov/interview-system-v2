@@ -39,7 +39,9 @@ strategies:
 
             registry = MethodologyRegistry(config_dir)
 
-            with pytest.raises(ValueError, match="unbounded count signal.*graph.node_count"):
+            with pytest.raises(
+                ValueError, match="unbounded count signal.*graph.node_count"
+            ):
                 registry.get_methodology("test")
         finally:
             shutil.rmtree(temp_dir)
@@ -72,7 +74,9 @@ strategies:
 
             registry = MethodologyRegistry(config_dir)
 
-            with pytest.raises(ValueError, match="unbounded count signal.*graph.edge_count"):
+            with pytest.raises(
+                ValueError, match="unbounded count signal.*graph.edge_count"
+            ):
                 registry.get_methodology("test")
         finally:
             shutil.rmtree(temp_dir)
@@ -105,7 +109,9 @@ strategies:
 
             registry = MethodologyRegistry(config_dir)
 
-            with pytest.raises(ValueError, match="unbounded count signal.*graph.orphan_count"):
+            with pytest.raises(
+                ValueError, match="unbounded count signal.*graph.orphan_count"
+            ):
                 registry.get_methodology("test")
         finally:
             shutil.rmtree(temp_dir)

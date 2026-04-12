@@ -7,8 +7,12 @@ import pytest
 from src.signals.graph.graph_signals import CanonicalExhaustionScoreSignal
 
 
-def _make_node_state(focus_count: int = 0, turns_since_last_yield: int = 0,
-                     current_focus_streak: int = 0, all_response_depths=None) -> MagicMock:
+def _make_node_state(
+    focus_count: int = 0,
+    turns_since_last_yield: int = 0,
+    current_focus_streak: int = 0,
+    all_response_depths=None,
+) -> MagicMock:
     state = MagicMock()
     state.focus_count = focus_count
     state.turns_since_last_yield = turns_since_last_yield
@@ -80,8 +84,11 @@ async def test_fresh_node_scores_zero():
 async def test_returns_float_in_range_for_single_node():
     """Single focused node returns a score in [0, 1]."""
     ctx = _make_context(
-        states={"node-a": _make_node_state(focus_count=2, turns_since_last_yield=5,
-                                            current_focus_streak=2)}
+        states={
+            "node-a": _make_node_state(
+                focus_count=2, turns_since_last_yield=5, current_focus_streak=2
+            )
+        }
     )
     signal = CanonicalExhaustionScoreSignal()
     result = await signal.detect(ctx, MagicMock(), "")

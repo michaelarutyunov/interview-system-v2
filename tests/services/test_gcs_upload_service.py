@@ -33,8 +33,12 @@ class TestGCSUploadService:
         mock_client.bucket.return_value = mock_bucket
         mock_bucket.blob.return_value = mock_blob
 
-        with patch("src.services.gcs_upload_service.GCSUploadService._upload_sync") as mock_sync:
-            mock_sync.return_value = "gs://test-bucket/sessions/sess-1/20260311_120000.json"
+        with patch(
+            "src.services.gcs_upload_service.GCSUploadService._upload_sync"
+        ) as mock_sync:
+            mock_sync.return_value = (
+                "gs://test-bucket/sessions/sess-1/20260311_120000.json"
+            )
 
             service = GCSUploadService(bucket_name="test-bucket")
             result = await service.upload_session("sess-1", '{"data": "test"}')
@@ -46,7 +50,9 @@ class TestGCSUploadService:
     @pytest.mark.asyncio
     async def test_upload_returns_none_on_error(self):
         """Upload returns None and logs warning on GCS error."""
-        with patch("src.services.gcs_upload_service.GCSUploadService._upload_sync") as mock_sync:
+        with patch(
+            "src.services.gcs_upload_service.GCSUploadService._upload_sync"
+        ) as mock_sync:
             mock_sync.side_effect = Exception("GCS connection failed")
 
             service = GCSUploadService(bucket_name="test-bucket")

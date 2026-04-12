@@ -419,13 +419,17 @@ class _ChainTopoFlatSentinel(NodeSignalDetector):
 
 class _GapAboveSentinel(_ChainTopoFlatSentinel):
     signal_name = "graph.node.gap_above"
-    description = "True if node has no outgoing edge to a higher ontology level (chain frontier)."
+    description = (
+        "True if node has no outgoing edge to a higher ontology level (chain frontier)."
+    )
     dependencies = []
 
 
 class _GapBelowSentinel(_ChainTopoFlatSentinel):
     signal_name = "graph.node.gap_below"
-    description = "True if node has no incoming edge from a lower ontology level (ungrounded)."
+    description = (
+        "True if node has no incoming edge from a lower ontology level (ungrounded)."
+    )
     dependencies = []
 
 
@@ -437,7 +441,9 @@ class _LevelSkipSentinel(_ChainTopoFlatSentinel):
 
 class _BranchingDeficitSentinel(_ChainTopoFlatSentinel):
     signal_name = "graph.node.branching_deficit"
-    description = "Branching deficit: 1 - (actual_siblings / expected_siblings) in [0,1]."
+    description = (
+        "Branching deficit: 1 - (actual_siblings / expected_siblings) in [0,1]."
+    )
     dependencies = []
 
 

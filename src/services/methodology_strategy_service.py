@@ -303,12 +303,12 @@ class MethodologyStrategyService:
         # --- Threshold fallback check ---
         score_threshold = 0.0
         if config.chain_completion and isinstance(config.chain_completion, dict):
-            score_threshold = float(
-                config.chain_completion.get("score_threshold", 0.0)
-            )
+            score_threshold = float(config.chain_completion.get("score_threshold", 0.0))
 
         if best_score < score_threshold:
-            global_fatigue = global_signals.get("llm.global_response_trend") == "fatigued"
+            global_fatigue = (
+                global_signals.get("llm.global_response_trend") == "fatigued"
+            )
             engagement = global_signals.get("llm.engagement", 1.0)
             low_engagement = isinstance(engagement, (int, float)) and engagement < 0.3
 
@@ -345,10 +345,7 @@ class MethodologyStrategyService:
                     )
 
         # Assign rank and selected flags to decomposition
-        ranked_order = {
-            (s.name, nid): i
-            for i, (s, nid, _) in enumerate(all_ranked)
-        }
+        ranked_order = {(s.name, nid): i for i, (s, nid, _) in enumerate(all_ranked)}
         for candidate in all_decomposition:
             key = (candidate.strategy, candidate.node_id if candidate.node_id else None)
             rank = ranked_order.get(key, len(all_ranked))

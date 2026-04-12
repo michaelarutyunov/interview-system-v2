@@ -1,7 +1,10 @@
 """Test NodeStateTracker schema v2 changes for canonical_slot_first_seen."""
 
 import pytest
-from src.services.node_state_tracker import NodeStateTracker, NODE_TRACKER_SCHEMA_VERSION
+from src.services.node_state_tracker import (
+    NodeStateTracker,
+    NODE_TRACKER_SCHEMA_VERSION,
+)
 
 
 class TestCanonicalSlotFirstSeen:
@@ -58,11 +61,13 @@ class TestCanonicalSlotFirstSeen:
             "states": {},
         }
 
-        with pytest.raises(ValueError, match="Incompatible node_tracker_state schema version"):
+        with pytest.raises(
+            ValueError, match="Incompatible node_tracker_state schema version"
+        ):
             NodeStateTracker.from_dict(data)
 
     def test_canonical_slot_first_seen_mutable_across_serialization(self):
-        """ canonical_slot_first_seen should survive round-trip serialization."""
+        """canonical_slot_first_seen should survive round-trip serialization."""
         tracker = NodeStateTracker()
         tracker.canonical_slot_first_seen["slot-x"] = 7
 

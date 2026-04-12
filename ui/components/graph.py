@@ -160,8 +160,12 @@ class GraphVisualizer:
             hovermode="closest",
             margin=dict(b=0, l=0, r=0, t=40),
             height=500,
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, visible=False),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, visible=False),
+            xaxis=dict(
+                showgrid=False, zeroline=False, showticklabels=False, visible=False
+            ),
+            yaxis=dict(
+                showgrid=False, zeroline=False, showticklabels=False, visible=False
+            ),
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
         )
@@ -317,7 +321,11 @@ class GraphVisualizer:
             hover += f"Confidence: {confidence:.2f}"
             hover_texts.append(hover)
 
-        node_labels = [node.get("label", node["id"]) for node in nodes] if controls.get("show_labels") else None
+        node_labels = (
+            [node.get("label", node["id"]) for node in nodes]
+            if controls.get("show_labels")
+            else None
+        )
 
         fig.add_trace(
             go.Scatter3d(

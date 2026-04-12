@@ -72,7 +72,9 @@ async def test_in_memory_shared_connection_visibility():
         assert row[0] == "test-session-001"
 
         # 4. Verify conn1 and conn2 are the same object (shared connection)
-        assert conn1 is conn2, "get_db_connection() should return the same object in :memory: mode"
+        assert conn1 is conn2, (
+            "get_db_connection() should return the same object in :memory: mode"
+        )
 
 
 @pytest.mark.asyncio

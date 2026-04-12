@@ -364,19 +364,30 @@ if tab_sel == "Interview":
                     next_q = result.get("next_question", "")
                     if next_q:
                         # Strip candidate questions if LLM leaked them
-                        for marker in ["Selected question:", "Selected Question:", "Final question:"]:
+                        for marker in [
+                            "Selected question:",
+                            "Selected Question:",
+                            "Final question:",
+                        ]:
                             if marker in next_q:
-                                next_q = next_q.split(marker, 1)[1].strip().strip('"').strip("'")
+                                next_q = (
+                                    next_q.split(marker, 1)[1]
+                                    .strip()
+                                    .strip('"')
+                                    .strip("'")
+                                )
                                 break
                         strat = result.get("strategy_selected", "")
                         latency = result.get("latency_ms", 0)
-                        latency_s = f"{latency/1000:.1f}s" if latency else "—"
+                        latency_s = f"{latency / 1000:.1f}s" if latency else "—"
                         # Focus node: top strategy_alternative node_id resolved to label
                         focus_label = ""
                         nid = result.get("focus_node_id", "")
                         if nid:
                             g = _get_graph()
-                            node_map = {n["id"]: n.get("label", "") for n in g.get("nodes", [])}
+                            node_map = {
+                                n["id"]: n.get("label", "") for n in g.get("nodes", [])
+                            }
                             focus_label = node_map.get(nid, "")
                         parts = []
                         if strat:
@@ -409,7 +420,9 @@ elif tab_sel == "Graph":
 
         ctrl1, ctrl2 = st.columns([1, 2])
         with ctrl1:
-            layout_algo = st.selectbox("Layout", options=list(visualizer.layout_algorithms.keys()), index=0)
+            layout_algo = st.selectbox(
+                "Layout", options=list(visualizer.layout_algorithms.keys()), index=0
+            )
         with ctrl2:
             d_col, l_col = st.columns([1, 1])
             with d_col:
@@ -418,7 +431,9 @@ elif tab_sel == "Graph":
                 show_labels = st.checkbox("Show Labels", value=True)
 
         # Use actual node types from data, not hardcoded MEC types
-        actual_types = list({n.get("node_type", "unknown") for n in fresh_graph.get("nodes", [])})
+        actual_types = list(
+            {n.get("node_type", "unknown") for n in fresh_graph.get("nodes", [])}
+        )
         controls = {
             "layout": layout_algo,
             "dimensions": dimensions,
@@ -439,7 +454,8 @@ elif tab_sel == "Export":
         st.info("Start an interview to enable export.")
     else:
         st.write(f"Session: `{current_session.id[:8]}`")
-        st.markdown("""
+        st.markdown(
+            """
 <style>
 table { width: 100%; }
 td:first-child { white-space: nowrap; width: 1%; padding-right: 1rem; }
@@ -451,7 +467,9 @@ td:last-child { width: 99%; }
 | **JSON** | Full raw data: utterances, KG nodes/edges, signals, scoring per turn. Upload to [observablehq.com/d/7c8f49e0dec320fd](https://observablehq.com/d/7c8f49e0dec320fd) for detailed visualisation. |
 | **Markdown** | Human-readable transcript + interview summary |
 | **CSV** | One row per turn: turn, phase, strategy, question, response |
-""", unsafe_allow_html=True)
+""",
+            unsafe_allow_html=True,
+        )
         export_format = st.selectbox("Format", options=["JSON", "Markdown", "CSV"])
 
         if st.button("Export", type="primary"):
@@ -463,7 +481,11 @@ td:last-child { width: 99%; }
                     )
                     response.raise_for_status()
                     ext = "md" if export_format == "Markdown" else export_format.lower()
-                    mime = {"json": "application/json", "markdown": "text/markdown", "csv": "text/csv"}
+                    mime = {
+                        "json": "application/json",
+                        "markdown": "text/markdown",
+                        "csv": "text/csv",
+                    }
                     st.download_button(
                         label=f"Download {export_format}",
                         data=response.text,

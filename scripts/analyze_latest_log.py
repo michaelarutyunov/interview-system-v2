@@ -20,7 +20,7 @@ def load_env_file(env_path: Path = Path(".env")) -> dict[str, str]:
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
                     key, _, value = line.partition("=")
-                    env_vars[key] = value.strip('"\'')
+                    env_vars[key] = value.strip("\"'")
     return env_vars
 
 
@@ -32,20 +32,20 @@ MODEL_PRICING: dict[str, tuple[float, float]] = {
     # Anthropic models
     "claude-sonnet-4-6": (
         float(_env_vars.get("ANTHROPIC_SONNET_INPUT", "3.00")),
-        float(_env_vars.get("ANTHROPIC_SONNET_OUTPUT", "15.00"))
+        float(_env_vars.get("ANTHROPIC_SONNET_OUTPUT", "15.00")),
     ),
     "claude-haiku-4-5": (
         float(_env_vars.get("ANTHROPIC_HAIKU_INPUT", "1.00")),
-        float(_env_vars.get("ANTHROPIC_HAIKU_OUTPUT", "5.00"))
+        float(_env_vars.get("ANTHROPIC_HAIKU_OUTPUT", "5.00")),
     ),
     # Kimi models
     "kimi-k2-0905-preview": (
         float(_env_vars.get("KIMI_K2_INPUT", "0.60")),
-        float(_env_vars.get("KIMI_K2_OUTPUT", "2.50"))
+        float(_env_vars.get("KIMI_K2_OUTPUT", "2.50")),
     ),
     "kimi-k2": (
         float(_env_vars.get("KIMI_K2_INPUT", "0.60")),
-        float(_env_vars.get("KIMI_K2_OUTPUT", "2.50"))
+        float(_env_vars.get("KIMI_K2_OUTPUT", "2.50")),
     ),
 }
 
@@ -71,8 +71,8 @@ def calculate_cost(model: str, tokens_in: int, tokens_out: int) -> float:
 
 def strip_ansi(text: str) -> str:
     """Remove ANSI escape sequences from text."""
-    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-    return ansi_escape.sub('', text)
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
 
 
 def calc_stats(values: list) -> dict:
@@ -84,7 +84,7 @@ def calc_stats(values: list) -> dict:
         "mean": sum(values) / len(values),
         "min": min(values),
         "max": max(values),
-        "total": sum(values)
+        "total": sum(values),
     }
 
 
@@ -95,7 +95,8 @@ def find_latest_log(logs_dir: str = "logs") -> Path | None:
         return None
 
     log_files = [
-        f for f in log_path.iterdir()
+        f
+        for f in log_path.iterdir()
         if f.is_file() and f.name.startswith("interview_") and f.name.endswith(".log")
     ]
 
@@ -117,18 +118,18 @@ def analyze_log(log_file: Path) -> dict:
 
     # Regex patterns
     stage_completed_pattern = re.compile(
-        r'stage_completed\s+duration_ms=([\d\.]+)\s+stage_name=(\S+)'
+        r"stage_completed\s+duration_ms=([\d\.]+)\s+stage_name=(\S+)"
     )
     llm_completed_pattern = re.compile(
-        r'llm_call_complete\s+.*?client_type=(\S+)'
-        r'.*?input_tokens=(\d+).*?latency_ms=([\d\.]+)'
-        r'.*?model=(\S+).*?output_tokens=(\d+)'
+        r"llm_call_complete\s+.*?client_type=(\S+)"
+        r".*?input_tokens=(\d+).*?latency_ms=([\d\.]+)"
+        r".*?model=(\S+).*?output_tokens=(\d+)"
     )
     pipeline_completed_pattern = re.compile(
-        r'pipeline_completed\s+total_duration_ms=([\d\.]+)'
+        r"pipeline_completed\s+total_duration_ms=([\d\.]+)"
     )
 
-    with open(log_file, 'r', encoding='utf-8') as f:
+    with open(log_file, "r", encoding="utf-8") as f:
         content = f.read()
         clean_content = strip_ansi(content)
 
@@ -148,8 +149,12 @@ def analyze_log(log_file: Path) -> dict:
         cost = calculate_cost(model, tokens_in, tokens_out)
         if module not in llm_calls:
             llm_calls[module] = {
-                "durations": [], "tokens_in": [], "tokens_out": [],
-                "count": 0, "models": set(), "costs": []
+                "durations": [],
+                "tokens_in": [],
+                "tokens_out": [],
+                "count": 0,
+                "models": set(),
+                "costs": [],
             }
         llm_calls[module]["durations"].append(duration)  # type: ignore
         llm_calls[module]["tokens_in"].append(tokens_in)  # type: ignore
@@ -167,7 +172,7 @@ def analyze_log(log_file: Path) -> dict:
         "pipeline_times": pipeline_times,
         "stage_times": stage_times,
         "llm_calls": llm_calls,
-        "log_file": log_file.name
+        "log_file": log_file.name,
     }
 
 
@@ -194,7 +199,9 @@ def print_report(data: dict) -> None:
         tokens_out_stats = calc_stats(data_item["tokens_out"])
         cost_stats = calc_stats(data_item["costs"])
         models = data_item["models"]
-        llm_stats.append((module, stats, tokens_in_stats, tokens_out_stats, models, cost_stats))
+        llm_stats.append(
+            (module, stats, tokens_in_stats, tokens_out_stats, models, cost_stats)
+        )
     llm_stats.sort(key=lambda x: x[1]["total"], reverse=True)
 
     total_stage_time = sum(s[1]["total"] for s in stage_stats)
@@ -214,7 +221,9 @@ def print_report(data: dict) -> None:
 
     if pipeline_times:
         stats = calc_stats(pipeline_times)
-        print(f"Avg pipeline: {stats['mean']/1000:.2f}s (range: {stats['min']/1000:.2f}s - {stats['max']/1000:.2f}s)")
+        print(
+            f"Avg pipeline: {stats['mean'] / 1000:.2f}s (range: {stats['min'] / 1000:.2f}s - {stats['max'] / 1000:.2f}s)"
+        )
 
     print("\n" + "-" * width)
     print("STAGE TIMING (by total time)")
@@ -223,26 +232,34 @@ def print_report(data: dict) -> None:
     print("-" * width)
 
     for stage, stats in stage_stats:
-        pct = (stats['total'] / total_stage_time * 100) if total_stage_time else 0
-        print(f"{stage:<38} {stats['count']:>6} {stats['total']/1000:>10.2f} {stats['mean']:>10.1f} {pct:>6.1f}")
+        pct = (stats["total"] / total_stage_time * 100) if total_stage_time else 0
+        print(
+            f"{stage:<38} {stats['count']:>6} {stats['total'] / 1000:>10.2f} {stats['mean']:>10.1f} {pct:>6.1f}"
+        )
 
     print("-" * width)
-    print(f"{'TOTAL':<38} {'':>6} {total_stage_time/1000:>10.2f}")
+    print(f"{'TOTAL':<38} {'':>6} {total_stage_time / 1000:>10.2f}")
 
     print("\n" + "=" * width)
     print("LLM CALLS BY MODULE (by total time)")
     print("=" * width)
-    print(f"{'Module':<20} {'Model':<16} {'Calls':>5} {'Time(s)':>8} {'Cost($)':>8} {'TokIn':>7} {'TokOut':>7}")
+    print(
+        f"{'Module':<20} {'Model':<16} {'Calls':>5} {'Time(s)':>8} {'Cost($)':>8} {'TokIn':>7} {'TokOut':>7}"
+    )
     print("-" * width)
 
     for module, stats, tok_in, tok_out, models, cost_stats in llm_stats:
         model_str = ", ".join(sorted(models)) if models else "unknown"
         if len(model_str) > 15:
             model_str = model_str[:12] + ".."
-        print(f"{module:<20} {model_str:<16} {stats['count']:>5} {stats['total']/1000:>8.2f} {cost_stats['total']:>8.4f} {tok_in['mean']:>7.0f} {tok_out['mean']:>7.0f}")
+        print(
+            f"{module:<20} {model_str:<16} {stats['count']:>5} {stats['total'] / 1000:>8.2f} {cost_stats['total']:>8.4f} {tok_in['mean']:>7.0f} {tok_out['mean']:>7.0f}"
+        )
 
     print("-" * width)
-    print(f"{'TOTAL':<20} {'':<16} {total_llm_calls:>5} {total_llm_time/1000:>8.2f} {total_cost:>8.4f}")
+    print(
+        f"{'TOTAL':<20} {'':<16} {total_llm_calls:>5} {total_llm_time / 1000:>8.2f} {total_cost:>8.4f}"
+    )
 
     print("\n" + "=" * width)
     print("KEY FINDINGS")
@@ -250,14 +267,16 @@ def print_report(data: dict) -> None:
 
     print("\n1. TOP BOTTLENECKS:")
     for i, (stage, stats) in enumerate(stage_stats[:3], 1):
-        pct = (stats['total'] / total_stage_time * 100)
-        print(f"   {i}. {stage}: {stats['total']/1000:.1f}s ({pct:.1f}%)")
+        pct = stats["total"] / total_stage_time * 100
+        print(f"   {i}. {stage}: {stats['total'] / 1000:.1f}s ({pct:.1f}%)")
 
     print("\n2. LLM COST BREAKDOWN:")
     for module, stats, _, _, models, cost_stats in llm_stats:
-        pct = (stats['total'] / total_llm_time * 100)
+        pct = stats["total"] / total_llm_time * 100
         model_info = f" [{', '.join(sorted(models))}]" if models else ""
-        print(f"   - {module}: ${cost_stats['total']:.4f} ({stats['count']} calls){model_info}")
+        print(
+            f"   - {module}: ${cost_stats['total']:.4f} ({stats['count']} calls){model_info}"
+        )
 
     print(f"\n   TOTAL ESTIMATED COST: ${total_cost:.4f}")
 

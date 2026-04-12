@@ -369,7 +369,11 @@ class InterviewConfig(BaseModel):
         if self.session.max_turns == 20:
             phase_sum = sum(
                 p.n_turns
-                for p in [self.phases.exploratory, self.phases.focused, self.phases.closing]
+                for p in [
+                    self.phases.exploratory,
+                    self.phases.focused,
+                    self.phases.closing,
+                ]
                 if p and p.n_turns
             )
             if phase_sum > 0:

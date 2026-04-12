@@ -17,6 +17,7 @@ Usage:
 
 Exit code: always 0 (warns but never blocks).
 """
+
 from __future__ import annotations
 
 import re
@@ -31,6 +32,7 @@ import yaml
 # ---------------------------------------------------------------------------
 # Data types
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class DriftWarning:
@@ -49,6 +51,7 @@ class ReferenceWarning:
 # ---------------------------------------------------------------------------
 # Git helpers
 # ---------------------------------------------------------------------------
+
 
 def run_git(cmd: list[str], cwd: Path) -> str:
     """Run a git command and return stdout. Returns empty string on error."""
@@ -86,7 +89,8 @@ def get_source_changes_since(
         return []
 
     cmd = [
-        "git", "log",
+        "git",
+        "log",
         "--oneline",
         f"{since_commit}..HEAD",
         "--",
@@ -100,6 +104,7 @@ def get_source_changes_since(
 # ---------------------------------------------------------------------------
 # Core logic
 # ---------------------------------------------------------------------------
+
 
 def load_mapping(config_path: Path) -> list[dict]:
     """Load and return the mappings list from doc_mapping.yaml."""
@@ -139,6 +144,7 @@ def check_drift(
 # Cross-reference validation (new for codified context principles)
 # ---------------------------------------------------------------------------
 
+
 def extract_agent_table_from_claude_md(claude_md_path: Path) -> list[dict]:
     """Extract the agent routing table from CLAUDE.md.
 
@@ -150,27 +156,29 @@ def extract_agent_table_from_claude_md(claude_md_path: Path) -> list[dict]:
     content = claude_md_path.read_text()
 
     # Find the Agent Routing section
-    match = re.search(r'## Agent Routing.*?(?=##|\Z)', content, re.DOTALL)
+    match = re.search(r"## Agent Routing.*?(?=##|\Z)", content, re.DOTALL)
     if not match:
         return []
 
     table_text = match.group(0)
 
     # Parse the markdown table
-    lines = table_text.split('\n')
+    lines = table_text.split("\n")
     agents = []
     for line in lines:
-        if '|' not in line or line.strip().startswith('|---'):
+        if "|" not in line or line.strip().startswith("|---"):
             continue
-        parts = [p.strip() for p in line.split('|')]
+        parts = [p.strip() for p in line.split("|")]
         if len(parts) >= 3:
             modifying = parts[1]
             agent = parts[2]
-            if modifying and agent and not modifying.startswith('Modifying'):
+            if modifying and agent and not modifying.startswith("Modifying"):
                 # Remove backticks and markdown formatting
-                modifying_clean = modifying.replace('`', '').strip()
-                agent_clean = agent.replace('`', '').strip()
-                if agent_clean != "extraction-specialist (not yet created)":  # Skip uncreated agents
+                modifying_clean = modifying.replace("`", "").strip()
+                agent_clean = agent.replace("`", "").strip()
+                if (
+                    agent_clean != "extraction-specialist (not yet created)"
+                ):  # Skip uncreated agents
                     agents.append({"modifying": modifying_clean, "agent": agent_clean})
 
     return agents
@@ -184,18 +192,18 @@ def extract_context_docs_from_agent(agent_path: Path) -> list[str]:
     content = agent_path.read_text()
 
     # Find Context Documents section
-    match = re.search(r'## Context Documents.*?(?=##|\Z)', content, re.DOTALL)
+    match = re.search(r"## Context Documents.*?(?=##|\Z)", content, re.DOTALL)
     if not match:
         return []
 
     section_text = match.group(0)
 
     # Extract markdown links like `.claude/context/strategy-scoring.md`
-    docs = re.findall(r'`(\.claude/context/[^`]+)`', section_text)
+    docs = re.findall(r"`(\.claude/context/[^`]+)`", section_text)
     # Also extract docs/ paths
-    docs.extend(re.findall(r'`(docs/[^`]+)`', section_text))
+    docs.extend(re.findall(r"`(docs/[^`]+)`", section_text))
     # Extract src/ file references
-    docs.extend(re.findall(r'`(src/[^`]+)`', section_text))
+    docs.extend(re.findall(r"`(src/[^`]+)`", section_text))
 
     return docs
 
@@ -208,9 +216,9 @@ def extract_source_files_from_context_doc(doc_path: Path) -> list[str]:
     content = doc_path.read_text()
 
     # Extract code blocks with file paths (common pattern: "src/path/to/file.py")
-    files = re.findall(r'(src/[a-zA-Z0-9_/]+\.py)', content)
+    files = re.findall(r"(src/[a-zA-Z0-9_/]+\.py)", content)
     # Also look for config paths
-    files.extend(re.findall(r'(config/[a-zA-Z0-9_/.]+\.yaml)', content))
+    files.extend(re.findall(r"(config/[a-zA-Z0-9_/.]+\.yaml)", content))
 
     return list(set(files))
 
@@ -229,12 +237,14 @@ def check_agent_cross_references(repo_root: Path) -> list[ReferenceWarning]:
         agent_id = entry["agent"]
         agent_md = agents_dir / agent_id / "AGENT.md"
         if not agent_md.exists():
-            warnings.append(ReferenceWarning(
-                category="missing_agent",
-                location="CLAUDE.md Agent Routing table",
-                reference=agent_id,
-                detail=f"Agent ID '{agent_id}' listed in trigger table but .claude/agents/{agent_id}/AGENT.md does not exist"
-            ))
+            warnings.append(
+                ReferenceWarning(
+                    category="missing_agent",
+                    location="CLAUDE.md Agent Routing table",
+                    reference=agent_id,
+                    detail=f"Agent ID '{agent_id}' listed in trigger table but .claude/agents/{agent_id}/AGENT.md does not exist",
+                )
+            )
 
     # Check all agent spec context doc references exist
     if agents_dir.exists():
@@ -245,17 +255,21 @@ def check_agent_cross_references(repo_root: Path) -> list[ReferenceWarning]:
                 for doc_ref in context_docs:
                     doc_path = repo_root / doc_ref
                     if not doc_path.exists():
-                        warnings.append(ReferenceWarning(
-                            category="missing_doc",
-                            location=str(agent_md.relative_to(repo_root)),
-                            reference=doc_ref,
-                            detail=f"Agent spec references '{doc_ref}' but file does not exist"
-                        ))
+                        warnings.append(
+                            ReferenceWarning(
+                                category="missing_doc",
+                                location=str(agent_md.relative_to(repo_root)),
+                                reference=doc_ref,
+                                detail=f"Agent spec references '{doc_ref}' but file does not exist",
+                            )
+                        )
 
     return warnings
 
 
-def check_context_doc_source_references(repo_root: Path, context_dir: Path) -> list[ReferenceWarning]:
+def check_context_doc_source_references(
+    repo_root: Path, context_dir: Path
+) -> list[ReferenceWarning]:
     """Validate that source files referenced in context docs exist."""
     warnings: list[ReferenceWarning] = []
 
@@ -267,17 +281,21 @@ def check_context_doc_source_references(repo_root: Path, context_dir: Path) -> l
         for src_ref in source_files:
             src_path = repo_root / src_ref
             if not src_path.exists():
-                warnings.append(ReferenceWarning(
-                    category="missing_file",
-                    location=str(doc_file.relative_to(repo_root)),
-                    reference=src_ref,
-                    detail=f"Context doc references '{src_ref}' but file does not exist"
-                ))
+                warnings.append(
+                    ReferenceWarning(
+                        category="missing_file",
+                        location=str(doc_file.relative_to(repo_root)),
+                        reference=src_ref,
+                        detail=f"Context doc references '{src_ref}' but file does not exist",
+                    )
+                )
 
     return warnings
 
 
-def check_orphaned_context_docs(repo_root: Path, context_dir: Path) -> list[ReferenceWarning]:
+def check_orphaned_context_docs(
+    repo_root: Path, context_dir: Path
+) -> list[ReferenceWarning]:
     """Check for context docs not referenced by any agent or CLAUDE.md."""
     warnings: list[ReferenceWarning] = []
 
@@ -291,7 +309,7 @@ def check_orphaned_context_docs(repo_root: Path, context_dir: Path) -> list[Refe
     claude_md = repo_root / "CLAUDE.md"
     if claude_md.exists():
         content = claude_md.read_text()
-        referenced_docs.update(re.findall(r'`(\.claude/context/[^`]+\.md)`', content))
+        referenced_docs.update(re.findall(r"`(\.claude/context/[^`]+\.md)`", content))
 
     # From agent specs
     agents_dir = repo_root / ".claude" / "agents"
@@ -300,18 +318,22 @@ def check_orphaned_context_docs(repo_root: Path, context_dir: Path) -> list[Refe
             agent_md = agent_subdir / "AGENT.md"
             if agent_md.exists():
                 docs = extract_context_docs_from_agent(agent_md)
-                referenced_docs.update([d for d in docs if d.startswith(".claude/context/")])
+                referenced_docs.update(
+                    [d for d in docs if d.startswith(".claude/context/")]
+                )
 
     # Check for orphaned docs
     for doc_file in context_dir.glob("*.md"):
         rel_path = f".claude/context/{doc_file.name}"
         if rel_path not in referenced_docs:
-            warnings.append(ReferenceWarning(
-                category="orphan_doc",
-                location=f".claude/context/{doc_file.name}",
-                reference=doc_file.name,
-                detail="Context doc exists but is not referenced by CLAUDE.md or any agent spec"
-            ))
+            warnings.append(
+                ReferenceWarning(
+                    category="orphan_doc",
+                    location=f".claude/context/{doc_file.name}",
+                    reference=doc_file.name,
+                    detail="Context doc exists but is not referenced by CLAUDE.md or any agent spec",
+                )
+            )
 
     return warnings
 
@@ -319,6 +341,7 @@ def check_orphaned_context_docs(repo_root: Path, context_dir: Path) -> list[Refe
 # ---------------------------------------------------------------------------
 # Output
 # ---------------------------------------------------------------------------
+
 
 def format_warnings(warnings: list[DriftWarning]) -> str:
     if not warnings:
@@ -344,6 +367,7 @@ def format_reference_warnings(warnings: list[ReferenceWarning]) -> str:
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     import argparse

@@ -76,7 +76,8 @@ class NodeSignalDetectionService:
 
         # Auto-discover all registered NodeSignalDetector subclasses
         signal_detectors = [
-            cls(node_tracker) for cls in NodeSignalDetector.get_all_node_signal_classes()
+            cls(node_tracker)
+            for cls in NodeSignalDetector.get_all_node_signal_classes()
         ]
 
         if not signal_detectors:

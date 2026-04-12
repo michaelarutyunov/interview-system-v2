@@ -15,6 +15,7 @@ from src.domain.models.session import Session, SessionState, FocusEntry
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _make_session(session_id: str = "s-vel-test") -> Session:
     now = datetime.now(timezone.utc)
     return Session(
@@ -33,6 +34,7 @@ def _make_session(session_id: str = "s-vel-test") -> Session:
 
 
 # ── surface_velocity_peak ─────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_update_state_persists_surface_velocity_peak(session_repo):
@@ -57,6 +59,7 @@ async def test_update_state_persists_surface_velocity_peak(session_repo):
 
 # ── canonical velocity ────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_update_state_persists_canonical_velocity(session_repo):
     """canonical_velocity_peak and prev_canonical_node_count survive round-trip."""
@@ -80,6 +83,7 @@ async def test_update_state_persists_canonical_velocity(session_repo):
 
 # ── focus_history ─────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_update_state_persists_focus_history(session_repo):
     """focus_history entries survive update_state → get round-trip."""
@@ -91,8 +95,12 @@ async def test_update_state_persists_focus_history(session_repo):
         concept_name="Test Product",
         turn_count=2,
         focus_history=[
-            FocusEntry(turn=1, node_id="n1", label="convenience", strategy="explore_situation"),
-            FocusEntry(turn=2, node_id="n2", label="saves time", strategy="dig_motivation"),
+            FocusEntry(
+                turn=1, node_id="n1", label="convenience", strategy="explore_situation"
+            ),
+            FocusEntry(
+                turn=2, node_id="n2", label="saves time", strategy="dig_motivation"
+            ),
         ],
     )
     await session_repo.update_state(session.id, state)
@@ -127,6 +135,7 @@ async def test_update_state_empty_focus_history_round_trips(session_repo):
 
 # ── all fields together ───────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_update_state_persists_all_velocity_fields(session_repo):
     """All four velocity fields persist and round-trip correctly together."""
@@ -142,7 +151,9 @@ async def test_update_state_persists_all_velocity_fields(session_repo):
         canonical_velocity_peak=2.0,
         prev_canonical_node_count=12,
         focus_history=[
-            FocusEntry(turn=8, node_id="nX", label="quality", strategy="uncover_obstacles"),
+            FocusEntry(
+                turn=8, node_id="nX", label="quality", strategy="uncover_obstacles"
+            ),
         ],
     )
     await session_repo.update_state(session.id, state)

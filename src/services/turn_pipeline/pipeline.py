@@ -273,7 +273,8 @@ class TurnPipeline:
             strategy_selected=strategy_selected,
             focus_node_id=(
                 context.strategy_selection_output.focus.get("focus_node_id")
-                if context.strategy_selection_output and context.strategy_selection_output.focus
+                if context.strategy_selection_output
+                and context.strategy_selection_output.focus
                 else None
             ),
             next_question=next_question,
