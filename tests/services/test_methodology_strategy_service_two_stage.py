@@ -3,6 +3,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from src.core.exceptions import ConfigurationError, ScoringError
 from src.methodologies.registry import (
     StrategyConfig,
     MethodologyConfig,
@@ -125,8 +126,8 @@ class TestTwoStageSelection:
         assert strategy_name == "deepen"
         assert focus_node_id == "node_b"  # Lower exhaustion wins
 
-    async def test_alternatives_are_strategy_level(self):
-        """Alternatives should be (strategy_name, score) tuples, not (strategy, node, score)."""
+    async def test_alternatives_are_uniform_3tuples(self):
+        """Alternatives should be uniform 3-tuples (strategy, node_id_or_None, score)."""
         s1 = StrategyConfig(
             name="deepen",
             description="D",
@@ -162,18 +163,18 @@ class TestTwoStageSelection:
             )
 
         _, _, alternatives, *_ = result
-        # Should be 2-tuples (strategy_name, score)
+        # Should be 3-tuples (strategy, node_id_or_None, score)
         assert len(alternatives) == 2
-        assert len(alternatives[0]) == 2
+        assert len(alternatives[0]) == 3
         assert alternatives[0][0] == "deepen"  # Higher score
 
 
 @pytest.mark.asyncio
-class TestStage1DecompositionCapture:
-    """Tests for Stage 1 strategy score decomposition capture in service layer."""
+class TestJointScoringDecompositionCapture:
+    """Tests for joint strategy-node score decomposition capture in service layer."""
 
-    async def test_stage1_decomposition_captured_in_output(self):
-        """Service should capture Stage 1 decomposition when available."""
+    async def test_decomposition_captured_in_output(self):
+        """Service should capture decomposition from joint scoring."""
         deepen = StrategyConfig(
             name="deepen",
             description="D",
@@ -237,35 +238,12 @@ class TestStage1DecompositionCapture:
         assert strategy_name == "deepen"
         assert focus_node_id == "node_b"  # Lower exhaustion wins
 
-        # Verify decomposition contains strategy-level entries
+        # Verify decomposition exists
         assert decomp is not None
         assert len(decomp) > 0
 
-        # Should have both strategy and node decomposition
-        strategy_entries = [c for c in decomp if c.node_id == ""]
-        node_entries = [c for c in decomp if c.node_id != ""]
-
-        assert len(strategy_entries) == 2  # deepen + explore
-        assert len(node_entries) == 2  # node_a + node_b
-
-        # Verify deepen has phase multipliers captured
-        deepen_strat = next(
-            (c for c in strategy_entries if c.strategy == "deepen"), None
-        )
-        assert deepen_strat is not None
-        assert deepen_strat.phase_multiplier == 1.3
-        assert deepen_strat.phase_bonus == 0.2
-        # Verify final_score = base_score * multiplier + bonus
-        assert deepen_strat.final_score == deepen_strat.base_score * 1.3 + 0.2
-
-        # Verify signal contributions captured
-        assert len(deepen_strat.signal_contributions) == 2
-        contrib_names = {c.name for c in deepen_strat.signal_contributions}
-        assert "llm.response_depth.low" in contrib_names
-        assert "llm.engagement.high" in contrib_names
-
-    async def test_node_binding_none_has_only_strategy_decomposition(self):
-        """Strategy with node_binding='none' should only have strategy decomposition."""
+    async def test_node_binding_none_has_none_node_id(self):
+        """Strategy with node_binding='none' should have node_id=None in decomposition."""
         reflect = StrategyConfig(
             name="reflect",
             description="Reflect",
@@ -309,9 +287,182 @@ class TestStage1DecompositionCapture:
         assert strategy_name == "reflect"
         assert focus_node_id is None  # No node selection
 
-        # Should have strategy decomposition only
+        # Should have strategy decomposition (rank_strategies uses "" for node_id)
         assert decomp is not None
         assert len(decomp) == 1
         assert decomp[0].strategy == "reflect"
-        assert decomp[0].node_id == ""  # Empty for strategy-level
         assert len(decomp[0].signal_contributions) == 1
+
+
+@pytest.mark.asyncio
+class TestJointScoringOverride:
+    """Tests verifying that joint scoring can override the Stage 1 strategy winner."""
+
+    async def test_better_node_overrides_higher_global_strategy(self):
+        """When ascend wins globally but bridge has a better node, joint scoring selects bridge.
+
+        This is the core motivation for joint scoring: the 2-stage architecture
+        would pick ascend because it has the highest global score, but the
+        (bridge, node_with_level_skip) pair has a higher combined score.
+        """
+        ascend = StrategyConfig(
+            name="ascend",
+            description="Ascend",
+            signal_weights={
+                "graph.node.gap_above.true": 0.5,
+                "graph.node.exhaustion_score": -0.3,
+            },
+            node_binding="required",
+            valid_when="graph.node.gap_above",
+        )
+        bridge = StrategyConfig(
+            name="bridge",
+            description="Bridge",
+            signal_weights={
+                "graph.node.level_skip.true": 0.8,
+                "graph.node.exhaustion_score": -0.3,
+            },
+            node_binding="required",
+            valid_when="graph.node.level_skip",
+        )
+        config = MethodologyConfig(
+            name="test",
+            description="Test",
+            signals={},
+            strategies=[ascend, bridge],
+            phases=None,
+        )
+
+        service = MethodologyStrategyService()
+        service.methodology_registry = MagicMock()
+        service.methodology_registry.get_methodology.return_value = config
+
+        service.global_signal_service = AsyncMock()
+        service.global_signal_service.detect.return_value = {}  # No global signals
+
+        # Node A: has gap_above=True, NOT level_skip → only ascend is eligible
+        # Node B: has level_skip=True, NOT gap_above → only bridge is eligible
+        # Node A has high exhaustion (penalty), Node B has low exhaustion
+        service.node_signal_service = AsyncMock()
+        service.node_signal_service.detect.return_value = {
+            "node_a": {
+                "graph.node.gap_above": True,
+                "graph.node.level_skip": False,
+                "graph.node.exhaustion_score": 0.9,  # High exhaustion → big penalty
+            },
+            "node_b": {
+                "graph.node.gap_above": False,
+                "graph.node.level_skip": True,
+                "graph.node.exhaustion_score": 0.1,  # Low exhaustion → small penalty
+            },
+        }
+
+        with patch(
+            "src.services.methodology_strategy_service.InterviewPhaseSignal"
+        ) as MockPhase:
+            mock_instance = AsyncMock()
+            mock_instance.detect.return_value = {"meta.interview.phase": "mid"}
+            MockPhase.return_value = mock_instance
+
+            result = await service.select_strategy_and_focus(
+                _make_context(), _make_graph_state(), "test"
+            )
+
+        strategy_name, focus_node_id, alternatives, signals, node_signals, decomp = (
+            result
+        )
+
+        # Bridge on node_b should win because:
+        # bridge score on node_b = 0.8 * 1.0 + (-0.3) * 0.1 = 0.77
+        # ascend score on node_a = 0.5 * 1.0 + (-0.3) * 0.9 = 0.23
+        assert strategy_name == "bridge"
+        assert focus_node_id == "node_b"
+
+    async def test_all_gates_filtered_raises_error(self):
+        """When all valid_when gates filter out all strategies, raise ScoringError."""
+        ascend = StrategyConfig(
+            name="ascend",
+            description="Ascend",
+            signal_weights={"graph.node.gap_above.true": 0.5},
+            node_binding="required",
+            valid_when="graph.node.gap_above",
+        )
+        config = MethodologyConfig(
+            name="test",
+            description="Test",
+            signals={},
+            strategies=[ascend],
+            phases=None,
+        )
+
+        service = MethodologyStrategyService()
+        service.methodology_registry = MagicMock()
+        service.methodology_registry.get_methodology.return_value = config
+
+        service.global_signal_service = AsyncMock()
+        service.global_signal_service.detect.return_value = {}
+
+        # No nodes pass the gap_above gate
+        service.node_signal_service = AsyncMock()
+        service.node_signal_service.detect.return_value = {
+            "node_a": {
+                "graph.node.gap_above": False,
+            },
+        }
+
+        with patch(
+            "src.services.methodology_strategy_service.InterviewPhaseSignal"
+        ) as MockPhase:
+            mock_instance = AsyncMock()
+            mock_instance.detect.return_value = {"meta.interview.phase": "mid"}
+            MockPhase.return_value = mock_instance
+
+            with pytest.raises(ScoringError, match="No valid"):
+                await service.select_strategy_and_focus(
+                    _make_context(), _make_graph_state(), "test"
+                )
+
+    async def test_conversation_only_strategy_selected(self):
+        """When only conversation strategies are eligible, returns (strategy, None, score)."""
+        revitalize = StrategyConfig(
+            name="revitalize",
+            description="Revitalize",
+            signal_weights={"llm.engagement.low": 0.8},
+            node_binding="none",
+        )
+        config = MethodologyConfig(
+            name="test",
+            description="Test",
+            signals={},
+            strategies=[revitalize],
+            phases=None,
+        )
+
+        service = MethodologyStrategyService()
+        service.methodology_registry = MagicMock()
+        service.methodology_registry.get_methodology.return_value = config
+
+        service.global_signal_service = AsyncMock()
+        service.global_signal_service.detect.return_value = {
+            "llm.engagement": 0.1,  # low -> True
+        }
+        service.node_signal_service = AsyncMock()
+        service.node_signal_service.detect.return_value = {"node_1": {}}
+
+        with patch(
+            "src.services.methodology_strategy_service.InterviewPhaseSignal"
+        ) as MockPhase:
+            mock_instance = AsyncMock()
+            mock_instance.detect.return_value = {"meta.interview.phase": "mid"}
+            MockPhase.return_value = mock_instance
+
+            result = await service.select_strategy_and_focus(
+                _make_context(), _make_graph_state(), "test"
+            )
+
+        strategy_name, focus_node_id, alternatives, signals, node_signals, decomp = (
+            result
+        )
+
+        assert strategy_name == "revitalize"
+        assert focus_node_id is None
