@@ -462,17 +462,15 @@ class PipelineContext:
         return None
 
     @property
-    def strategy_alternatives(self) -> List[tuple[str, float] | tuple[str, str, float]]:
+    def strategy_alternatives(self) -> List[tuple[str, Optional[str], float]]:
         """Get ranked alternative strategies with scores for observability.
 
         Returns:
-            List of tuples from StrategySelectionOutput (Stage 6):
-            - [(strategy, score)] for strategy-only scoring
-            - [(strategy, node_id, score)] for joint strategy-node scoring
+            List of 3-tuples from StrategySelectionOutput (Stage 6):
+            [(strategy, node_id_or_None, score)] — uniform format.
+            node_id is a UUID string for node_binding='required' strategies,
+            or None for node_binding='none' strategies.
             Returns empty list if stage not yet completed.
-
-        Note:
-            Used for debugging and understanding why a strategy was selected.
         """
         if self.strategy_selection_output:
             return self.strategy_selection_output.strategy_alternatives
