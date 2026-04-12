@@ -57,7 +57,7 @@ def list_personas() -> Dict[str, str]:
         return {}
 
     personas = {}
-    for persona_file in personas_dir.glob("*.yaml"):
+    for persona_file in personas_dir.rglob("*.yaml"):
         try:
             with open(persona_file) as f:
                 data = yaml.safe_load(f)
@@ -88,13 +88,13 @@ def load_persona(persona_id: str) -> PersonaConfig:
         return PersonaConfig(**_cache[persona_id])
 
     personas_dir = Path(__file__).parent.parent.parent / "config" / "personas"
-    persona_file = personas_dir / f"{persona_id}.yaml"
-
-    if not persona_file.exists():
+    matches = list(personas_dir.rglob(f"{persona_id}.yaml"))
+    if not matches:
         raise FileNotFoundError(
-            f"Persona file not found: {persona_file}\n"
+            f"Persona file not found: {persona_id}.yaml (searched {personas_dir})\n"
             f"Available personas: {', '.join(list_personas().keys())}"
         )
+    persona_file = matches[0]
 
     with open(persona_file) as f:
         data = yaml.safe_load(f)

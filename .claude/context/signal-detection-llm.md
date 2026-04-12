@@ -32,6 +32,7 @@ A signal is **only active** if it appears in the methodology YAML under `signals
 | New signal class never detected | Missing from `__all__` in `src/signals/llm/signals/__init__.py` | Add import and export entry |
 | Strategy weight never triggers for a continuous signal | Weight key uses integer (e.g. `3`) instead of bin name | Replace with `.low`, `.mid`, or `.high` |
 | `global_response_trend` always `stable` | Session history too short or LLM call failed silently | Check `GlobalSignalDetectionService` logs; minimum history requires 2+ turns |
+| Strategy fires spuriously at one specific turn with no obvious cause | LLM omitted a signal key from the JSON response → its suppressor went absent that turn | `batch_detector.py` now applies a neutral score=3 fallback (normalises to 0.5) when a key is missing; search logs for `"not found in LLM response"` to confirm. Root cause is typically the LLM dropping an unusual rubric key — fix by checking rubric_key spelling against signals.md |
 
 ## Key Files
 

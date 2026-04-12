@@ -10,6 +10,11 @@ class NodeTypeSpec(BaseModel):
     name: str
     description: str
     examples: List[str] = Field(default_factory=list)
+    non_attribute_examples: List[str] = Field(
+        default_factory=list,
+        description="Counter-examples: concepts that look like this type but belong elsewhere. "
+        "Forwarded to extraction prompt to reduce misclassification.",
+    )
     level: Optional[int] = Field(
         default=None,
         description="Hierarchy level (0=abstract, higher=more concrete). None for non-hierarchical ontologies.",
@@ -225,7 +230,10 @@ class MethodologySchema(BaseModel):
         return True
 
     def get_node_descriptions(self) -> Dict[str, str]:
-        """For LLM prompt generation: {name: "description (e.g., ex1, ex2)"}.
+        """For LLM prompt generation: {name: "description (e.g., ex1, ex2) NOT: counter1, counter2"}.
+
+        Includes positive examples and, when defined, counter-examples (non_attribute_examples)
+        to reduce misclassification at type boundaries.
 
         Returns:
             Dictionary mapping node type names to formatted descriptions with examples
@@ -234,11 +242,15 @@ class MethodologySchema(BaseModel):
         if self.ontology:
             for nt in self.ontology.nodes:
                 examples = ", ".join(f"'{e}'" for e in nt.examples[:3])
-                result[nt.name] = (
+                desc = (
                     f"{nt.description} (e.g., {examples})"
                     if examples
                     else nt.description
                 )
+                if nt.non_attribute_examples:
+                    not_examples = "; ".join(nt.non_attribute_examples[:3])
+                    desc += f" NOT this type: {not_examples}"
+                result[nt.name] = desc
         return result
 
     def get_edge_descriptions(self) -> Dict[str, str]:

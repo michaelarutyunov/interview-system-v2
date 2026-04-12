@@ -227,6 +227,7 @@ Run `/deep-code-quality` for the full framework when a diagnostic doesn't obviou
 - **`select_strategy_and_focus()` is D2:** The current architecture uses `rank_strategy_node_pairs()` for joint strategy-node scoring. Any doc or code referencing the old single-strategy D1 flow is outdated.
 - **MEC uses chain-aware strategies:** MEC methodologies use 6 strategies (ascend, ground, bridge, branch, anchor, revitalize) with `valid_when` gates. Legacy strategies (deepen, explore, clarify, reflect) have been removed. Other methodologies (JTBD, CJM, CIT, Repertory Grid) use their own strategy names — do NOT apply MEC strategy changes to those.
 - **valid_when hard gate:** Chain-aware strategies are only scored for nodes where the gate signal is True. A strategy with `valid_when: graph.node.gap_above` will never be scored for terminal nodes.
+- **LLM signal key absence:** If the LLM omits a signal key from its JSON response (e.g. `engagement`), the corresponding suppressor disappears for that turn, potentially unblocking a strategy that should have been suppressed. Fixed in `batch_detector.py` with a neutral score=3 fallback (normalises to 0.5). Symptom: strategy fires spuriously at a specific turn with no obvious explanation — check logs for "not found in LLM response" warnings. See `.claude/context/signal-detection-llm.md`.
 
 ---
 

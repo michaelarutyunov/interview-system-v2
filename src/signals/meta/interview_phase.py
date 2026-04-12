@@ -132,14 +132,25 @@ class InterviewPhaseSignal(SignalDetector):
             phases = interview_config.phases
             exploratory_n = phases.exploratory.n_turns if phases.exploratory else 0
             focused_n = phases.focused.n_turns if phases.focused else 0
-            # early ends after exploratory turns; mid ends after exploratory+focused
-            early_max_turns = exploratory_n + 1
-            mid_max_turns = exploratory_n + focused_n + 1
-            if early_max_turns < mid_max_turns:
-                return {
-                    "early_max_turns": early_max_turns,
-                    "mid_max_turns": mid_max_turns,
-                }
+            closing_n = phases.closing.n_turns if phases.closing else 0
+            total_yaml_turns = exploratory_n + focused_n + closing_n
+            if total_yaml_turns > 0:
+                # Scale YAML proportions to actual max_turns so CLI arg controls phase splits.
+                # e.g. for 10 turns with YAML 6/7/2=15: early=4, mid=9
+                try:
+                    max_turns = context.max_turns
+                except (AttributeError, RuntimeError):
+                    max_turns = self.DEFAULT_MAX_TURNS
+                early_max_turns = max(1, round(max_turns * exploratory_n / total_yaml_turns))
+                mid_max_turns = max(
+                    early_max_turns + 1,
+                    round(max_turns * (exploratory_n + focused_n) / total_yaml_turns),
+                )
+                if early_max_turns < mid_max_turns:
+                    return {
+                        "early_max_turns": early_max_turns,
+                        "mid_max_turns": mid_max_turns,
+                    }
         except Exception:
             pass
 

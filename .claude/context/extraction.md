@@ -15,6 +15,16 @@ Returns `ExtractionResult` with `concepts`, `relationships`, `is_extractable`, a
 
 **Fail-fast:** `ExtractionError` is raised immediately on LLM failure — no silent degradation.
 
+## Node Type Description Pipeline
+
+The extraction prompt includes per-node-type descriptions built by `MethodologySchema.get_node_descriptions()`. Each entry combines the node's `description`, up to 3 positive `examples`, and (when defined) up to 3 `non_attribute_examples` — counter-examples showing what does **not** belong in this node type.
+
+Counter-examples are defined per node in the methodology YAML under `non_attribute_examples:` and flow to the extraction LLM as: `"<description> (e.g., 'ex1', 'ex2') NOT this type: counter1; counter2"`.
+
+**Important:** `OntologySpec` uses `model_config = ConfigDict(extra="ignore")`. Unknown fields on a node spec are silently dropped by Pydantic. If you add a new field to `NodeTypeSpec` it must be declared as a class attribute — adding it only to the YAML will have no effect. The `non_attribute_examples` field was added to `NodeTypeSpec` after being silently dropped for multiple simulation iterations.
+
+Use `non_attribute_examples` when a node type boundary is ambiguous — e.g., when a related concept (like `functional_consequence`) is systematically misclassified as this type. Positive examples alone are insufficient when LLMs generalise the category too broadly.
+
 ## Correctness Requirements
 
 1. **`node_type` must match the methodology ontology** — validation in `_parse_concepts` skips invalid types. If the extraction prompt doesn't reflect the current ontology, nodes with stale types will be silently dropped.

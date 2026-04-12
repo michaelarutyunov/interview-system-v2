@@ -289,10 +289,15 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
             lookup_key = rubric_key if rubric_key else signal_name.replace("llm.", "")
             if lookup_key not in result:
                 log.warning(
-                    f"Signal '{lookup_key}' (maps to '{signal_name}') not found in LLM response",
+                    f"Signal '{lookup_key}' (maps to '{signal_name}') not found in LLM response. "
+                    "Using neutral fallback score=3 to prevent signal absence from distorting strategy scoring.",
                 )
-                continue
-            raw_value = result[lookup_key]
+                # Neutral fallback: score 3 (mid-point) normalizes to 0.5
+                # Prevents a missing key from silently removing a signal's contribution
+                # (e.g. engagement suppressor disappearing and unblocking revitalize)
+                raw_value = {"score": 3, "rationale": "fallback: key absent from LLM response"}
+            else:
+                raw_value = result[lookup_key]
 
             # Handle dict format {"score": N, "rationale": "..."} or just integer
             if isinstance(raw_value, dict) and "score" in raw_value:

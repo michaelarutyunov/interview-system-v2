@@ -243,6 +243,25 @@ Node-scoped signal weights (`graph.node.*`, `technique.node.*`, `meta.node.*`) a
 
 Returns `ScoredCandidate` objects with full `signal_contributions` breakdown for observability.
 
+### Chain-Aware Strategies (MEC)
+
+MEC uses 6 strategies that exploit graph topology to drive interview flow. Each chain-aware strategy has a `valid_when` gate — a hard filter that excludes `(strategy, node)` pairs where the gate signal is `False`.
+
+| Strategy | `valid_when` | Purpose |
+|----------|-------------|---------|
+| `ascend` | `graph.node.gap_above` | Extend chain upward toward terminal values |
+| `ground` | `graph.node.gap_below` | Establish causal antecedents for ungrounded nodes |
+| `bridge` | `graph.node.level_skip` | Fill missing intermediate levels |
+| `branch` | `graph.node.branching_deficit` | Expand breadth where expected siblings missing |
+| `anchor` | `graph.node.is_orphan` | Connect isolated nodes to graph |
+| `revitalize` | *(none)* | Conversation-level fallback for fatigue/disengagement |
+
+Legacy strategies (`deepen`, `explore`, `clarify`, `reflect`) have been removed from MEC.
+
+**Score threshold fallback**: When best score < `chain_completion.score_threshold` (default 0.15) AND fatigue/low-engagement is detected, the system falls back to `revitalize` regardless of topology signals.
+
+Non-MEC methodologies (JTBD, CIT, CJM, Repertory Grid) define their own strategy names and do NOT use chain-aware strategies or `valid_when` gates.
+
 ---
 
 ## Concept-Driven Coverage
@@ -297,9 +316,10 @@ signals:
   meta: [meta.interview.phase]
 
 strategies:
-  - name: deepen
-    description: "..."
+  - name: ascend
+    description: "Extend an incomplete chain upward toward terminal values"
     node_binding: required      # "required" (default) or "none"
+    valid_when: graph.node.gap_above  # Hard gate — only scored for nodes where signal is True
     focus_mode: recent_node     # "recent_node" (default), "summary", "topic"
     generates_closing_question: false
     signal_weights:
@@ -307,28 +327,39 @@ strategies:
       graph.node.exhaustion_score.low: 1.0
       temporal.strategy_repetition_count: -0.3
 
+chain_completion:
+  expected_branching: {attribute: 3, functional_consequence: 2}
+  score_threshold: 0.15  # Below this, conversation-level strategies activate
+
 phases:
   early:
-    signal_weights: {explore: 1.5, deepen: 0.5}
-    phase_bonuses: {explore: 0.2}
+    signal_weights: {branch: 1.5, ascend: 0.8}
+    phase_bonuses: {branch: 0.1}
   mid:
-    signal_weights: {deepen: 1.3}
-    phase_bonuses: {deepen: 0.3}
+    signal_weights: {ascend: 1.3}
+    phase_bonuses: {ascend: 0.3}
   late:
-    signal_weights: {reflect: 1.2}
-    phase_bonuses: {reflect: 0.2}
+    signal_weights: {ground: 1.2}
+    phase_bonuses: {ground: 0.2}
 ```
 
 ### Strategy Selection Flow
 
-`MethodologyStrategyService.select_strategy_and_focus()`:
+`MethodologyStrategyService.select_strategy_and_focus()` orchestrates two sub-stages:
+
+**Stage 1 — `rank_strategies()`**: Scores each strategy against global signals only. Node-scoped weights are stripped via `partition_signal_weights()`. The top-ranked strategy is selected.
+
+**Stage 2 — `rank_strategy_node_pairs()`**: Scores every `(strategy, node_id)` combination. For each pair, global and node-specific signals are merged. Strategies with `valid_when` gates are only scored for nodes where the gate signal is `True`. Strategies with `node_binding: none` (e.g., `revitalize`) skip Stage 2 entirely.
+
+Full selection flow:
 
 1. Load methodology config from registry
 2. Detect global signals (`GlobalSignalDetectionService`)
 3. Detect node-level signals (`NodeSignalDetectionService`)
 4. Detect interview phase → get phase weights and bonuses
-5. `rank_strategy_node_pairs()` → scored `(strategy, node_id)` pairs across all strategy × node combinations
-6. Top-ranked pair becomes selected strategy + focus node
+5. `rank_strategy_node_pairs()` → scored `(strategy, node_id)` pairs, filtered by `valid_when` gates
+6. If best score < `chain_completion.score_threshold` (MEC only) AND fatigue/low-engagement detected → fallback to `revitalize`
+7. Top-ranked pair becomes selected strategy + focus node
 
 **Joint scoring formula:**
 ```python
