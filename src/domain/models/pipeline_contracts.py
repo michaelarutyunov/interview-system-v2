@@ -238,14 +238,14 @@ class StrategySelectionOutput(BaseModel):
         description="Per-node signals keyed by node_id. Each value is a dict of signal_name: value.",
     )
     # Joint strategy-node scoring produces tuples with node_id
-    strategy_alternatives: List[Union[tuple[str, float], tuple[str, str, float]]] = (
-        Field(
-            default_factory=list,
-            description=(
-                "Alternative strategies with scores for observability. "
-                "Format: [(strategy, score)] or [(strategy, node_id, score)] for joint scoring"
-            ),
-        )
+    strategy_alternatives: List[tuple[str, Optional[str], float]] = Field(
+        default_factory=list,
+        description=(
+            "Alternative strategies with scores for observability. "
+            "Format: [(strategy, node_id_or_None, score)] — uniform 3-tuples. "
+            "node_id is a UUID string for node_binding='required' strategies, "
+            "or None for node_binding='none' strategies."
+        ),
     )
     generates_closing_question: bool = Field(
         default=False,
@@ -259,9 +259,8 @@ class StrategySelectionOutput(BaseModel):
     score_decomposition: Optional[List[ScoredCandidate]] = Field(
         default=None,
         description=(
-            "Per-candidate score decomposition from rank_strategies() and "
-            "rank_nodes_for_strategy(). Combines Stage 1 (strategy-level with node_id='') "
-            "and Stage 2 (node-level) decompositions. Each entry has strategy, node_id, "
+            "Per-candidate score decomposition from joint scoring. Each entry has "
+            "strategy, node_id (UUID or None for conversation strategies), "
             "signal_contributions (name/value/weight/contribution), base_score, "
             "phase_multiplier, phase_bonus, final_score, rank, selected. "
             "Populated during simulation; None in live API."
