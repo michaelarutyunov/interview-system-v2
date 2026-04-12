@@ -23,9 +23,9 @@ The Interview AI Simulation system enables AI-to-AI interview simulations for te
 
 | Persona ID | Name | Purpose |
 |------------|------|---------|
-| `brief_responder` | Brief Responder | Tests `dig_motivation` trigger on short answers |
-| `verbose_tangential` | Verbose Tangential | Tests noise handling and `clarify` firing on low specificity |
-| `emotionally_reactive` | Emotionally Reactive | Tests `explore_emotions` and valence safety gates |
+| `brief_responder` | Brief Responder | Tests `anchor` trigger on short answers |
+| `verbose_tangential` | Verbose Tangential | Tests noise handling and `bridge` firing on low specificity |
+| `emotionally_reactive` | Emotionally Reactive | Tests valence safety gates and `ground` strategy |
 | `fatiguing_responder` | Fatiguing Responder | Tests `revitalize` mechanism mid-interview |
 | `single_topic_fixator` | Single Topic Fixator | Tests node exhaustion and rotation penalties |
 | `skeptical_analyst` | Skeptical Analyst | Tests `probe_attributions` with challenging engagement |
@@ -55,7 +55,7 @@ The simulation service orchestrates a complete AI-to-AI interview:
 curl -X POST "http://localhost:8000/simulation/interview" \
   -H "Content-Type: application/json" \
   -d '{
-    "concept_id": "headphones_mec",
+    "concept_id": "glp1_food_mec",
     "persona_id": "baseline_cooperative",
     "max_turns": 10
   }'
@@ -64,9 +64,9 @@ curl -X POST "http://localhost:8000/simulation/interview" \
 **Response:**
 ```json
 {
-  "concept_id": "headphones_mec",
-  "concept_name": "Headphones",
-  "product_name": "Headphones",
+  "concept_id": "glp1_food_mec",
+  "concept_name": "GLP-1 Medication and Food Choices",
+  "product_name": "GLP-1 Medication",
   "objective": "Explore how consumers make decisions...",
   "methodology": "means_end_chain",
   "persona_id": "baseline_cooperative",
@@ -85,11 +85,11 @@ curl -X POST "http://localhost:8000/simulation/interview" \
       },
       "node_signals": {...},
       "score_decomposition": [...],
-      "strategy_selected": "deepen",
+      "strategy_selected": "ascend",
       "focus_node_id": "abc-123",
       "strategy_alternatives": [
-        {"strategy": "deepen", "score": 0.85},
-        {"strategy": "clarify", "score": 0.62}
+        {"strategy": "ascend", "score": 0.85},
+        {"strategy": "branch", "score": 0.62}
       ],
       "should_continue": true,
       "latency_ms": 1250
@@ -100,7 +100,7 @@ curl -X POST "http://localhost:8000/simulation/interview" \
 ```
 
 **Parameters:**
-- `concept_id`: Concept to use from `config/concepts/` (e.g., `headphones_mec`, `oatmilk_mec`)
+- `concept_id`: Concept to use from `config/concepts/` (e.g., `glp1_food_mec`, `coffee_jtbd_v2`)
 - `persona_id`: Persona from available personas (e.g., `baseline_cooperative`)
 - `max_turns`: Maximum turns before forcing stop (default: from concept config)
 - `export_format`: Export format - `json`, `markdown`, or `csv` (default: `json`)
@@ -123,7 +123,7 @@ Each turn in the simulation JSON includes a `score_decomposition` array with det
   "turn_number": 3,
   "score_decomposition": [
     {
-      "strategy": "deepen",
+      "strategy": "ascend",
       "node_id": "",
       "signal_contributions": {
         "llm.response_depth.shallow": 0.8,
@@ -138,7 +138,7 @@ Each turn in the simulation JSON includes a `score_decomposition` array with det
       "selected": true
     },
     {
-      "strategy": "deepen",
+      "strategy": "ascend",
       "node_id": "abc-123-def",
       "signal_contributions": {
         "graph.node.exhaustion_score.low": 1.0,
@@ -160,8 +160,8 @@ Each turn in the simulation JSON includes a `score_decomposition` array with det
 - `node_id`: Empty string for Stage 1 (strategy-level), UUID for Stage 2 (node-level)
 - `signal_contributions`: Per-signal weight × value contributions
 - `base_score`: Sum of signal contributions before phase adjustments
-- `phase_multiplier`: Multiplicative phase weight (e.g., 1.3x for mid-phase deepen)
-- `phase_bonus`: Additive phase bonus (e.g., +0.3 for mid-phase deepen)
+- `phase_multiplier`: Multiplicative phase weight (e.g., 1.3x for mid-phase ascend)
+- `phase_bonus`: Additive phase bonus (e.g., +0.3 for mid-phase ascend)
 - `final_score`: (base_score × phase_multiplier) + phase_bonus
 - `rank`: Ranking position (1 = highest score)
 - `selected`: Whether this strategy-node pair was selected
@@ -359,7 +359,7 @@ async def run_simulation():
     
     # Run simulation
     result = await sim_service.simulate_interview(
-        concept_id="headphones_mec",
+        concept_id="glp1_food_mec",
         persona_id="baseline_cooperative",
         max_turns=10
     )
@@ -379,11 +379,11 @@ For running multiple simulations efficiently, use the provided script:
 
 ```bash
 # Run single simulation
-uv run python scripts/run_simulation.py headphones_mec baseline_cooperative 10
+uv run python scripts/run_simulation.py glp1_food_mec baseline_cooperative 10
 
 # Output files:
-# - synthetic_interviews/TIMESTAMP_headphones_mec_baseline_cooperative.json
-# - synthetic_interviews/TIMESTAMP_headphones_mec_baseline_cooperative_scoring.csv
+# - synthetic_interviews/TIMESTAMP_glp1_food_mec_baseline_cooperative.json
+# - synthetic_interviews/TIMESTAMP_glp1_food_mec_baseline_cooperative_scoring.csv
 ```
 
 The CSV export contains live `score_decomposition` data from the simulation JSON, providing per-turn scoring breakdown with signal contributions, phase multipliers, and strategy rankings.
@@ -398,7 +398,7 @@ The CSV export contains live `score_decomposition` data from the simulation JSON
 **Error: Concept not found**
 - Check `config/concepts/` for available concept IDs
 - Verify concept YAML is valid and includes `objective` field
-- Common concepts: `headphones_mec`, `oatmilk_mec`, `coffee_jtbd`
+- Common concepts: `glp1_food_mec`, `glp1_food_mec_strict`, `coffee_jtbd_v2`
 
 **Simulation stops early**
 - Check `max_turns` parameter in request

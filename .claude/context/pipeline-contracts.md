@@ -20,8 +20,8 @@ Convenience properties on `PipelineContext` derive computed values from contract
 | 4.5 | SlotDiscoveryStage | `SlotDiscoveryOutput` | `slots_created`, `slots_updated`, `mappings_created`, `timestamp` |
 | 5 | StateComputationStage | `StateComputationOutput` | `graph_state`, `recent_nodes`, `computed_at`, `saturation_metrics`, `canonical_graph_state` |
 | 6 | StrategySelectionStage | `StrategySelectionOutput` | `strategy`, `focus`, `selected_at`, `signals`, `node_signals`, `strategy_alternatives`, `generates_closing_question`, `focus_mode`, `score_decomposition`, `threshold_fallback` |
-| 7 | ContinuationStage | `ContinuationOutput` | `should_continue`, `focus_concept`, `reason`, `turns_remaining`, `timestamp` |
-| 8 | QuestionGenerationStage | `QuestionGenerationOutput` | `question`, `strategy`, `focus`, `has_llm_fallback`, `timestamp` |
+| 7 | ContinuationStage | `ContinuationOutput` | `should_continue`, `focus_concept` (Union[str, Dict[str, str]] — dict with `label`+`node_type` when resolved from graph node, plain string for backward compat/when not continuing), `reason`, `turns_remaining`, `timestamp` |
+| 8 | QuestionGenerationStage | `QuestionGenerationOutput` | `question`, `strategy`, `focus`, `has_llm_fallback`, `timestamp`. Forwards `signals` + `signal_descriptions` from Stage 6 and `focus_node_type` from Stage 7 to the question prompt, enabling signal rationale and node-type-aware question generation. |
 | 9 | ResponseSavingStage | `ResponseSavingOutput` | `turn_number`, `system_utterance_id`, `system_utterance`, `question_text`, `timestamp` |
 | 10 | ScoringPersistenceStage | `ScoringPersistenceOutput` | `turn_number`, `strategy`, `depth_score`, `saturation_score`, `has_methodology_signals`, `timestamp` |
 

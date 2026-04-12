@@ -116,12 +116,14 @@ def get_question_user_prompt(
     depth_achieved: int = 0,
     signals: Optional[Dict[str, Any]] = None,
     signal_descriptions: Optional[Dict[str, str]] = None,
+    focus_node_type: Optional[str] = None,
 ) -> str:
     """
     Get user prompt for question generation.
 
     Args:
         focus_concept: Concept to focus the question on
+        methodology: Methodology schema for method-specific context
         recent_utterances: Recent conversation turns [{"speaker": "user/system", "text": "..."}]
         graph_summary: Summary of what we know so far
         strategy: Strategy name
@@ -129,7 +131,8 @@ def get_question_user_prompt(
         depth_achieved: Current depth in the conversation (0-4+)
         signals: Active signal values dict (signal_name -> value)
         signal_descriptions: Signal descriptions dict (signal_name -> description)
-        methodology: Optional methodology schema for method-specific context
+        focus_node_type: Methodology node type of focus concept (e.g., 'attribute',
+            'functional_consequence') — helps the LLM tailor question phrasing
 
     Returns:
         User prompt string
@@ -191,7 +194,10 @@ def get_question_user_prompt(
         strat_name = strategy.replace("_", " ").title()
         strat_description = ""
 
-    prompt_parts.append(f"Focus concept: {focus_concept}")
+    if focus_node_type:
+        prompt_parts.append(f"Focus concept: {focus_concept} (type: {focus_node_type})")
+    else:
+        prompt_parts.append(f"Focus concept: {focus_concept}")
     if strat_description:
         prompt_parts.append(f"Strategy: {strat_name} - {strat_description}")
     else:

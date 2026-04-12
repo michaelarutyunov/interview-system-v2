@@ -17,7 +17,7 @@ Key responsibilities:
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List, Dict, Any, TYPE_CHECKING
+from typing import Optional, List, Dict, Any, Union, TYPE_CHECKING
 
 from src.domain.models.knowledge_graph import GraphState, KGNode
 from src.domain.models.utterance import Utterance
@@ -497,11 +497,13 @@ class PipelineContext:
         )
 
     @property
-    def focus_concept(self) -> str:
-        """Get concept ID to focus on for the next turn.
+    def focus_concept(self) -> Union[str, Dict[str, str]]:
+        """Get focus target for the next question.
 
         Returns:
-            Focus concept ID from ContinuationOutput (Stage 7)
+            Focus concept from ContinuationOutput (Stage 7). May be:
+            - Dict with 'label' and 'node_type' keys (when resolved from a graph node)
+            - Plain string (backward compat / when not continuing)
 
         Raises:
             RuntimeError: If ContinuationStage (Stage 7) has not completed

@@ -70,7 +70,27 @@ class QuestionGenerationStage(TurnStage):
 
             # Get values from contract outputs
             strategy = context.strategy_selection_output.strategy
-            focus_concept = context.continuation_output.focus_concept
+            focus_raw = context.continuation_output.focus_concept
+
+            # Unpack focus concept — dict (new) or string (backward compat)
+            if isinstance(focus_raw, dict):
+                focus_concept = focus_raw.get("label", "")
+                focus_node_type = focus_raw.get("node_type")
+            else:
+                focus_concept = focus_raw or ""
+                focus_node_type = None
+
+            # Build signal descriptions from active signals
+            signal_descriptions = None
+            if context.signals:
+                from src.signals.signal_base import SignalDetector
+
+                registry = SignalDetector.get_registered_signals()
+                signal_descriptions = {
+                    name: cls.description
+                    for name, cls in registry.items()
+                    if name in context.signals
+                }
 
             next_question = await self.question.generate_question(
                 focus_concept=focus_concept,
@@ -79,6 +99,9 @@ class QuestionGenerationStage(TurnStage):
                 recent_nodes=context.recent_nodes,
                 strategy=strategy,
                 topic=context.concept_name,  # Anchor questions to research topic
+                focus_node_type=focus_node_type,
+                signals=context.signals,
+                signal_descriptions=signal_descriptions or None,
             )
         else:
             next_question = "Thank you for sharing your thoughts with me today. This has been very helpful."

@@ -37,7 +37,7 @@ class FocusSelectionService:
         strategy: str,
         graph_state: Optional[GraphState] = None,  # noqa: ARG002
         focus_mode: str = "recent_node",
-    ) -> str:
+    ) -> Dict[str, str]:
         """Resolve focus from strategy selection output.
 
         This is the primary entry point after StrategySelectionStage.
@@ -51,24 +51,28 @@ class FocusSelectionService:
             focus_mode: Focus mode from StrategyConfig YAML
 
         Returns:
-            Focus concept label (human-readable string for prompts)
+            Dict with 'label' and 'node_type' keys. node_type is the
+            methodology-specific type (e.g. 'attribute', 'functional_consequence')
+            or 'unknown' if unavailable.
 
         Resolution order:
-        1. If focus_dict has focus_node_id, resolve to node label
+        1. If focus_dict has focus_node_id, resolve to node label + type
         2. If focus_dict has focus_description, use it
         3. Fall back to focus_mode-based selection
         """
         # Try to resolve from focus_node_id
         if focus_dict and "focus_node_id" in focus_dict:
             node_id = focus_dict["focus_node_id"]
-            label = self._resolve_node_id_to_label(node_id, recent_nodes)
-            if label:
+            resolved = self._resolve_node_id_to_label_and_type(node_id, recent_nodes)
+            if resolved:
+                label, node_type = resolved
                 log.debug(
                     "focus_resolved_from_node_id",
                     node_id=node_id,
                     label=label,
+                    node_type=node_type,
                 )
-                return label
+                return {"label": label, "node_type": node_type}
 
         # Try to use focus_description
         if focus_dict and "focus_description" in focus_dict:
@@ -78,7 +82,7 @@ class FocusSelectionService:
                     "focus_resolved_from_description",
                     description=description,
                 )
-                return description
+                return {"label": description, "node_type": "unknown"}
 
         # Fall back to focus_mode-based selection
         return self._select_by_focus_mode(
@@ -87,23 +91,23 @@ class FocusSelectionService:
             focus_mode=focus_mode,
         )
 
-    def _resolve_node_id_to_label(
+    def _resolve_node_id_to_label_and_type(
         self,
         node_id: str,
         nodes: List[KGNode],
-    ) -> Optional[str]:
-        """Find node label by ID.
+    ) -> Optional[tuple[str, str]]:
+        """Find node label and type by ID.
 
         Args:
             node_id: Node ID to look up
             nodes: List of nodes to search
 
         Returns:
-            Node label if found, None otherwise
+            Tuple of (label, node_type) if found, None otherwise
         """
         for node in nodes:
             if str(node.id) == str(node_id):
-                return node.label
+                return (node.label, node.node_type)
         return None
 
     def _select_by_focus_mode(
@@ -111,7 +115,7 @@ class FocusSelectionService:
         recent_nodes: List[KGNode],
         strategy: str,
         focus_mode: str = "recent_node",
-    ) -> str:
+    ) -> Dict[str, str]:
         """Select focus concept using focus_mode from strategy config.
 
         Args:
@@ -120,7 +124,7 @@ class FocusSelectionService:
             focus_mode: Focus mode from StrategyConfig YAML
 
         Returns:
-            Focus concept label
+            Dict with 'label' and 'node_type' keys
         """
         log.debug(
             "focus_selecting_by_mode",
@@ -130,13 +134,14 @@ class FocusSelectionService:
         )
 
         if not recent_nodes:
-            return "the topic"
+            return {"label": "the topic", "node_type": "unknown"}
 
         if focus_mode == "summary":
-            return "what we've discussed"
+            return {"label": "what we've discussed", "node_type": "unknown"}
 
         if focus_mode == "topic":
-            return "the topic"
+            return {"label": "the topic", "node_type": "unknown"}
 
         # Default: recent_node
-        return recent_nodes[0].label
+        node = recent_nodes[0]
+        return {"label": node.label, "node_type": node.node_type}

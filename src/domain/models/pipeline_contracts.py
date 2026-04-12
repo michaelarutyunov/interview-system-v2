@@ -399,7 +399,10 @@ class ContinuationOutput(BaseModel):
     """
 
     should_continue: bool = Field(description="Whether to continue the interview")
-    focus_concept: str = Field(default="", description="Concept to focus on next turn")
+    focus_concept: Union[str, Dict[str, str]] = Field(
+        default="",
+        description="Concept to focus on next turn. Dict with 'label' and 'node_type' keys when resolved from a graph node, or plain string for backward compatibility.",
+    )
     reason: str = Field(default="", description="Reason for continuation decision")
     turns_remaining: int = Field(ge=0, description="Number of turns remaining")
     timestamp: datetime = Field(

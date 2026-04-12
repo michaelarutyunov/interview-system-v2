@@ -81,6 +81,7 @@ class QuestionService:
         topic: Optional[str] = None,
         signals: Optional[Dict[str, Any]] = None,
         signal_descriptions: Optional[Dict[str, str]] = None,
+        focus_node_type: Optional[str] = None,
     ) -> str:
         """Generate follow-up question based on strategy, context, and graph state.
 
@@ -99,6 +100,8 @@ class QuestionService:
             topic: Research topic to anchor questions to (prevents drift to abstract philosophy)
             signals: Active signal values for strategy rationale (signal_name -> value)
             signal_descriptions: Signal descriptions for rationale (signal_name -> description)
+            focus_node_type: Methodology node type of focus concept (e.g., 'attribute',
+                'functional_consequence') — helps the LLM tailor question phrasing
 
         Returns:
             Generated question string (cleaned, quoted, with appropriate punctuation)
@@ -144,6 +147,7 @@ class QuestionService:
             depth_achieved=depth_achieved,
             signals=signals,
             signal_descriptions=signal_descriptions,
+            focus_node_type=focus_node_type,
         )
 
         # Determine temperature based on self-selection mode

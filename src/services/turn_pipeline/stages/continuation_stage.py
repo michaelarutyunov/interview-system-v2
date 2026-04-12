@@ -10,7 +10,7 @@ Domain Encapsulation:
   This stage is a pure consumer of pre-computed metrics.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Union
 
 import structlog
 
@@ -85,7 +85,7 @@ class ContinuationStage(TurnStage):
                 focus_mode=context.strategy_selection_output.focus_mode,
             )
         else:
-            focus_concept = ""
+            focus_concept: Union[str, Dict[str, str]] = ""
 
         # Create contract output (single source of truth)
         context.continuation_output = ContinuationOutput(
@@ -106,7 +106,13 @@ class ContinuationStage(TurnStage):
             "continuation_determined",
             session_id=context.session_id,
             should_continue=should_continue,
-            focus_concept=focus_concept if should_continue else None,
+            focus_concept=(
+                focus_concept.get("label", "")
+                if isinstance(focus_concept, dict)
+                else focus_concept
+            )
+            if should_continue
+            else None,
             phase=current_phase,
             phase_reason=phase_reason,
             reason=reason if reason else None,

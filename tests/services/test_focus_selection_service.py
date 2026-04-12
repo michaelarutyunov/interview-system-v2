@@ -2,8 +2,8 @@
 Tests for FocusSelectionService.
 
 Verifies the resolution order:
-1. focus_node_id -> node label
-2. focus_description -> use directly
+1. focus_node_id -> node label + node_type
+2. focus_description -> use directly (node_type=unknown)
 3. focus_mode-based selection
 """
 
@@ -22,18 +22,21 @@ def focus_service():
 
 @pytest.fixture
 def mock_nodes():
-    """Create mock KGNode instances."""
+    """Create mock KGNode instances with node_type."""
     node1 = MagicMock(spec=KGNode)
     node1.id = "node-123"
     node1.label = "oat milk"
+    node1.node_type = "attribute"
 
     node2 = MagicMock(spec=KGNode)
     node2.id = "node-456"
     node2.label = "almond milk"
+    node2.node_type = "functional_consequence"
 
     node3 = MagicMock(spec=KGNode)
     node3.id = "node-789"
     node3.label = "dairy alternatives"
+    node3.node_type = "psychosocial_consequence"
 
     return [node1, node2, node3]
 
@@ -54,7 +57,7 @@ class TestFocusResolutionOrder:
             strategy="any_strategy",
         )
 
-        assert result == "oat milk"
+        assert result == {"label": "oat milk", "node_type": "attribute"}
 
     def test_resolves_from_description_when_node_id_not_found(
         self, focus_service, mock_nodes
@@ -71,7 +74,7 @@ class TestFocusResolutionOrder:
             strategy="any_strategy",
         )
 
-        assert result == "custom focus topic"
+        assert result == {"label": "custom focus topic", "node_type": "unknown"}
 
     def test_resolves_from_description_when_no_node_id(self, focus_service, mock_nodes):
         """Uses focus_description when focus_node_id is not provided."""
@@ -85,7 +88,10 @@ class TestFocusResolutionOrder:
             strategy="any_strategy",
         )
 
-        assert result == "the user's feelings about dairy"
+        assert result == {
+            "label": "the user's feelings about dairy",
+            "node_type": "unknown",
+        }
 
     def test_falls_back_to_focus_mode(self, focus_service, mock_nodes):
         """Falls back to focus_mode-based selection when no focus_dict."""
@@ -96,7 +102,7 @@ class TestFocusResolutionOrder:
             focus_mode="recent_node",
         )
 
-        assert result == "oat milk"
+        assert result == {"label": "oat milk", "node_type": "attribute"}
 
     def test_falls_back_when_empty_focus_dict(self, focus_service, mock_nodes):
         """Falls back to focus_mode-based selection when focus_dict is empty."""
@@ -106,21 +112,21 @@ class TestFocusResolutionOrder:
             strategy="any_strategy",
         )
 
-        assert result == "oat milk"
+        assert result == {"label": "oat milk", "node_type": "attribute"}
 
 
 class TestFocusModeSelection:
     """Test focus_mode-driven focus selection (replaces strategy name matching)."""
 
     def test_recent_node_focus_mode(self, focus_service, mock_nodes):
-        """focus_mode=recent_node returns most recent node."""
+        """focus_mode=recent_node returns most recent node with type."""
         result = focus_service.resolve_focus_from_strategy_output(
             focus_dict=None,
             recent_nodes=mock_nodes,
             strategy="any_strategy_name",
             focus_mode="recent_node",
         )
-        assert result == "oat milk"
+        assert result == {"label": "oat milk", "node_type": "attribute"}
 
     def test_summary_focus_mode(self, focus_service, mock_nodes):
         """focus_mode=summary returns 'what we've discussed'."""
@@ -130,7 +136,7 @@ class TestFocusModeSelection:
             strategy="any_strategy_name",
             focus_mode="summary",
         )
-        assert result == "what we've discussed"
+        assert result == {"label": "what we've discussed", "node_type": "unknown"}
 
     def test_topic_focus_mode(self, focus_service, mock_nodes):
         """focus_mode=topic returns 'the topic'."""
@@ -140,7 +146,7 @@ class TestFocusModeSelection:
             strategy="any_strategy_name",
             focus_mode="topic",
         )
-        assert result == "the topic"
+        assert result == {"label": "the topic", "node_type": "unknown"}
 
     def test_default_focus_mode_is_recent_node(self, focus_service, mock_nodes):
         """Omitting focus_mode defaults to recent_node behavior."""
@@ -149,7 +155,7 @@ class TestFocusModeSelection:
             recent_nodes=mock_nodes,
             strategy="totally_new_strategy",
         )
-        assert result == "oat milk"
+        assert result == {"label": "oat milk", "node_type": "attribute"}
 
     def test_novel_strategy_name_works_without_code_change(
         self, focus_service, mock_nodes
@@ -161,7 +167,7 @@ class TestFocusModeSelection:
             strategy="triadic_elicitation",
             focus_mode="recent_node",
         )
-        assert result == "oat milk"
+        assert result == {"label": "oat milk", "node_type": "attribute"}
 
 
 class TestEdgeCases:
@@ -175,7 +181,7 @@ class TestEdgeCases:
             strategy="any_strategy",
         )
 
-        assert result == "the topic"
+        assert result == {"label": "the topic", "node_type": "unknown"}
 
     def test_empty_focus_description_falls_through(self, focus_service, mock_nodes):
         """Empty string focus_description should fall through to focus_mode."""
@@ -189,7 +195,7 @@ class TestEdgeCases:
             strategy="any_strategy",
         )
 
-        assert result == "oat milk"
+        assert result == {"label": "oat milk", "node_type": "attribute"}
 
     def test_node_id_string_matching(self, focus_service, mock_nodes):
         """Node ID matching should work with string conversion."""
@@ -203,4 +209,4 @@ class TestEdgeCases:
             strategy="any_strategy",
         )
 
-        assert result == "almond milk"
+        assert result == {"label": "almond milk", "node_type": "functional_consequence"}
