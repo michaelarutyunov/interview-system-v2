@@ -318,8 +318,10 @@ The rationale field should briefly justify the score in one sentence (max 20 wor
                     detected_signals[signal_name] = int(detected_signals[signal_name])
                 except (ValueError, TypeError):
                     log.error(
-                        f"Invalid score for '{signal_name}': {detected_signals[signal_name]}"
+                        f"Invalid score for '{signal_name}': {detected_signals[signal_name]}. "
+                        "Falling back to neutral score=3."
                     )
+                    detected_signals[signal_name] = 3
 
             # Validate score range
             score = detected_signals[signal_name]
