@@ -11,7 +11,7 @@ Key concepts:
 - Signal pools: Shared signal detectors (graph, llm, temporal, meta)
 """
 
-from typing import Tuple, Optional, TYPE_CHECKING, Any, Dict, Union, Sequence
+from typing import Tuple, Optional, TYPE_CHECKING, Any, Dict
 import structlog
 
 from src.core.exceptions import ConfigurationError, ScoringError
@@ -82,7 +82,7 @@ class MethodologyStrategyService:
     ) -> Tuple[
         str,
         Optional[str],
-        Sequence[Union[Tuple[str, float], Tuple[str, str, float]]],
+        list[tuple[str, Optional[str], float]],
         Optional[Dict[str, Any]],
         Dict[str, Dict[str, Any]],
         list[ScoredCandidate],
