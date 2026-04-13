@@ -63,14 +63,26 @@ class QuestionGenerationStage(TurnStage):
             context.should_continue
             or context.strategy_selection_output.generates_closing_question
         ):
+            # Get values from contract outputs
+            strategy = context.strategy_selection_output.strategy
+            focus_raw = context.continuation_output.focus_concept
+
             # Add current utterance to recent for context
             updated_utterances = context.recent_utterances + [
                 {"speaker": "user", "text": context.user_input}
             ]
 
-            # Get values from contract outputs
-            strategy = context.strategy_selection_output.strategy
-            focus_raw = context.continuation_output.focus_concept
+            # For revitalize: prepend the opening interviewer question so the
+            # generator knows what was already asked and avoids repeating it.
+            if strategy == "revitalize":
+                opening = next(
+                    (u for u in context.recent_utterances if u.get("speaker") == "system"),
+                    None,
+                )
+                if opening and opening not in updated_utterances:
+                    updated_utterances = [opening] + updated_utterances
+            # Keep within the last-5 window after any prepending
+            updated_utterances = updated_utterances[-5:]
 
             # Unpack focus concept — dict (new) or string (backward compat)
             if isinstance(focus_raw, dict):

@@ -90,6 +90,7 @@ Strategy: {strat_description}{methodology_section}
 5. Use the respondent's own words when referencing what they said
 6. Be warm, curious, and non-judgmental
 7. Avoid leading questions - stay open-ended
+8. Do not presuppose the level of abstraction — never add "as a person", "to your identity", or "in your life" unless the respondent used those words first
 
 ## Examples:
 - BAD: "Beyond what you mentioned about X, what else might Y be in terms of Z?"
@@ -207,8 +208,17 @@ def get_question_user_prompt(
     if topic and depth_achieved >= 2:
         prompt_parts.append("")
         prompt_parts.append(
-            f"Note: We're deep in the conversation. Keep the question connected to {topic} - "
-            "explore values through the lens of their specific experience, not generic life philosophy."
+            f"IMPORTANT: We're deep in the conversation. Your question MUST reference "
+            f"the respondent's specific experience with {topic}, not abstract life philosophy. "
+            f"Ask how {topic} connects to the value they just expressed — not why the value matters in general."
+        )
+
+    if strategy == "revitalize":
+        prompt_parts.append("")
+        prompt_parts.append(
+            "Note: The conversation history above includes the opening question. "
+            "Your revitalize question must explore a DIFFERENT aspect or domain "
+            "that has not yet been discussed — do not repeat or rephrase questions already asked."
         )
 
     prompt_parts.append("")
