@@ -87,19 +87,21 @@ Fields: `meta.interview.phase`, `llm.response_depth`, `llm.engagement`, `llm.val
 | `specificity` | <0.30 vague/abstract | 0.50+ | >0.75 concrete |
 | `certainty` | <0.30 hedging | 0.50+ | — |
 
-**`response_depth` safety gate:** When `engagement < 0.40` the system should suppress `dig_motivation` (deepen). If `dig_motivation` is selected despite `engagement < 0.40`, flag as a potential scoring bug → `src/services/methodology_strategy_service.py`.
+**Engagement safety gate:** Some strategies have `valid_when` gates that require signal conditions. If a strategy is selected despite its gate signal being False, flag as a potential scoring bug → `src/services/methodology_strategy_service.py` and the methodology YAML's `valid_when` field. For MEC: `ascend` requires `graph.node.gap_above`, `ground` requires `graph.node.gap_below`, etc.
 
 **Strategy distribution — what to check:**
 
 1. **Dominance**: Any single strategy selected in >50% of turns = monotony risk. Check `temporal.strategy_repetition_count` signal — if it stays low despite repetition, signal may be miscalibrated.
 2. **Streaks**: Same strategy 4+ consecutive turns without `temporal.turns_since_strategy_change` rising = stale, signal not penalizing repetition.
 3. **Phase alignment** (expected distribution):
-   - Early (turns 1 to `early_max_turns` from `config/methodologies/*.yaml`): `explore_situation`, `probe_alternatives`
-   - Mid (turns `early_max_turns+1` to `mid_max_turns`): `dig_motivation`, `uncover_obstacles`, `clarify_assumption`
-   - Late (turns `mid_max_turns+1` onward): `validate_outcome`, `reflect`
-   - `revitalize` can appear any phase when engagement drops
 
-   **Important:** Read actual phase boundaries from the methodology YAML, not hardcoded defaults. Check `phases.early.phase_boundaries.early_max_turns` and `phases.mid.phase_boundaries.mid_max_turns`.
+   **Important:** Read actual strategy names and phase boundaries from the methodology YAML — do NOT assume strategy names. Different methodologies use different strategy vocabularies:
+   - **MEC** (`means_end_chain_*.yaml`): `branch`, `ground`, `anchor` (early) → `ascend`, `bridge` (mid) → `ascend`, `revitalize` (late)
+   - **JTBD** (`jtbd_*.yaml`): `explore_situation`, `probe_alternatives` (early) → `dig_motivation`, `uncover_obstacles` (mid) → `validate_outcome`, `reflect` (late)
+   - **Other methodologies**: read their YAML directly
+
+   Check `phases.early.phase_boundaries.early_max_turns` and `phases.mid.phase_boundaries.mid_max_turns` for actual boundaries.
+   `revitalize` (or equivalent re-engagement strategy) can appear any phase when engagement drops.
 
 4. **Score separation**: If top-2 scores within 0.30 of each other consistently, selection is near-random → weight tuning candidate.
 5. **`meta.interview_progress`**: Should increase monotonically each turn. If it plateaus → investigate progress computation in `src/signals/meta/`.

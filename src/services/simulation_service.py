@@ -74,6 +74,9 @@ class SimulationTurn:
     node_signals: Optional[Dict[str, Any]] = None
     # Per-candidate score decomposition from joint scoring
     score_decomposition: Optional[List[Dict[str, Any]]] = None
+    # Focus node selected for this turn's question
+    focus_node_id: Optional[str] = None
+    focus_node_label: Optional[str] = None
 
 
 @dataclass
@@ -227,6 +230,14 @@ class SimulationService:
 
             turn_number += 1
 
+            # Resolve focus node label for transcript analysis
+            focus_node_id = turn_result_session.focus_node_id
+            focus_node_label = None
+            if focus_node_id:
+                node = await self.session.graph_repo.get_node(focus_node_id)
+                if node:
+                    focus_node_label = node.label
+
             # Generate synthetic response
             turn_result = await self._simulate_turn(
                 session_id=session_id,
@@ -246,6 +257,8 @@ class SimulationService:
                 score_decomposition=self._serialize_decomposition(
                     turn_result_session.score_decomposition
                 ),
+                focus_node_id=focus_node_id,
+                focus_node_label=focus_node_label,
             )
             turns.append(turn_result)
 
@@ -319,6 +332,8 @@ class SimulationService:
         saturation_metrics: Optional[Dict[str, Any]] = None,
         node_signals: Optional[Dict[str, Any]] = None,
         score_decomposition: Optional[List[Dict[str, Any]]] = None,
+        focus_node_id: Optional[str] = None,
+        focus_node_label: Optional[str] = None,
     ) -> SimulationTurn:
         """Simulate a single interview turn.
 
@@ -402,6 +417,8 @@ class SimulationService:
             saturation_metrics=saturation_metrics,
             node_signals=node_signals,
             score_decomposition=score_decomposition,
+            focus_node_id=focus_node_id,
+            focus_node_label=focus_node_label,
         )
 
     def _serialize_decomposition(
