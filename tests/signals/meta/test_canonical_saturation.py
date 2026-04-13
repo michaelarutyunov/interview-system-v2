@@ -59,13 +59,18 @@ async def test_partial_novelty():
 
 
 @pytest.mark.asyncio
-async def test_no_surface_extraction_yields_zero():
-    """When no surface nodes extracted, saturation = 0.0 (nothing to judge)."""
+async def test_no_surface_extraction_yields_one():
+    """When no surface nodes extracted, saturation = 1.0 (fully saturated, nothing new emerged).
+
+    The implementation intentionally returns 1.0 when surface_delta == 0: if the
+    conversation produced zero new surface nodes, the respondent contributed nothing
+    novel, which is the definition of maximum saturation.
+    """
     ctx = _make_context(prev_surface=30, prev_canonical=10)
     ctx.graph_state = _make_graph_state(node_count=30)
     ctx.canonical_graph_state = _make_canonical_state(concept_count=10)
     result = await CanonicalSaturationSignal().detect(ctx, ctx.graph_state, "")
-    assert result["meta.canonical.saturation"] == 0.0
+    assert result["meta.canonical.saturation"] == 1.0
 
 
 @pytest.mark.asyncio

@@ -45,6 +45,11 @@ def _make_tracker(
 
     repo.get_mapping_for_node = AsyncMock(side_effect=get_mapping)
     tracker.canonical_slot_repo = repo
+    # Real dict needed — the detect() method reads/writes this dict to track
+    # when each canonical slot was first seen. A MagicMock __setitem__ records
+    # calls but __getitem__ returns a new mock (not the stored value), causing
+    # every slot to appear as "confirming" instead of "new" on first encounter.
+    tracker.canonical_slot_first_seen = {}
     return tracker
 
 
@@ -96,13 +101,17 @@ async def test_node_with_preexisting_slot_returns_confirming():
     # First encounter: turn 2
     await signal.detect(_make_context(turn_number=2), MagicMock(), "")
 
-    # Subsequent encounter on different node mapping to same slot: turn 5
+    # Subsequent encounter on different node mapping to same slot: turn 5.
+    # Preserve the first-seen dict from the original tracker so the signal
+    # correctly sees slot-1 as pre-existing (first seen on turn 2).
+    first_seen_memory = signal.node_tracker.canonical_slot_first_seen
     states2 = {"node-b2": MagicMock()}
     signal.node_tracker = _make_tracker(
         states2,
         has_canonical_repo=True,
         mapping_lookup={"node-b2": "slot-1"},
     )
+    signal.node_tracker.canonical_slot_first_seen = first_seen_memory
     result = await signal.detect(_make_context(turn_number=5), MagicMock(), "")
 
     assert result["node-b2"] == "confirming"
@@ -153,6 +162,10 @@ async def test_multiple_nodes_correct_categories():
     )
     await signal.detect(_make_context(turn_number=1), MagicMock(), "")
 
+    # Preserve first-seen dict so slot-existing (seen on turn 1) is correctly
+    # recognized as pre-existing when the tracker is swapped.
+    first_seen_memory = signal.node_tracker.canonical_slot_first_seen
+
     # Now detect on turn 5 with three different nodes
     states = {
         "node-new": MagicMock(),
@@ -168,6 +181,7 @@ async def test_multiple_nodes_correct_categories():
             # node-orphan has no mapping → orphan
         },
     )
+    signal.node_tracker.canonical_slot_first_seen = first_seen_memory
     result = await signal.detect(_make_context(turn_number=5), MagicMock(), "")
 
     assert result["node-new"] == "new"
