@@ -43,6 +43,8 @@ build/
 synthetic_interviews/
 interviews_real/
 analysis/
+causal_chain/
+reports/transcripts/
 docs/archive/
 docs/superpowers/
 arch_queries.md

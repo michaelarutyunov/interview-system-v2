@@ -17,9 +17,11 @@ Returns `ExtractionResult` with `concepts`, `relationships`, `is_extractable`, a
 
 ## Node Type Description Pipeline
 
-The extraction prompt includes per-node-type descriptions built by `MethodologySchema.get_node_descriptions()`. Each entry combines the node's `description`, up to 3 positive `examples`, and (when defined) up to 3 `non_attribute_examples` — counter-examples showing what does **not** belong in this node type.
+The extraction prompt includes per-node-type descriptions built by `MethodologySchema.get_node_descriptions()`. Each entry combines the node's `description` and (when defined) up to 3 `non_attribute_examples` — counter-examples showing what does **not** belong in this node type.
 
-Counter-examples are defined per node in the methodology YAML under `non_attribute_examples:` and flow to the extraction LLM as: `"<description> (e.g., 'ex1', 'ex2') NOT this type: counter1; counter2"`.
+**`node.examples` are NOT injected into the extraction prompt.** `get_node_descriptions()` only reads `description` and `non_attribute_examples`. Positive `examples` lists in the YAML are parsed by Pydantic but never forwarded to the LLM. Do not add domain examples expecting them to influence extraction — use the `description` field or `non_attribute_examples` instead. (Decision rationale: self-test heuristics in `description` generalise across domains better than domain-specific example lists.)
+
+Counter-examples flow to the extraction LLM as: `"<description> NOT this type: counter1; counter2"`.
 
 **Important:** `OntologySpec` uses `model_config = ConfigDict(extra="ignore")`. Unknown fields on a node spec are silently dropped by Pydantic. If you add a new field to `NodeTypeSpec` it must be declared as a class attribute — adding it only to the YAML will have no effect. The `non_attribute_examples` field was added to `NodeTypeSpec` after being silently dropped for multiple simulation iterations.
 

@@ -264,6 +264,10 @@ These weights are calibrated via simulation. The key validation signal is **attr
    (no score, no contribution). This is a hard gate, not a weight.
    - `valid_when` must reference a known signal name (validated at load time)
    - Only valid for `node_binding: required` strategies (not `node_binding: none`)
+   - **Gate signals can be bool OR float.** `gap_above`, `gap_below`, `is_orphan`, `level_skip`
+     return `bool`. `branching_deficit` returns `float` in [0,1]. The gate check uses truthiness
+     (`not gate_value`), not identity (`is not True`). Never write `gate_value is True` — it
+     silently excludes all float signals because `1.0 is True` is `False` in Python.
 
 9. **Chain topology signals are flat per-node** — `ChainTopologySignalDetector` returns a
    nested dict per node. `NodeSignalDetectionService` flattens it into individual signal keys:
@@ -292,6 +296,7 @@ These weights are calibrated via simulation. The key validation signal is **attr
 | `ValueError` at startup: unknown strategy in phases | Strategy renamed in `strategies:` but not updated in `phases:` | Sync both sections; registry enforces referential integrity |
 | `ValueError` at startup: unbounded count signal in signal_weights | `graph.node_count`, `graph.edge_count`, or `graph.orphan_count` used as weight key | Remove the raw count key; use a normalized or binned variant |
 | `valid_when` strategy never fires | `valid_when` references a known signal but the signal is never True for any node | Check that chain topology signals are computed (methodology must be chain-based, graph must have nodes) |
+| `valid_when` strategy never fires despite signal returning truthy float | `gate_value is not True` identity check rejects floats (e.g. `branching_deficit=1.0` is truthy but `1.0 is True` is `False` in Python) | Use truthiness check: `if not gate_value` — handles bool, float, and None correctly. Fixed in `scoring.py` 2026-04-14. |
 | New strategy scores near zero despite valid_when passing | Chain topology signal sub-keys not resolving | Ensure flat sentinel classes are imported via `src/signals/__init__.py`; check flattening in `NodeSignalDetectionService` |
 | Legacy strategy name (`deepen`, `explore`, `clarify`, `reflect`) in YAML or code | These strategies were removed from MEC methodologies | Replace with the appropriate chain-aware strategy (see 6 MEC Strategies table above) |
 | Revitalize selected too aggressively | `score_threshold` too high, causing low-scoring but valid strategies to be bypassed | Lower `chain_completion.score_threshold` in YAML (production: 0.15) |
