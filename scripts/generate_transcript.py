@@ -87,6 +87,17 @@ def generate_transcript(json_path: Path) -> Path:
     # Build node lookup: id → full node dict (includes source_quotes)
     nodes_by_id: dict = {n["id"]: n for n in data["graph"]["nodes"]}
 
+    # Concepts extracted from turn N's response live in turn N+1's nodes_added
+    # (process_turn(response_N) returns nodes that are stored in turn N+1).
+    # Build a map: answer_turn_number → nodes_added from the following turn.
+    nodes_from_answer: dict[int, list] = {}
+    for i, t in enumerate(turns[:-1]):
+        next_turn = turns[i + 1]
+        nodes_from_answer[t["turn_number"]] = next_turn.get("nodes_added") or []
+    # Last turn: no following turn, so no extracted concepts to display
+    if turns:
+        nodes_from_answer[turns[-1]["turn_number"]] = []
+
     # Extract timestamp from filename (pattern: YYYYMMDD_HHMMSS_...)
     stem = json_path.stem
     ts_match = re.match(r"(\d{8}_\d{6})", stem)
@@ -127,8 +138,7 @@ def generate_transcript(json_path: Path) -> Path:
         focus_label = turn.get("focus_node_label")
         if not focus_label:
             _, focus_label = _resolve_focus_node_from_decomposition(turn, nodes_by_id)
-        extraction = turn.get("extraction_summary") or {}
-        concepts_count = extraction.get("nodes_added", "—")
+        concepts_count = len(nodes_from_answer.get(n, []))
         word_count = _word_count(turn.get("response", ""))
         lines.append(
             f"| {n} | {strategy} | {focus_label or '—'} | {concepts_count} | {word_count} |"
@@ -152,7 +162,8 @@ def generate_transcript(json_path: Path) -> Path:
             focus_node_id, focus_node_label = _resolve_focus_node_from_decomposition(
                 turn, nodes_by_id
             )
-        nodes_added = turn.get("nodes_added") or []
+        # Concepts extracted from THIS turn's answer (live in next turn's nodes_added)
+        nodes_added = nodes_from_answer.get(n, [])
 
         lines.append("---")
         lines.append("")
@@ -164,8 +175,25 @@ def generate_transcript(json_path: Path) -> Path:
             lines.append("")
             lines.append(f"**A:** {response}")
             lines.append("")
-            lines.append("*Turn 0: no extraction yet, no focus node.*")
-            lines.append("")
+            # Show concepts extracted from the opening answer
+            t0_nodes = nodes_from_answer.get(0, [])
+            if t0_nodes:
+                lines.append("**Concepts extracted:**")
+                lines.append("")
+                for node_entry in t0_nodes:
+                    node_id = node_entry["id"]
+                    label = node_entry["label"]
+                    node_type = node_entry.get("node_type", "unknown")
+                    full_node = nodes_by_id.get(node_id, {})
+                    quotes = full_node.get("source_quotes") or []
+                    type_str = _node_type_label(node_type)
+                    lines.append(f"- **{label}** *({type_str})*")
+                    for q in quotes:
+                        lines.append(f'  - *"{q}"*')
+                lines.append("")
+            else:
+                lines.append("*No concepts extracted from opening answer.*")
+                lines.append("")
             continue
 
         # Turn header with strategy
