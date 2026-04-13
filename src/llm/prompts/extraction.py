@@ -180,7 +180,8 @@ Return valid JSON with this structure:
       "target_text": "target concept label",
       "relationship_type": "one of: {edge_type_list}",
       "confidence": 0.0-1.0,
-      "source_quote": "verbatim text showing relationship"
+      "source_quote": "verbatim text showing relationship",
+      "reasoning": "one sentence explaining why this relationship exists"
     }}
   ]
 }}

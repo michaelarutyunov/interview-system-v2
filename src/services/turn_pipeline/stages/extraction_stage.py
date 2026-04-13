@@ -186,17 +186,42 @@ class ExtractionStage(TurnStage):
         # Uses the explicit focus node label so the LLM doesn't have to infer
         # "the question's topic" from raw question text — preventing interviewer-
         # introduced concepts from entering the graph as new nodes.
+        # Strategy-aware level hints (y8dv) tell the LLM what level of concept
+        # to expect based on the previous turn's strategy.
         if len(recent) >= 1 and recent[-1]["speaker"] == "system":
-            focus_label = self._get_previous_focus_label(context)
+            focus_label, focus_type, prev_strategy = self._get_previous_focus(context)
             lines.append("")
             lines.append(f"[Most recent question] Interviewer: {recent[-1]['text']}")
-            if focus_label:
+
+            # Revitalize: suppress bridge entirely — previous focus was abandoned
+            if prev_strategy == "revitalize":
                 lines.append(
+                    "[Task] Extract concepts ONLY from the Respondent's answer above. "
+                    "This is a new topic — extract fresh concepts without forcing a "
+                    "relationship to previous graph nodes. "
+                    "Do NOT extract new concepts from the interviewer's question text."
+                )
+            elif focus_label:
+                # Strategy-aware level hint
+                level_hint = self._build_level_hint(
+                    prev_strategy, focus_label, focus_type
+                )
+                bridge_target = (
+                    "the most concrete new concept you extracted (the one closest "
+                    "to the question's level, not the most abstract one the "
+                    "respondent mentioned)"
+                )
+                task = (
                     f"[Task] Extract concepts ONLY from the Respondent's answer above. "
-                    f'Then create one cross-turn relationship using source_text="{focus_label}" '
-                    f"(the concept the question probed) → the primary new concept you extracted. "
+                    f'Then create cross-turn relationships using source_text="{focus_label}" '
+                    f"(the concept the question probed) → {bridge_target}. "
+                    f"If the response introduces concepts at multiple levels below "
+                    f"the focus, create relationships for each. "
                     f"Do NOT extract new concepts from the interviewer's question text."
                 )
+                if level_hint:
+                    lines.append(f"[Level hint] {level_hint}")
+                lines.append(task)
             else:
                 # Turn 1 or no focus history: generic bridge without pinned source
                 lines.append(
@@ -206,20 +231,19 @@ class ExtractionStage(TurnStage):
 
         return "\n".join(lines)
 
-    def _get_previous_focus_label(self, context: "PipelineContext") -> str:
-        """
-        Return the focus node label from the previous turn, or empty string.
+    def _get_previous_focus(self, context: "PipelineContext") -> tuple[str, str, str]:
+        """Return (label, node_type, strategy) from the previous turn's focus entry.
 
         The question the respondent just answered was generated around this node.
         Passing the label explicitly into the bridge instruction prevents the
         extractor from inferring (and potentially hallucinating) the source concept
-        from the raw question text.
+        from the raw question text. The strategy and node_type enable level hints.
 
         Args:
             context: Turn context with context_loading_output.focus_history
 
         Returns:
-            Label string, or empty string if no prior focus exists
+            (label, node_type, strategy) — empty strings if no prior focus exists
         """
         focus_history = (
             context.context_loading_output.focus_history
@@ -227,9 +251,62 @@ class ExtractionStage(TurnStage):
             else []
         )
         if not focus_history:
-            return ""
+            return ("", "", "")
         last_focus = focus_history[-1]
-        return last_focus.label or ""
+        return (
+            last_focus.label or "",
+            last_focus.node_type or "",
+            last_focus.strategy or "",
+        )
+
+    # Level hints keyed by strategy name for strategy-aware extraction
+    _LEVEL_HINTS: dict[str, str] = {
+        "ascend": (
+            'The question probed what "{focus_label}" leads to or means. '
+            "The response likely contains a concept at a HIGHER ontology level "
+            "than {focus_type}."
+        ),
+        "ground": (
+            'The question asked what causes or enables "{focus_label}" ({focus_type}). '
+            "The response likely contains a concept at a LOWER ontology level "
+            "— possibly an attribute."
+        ),
+        "branch": (
+            "The question asked about other features or aspects at the same level as "
+            '"{focus_label}" ({focus_type}). The response likely contains '
+            "attribute-level concepts."
+        ),
+        "bridge": (
+            'The question asked what connects "{focus_label}" ({focus_type}) to a '
+            "higher-level concept. The response likely contains an intermediate-level "
+            "concept."
+        ),
+        "anchor": (
+            'The question asked how "{focus_label}" ({focus_type}) relates to other '
+            "concepts already discussed. Focus on extracting relationships to existing "
+            "graph nodes rather than new concepts."
+        ),
+    }
+
+    def _build_level_hint(
+        self, strategy: str, focus_label: str, focus_type: str
+    ) -> str:
+        """Build a strategy-aware level hint for the extraction prompt.
+
+        Args:
+            strategy: Previous turn's strategy name
+            focus_label: Label of the focus node
+            focus_type: Node type of the focus node
+
+        Returns:
+            Level hint string, or empty string if strategy has no hint
+        """
+        template = self._LEVEL_HINTS.get(strategy)
+        if not template:
+            return ""
+        # Use "node" as fallback when focus_type is unavailable (old sessions)
+        display_type = focus_type if focus_type else "node"
+        return template.format(focus_label=focus_label, focus_type=display_type)
 
     def _format_node_labels(self, context: "PipelineContext") -> str:
         """
