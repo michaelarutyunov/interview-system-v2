@@ -40,6 +40,8 @@ determines both the selected strategy and the target node for question generatio
 | `graph.node.branching_deficit` | Float in [0,1]: 1 - (actual_siblings / expected_siblings) |
 | `graph.node.fan_in` | Int: count of distinct origin-level nodes with paths to this node |
 | `graph.node.level_gap_size` | Int: ontology levels between this node and terminal/origin |
+| `graph.node.chain.has_attribute_foundation.true` | `True` if a downward path reaches an attribute-level node |
+| `graph.node.chain.has_terminal_apex.true` | `True` if an upward path reaches a terminal-value node |
 | `graph.node.is_orphan.true` | `True` if node has no edges at all (isolated) |
 | `graph.node.recency_score` | Float in [0,1]: how recently the node was last discussed |
 
@@ -170,6 +172,8 @@ no LLM calls.
 | `graph.node.branching_deficit` | float [0,1] | 1 - (actual_siblings / expected_siblings); 1.0 = full deficit |
 | `graph.node.fan_in` | int | Count of distinct origin-level nodes with paths to this node |
 | `graph.node.level_gap_size` | int | Ontology levels between this node and terminal/origin |
+| `graph.node.chain.has_attribute_foundation` | bool | Downward path (reverse edges) reaches an attribute-level node |
+| `graph.node.chain.has_terminal_apex` | bool | Upward path (forward edges) reaches a terminal-value node |
 
 **Non-chain methodologies**: `ChainTopologySignalDetector` returns an empty dict
 for methodologies with fewer than 2 distinct ontology levels (e.g., JTBD, CJM,
@@ -183,6 +187,32 @@ scoring.
 | `graph.node.is_orphan` | bool | Node has no edges at all (used by `anchor` strategy's `valid_when`) |
 | `graph.node.recency_score` | float [0,1] | How recently the node was last discussed (higher = more recent) |
 | `graph.node.exhaustion_score` | float [0,1] | How exhausted the node is from repeated probing (negative weight in strategies) |
+
+### Chain Lifecycle Matrix
+
+The `has_attribute_foundation` and `has_terminal_apex` signals encode where a node sits in its chain's lifecycle. MEC scoring uses them to steer strategy selection:
+
+| foundation | apex | Best strategy | Why |
+|---|---|---|---|
+| False | False | `ground` | Chain is floating — no attribute root and no terminal goal |
+| True | False | `ascend` | Chain is grounded — extend upward toward terminal |
+| False | True | `ground` | Terminal reached, but chain lacks an attribute below |
+| True | True | `branch` | Chain is complete — add breadth from new attributes |
+
+**Weight design in `means_end_chain_v2_strict.yaml`** (starting estimates):
+- `ascend`: `has_attribute_foundation.true +0.4`, `has_attribute_foundation.false -0.5`
+- `ground`: `has_attribute_foundation.false +0.6`, `has_attribute_foundation.true -0.2`
+- `branch`: `has_attribute_foundation.true +0.3`, `has_terminal_apex.true +0.4`
+
+The old `graph.chain_completion.has_complete: -0.2` suppressor on `ascend` was removed — the chain-lifecycle signals provide a more principled replacement.
+
+**Emergent behavior from additive weights**:
+- F+F: ground gets +0.6, ascend gets -0.5 → ground dominates
+- T+F: ground gets -0.2, ascend gets +0.4 → ascend dominates
+- F+T: ground gets +0.6, ascend gets -0.5 → ground dominates
+- T+T: branch gets +0.7, ascend gets +0.4 - 0.1 = +0.3 → branch competes
+
+These weights are calibrated via simulation. The key validation signal is **attribute node count by turn 4** — if still 0–1 attributes, ground weights need strengthening.
 
 ---
 
@@ -224,6 +254,7 @@ scoring.
    nested dict per node. `NodeSignalDetectionService` flattens it into individual signal keys:
    - `graph.node.gap_above`, `graph.node.gap_below`, `graph.node.level_skip`
    - `graph.node.branching_deficit`, `graph.node.fan_in`, `graph.node.level_gap_size`
+   - `graph.node.chain.has_attribute_foundation`, `graph.node.chain.has_terminal_apex`
    Use these flat keys in `signal_weights` and `valid_when`. The parent key
    `graph.node.chain_topology` also remains available but holds the full dict.
 
@@ -260,7 +291,7 @@ scoring.
 | `src/methodologies/registry.py` | `MethodologyRegistry`, `StrategyConfig` (with `valid_when` field), `PhaseConfig` — YAML loading and validation |
 | `src/services/methodology_strategy_service.py` | Orchestrates Stage 1 + Stage 2; threshold fallback logic; retrieves phase weights/bonuses from loaded config |
 | `src/services/turn_pipeline/stages/strategy_selection_stage.py` | Pipeline stage that calls `MethodologyStrategyService` |
-| `src/signals/graph/chain_topology_signals.py` | `ChainTopologySignalDetector` — computes per-node chain topology signals (gap_above, gap_below, level_skip, branching_deficit, fan_in, level_gap_size); flat sentinel classes for registry |
+| `src/signals/graph/chain_topology_signals.py` | `ChainTopologySignalDetector` — computes per-node chain topology signals (gap_above, gap_below, level_skip, branching_deficit, fan_in, level_gap_size, chain.has_attribute_foundation, chain.has_terminal_apex); flat sentinel classes for registry |
 | `src/signals/graph/graph_traversal.py` | Shared graph traversal utilities — `build_adjacency_list`, `build_reverse_adjacency_list`, `get_node_type_map`, `bfs_reachable`, `bfs_to_target` |
 | `config/methodologies/means_end_chain.yaml` | Reference MEC methodology YAML with 6 chain-aware strategies, valid_when gates, signal_weights, score_threshold, and phases |
 | `config/methodologies/jobs_to_be_done.yaml` | Alternative methodology for comparison (non-chain, no chain topology signals) |

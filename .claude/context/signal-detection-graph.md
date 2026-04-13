@@ -12,7 +12,7 @@ Graph and node signals are computed from in-memory state — no LLM calls, no DB
 
 **Node-level signals** (`graph.node.*`, `graph.node.canonical_*`) return `dict[node_id, value]` — one entry per tracked node. They inherit from `NodeSignalDetector` (which wraps `NodeStateTracker`) and always call `self._get_all_node_states()` to iterate every tracked node. Categorical signals (e.g., `graph.node.focus_streak`) return string values (`none`, `low`, `medium`, `high`) matched directly. Float signals (`graph.node.exhaustion_score`, `graph.node.recency_score`) use threshold binning.
 
-**Chain topology node signals** are computed by `ChainTopologySignalDetector` and cover 6 structural properties per node. The detector internally produces a nested dict per node; `NodeSignalDetectionService` **flattens** this into individual signal keys so they are directly addressable in YAML `signal_weights` and `valid_when`:
+**Chain topology node signals** are computed by `ChainTopologySignalDetector` and cover 8 structural properties per node. The detector internally produces a nested dict per node; `NodeSignalDetectionService` **flattens** this into individual signal keys so they are directly addressable in YAML `signal_weights` and `valid_when`:
 
 | Flat key | Type | Meaning |
 |---|---|---|
@@ -22,12 +22,32 @@ Graph and node signals are computed from in-memory state — no LLM calls, no DB
 | `graph.node.branching_deficit` | float [0,1] | `1 - (actual_siblings / expected_siblings)` at this node's level |
 | `graph.node.fan_in` | int | Distinct origin-level nodes with paths to this node |
 | `graph.node.level_gap_size` | int | Ontology levels between this node and terminal/origin |
+| `graph.node.chain.has_attribute_foundation` | bool | Transitive downward path (reverse `leads_to`) reaches an attribute-level node |
+| `graph.node.chain.has_terminal_apex` | bool | Transitive upward path (forward `leads_to`) reaches a terminal-value node |
 
-The parent key `graph.node.chain_topology` also remains available (holds the raw dict). The 6 flat keys are registered via sentinel classes in `chain_topology_signals.py` so the YAML registry validator accepts them in `valid_when` and `signal_weights`.
+The parent key `graph.node.chain_topology` also remains available (holds the raw dict). The 8 flat keys are registered via sentinel classes in `chain_topology_signals.py` so the YAML registry validator accepts them in `valid_when` and `signal_weights`.
 
 **Flattening mechanics** (`NodeSignalDetectionService.detect_all()`): when a detector returns a dict value per node (as `ChainTopologySignalDetector` does), the service derives a namespace prefix from the detector's `signal_name` (`graph.node.chain_topology` → prefix `graph.node.`) and writes each sub-key as `{prefix}{sub_key}`. The parent key is also written. This is a general mechanism; any future detector returning a nested dict per node will auto-flatten the same way.
 
-These signals require graph traversal (O(N×D) for N nodes and D depth) and are only non-trivial for chain methodologies (MEC). For non-chain methodologies (JTBD, CJM, Repertory Grid), the detector returns `{}` and all 6 signals are absent from scoring.
+These signals require graph traversal (O(N×D) for N nodes and D depth) and are only non-trivial for chain methodologies (MEC). For non-chain methodologies (JTBD, CJM, Repertory Grid), the detector returns `{}` and all 8 signals are absent from scoring.
+
+### Chain Lifecycle Signals
+
+Two chain topology signals use transitive reachability to distinguish a node's position in the full chain lifecycle:
+
+- **`graph.node.chain.has_attribute_foundation`** — BFS over **reverse** `leads_to` edges (following edges backward from target to source). Returns `True` if any reachable node has `level == min_level` (the attribute/origin level). This means the node's chain is rooted in a concrete product attribute, not floating.
+- **`graph.node.chain.has_terminal_apex`** — BFS over **forward** `leads_to` edges (source to target). Returns `True` if any reachable node has a `node_type` in `terminal_types`. This means the chain has already reached a terminal value above this node.
+
+Both traversals reuse `bfs_reachable()` from `src/signals/graph/graph_traversal.py`. The start node is included in the reachable set (distance 0), so an attribute node naturally has `has_attribute_foundation=True`, and a terminal node naturally has `has_terminal_apex=True`. Graph sizes in practice are 30–100 nodes; BFS cost is well under 1 ms.
+
+Together these signals enable a 2×2 chain-lifecycle matrix for scoring:
+
+| foundation | apex | Interpretation |
+|---|---|---|
+| False | False | Floating chain — no root and no goal |
+| True | False | Grounded chain — extend upward toward terminal |
+| False | True | Terminal reached but no attribute below |
+| True | True | Complete chain — add breadth from new attributes |
 
 The `current_focus_streak` on a node resets only when focus changes — in `update_focus()` during Stage 8. It is NOT reset in `record_yield()` (Stage 5). This ordering is fundamental: Stage 5 runs before Stage 8, so any reset in `record_yield()` would make the streak appear as 0 to all signal detectors.
 
@@ -109,7 +129,7 @@ Global signals (`frontier_count`, `ungrounded_count`) provide threshold guards -
 
 8. **`graph.canonical_exhaustion_score` returns `{}` (absent) when `canonical_slot_repo is None`.** When `enable_canonical_slots=False`, the signal skips computation entirely rather than silently falling back to surface-node exhaustion — which would contradict its name/semantics. Consistent with `graph.canonical_edge_density`, which uses the same guard. Location: `src/signals/graph/graph_signals.py`, `CanonicalExhaustionScoreSignal.detect()`.
 
-9. **Chain topology flat signals require sentinel registration.** The 6 flat keys (`graph.node.gap_above` etc.) are not backed by real detector logic — their values are injected by `NodeSignalDetectionService` flattening. Six sentinel classes in `chain_topology_signals.py` (e.g. `_GapAboveSentinel`) register the names in `SignalDetector._registry` so the YAML validator and `ComposedSignalDetector.get_known_signal_names()` accept them. If a new chain topology sub-signal is added to `ChainTopologySignalDetector.detect()`, a matching sentinel class must also be added; otherwise the registry validator will reject any YAML referencing the new key.
+9. **Chain topology flat signals require sentinel registration.** The 8 flat keys (`graph.node.gap_above`, `graph.node.gap_below`, `graph.node.level_skip`, `graph.node.branching_deficit`, `graph.node.fan_in`, `graph.node.level_gap_size`, `graph.node.chain.has_attribute_foundation`, `graph.node.chain.has_terminal_apex`) are not backed by real detector logic — their values are injected by `NodeSignalDetectionService` flattening. Eight sentinel classes in `chain_topology_signals.py` (e.g. `_GapAboveSentinel`) register the names in `SignalDetector._registry` so the YAML validator and `ComposedSignalDetector.get_known_signal_names()` accept them. If a new chain topology sub-signal is added to `ChainTopologySignalDetector.detect()`, a matching sentinel class must also be added; otherwise the registry validator will reject any YAML referencing the new key.
 
 10. **`graph.node.is_current_focus` reflects the PREVIOUS turn's focus node at signal-detection time.** `update_focus()` has not yet been called when node signals are detected (it runs later in Stage 6 strategy selection). The signal reads `node_tracker.previous_focus`, so the node that was focused last turn returns `True`. This is by design — strategies reference the incumbent focus — but the name is slightly misleading. Do not rename; add this timing context to any documentation or agent instructions referencing this signal.
 
@@ -144,7 +164,7 @@ Global signals (`frontier_count`, `ungrounded_count`) provide threshold guards -
 | `src/signals/graph/node_signals.py` | Node-level detectors: exhaustion, focus streak, recency, novelty, edge count, canonical novelty |
 | `src/signals/graph/node_base.py` | `NodeSignalDetector` base class; provides `_get_all_node_states()` and `_calculate_shallow_ratio()` |
 | `src/signals/graph/__init__.py` | `__all__` exports for both global and node signal classes |
-| `src/signals/graph/chain_topology_signals.py` | `ChainTopologySignalDetector` + 6 flat sentinel classes (`_GapAboveSentinel` etc.) |
+ | `src/signals/graph/chain_topology_signals.py` | `ChainTopologySignalDetector` + 8 flat sentinel classes (`_GapAboveSentinel`, `_HasAttributeFoundationSentinel`, etc.) |
 | `src/services/node_signal_detection_service.py` | Runs all node-level detectors; flattens nested dict signals into individual flat keys |
 | `src/services/global_signal_detection_service.py` | Runs all global detectors and returns flat signal dict |
 | `src/services/node_state_tracker.py` | `NodeStateTracker` — `update_focus()`, `record_yield()`, `get_all_states()` |
