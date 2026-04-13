@@ -293,9 +293,12 @@ class CanonicalSlotService:
         result: Dict[str, List[Dict]] = {}
         for node_type, type_data in groupings.items():
             if not isinstance(type_data, dict) or "proposed_slots" not in type_data:
-                raise ValueError(
-                    f"node_type '{node_type}' missing 'proposed_slots' key"
+                log.warning(
+                    "slot_parse_skipped_malformed_entry",
+                    node_type=node_type,
+                    reason="missing 'proposed_slots' key — likely LLM hallucination",
                 )
+                continue
             proposals = type_data["proposed_slots"]
             if not isinstance(proposals, list):
                 raise ValueError(f"proposed_slots for '{node_type}' must be a list")

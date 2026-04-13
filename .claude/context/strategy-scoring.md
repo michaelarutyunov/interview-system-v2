@@ -199,20 +199,35 @@ The `has_attribute_foundation` and `has_terminal_apex` signals encode where a no
 | False | True | `ground` | Terminal reached, but chain lacks an attribute below |
 | True | True | `branch` | Chain is complete — add breadth from new attributes |
 
-**Weight design in `means_end_chain_v2_strict.yaml`** (starting estimates):
-- `ascend`: `has_attribute_foundation.true +0.4`, `has_attribute_foundation.false -0.5`
-- `ground`: `has_attribute_foundation.false +0.6`, `has_attribute_foundation.true -0.2`
-- `branch`: `has_attribute_foundation.true +0.3`, `has_terminal_apex.true +0.4`
+**Weight design in `means_end_chain_v2_strict.yaml`** (N7 calibration):
+- `ascend`: `has_attribute_foundation.true +0.4`, `has_attribute_foundation.false -0.5`; `exhaustion_score: -0.6`, `focus_count.high: -0.4`, `focus_count.medium: -0.2`
+- `ground`: `has_attribute_foundation.false +0.4`, `has_attribute_foundation.true -0.2`
+- `branch`: `has_attribute_foundation.true +0.3`, `has_terminal_apex.true +0.5`
+- `anchor`: `is_orphan.true: +0.50`
 
 The old `graph.chain_completion.has_complete: -0.2` suppressor on `ascend` was removed — the chain-lifecycle signals provide a more principled replacement.
 
-**Emergent behavior from additive weights**:
-- F+F: ground gets +0.6, ascend gets -0.5 → ground dominates
-- T+F: ground gets -0.2, ascend gets +0.4 → ascend dominates
-- F+T: ground gets +0.6, ascend gets -0.5 → ground dominates
-- T+T: branch gets +0.7, ascend gets +0.4 - 0.1 = +0.3 → branch competes
+**N7 calibration changes** (from N6 baseline — targeting 15-turn interview):
+- Ascend `exhaustion_score` strengthened: -0.4 → -0.6 (N6 was too weak; exhausted+recent nodes still winning)
+- Ascend added `focus_count.high: -0.4`, `focus_count.medium: -0.2` (hard brake on over-probed nodes causing T7/T8 circular pattern)
+- Anchor `is_orphan.true` boosted: +0.35 → +0.50 (orphan rate grew to 12.8%, above 10% threshold)
+- Branch `has_terminal_apex.true` boosted: +0.4 → +0.5 (better compete once chain is complete)
+- Late phase `branch` multiplier: 0.8 → 1.1 + phase_bonus 0.10 (branch should fire post-chain-completion, not be suppressed)
 
-These weights are calibrated via simulation. The key validation signal is **attribute node count by turn 4** — if still 0–1 attributes, ground weights need strengthening.
+**N6 calibration changes** (from N5 baseline):
+- Ground `has_attribute_foundation.false` reduced from +0.6 → +0.4 (was causing 10-turn ground streaks; ground now competes rather than dominates in F+F state)
+- Revitalize `temporal.strategy_repetition_count` restored to +0.15 (was removed in N5; phase-gated via multipliers to prevent early bursts)
+- Early phase: `ground` multiplier boosted to 1.4 (was 1.1) to establish attribute foundation before ascending
+- Mid phase: `ascend` reduced 1.4→1.3, `ground` increased 1.2→1.3 — equalized to let node signals decide
+- Mid phase: `ascend` `phase_bonus` 0.15 removed — was pushing ascend past all competition structurally
+
+**Emergent behavior from additive weights** (N7):
+- F+F: ground gets +0.4, ascend gets -0.5 → ground dominates
+- T+F: ground gets -0.2, ascend gets +0.4, but exhaustion/focus_count brakes prevent circular re-visits
+- F+T: ground gets +0.4, ascend gets -0.5 → ground dominates
+- T+T: branch gets +0.8 (foundation+apex), late phase 1.1x+0.10 → branch fires once chain complete
+
+These weights are calibrated via simulation. The key validation signal is **attribute node count by turn 4** — if still 0–1 attributes, ground weights need strengthening. For 15-turn interviews, also check **orphan rate < 10%** and **branch fires at least once in late phase**.
 
 ---
 
@@ -289,7 +304,7 @@ These weights are calibrated via simulation. The key validation signal is **attr
 |---|---|
 | `src/methodologies/scoring.py` | `rank_strategy_node_pairs()`, `rank_strategies()`, `partition_signal_weights()`, `ScoredCandidate`, `SignalContribution` |
 | `src/methodologies/registry.py` | `MethodologyRegistry`, `StrategyConfig` (with `valid_when` field), `PhaseConfig` — YAML loading and validation |
-| `src/services/methodology_strategy_service.py` | Orchestrates Stage 1 + Stage 2; threshold fallback logic; retrieves phase weights/bonuses from loaded config |
+| `src/services/methodology_strategy_service.py` | Orchestrates joint strategy-node scoring via `select_strategy_and_focus()`; threshold fallback logic; retrieves phase weights/bonuses from loaded config |
 | `src/services/turn_pipeline/stages/strategy_selection_stage.py` | Pipeline stage that calls `MethodologyStrategyService` |
 | `src/signals/graph/chain_topology_signals.py` | `ChainTopologySignalDetector` — computes per-node chain topology signals (gap_above, gap_below, level_skip, branching_deficit, fan_in, level_gap_size, chain.has_attribute_foundation, chain.has_terminal_apex); flat sentinel classes for registry |
 | `src/signals/graph/graph_traversal.py` | Shared graph traversal utilities — `build_adjacency_list`, `build_reverse_adjacency_list`, `get_node_type_map`, `bfs_reachable`, `bfs_to_target` |
