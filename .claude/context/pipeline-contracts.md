@@ -12,7 +12,7 @@ Convenience properties on `PipelineContext` derive computed values from contract
 
 | Stage | Stage Name | Contract Class | Key Fields |
 |-------|-----------|----------------|------------|
-| 1 | ContextLoadingStage | `ContextLoadingOutput` | `methodology`, `concept_id`, `concept_name`, `turn_number`, `mode`, `max_turns`, `recent_utterances`, `strategy_history`, `recent_node_labels`, velocity state, `focus_history` |
+| 1 | ContextLoadingStage | `ContextLoadingOutput` | `methodology`, `concept_id`, `concept_name`, `turn_number`, `mode`, `max_turns`, `recent_utterances`, `strategy_history`, `recent_node_labels`, velocity state, `focus_history` (each `FocusEntry` includes `node_type` field for strategy-aware level hints) |
 | 2 | UtteranceSavingStage | `UtteranceSavingOutput` | `turn_number`, `user_utterance_id`, `user_utterance` |
 | 2.5 | SRLPreprocessingStage | `SrlPreprocessingOutput` | `discourse_relations`, `srl_frames`, `discourse_count`, `frame_count`, `timestamp` |
 | 3 | ExtractionStage | `ExtractionOutput` | `extraction` (ExtractionResult), `methodology`, `timestamp`, `concept_count`, `relationship_count` |
@@ -21,7 +21,7 @@ Convenience properties on `PipelineContext` derive computed values from contract
 | 5 | StateComputationStage | `StateComputationOutput` | `graph_state`, `recent_nodes`, `computed_at`, `saturation_metrics`, `canonical_graph_state` |
 | 6 | StrategySelectionStage | `StrategySelectionOutput` | `strategy`, `focus`, `selected_at`, `signals`, `node_signals`, `strategy_alternatives` (uniform 3-tuples `(strategy, node_id_or_None, score)`), `generates_closing_question`, `focus_mode`, `score_decomposition` (unified joint scoring output), `threshold_fallback` |
 | 7 | ContinuationStage | `ContinuationOutput` | `should_continue`, `focus_concept` (Union[str, Dict[str, str]] — dict with `label`+`node_type` when resolved from graph node, plain string for backward compat/when not continuing), `reason`, `turns_remaining`, `timestamp` |
-| 8 | QuestionGenerationStage | `QuestionGenerationOutput` | `question`, `strategy`, `focus`, `has_llm_fallback`, `timestamp`. Forwards `signals` + `signal_descriptions` from Stage 6 and `focus_node_type` from Stage 7 to the question prompt, enabling signal rationale and node-type-aware question generation. |
+| 8 | QuestionGenerationStage | `QuestionGenerationOutput` | `question`, `strategy`, `focus`, `has_llm_fallback`, `timestamp`. Forwards `signals` + `signal_descriptions` from Stage 6 and `focus_node_type` from Stage 7 to the question prompt, enabling signal rationale and node-type-aware question generation. For `revitalize` strategy, prepends the opening interviewer question to the context window so the generator avoids repeating previously covered topics. |
 | 9 | ResponseSavingStage | `ResponseSavingOutput` | `turn_number`, `system_utterance_id`, `system_utterance`, `question_text`, `timestamp` |
 | 10 | ScoringPersistenceStage | `ScoringPersistenceOutput` | `turn_number`, `strategy`, `depth_score`, `saturation_score`, `has_methodology_signals`, `timestamp` |
 
