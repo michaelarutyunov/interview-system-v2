@@ -22,33 +22,6 @@ from typing import Dict, Any, List, Optional
 from src.core.persona_loader import load_persona, list_personas as load_list_personas
 
 
-def _format_response_patterns(
-    response_patterns: Optional[Dict[str, float]] = None,
-) -> str:
-    """Format response patterns section for system prompt.
-
-    Args:
-        response_patterns: Dict mapping response type to probability (0.0-1.0).
-            Expected keys: detailed, medium, brief, acknowledgment.
-            Falls back to hardcoded defaults if None.
-
-    Returns:
-        Formatted response patterns section string.
-    """
-    defaults = {"detailed": 0.40, "medium": 0.40, "brief": 0.15, "acknowledgment": 0.05}
-    patterns = response_patterns or defaults
-
-    detailed = int(patterns.get("detailed", defaults["detailed"]) * 100)
-    medium = int(patterns.get("medium", defaults["medium"]) * 100)
-    brief = int(patterns.get("brief", defaults["brief"]) * 100)
-    ack = int(patterns.get("acknowledgment", defaults["acknowledgment"]) * 100)
-
-    return f"""## Response Patterns:
-- **Detailed responses**: 2-3 sentences sharing thoughts and reasons ({detailed}% of responses)
-- **Medium responses**: 1-2 sentences with some explanation ({medium}% of responses)
-- **Brief responses**: Short phrases or simple answers ({brief}% of responses)
-- **Acknowledgments**: "Okay", "I see", "That makes sense" ({ack}% of responses)"""
-
 
 def get_synthetic_system_prompt(
     response_patterns: Optional[Dict[str, float]] = None,
@@ -62,30 +35,34 @@ def get_synthetic_system_prompt(
     Returns:
         System prompt string for LLM
     """
-    patterns_section = _format_response_patterns(response_patterns)
+    defaults = {"detailed": 0.40, "medium": 0.40, "brief": 0.15, "acknowledgment": 0.05}
+    patterns = response_patterns or defaults
 
-    return f"""You are a synthetic respondent for testing an adaptive interview system.
+    brief_pct = int(patterns.get("brief", defaults["brief"]) * 100)
+    medium_pct = int(patterns.get("medium", defaults["medium"]) * 100)
+    detailed_pct = int(patterns.get("detailed", defaults["detailed"]) * 100)
+    ack_pct = int(patterns.get("acknowledgment", defaults["acknowledgment"]) * 100)
 
-Generate natural, realistic responses to interview questions about products and consumer preferences.
+    return f"""You are simulating a real person responding to interview questions in a text-only chat.
 
-## Response Guidelines:
-1. Be conversational and natural - like a real person in an interview
-2. Vary your response length (some brief, some detailed, most medium-length)
-3. Express authentic opinions and preferences
-4. Use the persona's traits and speech patterns to guide your responses
-5. Feel comfortable with simple acknowledgments or brief answers
-6. Don't always provide elaborate explanations - sometimes short answers are natural
+## Response Length (hard limits — stay within these):
+- **Brief** ({brief_pct}% of responses): 10–25 words. One fragment or short statement. No explanation needed.
+- **Medium** ({medium_pct}% of responses): 25–60 words. One idea, maybe a quick example. Stop there.
+- **Detailed** ({detailed_pct}% of responses): 60–100 words. Two ideas at most. Never a structured paragraph.
+- **Acknowledgment** ({ack_pct}% of responses): 2–8 words. "Yeah", "not really", "I guess so", "hmm not sure".
 
-{patterns_section}
+## Format rules (non-negotiable):
+- No stage directions. Never write *pauses*, *thinks*, *shifts*, or any asterisk actions.
+- No structured paragraphs. Chat messages are flat — just sentences.
+- Don't introduce more than 2 distinct ideas per response. Circling one idea in different words is fine and realistic.
+- Don't summarise or wrap up at the end. Just stop when the thought is done.
+- Trailing off is fine: "I don't know, it's just kind of..." is a complete response.
 
-## What to Avoid:
-- Don't be overly helpful or eager to please
-- Don't provide textbook-perfect "laddering" responses
-- Don't always give detailed explanations when a brief answer feels natural
-- Don't sound like a focus group participant trying to be helpful
-- Don't repeat back the interviewer's language perfectly
-
-Remember: Real people are sometimes brief, sometimes detailed, sometimes distracted. Be authentic."""
+## What to avoid:
+- Textbook-complete answers that cover every angle of the question
+- Sounding like a focus group participant performing helpfulness
+- Perfect grammar and polished phrasing throughout
+- Restating the interviewer's words back at them"""
 
 
 def get_synthetic_system_prompt_with_deflection(
