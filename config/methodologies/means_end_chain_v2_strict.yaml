@@ -223,7 +223,8 @@ strategies:
       graph.node.exhaustion_score: -0.4
       llm.response_depth.deep: 0.1
       temporal.strategy_repetition_count: -0.15  # R2: mild repetition penalty on structural strategies
-      graph.chain_completion.has_complete: -0.2  # N6: suppress ascend once chain is fully complete
+      graph.node.chain.has_attribute_foundation.true: 0.4   # grounded chain, ascending is productive
+      graph.node.chain.has_attribute_foundation.false: -0.5  # floating chain, suppress ascend
 
   # Strategy 3: Ground — establish causal antecedents for ungrounded high-level node
   - name: ground
@@ -236,6 +237,8 @@ strategies:
       graph.node.exhaustion_score: -0.4
       llm.response_depth.deep: 0.05
       temporal.strategy_repetition_count: -0.15  # R2: mild repetition penalty on structural strategies
+      graph.node.chain.has_attribute_foundation.false: 0.6  # foundation missing, ground is urgent
+      graph.node.chain.has_attribute_foundation.true: -0.2   # already grounded, reduce priority
 
   # Strategy 4: Bridge — fill missing intermediate level in a skipped chain
   - name: bridge
@@ -259,6 +262,8 @@ strategies:
       graph.node.exhaustion_score: -0.3
       llm.engagement.high: 0.1
       temporal.strategy_repetition_count: -0.15  # R2: mild repetition penalty on structural strategies
+      graph.node.chain.has_attribute_foundation.true: 0.3   # only branch when grounded
+      graph.node.chain.has_terminal_apex.true: 0.4          # and chain is complete above
 
   # Strategy 6: Anchor — connect isolated node to existing graph structure
   - name: anchor

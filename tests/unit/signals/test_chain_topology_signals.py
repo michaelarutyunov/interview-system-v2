@@ -80,7 +80,8 @@ def _make_context(
 
 def _make_detector():
     """Create a detector instance."""
-    return ChainTopologySignalDetector()
+    mock_tracker = MagicMock()
+    return ChainTopologySignalDetector(node_tracker=mock_tracker)
 
 
 # -- Test Cases --
@@ -132,7 +133,7 @@ class TestCompleteChain:
 
             result = await detector.detect(ctx, MagicMock(), "")
 
-        topology = result["graph.node.chain_topology"]
+        topology = result
 
         # Verify basic structure
         assert "a" in topology
@@ -198,7 +199,7 @@ class TestLevelSkip:
 
             result = await detector.detect(ctx, MagicMock(), "")
 
-        topology = result["graph.node.chain_topology"]
+        topology = result
 
         # "a" has an edge skipping from level 1 to level 3
         assert topology["a"]["level_skip"] is True
@@ -245,7 +246,7 @@ class TestFanIn:
 
             result = await detector.detect(ctx, MagicMock(), "")
 
-        topology = result["graph.node.chain_topology"]
+        topology = result
 
         # "b" has 2 origin nodes (a1, a2) with paths to it
         assert topology["b"]["fan_in"] == 2
@@ -319,7 +320,7 @@ class TestOrphanNode:
 
             result = await detector.detect(ctx, MagicMock(), "")
 
-        topology = result["graph.node.chain_topology"]
+        topology = result
 
         # Orphan should have 0 fan_in
         assert topology["orphan"]["fan_in"] == 0
@@ -360,7 +361,7 @@ class TestEmptyGraph:
 
             result = await detector.detect(ctx, MagicMock(), "")
 
-        assert result["graph.node.chain_topology"] == {}
+        assert result == {"graph.node.chain_topology": {}}
 
 
 class TestNonLeadsToEdges:
@@ -401,7 +402,7 @@ class TestNonLeadsToEdges:
 
             result = await detector.detect(ctx, MagicMock(), "")
 
-        topology = result["graph.node.chain_topology"]
+        topology = result
 
         # Should only count leads_to edges, not revises
         assert "a" in topology
@@ -447,7 +448,7 @@ class TestIncompleteChain:
 
             result = await detector.detect(ctx, MagicMock(), "")
 
-        topology = result["graph.node.chain_topology"]
+        topology = result
 
         # All nodes should be in the result
         assert "a" in topology
@@ -462,3 +463,226 @@ class TestIncompleteChain:
             assert "branching_deficit" in topology[node_id]
             assert "fan_in" in topology[node_id]
             assert "level_gap_size" in topology[node_id]
+            assert "chain.has_attribute_foundation" in topology[node_id]
+            assert "chain.has_terminal_apex" in topology[node_id]
+
+
+class TestChainLifecycleSignals:
+    """Tests for chain.has_attribute_foundation and chain.has_terminal_apex."""
+
+    @pytest.mark.asyncio
+    async def test_complete_chain_lifecycle(self):
+        """A complete chain A→B→C→D→E: middle nodes have both foundation and apex."""
+        nodes = [
+            MockNode("a", "attribute"),
+            MockNode("b", "functional_consequence"),
+            MockNode("c", "psychosocial_consequence"),
+            MockNode("d", "instrumental_value"),
+            MockNode("e", "terminal_value"),
+        ]
+        edges = [
+            MockEdge("e1", "a", "b"),
+            MockEdge("e2", "b", "c"),
+            MockEdge("e3", "c", "d"),
+            MockEdge("e4", "d", "e"),
+        ]
+
+        detector = _make_detector()
+        ctx = _make_context()
+
+        with (
+            patch(
+                "src.signals.graph.chain_topology_signals.load_methodology",
+                return_value=MockMethodologySchema(has_levels=True),
+            ),
+            patch(
+                "src.persistence.database.get_db_connection",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "src.persistence.repositories.graph_repo.GraphRepository",
+            ) as MockRepo,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_nodes_by_session = AsyncMock(return_value=nodes)
+            mock_repo.get_edges_by_session = AsyncMock(return_value=edges)
+            MockRepo.return_value = mock_repo
+
+            result = await detector.detect(ctx, MagicMock(), "")
+
+        topology = result
+
+        # all nodes in a complete chain can reach both an attribute (downward)
+        # and a terminal (upward), including the attribute and terminal themselves
+        for node_id in ["a", "b", "c", "d", "e"]:
+            assert topology[node_id]["chain.has_attribute_foundation"] is True
+            assert topology[node_id]["chain.has_terminal_apex"] is True
+
+    @pytest.mark.asyncio
+    async def test_floating_consequence_no_foundation(self):
+        """A functional_consequence with no attribute below has no foundation."""
+        nodes = [
+            MockNode("b", "functional_consequence"),
+            MockNode("c", "psychosocial_consequence"),
+        ]
+        edges = [
+            MockEdge("e1", "b", "c"),
+        ]
+
+        detector = _make_detector()
+        ctx = _make_context()
+
+        with (
+            patch(
+                "src.signals.graph.chain_topology_signals.load_methodology",
+                return_value=MockMethodologySchema(has_levels=True),
+            ),
+            patch(
+                "src.persistence.database.get_db_connection",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "src.persistence.repositories.graph_repo.GraphRepository",
+            ) as MockRepo,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_nodes_by_session = AsyncMock(return_value=nodes)
+            mock_repo.get_edges_by_session = AsyncMock(return_value=edges)
+            MockRepo.return_value = mock_repo
+
+            result = await detector.detect(ctx, MagicMock(), "")
+
+        topology = result
+
+        assert topology["b"]["chain.has_attribute_foundation"] is False
+        assert topology["b"]["chain.has_terminal_apex"] is False
+        assert topology["c"]["chain.has_attribute_foundation"] is False
+        assert topology["c"]["chain.has_terminal_apex"] is False
+
+    @pytest.mark.asyncio
+    async def test_grounded_but_no_terminal(self):
+        """Attribute → functional: foundation present, apex absent."""
+        nodes = [
+            MockNode("a", "attribute"),
+            MockNode("b", "functional_consequence"),
+        ]
+        edges = [
+            MockEdge("e1", "a", "b"),
+        ]
+
+        detector = _make_detector()
+        ctx = _make_context()
+
+        with (
+            patch(
+                "src.signals.graph.chain_topology_signals.load_methodology",
+                return_value=MockMethodologySchema(has_levels=True),
+            ),
+            patch(
+                "src.persistence.database.get_db_connection",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "src.persistence.repositories.graph_repo.GraphRepository",
+            ) as MockRepo,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_nodes_by_session = AsyncMock(return_value=nodes)
+            mock_repo.get_edges_by_session = AsyncMock(return_value=edges)
+            MockRepo.return_value = mock_repo
+
+            result = await detector.detect(ctx, MagicMock(), "")
+
+        topology = result
+
+        assert topology["a"]["chain.has_attribute_foundation"] is True
+        assert topology["a"]["chain.has_terminal_apex"] is False
+        assert topology["b"]["chain.has_attribute_foundation"] is True
+        assert topology["b"]["chain.has_terminal_apex"] is False
+
+    @pytest.mark.asyncio
+    async def test_terminal_without_attribute(self):
+        """A floating chain that reaches terminal but lacks attribute foundation."""
+        nodes = [
+            MockNode("c", "psychosocial_consequence"),
+            MockNode("e", "terminal_value"),
+        ]
+        edges = [
+            MockEdge("e1", "c", "e"),  # Skips instrumental
+        ]
+
+        detector = _make_detector()
+        ctx = _make_context()
+
+        with (
+            patch(
+                "src.signals.graph.chain_topology_signals.load_methodology",
+                return_value=MockMethodologySchema(has_levels=True),
+            ),
+            patch(
+                "src.persistence.database.get_db_connection",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "src.persistence.repositories.graph_repo.GraphRepository",
+            ) as MockRepo,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_nodes_by_session = AsyncMock(return_value=nodes)
+            mock_repo.get_edges_by_session = AsyncMock(return_value=edges)
+            MockRepo.return_value = mock_repo
+
+            result = await detector.detect(ctx, MagicMock(), "")
+
+        topology = result
+
+        assert topology["c"]["chain.has_attribute_foundation"] is False
+        assert topology["c"]["chain.has_terminal_apex"] is True
+        assert topology["e"]["chain.has_attribute_foundation"] is False
+        assert topology["e"]["chain.has_terminal_apex"] is True
+
+    @pytest.mark.asyncio
+    async def test_branched_chains_keep_lifecycle(self):
+        """Two attributes merging into one consequence: foundation True, apex follows path."""
+        nodes = [
+            MockNode("a1", "attribute"),
+            MockNode("a2", "attribute"),
+            MockNode("b", "functional_consequence"),
+            MockNode("c", "psychosocial_consequence"),
+            MockNode("e", "terminal_value"),
+        ]
+        edges = [
+            MockEdge("e1", "a1", "b"),
+            MockEdge("e2", "a2", "b"),
+            MockEdge("e3", "b", "c"),
+            MockEdge("e4", "c", "e"),
+        ]
+
+        detector = _make_detector()
+        ctx = _make_context()
+
+        with (
+            patch(
+                "src.signals.graph.chain_topology_signals.load_methodology",
+                return_value=MockMethodologySchema(has_levels=True),
+            ),
+            patch(
+                "src.persistence.database.get_db_connection",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "src.persistence.repositories.graph_repo.GraphRepository",
+            ) as MockRepo,
+        ):
+            mock_repo = MagicMock()
+            mock_repo.get_nodes_by_session = AsyncMock(return_value=nodes)
+            mock_repo.get_edges_by_session = AsyncMock(return_value=edges)
+            MockRepo.return_value = mock_repo
+
+            result = await detector.detect(ctx, MagicMock(), "")
+
+        topology = result
+
+        for node_id in ["a1", "a2", "b", "c", "e"]:
+            assert topology[node_id]["chain.has_attribute_foundation"] is True
+            assert topology[node_id]["chain.has_terminal_apex"] is True

@@ -74,6 +74,8 @@ def test_all_node_signals_auto_registered():
         "graph.node.branching_deficit",
         "graph.node.fan_in",
         "graph.node.level_gap_size",
+        "graph.node.chain.has_attribute_foundation",
+        "graph.node.chain.has_terminal_apex",
     }
     assert signal_names == expected, (
         f"Missing: {expected - signal_names}, Extra: {signal_names - expected}"

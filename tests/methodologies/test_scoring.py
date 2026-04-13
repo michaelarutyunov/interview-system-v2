@@ -743,12 +743,12 @@ class TestRankStrategiesDecomposition:
 
         # High score strategy should be selected
         high_decomp = next(c for c in decomposition if c.strategy == "high")
-        assert high_decomp.selected == True
+        assert high_decomp.selected is True
         assert high_decomp.rank == 1
 
         # Low score strategy should not be selected
         low_decomp = next(c for c in decomposition if c.strategy == "low")
-        assert low_decomp.selected == False
+        assert low_decomp.selected is False
         assert low_decomp.rank == 2
 
     def test_strategy_decomposition_has_empty_node_id(self):
@@ -765,3 +765,164 @@ class TestRankStrategiesDecomposition:
         assert len(decomposition) == 1
         assert decomposition[0].node_id == ""  # Empty for strategy-level
         assert decomposition[0].strategy == "test"
+
+
+class TestChainLifecycleSignalWeights:
+    """Tests for chain-lifecycle signal weight application (bead y78a)."""
+
+    def test_ground_dominates_when_no_foundation(self):
+        """F+F state: ground should score higher than ascend."""
+        strategies = [
+            StrategyConfig(
+                name="ascend",
+                description="A",
+                signal_weights={
+                    "graph.node.chain.has_attribute_foundation.true": 0.4,
+                    "graph.node.chain.has_attribute_foundation.false": -0.5,
+                },
+            ),
+            StrategyConfig(
+                name="ground",
+                description="G",
+                signal_weights={
+                    "graph.node.chain.has_attribute_foundation.false": 0.6,
+                    "graph.node.chain.has_attribute_foundation.true": -0.2,
+                },
+            ),
+        ]
+        # Node with no foundation
+        node_signals = {
+            "node-ff": {
+                "graph.node.chain.has_attribute_foundation": False,
+                "graph.node.chain.has_terminal_apex": False,
+            }
+        }
+
+        ranked, _ = rank_strategy_node_pairs(
+            strategies,
+            global_signals={},
+            node_signals=node_signals,
+            phase_weights={},
+            phase_bonuses={},
+        )
+
+        ground_score = next(r[2] for r in ranked if r[0].name == "ground")
+        ascend_score = next(r[2] for r in ranked if r[0].name == "ascend")
+        assert ground_score > ascend_score
+
+    def test_ascend_dominates_when_grounded_but_no_terminal(self):
+        """T+F state: ascend should score higher than ground."""
+        strategies = [
+            StrategyConfig(
+                name="ascend",
+                description="A",
+                signal_weights={
+                    "graph.node.chain.has_attribute_foundation.true": 0.4,
+                    "graph.node.chain.has_attribute_foundation.false": -0.5,
+                },
+            ),
+            StrategyConfig(
+                name="ground",
+                description="G",
+                signal_weights={
+                    "graph.node.chain.has_attribute_foundation.false": 0.6,
+                    "graph.node.chain.has_attribute_foundation.true": -0.2,
+                },
+            ),
+        ]
+        node_signals = {
+            "node-tf": {
+                "graph.node.chain.has_attribute_foundation": True,
+                "graph.node.chain.has_terminal_apex": False,
+            }
+        }
+
+        ranked, _ = rank_strategy_node_pairs(
+            strategies,
+            global_signals={},
+            node_signals=node_signals,
+            phase_weights={},
+            phase_bonuses={},
+        )
+
+        ascend_score = next(r[2] for r in ranked if r[0].name == "ascend")
+        ground_score = next(r[2] for r in ranked if r[0].name == "ground")
+        assert ascend_score > ground_score
+
+    def test_branch_competes_when_chain_complete(self):
+        """T+T state: branch should outscore ascend."""
+        strategies = [
+            StrategyConfig(
+                name="ascend",
+                description="A",
+                signal_weights={
+                    "graph.node.chain.has_attribute_foundation.true": 0.4,
+                    "graph.node.chain.has_attribute_foundation.false": -0.5,
+                },
+            ),
+            StrategyConfig(
+                name="branch",
+                description="B",
+                signal_weights={
+                    "graph.node.chain.has_attribute_foundation.true": 0.3,
+                    "graph.node.chain.has_terminal_apex.true": 0.4,
+                },
+            ),
+        ]
+        node_signals = {
+            "node-tt": {
+                "graph.node.chain.has_attribute_foundation": True,
+                "graph.node.chain.has_terminal_apex": True,
+            }
+        }
+
+        ranked, _ = rank_strategy_node_pairs(
+            strategies,
+            global_signals={},
+            node_signals=node_signals,
+            phase_weights={},
+            phase_bonuses={},
+        )
+
+        branch_score = next(r[2] for r in ranked if r[0].name == "branch")
+        ascend_score = next(r[2] for r in ranked if r[0].name == "ascend")
+        assert branch_score > ascend_score
+
+    def test_floating_terminal_ground_dominates(self):
+        """F+T state: ground should still dominate over ascend."""
+        strategies = [
+            StrategyConfig(
+                name="ascend",
+                description="A",
+                signal_weights={
+                    "graph.node.chain.has_attribute_foundation.true": 0.4,
+                    "graph.node.chain.has_attribute_foundation.false": -0.5,
+                },
+            ),
+            StrategyConfig(
+                name="ground",
+                description="G",
+                signal_weights={
+                    "graph.node.chain.has_attribute_foundation.false": 0.6,
+                    "graph.node.chain.has_attribute_foundation.true": -0.2,
+                },
+            ),
+        ]
+        node_signals = {
+            "node-ft": {
+                "graph.node.chain.has_attribute_foundation": False,
+                "graph.node.chain.has_terminal_apex": True,
+            }
+        }
+
+        ranked, _ = rank_strategy_node_pairs(
+            strategies,
+            global_signals={},
+            node_signals=node_signals,
+            phase_weights={},
+            phase_bonuses={},
+        )
+
+        ground_score = next(r[2] for r in ranked if r[0].name == "ground")
+        ascend_score = next(r[2] for r in ranked if r[0].name == "ascend")
+        assert ground_score > ascend_score

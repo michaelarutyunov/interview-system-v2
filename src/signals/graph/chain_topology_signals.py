@@ -143,6 +143,12 @@ class ChainTopologySignalDetector(NodeSignalDetector):
             level_gap_size = self._compute_level_gap_size(
                 gap_above, gap_below, node_level, max_level, min_level
             )
+            has_attribute_foundation = self._compute_has_attribute_foundation(
+                node_id, reverse_adj_list, node_type_map, level_map, min_level
+            )
+            has_terminal_apex = self._compute_has_terminal_apex(
+                node_id, adj_list, node_type_map, terminal_types
+            )
 
             results[node_id] = {
                 "gap_above": gap_above,
@@ -151,6 +157,8 @@ class ChainTopologySignalDetector(NodeSignalDetector):
                 "branching_deficit": branching_deficit,
                 "fan_in": fan_in,
                 "level_gap_size": level_gap_size,
+                "chain.has_attribute_foundation": has_attribute_foundation,
+                "chain.has_terminal_apex": has_terminal_apex,
             }
 
         # Return in node signal format: {node_id: signal_value}
@@ -320,6 +328,46 @@ class ChainTopologySignalDetector(NodeSignalDetector):
         else:
             return 0
 
+    def _compute_has_attribute_foundation(
+        self,
+        node_id: str,
+        reverse_adj_list: dict[str, list[str]],
+        node_type_map: dict[str, str],
+        level_map: dict[str, int],
+        min_level: int,
+    ) -> bool:
+        """Check if there exists a downward path (reverse edges) to an attribute node.
+
+        True if this node, or any node reachable by following reverse leads_to edges,
+        has an ontology level equal to min_level (the origin/attribute level).
+        """
+        reachable = bfs_reachable(node_id, reverse_adj_list)
+        for reachable_id in reachable:
+            reachable_type = node_type_map.get(reachable_id, "")
+            reachable_level = level_map.get(reachable_type)
+            if reachable_level == min_level:
+                return True
+        return False
+
+    def _compute_has_terminal_apex(
+        self,
+        node_id: str,
+        adj_list: dict[str, list[str]],
+        node_type_map: dict[str, str],
+        terminal_types: set,
+    ) -> bool:
+        """Check if there exists an upward path (forward edges) to a terminal node.
+
+        True if this node, or any node reachable by following forward leads_to edges,
+        has a node_type in terminal_types.
+        """
+        reachable = bfs_reachable(node_id, adj_list)
+        for reachable_id in reachable:
+            reachable_type = node_type_map.get(reachable_id, "")
+            if reachable_type in terminal_types:
+                return True
+        return False
+
     def _get_expected_branching(self, methodology_name: str) -> dict[str, int]:
         """Get expected branching per node type from methodology YAML.
 
@@ -459,6 +507,22 @@ class _LevelGapSizeSentinel(_ChainTopoFlatSentinel):
     dependencies = []
 
 
+class _HasAttributeFoundationSentinel(_ChainTopoFlatSentinel):
+    signal_name = "graph.node.chain.has_attribute_foundation"
+    description = (
+        "True if a downward path (reverse edges) reaches an attribute-level node."
+    )
+    dependencies = []
+
+
+class _HasTerminalApexSentinel(_ChainTopoFlatSentinel):
+    signal_name = "graph.node.chain.has_terminal_apex"
+    description = (
+        "True if an upward path (forward edges) reaches a terminal-value node."
+    )
+    dependencies = []
+
+
 __all__ = [
     "ChainTopologySignalDetector",
     "_GapAboveSentinel",
@@ -467,4 +531,6 @@ __all__ = [
     "_BranchingDeficitSentinel",
     "_FanInSentinel",
     "_LevelGapSizeSentinel",
+    "_HasAttributeFoundationSentinel",
+    "_HasTerminalApexSentinel",
 ]
