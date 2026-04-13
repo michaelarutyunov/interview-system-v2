@@ -376,8 +376,8 @@ def rank_strategy_node_pairs(
                 gate_signal = strategy.valid_when
                 gate_value = node_signal_dict.get(gate_signal)
 
-                # Skip if gate signal is not True (False, None, or missing)
-                if gate_value is not True:
+                # Skip if gate signal is falsy (False, None, 0, 0.0, or missing)
+                if not gate_value:
                     log.debug(
                         "strategy_node_pair_gated",
                         strategy=strategy.name,

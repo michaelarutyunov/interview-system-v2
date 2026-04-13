@@ -23,57 +23,31 @@ ontology:
     - name: attribute
       level: 1
       terminal: false
-      description: "What the product/medication does mechanically — its physical, chemical, or pharmacological properties. NOT what the person experiences as a result of using it."
-      examples:
-        - "creamy texture"
-        - "plant-based"
-        - "sustainable packaging"
-        - "reduced appetite signal"
-        - "faster satiety onset"
-        - "lower caloric intake"
-        - "craving suppression"
-        - "weekly injection format"
-        - "GLP-1 receptor activation"
-        - "delayed gastric emptying"
+      description: "A feature or property of the product/service itself — what it is, contains, or does by design, independent of any user outcome. If it can be described without mentioning a person, it's an attribute."
       non_attribute_examples:
-        - "'eating less' is a functional_consequence (what the person does, not what the drug does)"
-        - "'feeling full faster' is a functional_consequence (experienced outcome, not a drug property)"
-        - "'no longer snacking' is a functional_consequence (behavioural change)"
-        - "'lost weight' is a functional_consequence (outcome the person experiences)"
-        - "'more energy' is a functional_consequence (experienced outcome)"
+        - "Any outcome the person experiences, does, or avoids as a result of using it — that's a functional_consequence, not an attribute"
+        - "Any behavior the person performs ('I do X', 'I avoid Y') — the product enabling it is an attribute; the behavior itself is a functional_consequence"
+        - "Any feeling or self-perception triggered by use — that's psychosocial_consequence, not an attribute"
 
     - name: functional_consequence
       level: 2
       terminal: false
-      description: "Tangible outcome from using the product"
-      examples:
-        - "easier to digest"
-        - "mixes well with coffee"
+      description: "A practical outcome of using the product — what the person experiences, can do, avoids, or achieves as a result. If it answers 'what happens when you use it?', it's functional."
 
     - name: psychosocial_consequence
       level: 3
       terminal: false
-      description: "Emotional or social outcome"
-      examples:
-        - "feel healthier"
-        - "gain respect from peers"
+      description: "The emotional, identity, or social meaning of an outcome — how it affects self-image, confidence, relationships, or how others perceive the person. If it answers 'how does that make you feel, or how does it affect how others see you?', it's psychosocial."
 
     - name: instrumental_value
       level: 4
       terminal: false
-      description: "Preferred mode of behavior"
-      examples:
-        - "being responsible"
-        - "taking care of myself"
+      description: "A guiding principle or preferred way of behaving that the psychosocial outcome supports — a virtue or standard for how one should live. If it sounds like 'being X' or 'acting X', it's instrumental."
 
     - name: terminal_value
       level: 5
       terminal: true
-      description: "End-state of existence, core life goal"
-      examples:
-        - "self-respect"
-        - "sense of accomplishment"
-        - "family security"
+      description: "A fundamental life goal or desired end-state that gives ultimate meaning to the instrumental value. If it feels like the final reason ('so I can ultimately have/be…'), it's terminal."
 
   edges:
     - name: leads_to
@@ -94,18 +68,13 @@ ontology:
         - ["*", "*"]
 
   extraction_guidelines:
-    - "For Means-End Chain interviews, extract BOTH explicit AND implicit relationships"
-    - "Explicit: Look for causal markers like 'because', 'so', 'that's why', 'leads to'"
-    - "Implicit (MEC chains): When multiple concepts are mentioned in the same response, connect them if they form a logical means-end chain"
+    - "Extract BOTH explicit AND implicit relationships — MEC chains are often implied rather than stated"
+    - "Explicit: Look for causal markers like 'because', 'so', 'that's why', 'leads to', 'which means'"
+    - "Implicit: When multiple concepts co-occur in a response, connect them if they form a logical means-end chain"
     - "Contextual: If the interviewer asks 'why does X matter' and the response describes Y, create X→Y relationship"
-    - "For Means-End Chain interviews, create edges between concepts that represent the chain of reasoning, even when no explicit connector is used"
-    - "attribute → functional_consequence (features → outcomes)"
-    - "functional_consequence → psychosocial_consequence (outcomes → feelings)"
-    - "psychosocial_consequence → instrumental_value (feelings → goals)"
-    - "instrumental_value → terminal_value (goals → life values)"
-    - "Target 2-3x more edges than nodes for a well-structured MEC graph"
-    - "Prefer creating relationships over leaving concepts disconnected"
-    - "CRITICAL — attribute vs functional_consequence distinction: An ATTRIBUTE is a characteristic of the product/substance itself (what it does mechanically). A FUNCTIONAL_CONSEQUENCE is an outcome experienced by the person. Examples: 'reduced appetite signal' = ATTRIBUTE (the drug suppresses hunger signals); 'eating less' or 'feeling full faster' = FUNCTIONAL_CONSEQUENCE (what the person experiences as a result). 'craving suppression' = ATTRIBUTE; 'no longer snacking at night' = FUNCTIONAL_CONSEQUENCE. 'weekly injection format' = ATTRIBUTE; 'easier to stick to routine' = FUNCTIONAL_CONSEQUENCE. When in doubt: if it describes what the product/drug does → attribute; if it describes what happens to the person → functional_consequence."
+    - "Chain direction: attribute → functional_consequence → psychosocial_consequence → instrumental_value → terminal_value"
+    - "Target 2-3x more edges than nodes — prefer creating relationships over leaving concepts disconnected"
+    - "CRITICAL — attribute vs functional_consequence boundary: Ask 'can this be described without mentioning a person?' If yes → attribute. If it describes what the person experiences, does, or avoids → functional_consequence"
 
   relationship_examples:
     explicit_causal:
@@ -144,10 +113,11 @@ ontology:
 
   concept_naming_convention: >
     Name each concept according to its level in the means-end chain:
-    attributes as concrete product features or characteristics,
-    consequences as functional or psychosocial outcomes,
-    values as abstract personal values or life goals.
-    Use the examples in each node type description as naming models.
+    attributes as product features or characteristics (describable without mentioning a person),
+    functional consequences as practical outcomes the person experiences or achieves,
+    psychosocial consequences as emotional or social meanings,
+    instrumental values as principles or modes of being ('being X', 'acting X'),
+    terminal values as fundamental life goals or end-states.
 
 signals:
   graph:
@@ -159,6 +129,8 @@ signals:
     - graph.canonical_concept_count
     - graph.canonical_edge_density
     - graph.canonical_exhaustion_score
+    # Note: Node-level chain topology signals (graph.node.chain.*) are auto-discovered
+    # from strategy signal_weights and do not need to be listed here.
 
   llm:
     - llm.response_depth
