@@ -108,7 +108,7 @@ curl -X POST "http://localhost:8000/simulation/interview" \
 **Output:** Results are **automatically saved** to `synthetic_interviews/` as JSON files with naming pattern: `{timestamp}_{concept_id}_{persona_id}.json`
 
 **Key Features:**
-- **Full Score Decomposition**: Each turn includes `score_decomposition` with Stage 1 (strategy-level) and Stage 2 (node-level) scoring breakdown
+- **Full Score Decomposition**: Each turn includes `score_decomposition` with joint (strategy, node) scoring breakdown
 - **Signal Contributions**: Per-strategy signal contribution tracking with phase multipliers and bonuses
 - **Strategy Alternatives**: Complete ranking of alternative strategies with scores
 - **Node Signals**: Per-node signal values for graph.node.*, technique.node.*, meta.node.*
@@ -157,7 +157,7 @@ Each turn in the simulation JSON includes a `score_decomposition` array with det
 
 **Fields:**
 - `strategy`: Strategy name
-- `node_id`: Empty string for Stage 1 (strategy-level), UUID for Stage 2 (node-level)
+- `node_id`: UUID for the scored node (empty string for `node_binding: none` strategies like `revitalize`)
 - `signal_contributions`: Per-signal weight × value contributions
 - `base_score`: Sum of signal contributions before phase adjustments
 - `phase_multiplier`: Multiplicative phase weight (e.g., 1.3x for mid-phase ascend)
@@ -226,19 +226,41 @@ curl -X POST "http://localhost:8000/synthetic/respond/multi" \
 
 ## Response Patterns
 
-The synthetic service generates varied response patterns to simulate authentic respondent behavior:
+The synthetic service generates varied response patterns to simulate authentic respondent behavior in a text-only chat format. Responses are calibrated to be conversational, not essay-like.
 
-| Pattern | Frequency | Description |
-|---------|-----------|-------------|
-| Detailed | 40% | 2-3 sentences sharing thoughts and reasons |
-| Medium | 40% | 1-2 sentences with some explanation |
-| Brief | 15% | Short phrases or simple answers |
-| Acknowledgment | 5% | "Okay", "I see", "That makes sense" |
+### Response Length Distribution
 
-**Deflection:** ~20% of responses include deflection patterns where the respondent redirects the conversation:
+| Pattern | Default | Description |
+|---------|---------|-------------|
+| Brief | 15% | 10–25 words. One fragment or short statement. No explanation. |
+| Medium | 40% | 25–60 words. One idea, maybe a quick example. |
+| Detailed | 40% | 60–100 words. Two ideas at most. Never a structured paragraph. |
+| Acknowledgment | 5% | 2–8 words. "Yeah", "not really", "I guess so", "hmm not sure". |
+
+Per-persona distributions can override these defaults (e.g., `baseline_cooperative` uses detailed: 0.20, medium: 0.50, brief: 0.25).
+
+### Chat-Style Response Rules
+
+The system prompt enforces realistic chat behavior:
+
+- **No stage directions** — never write `*pauses*`, `*thinks*`, `*shifts*`, or any asterisk actions
+- **No structured paragraphs** — chat messages are flat, just sentences
+- **Max 2 distinct ideas per response** — circling one idea in different words is fine and realistic
+- **No summaries at the end** — just stop when the thought is done
+- **Trailing off is fine** — "I don't know, it's just kind of..." is a complete response
+- **Avoid textbook-complete answers** that cover every angle of the question
+- **Avoid restating the interviewer's words** back at them
+
+### Deflection
+
+~20% of responses include deflection patterns where the respondent redirects the conversation:
 - "That's okay, but what really matters to me is..."
 - "I guess, but I'm more focused on..."
 - "That's not really my main concern..."
+- "I'd say it's more about..."
+- "Not so much that, but I do care about..."
+
+Per-persona deflection patterns are defined in persona YAML under `deflection_patterns:`.
 
 ## Creating Custom Personas
 

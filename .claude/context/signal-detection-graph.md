@@ -38,7 +38,7 @@ Two chain topology signals use transitive reachability to distinguish a node's p
 - **`graph.node.chain.has_attribute_foundation`** — BFS over **reverse** `leads_to` edges (following edges backward from target to source). Returns `True` if any reachable node has `level == min_level` (the attribute/origin level). This means the node's chain is rooted in a concrete product attribute, not floating.
 - **`graph.node.chain.has_terminal_apex`** — BFS over **forward** `leads_to` edges (source to target). Returns `True` if any reachable node has a `node_type` in `terminal_types`. This means the chain has already reached a terminal value above this node.
 
-Both traversals reuse `bfs_reachable()` from `src/signals/graph/graph_traversal.py`. The start node is included in the reachable set (distance 0), so an attribute node naturally has `has_attribute_foundation=True`, and a terminal node naturally has `has_terminal_apex=True`. Graph sizes in practice are 30–100 nodes; BFS cost is well under 1 ms.
+Both traversals reuse `bfs_reachable()` from `src/signals/graph/graph_traversal.py`. The start node is included in the reachable set (distance 0), so an attribute node naturally has `has_attribute_foundation=True`, and a terminal node naturally has `has_terminal_apex=True`. Graph sizes in practice are 30–100 nodes; BFS cost is well under 1 ms. Computed inside `ChainTopologySignalDetector.detect()` alongside the other chain topology signals, not as a separate detector.
 
 Together these signals enable a 2×2 chain-lifecycle matrix for scoring:
 

@@ -229,7 +229,7 @@ All inherit `NodeSignalDetector` (`src/signals/graph/node_base.py`); return `Dic
 
 ### Joint Strategy-Node Scoring
 
-Scores all `(strategy, node)` pairs in one pass:
+All `(strategy, node)` pairs are scored in one pass via `rank_strategy_node_pairs()`. Strategies with `node_binding: none` are scored separately via `rank_strategies()` using global signals only. Both pools are merged and the globally highest-scoring pair wins.
 
 ```python
 final_score = (base_score * phase_multiplier) + phase_bonus
@@ -345,11 +345,11 @@ phases:
 
 ### Strategy Selection Flow
 
-`MethodologyStrategyService.select_strategy_and_focus()` orchestrates two sub-stages:
+`MethodologyStrategyService.select_strategy_and_focus()` uses joint scoring — all eligible (strategy, node) pairs are scored simultaneously in one pass:
 
-**Stage 1 — `rank_strategies()`**: Scores each strategy against global signals only. Node-scoped weights are stripped via `partition_signal_weights()`. The top-ranked strategy is selected.
+**`rank_strategy_node_pairs()`**: Scores every `(strategy, node_id)` combination. For each pair, global and node-specific signals are merged. Strategies with `valid_when` gates are only scored for nodes where the gate signal is `True`. Strategies with `node_binding: none` (e.g., `revitalize`) are scored separately via `rank_strategies()` using global signals only.
 
-**Stage 2 — `rank_strategy_node_pairs()`**: Scores every `(strategy, node_id)` combination. For each pair, global and node-specific signals are merged. Strategies with `valid_when` gates are only scored for nodes where the gate signal is `True`. Strategies with `node_binding: none` (e.g., `revitalize`) skip Stage 2 entirely.
+Both candidate pools are merged and sorted by score. The highest-scoring pair determines both the selected strategy and the target node for question generation.
 
 Full selection flow:
 
@@ -358,8 +358,10 @@ Full selection flow:
 3. Detect node-level signals (`NodeSignalDetectionService`)
 4. Detect interview phase → get phase weights and bonuses
 5. `rank_strategy_node_pairs()` → scored `(strategy, node_id)` pairs, filtered by `valid_when` gates
-6. If best score < `chain_completion.score_threshold` (MEC only) AND fatigue/low-engagement detected → fallback to `revitalize`
-7. Top-ranked pair becomes selected strategy + focus node
+6. `rank_strategies()` → scored `node_binding: none` strategies (global signals only)
+7. Merge and sort both pools by `final_score`
+8. If best score < `chain_completion.score_threshold` (MEC only) AND fatigue/low-engagement detected → fallback to `revitalize`
+9. Top-ranked pair becomes selected strategy + focus node
 
 **Joint scoring formula:**
 ```python

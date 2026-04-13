@@ -6,7 +6,7 @@
 
 **Pipeline per turn:**
 1. **Fast extractability check** — heuristics filter out responses that are too short (< `min_word_count`, default 3), single words, or pure yes/no affirmatives. Returns `is_extractable=False` without calling LLM.
-2. **LLM extraction** — calls `_extract_via_llm()` with a methodology-aware system prompt (node types, edge types, naming convention from `MethodologySchema`) and a user prompt containing the response text plus conversation context. Temperature 0.4, max tokens 4000, `response_format={"type": "json_object"}`.
+2. **LLM extraction** — calls `_extract_via_llm()` with a methodology-aware system prompt (node types, edge types, naming convention from `MethodologySchema`) and a user prompt containing the response text plus conversation context. Temperature 0.2, max tokens 4000, `response_format={"type": "json_object"}`.
 3. **Concept parsing** (`_parse_concepts`) — validates each concept's `node_type` against the methodology schema. Enriches valid concepts with `is_terminal` and `level` from the schema. Sets `source_utterance_id` for traceability. Invalid node types are skipped with a warning log (`invalid_node_type`).
 4. **Relationship parsing** (`_parse_relationships`) — validates `relationship_type` against the methodology schema. `permitted_connections` is validated via `schema.is_valid_connection()`: strict methodologies (with `permitted_connections` defined) reject invalid type pairs; flex methodologies (no `permitted_connections`) allow all connections. Validation only covers current-turn concepts — cross-turn edges referencing prior-turn nodes bypass this check (see known gap in ui0f). The prompt includes type-pair hints for strict methodologies via `get_edge_descriptions_with_connections()`.
 5. **Element linking** — if `concept_id` is configured, concepts are linked to methodology elements via LLM-provided `linked_elements` field, with an alias-matching fallback.
@@ -31,7 +31,7 @@ Use `non_attribute_examples` when a node type boundary is ambiguous — e.g., wh
 2. **`source_utterance_id` must be set** — the traceability chain (utterance → concept → graph node) depends on this. If `source_utterance_id` is `None`, the fallback value `"unknown"` is used, breaking provenance.
 3. **Empty extraction is valid** — `ExtractionResult(is_extractable=False)` with empty `concepts` and `relationships` is a normal outcome for short or ambiguous responses. Do not treat as error.
 4. **`permitted_connections` is conditionally enforced** — `is_valid_edge_type()` always runs. `is_valid_connection()` runs only for edges where both source and target types are found in the current extraction batch. Strict methodologies enforce the whitelist; flex methodologies (no `permitted_connections` on the edge type) allow all. Cross-turn edges bypass validation (known gap — bead ui0f).
-5. **Temperature 0.4** — intentionally higher than pure retrieval tasks to allow relationship inference across the conversation context.
+5. **Temperature 0.2** — lowered from 0.4 for more consistent classification and less hallucinated relationships. Intentionally not zero to allow some relationship inference across the conversation context.
 
 ## Symptom → Cause → Fix
 
@@ -75,6 +75,31 @@ The `focus_label` is `focus_history[-1].label` from `ContextLoadingOutput` — t
 > *"Extract concepts ONLY from the Respondent's answer above. Do NOT extract new concepts from the interviewer's question text."*
 
 No bridge relationship is requested on turn 1 because there is no prior focus node.
+
+### Strategy-Aware Level Hints
+
+When the bridge task instruction is emitted, `ExtractionStage` also injects a `[Level hint]` line that tells the extraction LLM what ontology level to expect based on the previous turn's strategy. This improves classification accuracy by priming the LLM with the strategy's intended direction.
+
+Hints are keyed by strategy name in `_LEVEL_HINTS` dict:
+
+| Strategy | Hint content |
+|----------|-------------|
+| `ascend` | "The response likely contains a concept at a HIGHER ontology level than {focus_type}." |
+| `ground` | "The response likely contains a concept at a LOWER ontology level — possibly an attribute." |
+| `branch` | "The response likely contains attribute-level concepts." |
+| `bridge` | "The response likely contains an intermediate-level concept." |
+| `anchor` | "Focus on extracting relationships to existing graph nodes rather than new concepts." |
+| `revitalize` | No hint — bridge task is suppressed entirely (previous focus was abandoned). |
+
+The hint is injected as `[Level hint] {hint_text}` immediately before the `[Task]` instruction. When no strategy-specific hint exists (e.g., custom methodologies), the hint line is omitted entirely.
+
+### Reasoning Field on Relationships
+
+The extraction prompt requests a `reasoning` field on each relationship: `"reasoning": "one sentence explaining why this relationship exists"`. This is parsed by `_parse_relationships()` and stored on `ExtractedRelationship.reasoning` for audit/debugging purposes. The field is not used in graph construction but provides traceability for why an edge was created.
+
+### Bridge Target Selection
+
+The bridge task instructs the LLM to connect to "the most concrete new concept you extracted (the one closest to the question's level, not the most abstract one the respondent mentioned)." This prevents the common failure mode where the LLM always bridges to the highest-level (most abstract) concept, which would bias the graph toward terminal values and skip intermediate levels.
 
 ### Why "extract from respondent only"
 
