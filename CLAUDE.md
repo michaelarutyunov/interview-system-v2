@@ -109,6 +109,13 @@ canonical_min_support_nodes: int = 2
 enable_srl: bool = True
 enable_canonical_slots: bool = True
 
+# LLM Providers (config/interview_config.yaml → llm: section)
+# anthropic: Claude models (Sonnet, Haiku) — default for extraction + question generation
+# kimi: Moonshot AI models (K2)
+# deepseek: DeepSeek models
+# grok: xAI Grok models
+# zhipu: Zhipu AI GLM models (GLM-5.1, GLM-4.7, etc.)
+
 # Interview
 phase_boundaries:
   early_max_turns: 4

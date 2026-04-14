@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     xai_api_key: Optional[str] = Field(
         default=None, description="xAI API key (for Grok models)"
     )
+    zhipu_api_key: Optional[str] = Field(
+        default=None, description="Zhipu AI API key (for GLM models)"
+    )
 
     # ==========================================================================
     # LLM Pricing (per million tokens)
@@ -113,6 +116,17 @@ class Settings(BaseSettings):
     grok_41_fast_output: float = Field(
         default=0.50,
         description="Grok 4.1 Fast output price per million tokens (USD)",
+    )
+
+    # Zhipu AI: https://open.bigmodel.cn/pricing
+    # Prices in CNY converted to USD (1 CNY ≈ 0.14 USD). Context < 32K tokens.
+    zhipu_glm51_input: float = Field(
+        default=0.84,
+        description="GLM-5.1 input price per million tokens (USD)",
+    )
+    zhipu_glm51_output: float = Field(
+        default=3.36,
+        description="GLM-5.1 output price per million tokens (USD)",
     )
 
     # ==========================================================================
@@ -186,10 +200,12 @@ class Settings(BaseSettings):
             return (self.deepseek_chat_input, self.deepseek_chat_output)
         elif "grok" in model_lower:
             return (self.grok_41_fast_input, self.grok_41_fast_output)
+        elif "glm" in model_lower or "zhipu" in model_lower:
+            return (self.zhipu_glm51_input, self.zhipu_glm51_output)
         else:
             raise ValueError(
                 f"Unknown model '{model_name}' for pricing lookup. "
-                f"Supported models: claude-sonnet-4-6, kimi-k2-0905-preview, deepseek-chat, grok-4.1-fast"
+                f"Supported models: claude-sonnet-4-6, kimi-k2-0905-preview, deepseek-chat, grok-4.1-fast, glm-5.1"
             )
 
 
@@ -284,7 +300,9 @@ class DeduplicationConfig(BaseModel):
 class LLMCallConfig(BaseModel):
     """Configuration for a single LLM call type (provider + model + parameters)."""
 
-    provider: str = Field(description="LLM provider: anthropic, kimi, deepseek, grok")
+    provider: str = Field(
+        description="LLM provider: anthropic, kimi, deepseek, grok, zhipu"
+    )
     model: str = Field(description="Model identifier for the provider")
     temperature: float = Field(default=0.3, ge=0.0, le=2.0)
     max_tokens: int = Field(default=1024, ge=1, le=16384)

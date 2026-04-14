@@ -12,6 +12,7 @@ Supported providers:
 - kimi: Moonshot AI models
 - deepseek: DeepSeek models
 - grok: xAI Grok models
+- zhipu: Zhipu AI GLM models (GLM-5.1, GLM-5, etc.)
 """
 
 from abc import ABC, abstractmethod
@@ -407,6 +408,7 @@ class OpenAICompatibleClient(LLMClient):
     Used by providers that follow the OpenAI API format:
     - Kimi (Moonshot AI): https://api.moonshot.cn/v1
     - DeepSeek: https://api.deepseek.com
+    - Zhipu AI: https://open.bigmodel.cn/api/paas/v4
     """
 
     def __init__(
@@ -793,6 +795,56 @@ class GrokClient(OpenAICompatibleClient):
 
 
 # =============================================================================
+# Zhipu AI Client
+# =============================================================================
+
+
+class ZhipuClient(OpenAICompatibleClient):
+    """
+    Zhipu AI GLM API client.
+
+    API Docs: https://open.bigmodel.cn/dev/api/normal-model/glm-4
+    Base URL: https://open.bigmodel.cn/api/paas/v4
+
+    Models (as of 2026):
+    - glm-5.1: Flagship model for long-horizon tasks
+    - glm-5-turbo: Fast variant of GLM-5
+    - glm-5: Standard GLM-5
+    - glm-4.7: Balanced performance model
+    - glm-4.5-air: Lightweight fast model
+    - glm-4.7-flashx: Fast model with 200K context
+    - glm-4.7-flash: Free tier model
+    """
+
+    def __init__(
+        self,
+        model: str,
+        temperature: float,
+        max_tokens: int,
+        timeout: float,
+        client_type: LLMClientType,
+        api_key: Optional[str] = None,
+    ):
+        """Initialize Zhipu AI client."""
+        api_key = api_key or settings.zhipu_api_key
+        base_url = "https://open.bigmodel.cn/api/paas/v4"
+
+        if not api_key:
+            raise ValueError("ZHIPU_API_KEY not configured. Set it in .env.")
+
+        super().__init__(
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=timeout,
+            client_type=client_type,
+            base_url=base_url,
+            provider_name="zhipu",
+            api_key=api_key,
+        )
+
+
+# =============================================================================
 # Client Factory Functions
 # =============================================================================
 
@@ -856,8 +908,16 @@ def get_llm_client(client_type: LLMClientType) -> LLMClient:
             timeout=timeout,
             client_type=client_type,
         )
+    elif provider == "zhipu":
+        return ZhipuClient(
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=timeout,
+            client_type=client_type,
+        )
     else:
         raise ValueError(
             f"Unknown LLM provider '{provider}' for {client_type}. "
-            f"Supported providers: anthropic, kimi, deepseek, grok"
+            f"Supported providers: anthropic, kimi, deepseek, grok, zhipu"
         )
