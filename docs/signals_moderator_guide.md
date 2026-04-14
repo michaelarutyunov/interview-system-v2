@@ -15,6 +15,7 @@ Signals are organized into categories based on what they measure:
 | **LLM Signals** | Response quality | Are they engaged? How detailed are their answers? |
 | **Graph Signals** | Knowledge structure | What concepts have we covered? How are they connected? |
 | **Node Signals** | Per-topic exploration | Have we exhausted this specific topic? |
+| **Chain Topology Signals** | Chain structure (MEC) | Where are the gaps in the "why" chains? Which strategies can fire? |
 | **Meta Signals** | Interview-level insights | Where are we in the interview? Is the conversation drying up? |
 | **Temporal Signals** | Pattern detection | Are we repeating ourselves? |
 
@@ -56,9 +57,12 @@ Signals are organized into categories based on what they measure:
 | **graph.max_depth** | Length of longest causal chain | BFS from root nodes (nodes with no incoming edges), counting nodes in the longest path, then divided by the ontology's level count (e.g., 5 for Means-End Chain) | How deep we've gone into "why" chains |
 | **graph.avg_depth** | Average depth across all topics | *Not yet implemented — always returns 0.0. Treat as placeholder.* | Below 2 = surface-focused; 2-3 = balanced; Above 3 = consistently deep |
 | **graph.chain_completion.ratio** | Fraction of complete "why" chains | For each level-1 node (top-level concept), BFS searches for a path to a "terminal" node type (e.g., a value in MEC). Ratio = level-1 nodes reaching terminal / total level-1 nodes | 0 = no complete chains; 1 = all chains reach terminal values |
+| **graph.chain_completion.has_complete** | Does at least one chain reach terminal? | Boolean companion to `ratio`: true if at least one level-1 node has a complete path to a terminal node | True = interview has produced at least one full causal chain; False = no complete chains yet |
 | **graph.canonical_concept_count** | Deduplicated high-level topics | Count of canonical slots — groups of surface nodes that share the same high-level theme (similarity ≥ 0.60) | Lower than node_count because paraphrases are merged |
 | **graph.canonical_edge_density** | How interconnected deduplicated topics are | Edge-to-concept ratio in the canonical graph: `canonical_edge_count / canonical_concept_count`. Higher = more relationships between stable high-level concepts. **UNBOUNDED above 1.0** (dense graphs can exceed 1.0). Returns `{}` (absent) if canonical graph not initialized | Low (<0.5) = isolated topics with few links; High (>1.0) = well-connected structure where topics relate to each other. Use bare-key weights only (not .low/.mid/.high) |
 | **graph.canonical_exhaustion_score** | Overall interview exhaustion, filtering out paraphrases | Average of `exhaustion_score` values across all canonical slots. Aggregates the same exhaustion formula as node-level scores but at the deduplicated concept level, so re-phrasing the same topic doesn't inflate freshness | 0.0 = all canonical topics still fresh; 0.7+ = most high-level themes have been thoroughly explored across the interview |
+| **graph.global.frontier_count** | How many topics are stuck at a dead end | Count of nodes where `gap_above` is true — non-terminal nodes with no outgoing edge to a higher ontology level. Only computed for chain methodologies (MEC). Returns empty dict for non-chain methodologies | High = many chains stop short of terminal values; the ascend strategy will target these |
+| **graph.global.ungrounded_count** | How many topics lack a foundation | Count of nodes where `gap_below` is true — nodes above the origin level with no incoming edge from a lower level. Only computed for chain methodologies (MEC). Returns empty dict for non-chain methodologies | High = many concepts float without grounding attributes; the ground strategy will target these |
 
 **Moderator Use Cases:**
 - **High orphan_count** → Ask "How are X and Y related?" to connect concepts
@@ -123,6 +127,43 @@ Importantly, yield measures **structural novelty** — whether the graph changed
 - **is_orphan true** → Ask how this relates to other concepts mentioned
 - **Low recency_score** → Opportunity to return to a previously discussed topic
 
+### Chain Topology Signals (MEC Only)
+
+**What they measure:** For each topic, structural properties of its position within the "why" chain (attribute → consequence → value). These signals power the chain-aware strategy selection system — they determine *which nodes are eligible* for each strategy via `valid_when` gates, and then influence *scoring* within eligible nodes.
+
+**Scope:** Only computed for chain-based methodologies (MEC). For non-chain methodologies (JTBD, CJM, CIT, Repertory Grid), these signals are absent and contribute zero to scoring.
+
+| Signal | Moderator Meaning | How It's Computed | What to Look For |
+|--------|------------------|-------------------|------------------|
+| **graph.node.gap_above** | Topic stops at a dead end — no path going deeper | Boolean: true if the node has no outgoing `leads_to` edge to a higher ontology level AND is not a terminal node type (e.g., not a value in MEC) | True = chain frontier — the ascend strategy targets these nodes to extend the "why" chain upward |
+| **graph.node.gap_below** | Topic floats without a foundation | Boolean: true if the node has no incoming `leads_to` edge from a lower ontology level AND is above the origin level (not an attribute) | True = ungrounded concept — the ground strategy targets these to build a foundation underneath |
+| **graph.node.level_skip** | Chain has a missing link | Boolean: true if any outgoing edge jumps more than 1 ontology level (e.g., attribute directly connected to value, skipping consequences) | True = the bridge strategy targets these to fill in intermediate steps |
+| **graph.node.branching_deficit** | Topic has fewer sibling concepts than expected | `1 - (actual_siblings / expected_siblings)`, capped at [0, 1]. Siblings = nodes at the same level sharing a parent. Expected siblings from `chain_completion.expected_branching` in methodology YAML | 0 = enough variety at this level; 1 = no siblings found (only child). The branch strategy targets high-deficit nodes |
+| **graph.node.fan_in** | How many foundational concepts feed into this topic | Integer count of distinct origin-level (attribute) nodes that have a reachable path to this node via `leads_to` edges, using BFS on reverse adjacency | Higher = this concept synthesizes multiple lower-level attributes; used as a scoring weight for ascend |
+| **graph.node.level_gap_size** | How far from the chain boundary | Integer: number of ontology levels between this node and the terminal (if `gap_above`) or origin (if `gap_below`). 0 if neither gap signal is true | Higher = longer stretch of chain to build; ascend/ground will take more turns to complete |
+| **graph.node.chain.has_attribute_foundation** | Does this chain have a concrete starting point? | Boolean: true if following reverse `leads_to` edges from this node reaches any attribute-level (origin) node via BFS | True = chain is grounded in concrete attributes; False = chain is floating without foundation. Used as a scoring modifier for ascend (boost if grounded, suppress if floating) and ground (prioritize floating chains) |
+| **graph.node.chain.has_terminal_apex** | Does this chain reach a core value? | Boolean: true if following forward `leads_to` edges from this node reaches any terminal-value node via BFS | True = this chain already reaches a terminal value; used as a scoring modifier for branch (boost when chain is complete, indicating a productive branching point) |
+
+**Strategy Gate Reference:**
+
+These signals serve as `valid_when` gates for MEC's chain-aware strategies. A strategy is only scored for nodes where its gate is true:
+
+| Strategy | valid_when Gate | What It Means |
+|----------|----------------|---------------|
+| ascend | `graph.node.gap_above` | Node is a chain frontier — extend upward |
+| ground | `graph.node.gap_below` | Node is ungrounded — build foundation |
+| bridge | `graph.node.level_skip` | Edge skips levels — fill the gap |
+| branch | `graph.node.branching_deficit` | Not enough siblings — explore alternatives |
+| anchor | `graph.node.is_orphan` | Node has no connections — give it a home |
+| revitalize | *(none — conversation-level fallback)* | Always eligible |
+
+**Moderator Use Cases:**
+- **High frontier_count** → Many chains stop short of values — prioritize ascending
+- **High ungrounded_count** → Many concepts lack attributes — prioritize grounding
+- **level_skip on a node** → Ask about the intermediate step that was skipped
+- **Low branching_deficit** → Sufficient variety at this level; can move on
+- **has_attribute_foundation = false** → This concept needs grounding before extending further
+
 ---
 
 ## Meta Signals: Interview-Level Insights
@@ -132,7 +173,8 @@ Importantly, yield measures **structural novelty** — whether the graph changed
 | Signal | Moderator Meaning | How It's Computed | What to Look For |
 |--------|------------------|-------------------|------------------|
 | **meta.interview.phase** | Current stage of interview | Derived from turn count and phase boundaries in `config/interview_config.yaml` (e.g., turns 1-4 = early, 5-12 = mid, 13+ = late) | early = explore broadly; mid = build depth; late = validate and close (**Note**: Phase boundaries configured in `config/interview_config.yaml` as exploratory/focused/closing) |
-| **meta.interview_progress** | How complete the interview is | `(chain_completion_ratio × 0.5) + (max_depth / ontology_levels × 0.5)` — equally weights chain coverage and depth reached (**DEPRECATED** for JTBD; use saturation signals instead) | 0.0 = just started; 1.0 = near completion |
+| **meta.interview.is_late_stage** | Is the interview in its final phase? | Boolean: true when `meta.interview.phase` equals "late". Convenience signal for YAML configs that need a simple boolean gate for late-stage suppression or boosting | True = interview is in validation/closing phase; False = still in exploratory or focused phase |
+| **meta.interview_progress** | How complete the interview is | `(chain_completion_ratio × 0.5) + (max_depth / ontology_levels × 0.5)` — equally weights chain coverage and depth reached (**DEPRECATED** across all methodologies; use saturation signals and chain topology signals instead) | 0.0 = just started; 1.0 = near completion |
 | **meta.conversation.saturation** | Are responses drying up? | `1.0 - min(current_turn_new_nodes / best_turn_ever_new_nodes, 1.0)` — compares this turn's new surface node count against the historical peak turn | 0.0 = extracting at peak rate; 1.0 = zero extraction (regardless of quality) |
 | **meta.canonical.saturation** | Are we in redundant territory? | `1.0 - min(new_canonical_concepts / new_surface_nodes, 1.0)` — ratio of new high-level themes to new surface nodes this turn | 0.0 = all new themes; 1.0 = pure elaboration on existing themes |
 | **meta.node.opportunity** | What's the best action for each topic? | Classified from node state: **exhausted** = focused before + no yield for 3+ turns + ≥66% shallow recent responses; **probe_deeper** = high focus streak (4+) + current response is deep; **fresh** = default | exhausted = skip; probe_deeper = extraction opportunity; fresh = explore |
@@ -223,6 +265,19 @@ Signals are most powerful when interpreted together. Here are common patterns:
 - Meaning: We have floating concepts without connections
 - Action: Ask relationship questions: "How does X relate to Y?"
 
+### Pattern: "The Floating Chain" (MEC)
+- **High frontier_count** + **High ungrounded_count**
+- **graph.node.chain.has_attribute_foundation = false** on multiple nodes
+- Meaning: Chains are neither grounded nor reaching terminal values — the graph is wide but shallow
+- Action: Prioritize grounding (build attribute foundations) before ascending to values
+
+### Pattern: "The Near-Complete Chain" (MEC)
+- **graph.chain_completion.has_complete = true**
+- **graph.chain_completion.ratio rising** (0.5+)
+- **Low frontier_count** relative to node_count
+- Meaning: At least one chain is complete, others are close — shift from building to validating
+- Action: Use branch strategy to explore alternatives at well-established levels
+
 ---
 
 ## For Developers: Signal Reference
@@ -257,7 +312,8 @@ The key is to answer: **"What does this tell a moderator about the interview?"**
 | graph.node.exhaustion_score (0.7-1.0) | Thoroughly explored | Fresh territory |
 | graph.node.focus_streak (high) | Persistent questioning | Varied focus |
 | temporal.strategy_repetition_count (0.6+) | Overused strategy | Good variety |
-| meta.interview_progress (0.75-1.0) | Near completion | Just started |
+| meta.interview_progress (0.75-1.0) | Near completion | Just started (**DEPRECATED**) |
+| meta.interview.is_late_stage (true) | In validation/closing phase | Still exploring or building depth |
 | meta.node.opportunity (probe_deeper) | Extraction opportunity | Not ready to probe |
 | meta.node.opportunity (exhausted) | Move on | Has potential |
 | meta.node.opportunity (fresh) | Ready to explore | May need attention |
@@ -266,3 +322,12 @@ The key is to answer: **"What does this tell a moderator about the interview?"**
 | graph.node.novelty (high) | Freshly introduced concept | Well-established node in graph |
 | graph.node.focus_count (high, 5+) | Topic has been revisited many times | Topic barely explored |
 | graph.node.canonical_novelty (new) | Genuinely new theme introduced | Confirming/elaborating existing theme |
+| graph.chain_completion.has_complete (true) | At least one full causal chain | No complete chains yet |
+| graph.global.frontier_count (high) | Many chains stop short of values | Most chains extend toward terminals |
+| graph.global.ungrounded_count (high) | Many concepts lack attribute foundation | Most concepts are grounded |
+| graph.node.gap_above (true) | Chain frontier — can extend upward | Chain extends or is terminal |
+| graph.node.gap_below (true) | Ungrounded concept — needs foundation | Concept has incoming edges from lower level |
+| graph.node.level_skip (true) | Missing intermediate link in chain | Adjacent ontology levels connected |
+| graph.node.branching_deficit (1.0) | Only child — no sibling concepts | Sufficient variety at this level |
+| graph.node.chain.has_attribute_foundation (true) | Chain is grounded in attributes | Chain floats without foundation |
+| graph.node.chain.has_terminal_apex (true) | Chain reaches a core value | Chain doesn't reach terminal |
