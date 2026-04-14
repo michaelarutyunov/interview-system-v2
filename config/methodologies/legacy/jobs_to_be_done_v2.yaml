@@ -1,11 +1,15 @@
-# Jobs-to-be-Done Methodology Configuration
+# Jobs-to-be-Done Methodology Configuration (V2 — no permitted_connections)
 #
 # JTBD explores what job users are trying to do, what triggers them,
 # what alternatives they consider, and what obstacles they face.
+#
+# V2 change: removed permitted_connections from all edge types.
+# Edge types still define semantic meaning; the LLM decides which
+# node-type pairs can connect based on methodology understanding.
 
 method:
-  name: jobs_to_be_done
-  version: "2.0"
+  name: jobs_to_be_done_v2
+  version: "2.1"
   goal: "Understand what jobs users are trying to accomplish and what motivates them"
   opening_bias: "Ask about a specific recent time they made a decision or change related to the topic."
   description: "Framework for understanding customer motivation and needs through job statements"
@@ -87,68 +91,24 @@ ontology:
   edges:
     - name: occurs_in
       description: "Temporal or situational relationship between job and context"
-      permitted_connections:
-        - [job_statement, job_context]
-        - [emotional_job, job_context]
-        - [social_job, job_context]
-        - [pain_point, job_context]      # Pain arises in a context
-        - [gain_point, job_context]      # Gain matters in a context
-        - [job_trigger, job_context]     # Triggers happen in contexts
-        - [solution_approach, job_context]  # Solutions used in contexts
 
-    - name: triggered_by
-      description: "Causal relationship where a stimulus initiates or causes something"
-      permitted_connections:
-        - [job_statement, job_trigger]
-        - [emotional_job, job_trigger]
-        - [social_job, job_trigger]
-        - [pain_point, pain_point]       # Pain cascades (clutter → distraction)
-        - [pain_point, job_trigger]      # Pain triggered by event
-        - [gain_point, job_trigger]      # Gain triggered by event
+    - name: triggers
+      description: "Causal relationship where source initiates or causes target (A triggers B means A is the cause, B is the effect)"
 
     - name: addresses
       description: "Solution approach resolves a pain point or enables a gain point"
-      permitted_connections:
-        - [solution_approach, pain_point]
-        - [solution_approach, gain_point]
-        - [solution_approach, job_statement]  # Solution accomplishes a job
-        - [job_statement, emotional_job]
-        - [job_statement, social_job]
 
     - name: conflicts_with
       description: "Something that prevents or undermines something else"
-      permitted_connections:
-        - [solution_approach, pain_point]
-        - [pain_point, job_statement]
-        - [pain_point, gain_point]       # Pain undermines a gain
-        - [pain_point, solution_approach] # Pain blocks a solution
-        - [solution_approach, solution_approach]  # Solutions can conflict with each other
 
     - name: enables
       description: "Something that makes something else more achievable or satisfying"
-      permitted_connections:
-        - [solution_approach, gain_point]
-        - [gain_point, job_statement]
-        - [gain_point, gain_point]       # Gain chains (saves time → productive)
-        - [gain_point, emotional_job]    # Gain enables emotional outcome
-        - [gain_point, social_job]       # Gain enables social outcome
 
     - name: supports
       description: "Something that contributes to or reinforces something else"
-      permitted_connections:
-        - [job_statement, emotional_job]
-        - [job_statement, social_job]
-        - [solution_approach, gain_point]    # Solution contributes to a gain
-        - [solution_approach, job_statement] # Solution supports a job
-        - [solution_approach, emotional_job] # Solution directly supports emotional outcome
-        - [solution_approach, social_job]    # Solution directly supports social outcome
-        - [gain_point, emotional_job]        # Gain supports emotional outcome
-        - [gain_point, social_job]           # Gain supports social outcome
 
     - name: revises
       description: "Contradiction - newer belief or approach supersedes older one"
-      permitted_connections:
-        - ["*", "*"]
 
   extraction_guidelines:
     - "Listen for phrases indicating what the user is trying to accomplish ('I need to...', 'I want to...', 'The goal is...')"
@@ -176,7 +136,7 @@ ontology:
     pain_trigger_chain:
       description: "Trigger reveals the pain point and the job together"
       example: "Dairy makes me feel bloated, especially before presentations"
-      extraction: "job_trigger('before presentations') → triggered_by → job_statement('feel comfortable') conflicts_with pain_point('dairy bloating')"
+      extraction: "job_trigger('before presentations') → triggers → job_statement('feel comfortable') conflicts_with pain_point('dairy bloating')"
 
     functional_supports_emotional:
       description: "Functional choice enables emotional outcome"
@@ -258,6 +218,13 @@ strategies:
       graph.node.focus_streak.high: -0.7   # Strongly penalize 4+ turn over-focus
       graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.8)
       graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.7)
+      graph.node.novelty.high: 0.6   # Strong bonus for recently-created nodes
+      graph.node.novelty.medium: 0.3  # Moderate bonus for 3-4 turn old nodes
+      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
+      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
+      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
+      graph.node.canonical_novelty.new: 0.5     # New concept = worth exploring
+      graph.node.canonical_novelty.orphan: 0.3  # Unmapped = also potentially novel
 
   # Strategy 2: Probe alternatives (probing)
   - name: probe_alternatives
@@ -279,6 +246,13 @@ strategies:
       graph.node.focus_streak.none: 0.5    # Fresh nodes without prior focus
       graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.7    # Strongly penalize 4+ turn over-focus
+      graph.node.novelty.high: 0.5
+      graph.node.novelty.medium: 0.2
+      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
+      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
+      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
+      graph.node.canonical_novelty.new: 0.5     # New concept = worth exploring
+      graph.node.canonical_novelty.orphan: 0.3  # Unmapped = also potentially novel
 
   # Strategy 3: Dig into motivation (laddering)
   - name: dig_motivation
@@ -307,6 +281,11 @@ strategies:
       graph.node.focus_streak.low: 0.5       # Prefer nodes in first focus
       graph.node.focus_streak.medium: -0.4   # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.8     # Strongly penalize 4+ turn over-focus
+      graph.node.novelty.high: 0.2
+      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
+      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
+      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
+      graph.node.canonical_novelty.confirming: 0.2  # Confirming = safe to validate/deepen
       # Saturation suppression — pivot when themes/yield exhausted
       meta.canonical.saturation.high: -0.5
       meta.conversation.saturation.high: -0.4
@@ -337,12 +316,16 @@ strategies:
       temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.2)
       temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
       # Node-level signals (Phase 3)
-      graph.node.has_outgoing.true: 0.8  # Well-connected nodes
+      graph.node.has_outgoing.true: 0.4  # Well-connected nodes (reduced from 0.8 to halve first-mover bias)
       graph.node.focus_streak.high: 0.5  # Often-focused nodes
+      graph.node.novelty.high: 0.1
       technique.node.strategy_repetition.low: 0.3  # Avoid overusing same strategy
+      graph.node.focus_count.high: -0.4    # Penalty for overused nodes (consolidation is OK, but repeated = skip)
+      graph.node.focus_count.medium: -0.2  # Moderate penalty for frequently-focused nodes
       # Saturation triggers (Phase 6)
       meta.conversation.saturation: 0.3  # High saturation = validate
       meta.canonical.saturation: 0.2     # Supportive metric
+      graph.node.canonical_novelty.confirming: 0.2  # Confirming = safe to validate/deepen
 
   # Strategy 5: Revitalize engagement (elaboration) - Phase 5
   - name: revitalize
@@ -367,6 +350,10 @@ strategies:
       graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.7    # Strongly penalize 4+ turn over-focus
       graph.node.exhaustion_score.low: 0.5  # Avoid exhausted nodes
+      graph.node.novelty.high: 0.4
+      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
+      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
+      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
 
   # Strategy 6: Uncover obstacles (probing)
   - name: uncover_obstacles
@@ -392,6 +379,13 @@ strategies:
       graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.6)
       graph.node.focus_streak.medium: -0.3  # Penalize 2-3 turn over-focus
       graph.node.focus_streak.high: -0.6    # Strongly penalize 4+ turn over-focus
+      graph.node.novelty.high: 0.4
+      graph.node.novelty.medium: 0.2
+      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
+      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
+      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
+      graph.node.canonical_novelty.new: 0.5     # New concept = worth exploring
+      graph.node.canonical_novelty.orphan: 0.3  # Unmapped = also potentially novel
 
   # Strategy 7: Clarify assumption (challenging)
   - name: clarify_assumption

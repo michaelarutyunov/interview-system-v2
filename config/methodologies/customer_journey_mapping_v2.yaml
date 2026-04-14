@@ -1,0 +1,506 @@
+# Customer Journey Mapping Methodology Configuration (V2)
+#
+# Refitted from legacy CJM to follow the MEC strict architecture:
+#   - Replaced legacy 7-strategy mix with 8 chain-aware strategies
+#   - Added valid_when gates where structurally meaningful
+#   - Added node_binding declarations (none vs required)
+#   - Removed permitted_connections from edges (not enforced by code)
+#   - Set chain_completion score_threshold to 0.05 (barely meaningful for CJM)
+#
+# WHY CJM GETS DIFFERENT STRATEGIES FROM MEC:
+#   MEC is hierarchical (attribute -> consequence -> value) with 5 levels.
+#   CJM is SEQUENTIAL and FLAT — stages are peers connected by temporal flow,
+#   not levels connected by abstraction. All CJM nodes sit at level 0.
+#
+#   This means chain topology signals (gap_above, gap_below, level_skip,
+#   branching_deficit) will NEVER fire for CJM nodes. CJM strategies cannot
+#   use them as valid_when gates.
+#
+#   Instead, CJM strategies use node signals that work without levels:
+#   is_orphan (unconnected), exhaustion_score (thoroughness), focus_streak
+#   (consecutive turns), novelty (freshness), has_outgoing (explored downstream).
+#
+#   CJM strategy names reflect temporal motion: advance (next stage) vs deepen
+#   (within current stage), plus domain-specific strategies for friction,
+#   emotions, and journey breadth.
+#
+#   CJM has HIGH incompleteness tolerance — any stages elicited are valid.
+#   The interview prioritizes breadth (covering the arc) over exhaustive
+#   depth at any single stage.
+
+method:
+  name: customer_journey_mapping_v2
+  version: "2.0"
+  goal: "Map the customer experience over time through stages, touchpoints, emotions, and friction points"
+  opening_bias: "Ask them to walk you through their most recent experience with this service or product, from the very first moment they thought about it."
+  description: "Framework for mapping end-to-end customer experiences across stages, touchpoints, and emotional states"
+
+ontology:
+  nodes:
+    - name: stage
+      description: "High-level phase of the customer experience"
+      examples:
+        - "first hearing about oat milk"
+        - "deciding to try it"
+        - "buying it at the store"
+        - "using it at home daily"
+
+    - name: touchpoint
+      description: "Specific interaction between customer and product, channel, or service"
+      examples:
+        - "saw an ad on Instagram"
+        - "asked the barista about it"
+        - "read the label in the store"
+        - "tried it in a latte at the cafe"
+
+    - name: state
+      description: "Customer experiential state at a point in time — feelings, thoughts, or cognitive condition"
+      examples:
+        - "curious but skeptical"
+        - "overwhelmed by options"
+        - "pleasantly surprised"
+        - "frustrated by the price"
+
+    - name: friction
+      description: "Negative experience, obstacle, or pain point at a touchpoint or during a transition"
+      examples:
+        - "couldn't find it in the store"
+        - "too many brands to choose from"
+        - "confusing nutrition label"
+        - "price was much higher than dairy"
+
+    - name: expectation
+      description: "What the customer anticipated or hoped for at a given point in the journey"
+      examples:
+        - "expected it to taste like regular milk"
+        - "thought it would be cheaper"
+        - "assumed all brands would be similar"
+        - "hoped it would froth well"
+
+    - name: moment_of_truth
+      description: "Critical decision point or turning point that shaped the rest of the journey"
+      examples:
+        - "the first sip that changed my mind"
+        - "when I saw the environmental impact data"
+        - "the barista recommending a specific brand"
+        - "realizing I hadn't bought dairy in months"
+
+    - name: channel
+      description: "Medium or context through which a touchpoint occurs"
+      examples:
+        - "social media"
+        - "in-store shelf"
+        - "cafe counter"
+        - "friend's recommendation"
+        - "online review"
+
+  edges:
+    - name: occurs_in
+      description: "Touchpoint belongs to a journey stage"
+
+    - name: transitions_to
+      description: "Sequential progression between nodes of the same type"
+
+    - name: evokes
+      description: "Touchpoint or moment produces an emotional/cognitive state"
+
+    - name: disrupts
+      description: "Friction negatively impacts a touchpoint, state, or expectation"
+
+    - name: via_channel
+      description: "Touchpoint occurs through a specific channel"
+
+    - name: expected_at
+      description: "Expectation held at a specific touchpoint or stage"
+
+    - name: confirmed_by
+      description: "Expectation was met or validated by a touchpoint or outcome"
+
+    - name: violated_by
+      description: "Expectation was unmet or contradicted by a touchpoint or friction"
+
+    - name: triggered
+      description: "Moment of truth or touchpoint caused a change or decision"
+
+    - name: resolved_by
+      description: "Friction was addressed or overcome by a touchpoint or action"
+
+    - name: revises
+      description: "Contradiction — newer belief or experience supersedes older one"
+
+  extraction_guidelines:
+    - "Ask for the full journey: 'Walk me through from the very beginning...'"
+    - "Anchor each touchpoint to a stage: 'Was this before or after you decided to buy?'"
+    - "Extract emotional states at each touchpoint: 'How were you feeling at that point?'"
+    - "Identify friction explicitly: 'Was there anything frustrating or confusing about that?'"
+    - "Capture expectations vs reality: 'What did you expect? How did it compare?'"
+    - "Look for moments of truth: 'Was there a turning point? A moment that changed everything?'"
+    - "Map channels: 'Where did this happen — in store, online, through a friend?'"
+    - "Follow sequential progression: 'And then what happened?'"
+    - "Look for gaps in the journey: missing stages or unexplored transitions"
+
+  relationship_examples:
+    journey_sequence:
+      description: "Sequential progression through stages"
+      example: "First I heard about it from a friend, then I saw it at the store, and eventually started buying it regularly"
+      extraction: |
+        stage('awareness') -> transitions_to -> stage('consideration')
+        stage('consideration') -> transitions_to -> stage('regular purchase')
+        touchpoint('friend recommendation') -> occurs_in -> stage('awareness')
+        touchpoint('saw in store') -> occurs_in -> stage('consideration')
+
+    touchpoint_with_state:
+      description: "Interaction that evokes an emotional response"
+      example: "When I tried it at the cafe I was really surprised — it was way better than I expected"
+      extraction: |
+        touchpoint('tried at cafe') -> evokes -> state('pleasantly surprised')
+        expectation('expected mediocre taste') -> violated_by -> touchpoint('tried at cafe')
+
+    friction_point:
+      description: "Obstacle in the journey"
+      example: "I couldn't figure out which brand to buy — there were like ten options and no clear winner"
+      extraction: |
+        friction('too many options') -> disrupts -> touchpoint('choosing at shelf')
+        friction('too many options') -> evokes -> state('overwhelmed')
+
+    moment_of_truth:
+      description: "Critical turning point"
+      example: "The barista recommended the oat milk latte and that first sip completely changed my mind"
+      extraction: |
+        moment_of_truth('first oat milk latte') -> triggered -> stage('regular use')
+        touchpoint('barista recommendation') -> via_channel -> channel('cafe counter')
+        moment_of_truth('first oat milk latte') -> evokes -> state('converted')
+
+  extractability_criteria:
+    extractable_contains:
+      - "Sequential descriptions of experiences ('first... then... after that...')"
+      - "Specific interactions with products, services, or people"
+      - "Emotional reactions at specific moments ('I felt... at that point')"
+      - "Frustrations, obstacles, or confusion ('couldn't find...', 'was confused by...')"
+      - "Expectations and comparisons to reality ('expected... but actually...')"
+      - "Decision points or turning moments ('that's when I decided...')"
+      - "Channel references ('online', 'in store', 'from a friend')"
+    non_extractable_contains:
+      - "General preferences without journey context"
+      - "Abstract opinions not tied to specific moments"
+      - "Simple agreement or acknowledgment"
+      - "Questions back to the interviewer"
+      - "Second-hand journeys ('my friend's experience was...')"
+
+  concept_naming_convention: >
+    Name each concept according to its role in the customer journey:
+    stages as high-level phases of the experience,
+    touchpoints as specific interactions or encounters,
+    states as emotional or cognitive conditions at a moment,
+    frictions as obstacles or pain points,
+    expectations as anticipated outcomes or beliefs,
+    moments_of_truth as critical turning points or decisions,
+    channels as mediums through which interactions occur.
+    Use the examples in each node type description as naming models.
+
+signals:
+  graph:
+    - graph.node_count
+    - graph.edge_count
+    - graph.orphan_count
+    - graph.max_depth
+    # Canonical graph signals
+    - graph.canonical_concept_count
+    - graph.canonical_edge_density
+    - graph.canonical_exhaustion_score
+    # Note: Node-level signals (graph.node.*) are auto-discovered
+    # from strategy signal_weights and do not need to be listed here.
+    # Note: Chain topology signals (gap_above, gap_below, level_skip,
+    # branching_deficit, fan_in, has_attribute_foundation, has_terminal_apex)
+    # are intentionally excluded — they are meaningless for CJM's flat ontology.
+
+  llm:
+    - llm.response_depth
+    - llm.valence
+    - llm.certainty
+    - llm.specificity
+    - llm.engagement
+    - llm.intellectual_engagement
+    # Note: llm.global_response_trend is session-scoped and managed separately
+
+  temporal:
+    - temporal.strategy_repetition_count
+    - temporal.turns_since_strategy_change
+    # Note: technique.node.strategy_repetition is a per-node signal, auto-detected by pipeline
+
+  meta:
+    - meta.interview.phase
+    - meta.conversation.saturation
+    - meta.canonical.saturation
+    # Note: meta.interview_progress is deprecated for CJM.
+    # Replaced by meta.conversation.saturation and meta.canonical.saturation.
+
+strategies:
+  # Strategy 1: Map Journey — the core CJM breadth strategy.
+  # Elicits stages, touchpoints, transitions to build the timeline.
+  # No valid_when gate: this is a conversation-level strategy that fires
+  # based on global engagement and saturation, not individual node state.
+  - name: map_journey
+    node_binding: none
+    description: "Elicit the sequential journey — stages, touchpoints, and transitions. Ask 'what happened next?' to build the timeline."
+    signal_weights:
+      # Engagement signals — map when respondent is engaged enough to narrate
+      llm.engagement.mid: 0.4                  # Moderate engagement = mapping OK
+      llm.engagement.high: 0.3                 # High engagement = productive mapping
+      llm.engagement.low: -0.3                 # Low engagement = suppress, wait for revitalize
+      # Specificity — vague journey needs more touchpoints
+      llm.specificity.low: 0.5                 # Vague = needs more concrete stages
+      llm.specificity.mid: 0.2                 # Moderate = still room for more detail
+      # Response quality — suppress when fatigued
+      llm.global_response_trend.shallowing: -0.3
+      llm.global_response_trend.fatigued: -0.5
+      # Repetition — core strategy but needs variety
+      temporal.strategy_repetition_count: -0.5
+      temporal.strategy_repetition_count.high: -0.3
+      # Novelty — prefer fresh stages/touchpoints
+      graph.node.novelty.high: 0.4             # Fresh nodes = recently mentioned, map them
+      graph.node.focus_streak.none: 0.5        # Unfocused nodes = new territory
+      graph.node.focus_streak.high: -0.5       # Over-focus = change angle
+      graph.node.exhaustion_score.low: 0.3     # Unexplored = map more
+
+  # Strategy 2: Deepen Stage — go deeper within a specific stage.
+  # Touchpoints, emotions, friction within the current stage.
+  # node_binding: required — targets a specific stage or touchpoint.
+  # No valid_when gate — uses scoring weights to prefer underexplored nodes.
+  - name: deepen_stage
+    node_binding: required
+    description: "Go deeper within a specific journey stage — touchpoints, emotions, friction. Probe 'tell me more about that moment'."
+    signal_weights:
+      # Response depth — surface mentions need deepening
+      llm.response_depth.surface: 0.4          # Surface = needs detail
+      llm.response_depth.shallow: 0.5          # Brief = dig in
+      llm.response_depth.moderate: 0.2         # Moderate = still room to explore
+      # Specificity — vague touchpoint needs concretization
+      llm.specificity.low: 0.3
+      llm.specificity.mid: 0.2
+      # Engagement — need engagement to deepen
+      llm.engagement.high: 0.4
+      llm.engagement.mid: 0.3
+      llm.engagement.low: -0.4                 # Disengaged = risky to deepen
+      # Intellectual engagement — reasoning about the interaction
+      llm.intellectual_engagement.mid: 0.3
+      # Response trend — shallowing can mean try deepening a touchpoint
+      llm.global_response_trend.shallowing: 0.2
+      # Repetition — moderate penalty
+      temporal.strategy_repetition_count: -0.6
+      # Node signals — prefer underexplored, recently mentioned nodes
+      graph.node.exhaustion_score.low: 0.5     # Fresh = good deepening target
+      graph.node.recency_score: 0.3            # Recently mentioned = active thread
+      graph.node.focus_streak.low: 0.4         # First focus = just mentioned
+      graph.node.focus_streak.medium: -0.3     # Mild penalty — some exploration done
+      graph.node.focus_streak.high: -0.6       # Over-focused = switch
+      graph.node.novelty.high: 0.3             # Fresh node = untapped depth
+
+  # Strategy 3: Probe Friction — explore pain points specifically.
+  # Negative valence is the primary trigger via scoring weights.
+  # No valid_when gate — uses valence as primary trigger in weights.
+  - name: probe_friction
+    node_binding: required
+    description: "Explore pain points, obstacles, and frustrations — what went wrong, what was confusing, what took too long."
+    signal_weights:
+      # Valence is the primary trigger — negative = friction territory
+      llm.valence.low: 0.8                     # Negative emotion = friction territory
+      llm.valence.mid: 0.3                     # Neutral = might be masking friction
+      # Certainty — hedging may signal unspoken friction
+      llm.certainty.mid: 0.3
+      # Response depth — shallow negative = dig into the friction
+      llm.response_depth.shallow: 0.3
+      llm.response_depth.moderate: 0.2
+      # Engagement — can probe at moderate engagement
+      llm.engagement.mid: 0.3
+      llm.engagement.high: 0.3
+      llm.engagement.low: -0.3                 # Low + friction = risky
+      # Repetition — too much friction probing feels negative
+      temporal.strategy_repetition_count: -0.7
+      temporal.strategy_repetition_count.high: -0.3
+      # Node signals — orphan nodes may hide friction
+      graph.node.is_orphan.true: 0.5           # Disconnected = friction not yet linked
+      graph.node.exhaustion_score.low: 0.4     # Fresh = unexplored friction
+      graph.node.focus_streak.none: 0.4        # New focus = new territory
+      graph.node.focus_streak.medium: -0.3
+      graph.node.focus_streak.high: -0.6
+
+  # Strategy 4: Track Emotions — map the emotional curve across the journey.
+  # Both valence extremes are triggers — map highs AND lows.
+  # No valid_when gate — emotion tracking is relevant for all nodes.
+  - name: track_emotions
+    node_binding: required
+    description: "Map the emotional curve — how the customer felt at each stage and touchpoint, tracking highs and lows across the journey."
+    signal_weights:
+      # Valence extremes signal emotional content worth mapping
+      llm.valence.high: 0.6                    # Strong positive = map the high
+      llm.valence.low: 0.6                     # Strong negative = map the low
+      llm.valence.mid: 0.2                     # Neutral = lower priority
+      # Response depth — emotional responses need deepening
+      llm.response_depth.shallow: 0.3          # Brief emotional mention = probe more
+      llm.response_depth.moderate: 0.3
+      # Engagement — emotions need engagement to explore
+      llm.engagement.high: 0.4
+      llm.engagement.mid: 0.3
+      llm.engagement.low: -0.4
+      # Repetition — moderate penalty
+      temporal.strategy_repetition_count: -0.6
+      # Node signals — prefer fresh stages for emotion mapping
+      graph.node.exhaustion_score.low: 0.3     # Fresh = unmapped emotions
+      graph.node.novelty.high: 0.3             # Novel = unexplored emotional territory
+      graph.node.focus_streak.none: 0.4        # Fresh touchpoints = unmapped emotions
+      graph.node.focus_streak.medium: -0.2     # Mild penalty — emotion re-probe is OK
+      graph.node.focus_streak.high: -0.5
+
+  # Strategy 5: Advance Stage — move to the next journey stage.
+  # Fires when current stage is saturated or respondent has stayed too long.
+  # No valid_when gate — uses saturation and focus_streak as triggers.
+  - name: advance_stage
+    node_binding: required
+    description: "Move to the next journey stage when the current one is saturated — 'what happened after that?', 'and then where did you go from there?'"
+    signal_weights:
+      # Saturation signals — time to move on
+      meta.conversation.saturation.high: 0.6   # High saturation = pivot
+      meta.canonical.saturation.high: 0.5      # Canonical themes exhausted = move on
+      # Focus streak — stayed on same topic too long
+      graph.node.focus_streak.high: 0.6        # Over-focused = advance signal
+      graph.node.focus_streak.medium: 0.2      # Some focus = consider advancing
+      graph.node.focus_streak.low: -0.3        # Just started = don't advance yet
+      # Exhaustion — explored node = time for new stage
+      graph.node.exhaustion_score.high: 0.4    # Exhausted = move on
+      # Engagement — advance works best when engaged
+      llm.engagement.mid: 0.3
+      llm.engagement.high: 0.2
+      llm.engagement.low: -0.3                 # Disengaged = advance may re-engage
+      # Novelty — seek unexplored stages
+      graph.node.novelty.high: 0.3             # Fresh nodes = new stage territory
+      # Repetition — advance is a transition strategy, penalize over-use
+      temporal.strategy_repetition_count: -0.5
+
+  # Strategy 6: Anchor — connect isolated touchpoints/emotions to journey structure.
+  # Uses is_orphan gate — only fires for nodes with no connections.
+  - name: anchor
+    node_binding: required
+    valid_when: graph.node.is_orphan
+    description: "Connect an isolated touchpoint or emotion to the existing journey structure — explore how it relates to known stages and touchpoints."
+    signal_weights:
+      # is_orphan is the gate — high weight when it fires
+      graph.node.is_orphan.true: 0.5           # Strong anchor signal
+      # Recency — recently mentioned orphans are more relevant
+      graph.node.recency_score: 0.2
+      # Exhaustion — fresh orphans are easier to connect
+      graph.node.exhaustion_score.low: 0.3
+      graph.node.exhaustion_score.high: -0.2   # Exhausted orphan = may not be connectable
+      # Repetition — mild penalty
+      temporal.strategy_repetition_count: -0.15
+      # Novelty — fresh orphans are higher priority
+      graph.node.novelty.high: 0.3
+
+  # Strategy 7: Revitalize — conversation-level fallback for fatigue.
+  # No gate — fires based on fatigue signals and engagement drop.
+  # Follows the same pattern as MEC strict's revitalize strategy.
+  - name: revitalize
+    node_binding: none
+    description: "Shift to an unexplored part of the journey or a fresh angle when the current section is exhausted or respondent shows fatigue."
+    signal_weights:
+      # Fatigue detection triggers
+      llm.global_response_trend.fatigued: 1.0
+      llm.global_response_trend.shallowing: 0.8
+      meta.node.opportunity.exhausted: 0.4
+      # Engagement & valence triggers
+      llm.engagement.low: 0.8
+      llm.engagement.mid: 0.3
+      llm.engagement.high: -0.4               # High engagement = no need to revitalize
+      llm.valence.low: 0.4
+      # Low specificity — not a trigger for revitalize (N1 from MEC)
+      llm.specificity.low: -0.2
+      # Late phase suppression — allow other strategies to assert
+      meta.interview.phase.late: -0.5
+      # Repetition — moderate escape valve
+      temporal.strategy_repetition_count: 0.15
+      temporal.turns_since_strategy_change: -0.5
+      # Node signals — seek unexplored journey sections
+      graph.node.focus_streak.none: 0.8        # Fresh focus = new territory
+      graph.node.focus_streak.medium: -0.4
+      graph.node.focus_streak.high: -0.7
+      graph.node.exhaustion_score.low: 0.5     # Fresh nodes = untapped territory
+      graph.node.novelty.high: 0.4
+      graph.node.focus_count.high: -0.6        # Over-probed = avoid
+      graph.node.focus_count.medium: -0.3
+
+  # Strategy 8: Validate — summarize the journey map and confirm understanding.
+  # Conversation-level, generates closing questions.
+  # Heavy late-phase gate via phase_weights.
+  - name: validate
+    node_binding: none
+    focus_mode: summary
+    generates_closing_question: true
+    description: "Summarize the journey map — stages, key touchpoints, emotional highs/lows, and friction points — and invite correction or addition."
+    signal_weights:
+      # Response quality — deep responses = good time to validate
+      llm.response_depth.deep: 0.3
+      llm.response_depth.moderate: 0.2
+      # Uncertainty triggers — validate when respondent is uncertain
+      llm.certainty.low: 0.8
+      llm.certainty.mid: 0.6
+      meta.node.opportunity.probe_deeper: 0.5
+      # Engagement — validate when engagement drops (confirm what we have)
+      llm.engagement.low: 0.6
+      # Connected nodes = enough structure to validate
+      graph.node.has_outgoing.true: 0.7
+      graph.node.focus_streak.high: 0.4        # Over-focused = good time to summarize
+      technique.node.strategy_repetition.low: 0.3
+      # Saturation triggers — validate when themes are exhausted
+      meta.conversation.saturation: 0.3
+      meta.canonical.saturation: 0.2
+      # Repetition — validate should not repeat
+      temporal.strategy_repetition_count: -0.5
+
+chain_completion:
+  score_threshold: 0.05  # Barely meaningful for CJM — flat ontology has no chain depth to complete
+
+phases:
+  early:
+    description: "Map the journey arc — stages and key touchpoints"
+    signal_weights:
+      map_journey: 1.5                # Core: elicit the journey arc immediately
+      deepen_stage: 1.0               # Flesh out touchpoints as they emerge
+      track_emotions: 0.8             # Start tracking emotions early
+      probe_friction: 0.5             # Light friction probing
+      advance_stage: 0.6              # Allow stage transitions
+      anchor: 1.0                     # Connect orphan touchpoints
+      revitalize: 0.8
+      validate: 0.2                   # Minimal early validation
+    phase_bonuses:
+      map_journey: 0.25               # Ensure journey mapping starts immediately
+      anchor: 0.1                     # Slight bonus to connect early nodes
+
+  mid:
+    description: "Deepen touchpoints — emotions, friction, and expectations"
+    signal_weights:
+      deepen_stage: 1.3               # Deepen at key touchpoints
+      probe_friction: 1.3             # Mid-phase is where friction emerges
+      track_emotions: 1.2             # Map the emotional curve
+      advance_stage: 1.2              # Stage transitions as saturation builds
+      map_journey: 0.7                # Can still fill journey gaps
+      anchor: 0.8
+      revitalize: 1.0
+      validate: 0.5
+    phase_bonuses:
+      probe_friction: 0.2             # Ensure friction probing fires
+      track_emotions: 0.1
+
+  late:
+    description: "Synthesize — validate the map, fill gaps, confirm the emotional arc"
+    signal_weights:
+      validate: 1.5                   # Close with validation
+      track_emotions: 1.0             # Final emotional curve confirmation
+      probe_friction: 0.8             # Late friction discovery still valuable
+      advance_stage: 0.6              # Wrap remaining stages
+      deepen_stage: 0.5               # Final deepening if needed
+      map_journey: 0.4                # Fill remaining gaps
+      anchor: 0.6
+      revitalize: 1.2
+    phase_bonuses:
+      validate: 0.25                  # Ensure validation closes the interview
+      track_emotions: 0.1             # Confirm the emotional arc

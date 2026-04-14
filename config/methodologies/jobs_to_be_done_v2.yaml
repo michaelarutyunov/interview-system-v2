@@ -1,15 +1,43 @@
-# Jobs-to-be-Done Methodology Configuration (V2 — no permitted_connections)
+# Jobs-to-be-Done Methodology Configuration (V2 — chain-aware architecture)
 #
-# JTBD explores what job users are trying to do, what triggers them,
-# what alternatives they consider, and what obstacles they face.
+# Refitted from legacy JTBD (7 freeform strategies) to the new chain-aware
+# architecture established by MEC strict. Key design decisions:
 #
-# V2 change: removed permitted_connections from all edge types.
-# Edge types still define semantic meaning; the LLM decides which
-# node-type pairs can connect based on methodology understanding.
+# Strategy redesign:
+#   - 7 strategies → 7 strategies (different names, different contract model)
+#   - Legacy strategies (explore_situation, probe_alternatives, dig_motivation,
+#     validate_outcome, revitalize, uncover_obstacles, clarify_assumption)
+#     replaced by chain-aware equivalents with valid_when gates
+#   - Ontology unchanged (same 8 node types, same 7 edge types)
+#
+# Strategy mapping from legacy → chain-aware:
+#   explore_situation    → elaborate   (breadth exploration, no gate)
+#   probe_alternatives   → probe_pain  (re-targeted to pain points via is_orphan proxy)
+#   dig_motivation       → ascend      (ladder from functional → emotional/social)
+#   uncover_obstacles    → ground      (find functional antecedents for emotional/social jobs)
+#   clarify_assumption   → anchor      (connect isolated concepts)
+#   revitalize           → revitalize  (same fatigue-fallback pattern)
+#   validate_outcome     → validate    (same late-phase closing strategy)
+#
+# Signal selection rationale:
+#   - Reuses the same signal pools as MEC strict (llm, temporal, meta, graph)
+#   - Chain topology signals (gap_above, gap_below, is_orphan) work because JTBD
+#     has a 2-level hierarchy: functional nodes (level 0) and terminal nodes
+#     (level 1) for emotional_job and social_job
+#   - level_skip unlikely to fire (only 2 levels), so bridge strategy is omitted
+#   - branching_deficit would only apply at level 0, omitted for simplicity
+#   - graph.node.chain.has_attribute_foundation / has_terminal_apex retained for
+#     structural grounding checks (checks whether chains have functional roots)
+#
+# Incompleteness tolerance:
+#   JTBD tolerates incompleteness better than MEC — a job statement without an
+#   emotional driver is still valuable. score_threshold set to 0.05 (vs 0.15 MEC)
+#   so conversation-level strategies activate earlier, keeping the interview
+#   breadth-oriented rather than depth-obsessed.
 
 method:
   name: jobs_to_be_done_v2
-  version: "2.1"
+  version: "2.0"
   goal: "Understand what jobs users are trying to accomplish and what motivates them"
   opening_bias: "Ask about a specific recent time they made a decision or change related to the topic."
   description: "Framework for understanding customer motivation and needs through job statements"
@@ -173,8 +201,16 @@ ontology:
 signals:
   graph:
     - graph.node_count
-    - graph.orphan_count
     - graph.max_depth
+    - graph.orphan_count
+    - graph.chain_completion
+    # Canonical graph signals (experimental)
+    - graph.canonical_concept_count
+    - graph.canonical_edge_density
+    - graph.canonical_exhaustion_score
+    # Note: Node-level chain topology signals (graph.node.gap_above, gap_below,
+    # is_orphan, etc.) are auto-discovered from strategy signal_weights and
+    # do not need to be listed here.
 
   llm:
     - llm.response_depth
@@ -194,228 +230,226 @@ signals:
     - meta.conversation.saturation
     - meta.canonical.saturation
     # Note: meta.interview_progress is intentionally excluded from JTBD.
-    # It is deprecated for this methodology and replaced by meta.conversation.saturation
-    # and meta.canonical.saturation, which are information-velocity-based rather than
-    # structural. Do not add it to signal_weights for any JTBD strategy.
+    # Replaced by meta.conversation.saturation and meta.canonical.saturation
+    # which are information-velocity-based rather than structural.
 
 strategies:
-  # Strategy 1: Explore the situation (elaboration)
-  - name: explore_situation
-    description: "Understand the context and circumstances around when jobs arise"
+  # Strategy 1: Elaborate — breadth exploration, conversation-level
+  # Replaces legacy explore_situation. No valid_when gate, no node binding.
+  # Fires when engagement is moderate and topics are fresh — keeps interview
+  # exploring new ground rather than drilling into one chain.
+  - name: elaborate
+    node_binding: none
+    description: "Explore new aspects of the respondent's experience — situations, contexts, and jobs that haven't been discussed yet"
     signal_weights:
-      # Global signals
-      llm.valence.mid: 0.5
-      temporal.strategy_repetition_count: -0.7  # Symmetric repetition penalty (was -0.8)
-      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
-      # Engagement
-      llm.engagement.mid: 0.4               # Moderate engagement = breadth OK
-      # Response quality awareness — suppress exploration during declining quality
-      llm.global_response_trend.shallowing: -0.4  # Don't explore when answers declining
-      llm.global_response_trend.fatigued: -0.6    # Strongly suppress during fatigue
-      # Node-level signals (Phase 3) — reduced weights to prevent node dominance
-      graph.node.focus_streak.none: 0.6   # Fresh nodes (was 1.0)
-      graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
-      graph.node.focus_streak.high: -0.7   # Strongly penalize 4+ turn over-focus
-      graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.8)
-      graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.7)
-      graph.node.novelty.high: 0.6   # Strong bonus for recently-created nodes
-      graph.node.novelty.medium: 0.3  # Moderate bonus for 3-4 turn old nodes
-      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
-      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
-      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
-      graph.node.canonical_novelty.new: 0.5     # New concept = worth exploring
-      graph.node.canonical_novelty.orphan: 0.3  # Unmapped = also potentially novel
+      # Fatigue detection — suppress exploration during declining quality
+      llm.global_response_trend.fatigued: -0.6
+      llm.global_response_trend.shallowing: -0.4
+      # Engagement — moderate engagement = breadth is productive
+      llm.engagement.mid: 0.4
+      llm.engagement.low: -0.3              # Disengaged respondent = don't explore
+      # Novelty — favor fresh, unexplored territory
+      graph.node.novelty.high: 0.6          # Recently-created nodes = rich territory
+      graph.node.novelty.medium: 0.3
+      graph.node.focus_streak.none: 0.6     # Nodes never focused on = prime targets
+      graph.node.focus_streak.medium: -0.4
+      graph.node.focus_streak.high: -0.7
+      graph.node.focus_count.none: 0.3
+      graph.node.focus_count.medium: -0.3
+      graph.node.focus_count.high: -0.6
+      graph.node.canonical_novelty.new: 0.5
+      graph.node.canonical_novelty.orphan: 0.3
+      graph.node.yield_stagnation.false: 0.5  # Nodes still yielding = productive
+      graph.node.exhaustion_score.low: 0.4    # Avoid exhausted nodes
+      # Repetition brake — prevent elaborate monoculture
+      temporal.strategy_repetition_count: -0.7
+      # Specificity — low specificity means respondent is still surface-level, explore is appropriate
+      llm.specificity.low: 0.2
 
-  # Strategy 2: Probe alternatives (probing)
-  - name: probe_alternatives
-    description: "Discover what other solutions or approaches the user has considered"
+  # Strategy 2: Ascend — move from functional job toward emotional/social driver
+  # Replaces legacy dig_motivation. Binds to nodes with gap_above (functional
+  # nodes that haven't been connected to an emotional or social job yet).
+  # JTBD's "why does that matter?" laddering question.
+  - name: ascend
+    node_binding: required
+    valid_when: graph.node.gap_above
+    description: "Ladder from a functional job toward its emotional or social driver by asking why the job matters to the respondent"
     signal_weights:
-      # Global signals
-      llm.specificity.high: 0.4
-      # Engagement
-      llm.engagement.mid: 0.3               # Moderate engagement = probing OK
-      # Response depth — shallow answers suggest surface-level exploration still in play
-      llm.response_depth.surface: 0.3       # Surface answers → probe alternatives
-      llm.response_depth.shallow: 0.2       # Shallow answers → probe alternatives
-      # Diversity — symmetric penalty to prevent monoculture
-      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.8)
-      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
-      # Node-level signals (Phase 3)
-      graph.node.is_orphan.true: 0.5       # was 1.0; reduced to prevent orphan boost dominance
-      graph.node.exhaustion_score.low: 0.6  # Avoid exhausted nodes
-      graph.node.focus_streak.none: 0.5    # Fresh nodes without prior focus
-      graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
-      graph.node.focus_streak.high: -0.7    # Strongly penalize 4+ turn over-focus
-      graph.node.novelty.high: 0.5
-      graph.node.novelty.medium: 0.2
-      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
-      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
-      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
-      graph.node.canonical_novelty.new: 0.5     # New concept = worth exploring
-      graph.node.canonical_novelty.orphan: 0.3  # Unmapped = also potentially novel
+      # Structural signal — gap_above is the primary trigger
+      graph.node.gap_above.true: 0.25
+      # Recency — prefer recently-discussed nodes for natural laddering flow
+      graph.node.recency_score: 0.2
+      # Exhaustion — avoid nodes already thoroughly explored
+      graph.node.exhaustion_score: -0.6
+      graph.node.focus_count.high: -0.4
+      graph.node.focus_count.medium: -0.2
+      # Chain foundation — ascend is productive when chains have functional roots
+      graph.node.chain.has_attribute_foundation.true: 0.4
+      graph.node.chain.has_attribute_foundation.false: -0.5
+      # Engagement — engaged respondent = safe to probe deeper
+      llm.engagement.low: -0.3
+      llm.intellectual_engagement.high: 0.2  # Analytical reasoning = productive target
+      # Response depth — surface answers benefit from laddering
+      llm.response_depth.surface: 0.1
+      llm.response_depth.shallow: 0.05
+      # Mild repetition brake
+      temporal.strategy_repetition_count: -0.15
 
-  # Strategy 3: Dig into motivation (laddering)
-  - name: dig_motivation
-    description: "Probe deeper with 'why' questions to uncover underlying functional and emotional jobs"
+  # Strategy 3: Ground — find functional antecedents for emotional/social jobs
+  # Replaces legacy uncover_obstacles. Binds to nodes with gap_below (terminal
+  # nodes at level 1 that lack functional antecedents). Asks "what triggers or
+  # causes this feeling/social need?"
+  - name: ground
+    node_binding: required
+    valid_when: graph.node.gap_below
+    description: "Ground an emotional or social job by exploring what functional circumstances, triggers, or job statements lead to it"
     signal_weights:
-      # Global signals — use actual category names (surface/shallow/moderate/deep)
-      llm.response_depth.surface: 0.5    # Surface answers → dig deeper
-      llm.response_depth.shallow: 0.4    # Shallow answers → dig deeper
-      llm.response_depth.moderate: 0.15  # Even moderate answers can benefit from deepening
-      llm.response_depth.deep: 0.3       # Deep answers → keep digging (chain is open)
-      # graph.max_depth removed: maxes out at turn 2 in JTBD, creating permanent -0.4 drag
-      # Engagement & valence safety checks — mid-engagement now contributes
-      llm.engagement.high: 0.5              # Engaged = safe to dig deeper (was 0.7)
-      llm.engagement.mid: 0.3               # Moderate engagement = still OK to dig (NEW)
-      llm.engagement.low: -0.5              # Disengaged = avoid deepening
-      llm.intellectual_engagement.high: 0.6  # Motivational reasoning revealed = prime laddering target
-      llm.intellectual_engagement.mid: 0.3   # Some reasoning = worth probing further
-      llm.valence.high: 0.4                 # Positive emotion = safe to probe
-      # Response quality trend — dig when quality is declining
-      llm.global_response_trend.shallowing: 0.4  # Shallow trend → try digging (NEW)
-      # Diversity — asymmetric penalty to break dig_motivation dominance
-      temporal.strategy_repetition_count: -1.5  # Override shared -0.7 — creates differential vs other strategies
-      temporal.strategy_repetition_count.high: -1.0  # Severe penalty at 4-5 reps to break dominance
-      # Node-level signals (Phase 3)
-      graph.node.exhaustion_score.low: 0.3   # Reduced from 1.0 — was largest single contributor to dig_motivation dominance
-      graph.node.focus_streak.low: 0.5       # Prefer nodes in first focus
-      graph.node.focus_streak.medium: -0.4   # Penalize 2-3 turn over-focus
-      graph.node.focus_streak.high: -0.8     # Strongly penalize 4+ turn over-focus
-      graph.node.novelty.high: 0.2
-      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
-      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
-      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
-      graph.node.canonical_novelty.confirming: 0.2  # Confirming = safe to validate/deepen
-      # Saturation suppression — pivot when themes/yield exhausted
-      meta.canonical.saturation.high: -0.5
-      meta.conversation.saturation.high: -0.4
+      # Structural signal — gap_below is the primary trigger
+      graph.node.gap_below.true: 0.3
+      # Recency — prefer recently-mentioned terminal nodes
+      graph.node.recency_score: 0.25
+      # Exhaustion — avoid over-probed nodes
+      graph.node.exhaustion_score: -0.4
+      # Chain foundation — prioritize ungrounded chains (no functional roots)
+      graph.node.chain.has_attribute_foundation.false: 0.4
+      graph.node.chain.has_attribute_foundation.true: -0.2
+      # Depth signal — even moderate answers benefit from grounding
+      llm.response_depth.deep: 0.05
+      # Mild repetition brake
+      temporal.strategy_repetition_count: -0.15
 
-  # Strategy 4: Validate outcome (validation)
-  - name: validate_outcome
-    description: "Confirm understanding and check if we've captured the most important aspects"
-    generates_closing_question: true
-    focus_mode: summary
+  # Strategy 4: Probe pain — identify frustrations and obstacles at orphan nodes
+  # Replaces parts of legacy probe_alternatives and uncover_obstacles. Uses
+  # is_orphan as a proxy for unconnected pain points (the most actionable kind).
+  # Binds to isolated nodes that may represent frustrations not yet linked to
+  # the graph.
+  - name: probe_pain
+    node_binding: required
+    valid_when: graph.node.is_orphan
+    description: "Explore frustrations, obstacles, or unmet needs at isolated concepts — connect them to existing jobs and situations"
     signal_weights:
-      # Global signals
-      graph.max_depth: 0.5
-      llm.response_depth.deep: 0.3       # Deep responses → validate
-      llm.response_depth.moderate: 0.2   # Moderate responses → validate
-      # Late-stage gate: prevent premature interview termination
-      # generates_closing_question=true means this strategy ENDS the interview,
-      # so it must not win before late phase. -3.0 overwhelms any positive triggers.
-      # Uses meta.interview.phase signal: early/mid both produce negative weight.
-      meta.interview.phase.early: -3.0
-      meta.interview.phase.mid: -3.0
-      # Uncertainty/hedging triggers (Phase 5)
-      llm.certainty.low: 1.0  # Trigger on high uncertainty
-      llm.certainty.mid: 0.7  # Trigger on medium uncertainty
-      meta.node.opportunity.probe_deeper: 0.6  # Extraction opportunity
-      # Engagement trigger
-      llm.engagement.low: 0.6               # Low engagement = validate & wrap
-      # Diversity (lighter penalty — OK to repeat validation, but symmetric)
-      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.2)
-      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
-      # Node-level signals (Phase 3)
-      graph.node.has_outgoing.true: 0.4  # Well-connected nodes (reduced from 0.8 to halve first-mover bias)
-      graph.node.focus_streak.high: 0.5  # Often-focused nodes
-      graph.node.novelty.high: 0.1
-      technique.node.strategy_repetition.low: 0.3  # Avoid overusing same strategy
-      graph.node.focus_count.high: -0.4    # Penalty for overused nodes (consolidation is OK, but repeated = skip)
-      graph.node.focus_count.medium: -0.2  # Moderate penalty for frequently-focused nodes
-      # Saturation triggers (Phase 6)
-      meta.conversation.saturation: 0.3  # High saturation = validate
-      meta.canonical.saturation: 0.2     # Supportive metric
-      graph.node.canonical_novelty.confirming: 0.2  # Confirming = safe to validate/deepen
+      # Structural signal — orphan node is the trigger
+      graph.node.is_orphan.true: 0.50
+      # Recency — prefer recently-mentioned orphans
+      graph.node.recency_score: 0.2
+      # Exhaustion — avoid exhausted nodes even if orphan
+      graph.node.exhaustion_score: -0.4
+      # Valence — negative valence amplifies pain probing (respondent already frustrated)
+      llm.valence.low: 0.3
+      llm.valence.mid: 0.1
+      # Specificity — concrete complaints are rich targets
+      llm.specificity.high: 0.2
+      # Novelty — newly-created orphan nodes are most likely pain points
+      graph.node.novelty.high: 0.4
+      graph.node.canonical_novelty.new: 0.5
+      graph.node.canonical_novelty.orphan: 0.3
+      # Focus freshness — prefer never-explored orphans
+      graph.node.focus_streak.none: 0.5
+      graph.node.focus_streak.medium: -0.3
+      graph.node.focus_streak.high: -0.6
+      graph.node.focus_count.none: 0.3
+      graph.node.focus_count.medium: -0.3
+      graph.node.focus_count.high: -0.6
+      # Mild repetition brake
+      temporal.strategy_repetition_count: -0.15
 
-  # Strategy 5: Revitalize engagement (elaboration) - Phase 5
+  # Strategy 5: Anchor — connect isolated concepts to existing graph structure
+  # Replaces parts of legacy clarify_assumption. Pure structural strategy that
+  # asks how an orphan node relates to existing jobs, contexts, or outcomes.
+  - name: anchor
+    node_binding: required
+    valid_when: graph.node.is_orphan
+    description: "Connect an isolated concept to the existing graph by exploring how it relates to other known jobs, contexts, or outcomes"
+    signal_weights:
+      # Structural signal — orphan node is the trigger
+      graph.node.is_orphan.true: 0.35
+      # Recency — prefer recent orphans
+      graph.node.recency_score: 0.2
+      # Exhaustion — avoid exhausted orphans
+      graph.node.exhaustion_score: -0.2
+      # Engagement — need respondent engagement for relational questions
+      llm.engagement.high: 0.1
+      llm.engagement.low: -0.3
+      # Novelty — fresh orphans are more interesting
+      graph.node.novelty.high: 0.3
+      graph.node.canonical_novelty.new: 0.3
+      # Focus freshness — prefer unexplored orphans
+      graph.node.focus_streak.none: 0.3
+      graph.node.focus_count.none: 0.2
+      # Mild repetition brake
+      temporal.strategy_repetition_count: -0.15
+
+  # Strategy 6: Revitalize — conversation-level fatigue fallback
+  # Same pattern as MEC strict's revitalize. No valid_when gate, no node binding.
+  # Fires when engagement drops or responses trend shallow, shifting to fresh topics.
   - name: revitalize
     node_binding: none
     description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
     signal_weights:
-      # Fatigue detection triggers (Phase 5)
-      llm.global_response_trend.fatigued: 1.0  # Trigger on fatigue
-      llm.global_response_trend.shallowing: 0.5  # Prevent fatigue
-      meta.node.opportunity.exhausted: 0.3  # Try exhausted nodes with new angle
-      # Engagement & valence triggers — mid-engagement now contributes
-      llm.engagement.low: 0.8               # Low engagement = strong trigger (was 1.2)
-      llm.engagement.mid: 0.4               # Moderate engagement + fatigue = still revitalize (NEW)
-      llm.engagement.high: -0.4             # Already engaged = not needed
-      llm.valence.low: 0.5                  # Negative valence = shift gears
-      # Global signals - Strong penalty to prevent revitalize loops with persistently disengaged respondents
-      temporal.strategy_repetition_count: -1.5   # Increased from -0.7 (Run 6: 8/9 turns revitalize with brief_responder)
-      temporal.strategy_repetition_count.high: -1.0  # Activated from 0 — force strategy switch after 3+ uses
-      temporal.turns_since_strategy_change: -0.6  # Penalty for staying too long
-      # Node-level signals (Phase 3)
-      graph.node.focus_streak.none: 0.8    # Fresh nodes
-      graph.node.focus_streak.medium: -0.4  # Penalize 2-3 turn over-focus
-      graph.node.focus_streak.high: -0.7    # Strongly penalize 4+ turn over-focus
-      graph.node.exhaustion_score.low: 0.5  # Avoid exhausted nodes
+      # Fatigue detection triggers
+      llm.global_response_trend.fatigued: 1.0
+      llm.global_response_trend.shallowing: 0.8
+      meta.node.opportunity.exhausted: 0.3
+      # Engagement & valence triggers
+      llm.engagement.low: 0.8
+      llm.engagement.mid: 0.4
+      llm.engagement.high: -0.4
+      llm.intellectual_engagement.low: 0.2  # Analytical disengagement = switch topics
+      llm.valence.low: 0.5
+      # Repetition — slight positive valve to allow re-triggering, but heavy
+      # penalty at high repetition to prevent revitalize loops
+      temporal.strategy_repetition_count: 0.15
+      # Specificity — low specificity alone should not trigger revitalize
+      llm.specificity.low: -0.2
+      # Late-phase suppression — allow structural strategies to re-assert
+      meta.interview.phase.late: -0.5
+      # Node-level signals — favor fresh territory
+      graph.node.focus_streak.none: 0.8
+      graph.node.focus_streak.medium: -0.4
+      graph.node.focus_streak.high: -0.7
+      graph.node.exhaustion_score.low: 0.5
       graph.node.novelty.high: 0.4
-      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
-      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
-      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
+      graph.node.focus_count.high: -0.6
+      graph.node.focus_count.medium: -0.3
+      graph.node.focus_count.none: 0.3
 
-  # Strategy 6: Uncover obstacles (probing)
-  - name: uncover_obstacles
-    description: "Identify pain points and frustrations that prevent jobs from being done well"
+  # Strategy 7: Validate — late-phase closing strategy
+  # Replaces legacy validate_outcome. Heavy early/mid phase gate (-3.0) prevents
+  # premature interview termination. Generates closing questions.
+  - name: validate
+    node_binding: none
+    generates_closing_question: true
+    focus_mode: summary
+    description: "Confirm understanding and check if the most important aspects of the respondent's jobs and motivations have been captured"
     signal_weights:
-      # Global signals — negative valence is the primary trigger
-      llm.valence.low: 0.9                  # Strong trigger on negative/critical responses (was 0.7)
-      llm.valence.mid: 0.3                  # Neutral responses can also reveal obstacles
-      llm.response_depth.moderate: 0.2      # Moderate answers about pains = probe more
-      # Certainty: moderate certainty with negative valence = articulated frustration
-      llm.certainty.mid: 0.2                # Respondent expressing doubt about solutions
-      # Engagement — can surface obstacles even at mid engagement
-      llm.engagement.mid: 0.3               # Moderate engagement = probing OK
-      # Saturation — penalize when conversation is drying up
-      meta.canonical.saturation.high: -0.5     # Canonical graph saturated = stop probing
-      meta.conversation.saturation.high: -0.4  # Surface extraction plateaued = move on
-      # Diversity — symmetric penalty to prevent lock
-      temporal.strategy_repetition_count: -0.7  # Symmetric (was -0.5)
-      temporal.strategy_repetition_count.high: 0  # Reserved for future tuning
-      # Node-level signals (Phase 3) — reduced to prevent node dominance
-      graph.node.is_orphan.true: 0.7       # Boost orphan nodes (was 1.0)
-      graph.node.yield_stagnation.false: 0.5  # Nodes that yield (was 0.7)
-      graph.node.exhaustion_score.low: 0.4  # Avoid exhausted nodes (was 0.6)
-      graph.node.focus_streak.medium: -0.3  # Penalize 2-3 turn over-focus
-      graph.node.focus_streak.high: -0.6    # Strongly penalize 4+ turn over-focus
-      graph.node.novelty.high: 0.4
-      graph.node.novelty.medium: 0.2
-      graph.node.focus_count.high: -0.6    # Strong penalty for overused nodes (5+ total focuses)
-      graph.node.focus_count.medium: -0.3  # Moderate penalty for frequently-focused nodes (3-4)
-      graph.node.focus_count.none: 0.3     # Bonus for never-explored nodes
-      graph.node.canonical_novelty.new: 0.5     # New concept = worth exploring
-      graph.node.canonical_novelty.orphan: 0.3  # Unmapped = also potentially novel
-
-  # Strategy 7: Clarify assumption (challenging)
-  - name: clarify_assumption
-    description: "Challenge a confident or specific claim to expose unstated assumptions or overgeneralizations. Use open-ended probes that invite elaboration rather than cross-examination or forced-choice questions."
-    signal_weights:
-      # Primary triggers — high certainty + high specificity = confident claim worth probing
-      # Weights are moderate: clarify_assumption is a specialist, not a generalist.
-      # It should win when certainty is high AND other strategies aren't competing,
-      # not every turn an articulate respondent speaks.
-      llm.certainty.high: 0.5        # Confident = probe-worthy (reduced from 0.8)
-      llm.specificity.high: 0.3      # Concrete claim = target (reduced from 0.5)
-      llm.response_depth.deep: 0.2   # Deep certain answer = worth surfacing (reduced from 0.3)
-      # Self-doubt triggers — moderate certainty = surface the assumption
-      llm.certainty.mid: 0.4         # Hedging/self-doubt (reduced from 0.6)
-      llm.response_depth.moderate: 0.2  # Moderate depth + uncertainty
-      # Saturation — challenging is unproductive when conversation is exhausted
-      meta.canonical.saturation.high: -0.5     # Canonical graph saturated = stop probing
-      meta.conversation.saturation.high: -0.4  # Surface extraction plateaued = move on
-      # Engagement safety check
-      llm.engagement.high: 0.2       # Engaged = will respond constructively
-      llm.engagement.mid: 0.1        # Moderate engagement = gentle challenge OK
-      llm.engagement.low: -0.5       # Disengaged = don't challenge
-      # Diversity — strong brake; challenging is fatiguing if overused
-      temporal.strategy_repetition_count: -1.5  # Asymmetric — high base needs strong brake
-      temporal.strategy_repetition_count.high: -1.0  # Severe penalty at 4-5 reps
-      # Node-level — prefer nodes the respondent has spoken confidently about
-      graph.node.exhaustion_score.low: 0.5   # Fresh node = still something to challenge
-      graph.node.focus_streak.low: 0.4       # First focus = just started engagement
-      graph.node.focus_streak.medium: -0.4   # Penalize 2-3 turn over-focus
-      graph.node.focus_streak.high: -0.7     # Strongly penalize 4+ turn over-focus
+      # Late-stage gate: prevent premature interview termination
+      # generates_closing_question=true means this strategy ENDS the interview,
+      # so it must not win before late phase. -3.0 overwhelms any positive triggers.
+      meta.interview.phase.early: -3.0
+      meta.interview.phase.mid: -3.0
+      # Saturation triggers — high saturation = ready to validate
+      meta.conversation.saturation: 0.3
+      meta.canonical.saturation: 0.2
+      # Uncertainty/hedging triggers — uncertain respondent = validate to confirm
+      llm.certainty.low: 1.0
+      llm.certainty.mid: 0.7
+      # Engagement — low engagement suggests wrapping up
+      llm.engagement.low: 0.6
+      # Response depth — deep responses = enough material to validate
+      llm.response_depth.deep: 0.3
+      llm.response_depth.moderate: 0.2
+      # Node-level — prefer well-connected nodes for validation
+      graph.node.has_outgoing.true: 0.4
+      graph.node.focus_streak.high: 0.5      # Often-focused = good summary target
+      graph.node.novelty.high: 0.1
+      graph.node.focus_count.high: -0.4       # But not so overused it's stale
+      graph.node.focus_count.medium: -0.2
+      graph.node.canonical_novelty.confirming: 0.2
+      # Node extraction opportunity
+      meta.node.opportunity.probe_deeper: 0.6
+      # Strategy repetition — lighter penalty; OK to re-validate
+      technique.node.strategy_repetition.low: 0.3
+      temporal.strategy_repetition_count: -0.7
 
 chain_completion:
   expected_branching:
@@ -427,42 +461,55 @@ chain_completion:
     solution_approach: 2
     emotional_job: 1
     social_job: 1
+  # Very low threshold — JTBD tolerates incompleteness better than MEC.
+  # A job statement without an emotional driver is still valuable data.
+  # Conversation-level strategies (elaborate, revitalize) activate early
+  # to keep the interview breadth-oriented.
+  score_threshold: 0.05
 
 phases:
   early:
     description: "Initial exploration, building graph structure"
+    # Early phase: prioritize breadth (elaborate) and structural grounding (ground).
+    # Ascend is available but not dominant — need functional foundation first.
+    # Anchor connects early orphans. Probe_pain surfaces initial frustrations.
     signal_weights:
-      explore_situation: 1.5
-      probe_alternatives: 1.2
-      dig_motivation: 0.5
-      validate_outcome: 0.2
-      uncover_obstacles: 0.3
+      elaborate: 1.4          # Breadth-first: explore situations and contexts
+      ground: 1.4             # Actively establish functional foundation before ascending
+      probe_pain: 1.2         # Surface early pain points
+      anchor: 1.2             # Connect isolated concepts
+      ascend: 1.0             # Available but not dominant
+      revitalize: 1.0
+      validate: 0.2           # Strongly suppressed — too early to wrap up
     phase_bonuses:
-      explore_situation: 0.2    # Additive bonus to encourage exploration even with zero base score
-      probe_alternatives: 0.15  # Bonus to surface orphan alternatives early
+      elaborate: 0.1          # Small additive bonus for breadth exploration
 
   mid:
     description: "Building depth and connections"
+    # Mid phase: ascend and ground equalized to let node signals decide.
+    # Probe_pain competes when valence is low. Anchor available for orphans.
+    # Elaborate reduced to favor depth-building.
     signal_weights:
-      dig_motivation: 1.2        # Reduced from 1.4 — narrowing structural advantage over competitors
-      probe_alternatives: 0.9    # Below 1.0: mid-phase should deepen, not probe
-      uncover_obstacles: 1.3     # Boosted from 1.2 — compete when valence is low
-      clarify_assumption: 1.3    # Boosted from 1.2 — fire on both certainty and self-doubt
+      ascend: 1.3             # Ladder toward emotional/social drivers
+      ground: 1.3             # Find functional antecedents for terminal nodes
+      probe_pain: 1.2         # Pain points often surface in mid-interview
+      anchor: 1.0
+      elaborate: 0.8          # Reduced — mid-phase should deepen, not just explore
       revitalize: 1.0
-      explore_situation: 0.6
-      validate_outcome: 0.5
-    phase_bonuses:
-      dig_motivation: 0.15       # Reduced from 0.3 — narrowing structural advantage over competitors
-      probe_alternatives: 0.15   # Bonus to break out of single-node focus
-      uncover_obstacles: 0.25    # Boosted — compete when dig_motivation is penalized
-      clarify_assumption: 0.15   # Additive — ensure it fires on hedging turns
+      validate: 0.5           # Becoming available but still suppressed
 
   late:
     description: "Validation and verification"
+    # Late phase: validate dominates. Ascend available for final laddering.
+    # Revitalize boosted to re-engage if fatigue sets in before wrap-up.
     signal_weights:
-      validate_outcome: 1.5
-      uncover_obstacles: 1.2
-      dig_motivation: 0.5
-      explore_situation: 0.3
+      validate: 1.5           # Primary late-phase strategy
+      revitalize: 1.2         # Re-engage fatigued respondent for wrap-up
+      ascend: 1.0             # Final laddering opportunities
+      ground: 0.9             # Remaining grounding opportunities
+      probe_pain: 1.1         # Surface any remaining frustrations
+      anchor: 0.7
+      elaborate: 0.3          # Minimal breadth — focus on consolidation
     phase_bonuses:
-      validate_outcome: 0.2  # Additive bonus to ensure validation gets selected
+      validate: 0.2           # Ensure validation gets selected
+      revitalize: 0.2         # Safety valve for late fatigue

@@ -43,13 +43,13 @@ async def test_cross_turn_edge_validation_rejects_invalid_connection(
     # Create session with means_end_chain methodology
     session = Session(
         id=session_id,
-        methodology="means_end_chain",
+        methodology="means_end_chain_v2_strict",
         concept_id="test_concept",
         concept_name="Test Concept",
         created_at=now,
         updated_at=now,
         state=SessionState(
-            methodology="means_end_chain",
+            methodology="means_end_chain_v2_strict",
             concept_id="test_concept",
             concept_name="Test Concept",
             turn_count=0,
@@ -117,7 +117,7 @@ async def test_cross_turn_edge_validation_rejects_invalid_connection(
         session_id=session_id,
         extraction=turn2_extraction,
         utterance_id="turn2-utt",
-        methodology="means_end_chain",  # Pass methodology to enable validation
+        methodology="means_end_chain_v2_strict",  # Pass methodology to enable validation
     )
 
     # The target node should be created, but the edge should be rejected
@@ -146,13 +146,13 @@ async def test_cross_turn_edge_validation_accepts_valid_connection(
 
     session = Session(
         id=session_id,
-        methodology="means_end_chain",
+        methodology="means_end_chain_v2_strict",
         concept_id="test_concept",
         concept_name="Test Concept",
         created_at=now,
         updated_at=now,
         state=SessionState(
-            methodology="means_end_chain",
+            methodology="means_end_chain_v2_strict",
             concept_id="test_concept",
             concept_name="Test Concept",
             turn_count=0,
@@ -217,7 +217,7 @@ async def test_cross_turn_edge_validation_accepts_valid_connection(
         session_id=session_id,
         extraction=turn2_extraction,
         utterance_id="turn2-utt",
-        methodology="means_end_chain",
+        methodology="means_end_chain_v2_strict",
     )
 
     # Both node and edge should be created
@@ -243,13 +243,13 @@ async def test_validation_skipped_when_methodology_not_provided(
 
     session = Session(
         id=session_id,
-        methodology="means_end_chain",
+        methodology="means_end_chain_v2_strict",
         concept_id="test_concept",
         concept_name="Test Concept",
         created_at=now,
         updated_at=now,
         state=SessionState(
-            methodology="means_end_chain",
+            methodology="means_end_chain_v2_strict",
             concept_id="test_concept",
             concept_name="Test Concept",
             turn_count=0,
@@ -334,13 +334,13 @@ async def test_revises_edge_always_permitted(graph_repo, session_repo):
 
     session = Session(
         id=session_id,
-        methodology="means_end_chain",
+        methodology="means_end_chain_v2_strict",
         concept_id="test_concept",
         concept_name="Test Concept",
         created_at=now,
         updated_at=now,
         state=SessionState(
-            methodology="means_end_chain",
+            methodology="means_end_chain_v2_strict",
             concept_id="test_concept",
             concept_name="Test Concept",
             turn_count=0,
@@ -403,7 +403,7 @@ async def test_revises_edge_always_permitted(graph_repo, session_repo):
         session_id=session_id,
         extraction=turn2_extraction,
         utterance_id="turn2-utt",
-        methodology="means_end_chain",
+        methodology="means_end_chain_v2_strict",
     )
 
     # Revises edge should be created (wildcard permits all)

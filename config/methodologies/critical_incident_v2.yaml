@@ -1,0 +1,435 @@
+# Critical Incident Technique Methodology Configuration (V2)
+#
+# Refitted from legacy critical_incident.yaml to the chain-aware strategy
+# architecture established by MEC strict (means_end_chain_v2_strict.yaml).
+#
+# Design rationale:
+#   CIT has an inherent narrative hierarchy:
+#     incident (L1) → situation (L2) → action (L3) → outcome (L4)
+#       → emotion (L5) / learning (L5) / behavior_change (L5, terminal)
+#
+#   This maps well to the MEC ladder pattern. We retain 5 of the 6 MEC
+#   structural strategies (ascend, ground, bridge, anchor, revitalize) because
+#   both CIT and MEC are laddering instruments. We add two CIT-specific
+#   conversation-level strategies:
+#     - elicit_narrative: opens new stories, replaces the old elicit_incident
+#     - validate: confirms the narrative arc end-to-end
+#
+#   Key differences from MEC strict:
+#     - score_threshold 0.10 (lower than MEC's 0.15) — CIT tolerates more
+#       incompleteness; incident+behavior is useful without interpretation
+#     - No branching_deficit strategy — CIT narratives are sequential chains,
+#       not branching attribute trees
+#     - validate has heavy late-phase gating (-3.0 early/mid)
+#
+# Ontology is IDENTICAL to legacy — same nodes, edges, examples, descriptions.
+# Only strategies and signals change.
+
+method:
+  name: critical_incident_v2
+  version: "2.0"
+  goal: "Explore specific memorable experiences to understand behavior through incident analysis"
+  opening_bias: "Ask them to think of a recent time when this topic was especially memorable or significant."
+  description: "Framework for understanding behavior through analysis of specific memorable experiences"
+
+ontology:
+  nodes:
+    - name: incident
+      level: 1
+      terminal: false
+      description: "Specific, memorable event or experience related to the product/category"
+      examples:
+        - "the time the barista made my coffee perfectly"
+        - "when I tried oat milk for the first time"
+        - "the day my coffee maker broke"
+
+    - name: situation
+      level: 2
+      terminal: false
+      description: "Contextual circumstances surrounding the incident"
+      examples:
+        - "rushing to catch a flight"
+        - "hosting a dinner party"
+        - "studying late for exams"
+
+    - name: action
+      level: 3
+      terminal: false
+      description: "What the person did during the incident"
+      examples:
+        - "asked for oat milk instead"
+        - "went to a different cafe"
+        - "made it myself at home"
+
+    - name: outcome
+      level: 4
+      terminal: false
+      description: "Result or consequence of the action taken"
+      examples:
+        - "coffee tasted amazing"
+        - "avoided the usual stomach upset"
+        - "felt proud of my choice"
+
+    - name: emotion
+      level: 5
+      terminal: false
+      description: "Emotional response during or after the incident"
+      examples:
+        - "surprised and delighted"
+        - "relieved and grateful"
+        - "frustrated and disappointed"
+
+    - name: attribution
+      level: 5
+      terminal: false
+      description: "What the person believes caused the outcome"
+      examples:
+        - "because of the creamy texture"
+        - "due to the barista's skill"
+        - "because oat milk is more sustainable"
+
+    - name: learning
+      level: 5
+      terminal: false
+      description: "Insight or takeaway from the incident"
+      examples:
+        - "oat milk froths better than I expected"
+        - "I should always specify the brand"
+        - "cafes vary in quality"
+
+    - name: behavior_change
+      level: 5
+      terminal: true
+      description: "How the incident influenced future behavior"
+      examples:
+        - "now I always ask for oat milk"
+        - "started buying oat milk for home"
+        - "recommend it to friends"
+
+  edges:
+    - name: occurred_in
+      description: "Incident took place within a specific situation"
+
+    - name: involved
+      description: "Action taken during the incident"
+
+    - name: resulted_in
+      description: "Outcome produced by an action"
+
+    - name: elicited
+      description: "Emotional response triggered by outcome"
+
+    - name: attributed_to
+      description: "Perceived cause of an outcome"
+
+    - name: led_to_learning
+      description: "Insight gained from the incident"
+
+    - name: influenced
+      description: "Incident caused a change in future behavior"
+
+    - name: similar_to
+      description: "Incident shares characteristics with another incident"
+
+    - name: contrasts_with
+      description: "Incident differs meaningfully from another incident"
+
+  extraction_guidelines:
+    - "Ask for specific stories: 'Tell me about a time when...' or 'Recall a recent experience where...'"
+    - "Focus on concrete incidents rather than general preferences"
+    - "Extract the sequence: situation → action → outcome → emotion"
+    - "Capture attributions - what the person believes caused the result"
+    - "Identify learnings that changed their understanding"
+    - "Note behavior changes that resulted from the incident"
+    - "Look for patterns across multiple incidents"
+    - "Distinguish between the factual event and the person's interpretation"
+
+  relationship_examples:
+    complete_incident:
+      description: "Full critical incident narrative"
+      example: "Last week I was late for work and grabbed coffee at the airport. The oat milk latte was perfect - no bitter aftertaste. I felt relieved and actually enjoyed the rush"
+      extraction: |
+        incident('airport coffee') → occurred_in → situation('late for work')
+        incident('airport coffee') → involved → action('ordered oat milk latte')
+        action('ordered oat milk latte') → resulted_in → outcome('no bitter aftertaste')
+        outcome('no bitter aftertaste') → elicited → emotion('relieved, enjoyed')
+        outcome('no bitter aftertaste') → attributed_to → attribution('oat milk neutral taste')
+
+    attribution_chain:
+      description: "Person explains why something happened"
+      example: "It worked because oat milk doesn't curdle like almond milk does"
+      extraction: "outcome('smooth coffee') → attributed_to → attribution('oat milk stability vs almond milk')"
+
+    behavior_change:
+      description: "Incident leads to new behavior"
+      example: "Since that day, I've stopped buying dairy milk entirely"
+      extraction: "incident('positive oat milk experience') → influenced → behavior_change('stopped buying dairy')"
+
+  extractability_criteria:
+    extractable_contains:
+      - "Specific stories or anecdotes ('the time when...', 'last week...')"
+      - "Sequences of events or actions"
+      - "Clear outcomes (positive or negative)"
+      - "Emotional reactions to experiences"
+      - "Explanations or causal attributions"
+      - "Changes in behavior or decisions"
+    non_extractable_contains:
+      - "General opinions without specific examples"
+      - "Hypothetical scenarios ('I would probably...')"
+      - "Second-hand stories ('my friend said...')"
+      - "Factual product descriptions without personal experience"
+
+  concept_naming_convention: >
+    Name each concept according to its role in the critical incident:
+    incidents as specific memorable events or experiences,
+    situations as contextual circumstances,
+    actions as concrete behaviors taken,
+    outcomes as results or consequences of actions,
+    emotions as emotional responses or feelings,
+    attributions as perceived causes or explanations,
+    learnings as insights or takeaways,
+    behavior_changes as subsequent changes in behavior.
+    Use the examples in each node type description as naming models.
+
+signals:
+  graph:
+    - graph.node_count
+    - graph.max_depth
+    - graph.orphan_count
+    - graph.chain_completion
+    # Canonical graph signals
+    - graph.canonical_concept_count
+    - graph.canonical_edge_density
+    - graph.canonical_exhaustion_score
+    # Note: Node-level chain topology signals (graph.node.gap_above, gap_below,
+    # level_skip) are auto-discovered from strategy signal_weights and do not
+    # need to be listed here.
+
+  llm:
+    - llm.response_depth
+    - llm.valence
+    - llm.certainty
+    - llm.specificity
+    - llm.engagement
+    - llm.intellectual_engagement
+    # Note: llm.global_response_trend is session-scoped and managed separately
+
+  temporal:
+    - temporal.strategy_repetition_count
+    - temporal.turns_since_strategy_change
+
+  meta:
+    - meta.interview.phase
+    - meta.conversation.saturation
+    - meta.canonical.saturation
+
+strategies:
+  # Strategy 1: Elicit narrative (conversation-level, no node binding)
+  # Opens new story arcs — "Tell me about a time when..."
+  # Primary trigger: low specificity (vague narrative needs concreting).
+  # Suppresses when canonical graph is saturated (enough material collected).
+  - name: elicit_narrative
+    node_binding: none
+    description: "Elicit a specific, concrete story — who, what, when, where. Prompt for vivid details and narrative context."
+    signal_weights:
+      # Specificity is the primary driver — vague responses need more elicitation
+      llm.specificity.low: 0.7                # Vague narrative = needs concreting
+      llm.specificity.mid: 0.3                # Somewhat concrete = still room
+      # Certainty — uncertain respondent needs help anchoring in a memory
+      llm.certainty.low: 0.4
+      # Engagement — moderate engagement supports elicitation
+      llm.engagement.mid: 0.4
+      llm.engagement.high: 0.2
+      # Novelty — prefer exploring fresh topics
+      graph.node.novelty.high: 0.3
+      # Saturation — suppress when enough material collected
+      meta.canonical.saturation.high: -0.5
+      meta.conversation.saturation.high: -0.4
+      # Response quality — don't push for new stories when answers declining
+      llm.global_response_trend.shallowing: -0.3
+      llm.global_response_trend.fatigued: -0.5
+      # Diversity — symmetric repetition penalty
+      temporal.strategy_repetition_count: -0.7
+      temporal.strategy_repetition_count.high: 0
+      # Node-level — prefer fresh, unconnected nodes
+      graph.node.is_orphan.true: 0.6
+      graph.node.focus_streak.none: 0.6
+      graph.node.focus_streak.medium: -0.4
+      graph.node.focus_streak.high: -0.7
+      graph.node.exhaustion_score.low: 0.4
+
+  # Strategy 2: Ascend — extend narrative toward emotional/interpretive layer
+  # Move from concrete incident detail (who/what/when) toward meaning
+  # (emotion, attribution, learning). Same mechanism as MEC ascend.
+  - name: ascend
+    node_binding: required
+    valid_when: graph.node.gap_above
+    description: "Move from concrete incident detail toward the emotional, attributional, or interpretive layer — ask what the incident meant or how it felt"
+    signal_weights:
+      graph.node.gap_above.true: 0.25         # Structural gap above = room to ascend
+      graph.node.recency_score: 0.2            # Prefer recently discussed nodes
+      graph.node.exhaustion_score: -0.6        # Avoid circular revisits to exhausted nodes
+      graph.node.focus_count.high: -0.4        # Hard brake on over-probed nodes
+      graph.node.focus_count.medium: -0.2
+      # Engagement gates — ascending needs willing participation
+      llm.engagement.low: -0.3
+      llm.intellectual_engagement.high: 0.2    # Analytical reasoning = productive target
+      # Mild repetition penalty
+      temporal.strategy_repetition_count: -0.15
+
+  # Strategy 3: Ground — get more specific about the incident
+  # Probe causal antecedents: who, what, when, what happened before.
+  # Same mechanism as MEC ground.
+  - name: ground
+    node_binding: required
+    valid_when: graph.node.gap_below
+    description: "Get more specific about the incident — probe who, what, when, what led to it, what happened before"
+    signal_weights:
+      graph.node.gap_below.true: 0.3           # Structural gap below = room to ground
+      graph.node.recency_score: 0.25            # Prefer recently discussed nodes
+      graph.node.exhaustion_score: -0.4         # Avoid exhausted nodes
+      # Shallow depth signals need grounding — story is high-level, needs detail
+      llm.response_depth.shallow: 0.05
+      # Mild repetition penalty
+      temporal.strategy_repetition_count: -0.15
+
+  # Strategy 4: Bridge — fill gaps where respondent skips narrative levels
+  # e.g., jumps from incident directly to learning without describing what happened.
+  # Same mechanism as MEC bridge.
+  - name: bridge
+    node_binding: required
+    valid_when: graph.node.level_skip
+    description: "Fill a narrative gap where the respondent jumps levels — e.g., from incident to learning without describing what happened in between"
+    signal_weights:
+      graph.node.level_skip.true: 0.35         # Level skip detected = bridge needed
+      graph.node.recency_score: 0.2
+      graph.node.exhaustion_score: -0.3
+      # Mild repetition penalty
+      temporal.strategy_repetition_count: -0.15
+
+  # Strategy 5: Anchor — connect isolated narrative elements to the story arc
+  # Same mechanism as MEC anchor.
+  - name: anchor
+    node_binding: required
+    valid_when: graph.node.is_orphan
+    description: "Connect an isolated narrative element to the main story arc — explore how it relates to known incidents, actions, or outcomes"
+    signal_weights:
+      graph.node.is_orphan.true: 0.50          # Orphan node = needs anchoring
+      graph.node.recency_score: 0.2
+      graph.node.exhaustion_score: -0.2
+      # Mild repetition penalty
+      temporal.strategy_repetition_count: -0.15
+
+  # Strategy 6: Revitalize — conversation-level fallback for fatigue
+  # Shift to a new incident when current narrative is exhausted.
+  # Same pattern as MEC strict revitalize.
+  - name: revitalize
+    node_binding: none
+    description: "Shift to a fresh incident or new angle when the current narrative is exhausted or respondent shows fatigue"
+    signal_weights:
+      # Fatigue detection triggers
+      llm.global_response_trend.fatigued: 1.0
+      llm.global_response_trend.shallowing: 0.8
+      # Engagement & valence triggers
+      llm.engagement.low: 0.8
+      llm.engagement.mid: 0.4
+      llm.engagement.high: -0.4
+      llm.intellectual_engagement.low: 0.2     # Analytical disengagement = switch
+      llm.valence.low: 0.5
+      # Repetition escape valve — phase-gated to prevent early bursts
+      temporal.strategy_repetition_count: 0.15
+      # Suppress low specificity triggering revitalize
+      llm.specificity.low: -0.2
+      # Phase gate — suppress in late phase so validate/ascend dominate
+      meta.interview.phase.late: -0.5
+      # Node-level — seek fresh territory
+      graph.node.focus_streak.none: 0.8
+      graph.node.focus_streak.medium: -0.4
+      graph.node.focus_streak.high: -0.7
+      graph.node.exhaustion_score.low: 0.5
+      graph.node.novelty.high: 0.4
+      graph.node.focus_count.high: -0.6
+      graph.node.focus_count.medium: -0.3
+      graph.node.focus_count.none: 0.3
+
+  # Strategy 7: Validate — confirm the story and its meaning
+  # Summarizes the full narrative arc (incident → outcome → learning).
+  # Heavy late-phase gate prevents premature validation.
+  - name: validate
+    node_binding: none
+    generates_closing_question: true
+    focus_mode: summary
+    description: "Summarize the incident narrative — key events, emotions, attributions, and takeaways — and invite correction or addition"
+    signal_weights:
+      # Depth signals — enough material to validate
+      llm.response_depth.deep: 0.3
+      llm.response_depth.moderate: 0.2
+      # Certainty — uncertainty triggers validation (confirm understanding)
+      llm.certainty.low: 0.8
+      llm.certainty.mid: 0.6
+      # Engagement — low engagement = validate and wrap
+      llm.engagement.low: 0.6
+      # Diversity — lighter penalty, OK to repeat validation
+      temporal.strategy_repetition_count: -0.5
+      temporal.strategy_repetition_count.high: 0
+      # Node-level — prefer well-connected nodes (enough context)
+      graph.node.has_outgoing.true: 0.7
+      graph.node.focus_streak.high: 0.4
+      # Saturation supports validation
+      meta.conversation.saturation: 0.3
+      meta.canonical.saturation: 0.2
+      # HEAVY early/mid phase gates — validate is a late-phase strategy
+      meta.interview.phase.early: -3.0
+      meta.interview.phase.mid: -3.0
+
+chain_completion:
+  expected_branching:
+    incident: 3
+    situation: 2
+    action: 2
+    outcome: 2
+    emotion: 1
+    attribution: 1
+    learning: 1
+    behavior_change: 1
+  score_threshold: 0.10  # Lower than MEC's 0.15 — CIT tolerates more incompleteness;
+                         # incident+behavior is already useful without interpretation
+
+phases:
+  early:
+    description: "Elicit the incident — get the story, set the scene"
+    signal_weights:
+      elicit_narrative: 1.5
+      ground: 1.4            # Ground early — establish concrete detail
+      anchor: 1.2            # Anchor orphans to build story structure
+      ascend: 1.0
+      bridge: 0.8
+      revitalize: 1.0
+      validate: 0.0          # Heavily gated by signal weight (-3.0)
+    phase_bonuses:
+      elicit_narrative: 0.2  # Ensure story elicitation fires even with zero base
+
+  mid:
+    description: "Deepen the narrative — emotions, causes, and consequences"
+    signal_weights:
+      ascend: 1.3            # Ascend from concrete to emotional/interpretive
+      ground: 1.3
+      bridge: 1.2
+      elicit_narrative: 0.8  # Can still elicit contrasting incidents
+      anchor: 1.0
+      revitalize: 1.0
+      validate: 0.0          # Heavily gated by signal weight (-3.0)
+
+  late:
+    description: "Synthesize — validate the narrative, confirm learnings"
+    signal_weights:
+      validate: 1.5
+      ascend: 1.2
+      bridge: 1.2
+      elicit_narrative: 0.5
+      ground: 0.8
+      anchor: 0.7
+      revitalize: 1.0
+    phase_bonuses:
+      validate: 0.3          # Ensure validation closes the interview
+      revitalize: 0.2

@@ -1,0 +1,323 @@
+# Means-End Chain Methodology Configuration (V2 Flex)
+#
+# DESIGN RATIONALE:
+#   MEC flex shares identical strategy architecture with MEC strict (v2_strict).
+#   The ONLY material difference is extraction semantics: flex removes the
+#   permitted_connections whitelist on leads_to, allowing the LLM to create
+#   direct edges between non-adjacent ontology levels (e.g., attribute → value).
+#
+#   This produces different graph topology from the same respondent speech:
+#   - Strict: LLM forced to create intermediate nodes → bridge fires rarely
+#   - Flex:   LLM creates skip edges → bridge fires for level skips
+#
+#   The strategies respond to whatever graph they receive. In practice, flex
+#   produces more bridge opportunities (more level skips detected) but identical
+#   interview moderation logic. Flex is epistemically more honest (reflects what
+#   was said); strict makes chain_completion metrics more interpretable.
+#
+#   All signal weights and valid_when gates are identical to v2_strict because
+#   the graph operations are the same — only the extraction layer differs.
+#
+# CHANGES FROM LEGACY V3 FLEX:
+#   - Removed legacy strategies (deepen, clarify, explore, reflect)
+#   - Retained 6 chain-aware strategies: ascend, ground, bridge, branch, anchor, revitalize
+#   - Added graph.node.novelty, focus_count, canonical_novelty signals
+#   - Added chain foundation signals (has_attribute_foundation, has_terminal_apex)
+#   - Added intellectual_engagement signal
+#   - Strengthened repetition penalties on structural strategies
+#   - Added engagement soft-brake on ascend
+#
+# USE THIS VARIANT WHEN:
+#   - Respondents compress reasoning (jump from attribute to value in one breath)
+#   - You want the graph to reflect what was said, not what must be true
+#   - You expect non-linear MEC chains in respondent language
+
+method:
+  name: means_end_chain_v2_flex
+  version: "2.0"
+  goal: "Explore causal chains from concrete attributes to abstract values"
+  opening_bias: "Elicit concrete, experience-based responses. Ask for specific examples and situations."
+  description: "Laddering: attributes → consequences → values (flex: LLM-determined connections)"
+
+ontology:
+  nodes:
+    - name: attribute
+      level: 1
+      terminal: false
+      description: "A feature or property of the product/service itself — what it is, contains, or does by design, independent of any user outcome. If it can be described without mentioning a person, it's an attribute."
+      non_attribute_examples:
+        - "Any outcome the person experiences, does, or avoids as a result of using it — that's a functional_consequence, not an attribute"
+        - "Any behavior the person performs ('I do X', 'I avoid Y') — the product enabling it is an attribute; the behavior itself is a functional_consequence"
+        - "Any feeling or self-perception triggered by use — that's psychosocial_consequence, not an attribute"
+
+    - name: functional_consequence
+      level: 2
+      terminal: false
+      description: "A practical outcome of using the product — what the person experiences, can do, avoids, or achieves as a result. If it answers 'what happens when you use it?', it's functional."
+
+    - name: psychosocial_consequence
+      level: 3
+      terminal: false
+      description: "The emotional, identity, or social meaning of an outcome — how it affects self-image, confidence, relationships, or how others perceive the person. If it answers 'how does that make you feel, or how does it affect how others see you?', it's psychosocial."
+
+    - name: instrumental_value
+      level: 4
+      terminal: false
+      description: "A guiding principle or preferred way of behaving that the psychosocial outcome supports — a virtue or standard for how one should live. If it sounds like 'being X' or 'acting X', it's instrumental."
+
+    - name: terminal_value
+      level: 5
+      terminal: true
+      description: "A fundamental life goal or desired end-state that gives ultimate meaning to the instrumental value. If it feels like the final reason ('so I can ultimately have/be…'), it's terminal."
+
+  edges:
+    # FLEX: no permitted_connections — the LLM decides which node-type pairs can
+    # connect based on the respondent's expressed reasoning. The semantic meaning
+    # of leads_to remains "causal or enabling relationship."
+    - name: leads_to
+      description: "Causal or enabling relationship — connects any two nodes where one drives, enables, or results in the other. The LLM determines which node pairs can connect based on the respondent's expressed reasoning."
+
+    - name: revises
+      description: "Contradiction - newer belief supersedes older one"
+      permitted_connections:
+        - ["*", "*"]
+
+  extraction_guidelines:
+    - "Extract BOTH explicit AND implicit relationships — MEC chains are often implied rather than stated"
+    - "Explicit: Look for causal markers like 'because', 'so', 'that's why', 'leads to', 'which means'"
+    - "Implicit: When multiple concepts co-occur in a response, connect them if they form a logical means-end chain"
+    - "Contextual: If the interviewer asks 'why does X matter' and the response describes Y, create X→Y relationship"
+    - "Chain direction: attribute → functional_consequence → psychosocial_consequence → instrumental_value → terminal_value"
+    - "FLEX MODE: respondents often compress levels. If they jump directly from attribute to value, create that edge rather than forcing intermediate nodes. The bridge strategy will detect level skips and fill them if needed."
+    - "Target 2-3x more edges than nodes — prefer creating relationships over leaving concepts disconnected"
+    - "CRITICAL — attribute vs functional_consequence boundary: Ask 'can this be described without mentioning a person?' If yes → attribute. If it describes what the person experiences, does, or avoids → functional_consequence"
+
+  relationship_examples:
+    explicit_causal:
+      description: "Discourse markers explicitly state the connection"
+      example: "I like froth because it makes coffee less bitter"
+      extraction: "froth → makes coffee taste less bitter"
+
+    implicit_same_response:
+      description: "Multiple concepts in one response form logical consequence chain"
+      example: "Froth makes coffee taste less bitter and gives a nice sensation in the mouth"
+      extraction: "makes coffee taste less bitter → nice sensation in the mouth"
+
+    implicit_conversational:
+      description: "Question establishes antecedent, response provides consequence"
+      example: "Interviewer: 'Why does the nice sensation matter?' Respondent: 'It feels like a good start of the day'"
+      extraction: "nice sensation in the mouth → good start of the day"
+
+    value_progression:
+      description: "Parallel goals forming a chain toward terminal value"
+      example: "I can be my best and set a good example to my kids"
+      extraction: "be my best → set a good example to my kids"
+
+    compressed_chain:
+      description: "Respondent skips intermediate levels — flex creates the direct edge; bridge strategy fills gap later"
+      example: "I eat high-protein foods because it's about who I want to be"
+      extraction: "attribute('high-protein foods') → leads_to → terminal_value('be my best self')"
+
+  extractability_criteria:
+    extractable_contains:
+      - "Product attributes, features, or characteristics"
+      - "Benefits, outcomes, or consequences"
+      - "Feelings, emotions, or social implications"
+      - "Values or life goals"
+      - "Causal relationships between any of the above"
+    non_extractable_contains:
+      - "Simple yes/no responses"
+      - "Acknowledgments ('okay', 'I see')"
+      - "Questions back to the interviewer"
+      - "Off-topic tangents"
+      - "Very short responses with no substance"
+
+  concept_naming_convention: >
+    Name each concept according to its level in the means-end chain:
+    attributes as product features or characteristics (describable without mentioning a person),
+    functional consequences as practical outcomes the person experiences or achieves,
+    psychosocial consequences as emotional or social meanings,
+    instrumental values as principles or modes of being ('being X', 'acting X'),
+    terminal values as fundamental life goals or end-states.
+
+signals:
+  graph:
+    - graph.node_count
+    - graph.max_depth
+    - graph.orphan_count
+    - graph.chain_completion
+    # Canonical graph signals (Phase 4, experimental)
+    - graph.canonical_concept_count
+    - graph.canonical_edge_density
+    - graph.canonical_exhaustion_score
+    # Note: Node-level chain topology signals are auto-discovered
+    # from strategy signal_weights and do not need to be listed here.
+
+  llm:
+    - llm.response_depth
+    - llm.valence
+    - llm.certainty
+    - llm.specificity
+    - llm.engagement
+    - llm.intellectual_engagement
+    # Note: llm.global_response_trend is session-scoped and managed separately
+
+  temporal:
+    - temporal.strategy_repetition_count
+    - temporal.turns_since_strategy_change
+
+  meta:
+    - meta.interview.phase
+    - meta.conversation.saturation
+    - meta.canonical.saturation
+
+strategies:
+  # Strategy 1: Revitalize — conversation-level fallback for fatigue/disengagement
+  - name: revitalize
+    node_binding: none
+    description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
+    signal_weights:
+      # Fatigue detection triggers
+      llm.global_response_trend.fatigued: 1.0
+      llm.global_response_trend.shallowing: 0.8
+      meta.node.opportunity.exhausted: 0.3
+      # Engagement & valence triggers
+      llm.engagement.low: 0.8
+      llm.engagement.mid: 0.4
+      llm.engagement.high: -0.4
+      llm.intellectual_engagement.low: 0.2
+      llm.valence.low: 0.5
+      # Repetition escape valve — phase-gated via multipliers
+      temporal.strategy_repetition_count: 0.15
+      # Suppress low-specificity false trigger
+      llm.specificity.low: -0.2
+      # Suppress revitalize floor in late phase
+      meta.interview.phase.late: -0.5
+      # Node-level signals — drive toward fresh, unexplored territory
+      graph.node.focus_streak.none: 0.8
+      graph.node.focus_streak.medium: -0.4
+      graph.node.focus_streak.high: -0.7
+      graph.node.exhaustion_score.low: 0.5
+      graph.node.novelty.high: 0.4
+      graph.node.focus_count.high: -0.6
+      graph.node.focus_count.medium: -0.3
+      graph.node.focus_count.none: 0.3
+
+  # Strategy 2: Ascend — extend incomplete chain upward toward terminal values
+  - name: ascend
+    description: "Extend an incomplete chain upward by asking what the current concept leads to at the next ontology level"
+    node_binding: required
+    valid_when: graph.node.gap_above
+    signal_weights:
+      graph.node.gap_above.true: 0.25
+      graph.node.fan_in: 0.067
+      graph.node.recency_score: 0.2
+      graph.node.exhaustion_score: -0.6
+      graph.node.focus_count.high: -0.4
+      graph.node.focus_count.medium: -0.2
+      llm.response_depth.deep: 0.1
+      llm.engagement.low: -0.3
+      llm.intellectual_engagement.high: 0.2
+      temporal.strategy_repetition_count: -0.15
+      graph.node.chain.has_attribute_foundation.true: 0.4
+      graph.node.chain.has_attribute_foundation.false: -0.5
+
+  # Strategy 3: Ground — establish causal antecedents for ungrounded high-level node
+  - name: ground
+    description: "Ground an ungrounded node by asking what attributes or lower-level concepts directly cause or enable it — probe causal antecedents, not retrospective comparisons or general context"
+    node_binding: required
+    valid_when: graph.node.gap_below
+    signal_weights:
+      graph.node.gap_below.true: 0.3
+      graph.node.recency_score: 0.25
+      graph.node.exhaustion_score: -0.4
+      llm.response_depth.deep: 0.05
+      temporal.strategy_repetition_count: -0.15
+      graph.node.chain.has_attribute_foundation.false: 0.4
+      graph.node.chain.has_attribute_foundation.true: -0.2
+
+  # Strategy 4: Bridge — fill missing intermediate level in a skipped chain
+  # NOTE: Bridge fires more often in flex than strict because flex allows
+  # level-skipping edges from extraction. This is by design — the bridge
+  # strategy catches what the respondent compressed and probes for intermediates.
+  - name: bridge
+    description: "Fill a structural gap by asking what happens between a lower and higher concept that are directly connected but skip ontology levels"
+    node_binding: required
+    valid_when: graph.node.level_skip
+    signal_weights:
+      graph.node.level_skip.true: 0.35
+      graph.node.recency_score: 0.2
+      graph.node.exhaustion_score: -0.3
+      temporal.strategy_repetition_count: -0.15
+
+  # Strategy 5: Branch — expand breadth at attribute level
+  - name: branch
+    description: "Elicit additional product attributes or features at the same level — ask what other concrete characteristics of the product the respondent experiences or values"
+    node_binding: required
+    valid_when: graph.node.branching_deficit
+    signal_weights:
+      graph.node.branching_deficit: 0.25
+      graph.node.recency_score: 0.15
+      graph.node.exhaustion_score: -0.3
+      llm.engagement.high: 0.1
+      temporal.strategy_repetition_count: -0.15
+      graph.node.chain.has_attribute_foundation.true: 0.3
+      graph.node.chain.has_terminal_apex.true: 0.5
+
+  # Strategy 6: Anchor — connect isolated node to existing graph structure
+  - name: anchor
+    description: "Connect an isolated concept to the existing graph by exploring how it relates to other known concepts"
+    node_binding: required
+    valid_when: graph.node.is_orphan
+    signal_weights:
+      graph.node.is_orphan.true: 0.50
+      graph.node.recency_score: 0.2
+      graph.node.exhaustion_score: -0.2
+      temporal.strategy_repetition_count: -0.15
+
+chain_completion:
+  expected_branching:
+    attribute: 3
+    functional_consequence: 2
+    psychosocial_consequence: 1
+    instrumental_value: 1
+    terminal_value: 1
+  score_threshold: 0.15  # Production threshold — below this, conversation-level strategies may activate
+
+phases:
+  early:
+    description: "Initial exploration, building graph structure"
+    signal_weights:
+      branch: 1.4
+      ascend: 1.0
+      ground: 1.4
+      bridge: 0.8
+      anchor: 1.2
+      revitalize: 1.0
+    phase_bonuses:
+      branch: 0.1
+
+  mid:
+    description: "Building depth and connections"
+    signal_weights:
+      ascend: 1.3
+      ground: 1.3
+      bridge: 1.2
+      branch: 1.0
+      anchor: 1.0
+      revitalize: 1.0
+
+  late:
+    description: "Validation and verification"
+    signal_weights:
+      ascend: 1.5
+      ground: 0.9
+      bridge: 1.3
+      branch: 1.1
+      anchor: 0.7
+      revitalize: 1.2
+    phase_bonuses:
+      revitalize: 0.2
+      ascend: 0.10
+      bridge: 0.05
+      branch: 0.10
