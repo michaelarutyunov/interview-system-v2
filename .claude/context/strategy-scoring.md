@@ -91,6 +91,29 @@ Every scored pair produces a `ScoredCandidate` dataclass with:
 
 ---
 
+## Methodology Architecture (v2)
+
+### Active Methodology Family
+
+All active methodologies live in `config/methodologies/`. Retired configs are in
+`config/methodologies/legacy/` for reference only.
+
+| File | Strategies | valid_when gates | chain_threshold | Structure |
+|---|---|---|---|---|
+| `means_end_chain_v2_strict.yaml` | 6 | ascend, ground, bridge, branch, anchor | 0.15 | 5-level hierarchy |
+| `means_end_chain_v2_flex.yaml` | 6 | Same as strict | 0.15 | Same hierarchy, no permitted_connections |
+| `jobs_to_be_done_v2.yaml` | 7 | ascend, ground, probe_pain, anchor | 0.05 | 2-level (functional → emotional/social) |
+| `critical_incident_v2.yaml` | 7 | ascend, ground, bridge, anchor | 0.10 | 5-level narrative hierarchy |
+| `customer_journey_mapping_v2.yaml` | 8 | anchor only | 0.05 | Flat (no chain topology signals) |
+| `repertory_grid_v2.yaml` | 8 | explore_construct, anchor | 0.03 | Flat dimensional (no chain topology) |
+
+**Design principle**: Each methodology defines its own strategy names (Option B
+from refitting doc), but shares the same scoring engine. The strategy name is UI;
+the `valid_when` gate is the contract. Chain topology signals (gap_above, gap_below,
+level_skip, branching_deficit) only fire for methodologies with ontology levels.
+
+---
+
 ## Chain-Aware Strategy Selection (MEC)
 
 ### Overview
@@ -313,5 +336,8 @@ These weights are calibrated via simulation. The key validation signal is **attr
 | `src/services/turn_pipeline/stages/strategy_selection_stage.py` | Pipeline stage that calls `MethodologyStrategyService` |
 | `src/signals/graph/chain_topology_signals.py` | `ChainTopologySignalDetector` — computes per-node chain topology signals (gap_above, gap_below, level_skip, branching_deficit, fan_in, level_gap_size, chain.has_attribute_foundation, chain.has_terminal_apex); flat sentinel classes for registry |
 | `src/signals/graph/graph_traversal.py` | Shared graph traversal utilities — `build_adjacency_list`, `build_reverse_adjacency_list`, `get_node_type_map`, `bfs_reachable`, `bfs_to_target` |
-| `config/methodologies/means_end_chain.yaml` | Reference MEC methodology YAML with 6 chain-aware strategies, valid_when gates, signal_weights, score_threshold, and phases |
-| `config/methodologies/jobs_to_be_done.yaml` | Alternative methodology for comparison (non-chain, no chain topology signals) |
+| `config/methodologies/means_end_chain_v2_strict.yaml` | Reference MEC methodology YAML with 6 chain-aware strategies, valid_when gates, signal_weights, score_threshold, and phases |
+| `config/methodologies/jobs_to_be_done_v2.yaml` | JTBD methodology — 2-level hierarchy with ascend/ground gates, chain_threshold 0.05 |
+| `config/methodologies/critical_incident_v2.yaml` | CIT methodology — narrative hierarchy with ascend/ground/bridge gates |
+| `config/methodologies/customer_journey_mapping_v2.yaml` | CJM methodology — flat ontology, no chain topology signals |
+| `config/methodologies/repertory_grid_v2.yaml` | RG methodology — dimensional/comparative, no chain topology signals |
