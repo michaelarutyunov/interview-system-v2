@@ -1,0 +1,42 @@
+id: plant_milk_comparison_rg
+name: "Plant-Based Milk Alternatives Comparison"
+methodology: repertory_grid_v2
+
+objective: "Understand how consumers personally evaluate and differentiate between plant-based milk alternatives (oat, almond, soy, pea, coconut) using their own bipolar constructs — not pre-defined attributes. Elicit personal constructs through triadic comparison to reveal what truly drives preference."
+
+elements:
+  - id: 1
+    label: "Oat milk"
+    aliases:
+      - "oatly"
+      - "oat-based milk"
+
+  - id: 2
+    label: "Almond milk"
+    aliases:
+      - "almond-based milk"
+
+  - id: 3
+    label: "Soy milk"
+    aliases:
+      - "soya milk"
+      - "soy-based milk"
+
+  - id: 4
+    label: "Pea protein milk"
+    aliases:
+      - "pea-based milk"
+      - "pea protein"
+
+  - id: 5
+    label: "Coconut milk (carton)"
+    aliases:
+      - "coconut-based milk"
+      - "carton coconut milk"
+
+  - id: 6
+    label: "Dairy milk (reference point)"
+    aliases:
+      - "regular milk"
+      - "cow's milk"
+      - "whole milk"

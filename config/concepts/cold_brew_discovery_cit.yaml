@@ -1,0 +1,62 @@
+id: cold_brew_discovery_cit
+name: "Cold Brew Discovery Moment - Critical Incident"
+methodology: critical_incident_v2
+
+objective: "Explore the specific experience of discovering cold brew coffee — the circumstances, the moment itself, the emotions, and how it changed the respondent's coffee habits or preferences. Focus on a single memorable incident, not general attitudes."
+
+elements:
+  - id: 1
+    label: "First taste of cold brew"
+    aliases:
+      - "first time trying cold brew"
+      - "initial cold brew experience"
+      - "first cold brew"
+
+  - id: 2
+    label: "Where or how they discovered it"
+    aliases:
+      - "how I found out about cold brew"
+      - "where I first had cold brew"
+      - "what led me to try cold brew"
+
+  - id: 3
+    label: "Comparison to hot coffee expectations"
+    aliases:
+      - "how it compared to regular coffee"
+      - "different from what I expected"
+      - "surprise vs expectation"
+
+  - id: 4
+    label: "Immediate taste reaction"
+    aliases:
+      - "what I thought of the taste"
+      - "flavor impression"
+      - "smoothness or bitterness"
+
+  - id: 5
+    label: "Texture and mouthfeel"
+    aliases:
+      - "how it felt in my mouth"
+      - "body of the drink"
+      - "smoothness"
+
+  - id: 6
+    label: "Emotional response to the experience"
+    aliases:
+      - "how it made me feel"
+      - "surprise or delight"
+      - "disappointment"
+
+  - id: 7
+    label: "Change in coffee routine afterward"
+    aliases:
+      - "how it changed my coffee habits"
+      - "switched to cold brew"
+      - "added cold brew to my routine"
+
+  - id: 8
+    label: "Whether they recommended it to others"
+    aliases:
+      - "told friends about it"
+      - "shared the experience"
+      - "would recommend"

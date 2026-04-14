@@ -1,0 +1,62 @@
+id: coffee_subscription_cjm
+name: "Specialty Coffee Subscription Journey"
+methodology: customer_journey_mapping_v2
+
+objective: "Map the end-to-end customer experience of subscribing to a specialty coffee subscription service — from first awareness through daily ritual to renewal or cancellation decision. Capture stages, touchpoints, emotions, friction points, and moments of delight along the way."
+
+elements:
+  - id: 1
+    label: "First hearing about specialty coffee subscriptions"
+    aliases:
+      - "how I first learned about it"
+      - "discovery"
+      - "first impression"
+
+  - id: 2
+    label: "Comparing subscription options"
+    aliases:
+      - "research phase"
+      - "evaluating different services"
+      - "comparison shopping"
+
+  - id: 3
+    label: "Sign-up and first order"
+    aliases:
+      - "creating an account"
+      - "choosing a plan"
+      - "placing first order"
+
+  - id: 4
+    label: "First delivery and unboxing"
+    aliases:
+      - "receiving the first box"
+      - "opening the package"
+      - "first impressions of packaging"
+
+  - id: 5
+    label: "First brew with subscription coffee"
+    aliases:
+      - "making the first cup"
+      - "trying the beans"
+      - "first taste at home"
+
+  - id: 6
+    label: "Establishing a daily coffee ritual"
+    aliases:
+      - "morning routine"
+      - "daily brewing habit"
+      - "integrating into my day"
+
+  - id: 7
+    label: "Assessing whether it's worth the cost"
+    aliases:
+      - "value for money"
+      - "is it worth it"
+      - "price vs quality"
+
+  - id: 8
+    label: "Deciding to renew, modify, or cancel"
+    aliases:
+      - "renewal"
+      - "cancellation"
+      - "changing my subscription"
