@@ -74,6 +74,8 @@ class SimulationTurn:
     node_signals: Optional[Dict[str, Any]] = None
     # Per-candidate score decomposition from joint scoring
     score_decomposition: Optional[List[Dict[str, Any]]] = None
+    # Per-stage timing in milliseconds
+    stage_timings: Optional[Dict[str, float]] = None
     # Focus node selected for this turn's question
     focus_node_id: Optional[str] = None
     focus_node_label: Optional[str] = None
@@ -257,6 +259,7 @@ class SimulationService:
                 score_decomposition=self._serialize_decomposition(
                     turn_result_session.score_decomposition
                 ),
+                stage_timings=turn_result_session.stage_timings,
                 focus_node_id=focus_node_id,
                 focus_node_label=focus_node_label,
             )
@@ -332,6 +335,7 @@ class SimulationService:
         saturation_metrics: Optional[Dict[str, Any]] = None,
         node_signals: Optional[Dict[str, Any]] = None,
         score_decomposition: Optional[List[Dict[str, Any]]] = None,
+        stage_timings: Optional[Dict[str, float]] = None,
         focus_node_id: Optional[str] = None,
         focus_node_label: Optional[str] = None,
     ) -> SimulationTurn:
@@ -417,6 +421,7 @@ class SimulationService:
             saturation_metrics=saturation_metrics,
             node_signals=node_signals,
             score_decomposition=score_decomposition,
+            stage_timings=stage_timings,
             focus_node_id=focus_node_id,
             focus_node_label=focus_node_label,
         )
@@ -723,6 +728,8 @@ class SimulationService:
                     "node_signals": t.node_signals,
                     # Per-candidate score decomposition from joint scoring
                     "score_decomposition": t.score_decomposition,
+                    # Per-stage timing in milliseconds
+                    "stage_timings": t.stage_timings,
                 }
                 for t in result.turns
             ],

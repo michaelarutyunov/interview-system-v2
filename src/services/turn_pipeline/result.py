@@ -57,3 +57,5 @@ class TurnResult:
     node_signals: Optional[Dict[str, Dict[str, Any]]] = None
     # Per-candidate score decomposition from joint scoring (simulation-only)
     score_decomposition: Optional[List[Any]] = None
+    # Per-stage timing in milliseconds (for benchmarking)
+    stage_timings: Dict[str, float] = field(default_factory=dict)

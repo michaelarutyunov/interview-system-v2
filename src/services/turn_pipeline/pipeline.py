@@ -290,4 +290,5 @@ class TurnPipeline:
             saturation_metrics=saturation_metrics,
             node_signals=context.node_signals,
             score_decomposition=context.score_decomposition,
+            stage_timings=dict(context.stage_timings),
         )
