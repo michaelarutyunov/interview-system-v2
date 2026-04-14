@@ -138,6 +138,7 @@ signals:
     - llm.certainty
     - llm.specificity
     - llm.engagement
+    - llm.intellectual_engagement
     # Note: llm.global_response_trend is session-scoped and managed separately
 
   temporal:
@@ -165,6 +166,7 @@ strategies:
       llm.engagement.low: 0.8
       llm.engagement.mid: 0.4
       llm.engagement.high: -0.4
+      llm.intellectual_engagement.low: 0.2  # analytical disengagement = switch topics
       llm.valence.low: 0.5
       # N6: restored repetition escape valve (was removed N5) — phase-gated via multipliers to prevent early bursts
       temporal.strategy_repetition_count: 0.15
@@ -197,6 +199,7 @@ strategies:
       graph.node.focus_count.medium: -0.2
       llm.response_depth.deep: 0.1
       llm.engagement.low: -0.3       # R3: soft brake when respondent is fading
+      llm.intellectual_engagement.high: 0.2  # analytical reasoning = productive laddering target
       temporal.strategy_repetition_count: -0.15  # R2: mild repetition penalty on structural strategies
       graph.node.chain.has_attribute_foundation.true: 0.4   # grounded chain, ascending is productive
       graph.node.chain.has_attribute_foundation.false: -0.5  # floating chain, suppress ascend
