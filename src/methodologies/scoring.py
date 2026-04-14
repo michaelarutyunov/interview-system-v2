@@ -73,6 +73,10 @@ class ScoredCandidate:
     final_score: float = 0.0
     rank: int = 0
     selected: bool = False
+    # valid_when gate observability (True = pair was excluded from scoring)
+    gated: bool = False
+    gate_signal: Optional[str] = None
+    gate_value: Any = None
 
 
 def score_strategy(
@@ -371,12 +375,12 @@ def rank_strategy_node_pairs(
 
     for strategy in strategies:
         for node_id, node_signal_dict in node_signals.items():
-            # Check valid_when gate - skip (strategy, node) pairs where gate is False
+            # Check valid_when gate - record gated pairs for observability
             if strategy.valid_when is not None:
                 gate_signal = strategy.valid_when
                 gate_value = node_signal_dict.get(gate_signal)
 
-                # Skip if gate signal is falsy (False, None, 0, 0.0, or missing)
+                # Record gated pair (not scored) for diagnostics
                 if not gate_value:
                     log.debug(
                         "strategy_node_pair_gated",
@@ -385,7 +389,18 @@ def rank_strategy_node_pairs(
                         valid_when=strategy.valid_when,
                         gate_value=gate_value,
                     )
-                    continue  # Skip this pair - don't score it
+                    candidates.append(
+                        ScoredCandidate(
+                            strategy=strategy.name,
+                            node_id=node_id,
+                            base_score=0.0,
+                            final_score=0.0,
+                            gated=True,
+                            gate_signal=gate_signal,
+                            gate_value=gate_value,
+                        )
+                    )
+                    continue
 
             # Merge global + node signals
             # Node signals take precedence when keys overlap

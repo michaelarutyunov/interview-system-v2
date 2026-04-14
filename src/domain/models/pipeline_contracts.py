@@ -237,12 +237,12 @@ class StrategySelectionOutput(BaseModel):
         default=None,
         description="Per-node signals keyed by node_id. Each value is a dict of signal_name: value.",
     )
-    # Joint strategy-node scoring produces tuples with node_id
-    strategy_alternatives: List[tuple[str, Optional[str], float]] = Field(
+    # Joint strategy-node scoring produces dicts with strategy, node_id, score
+    strategy_alternatives: List[Dict[str, Any]] = Field(
         default_factory=list,
         description=(
             "Alternative strategies with scores for observability. "
-            "Format: [(strategy, node_id_or_None, score)] — uniform 3-tuples. "
+            "Format: [{'strategy': str, 'node_id': str|None, 'score': float}]. "
             "node_id is a UUID string for node_binding='required' strategies, "
             "or None for node_binding='none' strategies."
         ),

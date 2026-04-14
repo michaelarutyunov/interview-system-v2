@@ -6,7 +6,7 @@ direct signal-to-strategy scoring. Validates graph_state freshness before
 selection to prevent stale state bugs.
 """
 
-from typing import TYPE_CHECKING, Optional, Dict, Any, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Dict, Any, List
 
 import structlog
 
@@ -175,7 +175,7 @@ class StrategySelectionStage(TurnStage):
     ) -> tuple[
         str,
         Optional[str],
-        Sequence[Union[tuple[str, float], tuple[str, str, float]]],
+        List[Dict[str, Any]],
         Optional[Dict[str, Any]],
         Dict[str, Dict[str, Any]],
         list,

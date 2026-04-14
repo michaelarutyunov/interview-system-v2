@@ -11,7 +11,7 @@ Key concepts:
 - Signal pools: Shared signal detectors (graph, llm, temporal, meta)
 """
 
-from typing import Tuple, Optional, TYPE_CHECKING, Any, Dict
+from typing import List, Tuple, Optional, TYPE_CHECKING, Any, Dict
 import structlog
 
 from src.core.exceptions import ConfigurationError, ScoringError
@@ -82,7 +82,7 @@ class MethodologyStrategyService:
     ) -> Tuple[
         str,
         Optional[str],
-        list[tuple[str, Optional[str], float]],
+        List[Dict[str, Any]],
         Optional[Dict[str, Any]],
         Dict[str, Dict[str, Any]],
         list[ScoredCandidate],
@@ -352,8 +352,11 @@ class MethodologyStrategyService:
             candidate.rank = rank + 1
             candidate.selected = rank == 0
 
-        # Build alternatives as uniform 3-tuples
-        alternatives = [(s.name, nid, score) for s, nid, score in all_ranked]
+        # Build alternatives as structured dicts for JSON compatibility
+        alternatives = [
+            {"strategy": s.name, "node_id": nid, "score": round(score, 6)}
+            for s, nid, score in all_ranked
+        ]
 
         focus_node_id = best_node_id
 

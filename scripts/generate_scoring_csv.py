@@ -30,6 +30,7 @@ CSV_FIELDNAMES = [
     "phase",
     "strategy",
     "node_id",
+    "node_label",
     "signal_name",
     "signal_value",
     "signal_weight",
@@ -40,6 +41,8 @@ CSV_FIELDNAMES = [
     "final_score",
     "rank",
     "selected",
+    "gated",
+    "gate_signal",
 ]
 
 
@@ -47,24 +50,42 @@ def _rows_from_decomposition(
     turn_number: int,
     phase: str,
     decomposition: list[dict[str, Any]],
+    node_labels: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Build CSV rows from a live score_decomposition list."""
+    _node_labels = node_labels or {}
     rows: list[dict[str, Any]] = []
     for candidate in decomposition:
+        is_gated = candidate.get("gated", False)
+        node_id = candidate.get("node_id", "")
         contribs = candidate.get("signal_contributions") or []
         base = {
             "turn_number": turn_number,
             "phase": phase,
             "strategy": candidate["strategy"],
-            "node_id": candidate.get("node_id", ""),
+            "node_id": node_id,
+            "node_label": _node_labels.get(node_id, ""),
             "phase_multiplier": candidate.get("phase_multiplier", 1.0),
             "phase_bonus": candidate.get("phase_bonus", 0.0),
             "base_score": candidate.get("base_score", 0.0),
             "final_score": candidate.get("final_score", 0.0),
             "rank": candidate.get("rank", ""),
             "selected": candidate.get("selected", False),
+            "gated": is_gated,
+            "gate_signal": candidate.get("gate_signal", ""),
         }
-        if contribs:
+        if is_gated:
+            # Gated pairs have no signal contributions — emit single summary row
+            rows.append(
+                {
+                    **base,
+                    "signal_name": "(gated)",
+                    "signal_value": "",
+                    "signal_weight": "",
+                    "weighted_contribution": 0,
+                }
+            )
+        elif contribs:
             for sc in contribs:
                 rows.append(
                     {
@@ -102,6 +123,14 @@ def generate_scoring_csv(json_path: Path) -> Path:
 
     all_rows: list[dict[str, Any]] = []
 
+    # Build node_id → label lookup from graph section
+    node_labels: dict[str, str] = {}
+    for node in data.get("graph", {}).get("nodes", []):
+        nid = node.get("id", "")
+        label = node.get("label", "")
+        if nid and label:
+            node_labels[nid] = label
+
     for turn in data.get("turns", []):
         turn_number: int = turn.get("turn_number", 0)
         signals: dict[str, Any] = turn.get("signals") or {}
@@ -118,6 +147,7 @@ def generate_scoring_csv(json_path: Path) -> Path:
                         "phase": phase,
                         "strategy": strategy,
                         "node_id": "",
+                        "node_label": "",
                         "signal_name": "N/A (no score_decomposition in this JSON)",
                         "signal_value": "",
                         "signal_weight": "",
@@ -128,11 +158,15 @@ def generate_scoring_csv(json_path: Path) -> Path:
                         "final_score": "",
                         "rank": 1,
                         "selected": True,
+                        "gated": False,
+                        "gate_signal": "",
                     }
                 )
             continue
 
-        all_rows.extend(_rows_from_decomposition(turn_number, phase, decomposition))
+        all_rows.extend(
+            _rows_from_decomposition(turn_number, phase, decomposition, node_labels)
+        )
 
     # Derive CSV path: replace .json suffix with _scoring.csv
     csv_path = json_path.with_name(json_path.stem + "_scoring.csv")

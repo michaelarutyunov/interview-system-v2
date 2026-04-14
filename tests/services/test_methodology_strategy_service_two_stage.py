@@ -126,7 +126,7 @@ class TestJointScoring:
         assert strategy_name == "deepen"
         assert focus_node_id == "node_b"  # Lower exhaustion wins
 
-    async def test_alternatives_are_uniform_3tuples(self):
+    async def test_alternatives_are_structured_dicts(self):
         """Alternatives should be uniform 3-tuples (strategy, node_id_or_None, score)."""
         s1 = StrategyConfig(
             name="deepen",
@@ -163,10 +163,10 @@ class TestJointScoring:
             )
 
         _, _, alternatives, *_ = result
-        # Should be 3-tuples (strategy, node_id_or_None, score)
+        # Should be structured dicts with strategy, node_id, score keys
         assert len(alternatives) == 2
-        assert len(alternatives[0]) == 3
-        assert alternatives[0][0] == "deepen"  # Higher score
+        assert alternatives[0]["strategy"] == "deepen"  # Higher score
+        assert alternatives[0]["score"] > alternatives[1]["score"]
 
 
 @pytest.mark.asyncio

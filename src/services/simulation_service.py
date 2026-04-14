@@ -427,17 +427,21 @@ class SimulationService:
         )
 
     def _serialize_decomposition(
-        self, decomposition: Optional[list]
+        self,
+        decomposition: Optional[list],
+        node_labels: Optional[Dict[str, str]] = None,
     ) -> Optional[List[Dict[str, Any]]]:
         """Convert ScoredCandidate list to JSON-serializable dicts."""
         if decomposition is None:
             return None
+        _labels = node_labels or {}
         result = []
         for c in decomposition:
             result.append(
                 {
                     "strategy": c.strategy,
                     "node_id": c.node_id,
+                    "node_label": _labels.get(c.node_id, ""),
                     "signal_contributions": [
                         {
                             "name": sc.name,
@@ -453,6 +457,10 @@ class SimulationService:
                     "final_score": round(c.final_score, 6),
                     "rank": c.rank,
                     "selected": c.selected,
+                    # valid_when gate observability
+                    "gated": c.gated,
+                    "gate_signal": c.gate_signal,
+                    "gate_value": c.gate_value,
                 }
             )
         return result
@@ -690,6 +698,12 @@ class SimulationService:
                     "nodes_by_type": self._count_nodes_by_type(result.nodes),
                     "edges_by_type": self._count_edges_by_type(result.edges),
                 },
+                # Node label lookup for cross-referencing UUIDs in decomposition
+                "node_labels": {
+                    n.get("id", ""): n.get("label", "")
+                    for n in result.nodes
+                    if n.get("id") and n.get("label")
+                },
             },
             # Canonical graph section (canonical_slots, canonical_edges)
             "canonical_graph": {
@@ -730,10 +744,23 @@ class SimulationService:
                     "score_decomposition": t.score_decomposition,
                     # Per-stage timing in milliseconds
                     "stage_timings": t.stage_timings,
+                    # Focus node selected for this turn's question
+                    "focus_node_id": t.focus_node_id,
+                    "focus_node_label": t.focus_node_label,
                 }
                 for t in result.turns
             ],
         }
+
+        # Enrich score_decomposition entries with node labels
+        node_labels = data["graph"].get("node_labels", {})
+        for turn in data["turns"]:
+            decomposition = turn.get("score_decomposition")
+            if decomposition:
+                for candidate in decomposition:
+                    node_id = candidate.get("node_id", "")
+                    if node_id and node_id in node_labels:
+                        candidate["node_label"] = node_labels[node_id]
 
         # Write to file
         with open(filepath, "w") as f:
