@@ -1,6 +1,6 @@
 ---
 name: extract-causal-chains
-description: Use when the user asks to extract causal chains from a synthetic interview JSON (files in synthetic_interviews/). Produces a markdown report in causal_chain/ with methodology-conforming and permissive chains from both surface and canonical graphs, flagged by evidence strength, turn-order inversions, and MEC conformance. Push back if the user does not specify which source file to extract from.
+description: Use when the user asks to extract causal chains from a synthetic interview JSON (files in synthetic_interviews/). Produces a markdown report in report/causal_chain/ with methodology-conforming and permissive chains from both surface and canonical graphs, flagged by evidence strength, turn-order inversions, and MEC conformance. Push back if the user does not specify which source file to extract from.
 project: interview-system-v2
 ---
 
@@ -15,7 +15,7 @@ Validate that the interview system produces meaningful causal structure by extra
 **Source file path** — a single JSON under `synthetic_interviews/`. If the user's request is vague ("extract chains", "run on the latest one"), **stop and ask for the exact filename**. Do not guess.
 
 Everything else has documented defaults:
-- Output path: `causal_chain/<source_timestamp>_causal_chains.md` (timestamp = the `YYYYMMDD_HHMMSS` prefix of the source file)
+- Output path: `report/causal_chain/<source_timestamp>_causal_chains.md` (timestamp = the `YYYYMMDD_HHMMSS` prefix of the source file)
 - Layers: both surface and canonical
 - Chain algorithm: maximal paths, length ≥ 2, `leads_to` edges only
 - Minimum evidence: report everything, flag visually
@@ -349,7 +349,7 @@ for e in surface_edges:
             revisions.append((old, new))
 
 # Build markdown
-out_path = Path(f'causal_chain/{SOURCE.stem}_causal_chains.md')
+out_path = Path(f'report/causal_chain/{SOURCE.stem}_causal_chains.md')
 out_path.parent.mkdir(exist_ok=True)
 
 md = f"""# Causal Chain Extraction — {SOURCE.name}

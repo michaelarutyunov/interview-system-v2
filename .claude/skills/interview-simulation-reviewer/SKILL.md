@@ -31,10 +31,12 @@ If any methodology YAML was modified between runs, flag the comparison as potent
 **What to provide:**
 
 ```
-[Turn N | Strategy: strategy_name]
+[Turn N | Strategy: strategy_name | Focus: focus_node_label (focus_node_id)]
 Q: [question field]
 A: [response field]
 ```
+
+Include the strategy name — it explains the interviewer's intent. Include the focus node label to trace which concept the question targets.
 
 Include the strategy name — it explains the interviewer's intent.
 
@@ -69,19 +71,20 @@ Strengths:
 **What to provide (per turn, skip turn 0):**
 
 ```
-Turn | Phase | Depth    | Eng  | Val  | Spc  | Cert | Trend     | Selected             | Top scores
-1    | early | deep     | 0.75 | 0.50 | 1.00 | 1.00 | deepening | explore_situation    | 3.20 / 1.20
-2    | early | shallow  | 0.50 | 0.50 | 0.25 | 1.00 | stable    | explore_situation    | 3.56 / 1.54
+Turn | Phase | Depth    | Eng  | IE   | Val  | Spc  | Cert | Trend     | Selected             | Top scores
+1    | early | deep     | 0.75 | 0.60 | 0.50 | 1.00 | 1.00 | deepening | explore_situation    | 3.20 / 1.20
+2    | early | shallow  | 0.50 | 0.30 | 0.50 | 0.25 | 1.00 | stable    | explore_situation    | 3.56 / 1.54
 ...
 ```
 
-Fields: `meta.interview.phase`, `llm.response_depth`, `llm.engagement`, `llm.valence`, `llm.specificity`, `llm.certainty`, `llm.global_response_trend`, `strategy_selected`, top-2 scores from `strategy_alternatives`.
+Fields: `meta.interview.phase`, `llm.response_depth`, `llm.engagement`, `llm.intellectual_engagement`, `llm.valence`, `llm.specificity`, `llm.certainty`, `llm.global_response_trend`, `strategy_selected`, top-2 scores from `strategy_alternatives`.
 
 **Signal semantics and thresholds (0–1 normalized):**
 
 | Signal | Low concern | Healthy | High concern |
 |--------|------------|---------|--------------|
 | `engagement` | <0.40 → safety gate risk | 0.50–0.75 | — |
+| `intellectual_engagement` | <0.30 no analytical reasoning | 0.50+ | — |
 | `response_depth` | `shallow` | `moderate` | `deep` |
 | `valence` | <0.40 negative/stressed | 0.50 neutral | >0.65 positive |
 | `specificity` | <0.30 vague/abstract | 0.50+ | >0.75 concrete |
@@ -202,7 +205,9 @@ Anomalies → Investigate:
 
 *Optional but recommended. Use when the `_scoring.csv` file is available alongside the JSON.*
 
-**What the CSV provides:** Per-signal, per-node, per-strategy contribution rows for every turn. Columns: `turn_number, phase, strategy, node_id, signal_name, signal_value, signal_weight, weighted_contribution, phase_multiplier, phase_bonus, base_score, final_score, rank, selected`.
+**What the CSV provides:** Per-signal, per-node, per-strategy contribution rows for every turn. Columns: `turn_number, phase, strategy, node_id, node_label, signal_name, signal_value, signal_weight, weighted_contribution, phase_multiplier, phase_bonus, base_score, final_score, rank, selected, gated, gate_signal`.
+
+Gated rows (`gated=True`) represent (strategy, node) pairs excluded from scoring by `valid_when` gates. Filter these out before computing firing rates and signal budgets.
 
 This answers questions impractical to derive manually from JSON: which signals drove selection across the whole session, which signals never fired, and whether phase weighting changed any outcomes.
 
@@ -251,7 +256,11 @@ Node selection frequency (rank=1 turns):
 
 7. **Signal Budget Decomposition (NEW)**: For each strategy, sum positive vs negative contributions separately. Compare "signal mass" between dominant and runner-up strategies. If both have similar total mass but one wins consistently, look for structural advantages (multiplier differentials, penalty asymmetries, missing negative signals on winner).
 
-8. **Node targeting logic**: Cross-reference which node won (rank=1) with its `exhaustion_score.*` and `focus_streak.*` signals. If an exhausted node keeps winning, the exhaustion penalty may be under-weighted relative to other contributions.
+8. **Node targeting logic**: Cross-reference which node won (rank=1) with its `exhaustion_score.*` and `focus_streak.*` signals. If an exhausted node keeps winning, the exhaustion penalty may be under-weighted relative to other contributions. Use `node_label` column for human-readable node names.
+
+9. **Gate Analysis (NEW)**: Gated rows (`gated=True`) show (strategy, node) pairs excluded from scoring by `valid_when` gates. Aggregate by strategy to show how many node opportunities each gate blocked. If a strategy is never gated, its `valid_when` condition is always satisfied — the gate is vacuous for this simulation. If a strategy is always gated, it could never fire — investigate whether the gate signal is correctly configured in the methodology YAML.
+
+   **Gate diagnostic**: For each gated strategy, count how many nodes passed vs failed the gate per turn. If ALL nodes fail the gate in early turns, the strategy is structurally blocked until the graph matures.
 
 **Output format:**
 
@@ -303,8 +312,17 @@ Phase Multiplier Differential Analysis:
 → Check: phases.mid.signal_weights.<strategy> in YAML
 
 Node Targeting:
-- Top node [short-id]: selected [N] turns — [signal evidence it was correctly targeted / anomaly]
+- Top node [label] (short-id): selected [N] turns — [signal evidence it was correctly targeted / anomaly]
   → [If anomaly] Check exhaustion signal weights in config/methodologies/*.yaml
+
+Gate Analysis:
+| Strategy | Gate Signal       | Nodes Gated | Nodes Scored | Notes                |
+|----------|-------------------|-------------|--------------|----------------------|
+| ascend   | graph.node.gap_above | 12       | 3            | Early graph, few frontiers |
+| ground   | graph.node.gap_below |  8       | 7            | Balanced             |
+...
+→ [If strategy always gated] Gate condition may be too strict or graph doesn't produce needed topology
+→ [If strategy never gated] Gate is vacuous for this simulation — all nodes satisfy the condition
 ```
 
 ---
@@ -319,7 +337,8 @@ with open("synthetic_interviews/<filename>.json") as f:
 
 # Part 1 — Transcript
 for t in data["turns"]:
-    print(f'[Turn {t["turn_number"]} | Strategy: {t["strategy_selected"]}]')
+    focus = t.get("focus_node_label") or t.get("focus_node_id", "")[:8] or "—"
+    print(f'[Turn {t["turn_number"]} | Strategy: {t["strategy_selected"]} | Focus: {focus}]')
     print(f'Q: {t["question"]}')
     print(f'A: {t["response"]}')
     print()
@@ -329,8 +348,9 @@ for t in data["turns"][1:]:   # skip turn 0 (no signals)
     s = t["signals"]
     top2 = t["strategy_alternatives"][:2]
     scores = " / ".join(f'{x["score"]:.2f}' for x in top2)
+    ie = s.get("llm.intellectual_engagement", "—")
     print(f'{t["turn_number"]:>4} | {s["meta.interview.phase"]:5} | {s["llm.response_depth"]:8} | '
-          f'{s["llm.engagement"]:.2f} | {s["llm.valence"]:.2f} | {s["llm.specificity"]:.2f} | '
+          f'{s["llm.engagement"]:.2f} | {ie} | {s["llm.valence"]:.2f} | {s["llm.specificity"]:.2f} | '
           f'{s["llm.certainty"]:.2f} | {s["llm.global_response_trend"]:10} | '
           f'{t["strategy_selected"]:20} | {scores}')
 
@@ -355,7 +375,11 @@ print(f'Slots by type: {c["slots_by_type"]}')
 # Part 4 — Scoring decomposition (requires pandas; install with: uv add pandas)
 import pandas as pd
 
-df = pd.read_csv("synthetic_interviews/<filename>_scoring.csv")
+df_raw = pd.read_csv("synthetic_interviews/<filename>_scoring.csv")
+
+# Separate gated (excluded from scoring) and scored rows
+gated = df_raw[df_raw["gated"].astype(str).isin(["True", "1"])]
+df = df_raw[~df_raw["gated"].astype(str).isin(["True", "1"])]
 
 # Normalize signal_value to bool (CSV stores True/False as strings)
 df["fired"] = df["signal_value"].astype(str).isin(["True", "1"]) | (
@@ -424,9 +448,20 @@ print(budget.sort_values("net", ascending=False).to_string())
 
 # Node selection frequency — nunique handles duplicate signal rows correctly
 node_wins = (df[df["selected"] & (df["rank"] == 1)]
-             .groupby("node_id")["turn_number"]
+             .groupby(["node_id", "node_label"])["turn_number"]
              .nunique()
              .sort_values(ascending=False))
 print("\n=== Node Selection Frequency ===")
 print(node_wins.to_string())
+
+# Gate analysis — how many (strategy, node) pairs were excluded by valid_when
+print("\n=== Gate Analysis ===")
+if not gated.empty:
+    gate_summary = gated.groupby(["strategy", "gate_signal"]).agg(
+        nodes_gated=("node_id", "nunique"),
+        turns_affected=("turn_number", "nunique"),
+    ).sort_values("nodes_gated", ascending=False)
+    print(gate_summary.to_string())
+else:
+    print("No gated pairs — all strategies eligible for all nodes")
 ```

@@ -61,6 +61,16 @@ Determine if conversation evolved through multiple phases:
 - Multi-phase: Evolved through multiple areas
 - Bug-to-implementation: Started as debugging, moved to implementation
 
+**Discovery path identification:**
+For detailed Discovery Path capture, identify:
+- **Hypotheses formed**: What did we initially believe was happening?
+- **Evidence examined**: Which files, logs, signals, or docs were read to test hypotheses?
+- **Dead ends & pivots**: What approaches were tried and abandoned? Why?
+- **Mental model shifts**: How did understanding of the system change along the way?
+- **Key questions**: What clarifying questions unlocked progress?
+- **Aha trigger**: What exact observation, code line, or test result caused the breakthrough?
+- **Context switches**: Which subsystems or docs had to be consulted before returning to the main thread?
+
 ### Step 2: Interactive Metadata Collection
 Ask the user concisely in a single interaction:
 
@@ -109,14 +119,41 @@ conversation_date: {{YYYY-MM-DD}}
 ## Context
 {{Brief 2-3 sentence overview of what prompted this discussion and what was explored}}
 
-{{If multi-phase conversation, include Discovery Path section}}
+{{If multi-phase conversation OR significant intellectual journey detected, include Discovery Path section}}
 ## Discovery Path
-How this conversation evolved:
-1. **Initial problem**: {{starting point}}
-2. **Investigation**: {{what was explored}}
-3. **Insight**: {{key realization or pivot point}}
-4. **Solution**: {{approach chosen}}
-5. **Outcome**: {{result or implementation}}
+A detailed reconstruction of how understanding was built, hypothesis by hypothesis.
+
+### Starting Frame
+{{What was believed or assumed at the start of the conversation. Include the initial mental model of the problem.}}
+
+### Hypotheses & Evidence Trail
+{{For each major hypothesis tested, capture:}}
+- **Hypothesis 1**: {{what we thought was happening}}
+  - **Evidence checked**: {{files read, logs inspected, signals examined, docs referenced}}
+  - **Verdict**: {{confirmed / partially true / falsified — and why}}
+- **Hypothesis 2**: {{next best guess}}
+  - **Evidence checked**: {{...}}
+  - **Verdict**: {{...}}
+
+### Dead Ends & Pivots
+{{Approaches considered and abandoned, with reasons:}}
+- **Attempted**: {{approach or fix tried}}
+  - **Why it didn't fit**: {{contradictory evidence, scope mismatch, or side effects}}
+  - **Pivot trigger**: {{what specifically caused the change in direction}}
+
+### Context Switches
+{{Subsystems, docs, or codebases consulted along the way:}}
+- `{{file_or_doc}}`: {{why it had to be checked and what it revealed}}
+
+### The Aha Moment
+**Trigger**: {{exact observation — a line of code, a test result, a log entry, a doc clause}}
+
+**Shift**: {{how the mental model changed in that moment}}
+
+**Quote/consequence**: {{paste the key code snippet, log line, or reasoning chain that crystallized the insight}}
+
+### Final Trajectory
+{{How the corrected understanding led directly to the chosen solution or conclusion.}}
 
 {{End of conditional Discovery Path section}}
 
