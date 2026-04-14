@@ -42,7 +42,7 @@ def _cull_old_logs(logs_dir: Path, keep: int) -> None:
             pass  # Ignore permission errors, etc.
 
 
-def configure_logging(log_sessions_to_keep: int = 5) -> None:
+def configure_logging(log_sessions_to_keep: int = 20) -> None:
     """Configure structlog for the application.
 
     Call this once at application startup, before any logging.
