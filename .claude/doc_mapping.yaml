@@ -69,3 +69,8 @@ mappings:
       - "scripts/run_simulation.py"
       - "config/personas/*.yaml"
     doc: "docs/interview_ai_simulation.md"
+
+  - sources:
+      - "src/core/concept_loader.py"
+      - "config/concepts/*.yaml"
+    doc: "docs/SYSTEM_DESIGN.md"

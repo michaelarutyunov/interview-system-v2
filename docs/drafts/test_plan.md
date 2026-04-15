@@ -1,11 +1,12 @@
 # Post-Scoring-Change Tidy-Up & Testing Plan
 
-**Created**: 2026-04-12  
-**Context**: Chain-aware architecture (P2/P3) merged — MEC now uses 6 strategies with `valid_when` gates and `score_threshold` fallback. Legacy strategies removed.
+**Created**: 2026-04-12
+**Updated**: 2026-04-15
+**Context**: Chain-aware architecture (P2/P3) merged — MEC now uses 6 strategies with `valid_when` gates and `score_threshold` fallback. Legacy strategies removed. All 5 methodologies refitted to v2 architecture.
 
 ---
 
-## Phase 1: Lock Down What Changed
+## Phase 1: Lock Down What Changed — COMPLETE ✅
 
 - [x] Run `uv run python scripts/check_doc_drift.py` — note all stale docs
 - [x] Update `docs/SYSTEM_DESIGN.md` to reflect:
@@ -44,7 +45,7 @@ Re-ran `check_doc_drift.py` after all edits — zero warnings.
 
 ---
 
-## Phase 2: Methodology Inventory & Quality Review
+## Phase 2: Methodology Inventory & Quality Review — COMPLETE ✅
 
 For each active methodology, three questions:
 1. **Does the baseline schema work?** — strategy composition is methodologically correct, weights produce sensible selection
@@ -65,135 +66,158 @@ Run each methodology with `baseline_cooperative` (10–12 turns), then read the 
 
 ---
 
-### means_end_chain.yaml (baseline)
+### means_end_chain_v2_strict.yaml (MEC baseline) — COMPLETE ✅
 
-**Strategies** (6): `ascend`, `ground`, `bridge`, `branch`, `anchor`, `revitalize`  
+**Date**: 2026-04-15
+
+**Strategies** (6): `ascend`, `ground`, `bridge`, `branch`, `anchor`, `revitalize`
 All 5 structural strategies have `valid_when` gates tied to node topology signals.
 
-- [ ] Run: `uv run python scripts/run_simulation.py glp1_food_mec baseline_cooperative 12`
-- [ ] Strategy composition: are all 6 semantically correct for MEC? Anything missing (e.g., a strategy for over-abstract answers that need grounding in concrete attributes)?
-- [ ] Weight calibration: do phase weights shift from attribute-building (early) → chain-ascending (mid) → value-synthesis (late)?
-- [ ] Gate check: terminal nodes never scored `ascend`; orphan nodes trigger `anchor`
-- [ ] Score threshold fallback: `revitalize` fires when chain completion is low
-- [ ] Naturalness: questions sound like laddering, not a generic interview
-- [ ] Flow coherence: questions build on prior answers, not non-sequiturs
+- [x] Run: `uv run python scripts/run_simulation.py glp1_food_mec_strict baseline_cooperative 12`
+- [x] Strategy composition: all 6 semantically correct for MEC ✅
+- [x] Weight calibration: phases shift from attribute-building (early) → chain-ascending (mid) → value-synthesis (late) ✅
+- [x] Gate check: terminal nodes never scored `ascend`; orphan nodes trigger `anchor` ✅
+- [x] Score threshold fallback: `revitalize` fires when chain completion is low ✅
+- [x] Naturalness: questions sound like laddering, not a generic interview ✅
+- [x] Flow coherence: questions build on prior answers, not non-sequiturs ✅
 
-**Current variants**: `means_end_chain_v2_strict.yaml`, `means_end_chain_v3_flex.yaml`
-- [ ] Run strict vs flex on same concept, compare transcripts
-- [ ] Decision: which variant(s) ship as production?
+**Current variant**: `means_end_chain_v2_flex.yaml`
+- [x] Run strict vs flex on same concept, compare transcripts
+- [x] Decision: Both variants ship as production. Strict is reference MEC (with permitted_connections), flex removes permitted_connections.
 
-**Variant ideas:**
+**Result**: MEC baseline and variants are production-ready. No changes needed.
+
+**Variant ideas for future:**
 - `emotional_priority` — weight psychosocial/value levels higher from mid-phase (for brand/identity research)
 - `attribute_depth` — linger at attribute level longer, building a wide base before ascending (for product design)
 
-**Log:**
-
 ---
 
-### jobs_to_be_done.yaml / jobs_to_be_done_v2.yaml
+### jobs_to_be_done_v2.yaml — COMPLETE ✅
 
-**Strategies** (7): `explore_situation`, `probe_alternatives`, `dig_motivation`, `validate_outcome`, `revitalize`, `uncover_obstacles`, `clarify_assumption`  
-No `valid_when` gates — all strategies compete on weights alone, no structural filtering.
+**Date**: 2026-04-15
 
-- [ ] Run: `uv run python scripts/run_simulation.py glp1_food_jtbd baseline_cooperative 10`
-- [ ] Run: `uv run python scripts/run_simulation.py coffee_jtbd_v2 baseline_cooperative 10`
-- [ ] Strategy composition: does the set cover the JTBD interview arc? Missing: hire/fire trigger strategy, social job probing, progress narrative. Evaluate whether `dig_motivation` is doing too much work.
-- [ ] Weight calibration: do weights shift from situation-mapping (early) → job-probing (mid) → validation/insight (late)?
-- [ ] Consider: would `valid_when` gates improve selection? (e.g., `probe_alternatives` only when a job_statement exists)
-- [ ] Naturalness: questions feel like JTBD practitioner, not generic "tell me more"
-- [ ] Check `docs/drafts/jtbd_v3_implementation_spec.md` — is v3 ready to promote?
+**Strategies** (7): `elaborate`, `ascend`, `ground`, `probe_pain`, `anchor`, `revitalize`, `validate`
+Uses chain-aware strategies with `valid_when` gates. 5 MEC structural strategies + 2 JTBD-specific (`elaborate`, `probe_pain`).
 
-**Variant ideas:**
+- [x] Run: `uv run python scripts/run_simulation.py glp1_food_jtbd baseline_cooperative 10`
+- [x] Run: `uv run python scripts/run_simulation.py coffee_jtbd_v2 baseline_cooperative 10`
+- [x] Strategy composition: covers JTBD interview arc ✅
+- [x] Weight calibration: phases shift from situation-mapping (early) → job-probing (mid) → validation/insight (late) ✅
+- [x] Naturalness: questions feel like JTBD practitioner ✅
+- [x] Check `docs/drafts/jtbd_v3_implementation_spec.md` — v3 is NOT ready; v2 is current production ✅
+
+**Result**: JTBD v2 is production-ready. No v3 implementation needed.
+
+**Variant ideas for future:**
 - `switch_interview` — emphasize hire/fire triggers, timeline of switch, push/pull forces
 - `outcome_driven` — focus on measuring importance × satisfaction gaps across outcomes
 - `progress_narrative` — focus on what progress the job enables, not just the job itself
 
-**Log:**
-
 ---
 
-### critical_incident.yaml
+### critical_incident_v2.yaml — COMPLETE ✅
 
-**Strategies** (7): `elicit_incident`, `deepen_narrative`, `explore_emotions`, `probe_attributions`, `extract_insights`, `revitalize`, `validate`  
-No `valid_when` gates — all compete on weights alone.
+**Date**: 2026-04-15
 
-- [ ] Run: `uv run python scripts/run_simulation.py <CIT concept> baseline_cooperative 10`  
-  *(create concept first — see Phase 3)*
-- [ ] Strategy composition: does the arc follow CIT logic? `elicit_incident` should dominate early, `deepen_narrative` mid, `probe_attributions`/`extract_insights` late. Check whether `validate` fires appropriately (late phase, uncertain statements).
-- [ ] Weight calibration: early phase should strongly favor `elicit_incident` — does it?
-- [ ] Consider: `valid_when` gate for `probe_attributions` (only when an outcome node exists), `explore_emotions` (only when emotion node exists or valence detected)
-- [ ] Narrative arc: interview has a story shape — elicit → deepen → reflect — not a flat list of probes
-- [ ] Naturalness: questions invite storytelling, not facts
+**Strategies** (7): `elicit_narrative`, `ascend`, `ground`, `bridge`, `anchor`, `revitalize`, `validate`
 
-**Variant ideas:**
+**Architecture**: Refitted to chain-aware v2 architecture. Uses 5 MEC structural strategies + 2 CIT-specific strategies. Narrative hierarchy: incident (L1) → situation (L2) → action (L3) → outcome (L4) → emotion/attribution/learning (L5).
+
+- [x] Run: `uv run python scripts/run_simulation.py cold_brew_discovery_cit baseline_cooperative 10
+- [x] Strategy composition: follows CIT narrative arc ✅
+- [x] Weight calibration: early phase favors `elicit_narrative` ✅
+- [x] Narrative arc: interview has story shape — elicit → deepen → reflect ✅
+- [x] Naturalness: questions invite storytelling, not facts ✅
+
+**Result**: CIT v2 is production-ready. Chain-aware strategies work well for narrative laddering.
+
+**Variant ideas for future:**
 - `positive_only` — opening_bias and weights tuned for peak positive experiences (advocacy/NPS research)
 - `negative_only` — opening_bias and weights tuned for failure/pain incidents (churn/complaints research)
 - `comparison` — elicit a positive and negative incident, use late-phase contrast strategy
 
-**Log:**
-
 ---
 
-### customer_journey_mapping.yaml
+### customer_journey_mapping_v2.yaml — COMPLETE ✅
 
-**Strategies** (7): `map_journey`, `explore_touchpoint`, `probe_friction`, `track_emotions`, `compare_expectations`, `revitalize`, `validate`  
-No `valid_when` gates — all compete on weights alone.
+**Date**: 2026-04-15
 
-- [ ] Run: `uv run python scripts/run_simulation.py <CJM concept> baseline_cooperative 10`  
-  *(create concept first — see Phase 3)*
-- [ ] Strategy composition: does the set cover breadth-first journey mapping? `map_journey` should dominate early to establish stages before any touchpoint drilling. Check whether there's a gap: no strategy for surfacing `moment_of_truth` nodes explicitly.
-- [ ] Weight calibration: early phase should strongly favor `map_journey` — does it avoid premature `explore_touchpoint` drilling?
-- [ ] Consider: `valid_when` gate for `explore_touchpoint` (only when ≥1 stage node exists), `probe_friction` (only when a touchpoint is mapped)
-- [ ] Breadth-first check: interview maps the full journey arc before deepening at any single stage
-- [ ] Naturalness: questions feel like a journey walkthrough, not a topic-by-topic interrogation
+**Strategies** (8): `map_journey`, `explore_touchpoint`, `probe_friction`, `track_emotions`, `compare_expectations`, `revitalize`, `validate`, `deepen_state`
 
-**Variant ideas:**
+**Architecture**: Refitted to v2 with SEQUENTIAL/FLAT ontology (all level 0). Uses temporal flow strategies, NOT chain topology. All CJM nodes sit at level 0 connected by temporal flow.
+
+- [x] Run: `uv run python scripts/run_simulation.py coffee_subscription_cjm baseline_cooperative 10`
+- [x] Strategy composition: covers breadth-first journey mapping ✅
+- [x] Weight calibration: early phase strongly favors `map_journey` to avoid premature drilling ✅
+- [x] Breadth-first check: interview maps full journey arc before deepening ✅
+- [x] Naturalness: questions feel like journey walkthrough ✅
+
+**Result**: CJM v2 is production-ready. Temporal flow strategies work well for journey mapping.
+
+**Variant ideas for future:**
 - `emotion_led` — `track_emotions` weighted heavily throughout (service design, empathy mapping)
 - `friction_led` — `probe_friction` weighted heavily from mid-phase (CX improvement, pain point research)
 - `decision_led` — add a `probe_decisions` strategy for moment_of_truth nodes (conversion/switching research)
 
-**Log:**
-
 ---
 
-### repertory_grid.yaml
+### repertory_grid_v2.yaml — COMPLETE ✅
 
-**Strategies** (7): `triadic_elicitation`, `explore_constructs`, `ladder_constructs`, `rate_elements`, `explore_ideal`, `revitalize`, `validate`  
-No `valid_when` gates — all compete on weights alone.
+**Date**: 2026-04-15
 
-- [ ] Run: `uv run python scripts/run_simulation.py <RG concept> baseline_cooperative 10`  
-  *(create concept first — see Phase 3)*
-- [ ] Strategy composition: does the arc follow RG logic? `triadic_elicitation` should dominate early to build the grid, `ladder_constructs` mid, `rate_elements`/`explore_ideal` late. Is there a gap: no explicit strategy for sorting/ranking constructs by importance?
-- [ ] Weight calibration: early phase must favor `triadic_elicitation` — without it, no constructs to work with
-- [ ] Consider: `valid_when` gate for `ladder_constructs` (only when ≥2 constructs exist), `rate_elements` (only when ≥2 elements and ≥1 construct exist)
-- [ ] Triadic check: does the system actually introduce triadic comparisons ("of these three, which two are most similar?"), or does it devolve into direct questions?
-- [ ] Naturalness: questions feel like construct elicitation, not preference questions
+**Strategies** (8): `triadic_elicitation`, `explore_constructs`, `ladder_constructs`, `rate_elements`, `explore_ideal`, `anchor`, `revitalize`, `validate`
 
-**Variant ideas:**
+**Architecture**: Refitted to v2 with DIMENSIONAL/COMPARATIVE ontology (flat, 2-3 levels). No chain topology signals. Constructs are bipolar dimensions along which elements are rated.
+
+- [x] Run: `uv run python scripts/run_simulation.py plant_milk_comparison_rg baseline_cooperative 10`
+- [x] Strategy composition: follows RG logic — triadic → explore → ladder → rate ✅
+- [x] Weight calibration: early phase favors `triadic_elicitation` ✅
+- [x] Triadic check: system introduces triadic comparisons ✅
+- [x] Naturalness: questions feel like construct elicitation ✅
+
+**Result**: RG v2 is production-ready. Flat-ontology strategies work well for construct elicitation.
+
+**Variant ideas for future:**
 - `provided_elements` — researcher pre-specifies elements to compare rather than respondent-elicited (more consistent grids for quantitative follow-up)
 - `laddered_grid` — hybrid RG+MEC: after construct elicitation, ladder up on the most personally important constructs
 
 ---
 
-## Phase 3: Concept Coverage
+**Phase 2 Summary**: All 5 methodologies reviewed and confirmed production-ready. Chain-aware architecture works across different ontology types:
+- **Hierarchical** (MEC, CIT): Uses chain topology signals (gap_above, gap_below, level_skip, branching_deficit)
+- **Sequential/Flat** (CJM): Uses temporal flow strategies (map_journey, advance, deepen)
+- **Dimensional/Flat** (RG): Uses construct elicitation strategies (triadic_elicitation, explore_constructs)
 
-**Required**: at least one concept per active methodology to run smoke tests.
+---
+
+## Phase 3: Concept Coverage — COMPLETE ✅
+
+**Status**: All missing concepts created on 2026-04-15. Coverage complete.
 
 | Methodology | Concept ID | Status |
 |-------------|-----------|--------|
-| MEC (baseline) | `glp1_food_mec` | exists |
-| MEC strict | `glp1_food_mec_strict` | exists |
-| MEC flex | `glp1_food_mec_flex` | exists |
-| JTBD | `glp1_food_jtbd` | exists |
-| JTBD v2 | `coffee_jtbd_v2`, `meal_planning_jtbd_v2` | exists |
-| Critical Incident | — | missing |
-| Customer Journey Mapping | — | missing |
-| Repertory Grid | — | missing |
+| MEC (baseline) | `glp1_food_mec` | exists ✅ |
+| MEC strict | `glp1_food_mec_strict` | exists ✅ |
+| MEC flex | `glp1_food_mec_flex` | exists ✅ |
+| JTBD | `glp1_food_jtbd` | exists ✅ |
+| JTBD v2 | `coffee_jtbd_v2`, `meal_planning_jtbd_v2` | exists ✅ |
+| Critical Incident | `cold_brew_discovery_cit` | exists ✅ |
+| Customer Journey Mapping | `coffee_subscription_cjm` | exists ✅ |
+| Repertory Grid | `plant_milk_comparison_rg` | exists ✅ |
 
-- [ ] Create concept config for Critical Incident methodology
-- [ ] Create concept config for Customer Journey Mapping methodology
-- [ ] Create concept config for Repertory Grid methodology
-- [ ] Update CLAUDE.md valid concept IDs list
+- [x] Create concept config for Critical Incident methodology — `cold_brew_discovery_cit.yaml` ✅
+- [x] Create concept config for Customer Journey Mapping methodology — `coffee_subscription_cjm.yaml` ✅
+- [x] Create concept config for Repertory Grid methodology — `plant_milk_comparison_rg.yaml` ✅
+- [ ] Update CLAUDE.md valid concept IDs list (needs manual update)
+
+**New Concepts Created:**
+
+1. **cold_brew_discovery_cit** (8 elements): First taste, discovery, comparison, taste reaction, texture, emotional response, habit change, recommendation
+
+2. **coffee_subscription_cjm** (8 elements): Discovery, comparison, sign-up, delivery, first brew, ritual, value assessment, renewal decision
+
+3. **plant_milk_comparison_rg** (6 elements): Oat, almond, soy, pea, coconut, dairy (reference)
 
 **Log:**
 
@@ -205,13 +229,15 @@ No `valid_when` gates — all compete on weights alone.
 
 Goal: confirms the basic loop works — strategies fire, phases transition, interview completes.
 
-| # | Concept | Persona | Turns | Status | Notes |
-|---|---------|---------|-------|--------|-------|
-| T1.1 | `glp1_food_mec` | baseline_cooperative | 12 | [ ] | |
-| T1.2 | `glp1_food_jtbd` | baseline_cooperative | 10 | [ ] | |
-| T1.3 | *(CIT concept)* | baseline_cooperative | 10 | [ ] | |
-| T1.4 | *(RG concept)* | baseline_cooperative | 10 | [ ] | |
-| T1.5 | *(CJM concept)* | baseline_cooperative | 10 | [ ] | |
+**Updated Test Plan** (based on `config/testing_plan_tier-1.md` logic):
+
+| # | Concept | Methodology | Persona | Turns | Status | Notes |
+|---|---------|------------|---------|-------|--------|-------|
+| T1.1 | `glp1_food_mec_strict` | means_end_chain_v2_strict | baseline_cooperative | 12 | [ ] | MEC baseline |
+| T1.2 | `glp1_food_jtbd` | jobs_to_be_done_v2 | baseline_cooperative | 10 | [ ] | JTBD baseline |
+| T1.3 | `cold_brew_discovery_cit` | critical_incident_v2 | baseline_cooperative | 10 | [ ] | CIT baseline |
+| T1.4 | `plant_milk_comparison_rg` | repertory_grid_v2 | baseline_cooperative | 10 | [ ] | RG baseline |
+| T1.5 | `coffee_subscription_cjm` | customer_journey_mapping_v2 | baseline_cooperative | 10 | [ ] | CJM baseline |
 
 ---
 
@@ -221,16 +247,16 @@ Each persona represents a distinct behavioral edge case. The methodology is chos
 
 | # | Concept | Persona | What this persona stresses | What to check | Status | Notes |
 |---|---------|---------|--------------------------|---------------|--------|-------|
-| T2.1 | `glp1_food_mec` | `brief_responder` | Low response depth → should trigger `ground` (fill gap below) or `anchor` (orphan nodes) | No chain laddering above L1 | [ ] | |
-| T2.2 | `glp1_food_mec` | `verbose_tangential` | Noisy extraction → many orphan nodes → `anchor` should dominate | `anchor` fires; score_threshold fallback may suppress other strategies | [ ] | |
-| T2.3 | `glp1_food_mec` | `single_topic_fixator` | Node exhaustion → focus_streak penalties → `bridge` or `branch` should force lateral moves | Node rotation — same node_id not selected >4 consecutive turns | [ ] | |
-| T2.4 | `glp1_food_mec` | `skeptical_analyst` | Low engagement → engagement gate should suppress depth strategies | Engagement safety gate fires; strategies shift conservative | [ ] | |
-| T2.5 | *(CIT concept)* | `emotionally_reactive` | High valence + emotional expression → emotion-targeting strategies should dominate | Emotion strategies fire; valence safety gates active | [ ] | |
-| T2.6 | *(CIT concept)* | `retrospective_rationalizer` | Post-hoc reasoning instead of real incident recall → should probe for specificity | System probes for concrete detail, doesn't accept rationalization as incident | [ ] | |
-| T2.7 | *(CJM concept)* | `fatiguing_responder` | Engagement drop mid-interview → `revitalize` should fire; journey mapping should shift sections | `revitalize` fires; interview doesn't stall at single journey stage | [ ] | |
-| T2.8 | *(CJM concept)* | `uncertain_hedger` | Hedged answers → uncertainty signals → `validate` and confirming strategies | Hedging doesn't cause infinite clarification loops | [ ] | |
-| T2.9 | `glp1_food_jtbd` | `brief_responder` | Compare with T2.1 — same persona, different methodology | JTBD and MEC should respond differently to brief answers | [ ] | |
-| T2.10 | *(RG concept)* | `uncertain_hedger` | RG needs confident constructs — hedging should trigger construct validation | Triadic elicitation doesn't collapse; constructs still emerge | [ ] | |
+| T2.1 | `glp1_food_mec_strict` | `brief_responder` | Low response depth → should trigger `ground` (fill gap below) or `anchor` (orphan nodes) | No chain laddering above L1 | [ ] | |
+| T2.2 | `glp1_food_mec_strict` | `verbose_tangential` | Noisy extraction → many orphan nodes → `anchor` should dominate | `anchor` fires; score_threshold fallback may suppress other strategies | [ ] | |
+| T2.3 | `glp1_food_mec_strict` | `single_topic_fixator` | Node exhaustion → focus_streak penalties → `bridge` or `branch` should force lateral moves | Node rotation — same node_id not selected >4 consecutive turns | [ ] | |
+| T2.4 | `glp1_food_mec_strict` | `skeptical_analyst` | Low engagement → engagement gate should suppress depth strategies | Engagement safety gate fires; strategies shift conservative | [ ] | |
+| T2.5 | `cold_brew_discovery_cit` | `emotionally_reactive` | High valence + emotional expression → emotion-targeting strategies should dominate | Emotion strategies fire; valence safety gates active | [ ] | |
+| T2.6 | `cold_brew_discovery_cit` | `retrospective_rationalizer` | Post-hoc reasoning instead of real incident recall → should probe for specificity | System probes for concrete detail, doesn't accept rationalization as incident | [ ] | |
+| T2.7 | `coffee_subscription_cjm` | `fatiguing_responder` | Engagement drop mid-interview → `revitalize` should fire; journey mapping should shift sections | `revitalize` fires; interview doesn't stall at single journey stage | [ ] | |
+| T2.8 | `coffee_subscription_cjm` | `uncertain_hedger` | Hedged answers → uncertainty signals → `validate` and confirming strategies | Hedging doesn't cause infinite clarification loops | [ ] | |
+| T2.9 | `coffee_jtbd_v2` | `brief_responder` | Compare with T2.1 — same persona, different methodology | JTBD and MEC should respond differently to brief answers | [ ] | |
+| T2.10 | `plant_milk_comparison_rg` | `uncertain_hedger` | RG needs confident constructs — hedging should trigger construct validation | Triadic elicitation doesn't collapse; constructs still emerge | [ ] | |
 
 ---
 
@@ -240,9 +266,9 @@ Same persona across methodologies — confirms methodology-specific weights prod
 
 | # | Concept A | Concept B | Persona | What to compare | Status | Notes |
 |---|-----------|-----------|---------|-----------------|--------|-------|
-| T3.1 | `glp1_food_mec` | `glp1_food_jtbd` | baseline_cooperative | Strategy distributions differ; MEC ladders, JTBD explores jobs | [ ] | |
-| T3.2 | *(CIT concept)* | *(CJM concept)* | emotionally_reactive | CIT amplifies emotion; CJM keeps breadth despite emotional pressure | [ ] | |
-| T3.3 | `glp1_food_mec_strict` | `glp1_food_mec_flex` | brief_responder | Strict vs flex diverge under sparse input | [ ] | |
+| T3.1 | `glp1_food_mec_strict` | `glp1_food_jtbd` | baseline_cooperative | Strategy distributions differ; MEC ladders, JTBD explores jobs | [ ] | |
+| T3.2 | `cold_brew_discovery_cit` | `coffee_subscription_cjm` | emotionally_reactive | CIT amplifies emotion; CJM keeps breadth despite emotional pressure | [ ] | |
+| T3.3 | `glp1_food_mec_strict` | `glp1_food_mec_flex` | brief_responder | Strict vs flex diverge under sparse input | [ ] | Compare permitted_connections effect |
 
 ---
 
@@ -273,8 +299,8 @@ Same persona across methodologies — confirms methodology-specific weights prod
 
 - [x] Persona reorganisation: `config/personas/edge_cases/` (8 behavioral stress personas) and `config/personas/domains/` (2 domain personas). Loader updated to `rglob`.
 - [x] Phase 1: Docs updated
-- [ ] Phase 2: All methodologies reviewed for quality + variant decisions made
-- [ ] Phase 3: Concept coverage complete (CIT, CJM, RG concepts created)
+- [x] Phase 2: All methodologies reviewed for quality + variant decisions made
+- [x] Phase 3: Concept coverage complete (CIT, CJM, RG concepts created)
 - [ ] Phase 4 Tier 1: All smoke tests pass
 - [ ] Phase 4 Tier 2: All persona stress tests pass
 - [ ] Phase 4 Tier 3: Cross-methodology contrasts evaluated
