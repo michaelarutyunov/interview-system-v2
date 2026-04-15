@@ -233,11 +233,11 @@ Goal: confirms the basic loop works — strategies fire, phases transition, inte
 
 | # | Concept | Methodology | Persona | Turns | Status | Notes |
 |---|---------|------------|---------|-------|--------|-------|
-| T1.1 | `glp1_food_mec_strict` | means_end_chain_v2_strict | baseline_cooperative | 12 | [ ] | MEC baseline |
-| T1.2 | `glp1_food_jtbd` | jobs_to_be_done_v2 | baseline_cooperative | 10 | [ ] | JTBD baseline |
-| T1.3 | `cold_brew_discovery_cit` | critical_incident_v2 | baseline_cooperative | 10 | [ ] | CIT baseline |
-| T1.4 | `plant_milk_comparison_rg` | repertory_grid_v2 | baseline_cooperative | 10 | [ ] | RG baseline |
-| T1.5 | `coffee_subscription_cjm` | customer_journey_mapping_v2 | baseline_cooperative | 10 | [ ] | CJM baseline |
+| T1.1 | `glp1_food_mec_strict` | means_end_chain_v2_strict | baseline_cooperative | 12 | ⚠️ | RED FLAG: 7× consecutive ascend, no validate closing |
+| T1.2 | `glp1_food_jtbd` | jobs_to_be_done_v2 | baseline_cooperative | 10 | ✅ | PASS: Proper validate closing, good diversity |
+| T1.3 | `cold_brew_discovery_cit` | critical_incident_v2 | baseline_cooperative | 10 | ✅ | PASS: Proper validate closing, narrative structure intact |
+| T1.4 | `plant_milk_comparison_rg` | repertory_grid_v2 | baseline_cooperative | 10 | ⚠️ | RED FLAG: No validate closing, 3× consecutive ladder_construct |
+| T1.5 | `coffee_subscription_cjm` | customer_journey_mapping_v2 | baseline_cooperative | 10 | ✅ | PASS: Proper validate closing, healthy deepen/emotions alternation |
 
 ---
 
@@ -289,9 +289,105 @@ Same persona across methodologies — confirms methodology-specific weights prod
 
 ## Phase 5: Calibration Log
 
+### Tier 1 Smoke Tests - 2026-04-15
+
+| Test | Result | Key Findings |
+|------|--------|--------------|
+| T1.1 MEC | ⚠️ ISSUE | No `validate` closing, 7× consecutive `ascend`, only 3 unique strategies |
+| T1.2 JTBD | ✅ PASS | Proper termination, 4 unique strategies, healthy rotation |
+| T1.3 CIT | ✅ PASS | Proper termination, narrative structure intact, good diversity |
+| T1.4 RG | ⚠️ ISSUE | No `validate` closing, 3× consecutive `ladder_construct`, hit max turns |
+| T1.5 CJM | ✅ PASS | Proper termination, healthy deepen/emotions alternation |
+
+**Root Causes Identified**:
+1. MEC & RG: `validate` late-phase gate too aggressive (-3.0 penalty)
+2. MEC & RG: Repetition penalties insufficient for chain-aware strategies
+3. RG: Score threshold too low (0.03) - conversation-level strategies activate too early
+
+**Calibration Actions Needed**:
+1. Reduce `validate` late-phase gate from -3.0 to -1.5
+2. Increase RG score_threshold from 0.03 to 0.05
+3. Review repetition penalties for `ascend` and `ladder_construct`
+
+See `docs/drafts/tier1_test_summary.md` for detailed analysis.
+
+---
+
+### Tier 2 Persona Stress Tests - 2026-04-15
+
+| Test | Persona | Methodology | Result | Key Findings |
+|------|---------|-------------|--------|--------------|
+| T2.2 | verbose_tangential | MEC strict | ⚠️ ISSUE | Ascend dominance, never ladders from deep content |
+| T2.3 | single_topic_fixator | MEC strict | ⚠️ ISSUE | Node targeting stuck 4+ turns, validate closure absent |
+| T2.5 | emotionally_reactive | CIT | ⚠️ ISSUE | Ascend at 78%, elicit_narrative only 11% |
+| T2.6 | retrospective_rationalizer | CIT | ⚠️ ISSUE | Ascend at 78%, turns 4-5 elicit_narrative loop |
+| T2.9 | brief_responder | JTBD | ⚠️ ISSUE | Revitalize at 70%, max turns hit |
+| T2.10 | uncertain_hedger | RG | ⚠️ ISSUE | Ladder_construct streaks, triadic logic weak |
+
+**External Critique Integration** (LLM review of moderator professionalism):
+
+| Critique Theme | Transcripts Noting | Data Confirms? |
+|----------------|--------------------|-----------------|
+| Strategy repetition / monotony | 4/5 | Yes — ascend dominance, ground dominance, ladder_construct streaks |
+| Focus node ↔ question content mismatch | 4/5 | Partially — CSV shows WHICH node won, not whether question matched |
+| No tangent/contradiction management | 3/5 | Cannot confirm from CSV — question generation gap |
+| Method-specific structural failures | 3/5 | Yes — ground at 78%, never ladders in MEC |
+
+**Calibration Actions Applied** (Tier 2 + Critique):
+
+1. MEC strict: Reduced fan_in (0.067→0.033), recency (0.20→0.15), foundation (0.400→0.200); strengthened exhaustion (-0.6→-0.8), focus_count.high (-0.4→-0.8), repetition (-0.5→-1.5); added response_depth.deep (+0.3) for ascend, response_depth.deep (-0.3) for validate; added validate strategy (was missing!); late phase branch boost (1.1→1.3)
+2. JTBD: Flipped revitalize repetition (+0.15→-0.5) to prevent brief-responder loops; added elaborate response_depth.surface (+0.4) and shallow (+0.3); boosted elaborate specificity.low (0.2→0.4); elaborate phase bonus (0.1→0.2)
+3. CIT: Boosted elicit_narrative specificity.low (0.7→0.9), certainty.low (0.4→0.6); added certainty.mid (+0.3), valence.high (+0.3), valence.low (+0.2); reduced self-penalty (-0.7→-0.5); strengthened ascend repetition (-0.15→-0.5); late phase elicit_narrative boost (+0.2)
+4. RG: Reduced ladder_construct positive mass (intellectual_engagement 0.5→0.3, engagement 0.4→0.2, response_depth 0.4→0.25); strengthened repetition (-1.2→-2.0); reduced explore_ideal late bonus (0.5→0.3); boosted validate late (0.8→1.0); added late phase bonuses
+5. CJM: Boosted advance_stage focus_streak.high (0.6→0.9); mid phase advance_stage (1.2→1.3)
+
+See `docs/drafts/tier2_test_summary.md` and `docs/drafts/persona_stress_test_analysis.md` for detailed analysis.
+
+---
+
+### Detailed Calibration Log
+
 | Run | Issue observed | Change made | Result |
 |-----|---------------|-------------|--------|
-| | | | |
+| T1.1 MEC baseline | 7× ascend, no validate | Added validate strategy, reduced ascend positive mass | Pending T4.1 |
+| T1.4 RG baseline | No validate, ladder_construct streak | Boosted validate, reduced ladder_construct mass | Pending T4.1 |
+| T2.2 MEC verbose | Never ladders from deep content | Added response_depth.deep to ascend | Pending T4.1 |
+| T2.5 CIT emotional | Ascend 78% dominance | Boosted elicit_narrative, strengthened ascend brake | Pending T4.1 |
+| T2.9 JTBD brief | Revitalize 70% loop | Flipped revitalize escape valve, boosted elaborate | Pending T4.1 |
+
+---
+
+## Phase 4.1: Post-Calibration Re-Test — TODO
+
+Re-run Tier 1 and Tier 2 tests with tuned YAMLs to verify calibration effectiveness.
+
+### Tier 1 Re-Tests (baseline_cooperative)
+
+| # | Concept | Methodology | Persona | Turns | Status | Notes |
+|---|---------|------------|---------|-------|--------|-------|
+| T4.1.1 | `glp1_food_mec_strict` | means_end_chain_v2_strict | baseline_cooperative | 12 | [ ] | Verify: ascend streak <4, validate closes |
+| T4.1.2 | `glp1_food_jtbd` | jobs_to_be_done_v2 | baseline_cooperative | 10 | [ ] | Verify: revitalize <40%, elaborate fires |
+| T4.1.3 | `cold_brew_discovery_cit` | critical_incident_v2 | baseline_cooperative | 10 | [ ] | Verify: elicit_narrative >25%, ascend <50% |
+| T4.1.4 | `plant_milk_comparison_rg` | repertory_grid_v2 | baseline_cooperative | 10 | [ ] | Verify: ladder_construct <40%, validate closes |
+| T4.1.5 | `coffee_subscription_cjm` | customer_journey_mapping_v2 | baseline_cooperative | 10 | [ ] | Verify: advance_stage fires at least once |
+
+### Tier 2 Re-Tests (edge-case personas — previously failing tests only)
+
+| # | Concept | Methodology | Persona | Turns | Status | Notes |
+|---|---------|------------|---------|-------|--------|-------|
+| T4.1.6 | `glp1_food_mec_strict` | means_end_chain_v2_strict | verbose_tangential | 10 | [ ] | Verify: ascend <60%, deep content triggers laddering |
+| T4.1.7 | `glp1_food_mec_strict` | means_end_chain_v2_strict | single_topic_fixator | 10 | [ ] | Verify: node rotation (5+ distinct in 10 turns) |
+| T4.1.8 | `cold_brew_discovery_cit` | critical_incident_v2 | emotionally_reactive | 10 | [ ] | Verify: elicit_narrative >20%, ascend <60% |
+| T4.1.9 | `glp1_food_jtbd` | jobs_to_be_done_v2 | brief_responder | 10 | [ ] | Verify: revitalize <40%, elaborate >25% |
+| T4.1.10 | `plant_milk_comparison_rg` | repertory_grid_v2 | uncertain_hedger | 10 | [ ] | Verify: ladder_construct <40%, triadic fires |
+
+### New Skill Review
+
+After re-tests, run the updated `/interview-simulation-reviewer` skill on each transcript. The skill now includes:
+- Part 1.5: Focus Node Fidelity Check (question ↔ node alignment)
+- Part 1: Contradiction/tangent/resistance detection
+- Part 2: Depth momentum tracking + methodology fidelity audit
+- Part 4: Signal-to-question traceability
 
 ---
 
@@ -301,7 +397,18 @@ Same persona across methodologies — confirms methodology-specific weights prod
 - [x] Phase 1: Docs updated
 - [x] Phase 2: All methodologies reviewed for quality + variant decisions made
 - [x] Phase 3: Concept coverage complete (CIT, CJM, RG concepts created)
-- [ ] Phase 4 Tier 1: All smoke tests pass
-- [ ] Phase 4 Tier 2: All persona stress tests pass
+- [x] Phase 4 Tier 1: Smoke tests complete — 3/5 pass, 2 issues found
+- [x] Phase 4 Tier 2: Persona stress tests complete — all edge cases tested
+- [x] Phase 4 Calibration: YAML tuning applied based on quantitative + qualitative analysis
+- [ ] Phase 4.1: Post-calibration re-test (10 tests)
 - [ ] Phase 4 Tier 3: Cross-methodology contrasts evaluated
 - [ ] Phase 5: Weights calibrated, no red flags
+
+### Open Beads (code/prompt fixes from critique)
+
+| Bead | Description | Priority |
+|------|-------------|----------|
+| tks0 | Fix focus node ↔ question mismatch | P2 |
+| 47eo | Add tangent/contradiction management to prompts | P2 |
+| r52u | Fix RG triadic logic (dyadic→triadic comparisons) | P2 |
+| 0gj2 | Fix concept extraction duplication across turns | P3 |

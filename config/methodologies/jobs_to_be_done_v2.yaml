@@ -264,7 +264,12 @@ strategies:
       # Repetition brake — prevent elaborate monoculture
       temporal.strategy_repetition_count: -0.7
       # Specificity — low specificity means respondent is still surface-level, explore is appropriate
-      llm.specificity.low: 0.2
+      # T2 + Critique: boosted from 0.2 to 0.4 to strengthen trigger on brief answers
+      llm.specificity.low: 0.4
+      # Response depth — T2 + Critique: trigger elaboration on shallow answers
+      # Routes brief answers to breadth exploration instead of revitalize fatigue loop
+      llm.response_depth.surface: 0.4
+      llm.response_depth.shallow: 0.3
 
   # Strategy 2: Ascend — move from functional job toward emotional/social driver
   # Replaces legacy dig_motivation. Binds to nodes with gap_above (functional
@@ -283,8 +288,8 @@ strategies:
       graph.node.exhaustion_score: -0.6
       graph.node.focus_count.high: -0.4
       graph.node.focus_count.medium: -0.2
-      # Chain foundation — ascend is productive when chains have functional roots
-      graph.node.chain.has_attribute_foundation.true: 0.4
+      # Chain foundation — T2 calibration: reduced from 0.4 to 0.2 to prevent ground dominance
+      graph.node.chain.has_attribute_foundation.true: 0.2
       graph.node.chain.has_attribute_foundation.false: -0.5
       # Engagement — engaged respondent = safe to probe deeper
       llm.engagement.low: -0.3
@@ -396,9 +401,12 @@ strategies:
       llm.engagement.high: -0.4
       llm.intellectual_engagement.low: 0.2  # Analytical disengagement = switch topics
       llm.valence.low: 0.5
-      # Repetition — slight positive valve to allow re-triggering, but heavy
-      # penalty at high repetition to prevent revitalize loops
-      temporal.strategy_repetition_count: 0.15
+      # Repetition — T2 + Critique: FLIPPED from +0.15 to -0.5
+      # The +0.15 "escape valve" created runaway loops with brief responders:
+      # brief → fatigue signal → revitalize → still brief → revitalize again
+      temporal.strategy_repetition_count: -0.5
+      # High-streak brake: prevent revitalize loops at 3+ consecutive
+      temporal.strategy_repetition_count.high: -1.0
       # Specificity — low specificity alone should not trigger revitalize
       llm.specificity.low: -0.2
       # Late-phase suppression — allow structural strategies to re-assert
@@ -482,7 +490,7 @@ phases:
       revitalize: 1.0
       validate: 0.2           # Strongly suppressed — too early to wrap up
     phase_bonuses:
-      elaborate: 0.1          # Small additive bonus for breadth exploration
+      elaborate: 0.2          # T2 calibration: increased from 0.1 to 0.2 to ensure breadth exploration
 
   mid:
     description: "Building depth and connections"

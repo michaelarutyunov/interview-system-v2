@@ -5,7 +5,7 @@ description: Use when reviewing a simulated interview from interview-system-v2 t
 
 # Interview Simulation Reviewer
 
-Four-part structured review of simulation output. Each part has a defined input format, embedded domain knowledge, and produces actionable findings with specific module/config pointers. Parts 1–3 use the JSON file. Part 4 uses the scoring CSV (optional but recommended).
+Five-part structured review of simulation output. Each part has a defined input format, embedded domain knowledge, and produces actionable findings with specific module/config pointers. Parts 1–3 use the JSON file. Part 4 uses the scoring CSV (optional but recommended). Part 1.5 bridges qualitative transcript assessment with quantitative scoring by checking whether the LLM's generated questions faithfully execute the scoring engine's decisions.
 
 **Output**: Save the complete review as `synthetic_interviews/review_<json_filename_without_extension>.md`. For example, if the input is `20260306_223341_meal_planning_jtbd_v2_baseline_cooperative.json`, save to `synthetic_interviews/review_20260306_223341_meal_planning_jtbd_v2_baseline_cooperative.md`.
 
@@ -38,8 +38,6 @@ A: [response field]
 
 Include the strategy name — it explains the interviewer's intent. Include the focus node label to trace which concept the question targets.
 
-Include the strategy name — it explains the interviewer's intent.
-
 **Assess against qualitative interview best practices:**
 
 - **Openness**: Are questions open-ended? Flag yes/no questions or questions with assumed answers.
@@ -48,6 +46,9 @@ Include the strategy name — it explains the interviewer's intent.
 - **Question complexity**: Flag multi-part, overly long, or jargon-heavy questions.
 - **Leading**: Does phrasing suggest the expected answer?
 - **Strategy-intent fit**: Given the active strategy, does the question make sense? (e.g., `dig_motivation` should probe the "why", not introduce new topics)
+- **Contradiction handling**: When the respondent makes contradictory statements across turns (e.g., "craving was gone" then "I want pasta"), does the interviewer's next question acknowledge or resolve the contradiction? If not → flag as `missed_contradiction`. A skilled moderator would clarify the tension rather than let it stand.
+- **Tangent management**: When the respondent's answer contains content unrelated to the focus node or strategy intent, does the next question redirect or follow the tangent? If the interviewer follows 3+ consecutive tangents without redirecting → flag as `tangent_captured`. A skilled moderator would briefly acknowledge the tangent then redirect to the focus.
+- **Resistance adaptation**: When the respondent explicitly redirects ("that's not the main thing", "what I keep coming back to is"), does the interviewer adapt or continue its current trajectory? If the interviewer ignores 2+ explicit redirects → flag as `resistance_ignored`.
 
 **Output format:**
 
@@ -56,11 +57,48 @@ TRANSCRIPT QUALITY
 Overall: [1-2 sentence summary]
 
 Flags:
-- Turn N [strategy]: [issue] — [category: closed/leading/redirect/complex/strategy-mismatch]
+- Turn N [strategy]: [issue] — [category: closed/leading/redirect/complex/strategy-mismatch/missed_contradiction/tangent_captured/resistance_ignored]
+
+Behavioral Pattern Summary:
+- Tangents: [N] tangential responses detected → [redirected/ignored/captured]
+- Contradictions: [N] contradictions detected → [resolved/unresolved]
+- Resistance: [N] explicit redirects by respondent → [adapted/ignored]
 
 Strengths:
 - [What worked]
 ```
+
+---
+
+## Part 1.5 — Focus Node Fidelity Check
+
+This section bridges qualitative transcript assessment (Part 1) with quantitative scoring analysis (Parts 2–4). The scoring engine selects a (strategy, node) pair, but the LLM question generator may not faithfully execute that decision. This section detects the gap.
+
+**What to check:** For each turn with a focus node, verify that the generated question is semantically aligned with the declared focus node concept.
+
+**Assess:**
+
+1. **Focus node reference**: Does the question explicitly reference or build from the focus node's concept? The question doesn't need to name the node verbatim, but it should be grounded in the same semantic territory.
+2. **Strategy-node coherence**: Given the strategy's declared intent (e.g., `ascend` = ladder upward from this node), does the question plausibly execute that intent on that node?
+3. **Question generation drift**: Does the question pivot to an unrelated topic that the respondent mentioned but that has no connection to the selected node? This indicates the question generator is attending to the raw response text rather than the scored focus node.
+
+**Output format:**
+
+```
+FOCUS NODE FIDELITY
+Fidelity Rate: [N/M turns faithful] — [acceptable / concern]
+
+Mismatches:
+- Turn N [strategy]: focus_node="X" but question probes "Y"
+  → Question generation diverged from scoring intent
+  → Likely cause: LLM attended to respondent's tangential content instead of focus node
+  → Fix: src/llm/prompts/ (question generation prompt grounding)
+
+High-Fidelity Turns:
+- Turn N [strategy]: focus_node="X", question cleanly builds from "X" — [note what worked]
+```
+
+**Diagnostic value:** When the fidelity rate drops below 70%, the issue is not in methodology YAML weights or signal calibration — it's in the question generation layer. No amount of signal tuning will improve the interview if the LLM doesn't faithfully execute the scoring engine's decisions.
 
 ---
 
@@ -108,6 +146,14 @@ Fields: `meta.interview.phase`, `llm.response_depth`, `llm.engagement`, `llm.int
 
 4. **Score separation**: If top-2 scores within 0.30 of each other consistently, selection is near-random → weight tuning candidate.
 5. **`meta.interview_progress`**: Should increase monotonically each turn. If it plateaus → investigate progress computation in `src/signals/meta/`.
+6. **Depth momentum** (NEW): Track `response_depth` across turns. When `response_depth` = `deep` in the final 2 turns before `validate` closes the interview, flag as `potential_premature_closure` — the interview may be closing just as it reaches value-level insight. The system may be trading closure reliability for depth-building opportunity. Check whether `validate`'s `response_depth.deep: +0.3` weight is pushing it to close on deep answers rather than follow up.
+7. **Methodology fidelity audit** (NEW): Read the methodology YAML's ontology section and verify the interview produces the expected structural outcome:
+
+   - **MEC** (`means_end_chain_*.yaml`): Does the interview produce at least one chain reaching from level 1 (attribute) to level 4+ (instrumental/terminal value)? Check `graph.max_depth` signal. If `max_depth < 3` after 8+ turns → `structural_failure: "interview never laddered past functional consequences"`. This is a category error for MEC — the entire point of the method is to reach values.
+   - **CIT** (`critical_incident_*.yaml`): Does the interview elicit a concrete incident with situation, action, and outcome? Count distinct ontology levels extracted. If no node chain with depth ≥ 3 (incident → situation → action) → `structural_failure: "interview stayed in reflection, never reconstructed the actual event"`. CIT requires specific episodes, not general reflections.
+   - **RG** (`repertory_grid_*.yaml`): Does the interview produce at least one true triadic comparison (3+ elements compared simultaneously)? Count `triadic_elicit` strategy firings and check whether questions reference 3+ elements. If all comparisons are dyadic (2 elements only) → `structural_failure: "triadic elicitation degraded to pairwise comparison"`. The method's power comes from forcing triadic contrasts.
+   - **CJM** (`customer_journey_mapping_*.yaml`): Does the interview cover at least 3 distinct journey stages? Count `stage` node types extracted. If all content stays within one stage → `structural_failure: "journey never advanced past initial stage"`. CJM's value is in breadth across the full arc.
+   - **JTBD** (`jobs_to_be_done_*.yaml`): Does the interview surface at least one emotional_job or social_job? Count terminal (level 1) nodes. If no terminal nodes after 8+ turns → `structural_failure: "interview stayed at functional level, never reached emotional/social drivers"`.
 
 **Output format:**
 
@@ -323,6 +369,14 @@ Gate Analysis:
 ...
 → [If strategy always gated] Gate condition may be too strict or graph doesn't produce needed topology
 → [If strategy never gated] Gate is vacuous for this simulation — all nodes satisfy the condition
+
+Signal-to-Question Traceability:
+For each turn's winning (strategy, node) pair, cross-reference with the transcript:
+| Turn | Strategy | Focus Node | Question References Node? | Question Matches Strategy Intent? |
+|------|----------|------------|--------------------------|----------------------------------|
+| 1    | ascend   | [label]    | yes / no / partial       | yes / no — [what it actually asked] |
+...
+→ If fidelity rate < 70%, the issue is in question generation (src/llm/prompts/), not scoring weights
 ```
 
 ---

@@ -233,10 +233,17 @@ strategies:
     description: "Elicit a specific, concrete story — who, what, when, where. Prompt for vivid details and narrative context."
     signal_weights:
       # Specificity is the primary driver — vague responses need more elicitation
-      llm.specificity.low: 0.7                # Vague narrative = needs concreting
+      # T2 + Critique: boosted from 0.7 to 0.9 to compete with ascend dominance
+      llm.specificity.low: 0.9                # Vague narrative = needs concreting
       llm.specificity.mid: 0.3                # Somewhat concrete = still room
       # Certainty — uncertain respondent needs help anchoring in a memory
-      llm.certainty.low: 0.4
+      # T2 + Critique: boosted from 0.4 to 0.6; added mid certainty for broader trigger
+      llm.certainty.low: 0.6
+      llm.certainty.mid: 0.3                  # T2 + Critique: moderate uncertainty supports narrative elicitation
+      # Valence — strong emotions (positive or negative) = rich narrative material
+      # T2 + Critique: added valence signals to capture emotional episodes
+      llm.valence.high: 0.3                   # Strong emotions = rich narrative material
+      llm.valence.low: 0.2                    # Negative emotions = critical incident territory
       # Engagement — moderate engagement supports elicitation
       llm.engagement.mid: 0.4
       llm.engagement.high: 0.2
@@ -248,8 +255,9 @@ strategies:
       # Response quality — don't push for new stories when answers declining
       llm.global_response_trend.shallowing: -0.3
       llm.global_response_trend.fatigued: -0.5
-      # Diversity — symmetric repetition penalty
-      temporal.strategy_repetition_count: -0.7
+      # Diversity — T2 + Critique: reduced from -0.7 to -0.5 to stay competitive with ascend
+      # The high self-penalty was suppressing elicit_narrative after 1-2 firings while ascend ran unchecked
+      temporal.strategy_repetition_count: -0.5
       temporal.strategy_repetition_count.high: 0
       # Node-level — prefer fresh, unconnected nodes
       graph.node.is_orphan.true: 0.6
@@ -268,14 +276,14 @@ strategies:
     signal_weights:
       graph.node.gap_above.true: 0.25         # Structural gap above = room to ascend
       graph.node.recency_score: 0.2            # Prefer recently discussed nodes
-      graph.node.exhaustion_score: -0.6        # Avoid circular revisits to exhausted nodes
-      graph.node.focus_count.high: -0.4        # Hard brake on over-probed nodes
+      graph.node.exhaustion_score: -0.8        # T2 calibration: strengthened from -0.6 to enforce node rotation
+      graph.node.focus_count.high: -0.5        # T2 calibration: strengthened from -0.4 for better rotation
       graph.node.focus_count.medium: -0.2
       # Engagement gates — ascending needs willing participation
       llm.engagement.low: -0.3
       llm.intellectual_engagement.high: 0.2    # Analytical reasoning = productive target
-      # Mild repetition penalty
-      temporal.strategy_repetition_count: -0.15
+      # Repetition brake — T2 + Critique: strengthened from -0.15 to -0.5 to prevent ascend monopoly
+      temporal.strategy_repetition_count: -0.5
 
   # Strategy 3: Ground — get more specific about the incident
   # Probe causal antecedents: who, what, when, what happened before.
@@ -287,7 +295,7 @@ strategies:
     signal_weights:
       graph.node.gap_below.true: 0.3           # Structural gap below = room to ground
       graph.node.recency_score: 0.25            # Prefer recently discussed nodes
-      graph.node.exhaustion_score: -0.4         # Avoid exhausted nodes
+      graph.node.exhaustion_score: -0.6         # T2 calibration: strengthened from -0.4 to enforce node rotation
       # Shallow depth signals need grounding — story is high-level, needs detail
       llm.response_depth.shallow: 0.05
       # Mild repetition penalty
@@ -303,7 +311,7 @@ strategies:
     signal_weights:
       graph.node.level_skip.true: 0.35         # Level skip detected = bridge needed
       graph.node.recency_score: 0.2
-      graph.node.exhaustion_score: -0.3
+      graph.node.exhaustion_score: -0.5         # T2 calibration: strengthened from -0.3
       # Mild repetition penalty
       temporal.strategy_repetition_count: -0.15
 
@@ -426,10 +434,11 @@ phases:
       validate: 1.5
       ascend: 1.2
       bridge: 1.2
-      elicit_narrative: 0.5
+      elicit_narrative: 0.7   # T2 + Critique: boosted from 0.5 to ensure narrative strategies can fire in late phase
       ground: 0.8
       anchor: 0.7
       revitalize: 1.0
     phase_bonuses:
       validate: 0.3          # Ensure validation closes the interview
+      elicit_narrative: 0.2  # T2 + Critique: ensure narrative elicitation stays competitive in late phase
       revitalize: 0.2

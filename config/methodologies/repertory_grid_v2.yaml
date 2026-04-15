@@ -305,13 +305,16 @@ strategies:
     description: "Use 'why does that matter?' to reveal higher-level constructs and personal values underlying surface evaluations."
     signal_weights:
       # Response depth: deep responses = laddering is productive
-      llm.response_depth.deep: 0.4          # Deep response about construct = ladder further
+      # T2 + Critique: reduced from 0.4 to 0.25 to cut positive signal mass
+      llm.response_depth.deep: 0.25          # Deep response about construct = ladder further
       llm.response_depth.moderate: 0.2
       # Intellectual engagement: analytical reasoning = productive laddering
-      llm.intellectual_engagement.high: 0.5  # Reasoning about preferences = prime target
+      # T2 + Critique: reduced from 0.5 to 0.3 to reduce dominance
+      llm.intellectual_engagement.high: 0.3  # Reasoning about preferences = prime target
       llm.intellectual_engagement.mid: 0.2
       # Engagement: need engaged respondent for laddering
-      llm.engagement.high: 0.4
+      # T2 + Critique: reduced from 0.4 to 0.2 to reduce positive mass
+      llm.engagement.high: 0.2
       llm.engagement.mid: 0.2
       llm.engagement.low: -0.5              # Disengaged = don't push "why?"
       # Valence: positive = safe to probe values
@@ -325,8 +328,8 @@ strategies:
       graph.node.exhaustion_score: -0.4
       graph.node.focus_streak.none: 0.3
       graph.node.focus_streak.high: -0.7    # Avoid laddering loops
-      # Heavy repetition penalty — laddering should not loop
-      temporal.strategy_repetition_count: -0.8
+      # Heavy repetition penalty — T2 + Critique: strengthened from -1.2 to -2.0
+      temporal.strategy_repetition_count: -2.0
       # Saturation suppression — pivot when themes exhausted
       meta.canonical.saturation.high: -0.4
       meta.conversation.saturation.high: -0.3
@@ -388,8 +391,8 @@ strategies:
       graph.node.exhaustion_score: -0.2
       # Repetition penalty: naturally rare, but avoid re-asking
       temporal.strategy_repetition_count: -0.5
-      # Heavy late-phase boost — ideal specification is a late-phase goal
-      meta.interview.phase.late: 0.5
+      # Heavy late-phase boost — T2 + Critique: reduced from 0.5 to 0.3 to allow validate to compete
+      meta.interview.phase.late: 0.3
 
   # ===================================================================
   # Strategy 6: anchor
@@ -450,6 +453,7 @@ strategies:
   # Summarize the construct grid and confirm understanding.
   # generates_closing_question: true, focus_mode: summary.
   # Heavy late-phase gate via signal weights.
+  # T2 calibration: added early/mid phase gates, boosted late bonus to 0.3
   # ===================================================================
   - name: validate
     node_binding: none
@@ -457,6 +461,9 @@ strategies:
     generates_closing_question: true
     description: "Summarize the construct grid — key dimensions, element ratings, and ideal — and invite correction or addition."
     signal_weights:
+      # Heavy early/mid phase gates — T2 calibration: added to prevent premature validation
+      meta.interview.phase.early: -3.0
+      meta.interview.phase.mid: -3.0
       # Depth signals: enough material to validate
       llm.response_depth.deep: 0.3
       llm.response_depth.moderate: 0.2
@@ -473,8 +480,8 @@ strategies:
       # Saturation triggers: high saturation = ready to validate
       meta.conversation.saturation: 0.3
       meta.canonical.saturation: 0.2
-      # Heavy late-phase gate
-      meta.interview.phase.late: 0.6
+      # Late-phase boost — T2 + Critique: increased from 0.8 to 1.0 to outcompete explore_ideal
+      meta.interview.phase.late: 1.0
 
 # chain_completion is conceptually incoherent for RG — no chains exist
 # in a dimensional/comparative ontology. Set to near-zero threshold.
@@ -525,4 +532,5 @@ phases:
       revitalize: 1.1                 # Slightly elevated — late fatigue is common
     phase_bonuses:
       explore_ideal: 0.2
-      validate: 0.15
+      validate: 0.25            # T2 + Critique: increased from 0.15 to ensure validate can close
+      triadic_elicit: 0.1       # T2 + Critique: ensure RG core technique fires late
