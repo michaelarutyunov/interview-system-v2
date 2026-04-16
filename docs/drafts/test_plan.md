@@ -371,6 +371,16 @@ Re-run Tier 1 and Tier 2 tests with tuned YAMLs to verify calibration effectiven
 | T4.1.4 | `plant_milk_comparison_rg` | repertory_grid_v2 | baseline_cooperative | 10 | [ ] | Verify: ladder_construct <40%, validate closes |
 | T4.1.5 | `coffee_subscription_cjm` | customer_journey_mapping_v2 | baseline_cooperative | 10 | [ ] | Verify: advance_stage fires at least once |
 
+### Tier 1 Regression Tests (previously passing — confirm no breakage)
+
+These tests passed in Phase 4 but their YAML configs were modified. Verify calibration changes didn't introduce regressions.
+
+| # | Concept | Methodology | Persona | Turns | Status | Notes |
+|---|---------|------------|---------|-------|--------|-------|
+| T4.1.R1 | `glp1_food_jtbd` | jobs_to_be_done_v2 | baseline_cooperative | 10 | [ ] | REGRESSION: JTBD still passes with revitalize flipped + elaborate boosted |
+| T4.1.R2 | `cold_brew_discovery_cit` | critical_incident_v2 | baseline_cooperative | 10 | [ ] | REGRESSION: CIT still passes with elicit_narrative boosted + ascend brake |
+| T4.1.R3 | `coffee_subscription_cjm` | customer_journey_mapping_v2 | baseline_cooperative | 10 | [ ] | REGRESSION: CJM still passes with advance_stage boosted |
+
 ### Tier 2 Re-Tests (edge-case personas — previously failing tests only)
 
 | # | Concept | Methodology | Persona | Turns | Status | Notes |
@@ -380,6 +390,28 @@ Re-run Tier 1 and Tier 2 tests with tuned YAMLs to verify calibration effectiven
 | T4.1.8 | `cold_brew_discovery_cit` | critical_incident_v2 | emotionally_reactive | 10 | [ ] | Verify: elicit_narrative >20%, ascend <60% |
 | T4.1.9 | `glp1_food_jtbd` | jobs_to_be_done_v2 | brief_responder | 10 | [ ] | Verify: revitalize <40%, elaborate >25% |
 | T4.1.10 | `plant_milk_comparison_rg` | repertory_grid_v2 | uncertain_hedger | 10 | [ ] | Verify: ladder_construct <40%, triadic fires |
+
+### Tier 2 Coverage Tests (previously untested with changed YAMLs)
+
+These Tier 2 combos weren't flagged as failing in Phase 4, but their YAML configs changed significantly. Added to catch silent regressions.
+
+| # | Concept | Methodology | Persona | Turns | Status | Notes |
+|---|---------|------------|---------|-------|--------|-------|
+| T4.1.C1 | `glp1_food_mec_strict` | means_end_chain_v2_strict | brief_responder | 10 | [ ] | COVERAGE: MEC + brief (MEC had biggest changes — validate added, ascend weakened) |
+| T4.1.C2 | `coffee_subscription_cjm` | customer_journey_mapping_v2 | fatiguing_responder | 10 | [ ] | COVERAGE: CJM + fatiguing (advance_stage boost could interact with fatigue signals) |
+
+### Review Criteria
+
+In addition to per-test acceptance criteria, check for these cross-cutting patterns:
+
+1. **Strategy oscillation**: Flag if strategies alternate every turn with zero repeats — this indicates overcorrection. A healthy interview has 1-2 strategy repeats in a row before switching. If no strategy repeats at all across 10 turns → `oscillation_detected`.
+2. **Methodology fidelity**: Verify methodology-specific structural outcomes:
+   - MEC: at least one chain reaching level 4+ (attribute → value)
+   - CIT: at least one concrete incident with situation + action + outcome
+   - RG: at least one true triadic comparison (3+ elements)
+   - CJM: at least 3 distinct journey stages covered
+   - JTBD: at least one emotional_job or social_job surfaced
+3. **Premature closure**: If validate fires before turn 7 → flag as premature (unless engagement is very low).
 
 ### New Skill Review
 
@@ -400,7 +432,7 @@ After re-tests, run the updated `/interview-simulation-reviewer` skill on each t
 - [x] Phase 4 Tier 1: Smoke tests complete — 3/5 pass, 2 issues found
 - [x] Phase 4 Tier 2: Persona stress tests complete — all edge cases tested
 - [x] Phase 4 Calibration: YAML tuning applied based on quantitative + qualitative analysis
-- [ ] Phase 4.1: Post-calibration re-test (10 tests)
+- [ ] Phase 4.1: Post-calibration re-test (15 tests: 5 re-test + 3 regression + 5 edge-case + 2 coverage)
 - [ ] Phase 4 Tier 3: Cross-methodology contrasts evaluated
 - [ ] Phase 5: Weights calibrated, no red flags
 
