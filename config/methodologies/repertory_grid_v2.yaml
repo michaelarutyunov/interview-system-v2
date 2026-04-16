@@ -205,15 +205,16 @@ signals:
     # Note: Chain topology signals (gap_above, gap_below, level_skip,
     # branching_deficit, fan_in, has_attribute_foundation, has_terminal_apex)
     # are deliberately excluded — they are meaningless for RG's flat ontology.
+    # f965 — per-concept-derived node signals:
+    - graph.node.elaboration
+    - graph.node.charge
+    - graph.node.has_quality_data
 
   llm:
-    - llm.response_depth
-    - llm.valence
     - llm.certainty
-    - llm.specificity
     - llm.engagement
-    - llm.intellectual_engagement
     # Note: llm.global_response_trend is session-scoped and managed separately
+    # f965: per-concept llm.elaboration / llm.charge route via Stage 6 bridge.
 
   temporal:
     - temporal.strategy_repetition_count
@@ -243,10 +244,10 @@ strategies:
       # Novelty: prefer new elements for fresh comparisons
       graph.node.novelty.high: 0.4         # New elements = unexplored comparison material
       graph.node.canonical_novelty.high: 0.3
-      # Response depth: deep responses yield richer constructs
-      llm.response_depth.deep: 0.3
-      llm.response_depth.moderate: 0.2
-      llm.response_depth.shallow: -0.2     # Shallow responses = comparison not productive
+      # f965: response_depth.{deep,moderate,shallow} → elaboration.{high,mid,low}
+      graph.node.elaboration.high: 0.3
+      graph.node.elaboration.mid: 0.2
+      graph.node.elaboration.low: -0.2
       # Certainty: uncertain = structured comparison helps clarify
       llm.certainty.low: 0.3
       llm.certainty.mid: 0.2
@@ -285,11 +286,12 @@ strategies:
       graph.node.focus_streak.medium: -0.3
       graph.node.focus_streak.high: -0.6    # Don't explore already-discussed constructs
       # LLM signals
-      llm.specificity.low: 0.4              # Vague construct = needs clarification
-      llm.specificity.mid: 0.2
+      # f965: specificity.low (0.4) → elaboration.low
+      graph.node.elaboration.low: 0.4
+      # f965: specificity.mid (0.2) + intellectual_engagement.mid (0.2) → elaboration.mid 0.4
+      graph.node.elaboration.mid: 0.4
       llm.engagement.mid: 0.2
       llm.engagement.low: -0.3              # Disengaged = probing meaning won't help
-      llm.intellectual_engagement.mid: 0.2  # Some analytical engagement = can articulate meaning
       # Repetition penalty
       temporal.strategy_repetition_count: -0.4
 
@@ -304,21 +306,17 @@ strategies:
     node_binding: required
     description: "Use 'why does that matter?' to reveal higher-level constructs and personal values underlying surface evaluations."
     signal_weights:
-      # Response depth: deep responses = laddering is productive
-      # T2 + Critique: reduced from 0.4 to 0.25 to cut positive signal mass
-      llm.response_depth.deep: 0.25          # Deep response about construct = ladder further
-      llm.response_depth.moderate: 0.2
-      # Intellectual engagement: analytical reasoning = productive laddering
-      # T2 + Critique: reduced from 0.5 to 0.3 to reduce dominance
-      llm.intellectual_engagement.high: 0.3  # Reasoning about preferences = prime target
-      llm.intellectual_engagement.mid: 0.2
+      # f965 migration (merged rewrites):
+      #   response_depth.deep (0.25) + intellectual_engagement.high × 0.5 (0.15) → elaboration.high 0.40
+      #   response_depth.moderate (0.2) + intellectual_engagement.mid (0.2) → elaboration.mid 0.40
+      #   intellectual_engagement.high × 0.5 (0.15) + valence.high (0.2) → charge.positive 0.35
+      graph.node.elaboration.high: 0.40
+      graph.node.elaboration.mid: 0.40
+      graph.node.charge.positive: 0.35
       # Engagement: need engaged respondent for laddering
-      # T2 + Critique: reduced from 0.4 to 0.2 to reduce positive mass
       llm.engagement.high: 0.2
       llm.engagement.mid: 0.2
       llm.engagement.low: -0.5              # Disengaged = don't push "why?"
-      # Valence: positive = safe to probe values
-      llm.valence.high: 0.2
       # Certainty: confident evaluation = ready for "why?"
       llm.certainty.high: 0.3
       llm.certainty.mid: 0.2
@@ -344,14 +342,13 @@ strategies:
     node_binding: required
     description: "Get explicit ratings, preferences, or rankings of elements on identified constructs — build the actual grid."
     signal_weights:
-      # Specificity: specific constructs enable rating
-      llm.specificity.high: 0.5             # Specific construct = ready to rate elements on it
-      llm.specificity.mid: 0.3
+      # f965: specificity.high (0.5) → elaboration.high;
+      #       specificity.mid (0.3) + response_depth.moderate (0.2) → elaboration.mid 0.5
+      graph.node.elaboration.high: 0.5
+      graph.node.elaboration.mid: 0.5
       # Certainty: confident respondent can give clear ratings
       llm.certainty.high: 0.4
       llm.certainty.mid: 0.3
-      # Response depth: moderate = structured rating opportunity
-      llm.response_depth.moderate: 0.2
       # Engagement: rating is structured, works at moderate engagement
       llm.engagement.mid: 0.3
       llm.engagement.low: -0.3
@@ -374,9 +371,9 @@ strategies:
     node_binding: none
     description: "Understand the ideal product specification — which construct poles define perfection, and which elements come closest."
     signal_weights:
-      # Depth and certainty signal enough material for synthesis
-      llm.response_depth.deep: 0.3
-      llm.response_depth.moderate: 0.2
+      # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
+      graph.node.elaboration.high: 0.3
+      graph.node.elaboration.mid: 0.2
       llm.certainty.high: 0.3               # Confident = can articulate ideals
       llm.certainty.mid: 0.2
       # Engagement
@@ -430,10 +427,10 @@ strategies:
       llm.engagement.low: 0.8
       llm.engagement.mid: 0.4
       llm.engagement.high: -0.4             # Already engaged = not needed
-      llm.intellectual_engagement.low: 0.2  # Analytical disengagement = switch topics
-      llm.valence.low: 0.5
-      # Low specificity dampen — alone should not trigger revitalize
-      llm.specificity.low: -0.2
+      # f965: valence.low (0.5) + intellectual_engagement.low × 0.5 (0.1) → charge.negative 0.6
+      graph.node.charge.negative: 0.6
+      # f965: specificity.low (-0.2) + intellectual_engagement.low × 0.5 (0.1) → elaboration.low -0.1
+      graph.node.elaboration.low: -0.1
       # Late phase: allow revitalize to compete
       meta.interview.phase.late: -0.3       # Moderate suppression — still useful for RG fatigue
       # Repetition escape valve
@@ -464,9 +461,9 @@ strategies:
       # Heavy early/mid phase gates — T2 calibration: added to prevent premature validation
       meta.interview.phase.early: -3.0
       meta.interview.phase.mid: -3.0
-      # Depth signals: enough material to validate
-      llm.response_depth.deep: 0.3
-      llm.response_depth.moderate: 0.2
+      # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
+      graph.node.elaboration.high: 0.3
+      graph.node.elaboration.mid: 0.2
       # Uncertainty triggers: uncertain = good time to validate
       llm.certainty.low: 0.6
       llm.certainty.mid: 0.4

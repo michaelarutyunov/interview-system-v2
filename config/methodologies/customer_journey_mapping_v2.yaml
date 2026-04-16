@@ -213,15 +213,16 @@ signals:
     # Note: Chain topology signals (gap_above, gap_below, level_skip,
     # branching_deficit, fan_in, has_attribute_foundation, has_terminal_apex)
     # are intentionally excluded — they are meaningless for CJM's flat ontology.
+    # f965 — per-concept-derived node signals:
+    - graph.node.elaboration
+    - graph.node.charge
+    - graph.node.has_quality_data
 
   llm:
-    - llm.response_depth
-    - llm.valence
     - llm.certainty
-    - llm.specificity
     - llm.engagement
-    - llm.intellectual_engagement
     # Note: llm.global_response_trend is session-scoped and managed separately
+    # f965: per-concept llm.elaboration / llm.charge route via Stage 6 bridge.
 
   temporal:
     - temporal.strategy_repetition_count
@@ -248,9 +249,9 @@ strategies:
       llm.engagement.mid: 0.4                  # Moderate engagement = mapping OK
       llm.engagement.high: 0.3                 # High engagement = productive mapping
       llm.engagement.low: -0.3                 # Low engagement = suppress, wait for revitalize
-      # Specificity — vague journey needs more touchpoints
-      llm.specificity.low: 0.5                 # Vague = needs more concrete stages
-      llm.specificity.mid: 0.2                 # Moderate = still room for more detail
+      # f965: specificity.low (0.5) → elaboration.low; specificity.mid (0.2) → elaboration.mid
+      graph.node.elaboration.low: 0.5
+      graph.node.elaboration.mid: 0.2
       # Response quality — suppress when fatigued
       llm.global_response_trend.shallowing: -0.3
       llm.global_response_trend.fatigued: -0.5
@@ -271,20 +272,14 @@ strategies:
     node_binding: required
     description: "Go deeper within a specific journey stage — touchpoints, emotions, friction. Probe 'tell me more about that moment'."
     signal_weights:
-      # Response depth — surface mentions need deepening
-      # T2 calibration: add surface/shallow weights to deepen_stage
-      llm.response_depth.surface: 0.5          # T2 calibration: increased from 0.4
-      llm.response_depth.shallow: 0.6          # T2 calibration: increased from 0.5
-      llm.response_depth.moderate: 0.2         # Moderate = still room to explore
-      # Specificity — vague touchpoint needs concretization
-      llm.specificity.low: 0.3
-      llm.specificity.mid: 0.2
+      # f965 migration (response_depth.surface+shallow + specificity.low → elaboration.low;
+      #                 response_depth.moderate + specificity.mid + intellectual_engagement.mid → elaboration.mid)
+      graph.node.elaboration.low: 1.4
+      graph.node.elaboration.mid: 0.7
       # Engagement — need engagement to deepen
       llm.engagement.high: 0.4
       llm.engagement.mid: 0.3
       llm.engagement.low: -0.4                 # Disengaged = risky to deepen
-      # Intellectual engagement — reasoning about the interaction
-      llm.intellectual_engagement.mid: 0.3
       # Response trend — shallowing can mean try deepening a touchpoint
       llm.global_response_trend.shallowing: 0.2
       # Repetition — moderate penalty
@@ -305,14 +300,13 @@ strategies:
     node_binding: required
     description: "Explore pain points, obstacles, and frustrations — what went wrong, what was confusing, what took too long."
     signal_weights:
-      # Valence is the primary trigger — negative = friction territory
-      llm.valence.low: 0.8                     # Negative emotion = friction territory
-      llm.valence.mid: 0.3                     # Neutral = might be masking friction
+      # f965: valence.low (0.8) → charge.negative; valence.mid (0.3) dropped (neutral contributes 0)
+      graph.node.charge.negative: 0.8
       # Certainty — hedging may signal unspoken friction
       llm.certainty.mid: 0.3
-      # Response depth — shallow negative = dig into the friction
-      llm.response_depth.shallow: 0.3
-      llm.response_depth.moderate: 0.2
+      # f965: response_depth.shallow (0.3) → elaboration.low; .moderate (0.2) → elaboration.mid
+      graph.node.elaboration.low: 0.3
+      graph.node.elaboration.mid: 0.2
       # Engagement — can probe at moderate engagement
       llm.engagement.mid: 0.3
       llm.engagement.high: 0.3
@@ -334,13 +328,13 @@ strategies:
     node_binding: required
     description: "Map the emotional curve — how the customer felt at each stage and touchpoint, tracking highs and lows across the journey."
     signal_weights:
-      # Valence extremes signal emotional content worth mapping
-      llm.valence.high: 0.6                    # Strong positive = map the high
-      llm.valence.low: 0.6                     # Strong negative = map the low
-      llm.valence.mid: 0.2                     # Neutral = lower priority
-      # Response depth — emotional responses need deepening
-      llm.response_depth.shallow: 0.3          # Brief emotional mention = probe more
-      llm.response_depth.moderate: 0.3
+      # f965: valence.high (0.6) → charge.positive; valence.low (0.6) → charge.negative;
+      #       valence.mid (0.2) dropped (neutral contributes 0)
+      graph.node.charge.positive: 0.6
+      graph.node.charge.negative: 0.6
+      # f965: response_depth.shallow (0.3) → elaboration.low; .moderate (0.3) → elaboration.mid
+      graph.node.elaboration.low: 0.3
+      graph.node.elaboration.mid: 0.3
       # Engagement — emotions need engagement to explore
       llm.engagement.high: 0.4
       llm.engagement.mid: 0.3
@@ -415,9 +409,10 @@ strategies:
       llm.engagement.low: 0.8
       llm.engagement.mid: 0.3
       llm.engagement.high: -0.4               # High engagement = no need to revitalize
-      llm.valence.low: 0.4
-      # Low specificity — not a trigger for revitalize (N1 from MEC)
-      llm.specificity.low: -0.2
+      # f965: valence.low (0.4) → graph.node.charge.negative
+      graph.node.charge.negative: 0.4
+      # f965: specificity.low (-0.2) → graph.node.elaboration.low
+      graph.node.elaboration.low: -0.2
       # Late phase suppression — allow other strategies to assert
       meta.interview.phase.late: -0.5
       # Repetition — moderate escape valve
@@ -441,9 +436,9 @@ strategies:
     generates_closing_question: true
     description: "Summarize the journey map — stages, key touchpoints, emotional highs/lows, and friction points — and invite correction or addition."
     signal_weights:
-      # Response quality — deep responses = good time to validate
-      llm.response_depth.deep: 0.3
-      llm.response_depth.moderate: 0.2
+      # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
+      graph.node.elaboration.high: 0.3
+      graph.node.elaboration.mid: 0.2
       # Uncertainty triggers — validate when respondent is uncertain
       llm.certainty.low: 0.8
       llm.certainty.mid: 0.6

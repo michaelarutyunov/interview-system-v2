@@ -73,11 +73,14 @@ class GraphUpdateStage(TurnStage):
         # Get methodology from context for permitted_connections validation
         methodology = context.methodology
 
+        # Reset per-turn concept→node bridge and pass as output param to capture mapping.
+        context.concept_to_node_id = {}
         nodes, edges = await self.graph.add_extraction_to_graph(
             session_id=context.session_id,
             extraction=extraction,
             utterance_id=utterance_id,
             methodology=methodology,
+            out_concept_to_node_id=context.concept_to_node_id,
         )
 
         # Convert edges to dicts for contract output

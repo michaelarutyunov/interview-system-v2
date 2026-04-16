@@ -711,6 +711,98 @@ class NodeCanonicalNoveltySignal(NodeSignalDetector):
         return results
 
 
+# =============================================================================
+# Per-Concept LLM Quality Signals (from NodeStateTracker.quality_history)
+# =============================================================================
+#
+# These signals surface per-concept LLM ratings (elaboration, charge) recorded
+# via NodeStateTracker.append_quality() in the MethodologyStrategyService
+# bridge step. They emit dict-valued signals whose sub-keys are binary bins;
+# NodeSignalDetectionService flattens them into `graph.node.{name}.{bin}` so
+# YAML `signal_weights` can reference e.g. `graph.node.elaboration.low`.
+#
+# Spec: docs/drafts/signal-migration-contract.md §C
+
+
+_ELAB_LOW = 0.375
+_ELAB_HIGH = 0.625
+_CHARGE_NEG = 0.375
+_CHARGE_POS = 0.625
+
+
+def _mean_or_none(xs):
+    return (sum(xs) / len(xs)) if xs else None
+
+
+class NodeElaborationSignal(NodeSignalDetector):
+    """Per-node mean LLM elaboration → categorical bins (low/mid/high).
+
+    Read from NodeState.quality_history.elaboration_scores, populated by
+    NodeStateTracker.append_quality() during the per-concept signal bridge.
+    """
+
+    signal_name = "graph.node.elaboration"
+    description = (
+        "Per-node elaboration bin (low/mid/high) from LLM per-concept ratings."
+    )
+
+    async def detect(self, context, graph_state, response_text):  # noqa: ARG001
+        results = {}
+        for node_id, state in self._get_all_node_states().items():
+            mean_elab = _mean_or_none(state.quality_history.elaboration_scores)
+            if mean_elab is None:
+                continue
+            # Sub-keys use dot notation so the flattener (prefix=graph.node.,
+            # tail=signal_name dropped) produces YAML-matching keys like
+            # 'graph.node.elaboration.low'.
+            results[node_id] = {
+                "elaboration.low": mean_elab < _ELAB_LOW,
+                "elaboration.mid": _ELAB_LOW <= mean_elab < _ELAB_HIGH,
+                "elaboration.high": mean_elab >= _ELAB_HIGH,
+            }
+        return results
+
+
+class NodeChargeSignal(NodeSignalDetector):
+    """Per-node mean LLM emotional charge → categorical bins (negative/neutral/positive)."""
+
+    signal_name = "graph.node.charge"
+    description = (
+        "Per-node charge bin (negative/neutral/positive) from LLM per-concept ratings."
+    )
+
+    async def detect(self, context, graph_state, response_text):  # noqa: ARG001
+        results = {}
+        for node_id, state in self._get_all_node_states().items():
+            mean_charge = _mean_or_none(state.quality_history.charge_scores)
+            if mean_charge is None:
+                continue
+            results[node_id] = {
+                "charge.negative": mean_charge < _CHARGE_NEG,
+                "charge.neutral": _CHARGE_NEG <= mean_charge < _CHARGE_POS,
+                "charge.positive": mean_charge >= _CHARGE_POS,
+            }
+        return results
+
+
+class NodeHasQualityDataSignal(NodeSignalDetector):
+    """True if a node has any per-concept LLM ratings recorded yet.
+
+    Used as a gate for elaboration/charge-dependent strategies to avoid acting
+    on nodes that haven't been rated (e.g. first-turn orphans).
+    """
+
+    signal_name = "graph.node.has_quality_data"
+    description = "True if node has any per-concept LLM elaboration/charge history."
+
+    async def detect(self, context, graph_state, response_text):  # noqa: ARG001
+        results = {}
+        for node_id, state in self._get_all_node_states().items():
+            qh = state.quality_history
+            results[node_id] = bool(qh.elaboration_scores or qh.charge_scores)
+        return results
+
+
 __all__ = [
     # Exhaustion
     "NodeExhaustedSignal",
@@ -728,4 +820,8 @@ __all__ = [
     # Novelty
     "NodeNoveltySignal",
     "NodeCanonicalNoveltySignal",
+    # Per-concept LLM quality
+    "NodeElaborationSignal",
+    "NodeChargeSignal",
+    "NodeHasQualityDataSignal",
 ]

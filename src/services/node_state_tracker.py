@@ -11,7 +11,7 @@ from typing import Dict, Optional, TYPE_CHECKING, Any
 import structlog
 
 from src.domain.models.knowledge_graph import KGNode
-from src.domain.models.node_state import NodeState
+from src.domain.models.node_state import NodeState, NodeQualityHistory
 
 if TYPE_CHECKING:
     from src.persistence.repositories.canonical_slot_repo import CanonicalSlotRepository
@@ -19,7 +19,24 @@ if TYPE_CHECKING:
 
 # Schema version for node_tracker_state serialization
 # Increment when structure changes to handle migration
-NODE_TRACKER_SCHEMA_VERSION = 2
+NODE_TRACKER_SCHEMA_VERSION = 3
+
+# Per-concept elaboration score → categorical response_depth bins (spec §C.5.1)
+# Cutpoints: 0.125 / 0.375 / 0.625 on normalized 1-5 scale
+_ELAB_CUT_SURFACE = 0.125
+_ELAB_CUT_SHALLOW = 0.375
+_ELAB_CUT_MODERATE = 0.625
+
+
+def _elaboration_to_depth(elaboration: float) -> str:
+    """Bin normalized per-concept elaboration score to categorical response_depth."""
+    if elaboration < _ELAB_CUT_SURFACE:
+        return "surface"
+    if elaboration < _ELAB_CUT_SHALLOW:
+        return "shallow"
+    if elaboration < _ELAB_CUT_MODERATE:
+        return "moderate"
+    return "deep"
 
 
 @dataclass
@@ -346,6 +363,55 @@ class NodeStateTracker:
             total_responses=len(state.all_response_depths),
         )
 
+    async def append_quality(
+        self,
+        node_id: str,
+        elaboration: float,
+        charge: float,
+    ) -> None:
+        """Append per-concept LLM quality ratings to a node's quality history.
+
+        Invoked by MethodologyStrategyService after the global LLM batch detector
+        produces per-concept ratings (elaboration + charge). The concept→node_id
+        bridge (PipelineContext.concept_to_node_id) maps each rated concept to
+        its graph node; this method records the ratings on that node.
+
+        Also appends a derived categorical response_depth to all_response_depths,
+        replacing the old append_response_signal flow (which operated only on
+        the previous_focus node). Per-concept routing provides richer coverage.
+
+        Args:
+            node_id: Surface node ID to record quality against
+            elaboration: Normalized [0,1] elaboration score from batch detector
+            charge: Normalized [0,1] emotional charge score from batch detector
+        """
+        tracking_key = await self._resolve_canonical_slot_id(node_id)
+
+        if tracking_key not in self.states:
+            self.log.warning(
+                "append_quality_failed_node_not_found",
+                node_id=node_id,
+                tracking_key=tracking_key,
+            )
+            return
+
+        state = self.states[tracking_key]
+        state.quality_history.elaboration_scores.append(elaboration)
+        state.quality_history.charge_scores.append(charge)
+
+        # Derive categorical depth for legacy all_response_depths consumers
+        depth = _elaboration_to_depth(elaboration)
+        state.all_response_depths.append(depth)
+
+        self.log.debug(
+            "node_quality_appended",
+            node_id=node_id,
+            tracking_key=tracking_key,
+            elaboration=elaboration,
+            charge=charge,
+            derived_depth=depth,
+        )
+
     async def update_edge_counts(
         self, node_id: str, outgoing_delta: int, incoming_delta: int
     ) -> None:
@@ -479,12 +545,12 @@ class NodeStateTracker:
         Raises:
             ValueError: If schema version is incompatible
         """
-        # Validate schema version (support v1 and v2)
+        # Validate schema version (support v1, v2, and v3)
         schema_version = data.get("schema_version", 1)
-        if schema_version not in (1, 2):
+        if schema_version not in (1, 2, 3):
             raise ValueError(
                 f"Incompatible node_tracker_state schema version: "
-                f"expected 1 or 2, got {schema_version}"
+                f"expected 1, 2, or 3, got {schema_version}"
             )
 
         tracker = cls()
@@ -500,8 +566,21 @@ class NodeStateTracker:
                 state_dict.get("connected_node_ids", [])
             )
 
+            # Restore quality_history (schema v3+). For v1/v2 loads, default empty.
+            qh_data = state_dict.pop("quality_history", None)
+            if qh_data is None:
+                quality_history = NodeQualityHistory()
+            else:
+                quality_history = NodeQualityHistory(
+                    elaboration_scores=list(qh_data.get("elaboration_scores", [])),
+                    charge_scores=list(qh_data.get("charge_scores", [])),
+                )
+
             # Reconstruct NodeState from dict
-            tracker.states[node_id] = NodeState(**state_dict)
+            tracker.states[node_id] = NodeState(
+                quality_history=quality_history,
+                **state_dict,
+            )
 
         # Restore canonical_slot_first_seen (schema v2+, defaults to empty for v1)
         tracker.canonical_slot_first_seen = data.get("canonical_slot_first_seen", {})

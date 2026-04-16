@@ -76,7 +76,11 @@ class QuestionGenerationStage(TurnStage):
             # generator knows what was already asked and avoids repeating it.
             if strategy == "revitalize":
                 opening = next(
-                    (u for u in context.recent_utterances if u.get("speaker") == "system"),
+                    (
+                        u
+                        for u in context.recent_utterances
+                        if u.get("speaker") == "system"
+                    ),
                     None,
                 )
                 if opening and opening not in updated_utterances:

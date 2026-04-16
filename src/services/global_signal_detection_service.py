@@ -119,9 +119,21 @@ class GlobalSignalDetectionService:
             else 0,
         )
 
+        # Thread extracted concepts through to batch detector so per-concept
+        # signals (elaboration, charge) have targets. Empty list is safe for
+        # methodologies without per-concept signals (batch detector will only
+        # raise if concepts list is empty AND per-concept signals are registered).
+        concepts = []
+        if context.extraction_output and context.extraction_output.extraction:
+            concepts = list(context.extraction_output.extraction.concepts or [])
+
         try:
             global_signals = await signal_detector.detect(
-                context, graph_state, response_text, question=last_question
+                context,
+                graph_state,
+                response_text,
+                question=last_question,
+                concepts=concepts,
             )
         except Exception as e:
             log.error(
@@ -165,4 +177,38 @@ class GlobalSignalDetectionService:
             )
             global_signals["llm.global_response_trend"] = "stable"
 
+        # Stash per-concept ratings from the batch detector for the bridge step
+        # in MethodologyStrategyService (read via detect_with_per_concept).
+        self._last_per_concept_ratings = getattr(
+            signal_detector, "_last_per_concept_ratings", {}
+        )
+
         return global_signals
+
+    async def detect_with_per_concept(
+        self,
+        methodology_name: str,
+        context: "PipelineContext",
+        graph_state: "GraphState",
+        response_text: str,
+    ) -> tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+        """Detect global signals AND return per-concept LLM ratings.
+
+        Used by MethodologyStrategyService bridge step to route per-concept
+        elaboration/charge into NodeStateTracker.append_quality() via the
+        concept→node_id map from PipelineContext.
+
+        Returns:
+            Tuple of (global_signals_dict, per_concept_ratings_dict).
+            per_concept_ratings_dict maps concept.text (lowercased) → {signal_name: value}.
+        """
+        global_signals = await self.detect(
+            methodology_name=methodology_name,
+            context=context,
+            graph_state=graph_state,
+            response_text=response_text,
+        )
+        per_concept = getattr(self, "_last_per_concept_ratings", {}) or {}
+        # Normalize keys to lowercase to align with concept_to_node_id map.
+        per_concept_lc = {str(k).lower(): v for k, v in per_concept.items()}
+        return global_signals, per_concept_lc

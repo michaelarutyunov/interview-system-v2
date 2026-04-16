@@ -58,6 +58,9 @@ class TestJointScoring:
         service.global_signal_service.detect.return_value = {
             "meta.interview_progress": 0.9
         }
+        service.global_signal_service.detect_with_per_concept.return_value = ({
+            "meta.interview_progress": 0.9
+        }, {})
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {
             "node_1": {"graph.node.exhaustion_score": 0.5}
@@ -105,6 +108,7 @@ class TestJointScoring:
 
         service.global_signal_service = AsyncMock()
         service.global_signal_service.detect.return_value = {"llm.response_depth": 0.1}
+        service.global_signal_service.detect_with_per_concept.return_value = ({"llm.response_depth": 0.1}, {})
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {
             "node_a": {"graph.node.exhaustion_score": 0.8},  # high → .low=False
@@ -148,6 +152,7 @@ class TestJointScoring:
 
         service.global_signal_service = AsyncMock()
         service.global_signal_service.detect.return_value = {"llm.response_depth": 0.1}
+        service.global_signal_service.detect_with_per_concept.return_value = ({"llm.response_depth": 0.1}, {})
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {"node_1": {}}
 
@@ -213,6 +218,10 @@ class TestJointScoringDecompositionCapture:
             "llm.response_depth": 0.1,  # low → True
             "llm.engagement": 0.9,  # high → True
         }
+        service.global_signal_service.detect_with_per_concept.return_value = ({
+            "llm.response_depth": 0.1,  # low → True
+            "llm.engagement": 0.9,  # high → True
+        }, {})
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {
             "node_a": {"graph.node.exhaustion_score": 0.8},
@@ -266,6 +275,9 @@ class TestJointScoringDecompositionCapture:
         service.global_signal_service.detect.return_value = {
             "meta.interview_progress": 0.9
         }
+        service.global_signal_service.detect_with_per_concept.return_value = ({
+            "meta.interview_progress": 0.9
+        }, {})
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {}
 
@@ -339,6 +351,7 @@ class TestJointScoringOverride:
 
         service.global_signal_service = AsyncMock()
         service.global_signal_service.detect.return_value = {}  # No global signals
+        service.global_signal_service.detect_with_per_concept.return_value = ({}, {})
 
         # Node A: has gap_above=True, NOT level_skip → only ascend is eligible
         # Node B: has level_skip=True, NOT gap_above → only bridge is eligible
@@ -401,6 +414,7 @@ class TestJointScoringOverride:
 
         service.global_signal_service = AsyncMock()
         service.global_signal_service.detect.return_value = {}
+        service.global_signal_service.detect_with_per_concept.return_value = ({}, {})
 
         # No nodes pass the gap_above gate
         service.node_signal_service = AsyncMock()
@@ -446,6 +460,9 @@ class TestJointScoringOverride:
         service.global_signal_service.detect.return_value = {
             "llm.engagement": 0.1,  # low -> True
         }
+        service.global_signal_service.detect_with_per_concept.return_value = ({
+            "llm.engagement": 0.1,  # low -> True
+        }, {})
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {"node_1": {}}
 

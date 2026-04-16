@@ -21,6 +21,19 @@ from typing import Optional, List, Dict, Set
 
 
 @dataclass
+class NodeQualityHistory:
+    """Per-node LLM quality signal history (per-concept ratings from batch detector).
+
+    Populated by NodeStateTracker.append_quality() when a concept extracted from
+    the user's response is mapped back to a graph node via concept_to_node_id.
+    Consumed by NodeElaborationSignal / NodeChargeSignal / NodeHasQualityDataSignal.
+    """
+
+    elaboration_scores: List[float] = field(default_factory=list)
+    charge_scores: List[float] = field(default_factory=list)
+
+
+@dataclass
 class NodeState:
     """Per-node persistent state tracking for exhaustion and yield scoring.
 
@@ -63,6 +76,7 @@ class NodeState:
 
     # Response quality
     all_response_depths: List[str] = field(default_factory=list)
+    quality_history: NodeQualityHistory = field(default_factory=NodeQualityHistory)
 
     # Relationships
     connected_node_ids: Set[str] = field(default_factory=set)

@@ -218,32 +218,11 @@ class StrategySelectionStage(TurnStage):
             response_text,
         )
 
-        # Update node_tracker with response depth from the detected signals
-        # The response_depth belongs to the focus node from the PREVIOUS turn
-        # (the node that was asked about when generating the question this response answers)
-        log.info(
-            "response_depth_append_check",
-            has_signals=bool(signals),
-            has_node_tracker=bool(context.node_tracker),
-            has_previous_focus=bool(
-                context.node_tracker and context.node_tracker.previous_focus
-            ),
-            previous_focus=context.node_tracker.previous_focus
-            if context.node_tracker
-            else None,
-        )
-        if signals and context.node_tracker and context.node_tracker.previous_focus:
-            response_depth = signals.get("llm.response_depth")
-            if response_depth:
-                await context.node_tracker.append_response_signal(
-                    context.node_tracker.previous_focus,
-                    response_depth,
-                )
-                log.info(
-                    "response_depth_appended_to_node",
-                    node_id=context.node_tracker.previous_focus,
-                    response_depth=response_depth,
-                )
+        # Note: per-concept quality (elaboration/charge → response_depth) is now
+        # routed via MethodologyStrategyService bridge into NodeStateTracker
+        # .append_quality for each extracted concept's node. The previous
+        # previous_focus-only append_response_signal path has been removed
+        # (spec: docs/drafts/signal-migration-contract.md §C).
 
         # Alternatives are already (strategy_name, score) tuples from two-stage selection
         return (

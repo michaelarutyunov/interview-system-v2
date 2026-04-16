@@ -81,6 +81,8 @@ class ComposedSignalDetector:
         # LLM detector will be set separately via set_llm_detector()
         self._llm_detector: Optional[LLMBatchDetector] = None
         self.llm_signal_names = llm_signal_names
+        # Per-concept ratings from last detect() call — read via get_last_per_concept_ratings().
+        self._last_per_concept_ratings: dict[str, dict[str, Any]] = {}
 
         # Combine all detectors (will be set after LLM detector is configured)
         self.detectors: List[SignalDetector] = []
@@ -119,6 +121,7 @@ class ComposedSignalDetector:
         graph_state: Any,
         response_text: str,
         question: str | None = None,
+        concepts: Optional[List[Any]] = None,
     ) -> dict[str, Any]:
         """Detect all signals in dependency order.
 
@@ -184,17 +187,27 @@ class ComposedSignalDetector:
                     f"{sorted(self.llm_signal_names)}"
                 )
 
-                # Batch all LLM signals in one call
+                # Batch all LLM signals in one call.
+                # Returns {"concepts": {name: {...}}, "global": {...}}.
                 llm_signals = await self._llm_detector.detect(
                     response_text=response_text,
                     question=question,
+                    concepts=concepts or [],
                     signal_classes=llm_signal_classes,
                 )
 
-                # Merge LLM signal results into all_signals
-                all_signals.update(llm_signals)
+                # Merge only the global sub-dict into flat all_signals.
+                # Stash per-concept ratings on self for caller retrieval.
+                global_part = llm_signals.get("global", {})
+                per_concept_part = llm_signals.get("concepts", {})
+                all_signals.update(global_part)
+                self._last_per_concept_ratings = per_concept_part
 
-                log.info(f"LLM batch detection complete: {llm_signals}")
+                log.info(
+                    "llm_batch_detection_complete",
+                    global_signals=list(global_part.keys()),
+                    per_concept_count=len(per_concept_part),
+                )
 
             except Exception as e:
                 log.error(f"LLM batch detection failed: {e}", exc_info=True)

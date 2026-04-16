@@ -204,15 +204,16 @@ signals:
     # Note: Node-level chain topology signals (graph.node.gap_above, gap_below,
     # level_skip) are auto-discovered from strategy signal_weights and do not
     # need to be listed here.
+    # f965 — per-concept-derived node signals:
+    - graph.node.elaboration
+    - graph.node.charge
+    - graph.node.has_quality_data
 
   llm:
-    - llm.response_depth
-    - llm.valence
     - llm.certainty
-    - llm.specificity
     - llm.engagement
-    - llm.intellectual_engagement
     # Note: llm.global_response_trend is session-scoped and managed separately
+    # f965: per-concept llm.elaboration / llm.charge route via Stage 6 bridge.
 
   temporal:
     - temporal.strategy_repetition_count
@@ -232,18 +233,15 @@ strategies:
     node_binding: none
     description: "Elicit a specific, concrete story — who, what, when, where. Prompt for vivid details and narrative context."
     signal_weights:
-      # Specificity is the primary driver — vague responses need more elicitation
-      # T2 + Critique: boosted from 0.7 to 0.9 to compete with ascend dominance
-      llm.specificity.low: 0.9                # Vague narrative = needs concreting
-      llm.specificity.mid: 0.3                # Somewhat concrete = still room
+      # f965: specificity.low (0.9) → elaboration.low; specificity.mid (0.3) → elaboration.mid
+      graph.node.elaboration.low: 0.9
+      graph.node.elaboration.mid: 0.3
       # Certainty — uncertain respondent needs help anchoring in a memory
-      # T2 + Critique: boosted from 0.4 to 0.6; added mid certainty for broader trigger
       llm.certainty.low: 0.6
-      llm.certainty.mid: 0.3                  # T2 + Critique: moderate uncertainty supports narrative elicitation
-      # Valence — strong emotions (positive or negative) = rich narrative material
-      # T2 + Critique: added valence signals to capture emotional episodes
-      llm.valence.high: 0.3                   # Strong emotions = rich narrative material
-      llm.valence.low: 0.2                    # Negative emotions = critical incident territory
+      llm.certainty.mid: 0.3
+      # f965: valence.high (0.3) → charge.positive; valence.low (0.2) → charge.negative
+      graph.node.charge.positive: 0.3
+      graph.node.charge.negative: 0.2
       # Engagement — moderate engagement supports elicitation
       llm.engagement.mid: 0.4
       llm.engagement.high: 0.2
@@ -281,7 +279,9 @@ strategies:
       graph.node.focus_count.medium: -0.2
       # Engagement gates — ascending needs willing participation
       llm.engagement.low: -0.3
-      llm.intellectual_engagement.high: 0.2    # Analytical reasoning = productive target
+      # f965: intellectual_engagement.high (0.2) → 0.5× elaboration.high + 0.5× charge.positive
+      graph.node.elaboration.high: 0.1
+      graph.node.charge.positive: 0.1
       # Repetition brake — T2 + Critique: strengthened from -0.15 to -0.5 to prevent ascend monopoly
       temporal.strategy_repetition_count: -0.5
 
@@ -296,8 +296,8 @@ strategies:
       graph.node.gap_below.true: 0.3           # Structural gap below = room to ground
       graph.node.recency_score: 0.25            # Prefer recently discussed nodes
       graph.node.exhaustion_score: -0.6         # T2 calibration: strengthened from -0.4 to enforce node rotation
-      # Shallow depth signals need grounding — story is high-level, needs detail
-      llm.response_depth.shallow: 0.05
+      # f965: response_depth.shallow (0.05) → graph.node.elaboration.low
+      graph.node.elaboration.low: 0.05
       # Mild repetition penalty
       temporal.strategy_repetition_count: -0.15
 
@@ -342,12 +342,12 @@ strategies:
       llm.engagement.low: 0.8
       llm.engagement.mid: 0.4
       llm.engagement.high: -0.4
-      llm.intellectual_engagement.low: 0.2     # Analytical disengagement = switch
-      llm.valence.low: 0.5
+      # f965: valence.low (0.5) + intellectual_engagement.low × 0.5 (0.1) → charge.negative 0.6
+      graph.node.charge.negative: 0.6
+      # f965: specificity.low (-0.2) + intellectual_engagement.low × 0.5 (0.1) → elaboration.low -0.1
+      graph.node.elaboration.low: -0.1
       # Repetition escape valve — phase-gated to prevent early bursts
       temporal.strategy_repetition_count: 0.15
-      # Suppress low specificity triggering revitalize
-      llm.specificity.low: -0.2
       # Phase gate — suppress in late phase so validate/ascend dominate
       meta.interview.phase.late: -0.5
       # Node-level — seek fresh territory
@@ -369,9 +369,9 @@ strategies:
     focus_mode: summary
     description: "Summarize the incident narrative — key events, emotions, attributions, and takeaways — and invite correction or addition"
     signal_weights:
-      # Depth signals — enough material to validate
-      llm.response_depth.deep: 0.3
-      llm.response_depth.moderate: 0.2
+      # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
+      graph.node.elaboration.high: 0.3
+      graph.node.elaboration.mid: 0.2
       # Certainty — uncertainty triggers validation (confirm understanding)
       llm.certainty.low: 0.8
       llm.certainty.mid: 0.6

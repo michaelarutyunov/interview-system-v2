@@ -73,6 +73,7 @@ class GraphService:
         extraction: ExtractionResult,
         utterance_id: str,
         methodology: Optional[str] = None,
+        out_concept_to_node_id: Optional[Dict[str, str]] = None,
     ) -> Tuple[List[KGNode], List[KGEdge]]:
         """
         Add extraction results to the knowledge graph.
@@ -116,6 +117,11 @@ class GraphService:
             if node:
                 label_to_node[concept.text.lower()] = node
                 added_nodes.append(node)
+                # Populate concept→node bridge for per-concept LLM signal routing.
+                # Critical: keyed by concept.text (from current turn), not label —
+                # dedup may map a new concept to an existing node whose label differs.
+                if out_concept_to_node_id is not None:
+                    out_concept_to_node_id[concept.text.lower()] = node.id
 
         # Step 1.5: Expand label_to_node with all session nodes for cross-turn edge resolution
         # Current-turn concepts take precedence (already in dict)

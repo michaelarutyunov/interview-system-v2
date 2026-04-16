@@ -157,8 +157,11 @@ class MethodologyStrategyService:
                 "Ensure node_tracker is set in PipelineContext."
             )
 
-        # Detect global signals (delegated to GlobalSignalDetectionService)
-        global_signals = await self.global_signal_service.detect(
+        # Detect global signals AND per-concept ratings (single LLM call).
+        (
+            global_signals,
+            per_concept_ratings,
+        ) = await self.global_signal_service.detect_with_per_concept(
             methodology_name=methodology_name,
             context=context,
             graph_state=graph_state,
@@ -169,6 +172,38 @@ class MethodologyStrategyService:
             "global_signals_detected",
             methodology=methodology_name,
             signals=global_signals,
+            per_concept_count=len(per_concept_ratings),
+        )
+
+        # Bridge: route per-concept LLM ratings → NodeStateTracker.append_quality
+        # via concept_to_node_id (populated by GraphUpdateStage). This replaces
+        # the previous_focus-only append_response_signal path with per-concept
+        # node-scoped quality history. Spec: docs/drafts/signal-migration-contract.md §C.
+        concept_to_node_id = getattr(context, "concept_to_node_id", {}) or {}
+        bridged_count = 0
+        for concept_key, ratings in per_concept_ratings.items():
+            node_id = concept_to_node_id.get(concept_key)
+            if not node_id:
+                # Concept not mapped to a node (e.g. extraction dedup collapsed it
+                # into an earlier concept, or non-concept text). Skip silently.
+                continue
+            elaboration = ratings.get("llm.elaboration")
+            charge = ratings.get("llm.charge")
+            if elaboration is None and charge is None:
+                continue
+            await node_tracker.append_quality(
+                node_id=node_id,
+                elaboration=float(elaboration) if elaboration is not None else 0.0,
+                charge=float(charge) if charge is not None else 0.0,
+            )
+            bridged_count += 1
+
+        log.info(
+            "per_concept_ratings_bridged",
+            methodology=methodology_name,
+            bridged_count=bridged_count,
+            total_ratings=len(per_concept_ratings),
+            mapped_concepts=len(concept_to_node_id),
         )
 
         # Expose current-turn global signals on context so node-level detectors

@@ -38,11 +38,10 @@ class TestLLMSignalInheritance:
     def test_specific_llm_signals_inherit_correctly(self):
         """Test specific known LLM signals have correct inheritance."""
         expected_signals = [
-            "llm.response_depth",
+            "llm.elaboration",
+            "llm.charge",
             "llm.certainty",
             "llm.engagement",
-            "llm.specificity",
-            "llm.valence",
         ]
 
         for signal_name in expected_signals:
@@ -67,11 +66,10 @@ class TestIsLLMSignalMethod:
         """
         # Test with known LLM signals
         llm_signal_names = [
-            "llm.response_depth",
+            "llm.elaboration",
+            "llm.charge",
             "llm.certainty",
             "llm.engagement",
-            "llm.specificity",
-            "llm.valence",
         ]
 
         for signal_name in llm_signal_names:
@@ -105,7 +103,7 @@ class TestIsLLMSignalMethod:
         """
         # Should not raise NameError
         try:
-            result = ComposedSignalDetector._is_llm_signal("llm.response_depth")
+            result = ComposedSignalDetector._is_llm_signal("llm.elaboration")
             assert result is True
         except NameError as e:
             pytest.fail(

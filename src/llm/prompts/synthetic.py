@@ -22,7 +22,6 @@ from typing import Dict, Any, List, Optional
 from src.core.persona_loader import load_persona, list_personas as load_list_personas
 
 
-
 def get_synthetic_system_prompt(
     response_patterns: Optional[Dict[str, float]] = None,
 ) -> str:

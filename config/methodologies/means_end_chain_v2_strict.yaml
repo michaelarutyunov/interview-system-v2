@@ -139,15 +139,16 @@ signals:
     - graph.canonical_exhaustion_score
     # Note: Node-level chain topology signals (graph.node.chain.*) are auto-discovered
     # from strategy signal_weights and do not need to be listed here.
+    # f965 — per-concept-derived node signals:
+    - graph.node.elaboration
+    - graph.node.charge
+    - graph.node.has_quality_data
 
   llm:
-    - llm.response_depth
-    - llm.valence
     - llm.certainty
-    - llm.specificity
     - llm.engagement
-    - llm.intellectual_engagement
     # Note: llm.global_response_trend is session-scoped and managed separately
+    # Per-concept signals (llm.elaboration, llm.charge) route to graph.node.* via Stage 6 bridge.
 
   temporal:
     - temporal.strategy_repetition_count
@@ -174,13 +175,13 @@ strategies:
       llm.engagement.low: 0.8
       llm.engagement.mid: 0.4
       llm.engagement.high: -0.4
-      llm.intellectual_engagement.low: 0.2  # analytical disengagement = switch topics
-      llm.valence.low: 0.5
+      # f965 migration:
+      #   valence.low (0.5) + intellectual_engagement.low × 0.5 (0.1) → charge.negative 0.6
+      #   specificity.low (-0.2) + intellectual_engagement.low × 0.5 (0.1) → elaboration.low -0.1
+      graph.node.charge.negative: 0.6
+      graph.node.elaboration.low: -0.1
       # N6: restored repetition escape valve (was removed N5) — phase-gated via multipliers to prevent early bursts
       temporal.strategy_repetition_count: 0.15
-      # N6: boosted shallowing weight — fires 30% of turns and should help revitalize compete vs ascend
-      # N1: Low specificity alone should not trigger revitalize — dampen it
-      llm.specificity.low: -0.2
       # N2: Suppress revitalize floor in late phase — allow ascend's multiplier to re-assert
       meta.interview.phase.late: -0.5
       # Node-level signals
@@ -205,10 +206,12 @@ strategies:
       graph.node.exhaustion_score: -0.8  # N7: strengthened from -0.4 — prevents circular revisits
       graph.node.focus_count.high: -0.8  # N7: hard brake on over-probed nodes
       graph.node.focus_count.medium: -0.4
-      llm.response_depth.deep: 0.1
+      # f965: response_depth.deep (0.3 — later duplicate key in YAML wins over 0.1)
+      #       + intellectual_engagement.high × 0.5 (0.1) → elaboration.high 0.4
+      graph.node.elaboration.high: 0.4
+      # f965: intellectual_engagement.high × 0.5 (0.1) → charge.positive 0.1
+      graph.node.charge.positive: 0.1
       llm.engagement.low: -0.3       # R3: soft brake when respondent is fading
-      llm.intellectual_engagement.high: 0.2  # analytical reasoning = productive laddering target
-      llm.response_depth.deep: 0.3  # Tier 2 + Critique: trigger laddering on deep content
       temporal.strategy_repetition_count: -1.5  # Tier 2 + Critique: strengthened from -0.5
       temporal.strategy_repetition_count.high: -1.0  # T2 calibration: high streak penalty
       graph.node.chain.has_attribute_foundation.true: 0.200   # Tier 2 + Critique: reduced from 0.400
@@ -223,7 +226,8 @@ strategies:
       graph.node.gap_below.true: 0.3
       graph.node.recency_score: 0.25
       graph.node.exhaustion_score: -0.4
-      llm.response_depth.deep: 0.05
+      # f965: llm.response_depth.deep (0.05) → graph.node.elaboration.high
+      graph.node.elaboration.high: 0.05
       temporal.strategy_repetition_count: -0.15  # R2: mild repetition penalty on structural strategies
       graph.node.chain.has_attribute_foundation.false: 0.250  # Tier 2 + Critique: reduced from 0.400
       graph.node.chain.has_attribute_foundation.true: -0.2   # already grounded, reduce priority
@@ -280,9 +284,10 @@ strategies:
       llm.certainty.mid: 0.7
       # Engagement — low engagement suggests wrapping up
       llm.engagement.low: 0.6
-      # Response depth — deep responses = enough material to validate
-      llm.response_depth.deep: 0.3
-      llm.response_depth.moderate: 0.2
+      # f965: response_depth.deep (0.3) → graph.node.elaboration.high
+      graph.node.elaboration.high: 0.3
+      # f965: response_depth.moderate (0.2) → graph.node.elaboration.mid (spec §4.1 rule)
+      graph.node.elaboration.mid: 0.2
       # Node-level — prefer well-connected nodes for validation
       graph.node.has_outgoing.true: 0.4
       graph.node.focus_streak.high: 0.5

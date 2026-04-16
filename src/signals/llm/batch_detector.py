@@ -138,9 +138,7 @@ class LLMBatchDetector:
         """Strip the `llm.` namespace for LLM-facing keys."""
         return signal_cls.signal_name.replace("llm.", "")  # type: ignore[attr-defined]
 
-    def _render_rubrics(
-        self, classes: list[Type["BaseLLMSignal"]]
-    ) -> tuple[str, str]:
+    def _render_rubrics(self, classes: list[Type["BaseLLMSignal"]]) -> tuple[str, str]:
         names = ", ".join(self._short_name(c) for c in classes)
         blocks = []
         for cls in classes:
@@ -153,7 +151,9 @@ class LLMBatchDetector:
         """Extract (name, quotes) whether c is a dict or an object."""
         if isinstance(c, dict):
             name = c["name"]
-            quotes = c.get("source_quotes") or ([c["source_quote"]] if c.get("source_quote") else [])
+            quotes = c.get("source_quotes") or (
+                [c["source_quote"]] if c.get("source_quote") else []
+            )
         else:
             name = getattr(c, "name")
             quotes = getattr(c, "source_quotes", None) or (
@@ -201,12 +201,16 @@ class LLMBatchDetector:
         else:
             raw_score = raw
         if not isinstance(raw_score, (int, float, str)):
-            log.warning("Non-numeric LLM score %r — falling back to neutral 3.", raw_score)
+            log.warning(
+                "Non-numeric LLM score %r — falling back to neutral 3.", raw_score
+            )
             return 3
         try:
             score = int(raw_score)
         except (TypeError, ValueError):
-            log.warning("Unparseable LLM score %r — falling back to neutral 3.", raw_score)
+            log.warning(
+                "Unparseable LLM score %r — falling back to neutral 3.", raw_score
+            )
             return 3
         return max(1, min(5, score))
 
@@ -239,7 +243,8 @@ class LLMBatchDetector:
                     log.warning(
                         "LLM output missing per-concept %s for '%s' — applying "
                         "prompt-contract fallback (elaboration=1, charge=3).",
-                        short, name,
+                        short,
+                        name,
                     )
                     fallback = 1 if short == "elaboration" else 3
                     score = fallback
@@ -332,13 +337,16 @@ class LLMBatchDetector:
         except (json.JSONDecodeError, ValueError) as e:
             log.error(
                 "LLM response is not valid JSON: %s. Body: %r",
-                e, response.content[:500], exc_info=True,
+                e,
+                response.content[:500],
+                exc_info=True,
             )
             raise ScorerFailureError(f"Invalid LLM response: {e}") from e
 
         result = self._parse_response(raw, concepts, per_concept, global_)
         log.info(
             "LLM batch detection complete: %d concepts, %d global keys.",
-            len(result["concepts"]), len(result["global"]),
+            len(result["concepts"]),
+            len(result["global"]),
         )
         return result

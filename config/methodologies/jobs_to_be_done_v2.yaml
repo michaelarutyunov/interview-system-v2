@@ -211,15 +211,16 @@ signals:
     # Note: Node-level chain topology signals (graph.node.gap_above, gap_below,
     # is_orphan, etc.) are auto-discovered from strategy signal_weights and
     # do not need to be listed here.
+    # f965 — per-concept-derived node signals:
+    - graph.node.elaboration
+    - graph.node.charge
+    - graph.node.has_quality_data
 
   llm:
-    - llm.response_depth
-    - llm.valence
     - llm.certainty
-    - llm.specificity
     - llm.engagement
-    - llm.intellectual_engagement
     # Note: llm.global_response_trend is session-scoped and managed separately
+    # f965: per-concept llm.elaboration / llm.charge route to graph.node.* via Stage 6 bridge.
 
   temporal:
     - temporal.strategy_repetition_count
@@ -263,13 +264,9 @@ strategies:
       graph.node.exhaustion_score.low: 0.4    # Avoid exhausted nodes
       # Repetition brake — prevent elaborate monoculture
       temporal.strategy_repetition_count: -0.7
-      # Specificity — low specificity means respondent is still surface-level, explore is appropriate
-      # T2 + Critique: boosted from 0.2 to 0.4 to strengthen trigger on brief answers
-      llm.specificity.low: 0.4
-      # Response depth — T2 + Critique: trigger elaboration on shallow answers
-      # Routes brief answers to breadth exploration instead of revitalize fatigue loop
-      llm.response_depth.surface: 0.4
-      llm.response_depth.shallow: 0.3
+      # f965: specificity.low (0.4) + response_depth.surface (0.4) + response_depth.shallow (0.3)
+      # all map to graph.node.elaboration.low → merged 1.1 (preserves strong trigger intent)
+      graph.node.elaboration.low: 1.1
 
   # Strategy 2: Ascend — move from functional job toward emotional/social driver
   # Replaces legacy dig_motivation. Binds to nodes with gap_above (functional
@@ -293,10 +290,11 @@ strategies:
       graph.node.chain.has_attribute_foundation.false: -0.5
       # Engagement — engaged respondent = safe to probe deeper
       llm.engagement.low: -0.3
-      llm.intellectual_engagement.high: 0.2  # Analytical reasoning = productive target
-      # Response depth — surface answers benefit from laddering
-      llm.response_depth.surface: 0.1
-      llm.response_depth.shallow: 0.05
+      # f965: intellectual_engagement.high (0.2) → 0.5× elaboration.high + 0.5× charge.positive
+      graph.node.elaboration.high: 0.1
+      graph.node.charge.positive: 0.1
+      # f965: response_depth.surface (0.1) + response_depth.shallow (0.05) → elaboration.low 0.15
+      graph.node.elaboration.low: 0.15
       # Mild repetition brake
       temporal.strategy_repetition_count: -0.15
 
@@ -318,8 +316,8 @@ strategies:
       # Chain foundation — prioritize ungrounded chains (no functional roots)
       graph.node.chain.has_attribute_foundation.false: 0.4
       graph.node.chain.has_attribute_foundation.true: -0.2
-      # Depth signal — even moderate answers benefit from grounding
-      llm.response_depth.deep: 0.05
+      # f965: llm.response_depth.deep (0.05) → graph.node.elaboration.high
+      graph.node.elaboration.high: 0.05
       # Mild repetition brake
       temporal.strategy_repetition_count: -0.15
 
@@ -339,11 +337,10 @@ strategies:
       graph.node.recency_score: 0.2
       # Exhaustion — avoid exhausted nodes even if orphan
       graph.node.exhaustion_score: -0.4
-      # Valence — negative valence amplifies pain probing (respondent already frustrated)
-      llm.valence.low: 0.3
-      llm.valence.mid: 0.1
-      # Specificity — concrete complaints are rich targets
-      llm.specificity.high: 0.2
+      # f965: valence.low (0.3) → charge.negative; valence.mid (0.1) dropped (neutral band contributes 0)
+      graph.node.charge.negative: 0.3
+      # f965: specificity.high (0.2) → graph.node.elaboration.high
+      graph.node.elaboration.high: 0.2
       # Novelty — newly-created orphan nodes are most likely pain points
       graph.node.novelty.high: 0.4
       graph.node.canonical_novelty.new: 0.5
@@ -399,16 +396,17 @@ strategies:
       llm.engagement.low: 0.8
       llm.engagement.mid: 0.4
       llm.engagement.high: -0.4
-      llm.intellectual_engagement.low: 0.2  # Analytical disengagement = switch topics
-      llm.valence.low: 0.5
+      # f965: valence.low (0.5) + intellectual_engagement.low × 0.5 (0.1) → charge.negative 0.6
+      graph.node.charge.negative: 0.6
+      # f965: intellectual_engagement.low × 0.5 (0.1) → elaboration.low (merged with specificity.low below)
       # Repetition — T2 + Critique: FLIPPED from +0.15 to -0.5
       # The +0.15 "escape valve" created runaway loops with brief responders:
       # brief → fatigue signal → revitalize → still brief → revitalize again
       temporal.strategy_repetition_count: -0.5
       # High-streak brake: prevent revitalize loops at 3+ consecutive
       temporal.strategy_repetition_count.high: -1.0
-      # Specificity — low specificity alone should not trigger revitalize
-      llm.specificity.low: -0.2
+      # f965: specificity.low (-0.2) + intellectual_engagement.low × 0.5 (0.1) → elaboration.low -0.1
+      graph.node.elaboration.low: -0.1
       # Late-phase suppression — allow structural strategies to re-assert
       meta.interview.phase.late: -0.5
       # Node-level signals — favor fresh territory
@@ -443,9 +441,9 @@ strategies:
       llm.certainty.mid: 0.7
       # Engagement — low engagement suggests wrapping up
       llm.engagement.low: 0.6
-      # Response depth — deep responses = enough material to validate
-      llm.response_depth.deep: 0.3
-      llm.response_depth.moderate: 0.2
+      # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
+      graph.node.elaboration.high: 0.3
+      graph.node.elaboration.mid: 0.2
       # Node-level — prefer well-connected nodes for validation
       graph.node.has_outgoing.true: 0.4
       graph.node.focus_streak.high: 0.5      # Often-focused = good summary target

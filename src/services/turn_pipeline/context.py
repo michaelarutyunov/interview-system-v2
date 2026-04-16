@@ -129,6 +129,12 @@ class PipelineContext:
     # context.signals. Cleared / unused after strategy selection completes.
     current_turn_global_signals: Optional[Dict[str, Any]] = None
 
+    # Populated by GraphUpdateStage (Stage 4) from GraphService.add_extraction_to_graph:
+    # maps concept.text.lower() → surface node.id for all concepts in the current turn's
+    # extraction. Consumed by MethodologyStrategyService bridge step to route per-concept
+    # LLM ratings (elaboration, charge) to specific nodes via NodeStateTracker.append_quality.
+    concept_to_node_id: Dict[str, str] = field(default_factory=dict)
+
     # =============================================================================
     # Convenience Properties (derive from contracts, don't duplicate state)
     # =============================================================================

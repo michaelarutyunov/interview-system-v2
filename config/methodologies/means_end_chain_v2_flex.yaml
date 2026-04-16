@@ -152,15 +152,17 @@ signals:
     - graph.canonical_exhaustion_score
     # Note: Node-level chain topology signals are auto-discovered
     # from strategy signal_weights and do not need to be listed here.
+    # Per-concept-derived node signals (added by f965 migration):
+    - graph.node.elaboration
+    - graph.node.charge
+    - graph.node.has_quality_data
 
   llm:
-    - llm.response_depth
-    - llm.valence
     - llm.certainty
-    - llm.specificity
     - llm.engagement
-    - llm.intellectual_engagement
     # Note: llm.global_response_trend is session-scoped and managed separately
+    # Per-concept LLM signals (llm.elaboration, llm.charge) are routed to per-node
+    # graph.node.elaboration / graph.node.charge via the Stage 6 bridge.
 
   temporal:
     - temporal.strategy_repetition_count
@@ -181,16 +183,17 @@ strategies:
       llm.global_response_trend.fatigued: 1.0
       llm.global_response_trend.shallowing: 0.8
       meta.node.opportunity.exhausted: 0.3
-      # Engagement & valence triggers
+      # Engagement (kept global) triggers
       llm.engagement.low: 0.8
       llm.engagement.mid: 0.4
       llm.engagement.high: -0.4
-      llm.intellectual_engagement.low: 0.2
-      llm.valence.low: 0.5
+      # f965 migration:
+      #   valence.low (0.5) + intellectual_engagement.low × 0.5 (0.1) → charge.negative 0.6
+      #   specificity.low (-0.2) + intellectual_engagement.low × 0.5 (0.1) → elaboration.low -0.1
+      graph.node.charge.negative: 0.6
+      graph.node.elaboration.low: -0.1
       # Repetition escape valve — phase-gated via multipliers
       temporal.strategy_repetition_count: 0.15
-      # Suppress low-specificity false trigger
-      llm.specificity.low: -0.2
       # Suppress revitalize floor in late phase
       meta.interview.phase.late: -0.5
       # Node-level signals — drive toward fresh, unexplored territory
@@ -215,9 +218,11 @@ strategies:
       graph.node.exhaustion_score: -0.6
       graph.node.focus_count.high: -0.4
       graph.node.focus_count.medium: -0.2
-      llm.response_depth.deep: 0.1
+      # f965: response_depth.deep (0.1) + intellectual_engagement.high × 0.5 (0.1) → elaboration.high 0.2
+      graph.node.elaboration.high: 0.2
+      # f965: intellectual_engagement.high × 0.5 (0.1) → charge.positive 0.1
+      graph.node.charge.positive: 0.1
       llm.engagement.low: -0.3
-      llm.intellectual_engagement.high: 0.2
       temporal.strategy_repetition_count: -0.15
       graph.node.chain.has_attribute_foundation.true: 0.4
       graph.node.chain.has_attribute_foundation.false: -0.5
@@ -231,7 +236,8 @@ strategies:
       graph.node.gap_below.true: 0.3
       graph.node.recency_score: 0.25
       graph.node.exhaustion_score: -0.4
-      llm.response_depth.deep: 0.05
+      # f965: llm.response_depth.deep (0.05) → graph.node.elaboration.high
+      graph.node.elaboration.high: 0.05
       temporal.strategy_repetition_count: -0.15
       graph.node.chain.has_attribute_foundation.false: 0.4
       graph.node.chain.has_attribute_foundation.true: -0.2

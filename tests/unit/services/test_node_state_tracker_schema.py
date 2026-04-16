@@ -10,9 +10,9 @@ from src.services.node_state_tracker import (
 class TestCanonicalSlotFirstSeen:
     """Test canonical_slot_first_seen persistence in NodeStateTracker."""
 
-    def test_schema_version_is_2(self):
-        """Schema version should be 2 after adding canonical_slot_first_seen."""
-        assert NODE_TRACKER_SCHEMA_VERSION == 2
+    def test_schema_version_is_3(self):
+        """Schema version v3 after adding NodeQualityHistory (per-concept LLM quality)."""
+        assert NODE_TRACKER_SCHEMA_VERSION == 3
 
     def test_canonical_slot_first_seen_initialized_empty(self):
         """canonical_slot_first_seen should be initialized as empty dict."""
