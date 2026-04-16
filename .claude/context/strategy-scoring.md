@@ -44,12 +44,36 @@ determines both the selected strategy and the target node for question generatio
 | `graph.node.chain.has_terminal_apex.true` | `True` if an upward path reaches a terminal-value node |
 | `graph.node.is_orphan.true` | `True` if node has no edges at all (isolated) |
 | `graph.node.recency_score` | Float in [0,1]: how recently the node was last discussed |
+| `graph.node.elaboration.low` / `.mid` / `.high` | `True` if per-concept elaboration score falls in bin |
+| `graph.node.charge.positive` / `.negative` | `True` if per-concept charge (emotional tone) is positive/negative |
+| `graph.node.has_quality_data.true` | `True` if node has at least one per-concept LLM rating history entry |
 
 Threshold binning (`.low`/`.mid`/`.high`) applies only to float signals
 normalized to [0, 1]. Categorical signals use exact string equality.
 Bool signals use `.true`/`.false` suffix. Integer signals (e.g., `fan_in`,
 `level_gap_size`) are multiplied directly by weight — use small weights to
 avoid dominance.
+
+### Per-Concept LLM Rating Propagation
+
+The LLM signal detector produces **per-concept ratings** (`elaboration`, `charge`)
+for each extracted concept, plus **global ratings** (`certainty`, `engagement`).
+During Stage 6 (`strategy_selection_stage.py`), per-concept ratings are mapped
+from extracted concepts to graph nodes via `concept_to_node_id` and appended to
+`NodeState.quality_history` via `NodeStateTracker.append_quality()`.
+
+Node-level signal detectors then consume this history:
+
+| Signal key | Source | Description |
+|---|---|---|
+| `graph.node.elaboration` | `NodeElaborationSignal` | Avg per-concept elaboration for this node, binned to low/mid/high |
+| `graph.node.charge` | `NodeChargeSignal` | Dominant emotional charge for this node, mapped to positive/negative |
+| `graph.node.has_quality_data` | `NodeHasQualityDataSignal` | `True` if node has any quality history entries |
+
+This bridges the gap between extraction-time concepts and strategy-time node
+scoring. `llm.response_depth` is now **derived** from mean per-concept
+elaboration (via `_score_to_category()` in `batch_detector.py`) for backward
+compatibility with `global_response_trend` and `node_opportunity` signals.
 
 ### Phase Multiplier and Bonus
 
@@ -100,8 +124,8 @@ All active methodologies live in `config/methodologies/`. Retired configs are in
 
 | File | Strategies | valid_when gates | chain_threshold | Structure |
 |---|---|---|---|---|
-| `means_end_chain_v2_strict.yaml` | 6 | ascend, ground, bridge, branch, anchor | 0.15 | 5-level hierarchy |
-| `means_end_chain_v2_flex.yaml` | 6 | Same as strict | 0.15 | Same hierarchy, no permitted_connections |
+| `means_end_chain_v2_strict.yaml` | 7 | ascend, ground, bridge, branch, anchor | 0.15 | 5-level hierarchy |
+| `means_end_chain_v2_flex.yaml` | 7 | Same as strict | 0.15 | Same hierarchy, no permitted_connections |
 | `jobs_to_be_done_v2.yaml` | 7 | ascend, ground, probe_pain, anchor | 0.05 | 2-level (functional → emotional/social) |
 | `critical_incident_v2.yaml` | 7 | ascend, ground, bridge, anchor | 0.10 | 5-level narrative hierarchy |
 | `customer_journey_mapping_v2.yaml` | 8 | anchor only | 0.05 | Flat (no chain topology signals) |
@@ -124,9 +148,9 @@ structural gap or opportunity in the knowledge graph.
 
 Legacy strategies (`deepen`, `explore`, `clarify`, `reflect`) have been removed
 from MEC YAMLs. The default fallback strategy in code is now `ascend` (was
-`deepen`).
+`deepen`). `validate` was added as a late-phase closing strategy in v3.1.
 
-### The 6 MEC Strategies
+### The 7 MEC Strategies
 
 | Strategy | `node_binding` | `valid_when` | Purpose |
 |---|---|---|---|
@@ -136,6 +160,7 @@ from MEC YAMLs. The default fallback strategy in code is now `ascend` (was
 | `branch` | `required` | `graph.node.branching_deficit` | Expand breadth where methodology expects more siblings |
 | `anchor` | `required` | `graph.node.is_orphan` | Connect isolated nodes to existing graph structure |
 | `revitalize` | `none` | *(none)* | Conversation-level fallback for fatigue/disengagement |
+| `validate` | `none` | *(none)* | Late-phase closing strategy — generates closing question |
 
 ### `valid_when` Gate
 
@@ -167,6 +192,12 @@ to disable fallback (used during cross-strategy comparison testing).
 
 If no fatigue/engagement condition is met despite the low score, the best-scoring
 strategy is used regardless — the fallback is conservative, not mandatory.
+
+Late-phase closing is handled by `validate` (node_binding: none,
+generates_closing_question: true), which uses heavy early/mid phase gates
+(`meta.interview.phase.early: -3.0`, `mid: -3.0`) to prevent premature
+termination. `validate` is the preferred late-phase strategy across all v2
+methodologies.
 
 ### Chain Topology Signals
 
@@ -222,20 +253,32 @@ The `has_attribute_foundation` and `has_terminal_apex` signals encode where a no
 | False | True | `ground` | Terminal reached, but chain lacks an attribute below |
 | True | True | `branch` | Chain is complete — add breadth from new attributes |
 
-**Weight design in `means_end_chain_v2_strict.yaml`** (N7 calibration):
-- `ascend`: `has_attribute_foundation.true +0.4`, `has_attribute_foundation.false -0.5`; `exhaustion_score: -0.6`, `focus_count.high: -0.4`, `focus_count.medium: -0.2`
-- `ground`: `has_attribute_foundation.false +0.4`, `has_attribute_foundation.true -0.2`
+**Weight design in `means_end_chain_v2_strict.yaml`** (N7 + Tier 2 calibration):
+- `ascend`: `has_attribute_foundation.true +0.200`, `has_attribute_foundation.false -0.5`; `exhaustion_score: -0.8`, `focus_count.high: -0.8`, `focus_count.medium: -0.4`, `repetition_count: -1.5`
+- `ground`: `has_attribute_foundation.false +0.250`, `has_attribute_foundation.true -0.2`
 - `branch`: `has_attribute_foundation.true +0.3`, `has_terminal_apex.true +0.5`
 - `anchor`: `is_orphan.true: +0.50`
+- `validate`: heavy early/mid phase gates (`meta.interview.phase.early: -3.0`, `mid: -3.0`), closing question generator
 
 The old `graph.chain_completion.has_complete: -0.2` suppressor on `ascend` was removed — the chain-lifecycle signals provide a more principled replacement.
 
+**f965 migration (per-concept LLM signals)** — legacy LLM signals (`response_depth`, `specificity`, `valence`, `intellectual_engagement`) were replaced by per-concept `elaboration`/`charge` plus global `certainty`/`engagement`. Weight equivalents:
+- `llm.response_depth.deep` → `graph.node.elaboration.high`
+- `llm.specificity.low` → `graph.node.elaboration.low`
+- `llm.valence.low` → `graph.node.charge.negative`
+- `llm.valence.high` → `graph.node.charge.positive`
+
 **N7 calibration changes** (from N6 baseline — targeting 15-turn interview):
-- Ascend `exhaustion_score` strengthened: -0.4 → -0.6 (N6 was too weak; exhausted+recent nodes still winning)
-- Ascend added `focus_count.high: -0.4`, `focus_count.medium: -0.2` (hard brake on over-probed nodes causing T7/T8 circular pattern)
+- Ascend `exhaustion_score` strengthened: -0.6 → -0.8
+- Ascend `focus_count.high` strengthened: -0.4 → -0.8; `focus_count.medium: -0.4`
+- Ascend `repetition_count` strengthened: -0.5 → -1.5
+- Ascend added `elaboration.high: +0.4` (triggers laddering on deep content)
+- Ground `has_attribute_foundation.false` reduced: 0.400 → 0.250
+- Validate added `elaboration.high: +0.3`, `elaboration.mid: +0.2`
 - Anchor `is_orphan.true` boosted: +0.35 → +0.50 (orphan rate grew to 12.8%, above 10% threshold)
 - Branch `has_terminal_apex.true` boosted: +0.4 → +0.5 (better compete once chain is complete)
-- Late phase `branch` multiplier: 0.8 → 1.1 + phase_bonus 0.10 (branch should fire post-chain-completion, not be suppressed)
+- Late phase `branch` multiplier: 0.8 → 1.1 + phase_bonus 0.30
+- Late phase `validate` added as primary strategy (1.5x + 0.2 bonus)
 
 **N6 calibration changes** (from N5 baseline):
 - Ground `has_attribute_foundation.false` reduced from +0.6 → +0.4 (was causing 10-turn ground streaks; ground now competes rather than dominates in F+F state)
@@ -321,7 +364,8 @@ These weights are calibrated via simulation. The key validation signal is **attr
 | `valid_when` strategy never fires | `valid_when` references a known signal but the signal is never True for any node | Check that chain topology signals are computed (methodology must be chain-based, graph must have nodes) |
 | `valid_when` strategy never fires despite signal returning truthy float | `gate_value is not True` identity check rejects floats (e.g. `branching_deficit=1.0` is truthy but `1.0 is True` is `False` in Python) | Use truthiness check: `if not gate_value` — handles bool, float, and None correctly. Fixed in `scoring.py` 2026-04-14. |
 | New strategy scores near zero despite valid_when passing | Chain topology signal sub-keys not resolving | Ensure flat sentinel classes are imported via `src/signals/__init__.py`; check flattening in `NodeSignalDetectionService` |
-| Legacy strategy name (`deepen`, `explore`, `clarify`, `reflect`) in YAML or code | These strategies were removed from MEC methodologies | Replace with the appropriate chain-aware strategy (see 6 MEC Strategies table above) |
+| Legacy strategy name (`deepen`, `explore`, `clarify`, `reflect`) in YAML or code | These strategies were removed from MEC methodologies | Replace with the appropriate chain-aware strategy (see 7 MEC Strategies table above) |
+| Legacy LLM signal key (`llm.response_depth`, `llm.specificity`, `llm.valence`, `llm.intellectual_engagement`) in YAML weights | f965 migration replaced these with per-concept signals | Map to per-concept equivalents: `response_depth` → `graph.node.elaboration.*`; `specificity` → `graph.node.elaboration.*`; `valence` → `graph.node.charge.*`; `intellectual_engagement` → split across `elaboration` and `charge` |
 | Revitalize selected too aggressively | `score_threshold` too high, causing low-scoring but valid strategies to be bypassed | Lower `chain_completion.score_threshold` in YAML (production: 0.15) |
 
 ---

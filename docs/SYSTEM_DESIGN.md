@@ -127,23 +127,33 @@ config/
 │   └── meal_planning_jtbd_v2.yaml
 ├── concepts_wip/          # Work-in-progress (not loaded in production)
 ├── methodologies/         # Interview logic
-│   ├── jobs_to_be_done.yaml
-│   ├── jobs_to_be_done_v2.yaml
-│   ├── means_end_chain.yaml
 │   ├── means_end_chain_v2_strict.yaml
-│   ├── means_end_chain_v3_flex.yaml
-│   ├── critical_incident.yaml
-│   ├── customer_journey_mapping.yaml
-│   └── repertory_grid.yaml
+│   ├── means_end_chain_v2_flex.yaml
+│   ├── jobs_to_be_done_v2.yaml
+│   ├── critical_incident_v2.yaml
+│   ├── customer_journey_mapping_v2.yaml
+│   ├── repertory_grid_v2.yaml
+│   └── legacy/            # Retired configs (reference only)
+│       ├── jobs_to_be_done.yaml
+│       ├── means_end_chain.yaml
+│       ├── critical_incident.yaml
+│       ├── customer_journey_mapping.yaml
+│       └── repertory_grid.yaml
 ├── personas/              # Synthetic respondent profiles
 │   ├── baseline_cooperative.yaml
 │   ├── brief_responder.yaml
 │   ├── emotionally_reactive.yaml
 │   ├── fatiguing_responder.yaml
 │   ├── glp1_user.yaml
+│   ├── health_conscious.yaml
+│   ├── minimalist.yaml
+│   ├── price_sensitive.yaml
+│   ├── quality_focused.yaml
 │   ├── retrospective_rationalizer.yaml
 │   ├── single_topic_fixator.yaml
 │   ├── skeptical_analyst.yaml
+│   ├── social_conscious.yaml
+│   ├── sustainability_minded.yaml
 │   ├── uncertain_hedger.yaml
 │   └── verbose_tangential.yaml
 └── interview_config.yaml  # Phases, dedup thresholds, LLM config
@@ -179,8 +189,9 @@ The pipeline returns `TurnResult` (`src/services/turn_pipeline/result.py`) with:
 | Pool | Namespace | Key Signals |
 |------|-----------|-------------|
 | **Graph (Global)** | `graph.*` | `node_count`, `max_depth`, `orphan_count`, `chain_completion.ratio`, `chain_completion.has_complete`, `canonical_concept_count`, `canonical_edge_density`, `canonical_exhaustion_score` |
-| **Graph (Node)** | `graph.node.*` | `exhausted`, `exhaustion_score`, `yield_stagnation`, `focus_streak`, `recency_score`, `is_current_focus`, `is_orphan`, `edge_count`, `has_outgoing`; chain topology: `gap_above`, `gap_below`, `level_skip`, `branching_deficit`, `fan_in`, `level_gap_size` (MEC only) |
-| **LLM** | `llm.*` | `response_depth` (categorical: surface/shallow/moderate/deep), `valence`, `certainty`, `specificity`, `engagement`, `intellectual_engagement` (all float [0,1]), `global_response_trend` |
+| **Graph (Node)** | `graph.node.*` | `exhausted`, `exhaustion_score`, `yield_stagnation`, `focus_streak`, `recency_score`, `is_current_focus`, `is_orphan`, `edge_count`, `has_outgoing`; chain topology: `gap_above`, `gap_below`, `level_skip`, `branching_deficit`, `fan_in`, `level_gap_size` (MEC only); quality: `elaboration`, `charge`, `has_quality_data` |
+| **LLM (Global)** | `llm.*` | `certainty`, `engagement` (float [0,1]); derived `response_depth` (categorical: surface/shallow/moderate/deep), `global_response_trend` |
+| **LLM (Per-Concept)** | `llm.*` | `elaboration`, `charge` — mapped to nodes via `NodeStateTracker.append_quality()` |
 | **Temporal** | `temporal.*` | `strategy_repetition_count`, `turns_since_strategy_change` |
 | **Meta (Global)** | `meta.*` | `interview.phase`, `conversation.saturation`, `canonical.saturation` |
 | **Meta (Node)** | `meta.node.*` | `opportunity` (exhausted/probe_deeper/fresh) |
@@ -188,15 +199,27 @@ The pipeline returns `TurnResult` (`src/services/turn_pipeline/result.py`) with:
 
 ### LLM Signals
 
-All 6 LLM signals detected in a single batched API call via `LLMBatchDetector`. Rubrics loaded from `src/signals/llm/prompts/signals.md`.
+LLM signals are detected in a single batched API call via `LLMBatchDetector`.
+Rubrics loaded from `src/signals/llm/prompts/signals.md` and
+`src/signals/llm/llm_signal_baseprompt.md`.
 
-- **Categorical** (response_depth): Integer 1–5 → string (surface/shallow/moderate/deep)
-- **Continuous** (others): Integer 1–5 → float [0,1] via `(score-1)/4`; matched via `.low`/`.mid`/`.high` threshold bins
+**Per-concept signals** (one score per extracted concept):
+- `llm.elaboration` → substantive content about the concept
+- `llm.charge` → emotional tone toward the concept
 
-Signal creation uses zero-boilerplate `@llm_signal` decorator:
+**Global signals** (one score per response):
+- `llm.certainty` → expressed confidence in claims
+- `llm.engagement` → willingness to participate
+
+`llm.response_depth` is **derived** from mean per-concept elaboration
+(via `_score_to_category()` in `batch_detector.py`) for backward
+compatibility with `global_response_trend`, `node_opportunity`, and
+question-generation prompts.
+
+Signal creation uses `@llm_global_signal` and `@llm_per_concept_signal` decorators:
 ```python
-@llm_signal(signal_name="llm.response_depth", rubric_key="response_depth", ...)
-class ResponseDepthSignal(BaseLLMSignal):
+@llm_per_concept_signal(signal_name="llm.elaboration", rubric_key="elaboration")
+class ElaborationSignal(BaseLLMSignal):
     pass
 ```
 
@@ -245,7 +268,7 @@ Returns `ScoredCandidate` objects with full `signal_contributions` breakdown for
 
 ### Chain-Aware Strategies (MEC)
 
-MEC uses 6 strategies that exploit graph topology to drive interview flow. Each chain-aware strategy has a `valid_when` gate — a hard filter that excludes `(strategy, node)` pairs where the gate signal is `False`.
+MEC uses 7 strategies that exploit graph topology to drive interview flow. Each chain-aware strategy has a `valid_when` gate — a hard filter that excludes `(strategy, node)` pairs where the gate signal is `False`.
 
 | Strategy | `valid_when` | Purpose |
 |----------|-------------|---------|
@@ -255,12 +278,13 @@ MEC uses 6 strategies that exploit graph topology to drive interview flow. Each 
 | `branch` | `graph.node.branching_deficit` | Expand breadth where expected siblings missing |
 | `anchor` | `graph.node.is_orphan` | Connect isolated nodes to graph |
 | `revitalize` | *(none)* | Conversation-level fallback for fatigue/disengagement |
+| `validate` | *(none)* | Late-phase closing strategy — generates closing question |
 
 Legacy strategies (`deepen`, `explore`, `clarify`, `reflect`) have been removed from MEC.
 
 **Score threshold fallback**: When best score < `chain_completion.score_threshold` (default 0.15) AND fatigue/low-engagement is detected, the system falls back to `revitalize` regardless of topology signals.
 
-Non-MEC methodologies (JTBD, CIT, CJM, Repertory Grid) define their own strategy names and do NOT use chain-aware strategies or `valid_when` gates.
+Non-MEC methodologies (JTBD, CIT, CJM, Repertory Grid) define their own strategy names. JTBD and CIT use a subset of chain-aware strategies (ascend, ground, anchor); CJM and RG are flat ontologies and do NOT use chain topology signals or most `valid_when` gates.
 
 ---
 
@@ -310,8 +334,8 @@ ontology:
   edges: [{name, description, permitted_connections}]
 
 signals:
-  graph: [graph.node_count, graph.max_depth, ...]
-  llm: [llm.response_depth, llm.engagement]
+  graph: [graph.node_count, graph.max_depth, graph.node.elaboration, ...]
+  llm: [llm.certainty, llm.engagement]
   temporal: [temporal.strategy_repetition_count]
   meta: [meta.interview.phase]
 
@@ -323,7 +347,7 @@ strategies:
     focus_mode: recent_node     # "recent_node" (default), "summary", "topic"
     generates_closing_question: false
     signal_weights:
-      llm.response_depth.low: 0.8
+      graph.node.elaboration.high: 0.4
       graph.node.exhaustion_score.low: 1.0
       temporal.strategy_repetition_count: -0.3
 
@@ -356,12 +380,13 @@ Full selection flow:
 1. Load methodology config from registry
 2. Detect global signals (`GlobalSignalDetectionService`)
 3. Detect node-level signals (`NodeSignalDetectionService`)
-4. Detect interview phase → get phase weights and bonuses
-5. `rank_strategy_node_pairs()` → scored `(strategy, node_id)` pairs, filtered by `valid_when` gates
-6. `rank_strategies()` → scored `node_binding: none` strategies (global signals only)
-7. Merge and sort both pools by `final_score`
-8. If best score < `chain_completion.score_threshold` (MEC only) AND fatigue/low-engagement detected → fallback to `revitalize`
-9. Top-ranked pair becomes selected strategy + focus node
+4. Map per-concept LLM ratings (`elaboration`, `charge`) to graph nodes via `NodeStateTracker.append_quality()`
+5. Detect interview phase → get phase weights and bonuses
+6. `rank_strategy_node_pairs()` → scored `(strategy, node_id)` pairs, filtered by `valid_when` gates
+7. `rank_strategies()` → scored `node_binding: none` strategies (global signals only)
+8. Merge and sort both pools by `final_score`
+9. If best score < `chain_completion.score_threshold` (MEC only) AND fatigue/low-engagement detected → fallback to `revitalize`
+10. Top-ranked pair becomes selected strategy + focus node
 
 **Joint scoring formula:**
 ```python
@@ -429,7 +454,7 @@ class GraphState(BaseModel):
 
 `NodeStateTracker` tracks per-node state in memory, persisted to `sessions.node_tracker_state` (JSON) each turn.
 
-**NodeState** fields: `focus_count`, `last_focus_turn`, `current_focus_streak`, `turns_since_last_yield`, `yield_count`, `yield_rate`, `all_response_depths`, `connected_node_ids`, `edge_count_outgoing`, `edge_count_incoming`, `strategy_usage_count`.
+**NodeState** fields: `focus_count`, `last_focus_turn`, `current_focus_streak`, `turns_since_last_yield`, `yield_count`, `yield_rate`, `all_response_depths`, `quality_history` (`NodeQualityHistory` with `elaboration_scores` and `charge_scores`), `connected_node_ids`, `edge_count_outgoing`, `edge_count_incoming`, `strategy_usage_count`.
 
 **Exhaustion score**:
 ```python

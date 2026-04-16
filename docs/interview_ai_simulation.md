@@ -13,37 +13,29 @@ The Interview AI Simulation system enables AI-to-AI interview simulations for te
 
 ## Available Personas
 
-### Standard Personas
+Personas are organized into two directories under `config/personas/`:
+- `domains/` — topic-specific personas for realistic interviews
+- `edge_cases/` — behavioral stress-test personas for validating strategy logic
 
-| Persona ID | Name | Description |
+### Domain Personas
+
+| Persona ID | File | Description |
 |------------|------|-------------|
-| `baseline_cooperative` | Baseline Cooperative | Standard respondent — answers directly, follows conversational flow |
+| `baseline_cooperative` | `domains/baseline_cooperative.yaml` | Standard respondent — answers directly, follows conversational flow |
+| `glp1_user` | `domains/glp1_user.yaml` | Person with lived GLP-1 medication experience — realistic domain vocabulary |
 
 ### Edge-Case Personas (Testing)
 
-| Persona ID | Name | Purpose |
+| Persona ID | File | Purpose |
 |------------|------|---------|
-| `brief_responder` | Brief Responder | Tests `anchor` trigger on short answers |
-| `verbose_tangential` | Verbose Tangential | Tests noise handling and `bridge` firing on low specificity |
-| `emotionally_reactive` | Emotionally Reactive | Tests valence safety gates and `ground` strategy |
-| `fatiguing_responder` | Fatiguing Responder | Tests `revitalize` mechanism mid-interview |
-| `single_topic_fixator` | Single Topic Fixator | Tests node exhaustion and rotation penalties |
-| `skeptical_analyst` | Skeptical Analyst | Tests `probe_attributions` with challenging engagement |
-| `uncertain_hedger` | Uncertain Hedger | Tests `explore_constructs` and `validate` on hedging |
-| `social_conscious` | Social Conscious | Tests peer influence and trend-based decision patterns |
-| `minimalist` | Minimalist | Tests preference for simplicity and feature avoidance |
-
-### Legacy Consumer Personas (Deprecated)
-
-> **Note:** The following personas are retained for backward compatibility but are not recommended for new simulations. Use `baseline_cooperative` for standard testing.
-
-| Persona ID | Name | Description |
-|------------|------|-------------|
-| `health_conscious` | Health-Conscious Millennial | Prioritizes health and wellness, reads nutrition labels, values organic ingredients |
-| `price_sensitive` | Budget-Conscious Shopper | Compares prices, looks for sales, seeks cost-effective alternatives |
-| `convenience_seeker` | Busy Professional | Values time over cost, prioritizes convenience and ease of use |
-| `quality_focused` | Quality Enthusiast | Appreciates premium quality, seeks the best products regardless of price |
-| `sustainability_minded` | Environmentally Conscious Consumer | Prioritizes environmental impact, values sustainable packaging and sourcing |
+| `brief_responder` | `edge_cases/brief_responder.yaml` | Tests `anchor` trigger on short answers |
+| `verbose_tangential` | `edge_cases/verbose_tangential.yaml` | Tests noise handling and `bridge` firing on low specificity |
+| `emotionally_reactive` | `edge_cases/emotionally_reactive.yaml` | Tests charge safety gates and `ground` strategy |
+| `fatiguing_responder` | `edge_cases/fatiguing_responder.yaml` | Tests `revitalize` mechanism mid-interview |
+| `single_topic_fixator` | `edge_cases/single_topic_fixator.yaml` | Tests node exhaustion and rotation penalties |
+| `skeptical_analyst` | `edge_cases/skeptical_analyst.yaml` | Tests challenging engagement and evidence demands |
+| `uncertain_hedger` | `edge_cases/uncertain_hedger.yaml` | Tests `explore_constructs` and `validate` on hedging |
+| `retrospective_rationalizer` | `edge_cases/retrospective_rationalizer.yaml` | Tests post-hoc justification and consistency probing |
 
 ## Usage
 
@@ -81,7 +73,8 @@ curl -X POST "http://localhost:8000/simulation/interview" \
       "signals": {
         "graph.max_depth": 0.5,
         "llm.response_depth": "moderate",
-        "llm.engagement": 0.8
+        "llm.engagement": 0.8,
+        "llm.certainty": 0.7
       },
       "node_signals": {...},
       "score_decomposition": [...],
@@ -111,7 +104,7 @@ curl -X POST "http://localhost:8000/simulation/interview" \
 - **Full Score Decomposition**: Each turn includes `score_decomposition` with joint (strategy, node) scoring breakdown
 - **Signal Contributions**: Per-strategy signal contribution tracking with phase multipliers and bonuses
 - **Strategy Alternatives**: Complete ranking of alternative strategies with scores
-- **Node Signals**: Per-node signal values for graph.node.*, technique.node.*, meta.node.*
+- **Node Signals**: Per-node signal values for graph.node.*, technique.node.*, meta.node.*, including per-concept LLM quality signals (elaboration, charge)
 - **CSV Export**: Use `generate_scoring_csv.py` script to export live score decomposition to CSV format
 
 ### Score Decomposition Format
@@ -264,7 +257,7 @@ Per-persona deflection patterns are defined in persona YAML under `deflection_pa
 
 ## Creating Custom Personas
 
-Add new personas by creating YAML files in `config/personas/`:
+Add new personas by creating YAML files in `config/personas/domains/` or `config/personas/edge_cases/`:
 
 ```yaml
 id: my_custom_persona
@@ -342,7 +335,7 @@ from src.core.persona_loader import load_persona, list_personas
 personas = list_personas()
 
 # Load specific persona
-persona = load_persona("health_conscious")
+persona = load_persona("baseline_cooperative")
 ```
 
 ## Output Directory

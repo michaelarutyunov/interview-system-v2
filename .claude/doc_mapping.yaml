@@ -24,8 +24,9 @@ mappings:
     doc: ".claude/context/signal-detection-graph.md"
 
   - sources:
+      - "src/signals/llm/*.py"
+      - "src/signals/llm/llm_signal_baseprompt.md"
       - "src/signals/llm/signals/*.py"
-      - "src/signals/llm/prompts/signals.md"
     doc: ".claude/context/signal-detection-llm.md"
 
   - sources:
@@ -52,11 +53,17 @@ mappings:
   - sources:
       - "src/services/node_signal_detection_service.py"
       - "src/services/node_state_tracker.py"
+      - "src/domain/models/node_state.py"
     doc: ".claude/context/node-state-tracker.md"
 
   - sources:
       - "src/services/methodology_strategy_service.py"
     doc: "docs/SYSTEM_DESIGN.md"
+
+  - sources:
+      - "src/signals/__init__.py"
+      - "src/signals/signal_registry.py"
+    doc: ".claude/context/signal-detection-llm.md"
 
   - sources:
       - "src/main.py"
@@ -73,4 +80,9 @@ mappings:
   - sources:
       - "src/core/concept_loader.py"
       - "config/concepts/*.yaml"
+      - "config/interview_config.yaml"
     doc: "docs/SYSTEM_DESIGN.md"
+
+  - sources:
+      - "scripts/generate_reviews.py"
+    doc: "docs/interview_ai_simulation.md"
