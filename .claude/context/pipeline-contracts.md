@@ -16,7 +16,7 @@ Convenience properties on `PipelineContext` derive computed values from contract
 | 2 | UtteranceSavingStage | `UtteranceSavingOutput` | `turn_number`, `user_utterance_id`, `user_utterance` |
 | 2.5 | SRLPreprocessingStage | `SrlPreprocessingOutput` | `discourse_relations`, `srl_frames`, `discourse_count`, `frame_count`, `timestamp` |
 | 3 | ExtractionStage | `ExtractionOutput` | `extraction` (ExtractionResult), `methodology`, `timestamp`, `concept_count`, `relationship_count` |
-| 4 | GraphUpdateStage | `GraphUpdateOutput` | `nodes_added`, `edges_added`, `node_count`, `edge_count`, `timestamp`. Performs permitted_connections validation for cross-turn edges after dedup resolution. |
+| 4 | GraphUpdateStage | `GraphUpdateOutput` | `nodes_added`, `edges_added`, `node_count`, `edge_count`, `timestamp`. Performs permitted_connections validation for cross-turn edges after dedup resolution. Populates `PipelineContext.concept_to_node_id` (keyed by `concept.text.lower()`) for the per-concept→node bridge consumed in Stage 6. |
 | 4.5 | SlotDiscoveryStage | `SlotDiscoveryOutput` | `slots_created`, `slots_updated`, `mappings_created`, `timestamp` |
 | 5 | StateComputationStage | `StateComputationOutput` | `graph_state`, `recent_nodes`, `computed_at`, `saturation_metrics`, `canonical_graph_state` |
 | 6 | StrategySelectionStage | `StrategySelectionOutput` | `strategy`, `focus`, `selected_at`, `signals`, `node_signals`, `strategy_alternatives` (uniform 3-tuples `(strategy, node_id_or_None, score)`), `generates_closing_question`, `focus_mode`, `score_decomposition` (unified joint scoring output), `threshold_fallback` |
@@ -40,6 +40,8 @@ Stage 2.5 (SRL) is gated by `settings.enable_srl`. Stage 4.5 (SlotDiscovery) is 
 ### Strategy Selection (Stage 6) Details
 
 **StrategyConfig.valid_when gate.** Each `StrategyConfig` (defined in `src/methodologies/registry.py`) has an optional `valid_when` field — a string naming a boolean signal. When set, the (strategy, node) pair is skipped during joint scoring if the named signal is not `True` in the node's signal dict. This gates chain-aware strategies (e.g., `bridge`, `branch`, `anchor`) so they are only scored when chain topology signals indicate a relevant graph structure. Strategies without `valid_when` are always eligible.
+
+**Per-concept → node bridge.** Between global and node signal detection, Stage 6 iterates `per_concept_ratings` from `GlobalSignalDetectionService.detect_with_per_concept()` and, for each concept whose name appears in `context.concept_to_node_id`, calls `node_tracker.append_quality(node_id, elaboration, charge)`. This populates `NodeState.quality_history` so the downstream `graph.node.elaboration` / `graph.node.charge` / `graph.node.has_quality_data` signals have fresh data within the same turn.
 
 **Joint scoring architecture.** `MethodologyStrategyService.select_strategy_and_focus()` partitions strategies by `node_binding`:
 - `node_binding='required'` strategies are scored via `rank_strategy_node_pairs()` — each (strategy, node) pair gets merged global+node signals, valid_when gates filter ineligible pairs

@@ -22,7 +22,8 @@ Changes made after Stage 12 are lost; changes made before Stage 1 in the next tu
 | `yield_count` | int | Total turns this node produced graph changes |
 | `last_yield_turn` | int \| None | Turn number of most recent yield |
 | `yield_rate` | float | `yield_count / max(focus_count, 1)` |
-| `all_response_depths` | list[str] | Ordered list of "surface" / "shallow" / "deep" depth labels |
+| `all_response_depths` | list[str] | Ordered list of "surface" / "shallow" / "moderate" / "deep" depth labels (derived from per-concept elaboration scores) |
+| `quality_history` | `NodeQualityHistory` | Per-concept LLM ratings: `elaboration_scores: list[float]`, `charge_scores: list[float]`. Populated by `append_quality()`. |
 | `connected_node_ids` | set[str] | IDs of nodes connected via edges |
 | `edge_count_outgoing` | int | Number of outgoing edges |
 | `edge_count_incoming` | int | Number of incoming edges |
@@ -38,7 +39,7 @@ Changes made after Stage 12 are lost; changes made before Stage 1 in the next tu
 | Stage 5 | `GraphUpdateStage` | `update_edge_counts(node_id, outgoing_delta, incoming_delta)` | Adjusts edge counts; floors at 0 |
 | Stage 5 | `GraphUpdateStage` | `record_yield(node_id, turn_number, graph_changes)` | Credits `previous_focus` with graph changes; resets `turns_since_last_yield` to 0; increments `yield_count`; recalculates `yield_rate`; does **NOT** touch `current_focus_streak` |
 | Stage 8 | `StrategySelectionStage` | `update_focus(node_id, turn_number, strategy)` | Increments `focus_count`; sets `last_focus_turn`; resets streak to 1 on focus change, increments streak on same focus; ticks `turns_since_last_yield += 1` for **ALL** nodes; updates `previous_focus` |
-| Stage 8 | `StrategySelectionStage` | `append_response_signal(focus_node_id, response_depth)` | Appends `response_depth` to `all_response_depths` for the **previous** focus node (not the newly selected one) |
+| Stage 8 | `StrategySelectionStage` (bridge) | `append_quality(node_id, elaboration, charge)` | Records per-concept LLM ratings: appends normalized `elaboration`/`charge` to `quality_history`, derives and appends a categorical `response_depth` to `all_response_depths`. Called once per concept via the per-concept→node bridge step. Replaces the prior `append_response_signal`. |
 | Stage 1 | `ContextLoadingStage` | `from_dict(data)` | Deserializes persisted tracker state; raises `ValueError` on schema version mismatch |
 | Stage 12 | `ScoringPersistenceStage` | `to_dict()` | Serializes tracker state to JSON-compatible dict; converts `connected_node_ids` set to list |
 
@@ -52,7 +53,7 @@ Stage 4:  ExtractionStage
 Stage 5:  GraphUpdateStage             ← register_node(), update_edge_counts(), record_yield()
 Stage 6:  SlotDiscoveryStage
 Stage 7:  StateComputationStage
-Stage 8:  StrategySelectionStage       ← signal detection reads state, then update_focus(), append_response_signal()
+Stage 8:  StrategySelectionStage       ← global signals → per-concept→node bridge (append_quality) → node signals → update_focus()
 Stage 9:  ContinuationStage
 Stage 10: QuestionGenerationStage
 Stage 11: ResponseSavingStage
@@ -98,7 +99,7 @@ When `canonical_slot_repo` is provided (i.e. `enable_canonical_slots=True`), sur
 
 ```python
 {
-    "schema_version": 1,          # NODE_TRACKER_SCHEMA_VERSION
+    "schema_version": 3,          # NODE_TRACKER_SCHEMA_VERSION (v3 adds quality_history; from_dict accepts v1/v2 with empty defaults)
     "previous_focus": str | None,
     "states": {
         "<node_id>": {             # canonical_slot_id if dual-graph, else surface node_id
@@ -124,7 +125,7 @@ When `canonical_slot_repo` is provided (i.e. `enable_canonical_slots=True`), sur
 
 4. **Persistence window**: `to_dict()` must be called in Stage 12 and `from_dict()` in Stage 1. Mutations after Stage 12 within a turn are not persisted. Mutations before Stage 1 are not possible (tracker is not yet loaded).
 
-5. **Dual-graph tracking key consistency**: All methods (`update_focus`, `record_yield`, `append_response_signal`, `update_edge_counts`, `get_state`) resolve surface node IDs to canonical slot IDs before accessing `self.states`. This ensures all metrics accumulate on the canonical key, not scattered across surface paraphrases.
+5. **Dual-graph tracking key consistency**: All methods (`update_focus`, `record_yield`, `append_quality`, `update_edge_counts`, `get_state`) resolve surface node IDs to canonical slot IDs before accessing `self.states`. This ensures all metrics accumulate on the canonical key, not scattered across surface paraphrases.
 
 6. **New nodes must be registered before focus or yield**: `register_node()` must run (Stage 5) before `update_focus()` or `record_yield()` attempt to access that node. If a node is not in `self.states`, both methods log a warning and return without error.
 
@@ -143,7 +144,7 @@ When `canonical_slot_repo` is provided (i.e. `enable_canonical_slots=True`), sur
 | Tracker state lost between turns (signals always see initial values) | `to_dict()` not called in `ScoringPersistenceStage`, or `from_dict()` not called in `ContextLoadingStage` | Verify Stage 12 calls `node_state_tracker.to_dict()` and saves result to `sessions.node_tracker_state`; verify Stage 1 loads it via `from_dict()` |
 | Node signals missing / wrong for newly extracted nodes | New node not yet in tracker when `update_focus()` is called | Confirm `register_node()` is called in Stage 5 (before Stage 8); check `register_node()` call path in `graph_update_stage.py:_update_node_state_tracker()` |
 | Canonical slot aggregation not working (metrics split across paraphrase nodes) | `canonical_slot_repo` not injected into `NodeStateTracker` constructor | Confirm `NodeStateTracker(canonical_slot_repo=repo)` is used when `enable_canonical_slots=True` in session config |
-| `ValueError: Incompatible node_tracker_state schema version` | DB has state serialized at an older schema version | Migrate DB rows or reset `node_tracker_state` to `null` for affected sessions; schema is currently version 1 |
+| `ValueError: Incompatible node_tracker_state schema version` | DB has state serialized at an older schema version | Migrate DB rows or reset `node_tracker_state` to `null` for affected sessions; schema is currently version 3 |
 
 ---
 
@@ -154,7 +155,7 @@ When `canonical_slot_repo` is provided (i.e. `enable_canonical_slots=True`), sur
 | `src/services/node_state_tracker.py` | `NodeStateTracker` class and `GraphChangeSummary` dataclass |
 | `src/domain/models/node_state.py` | `NodeState` dataclass (all tracked fields) |
 | `src/services/turn_pipeline/stages/graph_update_stage.py` | Stage 5: calls `register_node()`, `update_edge_counts()`, `record_yield()` |
-| `src/services/turn_pipeline/stages/strategy_selection_stage.py` | Stage 8: calls `update_focus()`, `append_response_signal()` |
+| `src/services/turn_pipeline/stages/strategy_selection_stage.py` | Stage 8: hosts the per-concept→node bridge (`append_quality()`) and calls `update_focus()` |
 | `src/services/turn_pipeline/stages/context_loading_stage.py` | Stage 1: loads tracker via `from_dict()` |
 | `src/services/turn_pipeline/stages/scoring_persistence_stage.py` | Stage 12: saves tracker via `to_dict()` |
 | `src/persistence/repositories/canonical_slot_repo.py` | `CanonicalSlotRepository` for surface→canonical slot ID resolution |

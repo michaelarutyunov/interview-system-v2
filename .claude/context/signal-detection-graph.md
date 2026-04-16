@@ -31,6 +31,18 @@ The parent key `graph.node.chain_topology` also remains available (holds the raw
 
 These signals require graph traversal (O(N×D) for N nodes and D depth) and are only non-trivial for chain methodologies (MEC). For non-chain methodologies (JTBD, CJM, Repertory Grid), the detector returns `{}` and all 8 signals are absent from scoring.
 
+### Per-Concept LLM Quality Node Signals (Phase C)
+
+Surface per-concept LLM ratings (stored in `NodeState.quality_history` by the Stage 6 bridge — see `signal-detection-llm.md` and `node-state-tracker.md`) as YAML-weightable node signals:
+
+| Flat key | Type | Meaning |
+|---|---|---|
+| `graph.node.elaboration.low` / `.mid` / `.high` | bool | Mean normalized elaboration binned: low <0.34, mid [0.34, 0.67), high ≥0.67 |
+| `graph.node.charge.negative` / `.neutral` / `.positive` | bool | Mean normalized charge binned: negative <0.375, neutral [0.375, 0.625], positive >0.625 |
+| `graph.node.has_quality_data` | bool | `True` once the node has received at least one per-concept rating; gate for quality-dependent strategies |
+
+**Dot-notation sub-key convention.** `NodeSignalDetector`s that return a dict per node must emit sub-keys with dot notation (e.g. `"elaboration.low"`, not `"elaboration_low"`). The flattener in `NodeSignalDetectionService` derives the namespace prefix by `rsplit('.', 1)` on the detector's `signal_name` and concatenates `{prefix}.{sub_key}`. YAML weight keys like `graph.node.elaboration.low` will never match underscore-separated sub-keys.
+
 ### Chain Lifecycle Signals
 
 Two chain topology signals use transitive reachability to distinguish a node's position in the full chain lifecycle:
