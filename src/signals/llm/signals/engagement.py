@@ -1,39 +1,26 @@
-"""Engagement signal — assesses respondent willingness to engage on 1-5 scale.
+"""Engagement signal — global response-level willingness to participate (1-5)."""
 
-Measures how actively the respondent participates in the interview
-through elaboration effort, volunteered information, and interaction
-quality. Engagement indicates interview health and rapport.
-"""
-
-from src.signals.llm.decorator import llm_signal
+from src.signals.llm.decorator import llm_global_signal
 from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 
-@llm_signal(  # type: ignore[type-var]
+@llm_global_signal(  # type: ignore[type-var]
     signal_name="llm.engagement",
-    rubric_key="engagement",
-    description="Assesses respondent's willingness to engage. 1=minimal effort, 5=high engagement.",
+    description="Respondent's willingness to participate in the interview (1-5).",
 )
 class EngagementSignal(BaseLLMSignal):
-    """Measure respondent engagement and willingness to participate.
+    """Global engagement — willingness, not articulateness."""
 
-    Assesses interview participation quality through response elaboration,
-    volunteered information, and interaction enthusiasm. Low engagement
-    may signal rapport issues or topic disinterest.
+    RUBRIC: str = """\
+How willing is the respondent to participate?
 
-    Engagement categories (1-5 rubric):
-    1 - Minimal: Single words, "I don't know", deflection, disengagement
-    2 - Low: Brief answers, minimal elaboration, reactive only
-    3 - Adequate: Answers fully but doesn't volunteer additional information
-    4 - Good: Engaged elaboration, some volunteered details
-    5 - High: Enthusiastic elaboration, introduces new related points unprompted
+1 = Minimal effort. Single words, "I don't know", deflection, restating the question.
+2 = Compliant but passive. Answers the literal question; no voluntary extension.
+3 = Adequate. Answers fully; does not volunteer additional information.
+4 = Active. Extends beyond the question, offers unsolicited detail or examples.
+5 = High. Enthusiastic elaboration, introduces related points, signals wanting to say more.
 
-    Low engagement may require strategy changes to rebuild rapport or
-    shift topics. High engagement indicates good interview flow.
+Score willingness, not articulateness. A poorly worded but effortful answer is 4-5. A polished but minimal answer is 2.
 
-    Namespaced signal: llm.engagement
-    Cost: high (requires LLM analysis or heuristic text processing)
-    Refresh: per_response (always computed fresh)
-    """
-
-    pass
+Do not score real-time self-reflection here. Real-time insight belongs in per-concept elaboration, not engagement.
+"""

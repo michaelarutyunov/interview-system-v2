@@ -33,10 +33,9 @@ from src.signals.graph import (
 
 # LLM signals - imports all LLM signals via llm/__init__.py
 from src.signals.llm import (
-    ResponseDepthSignal,
-    SpecificitySignal,
     CertaintySignal,
-    ValenceSignal,
+    ChargeSignal,
+    ElaborationSignal,
     EngagementSignal,
 )
 
@@ -86,10 +85,9 @@ __all__ = [
     "NodeFocusStreakSignal",
     "NodeIsCurrentFocusSignal",
     # LLM signals
-    "ResponseDepthSignal",
-    "SpecificitySignal",
     "CertaintySignal",
-    "ValenceSignal",
+    "ChargeSignal",
+    "ElaborationSignal",
     "EngagementSignal",
     # LLM batch detector
     "LLMBatchDetector",

@@ -1,180 +1,87 @@
-"""LLM signal decorator for creating signal classes with metadata.
+"""LLM signal decorators for per-concept and global response rating.
 
-This decorator eliminates boilerplate by providing signal metadata
-and handling prompt template loading. Each signal class becomes just:
-    @llm_signal(signal_name="...", rubric_key="...", description="...")
-    class MySignal(BaseLLMSignal):
-        pass
+Two decorators partition signal classes by scope:
+- `@llm_global_signal`   — one score per response (engagement, certainty)
+- `@llm_per_concept_signal` — one score per extracted concept (elaboration, charge)
+
+Both decorators:
+- Register the class in `_registered_llm_signals` for auto-discovery by batch_detector
+- Set `signal_name`, `description`, `scope` as class attributes
+- Validate at import time that the class defines a non-empty `RUBRIC: str` class
+  constant covering the 1-5 rating bands.
+
+LLM I/O is owned by `batch_detector`; `_analyze_with_llm` on the base class stays
+`NotImplementedError`.
 """
 
-from pathlib import Path
-from typing import Callable, Dict, Type
+import re
+from typing import Callable, Dict, Literal, Type
 
 from src.signals.llm.llm_signal_base import BaseLLMSignal
 
-PROMPTS_DIR = Path(__file__).parent / "prompts"
-
-# Registry to track all decorated LLM signal classes
-# Populated by the @llm_signal decorator for auto-discovery
+# Registry: namespaced signal name -> class
 _registered_llm_signals: Dict[str, Type[BaseLLMSignal]] = {}
 
+_RUBRIC_BAND_PATTERN = re.compile(
+    r"^\s*1\s*=.*^\s*2\s*=.*^\s*3\s*=.*^\s*4\s*=.*^\s*5\s*=",
+    re.MULTILINE | re.DOTALL,
+)
 
-def _load_prompt_template(template_name: str) -> str:
-    """Load a prompt template from the prompts directory.
 
-    Args:
-        template_name: Name of template file (e.g., "high_level.md")
+def _validate_rubric(cls: Type[BaseLLMSignal], signal_name: str) -> str:
+    """Ensure `cls.RUBRIC` exists, is a non-empty string, and covers bands 1-5.
 
-    Returns:
-        Template content as string
+    Raises ValueError at import time so malformed signals fail fast.
     """
-    template_path = PROMPTS_DIR / template_name
-    if not template_path.exists():
-        raise FileNotFoundError(f"Prompt template not found: {template_path}")
-
-    with open(template_path) as f:
-        return f.read()
-
-
-def _parse_signals_rubrics() -> dict[str, str]:
-    """Parse signals.md to extract rubric sections.
-
-    Returns:
-        Dictionary mapping signal key to its rubric content
-        e.g., {"response_depth": "## response_depth\\n1=...", ...}
-    """
-    signals_md_path = PROMPTS_DIR / "signals.md"
-    if not signals_md_path.exists():
-        raise FileNotFoundError(f"Signals rubric not found: {signals_md_path}")
-
-    with open(signals_md_path) as f:
-        content = f.read()
-
-    # Parse by signal sections (signal_name: description at column 0)
-    # signals.md uses indentation-based structure:
-    #   response_depth: How much elaboration...   <- header (no indent)
-    #       1 = Minimal or single-word answer     <- content (indented)
-    rubrics: dict[str, list[str]] = {}
-    current_signal = None
-
-    for line in content.split("\n"):
-        stripped = line.strip()
-        # Signal header: starts at column 0, contains ":", not a comment
-        if (
-            line
-            and not line[0].isspace()
-            and ":" in stripped
-            and not stripped.startswith("#")
-        ):
-            current_signal = stripped.split(":")[0].strip().lower()
-            description = ":".join(stripped.split(":")[1:]).strip()
-            rubrics[current_signal] = [description] if description else []
-        elif current_signal and stripped and not stripped.startswith("#"):
-            rubrics[current_signal].append(stripped)
-
-    # Join rubric content
-    return {signal: "\n".join(lines) for signal, lines in rubrics.items()}
+    rubric = getattr(cls, "RUBRIC", None)
+    if not isinstance(rubric, str) or not rubric.strip():
+        raise ValueError(
+            f"Signal class {cls.__name__} ({signal_name}) must define a non-empty "
+            "class attribute `RUBRIC: str`."
+        )
+    if not _RUBRIC_BAND_PATTERN.search(rubric):
+        raise ValueError(
+            f"Signal {signal_name} RUBRIC must include all five numbered bands "
+            "`1 =` through `5 =`."
+        )
+    return rubric
 
 
-def _load_output_example() -> dict:
-    """Load output_example.json to show expected format.
-
-    Returns:
-        Dictionary with signal examples
-    """
-    example_path = PROMPTS_DIR / "output_example.json"
-    if not example_path.exists():
-        raise FileNotFoundError(f"Output example not found: {example_path}")
-
-    import json
-
-    with open(example_path) as f:
-        return json.load(f)
-
-
-def llm_signal(
+def _make_decorator(
+    scope: Literal["global", "per_concept"],
     signal_name: str,
-    rubric_key: str,
     description: str,
-    output_schema: dict | None = None,
 ) -> Callable[[Type[BaseLLMSignal]], Type[BaseLLMSignal]]:
-    """Decorator that creates an LLM signal class with metadata.
-
-    The decorator handles all boilerplate for creating signal classes:
-    - Sets signal_name, description, output_schema as class attributes
-    - Creates _get_prompt_spec() that returns the rubric from signals.md
-    - Creates _get_output_schema() that returns the output schema
-
-    Args:
-        signal_name: Namespaced signal name (e.g., "llm.response_depth")
-        rubric_key: Key in signals.md (e.g., "response_depth")
-        description: Human-readable description of what signal measures
-        output_schema: Optional JSON schema for output validation
-
-    Returns:
-        Decorator function that creates the signal class
-
-    Example:
-        @llm_signal(
-            signal_name="llm.response_depth",
-            rubric_key="response_depth",
-            description="Assesses quantity of elaboration (1-5)",
-        )
-        class ResponseDepthSignal(BaseLLMSignal):
-            pass  # Everything handled by decorator!
-    """
-
     def decorator(cls: Type[BaseLLMSignal]) -> Type[BaseLLMSignal]:
-        # Capture outer scope variables for use in class body
-        _signal_name_val = signal_name
-        _description_val = description
-        _rubric_key_val = rubric_key
-        _output_schema_val = output_schema or {}
+        _validate_rubric(cls, signal_name)
 
-        # Create new class that inherits from BaseLLMSignal
-        class_name_from_attr = (
-            _signal_name_val.replace("llm.", "").title().replace("_", "")
-        )
+        cls.signal_name = signal_name  # type: ignore[attr-defined]
+        cls.description = description  # type: ignore[attr-defined]
+        cls.scope = scope  # type: ignore[attr-defined]
 
-        class DynamicSignalClass(cls):
-            signal_name = _signal_name_val
-            description = _description_val
-            _rubric_key = _rubric_key_val
-            _output_schema = _output_schema_val
-
-            @classmethod
-            def _get_prompt_spec(cls) -> str:
-                """Return the signal rubric from signals.md."""
-                rubrics = _parse_signals_rubrics()
-                if cls._rubric_key not in rubrics:
-                    raise ValueError(
-                        f"Rubric key '{cls._rubric_key}' not found in signals.md"
-                    )
-                return rubrics[cls._rubric_key]
-
-            @classmethod
-            def _get_output_schema(cls) -> dict:
-                """Return the output schema for this signal."""
-                if cls._output_schema:
-                    return cls._output_schema
-                # Default schema from output_example.json
-                example = _load_output_example()
-                if cls.signal_name in example:
-                    return example[cls.signal_name]
-                else:
-                    return {"type": "integer", "minimum": 1, "maximum": 5}
-
-            async def _analyze_with_llm(self, response_text: str) -> dict:
-                """Placeholder — actual LLM analysis handled by batch detector."""
-                raise NotImplementedError("LLM analysis handled by batch detector")
-
-        # Set the class name dynamically
-        DynamicSignalClass.__name__ = f"{cls.__name__}_{class_name_from_attr}"
-        DynamicSignalClass.__module__ = cls.__module__
-
-        # Register the signal class for auto-discovery
-        _registered_llm_signals[_signal_name_val] = DynamicSignalClass
-
-        return DynamicSignalClass
+        if signal_name in _registered_llm_signals:
+            raise ValueError(
+                f"Duplicate LLM signal registration: {signal_name} "
+                f"(existing: {_registered_llm_signals[signal_name].__name__}, "
+                f"new: {cls.__name__})"
+            )
+        _registered_llm_signals[signal_name] = cls
+        return cls
 
     return decorator
+
+
+def llm_global_signal(
+    signal_name: str,
+    description: str,
+) -> Callable[[Type[BaseLLMSignal]], Type[BaseLLMSignal]]:
+    """Decorator for response-level (one scalar per response) LLM signals."""
+    return _make_decorator("global", signal_name, description)
+
+
+def llm_per_concept_signal(
+    signal_name: str,
+    description: str,
+) -> Callable[[Type[BaseLLMSignal]], Type[BaseLLMSignal]]:
+    """Decorator for per-concept (one scalar per extracted concept) LLM signals."""
+    return _make_decorator("per_concept", signal_name, description)

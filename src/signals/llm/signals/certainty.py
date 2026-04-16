@@ -1,39 +1,30 @@
-"""Certainty signal — assesses epistemic confidence on 1-5 scale.
+"""Certainty signal — global response-level epistemic confidence (1-5)."""
 
-Measures how confident the respondent appears in their knowledge
-expressions. Certainty indicates knowledge stability and can
-guide question probing strategies.
-"""
-
-from src.signals.llm.decorator import llm_signal
+from src.signals.llm.decorator import llm_global_signal
 from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 
-@llm_signal(  # type: ignore[type-var]
+@llm_global_signal(  # type: ignore[type-var]
     signal_name="llm.certainty",
-    rubric_key="certainty",
-    description="Assesses epistemic certainty — how confident respondent appears in their knowledge. 1=very uncertain, 5=fully confident.",
+    description="Respondent's expressed confidence in their claims (1-5).",
 )
 class CertaintySignal(BaseLLMSignal):
-    """Measure epistemic certainty for knowledge confidence assessment.
+    """Global certainty — confidence in claims, not objective truth."""
 
-    Assesses how confident the respondent appears in their knowledge
-    expressions based on linguistic markers of doubt, hedging,
-    and declarative certainty.
+    RUBRIC: str = """\
+How confident does the respondent appear in their claims?
 
-    Certainty categories (1-5 rubric):
-    1 - Very uncertain: Explicit doubt ("I don't know", "maybe", "not sure")
-    2 - Uncertain: Frequent hedging and qualifiers
-    3 - Mixed: Some confident statements mixed with uncertain ones
-    4 - Confident: Generally declarative with occasional qualifications
-    5 - Fully confident: Declarative statements without qualifications
+1 = Highly uncertain. Explicit "I don't know", "maybe", genuine hedges throughout.
+2 = Tentative. Multiple qualifications. "I guess", "kind of", "sort of" as genuine modifiers.
+3 = Moderate. Some qualifications but committed on the core position.
+4 = Confident with minor caveats. Assertive with occasional softeners that don't undermine.
+5 = Fully committed. Unqualified assertions, no hedging.
 
-    Lower certainty may indicate areas for deeper probing or knowledge
-    gaps. Higher certainty suggests stable, well-established knowledge.
+Score expressed confidence, not objective truth.
 
-    Namespaced signal: llm.certainty
-    Cost: high (requires LLM analysis or heuristic pattern matching)
-    Refresh: per_response (always computed fresh)
-    """
+Distinguish genuine hedges from social softeners:
+- Genuine hedges (reduce score): "mostly", "kind of", "I guess", "maybe"
+- Social softeners (do NOT reduce score): "I think", "I feel" as sentence openers in otherwise assertive statements
 
-    pass
+Self-discovery is not uncertainty. "I'm realizing this as I say it" or "I never thought about it this way" indicates elaboration, not low certainty. Score certainty on commitment to the claims being made.
+"""

@@ -1,25 +1,24 @@
-"""LLM signals — response quality analysis via Kimi K2.5.
+"""LLM signals — per-concept and global response rating via LLM batch call.
 
-Signals:
-- ResponseDepthSignal — elaboration quantity (1-5)
-- SpecificitySignal — concreteness of language (1-5)
-- CertaintySignal — epistemic confidence (1-5)
-- ValenceSignal — emotional tone (1-5)
-- EngagementSignal — willingness to engage (1-5)
+Per-concept signals (one score per extracted concept):
+- ElaborationSignal — substantive content about the concept (1-5)
+- ChargeSignal — emotional tone toward the concept (1-5)
+
+Global signals (one score per response):
+- EngagementSignal — willingness to participate (1-5)
+- CertaintySignal — expressed confidence in claims (1-5)
 """
 
 from src.signals.llm.signals import (
-    ResponseDepthSignal,
-    SpecificitySignal,
     CertaintySignal,
-    ValenceSignal,
+    ChargeSignal,
+    ElaborationSignal,
     EngagementSignal,
 )
 
 __all__ = [
-    "ResponseDepthSignal",
-    "SpecificitySignal",
     "CertaintySignal",
-    "ValenceSignal",
+    "ChargeSignal",
+    "ElaborationSignal",
     "EngagementSignal",
 ]
