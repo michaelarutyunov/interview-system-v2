@@ -80,7 +80,7 @@ The LLM returns a JSON object with two top-level sections:
 3. The signal name must appear in the methodology YAML `signals: llm:` list for it to fire during interviews.
 4. Continuous signals normalise to `[0, 1]` — strategy weight keys must use `.low`, `.mid`, `.high` bin names, not raw integers.
 5. `llm.global_response_trend` weight keys use categorical strings (`improving`, `degrading`, `stable`, `fatigued`), not numeric bins.
-6. Per-concept signal values are currently consumed downstream via aggregation (e.g. mean elaboration → `response_depth`), not directly as node-scoped weights. Phase C-impl will wire `graph.node.richness` and `graph.node.charge` from per-concept extractions.
+6. Per-concept signals have a **producer/consumer split**. Producers (`llm.elaboration`, `llm.charge`) generate per-concept scores and must appear in `signals: llm:`. Consumers (`graph.node.elaboration`, `graph.node.charge`, `graph.node.has_quality_data`) read scores bridged into `NodeStateTracker` and are detected by `NodeSignalDetectionService`. Both must be present in YAML — producers for batch detection, consumers for node scoring. If producers are absent, `per_concept_classes` is empty, no per-concept records are generated, and all consumer node signals return zero regardless of how rich the LLM response was.
 
 ## Symptom → Cause → Fix
 
@@ -93,6 +93,8 @@ The LLM returns a JSON object with two top-level sections:
 | Strategy weight never triggers for a continuous signal | Weight key uses integer instead of bin name | Replace with `.low`, `.mid`, or `.high` |
 | `global_response_trend` always `stable` | Session history too short or LLM call failed silently | Check `GlobalSignalDetectionService` logs; minimum history requires 4+ turns |
 | `llm.response_depth` stuck at `surface` | No concepts extracted, or all elaboration scores are 1 | Check extraction output and per-concept elaboration scores |
+| `bridged_count=0` every turn; `graph.node.has_quality_data` always False | `llm.elaboration` and/or `llm.charge` missing from `signals: llm:` in methodology YAML — `per_concept_classes` is empty so batch detector generates no per-concept records | Add `llm.elaboration` and `llm.charge` to `signals: llm:` in the YAML |
+| Per-concept records are empty dicts `{}` despite LLM responding with concept data | `_concept_fields` in batch_detector reading `.name` instead of `.text` on `ExtractedConcept` — lookup misses all concepts | Use `concept.text` (not `.name`) everywhere an `ExtractedConcept` label is accessed |
 
 ## Key Files
 
