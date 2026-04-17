@@ -191,7 +191,7 @@ class ComposedSignalDetector:
                 # Returns {"concepts": {name: {...}}, "global": {...}}.
                 llm_signals = await self._llm_detector.detect(
                     response_text=response_text,
-                    question=question,
+                    question=question or "",
                     concepts=concepts or [],
                     signal_classes=llm_signal_classes,
                 )

@@ -26,7 +26,7 @@ import aiosqlite
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.core.config import settings
+from src.core.config import settings  # noqa: E402
 
 
 async def get_surface_metrics(db_path: Path, session_id: str) -> Dict[str, Any]:

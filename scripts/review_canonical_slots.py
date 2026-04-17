@@ -23,7 +23,7 @@ import aiosqlite
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.core.config import settings
+from src.core.config import settings  # noqa: E402
 
 
 async def review_canonical_slots(session_id: str) -> Dict[str, Any]:
@@ -41,7 +41,7 @@ async def review_canonical_slots(session_id: str) -> Dict[str, Any]:
     if not db_path.exists():
         raise RuntimeError(f"Database not found at {db_path}")
 
-    results = {"session_id": session_id}
+    results: Dict[str, Any] = {"session_id": session_id}
 
     # Query 1: Canonical slots
     async with aiosqlite.connect(db_path) as db:

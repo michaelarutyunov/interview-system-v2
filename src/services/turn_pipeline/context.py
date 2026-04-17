@@ -479,7 +479,10 @@ class PipelineContext:
             Returns empty list if stage not yet completed.
         """
         if self.strategy_selection_output:
-            return self.strategy_selection_output.strategy_alternatives
+            return [
+                (alt["strategy"], alt.get("node_id"), alt["score"])
+                for alt in self.strategy_selection_output.strategy_alternatives
+            ]
         return []
 
     @property

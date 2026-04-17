@@ -130,9 +130,9 @@ class InterviewPhaseSignal(SignalDetector):
             from src.core.config import interview_config
 
             phases = interview_config.phases
-            exploratory_n = phases.exploratory.n_turns if phases.exploratory else 0
-            focused_n = phases.focused.n_turns if phases.focused else 0
-            closing_n = phases.closing.n_turns if phases.closing else 0
+            exploratory_n = (phases.exploratory.n_turns or 0) if phases.exploratory else 0
+            focused_n = (phases.focused.n_turns or 0) if phases.focused else 0
+            closing_n = (phases.closing.n_turns or 0) if phases.closing else 0
             total_yaml_turns = exploratory_n + focused_n + closing_n
             if total_yaml_turns > 0:
                 # Scale YAML proportions to actual max_turns so CLI arg controls phase splits.

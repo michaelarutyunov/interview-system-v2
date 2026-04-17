@@ -49,7 +49,8 @@ class GlobalChainTopologySignal(SignalDetector):
         terminal_types: set[str] = set()
         if schema.ontology:
             for nt in schema.ontology.nodes:
-                level_map[nt.name] = nt.level
+                if nt.level is not None:
+                    level_map[nt.name] = nt.level
                 if nt.terminal:
                     terminal_types.add(nt.name)
 

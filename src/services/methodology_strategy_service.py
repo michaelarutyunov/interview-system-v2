@@ -11,7 +11,7 @@ Key concepts:
 - Signal pools: Shared signal detectors (graph, llm, temporal, meta)
 """
 
-from typing import List, Tuple, Optional, TYPE_CHECKING, Any, Dict
+from typing import List, Tuple, Optional, TYPE_CHECKING, Any, Dict, cast
 import structlog
 
 from src.core.exceptions import ConfigurationError, ScoringError
@@ -297,12 +297,15 @@ class MethodologyStrategyService:
 
         # Score conversation strategies via global-only scoring
         if conversation_strategies:
-            ranked_conv, conv_decomposition = rank_strategies(
-                conversation_strategies,
-                global_signals,
-                phase_weights=phase_weights,
-                phase_bonuses=phase_bonuses,
-                return_decomposition=True,
+            ranked_conv, conv_decomposition = cast(
+                Tuple[List[Tuple[Any, float]], List[Any]],
+                rank_strategies(
+                    conversation_strategies,
+                    global_signals,
+                    phase_weights=phase_weights,
+                    phase_bonuses=phase_bonuses,
+                    return_decomposition=True,
+                ),
             )
             # Convert (StrategyConfig, score) → (StrategyConfig, None, score)
             for strat, score in ranked_conv:

@@ -15,20 +15,19 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Configure logging first (before importing other modules)
-from src.core.logging import configure_logging
+from src.core.logging import configure_logging  # noqa: E402
 
 configure_logging()
 
-from pathlib import Path
-from src.services.simulation_service import SimulationService
-from src.services.session_service import SessionService
-from src.persistence.repositories.session_repo import SessionRepository
-from src.persistence.repositories.graph_repo import GraphRepository
-from src.api.dependencies import (
+from src.services.simulation_service import SimulationService  # noqa: E402
+from src.services.session_service import SessionService  # noqa: E402
+from src.persistence.repositories.session_repo import SessionRepository  # noqa: E402
+from src.persistence.repositories.graph_repo import GraphRepository  # noqa: E402
+from src.api.dependencies import (  # noqa: E402
     get_shared_extraction_client,
     get_shared_generation_client,
 )
-from src.core.config import settings
+from src.core.config import settings  # noqa: E402
 
 
 async def main():
