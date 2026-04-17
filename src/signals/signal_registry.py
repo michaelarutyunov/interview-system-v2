@@ -69,12 +69,20 @@ class ComposedSignalDetector:
         if llm_client:
             self.llm_client = llm_client
 
-        # Create non-LLM detector instances normally
+        # Create non-LLM detector instances normally.
+        # Skip node-level signals (requires_node_tracker=True) — they are
+        # detected separately by NodeSignalDetectionService and should not
+        # be instantiated here (they need a live NodeStateTracker that is
+        # only available at detection time, not at config-load time).
         self.non_llm_detectors: List[SignalDetector] = []
+        self.node_signal_names: List[str] = []
         for signal_name in non_llm_signal_names:
             signal_class = SignalDetector.get_signal_class(signal_name)
             if signal_class is None:
                 raise ValueError(f"Unknown signal: {signal_name}")
+            if getattr(signal_class, "requires_node_tracker", False):
+                self.node_signal_names.append(signal_name)
+                continue
             detector = signal_class(node_tracker=node_tracker)
             self.non_llm_detectors.append(detector)
 

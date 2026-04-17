@@ -213,8 +213,10 @@ signals:
   llm:
     - llm.certainty
     - llm.engagement
+    - llm.elaboration
+    - llm.charge
     # Note: llm.global_response_trend is session-scoped and managed separately
-    # f965: per-concept llm.elaboration / llm.charge route via Stage 6 bridge.
+    # Per-concept LLM signals (elaboration, charge) produce per-concept ratings that route to graph.node.* via Stage 6 bridge.
 
   temporal:
     - temporal.strategy_repetition_count

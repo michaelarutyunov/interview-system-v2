@@ -148,14 +148,14 @@ class LLMBatchDetector:
 
     @staticmethod
     def _concept_fields(c: Any) -> tuple[str, list[str]]:
-        """Extract (name, quotes) whether c is a dict or an object."""
+        """Extract (text, quotes) whether c is a dict or an ExtractedConcept."""
         if isinstance(c, dict):
-            name = c["name"]
+            name = c.get("text") or c.get("name", "")
             quotes = c.get("source_quotes") or (
                 [c["source_quote"]] if c.get("source_quote") else []
             )
         else:
-            name = getattr(c, "name")
+            name = getattr(c, "text", None) or getattr(c, "name", "")
             quotes = getattr(c, "source_quotes", None) or (
                 [getattr(c, "source_quote")] if getattr(c, "source_quote", None) else []
             )
