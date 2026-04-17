@@ -27,7 +27,12 @@ mappings:
       - "src/signals/llm/*.py"
       - "src/signals/llm/llm_signal_baseprompt.md"
       - "src/signals/llm/signals/*.py"
+      - "src/signals/session/*.py"
     doc: ".claude/context/signal-detection-llm.md"
+
+  - sources:
+      - "src/signals/meta/*.py"
+    doc: ".claude/context/signal-detection-graph.md"
 
   - sources:
       - "src/services/graph_service.py"
