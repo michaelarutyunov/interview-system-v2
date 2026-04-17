@@ -27,19 +27,18 @@ Signals are organized into categories based on what they measure:
 
 | Signal | Moderator Meaning | How It's Computed | What to Look For |
 |--------|------------------|-------------------|------------------|
-| **response_depth** | How much information is being shared | An LLM evaluates the response and assigns it a 1-5 score, mapped to categories: 1=surface, 2=shallow, 3=moderate, 4-5=deep | surface/shallow = brief, minimal; moderate = some substance; deep = good detail and reasoning. Bins used in YAML: `surface`, `shallow`, `moderate`, `deep` |
-| **specificity** | How concrete vs abstract the response is | An LLM assigns a 1-5 score, normalized to 0.0–1.0 using (score−1)/4. Bins: `low` ≤0.25 (scores 1-2), `mid` 0.25-0.75 (scores 2-4), `high` ≥0.75 (scores 4-5) | low (0.0-0.25) = vague generalities; high (0.75-1.0) = specific examples, details, named entities |
-| **certainty** | How confident the respondent sounds | An LLM assigns a 1-5 score, normalized to 0.0–1.0. Bins: `low` ≤0.25 (scores 1-2 — hedging/uncertain), `mid` 0.25-0.75 (mixed), `high` ≥0.75 (scores 4-5 — confident) | low = hedging, "maybe", "I guess"; high = unqualified statements |
-| **valence** | Emotional tone of response | An LLM assigns a 1-5 score, normalized to 0.0–1.0. Bins: `low` ≤0.25 (negative), `mid` 0.25-0.75 (neutral), `high` ≥0.75 (positive) | low = negative/critical; mid (~0.5) = neutral; high = positive/enthusiastic |
-| **intellectual_engagement** | Presence of reasoning and "why" | An LLM assigns a 1-5 score, normalized to 0.0–1.0. Bins: `low` ≤0.25 (bare facts), `mid` 0.25-0.75 (some reasoning), `high` ≥0.75 (rich motivation/tradeoff reasoning) | low = bare facts; high = explains motivations, tradeoffs, value hierarchies |
-| **engagement** | Willingness to participate | An LLM assigns a 1-5 score, normalized to 0.0–1.0. Bins: `low` ≤0.25 (score 1-2 — minimal effort, deflection), `mid` 0.25-0.75 (adequate), `high` ≥0.75 (score 4-5 — enthusiastic) | low = minimal effort, deflections; high = enthusiastic, extends beyond question |
-| **global_response_trend** | How quality is changing over time | Classified from the last 4 response_depth values: if most are deepening → `deepening`; if 4+ are shallow → `fatigued`; otherwise `stable` or `shallowing` | `deepening` = more engaged; `stable` = consistent; `shallowing` = declining; `fatigued` = disengaged |
+| **response_depth** | How much information is being shared overall | Derived from the mean per-concept `elaboration` score: mean <0.125 → `surface`, <0.375 → `shallow`, <0.625 → `moderate`, ≥0.625 → `deep`. Bins in YAML: `surface`, `shallow`, `moderate`, `deep` | surface/shallow = brief, minimal; moderate = some substance; deep = good detail and reasoning |
+| **elaboration** *(per-concept)* | How developed each specific concept is in this response | LLM scores each extracted concept 1–5. The mean drives `response_depth`; individual scores are routed to the node tracker (→ `graph.node.elaboration`). Raw score used, not normalized | surface = barely mentioned; deep = fully reasoned with examples. Watch per-node elaboration for topic-level patterns |
+| **charge** *(per-concept)* | Emotional tone toward each specific concept | LLM scores each extracted concept 1–5, normalized to [0, 1]. Individual scores routed to node tracker (→ `graph.node.charge`). Bins: `negative` ≤0.25, `neutral` 0.25–0.75, `positive` ≥0.75 | Negative = concern or reluctance around this topic; positive = enthusiasm or desire |
+| **certainty** | How confident the respondent sounds | LLM assigns a 1–5 score, normalized to [0, 1]. Bins: `low` ≤0.25 (hedging), `mid` 0.25–0.75 (mixed), `high` ≥0.75 (confident) | low = "maybe", "I guess"; high = unqualified statements |
+| **engagement** | Willingness to participate | LLM assigns a 1–5 score, normalized to [0, 1]. Bins: `low` ≤0.25 (minimal effort, deflection), `mid` 0.25–0.75 (adequate), `high` ≥0.75 (enthusiastic) | low = minimal effort, deflections; high = enthusiastic, extends beyond question |
+| **global_response_trend** | How quality is changing over time | Classified from the last 4 `response_depth` values: if most are deepening → `deepening`; if 4+ are shallow → `fatigued`; otherwise `stable` or `shallowing`. Requires 4+ turns of history | `deepening` = more engaged; `stable` = consistent; `shallowing` = declining; `fatigued` = disengaged |
 
 **Moderator Use Cases:**
 - **Low depth + low engagement** → Consider building rapport or closing
-- **High specificity + high certainty** → Good time to probe deeper
+- **High elaboration + high certainty** → Good time to probe deeper
 - **Fatigued trend** → Time to switch topics or wrap up
-- **Negative valence** → Handle with care, may need rapport repair
+- **Negative charge on a node** → Handle with care, may need rapport repair before probing further
 
 **Phase Configuration Note:** The interview phase (early/mid/late) is automatically calculated from the turn boundaries configured in `config/interview_config.yaml`. The YAML uses descriptive phase names (exploratory/focused/closing) that map to signal outputs (early/mid/late) for backward compatibility with existing methodology configurations.
 
@@ -101,6 +100,9 @@ These signals are most meaningful for **Means-End Chain (MEC)** methodology, whe
 | **graph.node.novelty** | How recently a topic was first introduced | Age-based freshness score: 1.0 when a node is first created, decaying linearly to 0.0 over 5 turns. Bins: `high` ≥0.6 (created within the last 2 turns), `medium` 0.3-0.6 (3-4 turns old), `low` <0.3 (5+ turns old) | high = newly surfaced concept worth exploring; low = concept has been in the graph long enough to accumulate its own history |
 | **graph.node.focus_count** | How many times a topic has been selected for focus across the whole interview | Cumulative count of turns this node was ever chosen as the focus target — never resets, unlike focus_streak. Bins: `none`=0 focuses, `low`=1-2, `medium`=3-4, `high`=5+ | none = never explored; high (5+) = this topic has been revisited many times — consider moving on permanently |
 | **graph.node.canonical_novelty** | Whether this topic introduced a genuinely new theme | Compares the node's canonical slot mapping to a record of which slots have been seen before: `new` = this turn introduced a slot not seen before; `confirming` = maps to a pre-existing slot (elaboration, not exploration); `orphan` = no canonical slot assigned yet (treat as novel) | new = reward with exploration; confirming = topic is redundant unless depth is low; orphan = no deduplication data available yet |
+| **graph.node.elaboration** | Historical depth of elaboration for this concept across all turns it appeared | Mean of per-turn `llm.elaboration` scores (1–5) bridged from the LLM batch detector, normalized to [0, 1]. Bins: `low` ≤0.25, `mid` 0.25–0.75, `high` ≥0.75. Returns empty if `graph.node.has_quality_data` is false | low = concept consistently mentioned superficially; high = concept repeatedly explored with depth. Use with `has_quality_data` to gate strategies |
+| **graph.node.charge** | Historical emotional tone toward this concept across all turns | Mean of per-turn `llm.charge` scores bridged from the LLM batch detector, normalized to [0, 1]. Bins: `negative` ≤0.25, `neutral` 0.25–0.75, `positive` ≥0.75. Returns empty if `graph.node.has_quality_data` is false | Persistent negative charge = this topic has emotional weight — probe carefully; positive = productive territory |
+| **graph.node.has_quality_data** | Has this topic accumulated quality tracking data yet? | Boolean gate: true if `NodeState.quality_history` has at least one elaboration or charge score. False on the first turn a node appears, since bridge data arrives at the end of the turn | False = no quality data yet — quality-dependent strategies should not fire. True = scoring and gating can use elaboration/charge history |
 | **technique.node.strategy_repetition** | Same strategy used consecutively on this topic | Count of consecutive turns where the same strategy was applied to this node, binned: 0=none, 1-2=low, 3-4=medium, 5+=high | High (3+) = avoid repetitive questioning |
 
 ### Understanding "Yield"
@@ -235,8 +237,8 @@ These signals serve as `valid_when` gates for MEC's chain-aware strategies. A st
 Signals are most powerful when interpreted together. Here are common patterns:
 
 ### Pattern: "The Wandering Respondent"
-- **Low depth + Low specificity + High engagement**
-- Meaning: They're talking a lot but not saying much concrete
+- **Low depth + Low elaboration (per-concept) + High engagement**
+- Meaning: They're talking a lot but responses stay at the surface across every topic
 - Action: Use specific examples to ground the discussion
 
 ### Pattern: "The Fatigue Signal"
@@ -247,7 +249,7 @@ Signals are most powerful when interpreted together. Here are common patterns:
 - Action: Wrap up or take a break
 
 ### Pattern: "The Deep Well"
-- **High depth + High intellectual_engagement + Low saturation**
+- **High depth + High elaboration (per-concept) + Low saturation**
 - **canonical.saturation < 0.3**
 - Meaning: We're hitting productive territory — keep digging
 - Action: Use deepen/laddering strategies
@@ -297,12 +299,11 @@ The key is to answer: **"What does this tell a moderator about the interview?"**
 
 | Signal | High Value Means... | Low Value Means... |
 |--------|-------------------|-------------------|
-| response_depth (comprehensive) | Rich, multi-faceted answers | surface/shallow = brief, minimal |
-| specificity (0.75-1.0) | Concrete examples | Low (0.0-0.25) = vague |
+| response_depth (deep) | Rich, multi-faceted answers | surface/shallow = brief, minimal |
+| elaboration per-concept (high, ≥0.75) | Concept well-developed with reasoning | surface = barely mentioned |
+| charge per-concept (positive, ≥0.75) | Enthusiasm toward this concept | negative (≤0.25) = concern or reluctance |
 | engagement (0.75-1.0) | Enthusiastic participation | Minimal effort |
-| intellectual_engagement (0.75-1.0) | Shows reasoning/motivation | Bare facts only |
 | global_response_trend (fatigued) | Disengaged (4+ shallow) | stable or deepening |
-| valence (0.75-1.0) | Positive/enthusiastic | Negative/critical |
 | graph.node_count | Broad coverage | Narrow focus |
 | graph.edge_count | Well-connected concepts | Isolated concepts |
 | graph.orphan_count | Missed connections | Well-integrated |
@@ -322,6 +323,9 @@ The key is to answer: **"What does this tell a moderator about the interview?"**
 | graph.node.novelty (high) | Freshly introduced concept | Well-established node in graph |
 | graph.node.focus_count (high, 5+) | Topic has been revisited many times | Topic barely explored |
 | graph.node.canonical_novelty (new) | Genuinely new theme introduced | Confirming/elaborating existing theme |
+| graph.node.elaboration (high, ≥0.75) | Concept consistently explored with depth | surface/shallow elaboration history |
+| graph.node.charge (positive, ≥0.75) | Persistent positive tone toward concept | Persistent negative (≤0.25) = emotional friction |
+| graph.node.has_quality_data (true) | Quality tracking active for this node | No elaboration/charge data yet |
 | graph.chain_completion.has_complete (true) | At least one full causal chain | No complete chains yet |
 | graph.global.frontier_count (high) | Many chains stop short of values | Most chains extend toward terminals |
 | graph.global.ungrounded_count (high) | Many concepts lack attribute foundation | Most concepts are grounded |
