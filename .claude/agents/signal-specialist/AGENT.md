@@ -22,7 +22,7 @@ Invoked when work touches any of:
 |---|---|---|---|
 | `graph.*` | `GraphState` metrics in memory | scalar (float/bool) keyed by signal name | `graph.node_count`, `graph.max_depth`, `graph.chain_completion.has_complete`, `graph.canonical_node_count` |
 | `graph.node.*` | `NodeStateTracker` per-node state | `dict[node_id, value]` | `graph.node.exhausted`, `graph.node.exhaustion_score`, `graph.node.focus_streak`, `graph.node.recency_score`, `graph.node.canonical_novelty` |
-| `llm.*` | Single batched Claude Haiku call | scalar in [0,1] (or categorical for `response_depth`) | `llm.response_depth`, `llm.specificity`, `llm.certainty`, `llm.valence`, `llm.engagement`, `llm.intellectual_engagement`, `llm.global_response_trend` (session-level) |
+| `llm.*` | Single batched Claude Haiku call | scalar in [0,1] (or categorical for `response_depth`) | `llm.elaboration`, `llm.charge` (per-concept); `llm.engagement`, `llm.certainty` (global); `llm.response_depth` (derived from per-concept elaboration); `llm.global_response_trend` (session-level) |
 | `temporal.*` | `strategy_history` in context | scalar | `temporal.strategy_repetition_count`, `temporal.turns_since_strategy_change` |
 | `meta.*` | Composed from other signals + session state | scalar/categorical | `meta.interview.phase` (`early`/`mid`/`late`), `meta.interview.progress` |
 | `meta.node.*` / `technique.node.*` | Composed per-node | `dict[node_id, value]` | `meta.node.opportunity` (`exhausted`/`probe_deeper`/`fresh`), `technique.node.consecutive_same_strategy` |
@@ -113,19 +113,21 @@ Any other prefix (including `graph.*` without `.node.`) routes to strategy-level
 
 ### 10. LLM Signal Batch Pattern
 
-All six per-turn LLM signals are computed in a **single batched API call** by `LLMBatchDetector`. To add a new LLM signal:
+LLM signals are computed in a **single batched API call** by `LLMBatchDetector`, partitioned into per-concept and global scopes. To add a new LLM signal:
 
-1. Add a rubric to `src/signals/llm/prompts/signals.md` keyed by your `rubric_key`, with a clear 1–5 scale.
-2. Create `src/signals/llm/signals/your_signal.py` decorated with `@llm_signal(signal_name="llm.your_signal", rubric_key="your_signal", description=...)`. The class body is `pass` — the decorator handles wiring.
+1. Decide scope:
+   - Use `@llm_per_concept_signal` if the signal should be scored for each extracted concept (e.g. `elaboration`, `charge`).
+   - Use `@llm_global_signal` if the signal should be scored once for the entire response (e.g. `engagement`, `certainty`).
+2. Create `src/signals/llm/signals/your_signal.py` with a `RUBRIC: str` class constant covering bands 1–5. The decorator validates the rubric at import time.
 3. Add the import and the class name to `__all__` in `src/signals/llm/signals/__init__.py`.
 4. Add `llm.your_signal` to `signals: llm:` in every methodology YAML that should use it.
 5. Add `signal_weights:` entries (e.g. `llm.your_signal.high: 0.5`) to the strategies that consume it.
 
-A `rubric_key` mismatch raises `ValueError` at first call. Missing from `__all__` or YAML → silently never fires.
+Missing `RUBRIC` or malformed bands → `ValueError` at import time. Missing from `__all__` or YAML → silently never fires.
 
-`response_depth` is the only LLM signal treated **categorically** (`surface`/`shallow`/`deep`); all others normalize via `(score - 1) / 4` to `[0, 1]` and use `.low`/`.mid`/`.high`.
+`llm.response_depth` is **derived**, not scored directly. It is computed from the mean per-concept `elaboration` score and treated **categorically** (`surface`/`shallow`/`moderate`/`deep`). All other continuous signals normalize via `(score - 1) / 4` to `[0, 1]` and use `.low`/`.mid`/`.high`.
 
-`llm.global_response_trend` is **session-level**, computed in `GlobalResponseTrendSignal` from rolling per-turn history; categorical values `deepening`/`stable`/`shallowing`/`fatigued`. Uses last-6 window with 4-sample minimum gate (not "last 4"). Requires ≥4 turns of history for trend classification.
+`llm.global_response_trend` is **session-level**, computed in `GlobalResponseTrendSignal` from rolling per-turn history of `llm.response_depth`; categorical values `deepening`/`stable`/`shallowing`/`fatigued`. Uses last-6 window with 4-sample minimum gate. Requires ≥4 turns of history for trend classification.
 
 ### 11. YAML Activation Gate
 
@@ -141,7 +143,7 @@ A signal class existing on disk is **not enough** for it to fire. The gating che
 2. **Always verify a signal is listed in the methodology YAML before concluding it is broken.** A missing YAML entry produces silent absence, not an error.
 3. **Use `.mid`, never `.medium`, for continuous threshold bins.** `.medium` is reserved for explicit categorical signals (`graph.node.focus_streak`). When in doubt, check whether the signal class returns a float or a string.
 4. **Never reset signal-relevant state in `record_yield()` (Stage 5/GraphUpdateStage).** Stage 5 runs before Stage 8 (signal detection) within the same turn — any reset there is invisible-to-impossible to recover.
-5. **When adding a new LLM signal, all three of these must be done**: matching `rubric_key` in `signals.md`, entry in `__all__` in `src/signals/llm/signals/__init__.py`, listing in methodology YAML `signals: llm:`. Missing any one yields silent failure.
+5. **When adding a new LLM signal, all three of these must be done**: `@llm_global_signal` or `@llm_per_concept_signal` decorator with a valid `RUBRIC: str` (1–5 bands), entry in `__all__` in `src/signals/llm/signals/__init__.py`, and listing in methodology YAML `signals: llm:`. Missing any one yields silent failure.
 6. **Tick `turns_since_last_yield += 1` for ALL nodes inside `update_focus()`**, not just the new focus. Restricting the tick stops exhaustion accumulation.
 7. **Phase multipliers and bonuses are strategy-level**, applied after base scoring. Never fold them into individual `signal_weights` entries — they belong in the `phases:` block keyed by exact strategy name.
 8. **Node-scoped weights MUST use a `graph.node.*` / `technique.node.*` / `meta.node.*` prefix.** Otherwise `partition_signal_weights()` routes them to Stage 1 and they have no node-distinguishing effect.
@@ -155,7 +157,7 @@ Each entry below records a real failure observed in this codebase or a design co
 - **Using `.medium` instead of `.mid` as a threshold bin suffix on a continuous signal.** Never matches. Found in early YAML edits to rotation strategies; wasted hours of debugging.
 - **Adding `current_focus_streak = 0` to `record_yield()` "to keep state clean".** Causes `graph.node.focus_streak` to always read `none` at signal detection because Stage 5 runs before Stage 8. Canonical regression — see `MEMORY.md` "Node Exhaustion / Rotation Bug Fix (bead 119q)".
 - **Restricting the `turns_since_last_yield += 1` tick in `update_focus()` to only the focused node.** Unfocused nodes never accumulate staleness; `exhaustion_score` is permanently pinned near zero. Same root-cause family as above.
-- **Defining a new LLM signal class but not adding it to `__all__` in `src/signals/llm/signals/__init__.py`.** `LLMBatchDetector` discovers signals via the `__all__` export — silently never fires.
+- **Defining a new LLM signal class but not adding it to `__all__` in `src/signals/llm/signals/__init__.py`.** `LLMBatchDetector` discovers signals via the decorator registry, but the canonical import path is through `__all__` — missing it causes import-side silent failures.
 - **Defining a new LLM signal but forgetting to list it in the methodology YAML `signals: llm:` section.** Never instantiated, never sent in the batch call, never appears in `score_decomposition`.
 - **Using `graph.node.exhaustion_score` (no suffix) as a weight key.** It is a continuous float, requires `.low`/`.mid`/`.high`. The bare key never matches.
 - **Confusing phase multiplier with signal weight.** Multiplier is multiplicative, strategy-level, lives in `phases.<phase>.signal_weights`, keyed by strategy name. A signal weight is additive (via summed contribution), signal-level, lives in `strategies.<strategy>.signal_weights`, keyed by signal name. They are not interchangeable.
@@ -165,6 +167,7 @@ Each entry below records a real failure observed in this codebase or a design co
 - **Iterating only newly-extracted nodes in a `NodeSignalDetector`.** Drop missing nodes silently default to score 0. Always iterate `self._get_all_node_states()`.
 - **Treating `enable_canonical_slots=False` returning `{}` as a bug.** It is by-design empty — downstream code must handle empty node-signal dicts.
 - **"Fixing" failing weight matches by sprinkling `.get(key, 0.0)` in scoring code.** This masks data loss upstream. The fix is to make the key match — either correct the suffix or correct the namespace.
+- **Tightening `OntologyNodeType.level` from `Optional[int]` to `int` to satisfy a type checker.** `level=None` is semantically meaningful — it indicates a non-hierarchical methodology (no level concept, e.g. flat ontologies). Tightening the type would misrepresent the domain model and break graceful handling of non-chain methods. The correct fix when building `level_map` in chain signals is to skip nodes where `nt.level is None`; a methodology with fewer than 2 distinct levels then correctly returns `{}` (non-chain signal returns empty). Never change the model type.
 
 ## Context Documents
 
