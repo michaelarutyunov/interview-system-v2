@@ -234,9 +234,12 @@ strategies:
   # different from the third?" No valid_when gate; should dominate
   # early phase. Uses engagement (high = productive comparing), novelty
   # (prefer new elements), response_depth (deep = rich constructs).
+  # node_binding: required — triadic elicitation targets specific elements
+  # for comparison; its graph.node.* weights (is_orphan, novelty, focus_streak,
+  # elaboration) must route through joint scoring to resolve per-node.
   # ===================================================================
   - name: triadic_elicit
-    node_binding: none
+    node_binding: required
     description: "Compare elements to surface personal constructs — ask how two are similar but different from a third."
     signal_weights:
       # Engagement: high engagement means productive comparing
@@ -249,7 +252,8 @@ strategies:
       # f965: response_depth.{deep,moderate,shallow} → elaboration.{high,mid,low}
       graph.node.elaboration.high: 0.3
       graph.node.elaboration.mid: 0.2
-      graph.node.elaboration.low: -0.2
+      # Phase 4.2: FLIPPED from -0.2 to +0.4 (low elaboration → triadic needed to generate quality data)
+      graph.node.elaboration.low: 0.4
       # Certainty: uncertain = structured comparison helps clarify
       llm.certainty.low: 0.3
       llm.certainty.mid: 0.2
@@ -258,6 +262,8 @@ strategies:
       llm.global_response_trend.shallowing: -0.3
       # Repetition penalty: triadic is core but shouldn't dominate every turn
       temporal.strategy_repetition_count: -0.5
+      # Phase 4.2: added per-concept signal (no quality data → triadic needed to generate it)
+      graph.node.has_quality_data.false: 0.3
       # Node-level: orphan elements need constructs
       graph.node.is_orphan.true: 0.7       # RG-specific: orphan elements = primary trigger
       graph.node.focus_streak.none: 0.5    # Fresh elements preferred
@@ -294,8 +300,8 @@ strategies:
       graph.node.elaboration.mid: 0.4
       llm.engagement.mid: 0.2
       llm.engagement.low: -0.3              # Disengaged = probing meaning won't help
-      # Repetition penalty
-      temporal.strategy_repetition_count: -0.4
+      # Phase 4.2: strengthened from -0.4 to -0.7 to prevent explore_construct dominance
+      temporal.strategy_repetition_count: -0.7
 
   # ===================================================================
   # Strategy 3: ladder_construct
@@ -358,7 +364,8 @@ strategies:
       graph.node.has_outgoing.true: 0.5     # Element linked to constructs = rate it
       graph.node.exhaustion_score: -0.3
       graph.node.focus_streak.none: 0.3
-      graph.node.focus_streak.high: -0.5
+      # Phase 4.2: strengthened from -0.5 to -0.8 to prevent rate_elements dominance
+      graph.node.focus_streak.high: -0.8
       # Repetition penalty: moderate — rating is structured, respondents tolerate it
       temporal.strategy_repetition_count: -0.5
       # Late phase boost
@@ -368,9 +375,12 @@ strategies:
   # Strategy 5: explore_ideal
   # Understand ideal product specification — which construct poles
   # define perfection. Late-phase strategy. No valid_when gate.
+  # node_binding: required — targets specific constructs/nodes to discuss
+  # what the ideal would look like; graph.node.* weights (elaboration,
+  # has_outgoing, exhaustion) must route through joint scoring.
   # ===================================================================
   - name: explore_ideal
-    node_binding: none
+    node_binding: required
     description: "Understand the ideal product specification — which construct poles define perfection, and which elements come closest."
     signal_weights:
       # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
@@ -435,8 +445,8 @@ strategies:
       graph.node.elaboration.low: -0.1
       # Late phase: allow revitalize to compete
       meta.interview.phase.late: -0.3       # Moderate suppression — still useful for RG fatigue
-      # Repetition escape valve
-      temporal.strategy_repetition_count: 0.15
+      # Phase 4.2: FLIPPED from +0.15 to -0.5 (escape valve to brake, matching JTBD fix)
+      temporal.strategy_repetition_count: -0.5
       # Node-level signals: seek fresh territory
       graph.node.focus_streak.none: 0.8
       graph.node.focus_streak.medium: -0.4

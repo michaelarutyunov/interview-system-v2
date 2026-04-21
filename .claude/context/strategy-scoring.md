@@ -297,6 +297,93 @@ These weights are calibrated via simulation. The key validation signal is **attr
 
 ---
 
+## Calibration Learnings (Phase 4)
+
+Phase 4 (2026-04-15 through 2026-04-17) was a multi-tier calibration exercise across all five methodologies. The process exposed three architectural issues and produced quantified guidance for future tuning.
+
+### 1. Strategy-Scoped Repetition Signals
+
+`temporal.strategy_repetition_count` previously returned a single scalar equal to the frequency of the **last-selected** strategy over the last 5 turns. The scorer applied this scalar to **every** candidate using each candidate's own weight. This meant:
+- `ascend` with weight `-1.5` was penalized whenever `ground` (weight `-0.15`) repeated, because the shared scalar (~0.6) × `-1.5` = `-0.90` penalty.
+- The feedback sign was inverted: the strategy most needing to fire (to break monoculture) was punished in proportion to how entrenched the dominant strategy was.
+
+**Fix (2026-04-17)**: `StrategyRepetitionCountSignal.detect()` now returns `{signal_name: {strategy_name: normalized_count}}` — a per-strategy map. `scoring.py` gained `_resolve_strategy_scoped_signals()` + `STRATEGY_SCOPED_SIGNALS` registry. Called once per candidate before weight application, flattening the dict to the candidate's own scalar (0.0 if the strategy hasn't fired in the window).
+
+**Implication**: All repetition brakes now behave as genuine self-brakes. Do not reintroduce the old scalar pattern.
+
+### 2. Base Score Asymmetry vs. Repetition Brake Strength
+
+When a strategy's typical base score exceeds its repetition brake magnitude by >3×, the brake cannot prevent monoculture within a 10-turn interview.
+
+| Strategy | Typical Base | Repetition Brake | Ratio | Outcome |
+|----------|-------------|------------------|-------|---------|
+| CJM `deepen_stage` | 2.3 | -0.6 | 3.8× | Won 8/10 turns despite "brake" |
+| RG `explore_construct` | 1.4 | -0.4 | 3.5× | Won 3/10; runner-up never competitive |
+| MEC `ascend` (pre-fix) | ~0.8 | -1.5 | 0.5× | Never fired — over-braked |
+
+**Rule of thumb**: repetition brake magnitude should be ≥50% of the strategy's typical base score when that strategy is intended to fire 2–3× per interview. For dominant structural strategies (base >1.5), either:
+- Reduce structural positive mass (audit which signals contribute >0.5)
+- Strengthen brake to ≥1.0
+- Add a `graph.node.focus_count.high` penalty (-0.8 to -1.0) that compounds with repetition
+
+### 3. Node Binding Mismatch Silently Strips Weights
+
+`partition_signal_weights()` routes all `graph.node.*` / `technique.node.*` / `meta.node.*` weights to Stage 2 (joint strategy-node scoring). If a strategy is `node_binding: none`, it never enters Stage 2 — all node-scoped weights are silently discarded.
+
+**Example from RG**:
+```yaml
+node_binding: none
+signal_weights:
+  graph.node.is_orphan.true: 0.7      # stripped — never scored
+  graph.node.focus_streak.none: 0.5    # stripped — never scored
+  graph.node.elaboration.low: 0.4      # stripped — never scored
+  llm.engagement: 0.5                   # retained — only ~1.0 of positive mass
+```
+
+Result: `triadic_elicit` competed on ~1.0 positive mass vs. `explore_construct` at ~2.7. Never selected across 10 turns.
+
+**Fix**: Strategies with `graph.node.*` weights must use `node_binding: required`. The registry does NOT validate this alignment — it is a semantic contract.
+
+**Fixed (Phase 4.3)**: RG `triadic_elicit` and `explore_ideal` flipped to `node_binding: required`. Remaining `node_binding: none` strategies in RG (`revitalize`, `validate`) have no `graph.node.*` weights that affect selection — their node-scoped weights are secondary (revitalize's fresh-territory seeking) or decorative (validate's summary mode), and both strategies function correctly on global signals alone.
+
+### 4. Escape Valve Positive Feedback
+
+Using a *positive* weight on `temporal.strategy_repetition_count` (e.g., `revitalize: +0.15`) creates a self-reinforcing loop:
+1. Structural strategies are suppressed (brakes, valid_when gates)
+2. `revitalize` wins as path of least resistance
+3. `+0.15` makes it stronger each turn it fires
+4. It fires more → it gets stronger → monoculture
+
+Observed in CIT (70% revitalize), RG, and CJM.
+
+**Fix**: Flip to a negative brake. JTBD was fixed first (`+0.15 → -0.5`) and validated; the same flip was applied to CIT, RG, and CJM.
+
+### 5. Per-Concept Signal Weight Guidance
+
+Phase C wiring (per-concept LLM ratings → `NodeStateTracker` → node signals) is functional but underutilized. Per-concept signals (`graph.node.elaboration.*`, `graph.node.charge.*`) typically carry weights of 0.1–0.2, while structural graph signals carry 0.25–0.40. The result: per-concept signals rarely determine the winner.
+
+**Guideline**: At least one strategy per methodology should use per-concept signals at weight ≥0.3 to ensure they can compete with structural signals. Good pairings:
+- `ascend` / `elaborate` → `graph.node.elaboration.high` (deep content → ladder up)
+- `triadic_elicit` → `graph.node.elaboration.low` (shallow content → needs triadic probing)
+- `track_emotions` → `graph.node.charge.positive` / `.negative` (emotional content → trace it)
+- `elicit_narrative` → `graph.node.charge.*` (emotional charge → narrate it)
+
+### 6. Persona-Driven Graph Starvation
+
+Sparse-response personas (`brief_responder`) produce few extracted concepts → small graph → node-bound strategies have few nodes to score against. Conversation-level strategies (`revitalize`, `validate`) win by elimination, even with correct brakes.
+
+This is a **methodology-agnostic dynamic**, not a YAML-tunable issue. The correct response is NOT to boost node-bound strategies artificially — it's to accept that some persona/methodology combinations produce degraded interviews by design, or to add an active-probing strategy (new-topic-seeder) that fires when `graph.node_count.low` is true.
+
+### 7. Calibration Workflow Principle
+
+Phase 4 demonstrated that weight tuning must follow a strict order:
+1. **Validate scoring architecture first** — confirm repetition signals, node binding, and valid_when gates behave correctly before touching weights.
+2. **Measure base score distributions** — extract `base_score` from `ScoredCandidate` for every strategy before applying brakes. If one strategy's base is >2× the next, no amount of braking will produce diversity.
+3. **Tune brakes, not just positive mass** — a strategy with strong positive signals needs an equally strong brake to prevent monoculture.
+4. **Re-test with personas that stress the brake** — `single_topic_fixator` tests rotation; `brief_responder` tests starvation; `verbose_tangential` tests valid_when gate discipline.
+
+---
+
 ## Correctness Requirements
 
 1. **Phase multiplier and bonus are applied after base scoring** — never fold
