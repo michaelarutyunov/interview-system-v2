@@ -20,12 +20,12 @@ Invoked when work touches any of:
 
 | Namespace | Source | Shape | Examples |
 |---|---|---|---|
-| `graph.*` | `GraphState` metrics in memory | scalar (float/bool) keyed by signal name | `graph.node_count`, `graph.max_depth`, `graph.chain_completion.has_complete`, `graph.canonical_node_count` |
-| `graph.node.*` | `NodeStateTracker` per-node state | `dict[node_id, value]` | `graph.node.exhausted`, `graph.node.exhaustion_score`, `graph.node.focus_streak`, `graph.node.recency_score`, `graph.node.canonical_novelty` |
-| `llm.*` | Single batched Claude Haiku call | scalar in [0,1] (or categorical for `response_depth`) | `llm.elaboration`, `llm.charge` (per-concept); `llm.engagement`, `llm.certainty` (global); `llm.response_depth` (derived from per-concept elaboration); `llm.global_response_trend` (session-level) |
-| `temporal.*` | `strategy_history` in context | scalar | `temporal.strategy_repetition_count`, `temporal.turns_since_strategy_change` |
-| `meta.*` | Composed from other signals + session state | scalar/categorical | `meta.interview.phase` (`early`/`mid`/`late`), `meta.interview.progress` |
-| `meta.node.*` / `technique.node.*` | Composed per-node | `dict[node_id, value]` | `meta.node.opportunity` (`exhausted`/`probe_deeper`/`fresh`), `technique.node.consecutive_same_strategy` |
+| `convgraph.*` | `GraphState` metrics in memory | scalar (float/bool) keyed by signal name | `convgraph.state.node.count`, `convgraph.state.max_depth`, `convgraph.chain.completion`, `convgraph.chain.has_complete` |
+| `convgraph.node.*` | `NodeStateTracker` per-node state | `dict[node_id, value]` | `convgraph.node.exhausted`, `convgraph.node.exhaustion`, `convgraph.node.focus.streak`, `convgraph.node.recency`, `canongraph.node.novelty` |
+| `response.semantic.llm.*` | Single batched Claude Haiku call | scalar in [0,1] (or categorical for `response_depth`) | `response.semantic.llm.elaboration`, `response.semantic.llm.charge` (per-concept); `response.semantic.llm.engagement`, `response.semantic.llm.certainty` (global); `response.semantic.llm.response_depth` (derived from per-concept elaboration); `response.semantic.llm.engagement.trend` (session-level) |
+| `interview.strategy.*` / `interview.focus.*` | `strategy_history` in context | scalar / dict | `interview.strategy.self_count`, `interview.strategy.turns_since_change`, `interview.focus.streak` |
+| `interview.phase` | Composed from turn count | categorical | `interview.phase` (`early`/`mid`/`late`) |
+| `meta.*` | Composed from other signals + session state | scalar/categorical | `meta.saturation.conversation`, `meta.saturation.canonical`, `meta.node.opportunity` (`exhausted`/`probe_deeper`/`fresh`), `meta.interview_progress` |
 
 Distinction: anything with `.node.` in the namespace is **node-scoped** and is partitioned out before Stage 1 strategy ranking. Everything else is **strategy-level** (global).
 
@@ -98,15 +98,16 @@ Example: `base = 2.5`, multiplier `1.5`, bonus `0.2` → `final = 2.5 × 1.5 + 0
 
 ### 8. Two-Stage Scoring: Stage 1 + Stage 2
 
-- **Stage 1 (`rank_strategies`)**: scores each strategy against **global signals only**. `partition_signal_weights()` strips any weight key matching `graph.node.*`, `technique.node.*`, or `meta.node.*` before scoring. If a node-scoped weight leaked through, it would distort strategy selection identically across all nodes.
+- **Stage 1 (`rank_strategies`)**: scores each strategy against **global signals only**. `partition_signal_weights()` strips any weight key matching `convgraph.node.*`, `canongraph.node.*`, `interview.focus.*`, or `meta.node.*` before scoring. If a node-scoped weight leaked through, it would distort strategy selection identically across all nodes.
 - **Stage 2 (`rank_strategy_node_pairs`)**: for each `(strategy, node_id)`, merges global + node signals via `{**global_signals, **node_signals}` (node signals win on collision), scores using the **node-scoped** weight subset, applies the same phase multiplier/bonus.
 - Strategies with `node_binding: none` (e.g., `reflect`, `revitalize`) bypass Stage 2 entirely; their `score_decomposition` entry has `node_id = ""`.
 
 ### 9. Node-Scoped vs Strategy-Level Weight Routing
 
 A weight key is routed to node ranking iff its prefix is one of:
-- `graph.node.*`
-- `technique.node.*`
+- `convgraph.node.*`
+- `canongraph.node.*`
+- `interview.focus.*`
 - `meta.node.*`
 
 Any other prefix (including `graph.*` without `.node.`) routes to strategy-level. Forgetting the `.node.` infix sends a node-intended weight to Stage 1 scoring where it has no node context — silent misrouting.
@@ -146,7 +147,7 @@ A signal class existing on disk is **not enough** for it to fire. The gating che
 5. **When adding a new LLM signal, all three of these must be done**: `@llm_global_signal` or `@llm_per_concept_signal` decorator with a valid `RUBRIC: str` (1–5 bands), entry in `__all__` in `src/signals/llm/signals/__init__.py`, and listing in methodology YAML `signals: llm:`. Missing any one yields silent failure.
 6. **Tick `turns_since_last_yield += 1` for ALL nodes inside `update_focus()`**, not just the new focus. Restricting the tick stops exhaustion accumulation.
 7. **Phase multipliers and bonuses are strategy-level**, applied after base scoring. Never fold them into individual `signal_weights` entries — they belong in the `phases:` block keyed by exact strategy name.
-8. **Node-scoped weights MUST use a `graph.node.*` / `technique.node.*` / `meta.node.*` prefix.** Otherwise `partition_signal_weights()` routes them to Stage 1 and they have no node-distinguishing effect.
+8. **Node-scoped weights MUST use a `convgraph.node.*`, `canongraph.node.*`, `interview.focus.*`, or `meta.node.*` prefix.** Otherwise `partition_signal_weights()` routes them to Stage 1 and they have no node-distinguishing effect.
 9. **Verify new weights are firing via `score_decomposition`.** Generate a simulation, open the JSON, find your signal in `signal_contributions`, confirm `contribution != 0` for at least one turn. Don't trust YAML edits without runtime verification.
 10. **Negative weights are valid and intentional** (diversity penalties, exhaustion penalties). Do not "fix" them away.
 
@@ -170,12 +171,14 @@ Each entry below records a real failure observed in this codebase or a design co
 - **Listing only node-consumer signals in YAML without their LLM-producer counterparts.** Per-concept node signals (`graph.node.elaboration`, `graph.node.charge`, `graph.node.has_quality_data`) are **consumers** — they read scores that have already been bridged into `NodeStateTracker`. Their **producers** (`llm.elaboration`, `llm.charge`) must also appear in `signals: llm:` in the same YAML for the batch detector to generate per-concept ratings. If producers are absent, `per_concept_classes` is empty, the batch detector processes concepts but records nothing, and `bridged_count=0` every turn. Symptom: `graph.node.has_quality_data` is always False; `graph.node.elaboration` and `charge` bins always score 0.
 - **Adding node-level signal names to YAML `signals:` expecting ComposedSignalDetector to detect them.** `ComposedSignalDetector` skips any signal class that has `requires_node_tracker=True` — these are detected separately by `NodeSignalDetectionService`. Listing `graph.node.elaboration` in the YAML `signals:` pool is correct (for weight validation), but the detection happens through a different code path. Do not add node signals expecting them to appear in `signal_registry.ComposedSignalDetector.detect()` output — they won't.
 - **Tightening `OntologyNodeType.level` from `Optional[int]` to `int` to satisfy a type checker.** `level=None` is semantically meaningful — it indicates a non-hierarchical methodology (no level concept, e.g. flat ontologies). Tightening the type would misrepresent the domain model and break graceful handling of non-chain methods. The correct fix when building `level_map` in chain signals is to skip nodes where `nt.level is None`; a methodology with fewer than 2 distinct levels then correctly returns `{}` (non-chain signal returns empty). Never change the model type.
+- **Returning a single scalar from a temporal frequency/count signal when the scorer needs self-referential resolution.** `StrategyRepetitionCountSignal` historically returned one scalar = frequency of the *last-selected* strategy. The scorer applied this scalar to *every* candidate using each candidate's own weight, causing strategies to be penalized when *other* strategies repeated. Fix: return `{signal_name: {strategy_name: normalized_count}}` — a per-strategy map — and register the signal in `STRATEGY_SCOPED_SIGNALS` so the scorer resolves each candidate's own scalar. Any temporal signal that counts per-strategy behavior must use this pattern.
 
 ## Context Documents
 
 Consult these Tier 3 docs for full specifications and edge cases:
 
 - `.claude/context/signal-semantics.md` — Per-signal catalog mapping stated intent to actual computation. **Consult before adding, renaming, or removing any signal.** Records known semantic drift and the fixes needed.
+- `.claude/context/interview-signals.md` — Interview signal namespace (`interview.strategy.*`, `interview.focus.*`), strategy-scoped repetition signal contract, `STRATEGY_SCOPED_SIGNALS` registry
 - `.claude/context/signal-detection-graph.md` — graph/node signal mechanics, correctness requirements, full symptom→cause→fix table
 - `.claude/context/signal-detection-llm.md` — LLM batch detector, `@llm_signal` decorator, rubric format
 - `.claude/context/strategy-scoring.md` — `ScoredCandidate` schema, `partition_signal_weights`, full weight resolution table

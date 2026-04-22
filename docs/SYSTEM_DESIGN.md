@@ -188,14 +188,15 @@ The pipeline returns `TurnResult` (`src/services/turn_pipeline/result.py`) with:
 
 | Pool | Namespace | Key Signals |
 |------|-----------|-------------|
-| **Graph (Global)** | `graph.*` | `node_count`, `max_depth`, `orphan_count`, `chain_completion.ratio`, `chain_completion.has_complete`, `canonical_concept_count`, `canonical_edge_density`, `canonical_exhaustion_score` |
-| **Graph (Node)** | `graph.node.*` | `exhausted`, `exhaustion_score`, `yield_stagnation`, `focus_streak`, `recency_score`, `is_current_focus`, `is_orphan`, `edge_count`, `has_outgoing`; chain topology: `gap_above`, `gap_below`, `level_skip`, `branching_deficit`, `fan_in`, `level_gap_size` (MEC only); quality: `elaboration`, `charge`, `has_quality_data` |
-| **LLM (Global)** | `llm.*` | `certainty`, `engagement` (float [0,1]); derived `response_depth` (categorical: surface/shallow/moderate/deep), `global_response_trend` |
-| **LLM (Per-Concept)** | `llm.*` | `elaboration`, `charge` — mapped to nodes via `NodeStateTracker.append_quality()` |
-| **Temporal** | `temporal.*` | `strategy_repetition_count`, `turns_since_strategy_change` |
-| **Meta (Global)** | `meta.*` | `interview.phase`, `conversation.saturation`, `canonical.saturation` |
+| **ConvGraph (Global)** | `convgraph.state.*` | `node.count`, `max_depth`, `orphan_count`; canonical: `canonical_concept_count`, `canonical_edge_density`, `canonical_exhaustion_score` |
+| **ConvGraph (Chain)** | `convgraph.chain.*` | `completion.ratio`, `completion.has_complete`, `structure` |
+| **ConvGraph (Node)** | `convgraph.node.*` | `exhausted`, `exhaustion`, `yield_stagnation`, `focus.streak`, `focus.count`, `recency_score`, `is_current_focus`, `is_orphan`, `edge_count`, `has_outgoing`; chain topology: `chain.gap.above`, `chain.gap.below`, `chain.level.skip`, `chain.branching_deficit`, `chain.fan_in`, `chain.level.gap_size` (MEC only); quality: `llm.elaboration`, `llm.charge`, `has_quality_data` |
+| **LLM (Global)** | `response.semantic.llm.*` | `certainty`, `engagement` (float [0,1]); derived `response_depth` (categorical: surface/shallow/moderate/deep), `engagement.trend` |
+| **LLM (Per-Concept)** | `response.semantic.llm.*` | `elaboration`, `charge` — bridged to nodes via `NodeStateTracker.append_quality()` |
+| **Interview (Temporal)** | `interview.strategy.*` / `interview.focus.*` | `self_count`, `turns_since_change`, `focus.streak` |
+| **Interview (Phase)** | `interview.phase` | Categorical: `early` / `mid` / `late` |
+| **Meta (Global)** | `meta.*` | `saturation.conversation`, `saturation.canonical`, `interview_progress` |
 | **Meta (Node)** | `meta.node.*` | `opportunity` (exhausted/probe_deeper/fresh) |
-| **Technique (Node)** | `technique.node.*` | `strategy_repetition` (none/low/medium/high) |
 
 ### LLM Signals
 
@@ -204,21 +205,21 @@ Rubrics loaded from `src/signals/llm/prompts/signals.md` and
 `src/signals/llm/llm_signal_baseprompt.md`.
 
 **Per-concept signals** (one score per extracted concept):
-- `llm.elaboration` → substantive content about the concept
-- `llm.charge` → emotional tone toward the concept
+- `response.semantic.llm.elaboration` → substantive content about the concept
+- `response.semantic.llm.charge` → emotional tone toward the concept
 
 **Global signals** (one score per response):
-- `llm.certainty` → expressed confidence in claims
-- `llm.engagement` → willingness to participate
+- `response.semantic.llm.certainty` → expressed confidence in claims
+- `response.semantic.llm.engagement` → willingness to participate
 
-`llm.response_depth` is **derived** from mean per-concept elaboration
+`response.semantic.llm.response_depth` is **derived** from mean per-concept elaboration
 (via `_score_to_category()` in `batch_detector.py`) for backward
-compatibility with `global_response_trend`, `node_opportunity`, and
+compatibility with `response.semantic.llm.engagement.trend`, `meta.node.opportunity`, and
 question-generation prompts.
 
 Signal creation uses `@llm_global_signal` and `@llm_per_concept_signal` decorators:
 ```python
-@llm_per_concept_signal(signal_name="llm.elaboration", rubric_key="elaboration")
+@llm_per_concept_signal(signal_name="response.semantic.llm.elaboration", rubric_key="elaboration")
 class ElaborationSignal(BaseLLMSignal):
     pass
 ```
@@ -227,28 +228,28 @@ class ElaborationSignal(BaseLLMSignal):
 
 | Signal | Type | Detector |
 |--------|------|----------|
-| `graph.node.exhausted` | bool | `NodeExhaustedSignal` |
-| `graph.node.exhaustion_score` | float 0–1 | `NodeExhaustionScoreSignal` |
-| `graph.node.yield_stagnation` | bool (3+ turns) | `NodeYieldStagnationSignal` |
-| `graph.node.focus_streak` | categorical | `NodeFocusStreakSignal` |
-| `graph.node.is_current_focus` | bool | `NodeIsCurrentFocusSignal` |
-| `graph.node.recency_score` | float 0–1 | `NodeRecencyScoreSignal` |
-| `graph.node.is_orphan` | bool | `NodeIsOrphanSignal` |
-| `graph.node.edge_count` | int | `NodeEdgeCountSignal` |
-| `graph.node.has_outgoing` | bool | `NodeHasOutgoingSignal` |
-| `technique.node.strategy_repetition` | categorical | `NodeStrategyRepetitionSignal` |
+| `convgraph.node.exhausted` | bool | `NodeExhaustedSignal` |
+| `convgraph.node.exhaustion` | float 0–1 | `NodeExhaustionScoreSignal` |
+| `convgraph.node.yield_stagnation` | bool (3+ turns) | `NodeYieldStagnationSignal` |
+| `convgraph.node.focus.streak` | categorical | `NodeFocusStreakSignal` |
+| `convgraph.node.focus.count` | int | `NodeFocusCountSignal` |
+| `convgraph.node.is_current_focus` | bool | `NodeIsCurrentFocusSignal` |
+| `convgraph.node.recency_score` | float 0–1 | `NodeRecencyScoreSignal` |
+| `convgraph.node.is_orphan` | bool | `NodeIsOrphanSignal` |
+| `convgraph.node.edge_count` | int | `NodeEdgeCountSignal` |
+| `convgraph.node.has_outgoing` | bool | `NodeHasOutgoingSignal` |
 
 All inherit `NodeSignalDetector` (`src/signals/graph/node_base.py`); return `Dict[node_id, value]`.
 
 ### Meta Signals
 
-**`meta.interview.phase`**: Proportional from `max_turns` — early (~10%, min 2 turns), mid (middle), late (last 2 turns). Computed per-turn from `context.turn_number` and `context.max_turns`.
+**`interview.phase`**: Proportional from `max_turns` — early (~10%, min 2 turns), mid (middle), late (last 2 turns). Computed per-turn from `context.turn_number` and `context.max_turns`.
 
-**`meta.node.opportunity`**: Combines `graph.node.exhausted`, `graph.node.focus_streak`, `llm.response_depth` → exhausted / probe_deeper / fresh.
+**`meta.node.opportunity`**: Combines `convgraph.node.exhausted`, `convgraph.node.focus.streak`, `response.semantic.llm.elaboration` (mean drives depth) → exhausted / probe_deeper / fresh.
 
-**`meta.conversation.saturation`**: `1.0 - min(current_delta / peak, 1.0)` — extraction yield vs peak.
+**`meta.saturation.conversation`**: `1.0 - min(current_delta / peak, 1.0)` — extraction yield vs peak.
 
-**`meta.canonical.saturation`**: `1.0 - min(canonical_delta / surface_delta, 1.0)` — thematic novelty ratio.
+**`meta.saturation.canonical`**: `1.0 - min(canonical_delta / surface_delta, 1.0)` — thematic novelty ratio.
 
 ### Joint Strategy-Node Scoring
 
@@ -262,7 +263,7 @@ final_score = (base_score * phase_multiplier) + phase_bonus
 - **phase_multiplier**: From `config.phases[phase].signal_weights[strategy]` (default 1.0)
 - **phase_bonus**: From `config.phases[phase].phase_bonuses[strategy]` (default 0.0, additive)
 
-Node-scoped signal weights (`graph.node.*`, `technique.node.*`, `meta.node.*`) are automatically partitioned from strategy weights and applied at the node scoring level.
+Node-scoped signal weights (`convgraph.node.*`, `meta.node.*`) are automatically partitioned from strategy weights and applied at the node scoring level.
 
 Returns `ScoredCandidate` objects with full `signal_contributions` breakdown for observability.
 
@@ -272,11 +273,11 @@ MEC uses 7 strategies that exploit graph topology to drive interview flow. Each 
 
 | Strategy | `valid_when` | Purpose |
 |----------|-------------|---------|
-| `ascend` | `graph.node.gap_above` | Extend chain upward toward terminal values |
-| `ground` | `graph.node.gap_below` | Establish causal antecedents for ungrounded nodes |
-| `bridge` | `graph.node.level_skip` | Fill missing intermediate levels |
-| `branch` | `graph.node.branching_deficit` | Expand breadth where expected siblings missing |
-| `anchor` | `graph.node.is_orphan` | Connect isolated nodes to graph |
+| `ascend` | `convgraph.node.chain.gap.above` | Extend chain upward toward terminal values |
+| `ground` | `convgraph.node.chain.gap.below` | Establish causal antecedents for ungrounded nodes |
+| `bridge` | `convgraph.node.chain.level.skip` | Fill missing intermediate levels |
+| `branch` | `convgraph.node.chain.branching_deficit` | Expand breadth where expected siblings missing |
+| `anchor` | `convgraph.node.is_orphan` | Connect isolated nodes to graph |
 | `revitalize` | *(none)* | Conversation-level fallback for fatigue/disengagement |
 | `validate` | *(none)* | Late-phase closing strategy — generates closing question |
 
@@ -334,22 +335,22 @@ ontology:
   edges: [{name, description, permitted_connections}]
 
 signals:
-  graph: [graph.node_count, graph.max_depth, graph.node.elaboration, ...]
-  llm: [llm.certainty, llm.engagement]
-  temporal: [temporal.strategy_repetition_count]
-  meta: [meta.interview.phase]
+  convgraph: [convgraph.state.node.count, convgraph.state.max_depth, convgraph.node.llm.elaboration, ...]
+  response.semantic.llm: [response.semantic.llm.certainty, response.semantic.llm.engagement]
+  interview: [interview.strategy.self_count]
+  meta: [interview.phase]
 
 strategies:
   - name: ascend
     description: "Extend an incomplete chain upward toward terminal values"
     node_binding: required      # "required" (default) or "none"
-    valid_when: graph.node.gap_above  # Hard gate — only scored for nodes where signal is True
+    valid_when: convgraph.node.chain.gap.above  # Hard gate — only scored for nodes where signal is True
     focus_mode: recent_node     # "recent_node" (default), "summary", "topic"
     generates_closing_question: false
     signal_weights:
-      graph.node.elaboration.high: 0.4
-      graph.node.exhaustion_score.low: 1.0
-      temporal.strategy_repetition_count: -0.3
+      convgraph.node.llm.elaboration.high: 0.4
+      convgraph.node.exhaustion.low: 1.0
+      interview.strategy.self_count: -0.3
 
 chain_completion:
   expected_branching: {attribute: 3, functional_consequence: 2}
@@ -396,7 +397,7 @@ final_score = (base_score * phase_multiplier) + phase_bonus
 - **base_score**: Weighted sum of matched signals from strategy `signal_weights` in YAML
 - **phase_multiplier**: From `config.phases[phase].signal_weights[strategy]` (default 1.0, multiplicative)
 - **phase_bonus**: From `config.phases[phase].phase_bonuses[strategy]` (default 0.0, additive)
-- Node-scoped signal weights (`graph.node.*`, `technique.node.*`, `meta.node.*`) partitioned automatically and applied at node scoring level
+- Node-scoped signal weights (`convgraph.node.*`, `canongraph.node.*`, `interview.focus.*`, `meta.node.*`) partitioned automatically and applied at node scoring level
 - Returns `ScoredCandidate` objects with full `signal_contributions` breakdown
 
 ### Registry Validation (at load time)

@@ -1,5 +1,16 @@
 # Signal Semantics Catalog
 
+> **Historical note:** This audit was conducted on 2026-04-17. A signal naming refactor (commit `e4030c4`, 2026-04-21) renamed all signals to a source-first namespace. Signal names in this document reflect the audit-era naming; the semantic assessments remain valid. For current names, see `docs/signals_moderator_guide.md`.
+>
+> Key renames since this audit:
+> - `llm.*` (per-turn) → `response.semantic.llm.*`
+> - `graph.*` (surface graph) → `convgraph.*`
+> - `graph.canonical_*` → `canongraph.*`
+> - `temporal.*` → `interview.strategy.*` / `interview.focus.*`
+> - `meta.interview.phase` → `interview.phase`
+> - `meta.conversation.saturation` → `meta.saturation.conversation`
+> - `meta.canonical.saturation` → `meta.saturation.canonical`
+
 > **Purpose:** Per-signal catalog mapping each signal's stated intent to its actual computation, with semantic match assessment. This is the developer-facing companion to `docs/signals_moderator_guide.md` (which is moderator-facing prose). When the moderator guide says *what* a signal means, this catalog says *whether the code agrees*.
 
 ## How to use this doc
@@ -60,7 +71,7 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
    Class docstring, moderator guide, and sibling `yield_stagnation` all say "3+ turns." Code uses `turns_since_last_yield >= 2`. A node can be flagged `exhausted` *before* `yield_stagnation` triggers, inverting intuitive severity ordering.
    **Fix:** Pick one canonical value (likely 3 to match docs) and align code, docstring, guide, and sibling signal.
 
-3. **`response.semantic.response.semantic.llm.engagement.trend` doc drift in agent spec** (session/temporal).
+3. **`response.semantic.llm.engagement.trend` doc drift in agent spec** (session/temporal).
    Code returns `deepening/stable/shallowing/fatigued`. Moderator guide and YAML agree. But `signal-specialist/AGENT.md` Section 10 falsely claims values are `improving/degrading/stable`. This vocabulary appears nowhere in code or YAML — it's a fabrication that would mislead any future agent loading the spec.
    **Fix:** Correct Section 10 of `signal-specialist/AGENT.md`. Also clarify the moderator guide's "last 4" claim — code actually uses a last-6 window with 4-sample minimum gate.
 
@@ -191,7 +202,7 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 
 | Signal | Stated intent (guide) | Actual computation | Match | Failure mode | Severity | Recommended action |
 |---|---|---|---|---|---|---|
-| `response.semantic.response.semantic.llm.engagement.trend` | Categorical from last 4 response_depth values: deepening/stable/shallowing/fatigued | Code returns `deepening/stable/shallowing/fatigued` (matches guide). Uses last-6 window with 4-sample minimum gate (not "last 4"). YAML matches code | ⚠️ | Mode 2: agent doc Section 10 falsely claims `improving/degrading/stable`; Mode 3: guide's "last 4" is imprecise (last-6 window) | plausible-impact (agent doc) / likely-trivial (guide imprecision) | **CRITICAL** — fix `signal-specialist/AGENT.md` Section 10. Clarify guide's window size |
+| `response.semantic.llm.engagement.trend` | Categorical from last 4 response_depth values: deepening/stable/shallowing/fatigued | Code returns `deepening/stable/shallowing/fatigued` (matches guide). Uses last-6 window with 4-sample minimum gate (not "last 4"). YAML matches code | ⚠️ | Mode 2: agent doc Section 10 falsely claims `improving/degrading/stable`; Mode 3: guide's "last 4" is imprecise (last-6 window) | plausible-impact (agent doc) / likely-trivial (guide imprecision) | **CRITICAL** — fix `signal-specialist/AGENT.md` Section 10. Clarify guide's window size |
 | `interview.strategy.self_count` | Count of current strategy in last 5 turns / 5; high≥0.75 | `count(strategy_history[-1] in strategy_history[-5:]) / 5`. Current turn already in history → minimum value is 0.2, not 0.0 | ⚠️ | Mode 5: floor of 0.2 on first use, contradicts implied 0.0 minimum | likely-trivial | Add note to guide: minimum non-zero value is 0.2 |
 | `interview.strategy.turns_since_change` | Count of consecutive same-strategy turns / 5; high≥0.6 | Iterates `reversed(strategy_history)` counting trailing identical entries / 5; same 0.2 floor as above | ⚠️ | Mode 5: same 0.2 floor | likely-trivial | Same note as above |
 | `interview.focus.streak` | Per-node consecutive same-strategy: none=0, low=1-2, medium=3-4, high=5+ | Reads `state.consecutive_same_strategy`; bins exactly as documented; iterates all nodes via `_get_all_node_states()` | ✅ | none | none | None |
@@ -213,5 +224,5 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 
 - **Auditors:** 4 parallel Sonnet sub-agents (graph-global, graph-node, LLM, session/temporal) + 1 inline review (meta)
 - **Method:** A+C blend per `## Ground truth approach`. Each signal: read source class, read moderator guide entry, read YAML usage, assess against failure mode taxonomy.
-- **Coverage gaps:** None — all 34 active signals audited. The 3 deleted signals (`graph.avg_depth`, `graph.depth_by_element`, `meta.interview_progress`) are excluded.
+- **Coverage gaps:** None — all 34 active signals audited. The 3 deleted signals (`convgraph.state.avg_depth`, `graph.depth_by_element`, `meta.interview_progress`) are excluded.
 - **Next audit:** Should be a diff against this file. Re-grade rows whose code has changed; add rows for any new signals.

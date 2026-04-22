@@ -132,8 +132,8 @@ Fields: `meta.interview.phase`, `llm.response_depth`, `llm.engagement`, `llm.int
 
 **Strategy distribution — what to check:**
 
-1. **Dominance**: Any single strategy selected in >50% of turns = monotony risk. Check `temporal.strategy_repetition_count` signal — if it stays low despite repetition, signal may be miscalibrated.
-2. **Streaks**: Same strategy 4+ consecutive turns without `temporal.turns_since_strategy_change` rising = stale, signal not penalizing repetition.
+1. **Dominance**: Any single strategy selected in >50% of turns = monotony risk. Check `interview.strategy.self_count` signal — if it stays low despite repetition, signal may be miscalibrated.
+2. **Streaks**: Same strategy 4+ consecutive turns without `interview.strategy.turns_since_change` rising = stale, signal not penalizing repetition.
 3. **Phase alignment** (expected distribution):
 
    **Important:** Read actual strategy names and phase boundaries from the methodology YAML — do NOT assume strategy names. Different methodologies use different strategy vocabularies:
@@ -282,7 +282,7 @@ Node selection frequency (rank=1 turns):
 
 1. **Signal Symmetry Check (NEW)**: For each signal with >50% firing rate, compare its `signal_value` across strategies within the same turn. If values are identical for all strategies at a given turn, the signal cannot differentiate strategies — it adds a flat offset to all scores equally. Flag these as "global signals" whose weights waste budget without affecting ranking.
 
-   Common global signals: `temporal.strategy_repetition_count` (same count for all strategies), `meta.interview.phase` (same phase for all strategies), `temporal.turns_since_strategy_change` (same count for all strategies).
+   Common global signals: `interview.strategy.self_count` (same count for all strategies), `interview.phase` (same phase for all strategies), `interview.strategy.turns_since_change` (same count for all strategies).
 
    **Key insight**: If a signal is global, changing its weight shifts all scores equally and cannot fix dominance issues. The fix must be strategy-specific weight asymmetry or different signal selection.
 
@@ -321,17 +321,17 @@ Signal Firing Rates:
 ...
 
 Signal Symmetry Analysis:
-- temporal.strategy_repetition_count: value=[X] identical across all strategies at each turn
+- interview.strategy.self_count: value=[X] identical across all strategies at each turn
   → Global signal — weight changes shift all scores equally, cannot fix dominance
   → If tuning repetition penalty: use strategy-specific weights, not shared profile
 
 Penalty Asymmetry Audit:
-- temporal.turns_since_strategy_change: penalizes [strategy_1, strategy_2] but NOT [dominant_strategy]
+- interview.strategy.turns_since_change: penalizes [strategy_1, strategy_2] but NOT [dominant_strategy]
   → Structural advantage: dominant strategy exempt from break penalty
   → Check YAML for uneven profile application
 
 Dead Signals (weight ≠ 0, never fired):
-- llm.global_response_trend.fatigued (weight=-0.60) — persona never reached fatigue threshold
+- response.semantic.llm.engagement.trend.fatigued (weight=-0.60) — persona never reached fatigue threshold
   → Check: llm signal rubric thresholds or persona energy config/personas/<name>.yaml
 - [signal] (weight=[X]) — [hypothesis for why it never triggered]
   → Threshold cross-check: detector requires [condition], observed [actual behavior]
@@ -402,17 +402,17 @@ for t in data["turns"][1:]:   # skip turn 0 (no signals)
     s = t["signals"]
     top2 = t["strategy_alternatives"][:2]
     scores = " / ".join(f'{x["score"]:.2f}' for x in top2)
-    ie = s.get("llm.intellectual_engagement", "—")
-    print(f'{t["turn_number"]:>4} | {s["meta.interview.phase"]:5} | {s["llm.response_depth"]:8} | '
-          f'{s["llm.engagement"]:.2f} | {ie} | {s["llm.valence"]:.2f} | {s["llm.specificity"]:.2f} | '
-          f'{s["llm.certainty"]:.2f} | {s["llm.global_response_trend"]:10} | '
+    ie = s.get("response.semantic.llm.engagement", "—")
+    print(f'{t["turn_number"]:>4} | {s["interview.phase"]:5} | {s["response.semantic.llm.response_depth"]:8} | '
+          f'{s["response.semantic.llm.engagement"]:.2f} | {ie} | {s["response.semantic.llm.charge"]:.2f} | '
+          f'{s["response.semantic.llm.certainty"]:.2f} | {s["response.semantic.llm.engagement.trend"]:10} | '
           f'{t["strategy_selected"]:20} | {scores}')
 
 # Part 3 — Graph trajectory
-# Note: Node and orphan counts come from per-turn signals (graph.node_count, graph.orphan_count)
+# Note: Node and orphan counts come from per-turn signals (convgraph.state.node.count, convgraph.state.node.orphan_count)
 # The graph.summary does not include total_orphans — it must be aggregated from per-turn signals
-nodes = [t["signals"]["graph.node_count"] for t in data["turns"][1:]]
-orphans = [t["signals"]["graph.orphan_count"] for t in data["turns"][1:]]
+nodes = [t["signals"]["convgraph.state.node.count"] for t in data["turns"][1:]]
+orphans = [t["signals"]["convgraph.state.node.orphan_count"] for t in data["turns"][1:]]
 print("Node growth:", "→".join(str(n) for n in nodes))
 print("Orphan trajectory:", "→".join(str(o) for o in orphans))
 g = data["graph"]["summary"]

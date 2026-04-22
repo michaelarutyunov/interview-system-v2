@@ -452,30 +452,30 @@ All checks must pass before committing.
      # Signal definitions (namespaced)
      signals:
        graph:
-         - graph.node_count
-         - graph.max_depth
-         - graph.orphan_count
-         - graph.chain_completion
-       graph.node:          # Node-level signals
-         - graph.node.exhausted
-         - graph.node.exhaustion_score
-         - graph.node.focus_streak
-         - graph.node.recency_score
-       llm:
-         - llm.response_depth
-         - llm.sentiment
-         - llm.uncertainty
-         - llm.hedging_language
-       temporal:
-         - temporal.strategy_repetition_count
-         - temporal.turns_since_strategy_change
+         - convgraph.state.node.count
+         - convgraph.state.max_depth
+         - convgraph.state.node.orphan_count
+         - convgraph.chain.completion
+       convgraph.node:      # Node-level signals
+         - convgraph.node.exhausted
+         - convgraph.node.exhaustion
+         - convgraph.node.focus.streak
+         - convgraph.node.recency
+       response.semantic.llm:
+         - response.semantic.llm.elaboration
+         - response.semantic.llm.charge
+         - response.semantic.llm.engagement
+         - response.semantic.llm.certainty
+       interview:           # Strategy & focus history
+         - interview.strategy.self_count
+         - interview.strategy.turns_since_change
        meta:
          - meta.interview_progress
-         - meta.interview.phase
+         - interview.phase
        meta.node:           # Node-level meta signals
          - meta.node.opportunity
-       technique.node:      # Node-level technique signals
-         - technique.node.strategy_repetition
+       interview.focus:     # Focus signals (node-level)
+         - interview.focus.streak
 
      # Phase-based weights and bonuses
      phases:
@@ -501,14 +501,14 @@ All checks must pass before committing.
        - name: deepen
          technique: laddering
          signal_weights:
-           llm.response_depth.surface: 0.8
-           graph.max_depth: 0.5
+           response.semantic.llm.response_depth.surface: 0.8
+           convgraph.state.max_depth: 0.5
 
        - name: broaden
          technique: elaboration
          signal_weights:
-           llm.response_depth.deep: 0.7
-           graph.chain_completion.has_complete_chain.false: 0.6
+           response.semantic.llm.response_depth.deep: 0.7
+           convgraph.chain.completion.has_complete.false: 0.6
    ```
 
 2. **The methodology is automatically available:**
@@ -521,8 +521,8 @@ All checks must pass before committing.
    ```
 
 3. **Key components:**
-   - **Signals**: Auto-detected from shared pools (graph/, llm/, temporal/, meta/, technique/)
-   - **Node-level signals**: Per-node state signals (graph.node.*, technique.node.*, meta.node.*)
+   - **Signals**: Auto-detected from shared pools (convgraph.state.*, convgraph.node.*, convgraph.chain.*, response.semantic.llm.*, interview.strategy.*, interview.focus.*, meta.*)
+   - **Node-level signals**: Per-node state signals (convgraph.node.*, meta.node.*)
    - **Techniques**: Reusable question generation modules (laddering, elaboration, probing, validation)
    - **Strategies**: Methodology-specific "when-to-use" logic defined in YAML
    - **Joint scoring**: `rank_strategy_node_pairs()` scores all (strategy, node) combinations
@@ -539,13 +539,14 @@ All checks must pass before committing.
 
 1. **Determine signal pool and type:**
    - **Global signals** (single value per interview):
-     - `graph/` - Signals from knowledge graph (node_count, max_depth, orphan_count, chain_completion)
-     - `llm/` - LLM-based signals from response text (response_depth, sentiment, uncertainty)
-     - `temporal/` - Turn-level temporal signals (strategy_repetition_count, turns_since_strategy_change)
-     - `meta/` - Composite signals derived from other signals (interview_progress, interview.phase)
+     - `convgraph.state.*` - Signals from knowledge graph (node.count, max_depth, orphan_count)
+     - `convgraph.chain.*` - Chain topology signals (has_complete, completion ratio)
+     - `response.semantic.llm.*` - LLM-based signals from response text (elaboration, charge, certainty, engagement, response_depth)
+     - `interview.strategy.*` / `interview.focus.*` - Turn-level temporal signals (self_count, turns_since_change, focus.streak)
+     - `interview.phase` - Interview phase categorical signal (early/mid/late)
+     - `meta.*` - Composite signals derived from other signals (saturation.conversation, saturation.canonical, interview_progress)
    - **Node-level signals** (per-node values):
-     - `graph/` - Node-specific signals (exhausted, exhaustion_score, focus_streak, recency_score)
-     - `technique/` - Node technique signals (strategy_repetition per node)
+     - `convgraph.node.*` - Node-specific signals (exhausted, exhaustion, focus.streak, focus.count, yield_stagnation)
    - **Node-level meta** (derived from node signals):
      - `meta/` - Node opportunity (exhausted/probe_deeper/fresh)
 
@@ -558,7 +559,7 @@ All checks must pass before committing.
    class MySignal(SignalDetector):
        """My custom signal description."""
 
-       signal_name = "graph.my_signal"
+       signal_name = "convgraph.state.my_signal"
        cost_tier = SignalCostTier.LOW  # FREE, LOW, MEDIUM, HIGH
        refresh_trigger = RefreshTrigger.PER_TURN  # PER_RESPONSE, PER_TURN, PER_SESSION
 
@@ -590,7 +591,7 @@ All checks must pass before committing.
    # src/signals/registry.py
    SIGNAL_CLASSES = {
        # ... existing signals
-       "graph.my_signal": MySignal,
+       "convgraph.state.my_signal": MySignal,
    }
    ```
 
@@ -598,13 +599,13 @@ All checks must pass before committing.
    ```yaml
    # src/methodologies/config/means_end_chain.yaml
    signals:
-     graph:
-       - graph.node_count
-       - graph.max_depth
-       - graph.my_signal  # Add your new signal
-     graph.node:          # For node-level signals
-       - graph.node.exhausted
-       - graph.node.my_node_signal
+     convgraph:
+       - convgraph.state.node.count
+       - convgraph.state.max_depth
+       - convgraph.state.my_signal  # Add your new signal
+     convgraph.node:      # For node-level signals
+       - convgraph.node.exhausted
+       - convgraph.node.my_node_signal
      meta.node:           # For node-level meta signals
        - meta.node.opportunity
    ```
@@ -620,8 +621,8 @@ All checks must pass before committing.
    async def test_my_global_signal_detection(context, graph_state):
        signal = MySignal()
        result = await signal.detect(context, graph_state, "test response")
-       assert "graph.my_signal" in result
-       assert result["graph.my_signal"] >= 0
+       assert "convgraph.state.my_signal" in result
+       assert result["convgraph.state.my_signal"] >= 0
 
    @pytest.mark.asyncio
    async def test_my_node_signal_detection(context, graph_state, node_tracker):
@@ -642,7 +643,7 @@ from src.methodologies.signals.llm.common import BaseLLMSignal
 class MyLLMSignal(BaseLLMSignal):
     """Fresh LLM analysis signal."""
 
-    signal_name = "llm.my_llm_signal"
+    signal_name = "response.semantic.llm.my_signal"
     # cost_tier = SignalCostTier.HIGH (inherited from BaseLLMSignal)
     # refresh_trigger = RefreshTrigger.PER_RESPONSE (inherited)
 
@@ -662,7 +663,7 @@ from src.domain.models.node_state import NodeState
 class MyNodeSignal(NodeSignalDetector):
     """My custom node-level signal."""
 
-    signal_name = "graph.node.my_signal"
+    signal_name = "convgraph.node.my_signal"
     cost_tier = SignalCostTier.LOW
     refresh_trigger = RefreshTrigger.PER_TURN
 
@@ -691,7 +692,7 @@ from src.methodologies.signals.technique.common import TechniqueNodeSignal
 class MyTechniqueNodeSignal(TechniqueNodeSignal):
     """Node-level technique signal."""
 
-    signal_name = "technique.node.my_technique_signal"
+    signal_name = "interview.focus.my_focus_signal"
 
     async def detect_for_node(
         self,
@@ -710,13 +711,13 @@ In `src/signals/registry.py`, node-level signals are registered with a special m
 ```python
 SIGNAL_CLASSES = {
     # Global signals
-    "graph.node_count": GraphNodeCountSignal,
-    "llm.response_depth": ResponseDepthSignal,
+    "convgraph.state.node.count": GraphNodeCountSignal,
+    "response.semantic.llm.response_depth": ResponseDepthSignal,
 
     # Node-level signals - marked with "node_level" flag
-    "graph.node.exhausted": (NodeExhaustedSignal, "node_level"),
-    "graph.node.exhaustion_score": (NodeExhaustionScoreSignal, "node_level"),
-    "technique.node.strategy_repetition": (NodeStrategyRepetitionSignal, "node_level"),
+    "convgraph.node.exhausted": (NodeExhaustedSignal, "node_level"),
+    "convgraph.node.exhaustion": (NodeExhaustionScoreSignal, "node_level"),
+    "interview.focus.streak": (NodeStrategyRepetitionSignal, "node_level"),
 }
 ```
 
@@ -747,7 +748,7 @@ SIGNAL_CLASSES = {
            ]
 
            # Access signals for conditional logic
-           if context.signals.get("graph.max_depth", 0) < 2:
+           if context.signals.get("convgraph.state.max_depth", 0) < 2:
                questions.append(f"And what does that mean for you?")
 
            return questions
@@ -777,7 +778,7 @@ SIGNAL_CLASSES = {
      - name: my_strategy
        technique: my_technique  # Use your new technique
        signal_weights:
-         graph.max_depth: 0.5
+         convgraph.state.max_depth: 0.5
    ```
 
 5. **Add tests:**

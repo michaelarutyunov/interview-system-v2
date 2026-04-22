@@ -361,10 +361,10 @@ Processes a respondent turn (answer). Extracts concepts, updates the knowledge g
   "should_continue": true,
   "latency_ms": 1250,
   "signals": {
-    "graph.max_depth": 0.6,
-    "llm.response_depth": "shallow",
-    "llm.engagement": 0.8,
-    "meta.interview.phase": "focused"
+    "convgraph.state.max_depth": 0.6,
+    "response.semantic.llm.response_depth": "shallow",
+    "response.semantic.llm.engagement": 0.8,
+    "interview.phase": "focused"
   },
   "strategy_alternatives": [
     {"strategy": "deepen", "score": 0.85},

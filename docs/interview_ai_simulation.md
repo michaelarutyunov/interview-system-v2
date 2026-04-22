@@ -71,10 +71,10 @@ curl -X POST "http://localhost:8000/simulation/interview" \
       "question": "Opening question...",
       "response": "I really like the sound quality...",
       "signals": {
-        "graph.max_depth": 0.5,
-        "llm.response_depth": "moderate",
-        "llm.engagement": 0.8,
-        "llm.certainty": 0.7
+        "convgraph.state.max_depth": 0.5,
+        "response.semantic.llm.response_depth": "moderate",
+        "response.semantic.llm.engagement": 0.8,
+        "response.semantic.llm.certainty": 0.7
       },
       "node_signals": {...},
       "score_decomposition": [...],
@@ -104,7 +104,7 @@ curl -X POST "http://localhost:8000/simulation/interview" \
 - **Full Score Decomposition**: Each turn includes `score_decomposition` with joint (strategy, node) scoring breakdown
 - **Signal Contributions**: Per-strategy signal contribution tracking with phase multipliers and bonuses
 - **Strategy Alternatives**: Complete ranking of alternative strategies with scores
-- **Node Signals**: Per-node signal values for graph.node.*, technique.node.*, meta.node.*, including per-concept LLM quality signals (elaboration, charge)
+- **Node Signals**: Per-node signal values for convgraph.node.*, meta.node.*, including per-concept LLM quality signals (elaboration, charge)
 - **CSV Export**: Use `generate_scoring_csv.py` script to export live score decomposition to CSV format
 
 ### Score Decomposition Format
@@ -119,9 +119,9 @@ Each turn in the simulation JSON includes a `score_decomposition` array with det
       "strategy": "ascend",
       "node_id": "",
       "signal_contributions": {
-        "llm.response_depth.shallow": 0.8,
-        "graph.max_depth": -0.3,
-        "llm.engagement.high": 0.7
+        "response.semantic.llm.response_depth.shallow": 0.8,
+        "convgraph.state.max_depth": -0.3,
+        "response.semantic.llm.engagement.high": 0.7
       },
       "base_score": 1.2,
       "phase_multiplier": 1.3,
@@ -134,8 +134,8 @@ Each turn in the simulation JSON includes a `score_decomposition` array with det
       "strategy": "ascend",
       "node_id": "abc-123-def",
       "signal_contributions": {
-        "graph.node.exhaustion_score.low": 1.0,
-        "graph.node.focus_streak.low": 0.5
+        "convgraph.node.exhaustion.low": 1.0,
+        "convgraph.node.focus.streak.low": 0.5
       },
       "base_score": 1.5,
       "phase_multiplier": 1.3,

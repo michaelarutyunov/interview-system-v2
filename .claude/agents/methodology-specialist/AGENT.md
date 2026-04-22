@@ -124,8 +124,9 @@ Weights are routed to Stage 1 (strategy-level) or Stage 2 (node-level) scoring b
 
 | Prefix | Routes To | Example |
 |--------|-----------|---------|
-| `graph.node.*` | Stage 2 (node ranking) | `graph.node.exhaustion_score.high: -0.5` |
-| `technique.node.*` | Stage 2 (node ranking) | `technique.node.consecutive_same_strategy.high: -0.3` |
+| `convgraph.node.*` | Stage 2 (node ranking) | `convgraph.node.exhaustion.high: -0.5` |
+| `canongraph.node.*` | Stage 2 (node ranking) | `canongraph.node.novelty.high: 0.4` |
+| `interview.focus.*` | Stage 2 (node ranking) | `interview.focus.streak.high: -0.3` |
 | `meta.node.*` | Stage 2 (node ranking) | `meta.node.opportunity.fresh: 1.0` |
 | Anything else | Stage 1 (strategy ranking) | `graph.max_depth: 0.5`, `llm.response_depth.deep: 0.8` |
 
@@ -188,7 +189,7 @@ When editing `src/methodologies/scoring.py`:
 1. **Never declare a signal in YAML that doesn't exist in the signal registry.** The registry will raise `ValueError` at load time.
 2. **Never reference a strategy in `phases.{phase}.signal_weights` that isn't defined in `strategies:`.** Registry enforces referential integrity.
 3. **Always use `.mid`, never `.medium`, for continuous signal threshold bins.** `.medium` silently never matches.
-4. **Never use node-scoped weights without a `graph.node.*` / `technique.node.*` / `meta.node.*` prefix.** They'll route to strategy-level and have no node-distinguishing effect.
+4. **Never use node-scoped weights without a `convgraph.node.*`, `canongraph.node.*`, `interview.focus.*`, or `meta.node.*` prefix.** They'll route to strategy-level and have no node-distinguishing effect.
 5. **Always restart the server after editing methodology YAML.** The registry caches configs; changes don't apply until reload.
 6. **When adding a new strategy, also add it to `phases.{phase}.signal_weights` if phase-specific behavior is needed.** Otherwise the strategy gets default multiplier (1.0) and bonus (0.0) in all phases.
 7. **Never hardcode strategy names in code.** Always read from `MethodologyConfig` or `StrategyConfig` to avoid desync when YAML changes.
@@ -204,6 +205,9 @@ When editing `src/methodologies/scoring.py`:
 - **Adding a new methodology YAML but not updating documentation.** `CLAUDE.md` and `docs/` should reference the new methodology; otherwise agents and users won't know it exists.
 - **Editing methodology YAML while the server is running and expecting changes to apply.** The registry caches on first load; changes require a server restart or a cache-clear mechanism.
 - **Defining a phase in YAML that doesn't match `meta.interview.phase` values.** Phase modifiers silently never apply because the phase name lookup fails. Valid phase names are `early`, `mid`, `late` (defined in `InterviewPhaseSignal`).
+- **Adding `convgraph.node.*` weights to a `node_binding: none` strategy.** `partition_signal_weights()` strips all node-scoped weights before Stage 1 scoring. The strategy competes only on global signals — typically ~30% of its intended positive mass. Example: RG `triadic_elicit` was `node_binding: none` with `convgraph.node.is_orphan.true: 0.7`, `convgraph.node.llm.elaboration.low: 0.4` — all stripped, never selected in 10 turns. Fix: use `node_binding: required` when any `convgraph.node.*` weight is present.
+- **Setting a repetition brake magnitude < 50% of the strategy's typical base score.** When base is 2.3 and brake is -0.6, it takes 4 consecutive uses to halve the score — the runner-up never catches up within a 10-turn interview. Example: CJM `deepen_stage` base 2.3 vs. brake -0.6 → 8/10 turn dominance. Fix: either reduce structural positive mass or strengthen brake to ≥1.0.
+- **Using a positive `interview.strategy.self_count` weight as an "escape valve."** The `+0.15` on `revitalize` was intended to break fatigue loops but becomes self-reinforcing when structural strategies are suppressed. In CIT baseline, `revitalize` won 7/10 turns. Fix: flip to a negative brake (-0.5) so the strategy weakens, not strengthens, with repetition.
 
 ## Context Documents
 

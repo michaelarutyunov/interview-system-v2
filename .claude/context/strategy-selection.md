@@ -75,10 +75,11 @@ phases:
 ### Post-Selection Updates
 
 After strategy + node selection, before exiting Stage 6/8:
-1. `append_response_signal()` — appends `response.semantic.llm.response_depth` to the **previous** focus node's `all_response_depths` list
+
+1. **Per-concept quality bridge** — `MethodologyStrategyService` iterates `per_concept_ratings` from the LLM batch detector and routes `response.semantic.llm.elaboration` / `response.semantic.llm.charge` to each concept's mapped node via `NodeStateTracker.append_quality()`. This replaces the old `append_response_signal()` single-focus-node path.
 2. `update_focus()` — sets new focus as `previous_focus` for next turn, increments streak counters
 
-Critical ordering: step 1 must run before step 2, so response depth is attributed to the node that was asked about last turn.
+Critical ordering: the quality bridge must run before `update_focus()`, so per-concept ratings are attributed to the nodes that were asked about last turn.
 
 ## Correctness Requirements
 
@@ -88,7 +89,7 @@ Critical ordering: step 1 must run before step 2, so response depth is attribute
 
 3. **Node signals must not leak into Stage 1** — `partition_signal_weights()` filters them out. If node-scoped weights were applied during strategy scoring, the same node weights would affect all nodes equally and distort strategy selection.
 
-4. **Response depth must be appended to `previous_focus`, not `focus_node_id`** — `response.semantic.llm.response_depth` describes the response to the question asked last turn (about `previous_focus`), not the newly selected node.
+4. **Per-concept ratings must be bridged to the correct nodes** — `concept_to_node_id` (populated by GraphUpdateStage) maps extracted concepts to graph nodes. If a concept is not mapped, its quality ratings are silently skipped.
 
 5. **`strategy_alternatives` is a list of `(strategy_name, score)` 2-tuples** — not 3-tuples. Downstream log parsers expecting 3-tuples will fail silently or raise index errors.
 
