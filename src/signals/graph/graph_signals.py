@@ -33,10 +33,10 @@ log = structlog.get_logger(__name__)
 class GraphNodeCountSignal(SignalDetector):
     """Number of nodes in the graph.
 
-    Namespaced signal: graph.node_count
+    Namespaced signal: convgraph.state.node.count
     """
 
-    signal_name = "graph.node_count"
+    signal_name = "convgraph.state.node.count"
     description = "Total number of concepts extracted. Indicates breadth of coverage. Low counts (<5) suggest early exploration, higher counts (>10) indicate substantial coverage."
     dependencies = []
 
@@ -48,10 +48,10 @@ class GraphNodeCountSignal(SignalDetector):
 class GraphEdgeCountSignal(SignalDetector):
     """Number of edges in the graph.
 
-    Namespaced signal: graph.edge_count
+    Namespaced signal: convgraph.state.edge.count
     """
 
-    signal_name = "graph.edge_count"
+    signal_name = "convgraph.state.edge.count"
     description = "Total number of relationships between concepts. Edge density (edges/nodes) indicates how well-connected concepts are. Low density suggests isolated concepts, high density indicates rich relationships."
     dependencies = []
 
@@ -63,10 +63,10 @@ class GraphEdgeCountSignal(SignalDetector):
 class OrphanCountSignal(SignalDetector):
     """Number of orphaned nodes (no relationships).
 
-    Namespaced signal: graph.orphan_count
+    Namespaced signal: convgraph.state.node.orphan_count
     """
 
-    signal_name = "graph.orphan_count"
+    signal_name = "convgraph.state.node.orphan_count"
     description = "Number of isolated concepts with no connections to other concepts. High counts suggest opportunities to clarify relationships between mentioned concepts."
     dependencies = []
 
@@ -83,7 +83,7 @@ class OrphanCountSignal(SignalDetector):
 class GraphMaxDepthSignal(SignalDetector):
     """Maximum chain depth in the graph, normalized by ontology level count.
 
-    Namespaced signal: graph.max_depth
+    Namespaced signal: convgraph.state.max_depth
 
     Returns a float in [0.0, 1.0] where 1.0 means the graph has reached
     full ontology depth (e.g., depth 5 in a 5-level MEC ontology = 1.0).
@@ -94,7 +94,7 @@ class GraphMaxDepthSignal(SignalDetector):
         MEC ontology has 5 levels. Depth 3 → 3/5 = 0.6
     """
 
-    signal_name = "graph.max_depth"
+    signal_name = "convgraph.state.max_depth"
     description = "Normalized depth of the longest causal chain (0.0-1.0). Normalized by ontology level count. 0.0 = no depth, 1.0 = full ontology chain depth reached."
     dependencies = []
 
@@ -133,9 +133,9 @@ class ChainCompletionSignal(SignalDetector):
     """Chain completion ratio and presence from level 1 nodes to terminal nodes.
 
     Namespaced signals (flat):
-        - graph.chain_completion.ratio: float [0,1] — fraction of level-1
+        - convgraph.chain.completion.ratio: float [0,1] — fraction of level-1
           nodes that have a complete path to a terminal node.
-        - graph.chain_completion.has_complete: bool — True if at least one
+        - convgraph.chain.completion.has_complete: bool — True if at least one
           complete chain exists.
 
     Uses BFS to find paths from level 1 nodes to terminal nodes.
@@ -145,13 +145,13 @@ class ChainCompletionSignal(SignalDetector):
         Terminal nodes: [X, Y, Z]
         Chains: A→...→X, B→...→Y (C doesn't reach terminal)
         Result: {
-            "graph.chain_completion.ratio": 0.667,
-            "graph.chain_completion.has_complete": True,
+            "convgraph.chain.completion.ratio": 0.667,
+            "convgraph.chain.completion.has_complete": True,
         }
     """
 
-    signal_name = "graph.chain_completion"
-    description = "Chain completion metrics. graph.chain_completion.ratio is the fraction of level-1 nodes with complete chains (0.0-1.0). graph.chain_completion.has_complete is True when at least one chain reaches terminal values."
+    signal_name = "convgraph.chain.completion"
+    description = "Chain completion metrics. convgraph.chain.completion.ratio is the fraction of level-1 nodes with complete chains (0.0-1.0). convgraph.chain.completion.has_complete is True when at least one chain reaches terminal values."
     dependencies = []
 
     async def detect(self, context: Any, graph_state: Any, response_text: str):
@@ -180,8 +180,8 @@ class ChainCompletionSignal(SignalDetector):
         # If no terminal or level 1 types defined, return zeros
         if not terminal_types or not level_1_types:
             return {
-                "graph.chain_completion.ratio": 0.0,
-                "graph.chain_completion.has_complete": False,
+                "convgraph.chain.completion.ratio": 0.0,
+                "convgraph.chain.completion.has_complete": False,
             }
 
         # Get nodes and edges from graph
@@ -190,8 +190,8 @@ class ChainCompletionSignal(SignalDetector):
 
         if not nodes or not edges:
             return {
-                "graph.chain_completion.ratio": 0.0,
-                "graph.chain_completion.has_complete": False,
+                "convgraph.chain.completion.ratio": 0.0,
+                "convgraph.chain.completion.has_complete": False,
             }
 
         # Build adjacency list and type map for BFS
@@ -212,8 +212,8 @@ class ChainCompletionSignal(SignalDetector):
         ratio = complete_chain_count / max(level_1_node_count, 1)
 
         return {
-            "graph.chain_completion.ratio": ratio,
-            "graph.chain_completion.has_complete": has_complete_chain,
+            "convgraph.chain.completion.ratio": ratio,
+            "convgraph.chain.completion.has_complete": has_complete_chain,
         }
 
     async def _get_session_nodes(self, context: Any) -> List[Any]:
@@ -263,13 +263,13 @@ class ChainCompletionSignal(SignalDetector):
 class CanonicalConceptCountSignal(SignalDetector):
     """Number of deduplicated canonical concepts (active slots).
 
-    Namespaced signal: graph.canonical_concept_count
+    Namespaced signal: canongraph.state.node.count
 
     Lower than surface node_count because paraphrases are merged into
     canonical slots. Reduces noise from respondent language variation.
     """
 
-    signal_name = "graph.canonical_concept_count"
+    signal_name = "canongraph.state.node.count"
     description = (
         "Number of deduplicated canonical concepts (active slots). "
         "Lower than surface node_count because paraphrases are merged. "
@@ -293,18 +293,18 @@ class CanonicalConceptCountSignal(SignalDetector):
 class CanonicalEdgeDensitySignal(SignalDetector):
     """Edge-to-concept ratio in canonical graph.
 
-    Namespaced signal: graph.canonical_edge_density
+    Namespaced signal: canongraph.state.edge.density
 
     Higher values indicate more connected structure among deduplicated
     concepts. Replaces coverage breadth signal (not relevant for exploration).
 
     **IMPORTANT**: This signal is UNBOUNDED above 1.0 (e.g., 3 edges / 2 nodes = 1.5).
-    Safe for bare-key direct multiplication in YAML weights (e.g., `graph.canonical_edge_density: 0.5`).
+    Safe for bare-key direct multiplication in YAML weights (e.g., `canongraph.state.edge.density: 0.5`).
     NOT SAFE with threshold suffixes (.low/.mid/.high) which assume [0,1] input.
     When canonical_graph_state is None, returns {} (absent), not 0.0.
     """
 
-    signal_name = "graph.canonical_edge_density"
+    signal_name = "canongraph.state.edge.density"
     description = (
         "Edge-to-concept ratio in canonical graph. Higher = more connected structure. "
         "Uses deduplicated concepts, so reflects relationship density among stable concepts "
@@ -333,7 +333,7 @@ class CanonicalEdgeDensitySignal(SignalDetector):
 class CanonicalExhaustionScoreSignal(SignalDetector):
     """Average exhaustion score across canonical slots.
 
-    Namespaced signal: graph.canonical_exhaustion_score
+    Namespaced signal: canongraph.state.exhaustion
 
     Aggregates exhaustion scores from all tracked canonical slots using
     the NodeStateTracker. Tracks by canonical_slot_id, so this reflects
@@ -342,7 +342,7 @@ class CanonicalExhaustionScoreSignal(SignalDetector):
     Values range 0.0 (fresh) to 1.0 (fully exhausted).
     """
 
-    signal_name = "graph.canonical_exhaustion_score"
+    signal_name = "canongraph.state.exhaustion"
     description = (
         "Average exhaustion score across canonical slots. "
         "Aggregates exhaustion from deduplicated concepts (canonical slots). "

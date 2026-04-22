@@ -12,7 +12,7 @@ class TestUnboundedSignalGuard:
     """Test runtime guard against unbounded int signals in YAML signal_weights."""
 
     def test_rejects_graph_node_count_in_signal_weights(self):
-        """graph.node_count should be rejected in signal_weights."""
+        """convgraph.state.node.count should be rejected in signal_weights."""
         yaml_content = """
 method:
   name: test
@@ -21,13 +21,13 @@ method:
 
 signals:
   graph:
-    - graph.node_count
+    - convgraph.state.node.count
 
 strategies:
   - name: test_strategy
     description: Test
     signal_weights:
-      graph.node_count: 0.5  # Should be rejected!
+      convgraph.state.node.count: 0.5  # Should be rejected!
     focus_mode: recent_node
     node_binding: required
 """
@@ -40,14 +40,14 @@ strategies:
             registry = MethodologyRegistry(config_dir)
 
             with pytest.raises(
-                ValueError, match="unbounded count signal.*graph.node_count"
+                ValueError, match="unbounded count signal.*convgraph.state.node.count"
             ):
                 registry.get_methodology("test")
         finally:
             shutil.rmtree(temp_dir)
 
     def test_rejects_graph_edge_count_in_signal_weights(self):
-        """graph.edge_count should be rejected in signal_weights."""
+        """convgraph.state.edge.count should be rejected in signal_weights."""
         yaml_content = """
 method:
   name: test
@@ -56,13 +56,13 @@ method:
 
 signals:
   graph:
-    - graph.edge_count
+    - convgraph.state.edge.count
 
 strategies:
   - name: test_strategy
     description: Test
     signal_weights:
-      graph.edge_count: 0.3  # Should be rejected!
+      convgraph.state.edge.count: 0.3  # Should be rejected!
     focus_mode: recent_node
     node_binding: required
 """
@@ -75,14 +75,14 @@ strategies:
             registry = MethodologyRegistry(config_dir)
 
             with pytest.raises(
-                ValueError, match="unbounded count signal.*graph.edge_count"
+                ValueError, match="unbounded count signal.*convgraph.state.edge.count"
             ):
                 registry.get_methodology("test")
         finally:
             shutil.rmtree(temp_dir)
 
     def test_rejects_graph_orphan_count_in_signal_weights(self):
-        """graph.orphan_count should be rejected in signal_weights."""
+        """convgraph.state.node.orphan_count should be rejected in signal_weights."""
         yaml_content = """
 method:
   name: test
@@ -91,13 +91,13 @@ method:
 
 signals:
   graph:
-    - graph.orphan_count
+    - convgraph.state.node.orphan_count
 
 strategies:
   - name: test_strategy
     description: Test
     signal_weights:
-      graph.orphan_count.low: 0.2  # Should be rejected even with suffix!
+      convgraph.state.node.orphan_count.low: 0.2  # Should be rejected even with suffix!
     focus_mode: recent_node
     node_binding: required
 """
@@ -110,7 +110,8 @@ strategies:
             registry = MethodologyRegistry(config_dir)
 
             with pytest.raises(
-                ValueError, match="unbounded count signal.*graph.orphan_count"
+                ValueError,
+                match="unbounded count signal.*convgraph.state.node.orphan_count",
             ):
                 registry.get_methodology("test")
         finally:
@@ -126,14 +127,14 @@ method:
 
 signals:
   graph:
-    - graph.max_depth
+    - convgraph.state.max_depth
 
 strategies:
   - name: test_strategy
     description: Test
     signal_weights:
-      graph.max_depth.high: 0.5
-      graph.max_depth.low: -0.3
+      convgraph.state.max_depth.high: 0.5
+      convgraph.state.max_depth.low: -0.3
     focus_mode: recent_node
     node_binding: required
 """

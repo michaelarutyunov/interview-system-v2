@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 # Signal weight prefixes that are valid but not in the main signal registry.
 # These are session-scoped signals managed separately (e.g., in
 # MethodologyStrategyService) rather than through ComposedSignalDetector.
-EXTRA_SIGNAL_WEIGHT_PREFIXES = frozenset({"llm.global_response_trend"})
+EXTRA_SIGNAL_WEIGHT_PREFIXES = frozenset({"response.semantic.llm.engagement.trend"})
 
 # Valid values for StrategyConfig.focus_mode
 VALID_FOCUS_MODES = frozenset({"recent_node", "summary", "topic"})
@@ -28,9 +28,9 @@ def _is_valid_signal_weight_key(key: str, known_signals: set[str]) -> bool:
     """Check if a signal weight key has a valid signal prefix.
 
     Signal weight keys can be:
-    - Exact signal name: "graph.max_depth"
-    - Compound key: "llm.response_depth.surface" (base signal + value qualifier)
-    - Deep compound: "graph.chain_completion.has_complete.false"
+    - Exact signal name: "convgraph.state.max_depth"
+    - Compound key: "response.semantic.llm.response_depth.surface" (base signal + value qualifier)
+    - Deep compound: "convgraph.chain.completion.has_complete.false"
 
     Tries progressively shorter prefixes until one matches a known signal
     or an allowed extra prefix.
@@ -255,23 +255,22 @@ class MethodologyRegistry:
                 # These return raw counts (node_count, edge_count, orphan_count)
                 # which can wildly miscalibrate scoring when multiplied by weights
                 unbounded_signals = {
-                    "graph.node_count",
-                    "graph.edge_count",
-                    "graph.orphan_count",
+                    "convgraph.state.node.count",
+                    "convgraph.state.edge.count",
+                    "convgraph.state.node.orphan_count",
                 }
-                # Extract base signal name by removing threshold suffixes (.low/.mid/.high/.true/.false)
-                # weight_key format: "signal.name" or "signal.name.suffix"
-                parts = weight_key.split(".")
-                if len(parts) >= 2:
-                    # Reconstruct base signal (first two parts: pool.name)
-                    base_signal = f"{parts[0]}.{parts[1]}"
-                else:
-                    base_signal = weight_key
+                # Check if the weight key is or extends an unbounded signal.
+                # With deep namespacing (e.g., convgraph.state.node.count),
+                # simple 2-component splitting no longer works — use prefix matching.
+                is_unbounded = any(
+                    weight_key == u or weight_key.startswith(u + ".")
+                    for u in unbounded_signals
+                )
 
-                if base_signal in unbounded_signals:
+                if is_unbounded:
                     errors.append(
                         f"strategies[{i}] '{strategy.name}': "
-                        f"unbounded count signal '{base_signal}' not allowed in signal_weights. "
+                        f"unbounded count signal '{weight_key}' not allowed in signal_weights. "
                         f"Raw integer counts can't be safely multiplied by weights. "
                         f"Use normalized signals or remove this weight key."
                     )

@@ -139,8 +139,8 @@ When `canonical_slot_repo` is provided (i.e. `enable_canonical_slots=True`), sur
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `graph.node.focus_streak` signal always reads 0 at strategy selection | `record_yield()` was resetting `current_focus_streak = 0`; Stage 5 ran before signal detection in Stage 8 | Removed streak reset from `record_yield()`; streak now only resets on focus change inside `update_focus()` |
-| `graph.node.exhaustion_score` not growing for repeatedly focused node | `turns_since_last_yield` only incremented for the focused node; unfocused nodes' counter never grew | Changed `update_focus()` loop to tick `turns_since_last_yield += 1` for **all** nodes, not just focus |
+| `convgraph.node.focus.streak` signal always reads 0 at strategy selection | `record_yield()` was resetting `current_focus_streak = 0`; Stage 5 ran before signal detection in Stage 8 | Removed streak reset from `record_yield()`; streak now only resets on focus change inside `update_focus()` |
+| `convgraph.node.exhaustion` not growing for repeatedly focused node | `turns_since_last_yield` only incremented for the focused node; unfocused nodes' counter never grew | Changed `update_focus()` loop to tick `turns_since_last_yield += 1` for **all** nodes, not just focus |
 | Tracker state lost between turns (signals always see initial values) | `to_dict()` not called in `ScoringPersistenceStage`, or `from_dict()` not called in `ContextLoadingStage` | Verify Stage 12 calls `node_state_tracker.to_dict()` and saves result to `sessions.node_tracker_state`; verify Stage 1 loads it via `from_dict()` |
 | Node signals missing / wrong for newly extracted nodes | New node not yet in tracker when `update_focus()` is called | Confirm `register_node()` is called in Stage 5 (before Stage 8); check `register_node()` call path in `graph_update_stage.py:_update_node_state_tracker()` |
 | Canonical slot aggregation not working (metrics split across paraphrase nodes) | `canonical_slot_repo` not injected into `NodeStateTracker` constructor | Confirm `NodeStateTracker(canonical_slot_repo=repo)` is used when `enable_canonical_slots=True` in session config |

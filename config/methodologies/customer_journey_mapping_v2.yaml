@@ -200,43 +200,43 @@ ontology:
 
 signals:
   graph:
-    - graph.node_count
-    - graph.edge_count
-    - graph.orphan_count
-    - graph.max_depth
+    - convgraph.state.node.count
+    - convgraph.state.edge.count
+    - convgraph.state.node.orphan_count
+    - convgraph.state.max_depth
     # Canonical graph signals
-    - graph.canonical_concept_count
-    - graph.canonical_edge_density
-    - graph.canonical_exhaustion_score
+    - canongraph.state.node.count
+    - canongraph.state.edge.density
+    - canongraph.state.exhaustion
     # Note: Node-level signals (graph.node.*) are auto-discovered
     # from strategy signal_weights and do not need to be listed here.
     # Note: Chain topology signals (gap_above, gap_below, level_skip,
     # branching_deficit, fan_in, has_attribute_foundation, has_terminal_apex)
     # are intentionally excluded — they are meaningless for CJM's flat ontology.
     # f965 — per-concept-derived node signals:
-    - graph.node.elaboration
-    - graph.node.charge
-    - graph.node.has_quality_data
+    - convgraph.node.response.semantic.llm.elaboration
+    - convgraph.node.response.semantic.llm.charge
+    - convgraph.node.llm.has_quality_data
 
   llm:
-    - llm.certainty
-    - llm.engagement
-    - llm.elaboration
-    - llm.charge
-    # Note: llm.global_response_trend is session-scoped and managed separately
+    - response.semantic.llm.certainty
+    - response.semantic.llm.engagement
+    - response.semantic.llm.elaboration
+    - response.semantic.llm.charge
+    # Note: response.semantic.response.semantic.llm.engagement.trend is session-scoped and managed separately
     # Per-concept LLM signals (elaboration, charge) produce per-concept ratings that route to graph.node.* via Stage 6 bridge.
 
   temporal:
-    - temporal.strategy_repetition_count
-    - temporal.turns_since_strategy_change
-    # Note: technique.node.strategy_repetition is a per-node signal, auto-detected by pipeline
+    - interview.strategy.self_count
+    - interview.strategy.turns_since_change
+    # Note: interview.focus.streak is a per-node signal, auto-detected by pipeline
 
   meta:
-    - meta.interview.phase
-    - meta.conversation.saturation
-    - meta.canonical.saturation
+    - interview.phase
+    - meta.saturation.conversation
+    - meta.saturation.canonical
     # Note: meta.interview_progress is deprecated for CJM.
-    # Replaced by meta.conversation.saturation and meta.canonical.saturation.
+    # Replaced by meta.saturation.conversation and meta.saturation.canonical.
 
 strategies:
   # Strategy 1: Map Journey — the core CJM breadth strategy.
@@ -248,23 +248,23 @@ strategies:
     description: "Elicit the sequential journey — stages, touchpoints, and transitions. Ask 'what happened next?' to build the timeline."
     signal_weights:
       # Engagement signals — map when respondent is engaged enough to narrate
-      llm.engagement.mid: 0.4                  # Moderate engagement = mapping OK
-      llm.engagement.high: 0.3                 # High engagement = productive mapping
-      llm.engagement.low: -0.3                 # Low engagement = suppress, wait for revitalize
+      response.semantic.llm.engagement.mid: 0.4                  # Moderate engagement = mapping OK
+      response.semantic.llm.engagement.high: 0.3                 # High engagement = productive mapping
+      response.semantic.llm.engagement.low: -0.3                 # Low engagement = suppress, wait for revitalize
       # f965: specificity.low (0.5) → elaboration.low; specificity.mid (0.2) → elaboration.mid
-      graph.node.elaboration.low: 0.5
-      graph.node.elaboration.mid: 0.2
+      convgraph.node.response.semantic.llm.elaboration.low: 0.5
+      convgraph.node.response.semantic.llm.elaboration.mid: 0.2
       # Response quality — suppress when fatigued
-      llm.global_response_trend.shallowing: -0.3
-      llm.global_response_trend.fatigued: -0.5
+      response.semantic.response.semantic.llm.engagement.trend.shallowing: -0.3
+      response.semantic.response.semantic.llm.engagement.trend.fatigued: -0.5
       # Repetition — core strategy but needs variety
-      temporal.strategy_repetition_count: -0.5
-      temporal.strategy_repetition_count.high: -0.3
+      interview.strategy.self_count: -0.5
+      interview.strategy.self_count.high: -0.3
       # Novelty — prefer fresh stages/touchpoints
-      graph.node.novelty.high: 0.4             # Fresh nodes = recently mentioned, map them
-      graph.node.focus_streak.none: 0.5        # Unfocused nodes = new territory
-      graph.node.focus_streak.high: -0.5       # Over-focus = change angle
-      graph.node.exhaustion_score.low: 0.3     # Unexplored = map more
+      convgraph.node.novelty.high: 0.4             # Fresh nodes = recently mentioned, map them
+      convgraph.node.focus.streak.none: 0.5        # Unfocused nodes = new territory
+      convgraph.node.focus.streak.high: -0.5       # Over-focus = change angle
+      convgraph.node.exhaustion.low: 0.3     # Unexplored = map more
 
   # Strategy 2: Deepen Stage — go deeper within a specific stage.
   # Touchpoints, emotions, friction within the current stage.
@@ -276,24 +276,24 @@ strategies:
     signal_weights:
       # f965 migration (response_depth.surface+shallow + specificity.low → elaboration.low;
       #                 response_depth.moderate + specificity.mid + intellectual_engagement.mid → elaboration.mid)
-      graph.node.elaboration.low: 1.4
-      graph.node.elaboration.mid: 0.7
+      convgraph.node.response.semantic.llm.elaboration.low: 1.4
+      convgraph.node.response.semantic.llm.elaboration.mid: 0.7
       # Engagement — need engagement to deepen
-      llm.engagement.high: 0.4
-      llm.engagement.mid: 0.3
-      llm.engagement.low: -0.4                 # Disengaged = risky to deepen
+      response.semantic.llm.engagement.high: 0.4
+      response.semantic.llm.engagement.mid: 0.3
+      response.semantic.llm.engagement.low: -0.4                 # Disengaged = risky to deepen
       # Response trend — shallowing can mean try deepening a touchpoint
-      llm.global_response_trend.shallowing: 0.2
-      # Repetition — moderate penalty
-      temporal.strategy_repetition_count: -0.6
+      response.semantic.response.semantic.llm.engagement.trend.shallowing: 0.2
+      # Phase 4.2: strengthened from -0.6 to -1.2 (deepen_stage base score 2.3 needs stronger brake)
+      interview.strategy.self_count: -1.2
       # Node signals — prefer underexplored, recently mentioned nodes
       # T2 calibration: reduce exhaustion_score.low from 0.5 to 0.3
-      graph.node.exhaustion_score.low: 0.3     # Fresh = good deepening target
-      graph.node.recency_score: 0.3            # Recently mentioned = active thread
-      graph.node.focus_streak.low: 0.4         # First focus = just mentioned
-      graph.node.focus_streak.medium: -0.3     # Mild penalty — some exploration done
-      graph.node.focus_streak.high: -0.6       # Over-focused = switch
-      graph.node.novelty.high: 0.3             # Fresh node = untapped depth
+      convgraph.node.exhaustion.low: 0.3     # Fresh = good deepening target
+      convgraph.node.recency: 0.3            # Recently mentioned = active thread
+      convgraph.node.focus.streak.low: 0.4         # First focus = just mentioned
+      convgraph.node.focus.streak.medium: -0.3     # Mild penalty — some exploration done
+      convgraph.node.focus.streak.high: -0.6       # Over-focused = switch
+      convgraph.node.novelty.high: 0.3             # Fresh node = untapped depth
 
   # Strategy 3: Probe Friction — explore pain points specifically.
   # Negative valence is the primary trigger via scoring weights.
@@ -303,25 +303,25 @@ strategies:
     description: "Explore pain points, obstacles, and frustrations — what went wrong, what was confusing, what took too long."
     signal_weights:
       # f965: valence.low (0.8) → charge.negative; valence.mid (0.3) dropped (neutral contributes 0)
-      graph.node.charge.negative: 0.8
+      convgraph.node.response.semantic.llm.charge.negative: 0.8
       # Certainty — hedging may signal unspoken friction
-      llm.certainty.mid: 0.3
+      response.semantic.llm.certainty.mid: 0.3
       # f965: response_depth.shallow (0.3) → elaboration.low; .moderate (0.2) → elaboration.mid
-      graph.node.elaboration.low: 0.3
-      graph.node.elaboration.mid: 0.2
+      convgraph.node.response.semantic.llm.elaboration.low: 0.3
+      convgraph.node.response.semantic.llm.elaboration.mid: 0.2
       # Engagement — can probe at moderate engagement
-      llm.engagement.mid: 0.3
-      llm.engagement.high: 0.3
-      llm.engagement.low: -0.3                 # Low + friction = risky
+      response.semantic.llm.engagement.mid: 0.3
+      response.semantic.llm.engagement.high: 0.3
+      response.semantic.llm.engagement.low: -0.3                 # Low + friction = risky
       # Repetition — too much friction probing feels negative
-      temporal.strategy_repetition_count: -0.7
-      temporal.strategy_repetition_count.high: -0.3
+      interview.strategy.self_count: -0.7
+      interview.strategy.self_count.high: -0.3
       # Node signals — orphan nodes may hide friction
-      graph.node.is_orphan.true: 0.5           # Disconnected = friction not yet linked
-      graph.node.exhaustion_score.low: 0.4     # Fresh = unexplored friction
-      graph.node.focus_streak.none: 0.4        # New focus = new territory
-      graph.node.focus_streak.medium: -0.3
-      graph.node.focus_streak.high: -0.6
+      convgraph.node.is_orphan.true: 0.5           # Disconnected = friction not yet linked
+      convgraph.node.exhaustion.low: 0.4     # Fresh = unexplored friction
+      convgraph.node.focus.streak.none: 0.4        # New focus = new territory
+      convgraph.node.focus.streak.medium: -0.3
+      convgraph.node.focus.streak.high: -0.6
 
   # Strategy 4: Track Emotions — map the emotional curve across the journey.
   # Both valence extremes are triggers — map highs AND lows.
@@ -332,23 +332,23 @@ strategies:
     signal_weights:
       # f965: valence.high (0.6) → charge.positive; valence.low (0.6) → charge.negative;
       #       valence.mid (0.2) dropped (neutral contributes 0)
-      graph.node.charge.positive: 0.6
-      graph.node.charge.negative: 0.6
+      convgraph.node.response.semantic.llm.charge.positive: 0.6
+      convgraph.node.response.semantic.llm.charge.negative: 0.6
       # f965: response_depth.shallow (0.3) → elaboration.low; .moderate (0.3) → elaboration.mid
-      graph.node.elaboration.low: 0.3
-      graph.node.elaboration.mid: 0.3
+      convgraph.node.response.semantic.llm.elaboration.low: 0.3
+      convgraph.node.response.semantic.llm.elaboration.mid: 0.3
       # Engagement — emotions need engagement to explore
-      llm.engagement.high: 0.4
-      llm.engagement.mid: 0.3
-      llm.engagement.low: -0.4
+      response.semantic.llm.engagement.high: 0.4
+      response.semantic.llm.engagement.mid: 0.3
+      response.semantic.llm.engagement.low: -0.4
       # Repetition — moderate penalty
-      temporal.strategy_repetition_count: -0.6
+      interview.strategy.self_count: -0.6
       # Node signals — prefer fresh stages for emotion mapping
-      graph.node.exhaustion_score.low: 0.3     # Fresh = unmapped emotions
-      graph.node.novelty.high: 0.3             # Novel = unexplored emotional territory
-      graph.node.focus_streak.none: 0.4        # Fresh touchpoints = unmapped emotions
-      graph.node.focus_streak.medium: -0.2     # Mild penalty — emotion re-probe is OK
-      graph.node.focus_streak.high: -0.5
+      convgraph.node.exhaustion.low: 0.3     # Fresh = unmapped emotions
+      convgraph.node.novelty.high: 0.3             # Novel = unexplored emotional territory
+      convgraph.node.focus.streak.none: 0.4        # Fresh touchpoints = unmapped emotions
+      convgraph.node.focus.streak.medium: -0.2     # Mild penalty — emotion re-probe is OK
+      convgraph.node.focus.streak.high: -0.5
 
   # Strategy 5: Advance Stage — move to the next journey stage.
   # Fires when current stage is saturated or respondent has stayed too long.
@@ -359,42 +359,44 @@ strategies:
     signal_weights:
       # Saturation signals — time to move on
       # T2 calibration: increase saturation trigger to 0.9 for higher threshold
-      meta.conversation.saturation.high: 0.9   # T2 calibration: increased from 0.6
-      meta.canonical.saturation.high: 0.9      # T2 calibration: increased from 0.5
+      meta.saturation.conversation.high: 0.9   # T2 calibration: increased from 0.6
+      meta.saturation.canonical.high: 0.9      # T2 calibration: increased from 0.5
       # Focus streak — stayed on same topic too long
-      # T2 + Critique: boosted from 0.6 to 0.9 for stronger advance trigger
-      graph.node.focus_streak.high: 0.9        # Over-focused = advance signal
-      graph.node.focus_streak.medium: 0.2      # Some focus = consider advancing
-      graph.node.focus_streak.low: -0.3        # Just started = don't advance yet
+      # Phase 4.2: boosted from 0.9 to 1.2 to compete with deepen_stage
+      convgraph.node.focus.streak.high: 1.2        # Over-focused = advance signal
+      convgraph.node.focus.streak.medium: 0.2      # Some focus = consider advancing
+      convgraph.node.focus.streak.low: -0.3        # Just started = don't advance yet
       # Exhaustion — explored node = time for new stage
-      graph.node.exhaustion_score.high: 0.4    # Exhausted = move on
+      convgraph.node.exhaustion.high: 0.4    # Exhausted = move on
       # Engagement — advance works best when engaged
-      llm.engagement.mid: 0.3
-      llm.engagement.high: 0.2
-      llm.engagement.low: -0.3                 # Disengaged = advance may re-engage
+      response.semantic.llm.engagement.mid: 0.3
+      response.semantic.llm.engagement.high: 0.2
+      response.semantic.llm.engagement.low: -0.3                 # Disengaged = advance may re-engage
+      # Phase 4.2: added per-concept signal integration (high elaboration = ready to advance)
+      convgraph.node.response.semantic.llm.elaboration.high: 0.3
       # Novelty — seek unexplored stages
-      graph.node.novelty.high: 0.3             # Fresh nodes = new stage territory
+      convgraph.node.novelty.high: 0.3             # Fresh nodes = new stage territory
       # Repetition — advance is a transition strategy, penalize over-use
-      temporal.strategy_repetition_count: -0.5
+      interview.strategy.self_count: -0.5
 
   # Strategy 6: Anchor — connect isolated touchpoints/emotions to journey structure.
   # Uses is_orphan gate — only fires for nodes with no connections.
   - name: anchor
     node_binding: required
-    valid_when: graph.node.is_orphan
+    valid_when: convgraph.node.is_orphan
     description: "Connect an isolated touchpoint or emotion to the existing journey structure — explore how it relates to known stages and touchpoints."
     signal_weights:
       # is_orphan is the gate — high weight when it fires
-      graph.node.is_orphan.true: 0.5           # Strong anchor signal
+      convgraph.node.is_orphan.true: 0.5           # Strong anchor signal
       # Recency — recently mentioned orphans are more relevant
-      graph.node.recency_score: 0.2
+      convgraph.node.recency: 0.2
       # Exhaustion — fresh orphans are easier to connect
-      graph.node.exhaustion_score.low: 0.3
-      graph.node.exhaustion_score.high: -0.2   # Exhausted orphan = may not be connectable
+      convgraph.node.exhaustion.low: 0.3
+      convgraph.node.exhaustion.high: -0.2   # Exhausted orphan = may not be connectable
       # Repetition — mild penalty
-      temporal.strategy_repetition_count: -0.15
+      interview.strategy.self_count: -0.15
       # Novelty — fresh orphans are higher priority
-      graph.node.novelty.high: 0.3
+      convgraph.node.novelty.high: 0.3
 
   # Strategy 7: Revitalize — conversation-level fallback for fatigue.
   # No gate — fires based on fatigue signals and engagement drop.
@@ -404,30 +406,30 @@ strategies:
     description: "Shift to an unexplored part of the journey or a fresh angle when the current section is exhausted or respondent shows fatigue."
     signal_weights:
       # Fatigue detection triggers
-      llm.global_response_trend.fatigued: 1.0
-      llm.global_response_trend.shallowing: 0.8
+      response.semantic.response.semantic.llm.engagement.trend.fatigued: 1.0
+      response.semantic.response.semantic.llm.engagement.trend.shallowing: 0.8
       meta.node.opportunity.exhausted: 0.4
       # Engagement & valence triggers
-      llm.engagement.low: 0.8
-      llm.engagement.mid: 0.3
-      llm.engagement.high: -0.4               # High engagement = no need to revitalize
-      # f965: valence.low (0.4) → graph.node.charge.negative
-      graph.node.charge.negative: 0.4
-      # f965: specificity.low (-0.2) → graph.node.elaboration.low
-      graph.node.elaboration.low: -0.2
+      response.semantic.llm.engagement.low: 0.8
+      response.semantic.llm.engagement.mid: 0.3
+      response.semantic.llm.engagement.high: -0.4               # High engagement = no need to revitalize
+      # f965: valence.low (0.4) → convgraph.node.response.semantic.llm.charge.negative
+      convgraph.node.response.semantic.llm.charge.negative: 0.4
+      # f965: specificity.low (-0.2) → convgraph.node.response.semantic.llm.elaboration.low
+      convgraph.node.response.semantic.llm.elaboration.low: -0.2
       # Late phase suppression — allow other strategies to assert
-      meta.interview.phase.late: -0.5
-      # Repetition — moderate escape valve
-      temporal.strategy_repetition_count: 0.15
-      temporal.turns_since_strategy_change: -0.5
+      interview.phase.late: -0.5
+      # Phase 4.2: FLIPPED from +0.15 to -0.5 (escape valve to brake, matching JTBD fix)
+      interview.strategy.self_count: -0.5
+      interview.strategy.turns_since_change: -0.5
       # Node signals — seek unexplored journey sections
-      graph.node.focus_streak.none: 0.8        # Fresh focus = new territory
-      graph.node.focus_streak.medium: -0.4
-      graph.node.focus_streak.high: -0.7
-      graph.node.exhaustion_score.low: 0.5     # Fresh nodes = untapped territory
-      graph.node.novelty.high: 0.4
-      graph.node.focus_count.high: -0.6        # Over-probed = avoid
-      graph.node.focus_count.medium: -0.3
+      convgraph.node.focus.streak.none: 0.8        # Fresh focus = new territory
+      convgraph.node.focus.streak.medium: -0.4
+      convgraph.node.focus.streak.high: -0.7
+      convgraph.node.exhaustion.low: 0.5     # Fresh nodes = untapped territory
+      convgraph.node.novelty.high: 0.4
+      convgraph.node.focus.count.high: -0.6        # Over-probed = avoid
+      convgraph.node.focus.count.medium: -0.3
 
   # Strategy 8: Validate — summarize the journey map and confirm understanding.
   # Conversation-level, generates closing questions.
@@ -439,23 +441,23 @@ strategies:
     description: "Summarize the journey map — stages, key touchpoints, emotional highs/lows, and friction points — and invite correction or addition."
     signal_weights:
       # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
-      graph.node.elaboration.high: 0.3
-      graph.node.elaboration.mid: 0.2
+      convgraph.node.response.semantic.llm.elaboration.high: 0.3
+      convgraph.node.response.semantic.llm.elaboration.mid: 0.2
       # Uncertainty triggers — validate when respondent is uncertain
-      llm.certainty.low: 0.8
-      llm.certainty.mid: 0.6
+      response.semantic.llm.certainty.low: 0.8
+      response.semantic.llm.certainty.mid: 0.6
       meta.node.opportunity.probe_deeper: 0.5
       # Engagement — validate when engagement drops (confirm what we have)
-      llm.engagement.low: 0.6
+      response.semantic.llm.engagement.low: 0.6
       # Connected nodes = enough structure to validate
-      graph.node.has_outgoing.true: 0.7
-      graph.node.focus_streak.high: 0.4        # Over-focused = good time to summarize
-      technique.node.strategy_repetition.low: 0.3
+      convgraph.node.has_outgoing.true: 0.7
+      convgraph.node.focus.streak.high: 0.4        # Over-focused = good time to summarize
+      interview.focus.streak.low: 0.3
       # Saturation triggers — validate when themes are exhausted
-      meta.conversation.saturation: 0.3
-      meta.canonical.saturation: 0.2
+      meta.saturation.conversation: 0.3
+      meta.saturation.canonical: 0.2
       # Repetition — validate should not repeat
-      temporal.strategy_repetition_count: -0.5
+      interview.strategy.self_count: -0.5
 
 chain_completion:
   score_threshold: 0.05  # Barely meaningful for CJM — flat ontology has no chain depth to complete

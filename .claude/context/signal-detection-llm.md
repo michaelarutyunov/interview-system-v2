@@ -10,9 +10,9 @@ Signal classes are partitioned into two scopes:
 
 The decorators wire up `signal_name`, `description`, and `scope` as class attributes. They also validate at import time that the class defines a non-empty `RUBRIC: str` class constant covering bands 1–5. Signal classes live in `src/signals/llm/signals/` and must be imported and listed in `__all__` in `src/signals/llm/signals/__init__.py` for auto-discovery.
 
-At detection time, global signals and per-concept scores (except elaboration) are **normalised to [0, 1]** via `(score - 1) / 4`. Per-concept `elaboration` is used to derive the categorical `llm.response_depth` for backward compatibility with `llm_response_trend`, `node_opportunity`, and question-generation prompts.
+At detection time, global signals and per-concept scores (except elaboration) are **normalised to [0, 1]** via `(score - 1) / 4`. Per-concept `elaboration` is used to derive the categorical `response.semantic.llm.response_depth` for backward compatibility with `llm_response_trend`, `node_opportunity`, and question-generation prompts.
 
-`llm.global_response_trend` is **not** a per-turn signal. It is a session-level aggregate computed separately in `GlobalSignalDetectionService` from the rolling history of per-turn `llm.response_depth` values. Its values are categorical strings (`improving`, `degrading`, `stable`, `fatigued`).
+`response.semantic.response.semantic.llm.engagement.trend` is **not** a per-turn signal. It is a session-level aggregate computed separately in `GlobalSignalDetectionService` from the rolling history of per-turn `response.semantic.llm.response_depth` values. Its values are categorical strings (`improving`, `degrading`, `stable`, `fatigued`).
 
 A signal is **only active** if it appears in the methodology YAML under `signals: llm:`. Signals absent from that list are never sent to the LLM and never appear in scoring.
 
@@ -20,12 +20,12 @@ A signal is **only active** if it appears in the methodology YAML under `signals
 
 | Signal | Scope | Decorator | Normalisation | Replaces |
 |--------|-------|-----------|---------------|----------|
-| `llm.elaboration` | per-concept | `@llm_per_concept_signal` | 1–5 raw (used to derive `response_depth`) | `response_depth`, `specificity`, `intellectual_engagement` |
-| `llm.charge` | per-concept | `@llm_per_concept_signal` | `[0, 1]` | `valence` |
-| `llm.engagement` | global | `@llm_global_signal` | `[0, 1]` | `engagement` |
-| `llm.certainty` | global | `@llm_global_signal` | `[0, 1]` | `certainty` |
+| `response.semantic.llm.elaboration` | per-concept | `@llm_per_concept_signal` | 1–5 raw (used to derive `response_depth`) | `response_depth`, `specificity`, `intellectual_engagement` |
+| `response.semantic.llm.charge` | per-concept | `@llm_per_concept_signal` | `[0, 1]` | `valence` |
+| `response.semantic.llm.engagement` | global | `@llm_global_signal` | `[0, 1]` | `engagement` |
+| `response.semantic.llm.certainty` | global | `@llm_global_signal` | `[0, 1]` | `certainty` |
 
-`llm.response_depth` is **derived**, not scored directly. The batch detector computes the mean per-concept `elaboration` score and maps it to a category:
+`response.semantic.llm.response_depth` is **derived**, not scored directly. The batch detector computes the mean per-concept `elaboration` score and maps it to a category:
 - `surface` — 1 concept with normalised elaboration ≤ 0.25
 - `shallow` — normalised mean < 0.34
 - `moderate` — normalised mean < 0.67
@@ -43,9 +43,9 @@ Per-concept ratings from `LLMBatchDetector.detect()` are routed to specific grap
 4. `append_quality` records scores into `NodeState.quality_history` and derives a categorical `response_depth` for `all_response_depths` (bins: 0.125 / 0.375 / 0.625).
 
 Three node signals surface the per-concept history as YAML-weightable bins:
-- `graph.node.elaboration` → flattened sub-keys `graph.node.elaboration.{low,mid,high}`
-- `graph.node.charge` → `graph.node.charge.{negative,neutral,positive}`
-- `graph.node.has_quality_data` — gate for quality-dependent strategies
+- `convgraph.node.response.semantic.llm.elaboration` → flattened sub-keys `convgraph.node.response.semantic.llm.elaboration.{low,mid,high}`
+- `convgraph.node.response.semantic.llm.charge` → `convgraph.node.response.semantic.llm.charge.{negative,neutral,positive}`
+- `convgraph.node.llm.has_quality_data` — gate for quality-dependent strategies
 
 Sub-keys use dot notation so the `node_signal_detection_service` flattener (which strips the last `.segment` of the signal name) produces YAML-matching flat keys.
 
@@ -79,8 +79,8 @@ The LLM returns a JSON object with two top-level sections:
 2. Every new signal class must be imported and listed in `__all__` in `src/signals/llm/signals/__init__.py`, otherwise the batch detector cannot discover it.
 3. The signal name must appear in the methodology YAML `signals: llm:` list for it to fire during interviews.
 4. Continuous signals normalise to `[0, 1]` — strategy weight keys must use `.low`, `.mid`, `.high` bin names, not raw integers.
-5. `llm.global_response_trend` weight keys use categorical strings (`improving`, `degrading`, `stable`, `fatigued`), not numeric bins.
-6. Per-concept signals have a **producer/consumer split**. Producers (`llm.elaboration`, `llm.charge`) generate per-concept scores and must appear in `signals: llm:`. Consumers (`graph.node.elaboration`, `graph.node.charge`, `graph.node.has_quality_data`) read scores bridged into `NodeStateTracker` and are detected by `NodeSignalDetectionService`. Both must be present in YAML — producers for batch detection, consumers for node scoring. If producers are absent, `per_concept_classes` is empty, no per-concept records are generated, and all consumer node signals return zero regardless of how rich the LLM response was.
+5. `response.semantic.response.semantic.llm.engagement.trend` weight keys use categorical strings (`improving`, `degrading`, `stable`, `fatigued`), not numeric bins.
+6. Per-concept signals have a **producer/consumer split**. Producers (`response.semantic.llm.elaboration`, `response.semantic.llm.charge`) generate per-concept scores and must appear in `signals: llm:`. Consumers (`convgraph.node.response.semantic.llm.elaboration`, `convgraph.node.response.semantic.llm.charge`, `convgraph.node.llm.has_quality_data`) read scores bridged into `NodeStateTracker` and are detected by `NodeSignalDetectionService`. Both must be present in YAML — producers for batch detection, consumers for node scoring. If producers are absent, `per_concept_classes` is empty, no per-concept records are generated, and all consumer node signals return zero regardless of how rich the LLM response was.
 
 ## Symptom → Cause → Fix
 
@@ -92,8 +92,8 @@ The LLM returns a JSON object with two top-level sections:
 | Signal always 0 / never appears in logs | Signal not listed under `signals: llm:` in methodology YAML | Add signal name to the YAML list |
 | Strategy weight never triggers for a continuous signal | Weight key uses integer instead of bin name | Replace with `.low`, `.mid`, or `.high` |
 | `global_response_trend` always `stable` | Session history too short or LLM call failed silently | Check `GlobalSignalDetectionService` logs; minimum history requires 4+ turns |
-| `llm.response_depth` stuck at `surface` | No concepts extracted, or all elaboration scores are 1 | Check extraction output and per-concept elaboration scores |
-| `bridged_count=0` every turn; `graph.node.has_quality_data` always False | `llm.elaboration` and/or `llm.charge` missing from `signals: llm:` in methodology YAML — `per_concept_classes` is empty so batch detector generates no per-concept records | Add `llm.elaboration` and `llm.charge` to `signals: llm:` in the YAML |
+| `response.semantic.llm.response_depth` stuck at `surface` | No concepts extracted, or all elaboration scores are 1 | Check extraction output and per-concept elaboration scores |
+| `bridged_count=0` every turn; `convgraph.node.llm.has_quality_data` always False | `response.semantic.llm.elaboration` and/or `response.semantic.llm.charge` missing from `signals: llm:` in methodology YAML — `per_concept_classes` is empty so batch detector generates no per-concept records | Add `response.semantic.llm.elaboration` and `response.semantic.llm.charge` to `signals: llm:` in the YAML |
 | Per-concept records are empty dicts `{}` despite LLM responding with concept data | `_concept_fields` in batch_detector reading `.name` instead of `.text` on `ExtractedConcept` — lookup misses all concepts | Use `concept.text` (not `.name`) everywhere an `ExtractedConcept` label is accessed |
 
 ## Key Files
@@ -106,6 +106,6 @@ The LLM returns a JSON object with two top-level sections:
 | `src/signals/llm/signals/__init__.py` | `__all__` export list — must include every signal class |
 | `src/signals/llm/llm_signal_base.py` | `BaseLLMSignal` base class |
 | `src/signals/llm/batch_detector.py` | `LLMBatchDetector` — prompt building, LLM call, parsing, normalisation, and `response_depth` derivation |
-| `src/signals/session/llm_response_trend.py` | `llm.global_response_trend` session-level signal |
+| `src/signals/session/llm_response_trend.py` | `response.semantic.response.semantic.llm.engagement.trend` session-level signal |
 | `src/services/global_signal_detection_service.py` | Computes `global_response_trend` from rolling history |
 | `config/methodologies/*.yaml` | `signals: llm:` lists that gate which signals are active |

@@ -19,10 +19,10 @@ class NodeStrategyRepetitionSignal(NodeSignalDetector):
     - medium: 3-4 consecutive times
     - high: 5+ consecutive times
 
-    Namespaced signal: technique.node.strategy_repetition
+    Namespaced signal: interview.focus.streak
     """
 
-    signal_name = "technique.node.strategy_repetition"
+    signal_name = "interview.focus.streak"
 
     async def detect(self, context, graph_state, response_text):
         """Detect strategy repetition for all nodes.

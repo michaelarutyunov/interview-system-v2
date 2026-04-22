@@ -39,7 +39,7 @@ class SignalDetector(ABC):
                 return {self.signal_name: value}
 
     Attributes:
-        signal_name: Namespaced signal name (e.g., "graph.node_count")
+        signal_name: Namespaced signal name (e.g., "convgraph.state.node.count")
         description: Human-readable description for YAML methodology configs
         dependencies: List of signal names this detector requires
         requires_node_tracker: Whether detector needs NodeStateTracker for per-node signals
@@ -94,7 +94,7 @@ class SignalDetector(ABC):
         methodology configs. Enables dynamic signal composition.
 
         Args:
-            signal_name: Namespaced signal name (e.g., "graph.node_count")
+            signal_name: Namespaced signal name (e.g., "convgraph.state.node.count")
 
         Returns:
             Signal detector class or None if signal name not registered
@@ -165,8 +165,8 @@ class SignalDetector(ABC):
             ValueError: If circular dependency detected among signals
 
         Example:
-            ["graph.edge_count", "graph.edge_density"]
-            Returns: ["graph.edge_count", "graph.edge_density"]
+            ["convgraph.state.edge.count", "convgraph.state.edge.density"]
+            Returns: ["convgraph.state.edge.count", "convgraph.state.edge.density"]
             Because edge_density depends on edge_count
         """
         # Build dependency graph

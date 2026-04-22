@@ -20,12 +20,12 @@ class CanonicalSaturationSignal(SignalDetector):
     Returns empty dict if canonical slots are disabled.
     Instantaneous per-turn, no smoothing.
 
-    Namespaced signal: meta.canonical.saturation
+    Namespaced signal: meta.saturation.canonical
     Cost: low (reads from ContextLoadingOutput, graph_state, canonical_graph_state)
     Refresh: per_turn
     """
 
-    signal_name = "meta.canonical.saturation"
+    signal_name = "meta.saturation.canonical"
     description = "Canonical novelty ratio: 0=all extraction is thematically new, 1=pure deduplication into existing canonical slots."
     dependencies = []
 

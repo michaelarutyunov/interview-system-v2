@@ -240,22 +240,22 @@ def _build_strategy_rationale(signals: Dict[str, Any], strategy: str) -> str:
     rationale_parts = []
 
     # Common signal-based rationales
-    if "graph.max_depth" in signals:
-        depth = signals["graph.max_depth"]
+    if "convgraph.state.max_depth" in signals:
+        depth = signals["convgraph.state.max_depth"]
         if depth < 2:
             rationale_parts.append("- Low depth suggests we're still at surface level")
         elif depth >= 4:
             rationale_parts.append("- High depth indicates we've reached deep values")
 
-    if "graph.chain_completion.has_complete" in signals:
-        has_chain = signals["graph.chain_completion.has_complete"]
+    if "convgraph.chain.completion.has_complete" in signals:
+        has_chain = signals["convgraph.chain.completion.has_complete"]
         if not has_chain:
             rationale_parts.append(
                 "- No complete chains exist - need to reach terminal values"
             )
 
-    if "llm.response_depth" in signals:
-        resp_depth = signals["llm.response_depth"]
+    if "response.semantic.llm.response_depth" in signals:
+        resp_depth = signals["response.semantic.llm.response_depth"]
         if resp_depth == "surface":
             rationale_parts.append(
                 "- Surface-level response suggests need for deeper probing"

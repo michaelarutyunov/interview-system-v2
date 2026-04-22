@@ -21,7 +21,7 @@
 # CHANGES FROM LEGACY V3 FLEX:
 #   - Removed legacy strategies (deepen, clarify, explore, reflect)
 #   - Retained 6 chain-aware strategies: ascend, ground, bridge, branch, anchor, revitalize
-#   - Added graph.node.novelty, focus_count, canonical_novelty signals
+#   - Added convgraph.node.novelty, focus_count, canonical_novelty signals
 #   - Added chain foundation signals (has_attribute_foundation, has_terminal_apex)
 #   - Added intellectual_engagement signal
 #   - Strengthened repetition penalties on structural strategies
@@ -142,37 +142,37 @@ ontology:
 
 signals:
   graph:
-    - graph.node_count
-    - graph.max_depth
-    - graph.orphan_count
-    - graph.chain_completion
+    - convgraph.state.node.count
+    - convgraph.state.max_depth
+    - convgraph.state.node.orphan_count
+    - convgraph.chain.completion
     # Canonical graph signals (Phase 4, experimental)
-    - graph.canonical_concept_count
-    - graph.canonical_edge_density
-    - graph.canonical_exhaustion_score
+    - canongraph.state.node.count
+    - canongraph.state.edge.density
+    - canongraph.state.exhaustion
     # Note: Node-level chain topology signals are auto-discovered
     # from strategy signal_weights and do not need to be listed here.
     # Per-concept-derived node signals (added by f965 migration):
-    - graph.node.elaboration
-    - graph.node.charge
-    - graph.node.has_quality_data
+    - convgraph.node.response.semantic.llm.elaboration
+    - convgraph.node.response.semantic.llm.charge
+    - convgraph.node.llm.has_quality_data
 
   llm:
-    - llm.certainty
-    - llm.engagement
-    - llm.elaboration
-    - llm.charge
-    # Note: llm.global_response_trend is session-scoped and managed separately
+    - response.semantic.llm.certainty
+    - response.semantic.llm.engagement
+    - response.semantic.llm.elaboration
+    - response.semantic.llm.charge
+    # Note: response.semantic.response.semantic.llm.engagement.trend is session-scoped and managed separately
     # Per-concept LLM signals (elaboration, charge) produce per-concept ratings that route to graph.node.* via Stage 6 bridge.
 
   temporal:
-    - temporal.strategy_repetition_count
-    - temporal.turns_since_strategy_change
+    - interview.strategy.self_count
+    - interview.strategy.turns_since_change
 
   meta:
-    - meta.interview.phase
-    - meta.conversation.saturation
-    - meta.canonical.saturation
+    - interview.phase
+    - meta.saturation.conversation
+    - meta.saturation.canonical
 
 strategies:
   # Strategy 1: Revitalize — conversation-level fallback for fatigue/disengagement
@@ -181,67 +181,67 @@ strategies:
     description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
     signal_weights:
       # Fatigue detection triggers
-      llm.global_response_trend.fatigued: 1.0
-      llm.global_response_trend.shallowing: 0.8
+      response.semantic.response.semantic.llm.engagement.trend.fatigued: 1.0
+      response.semantic.response.semantic.llm.engagement.trend.shallowing: 0.8
       meta.node.opportunity.exhausted: 0.3
       # Engagement (kept global) triggers
-      llm.engagement.low: 0.8
-      llm.engagement.mid: 0.4
-      llm.engagement.high: -0.4
+      response.semantic.llm.engagement.low: 0.8
+      response.semantic.llm.engagement.mid: 0.4
+      response.semantic.llm.engagement.high: -0.4
       # f965 migration:
       #   valence.low (0.5) + intellectual_engagement.low × 0.5 (0.1) → charge.negative 0.6
       #   specificity.low (-0.2) + intellectual_engagement.low × 0.5 (0.1) → elaboration.low -0.1
-      graph.node.charge.negative: 0.6
-      graph.node.elaboration.low: -0.1
+      convgraph.node.response.semantic.llm.charge.negative: 0.6
+      convgraph.node.response.semantic.llm.elaboration.low: -0.1
       # Repetition escape valve — phase-gated via multipliers
-      temporal.strategy_repetition_count: 0.15
+      interview.strategy.self_count: 0.15
       # Suppress revitalize floor in late phase
-      meta.interview.phase.late: -0.5
+      interview.phase.late: -0.5
       # Node-level signals — drive toward fresh, unexplored territory
-      graph.node.focus_streak.none: 0.8
-      graph.node.focus_streak.medium: -0.4
-      graph.node.focus_streak.high: -0.7
-      graph.node.exhaustion_score.low: 0.5
-      graph.node.novelty.high: 0.4
-      graph.node.focus_count.high: -0.6
-      graph.node.focus_count.medium: -0.3
-      graph.node.focus_count.none: 0.3
+      convgraph.node.focus.streak.none: 0.8
+      convgraph.node.focus.streak.medium: -0.4
+      convgraph.node.focus.streak.high: -0.7
+      convgraph.node.exhaustion.low: 0.5
+      convgraph.node.novelty.high: 0.4
+      convgraph.node.focus.count.high: -0.6
+      convgraph.node.focus.count.medium: -0.3
+      convgraph.node.focus.count.none: 0.3
 
   # Strategy 2: Ascend — extend incomplete chain upward toward terminal values
   - name: ascend
     description: "Extend an incomplete chain upward by asking what the current concept leads to at the next ontology level"
     node_binding: required
-    valid_when: graph.node.gap_above
+    valid_when: convgraph.node.chain.gap.above
     signal_weights:
-      graph.node.gap_above.true: 0.25
-      graph.node.fan_in: 0.067
-      graph.node.recency_score: 0.2
-      graph.node.exhaustion_score: -0.6
-      graph.node.focus_count.high: -0.4
-      graph.node.focus_count.medium: -0.2
+      convgraph.node.chain.gap.above.true: 0.25
+      convgraph.node.chain.fan_in: 0.067
+      convgraph.node.recency: 0.2
+      convgraph.node.exhaustion: -0.6
+      convgraph.node.focus.count.high: -0.4
+      convgraph.node.focus.count.medium: -0.2
       # f965: response_depth.deep (0.1) + intellectual_engagement.high × 0.5 (0.1) → elaboration.high 0.2
-      graph.node.elaboration.high: 0.2
+      convgraph.node.response.semantic.llm.elaboration.high: 0.2
       # f965: intellectual_engagement.high × 0.5 (0.1) → charge.positive 0.1
-      graph.node.charge.positive: 0.1
-      llm.engagement.low: -0.3
-      temporal.strategy_repetition_count: -0.15
-      graph.node.chain.has_attribute_foundation.true: 0.4
-      graph.node.chain.has_attribute_foundation.false: -0.5
+      convgraph.node.response.semantic.llm.charge.positive: 0.1
+      response.semantic.llm.engagement.low: -0.3
+      interview.strategy.self_count: -0.15
+      convconvgraph.node.chain.has_attribute_foundation.true: 0.4
+      convconvgraph.node.chain.has_attribute_foundation.false: -0.5
 
   # Strategy 3: Ground — establish causal antecedents for ungrounded high-level node
   - name: ground
     description: "Ground an ungrounded node by asking what attributes or lower-level concepts directly cause or enable it — probe causal antecedents, not retrospective comparisons or general context"
     node_binding: required
-    valid_when: graph.node.gap_below
+    valid_when: convgraph.node.chain.gap.below
     signal_weights:
-      graph.node.gap_below.true: 0.3
-      graph.node.recency_score: 0.25
-      graph.node.exhaustion_score: -0.4
-      # f965: llm.response_depth.deep (0.05) → graph.node.elaboration.high
-      graph.node.elaboration.high: 0.05
-      temporal.strategy_repetition_count: -0.15
-      graph.node.chain.has_attribute_foundation.false: 0.4
-      graph.node.chain.has_attribute_foundation.true: -0.2
+      convgraph.node.chain.gap.below.true: 0.3
+      convgraph.node.recency: 0.25
+      convgraph.node.exhaustion: -0.4
+      # f965: response.semantic.llm.response_depth.deep (0.05) → convgraph.node.response.semantic.llm.elaboration.high
+      convgraph.node.response.semantic.llm.elaboration.high: 0.05
+      interview.strategy.self_count: -0.15
+      convconvgraph.node.chain.has_attribute_foundation.false: 0.4
+      convconvgraph.node.chain.has_attribute_foundation.true: -0.2
 
   # Strategy 4: Bridge — fill missing intermediate level in a skipped chain
   # NOTE: Bridge fires more often in flex than strict because flex allows
@@ -250,37 +250,37 @@ strategies:
   - name: bridge
     description: "Fill a structural gap by asking what happens between a lower and higher concept that are directly connected but skip ontology levels"
     node_binding: required
-    valid_when: graph.node.level_skip
+    valid_when: convgraph.node.chain.level.skip
     signal_weights:
-      graph.node.level_skip.true: 0.35
-      graph.node.recency_score: 0.2
-      graph.node.exhaustion_score: -0.3
-      temporal.strategy_repetition_count: -0.15
+      convgraph.node.chain.level.skip.true: 0.35
+      convgraph.node.recency: 0.2
+      convgraph.node.exhaustion: -0.3
+      interview.strategy.self_count: -0.15
 
   # Strategy 5: Branch — expand breadth at attribute level
   - name: branch
     description: "Elicit additional product attributes or features at the same level — ask what other concrete characteristics of the product the respondent experiences or values"
     node_binding: required
-    valid_when: graph.node.branching_deficit
+    valid_when: convgraph.node.chain.branching_deficit
     signal_weights:
-      graph.node.branching_deficit: 0.25
-      graph.node.recency_score: 0.15
-      graph.node.exhaustion_score: -0.3
-      llm.engagement.high: 0.1
-      temporal.strategy_repetition_count: -0.15
-      graph.node.chain.has_attribute_foundation.true: 0.3
-      graph.node.chain.has_terminal_apex.true: 0.5
+      convgraph.node.chain.branching_deficit: 0.25
+      convgraph.node.recency: 0.15
+      convgraph.node.exhaustion: -0.3
+      response.semantic.llm.engagement.high: 0.1
+      interview.strategy.self_count: -0.15
+      convconvgraph.node.chain.has_attribute_foundation.true: 0.3
+      convconvgraph.node.chain.has_terminal_apex.true: 0.5
 
   # Strategy 6: Anchor — connect isolated node to existing graph structure
   - name: anchor
     description: "Connect an isolated concept to the existing graph by exploring how it relates to other known concepts"
     node_binding: required
-    valid_when: graph.node.is_orphan
+    valid_when: convgraph.node.is_orphan
     signal_weights:
-      graph.node.is_orphan.true: 0.50
-      graph.node.recency_score: 0.2
-      graph.node.exhaustion_score: -0.2
-      temporal.strategy_repetition_count: -0.15
+      convgraph.node.is_orphan.true: 0.50
+      convgraph.node.recency: 0.2
+      convgraph.node.exhaustion: -0.2
+      interview.strategy.self_count: -0.15
 
 chain_completion:
   expected_branching:

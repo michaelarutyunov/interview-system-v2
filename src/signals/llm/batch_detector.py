@@ -2,7 +2,7 @@
 
 Loads the base prompt (sibling `llm_signal_baseprompt.md`), injects per-concept
 and global rubrics from signal classes, and returns a nested dict partitioned
-into `concepts` and `global` sections. Derives `llm.response_depth` categorical
+into `concepts` and `global` sections. Derives `response.semantic.llm.response_depth` categorical
 from per-concept elaboration aggregation for backward compatibility with
 `llm_response_trend`, `node_opportunity`, and the question-generation prompt.
 """
@@ -77,7 +77,7 @@ _QUOTE_TRUNCATE = 200
 
 
 def _score_to_category(mean_score: float, n: int) -> str:
-    """Derive categorical `llm.response_depth` from mean per-concept elaboration.
+    """Derive categorical `response.semantic.llm.response_depth` from mean per-concept elaboration.
 
     See `docs/drafts/signal-migration-contract.md` §3. Downstream consumers
     (llm_response_trend, node_opportunity, node_base.all_response_depths,
@@ -136,7 +136,7 @@ class LLMBatchDetector:
     @staticmethod
     def _short_name(signal_cls: Type["BaseLLMSignal"]) -> str:
         """Strip the `llm.` namespace for LLM-facing keys."""
-        return signal_cls.signal_name.replace("llm.", "")  # type: ignore[attr-defined]
+        return signal_cls.signal_name.split(".")[-1]  # type: ignore[attr-defined]
 
     def _render_rubrics(self, classes: list[Type["BaseLLMSignal"]]) -> tuple[str, str]:
         names = ", ".join(self._short_name(c) for c in classes)
@@ -275,7 +275,7 @@ class LLMBatchDetector:
             )
         else:
             depth = "surface"
-        global_out["llm.response_depth"] = depth
+        global_out["response.semantic.llm.response_depth"] = depth
 
         return {"concepts": per_concept_out, "global": global_out}
 
@@ -304,9 +304,9 @@ class LLMBatchDetector:
             ValueError: concepts empty or a signal class has no `scope`.
         """
         if not concepts:
-            raise ValueError(
-                "LLMBatchDetector.detect requires a non-empty concepts list "
-                "(per-concept signals need targets)."
+            log.warning(
+                "LLMBatchDetector.detect called with empty concepts list — "
+                "per-concept signals will be empty, global signals still detected."
             )
 
         if signal_classes is None:

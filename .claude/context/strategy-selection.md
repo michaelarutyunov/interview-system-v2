@@ -31,7 +31,7 @@ graph LR
 
 **Stage 1 — Strategy Selection (`rank_strategies()`):**
 - Uses global signals only: `graph.*`, `llm.*`, `temporal.*`, `meta.*`
-- `partition_signal_weights()` auto-excludes node-scoped weights (`graph.node.*`, `technique.node.*`, `meta.node.*`)
+- `partition_signal_weights()` auto-excludes node-scoped weights (`convgraph.node.*`, `convgraph.node.*, canongraph.node.*, interview.focus.*, meta.node.**`, `meta.node.*`)
 - Applies phase multipliers (multiplicative) and bonuses (additive) from YAML config
 - Scoring formula: `final_score = (base_score × multiplier) + bonus`
 
@@ -42,7 +42,7 @@ graph LR
 
 **Strategies with `node_binding: none`** (e.g., `revitalize`) operate at conversation level — `focus_node_id` is `None`, and `node_id = ""` appears in `score_decomposition`.
 
-**Strategies with `valid_when` gate** (MEC chain-aware strategies: `ascend`, `ground`, `bridge`, `branch`, `anchor`) are only scored for nodes where the gate signal evaluates to `True`. A strategy with `valid_when: graph.node.gap_above` will never appear in candidates for terminal nodes. This filtering happens in `rank_strategy_node_pairs()` before scoring. See `.claude/context/strategy-scoring.md` for full chain-aware strategy documentation.
+**Strategies with `valid_when` gate** (MEC chain-aware strategies: `ascend`, `ground`, `bridge`, `branch`, `anchor`) are only scored for nodes where the gate signal evaluates to `True`. A strategy with `valid_when: convgraph.node.chain.gap.above` will never appear in candidates for terminal nodes. This filtering happens in `rank_strategy_node_pairs()` before scoring. See `.claude/context/strategy-scoring.md` for full chain-aware strategy documentation.
 
 ### Signal Detection
 
@@ -53,13 +53,13 @@ graph LR
 - `meta.*` — interview progress, phase
 
 `NodeSignalDetectionService` → per-node detectors:
-- `graph.node.*` — exhaustion score, focus streak, yield stagnation, recency
-- `technique.node.*` — consecutive same strategy on node
+- `convgraph.node.*` — exhaustion score, focus streak, yield stagnation, recency
+- `convgraph.node.*, canongraph.node.*, interview.focus.*, meta.node.**` — consecutive same strategy on node
 - `meta.node.*` — opportunity (exhausted / probe_deeper / fresh)
 
 ### Phase Weights
 
-Phase is detected explicitly via `InterviewPhaseSignal` (not via `ComposedSignalDetector`). Phase yields `meta.interview.phase` = `early` / `mid` / `late`.
+Phase is detected explicitly via `InterviewPhaseSignal` (not via `ComposedSignalDetector`). Phase yields `interview.phase` = `early` / `mid` / `late`.
 
 Phase weights are loaded from `config.phases[phase]`:
 ```yaml
@@ -75,7 +75,7 @@ phases:
 ### Post-Selection Updates
 
 After strategy + node selection, before exiting Stage 6/8:
-1. `append_response_signal()` — appends `llm.response_depth` to the **previous** focus node's `all_response_depths` list
+1. `append_response_signal()` — appends `response.semantic.llm.response_depth` to the **previous** focus node's `all_response_depths` list
 2. `update_focus()` — sets new focus as `previous_focus` for next turn, increments streak counters
 
 Critical ordering: step 1 must run before step 2, so response depth is attributed to the node that was asked about last turn.
@@ -88,7 +88,7 @@ Critical ordering: step 1 must run before step 2, so response depth is attribute
 
 3. **Node signals must not leak into Stage 1** — `partition_signal_weights()` filters them out. If node-scoped weights were applied during strategy scoring, the same node weights would affect all nodes equally and distort strategy selection.
 
-4. **Response depth must be appended to `previous_focus`, not `focus_node_id`** — `llm.response_depth` describes the response to the question asked last turn (about `previous_focus`), not the newly selected node.
+4. **Response depth must be appended to `previous_focus`, not `focus_node_id`** — `response.semantic.llm.response_depth` describes the response to the question asked last turn (about `previous_focus`), not the newly selected node.
 
 5. **`strategy_alternatives` is a list of `(strategy_name, score)` 2-tuples** — not 3-tuples. Downstream log parsers expecting 3-tuples will fail silently or raise index errors.
 
@@ -96,7 +96,7 @@ Critical ordering: step 1 must run before step 2, so response depth is attribute
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Wrong strategy always selected regardless of signals | Phase weights not loading (`meta.interview.phase` absent) | Check `InterviewPhaseSignal` detection; verify methodology YAML has `phases` section |
+| Wrong strategy always selected regardless of signals | Phase weights not loading (`interview.phase` absent) | Check `InterviewPhaseSignal` detection; verify methodology YAML has `phases` section |
 | Node signals not affecting node selection | Node-scoped weights present in `signal_weights` but `node_binding: none` on strategy | Change strategy to `node_binding: required` or move weights to node-level section |
 | Phase multipliers applying but not bonuses | `phase_bonuses` key missing from YAML phase config | Add `phase_bonuses:` section under affected phase |
 | Response depth always attributed to wrong node | `append_response_signal()` called after `update_focus()` | Restore ordering: append first, then update_focus |

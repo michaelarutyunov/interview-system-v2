@@ -42,8 +42,8 @@ class MethodologyStrategyService:
     (node_binding='none') are scored via rank_strategies() with node_id=None.
 
     Signal detection is delegated to specialized services:
-    - GlobalSignalDetectionService: graph.*, llm.*, temporal.*, meta.* signals
-    - NodeSignalDetectionService: graph.node.*, technique.node.* signals per node
+    - GlobalSignalDetectionService: convgraph.*, canongraph.*, response.*, interview.*, meta.* signals
+    - NodeSignalDetectionService: convgraph.node.*, canongraph.node.*, interview.focus.* signals per node
     """
 
     def __init__(
@@ -93,8 +93,8 @@ class MethodologyStrategyService:
         with node-level signals. Selects the globally highest-scoring pair.
 
         Detection flow:
-        1. Detect global signals (llm.response_depth, graph.*, temporal.*)
-        2. Detect node-level signals (graph.node.exhausted, meta.node.opportunity)
+        1. Detect global signals (response.semantic.llm.response_depth, convgraph.*, interview.*)
+        2. Detect node-level signals (convgraph.node.exhausted, meta.node.opportunity)
         3. Detect interview phase (early/mid/late) for phase weights/bonuses
         4. Score all eligible (strategy, node) pairs using combined signals
         5. Select highest-scoring pair
@@ -187,8 +187,8 @@ class MethodologyStrategyService:
                 # Concept not mapped to a node (e.g. extraction dedup collapsed it
                 # into an earlier concept, or non-concept text). Skip silently.
                 continue
-            elaboration = ratings.get("llm.elaboration")
-            charge = ratings.get("llm.charge")
+            elaboration = ratings.get("response.semantic.llm.elaboration")
+            charge = ratings.get("response.semantic.llm.charge")
             if elaboration is None and charge is None:
                 continue
             await node_tracker.append_quality(
@@ -207,7 +207,7 @@ class MethodologyStrategyService:
         )
 
         # Expose current-turn global signals on context so node-level detectors
-        # (e.g. meta.node.opportunity) can read llm.response_depth for the
+        # (e.g. meta.node.opportunity) can read response.semantic.llm.response_depth for the
         # *current* turn rather than the stale previous-turn context.signals.
         # This attribute is ephemeral — set here, consumed during node detection,
         # not persisted to any contract output.
@@ -230,7 +230,7 @@ class MethodologyStrategyService:
         # Detect interview phase
         phase_signal = InterviewPhaseSignal()
         phase_result = await phase_signal.detect(context, graph_state, response_text)
-        current_phase = phase_result.get("meta.interview.phase", "early")
+        current_phase = phase_result.get("interview.phase", "early")
 
         log.info(
             "interview_phase_detected",
@@ -345,9 +345,10 @@ class MethodologyStrategyService:
 
         if best_score < score_threshold:
             global_fatigue = (
-                global_signals.get("llm.global_response_trend") == "fatigued"
+                global_signals.get("response.semantic.llm.engagement.trend")
+                == "fatigued"
             )
-            engagement = global_signals.get("llm.engagement", 1.0)
+            engagement = global_signals.get("response.semantic.llm.engagement", 1.0)
             low_engagement = isinstance(engagement, (int, float)) and engagement < 0.3
 
             fallback_strategy_name: str | None = None

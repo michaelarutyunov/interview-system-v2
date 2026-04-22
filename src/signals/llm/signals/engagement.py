@@ -5,7 +5,7 @@ from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 
 @llm_global_signal(  # type: ignore[type-var]
-    signal_name="llm.engagement",
+    signal_name="response.semantic.llm.engagement",
     description="Respondent's willingness to participate in the interview (1-5).",
 )
 class EngagementSignal(BaseLLMSignal):

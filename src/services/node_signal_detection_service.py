@@ -48,7 +48,7 @@ class NodeSignalDetectionService:
 
         Returns:
             Dict mapping node_id to dict of signal_name: value
-            Example: {"node-123": {"graph.node.exhausted": True, ...}}
+            Example: {"node-123": {"convgraph.node.exhausted": True, ...}}
         """
         import src.signals  # noqa: F401 — ensure all node signal modules are registered
         from src.signals.graph.node_base import NodeSignalDetector
@@ -108,7 +108,7 @@ class NodeSignalDetectionService:
                             # Flatten: store parent key AND individual sub-keys
                             node_signals[node_id][detector.signal_name] = signal_value
                             # Derive namespace prefix from signal_name
-                            # e.g. "graph.node.chain_topology" → "graph.node."
+                            # e.g. "convgraph.node.chain.role" → "graph.node."
                             parts = detector.signal_name.rsplit(".", 1)
                             prefix = parts[0] + "." if len(parts) == 2 else ""
                             for sub_key, sub_val in signal_value.items():

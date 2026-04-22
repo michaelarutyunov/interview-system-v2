@@ -8,7 +8,7 @@ from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 
 @llm_per_concept_signal(  # type: ignore[type-var]
-    signal_name="llm.charge",
+    signal_name="response.semantic.llm.charge",
     description="Emotional tone directed at a specific concept (1-5).",
 )
 class ChargeSignal(BaseLLMSignal):

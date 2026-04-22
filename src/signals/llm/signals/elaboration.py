@@ -9,7 +9,7 @@ from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 
 @llm_per_concept_signal(  # type: ignore[type-var]
-    signal_name="llm.elaboration",
+    signal_name="response.semantic.llm.elaboration",
     description="Substantive content produced about a specific concept (1-5).",
 )
 class ElaborationSignal(BaseLLMSignal):

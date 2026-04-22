@@ -99,8 +99,8 @@ class ContinuationStage(TurnStage):
         current_phase = None
         phase_reason = None
         if context.signals:
-            current_phase = context.signals.get("meta.interview.phase")
-            phase_reason = context.signals.get("meta.interview.phase_reason")
+            current_phase = context.signals.get("interview.phase")
+            phase_reason = context.signals.get("interview.phase.reason")
 
         log.info(
             "continuation_determined",
@@ -141,8 +141,8 @@ class ContinuationStage(TurnStage):
         current_phase = None
         is_late_stage = False
         if context.signals:
-            current_phase = context.signals.get("meta.interview.phase")
-            is_late_stage = context.signals.get("meta.interview.is_late_stage", False)
+            current_phase = context.signals.get("interview.phase")
+            is_late_stage = context.signals.get("interview.phase.is_late_stage", False)
 
         # --- Hard stops (always checked) ---
 
@@ -156,7 +156,10 @@ class ContinuationStage(TurnStage):
             )
             return False, "Maximum turns reached"
 
-        if context.strategy_selection_output and context.strategy_selection_output.generates_closing_question:
+        if (
+            context.strategy_selection_output
+            and context.strategy_selection_output.generates_closing_question
+        ):
             log.info(
                 "session_ending",
                 reason="closing_strategy",

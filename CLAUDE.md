@@ -136,11 +136,11 @@ chain_completion:
 # Legacy configs moved to config/methodologies/legacy/
 
 # Strategy valid_when gates (MEC + JTBD + CIT use chain topology)
-# ascend:   graph.node.gap_above
-# ground:   graph.node.gap_below
-# bridge:   graph.node.level_skip
-# branch:   graph.node.branching_deficit
-# anchor:   graph.node.is_orphan
+# ascend:   convgraph.node.chain.gap.above
+# ground:   convgraph.node.chain.gap.below
+# bridge:   convgraph.node.chain.level.skip
+# branch:   convgraph.node.chain.branching_deficit
+# anchor:   convgraph.node.is_orphan
 # revitalize: no gate (conversation-level fallback)
 ```
 
@@ -242,12 +242,12 @@ Run `/deep-code-quality` for the full framework when a diagnostic doesn't obviou
 - **Canonical slot timing:** Canonical slots are only `active` after `support_count >= canonical_min_support_nodes` (default 2). Signals depending on canonical data return empty/zero on first occurrence.
 - **`select_strategy_and_focus()` uses joint scoring:** All eligible (strategy, node) pairs are scored simultaneously via `rank_strategy_node_pairs()`. The old 2-stage (strategy-first, then node) architecture has been removed.
 - **MEC uses chain-aware strategies:** MEC methodologies use 6 strategies (ascend, ground, bridge, branch, anchor, revitalize) with `valid_when` gates. Legacy strategies (deepen, explore, clarify, reflect) have been removed. Other methodologies now use their own v2 strategy architectures — see `config/methodologies/` for each method's strategy set and `valid_when` gates. Do NOT apply MEC strategy changes to non-MEC methods.
-- **valid_when hard gate:** Chain-aware strategies are only scored for nodes where the gate signal is True. A strategy with `valid_when: graph.node.gap_above` will never be scored for terminal nodes.
+- **valid_when hard gate:** Chain-aware strategies are only scored for nodes where the gate signal is True. A strategy with `valid_when: convgraph.node.chain.gap.above` will never be scored for terminal nodes.
 - **LLM signal key absence:** If the LLM omits a signal key from its JSON response (e.g. `engagement`), the corresponding suppressor disappears for that turn, potentially unblocking a strategy that should have been suppressed. Fixed in `batch_detector.py` with a neutral score=3 fallback (normalises to 0.5). Symptom: strategy fires spuriously at a specific turn with no obvious explanation — check logs for "not found in LLM response" warnings. See `.claude/context/signal-detection-llm.md`.
-- **Node binding mismatch silently strips weights:** A strategy with `node_binding: none` that references `graph.node.*` weights loses ~70% of its positive mass because `partition_signal_weights()` strips all node-scoped weights before Stage 1 scoring. The strategy competes only on global signals and appears to "never fire." Fix: flip to `node_binding: required` so weights route to Stage 2 joint scoring. RG `triadic_elicit` and `explore_ideal` were fixed (Phase 4.3). When adding new strategies, verify that strategies with `graph.node.*` weights use `node_binding: required`. See `.claude/context/strategy-scoring.md`.
-- **Escape valve repetition weights create runaway positive feedback:** Using a positive weight on `temporal.strategy_repetition_count` (e.g., `revitalize: +0.15`) was intended to break fatigue loops but becomes self-reinforcing when structural strategies are suppressed. In CIT baseline, `revitalize` won 7/10 turns due to this loop. Fix: flip to a negative brake (e.g., `-0.5`) matching JTBD's already-calibrated value. See `.claude/context/strategy-scoring.md`.
-- **Base score asymmetry overwhelms repetition brakes:** When a strategy's structural base score exceeds its repetition brake magnitude by >3×, monoculture is inevitable regardless of brake correctness. CJM `deepen_stage` base = 2.3 vs. brake = -0.6 — takes 4 consecutive uses to halve. Fix: either reduce structural positive mass, strengthen brake to ≥50% of base, or add `graph.node.focus_count.high` penalty. See `.claude/context/strategy-scoring.md`.
-- **Strategy-scoped repetition signal must resolve per-candidate:** `temporal.strategy_repetition_count` historically returned a single scalar (frequency of the *last-selected* strategy). The scorer applied this scalar to *every* candidate using each candidate's own weight, causing strategies to be penalized when *other* strategies repeated. Fix: signal returns `{strategy_name: normalized_count}`; scorer resolves to the candidate's own scalar via `STRATEGY_SCOPED_SIGNALS`. See `.claude/context/strategy-scoring.md`.
+- **Node binding mismatch silently strips weights:** A strategy with `node_binding: none` that references `convgraph.node.*` weights loses ~70% of its positive mass because `partition_signal_weights()` strips all node-scoped weights before Stage 1 scoring. The strategy competes only on global signals and appears to "never fire." Fix: flip to `node_binding: required` so weights route to Stage 2 joint scoring. RG `triadic_elicit` and `explore_ideal` were fixed (Phase 4.3). When adding new strategies, verify that strategies with `convgraph.node.*` weights use `node_binding: required`. See `.claude/context/strategy-scoring.md`.
+- **Escape valve repetition weights create runaway positive feedback:** Using a positive weight on `interview.strategy.self_count` (e.g., `revitalize: +0.15`) was intended to break fatigue loops but becomes self-reinforcing when structural strategies are suppressed. In CIT baseline, `revitalize` won 7/10 turns due to this loop. Fix: flip to a negative brake (e.g., `-0.5`) matching JTBD's already-calibrated value. See `.claude/context/strategy-scoring.md`.
+- **Base score asymmetry overwhelms repetition brakes:** When a strategy's structural base score exceeds its repetition brake magnitude by >3×, monoculture is inevitable regardless of brake correctness. CJM `deepen_stage` base = 2.3 vs. brake = -0.6 — takes 4 consecutive uses to halve. Fix: either reduce structural positive mass, strengthen brake to ≥50% of base, or add `convgraph.node.focus.count.high` penalty. See `.claude/context/strategy-scoring.md`.
+- **Strategy-scoped repetition signal must resolve per-candidate:** `interview.strategy.self_count` historically returned a single scalar (frequency of the *last-selected* strategy). The scorer applied this scalar to *every* candidate using each candidate's own weight, causing strategies to be penalized when *other* strategies repeated. Fix: signal returns `{strategy_name: normalized_count}`; scorer resolves to the candidate's own scalar via `STRATEGY_SCOPED_SIGNALS`. See `.claude/context/strategy-scoring.md`.
 
 ---
 
@@ -258,7 +258,11 @@ Run `/deep-code-quality` for the full framework when a diagnostic doesn't obviou
 uv run uvicorn src.main:app --reload
 
 # Run simulation (valid concept IDs: glp1_food_mec, glp1_food_mec_strict, glp1_food_mec_flex, glp1_food_jtbd, coffee_jtbd_v2, meal_planning_jtbd_v2)
-# Personas: baseline_cooperative, skeptical_analyst, glp1_user, health_conscious, price_sensitive, convenience_seeker, quality_focused, sustainability_minded, social_conscious, minimalist
+# Persona axes:
+#   Failure-mode axis (methodology-agnostic, 8): baseline_cooperative, brief_responder, verbose_tangential, fatiguing_responder, single_topic_fixator, uncertain_hedger, skeptical_analyst, disengaged_responder
+#   Domain fixtures (content-specific, pair with matching concepts): glp1_user
+#   Methodology fixtures (not agnostic — JTBD-specific): retrospective_rationalizer
+#   Excluded from eval axis (file retained): emotionally_reactive
 uv run python scripts/run_simulation.py glp1_food_mec baseline_cooperative 10
 
 # Run tests

@@ -17,12 +17,12 @@ class ConversationSaturationSignal(SignalDetector):
     Output: 0.0 (matching or exceeding peak extraction) to 1.0 (zero extraction).
     Instantaneous per-turn, no smoothing.
 
-    Namespaced signal: meta.conversation.saturation
+    Namespaced signal: meta.saturation.conversation
     Cost: low (reads from ContextLoadingOutput and graph_state)
     Refresh: per_turn
     """
 
-    signal_name = "meta.conversation.saturation"
+    signal_name = "meta.saturation.conversation"
     description = "Extraction yield ratio: 0=extracting at peak rate, 1=zero extraction. Compares this turn's new surface nodes to the session's peak extraction turn."
     dependencies = []
 

@@ -30,7 +30,7 @@ async def test_matching_peak_yields_zero():
     ctx = _make_context(prev_surface=20, peak=10.0)
     gs = _make_graph_state(node_count=30)  # delta=10, peak=10 -> ratio=1.0 -> sat=0.0
     result = await ConversationSaturationSignal().detect(ctx, gs, "")
-    assert result["meta.conversation.saturation"] == 0.0
+    assert result["meta.saturation.conversation"] == 0.0
 
 
 @pytest.mark.asyncio
@@ -39,7 +39,7 @@ async def test_zero_extraction_yields_one():
     ctx = _make_context(prev_surface=30, peak=10.0)
     gs = _make_graph_state(node_count=30)  # delta=0 -> sat=1.0
     result = await ConversationSaturationSignal().detect(ctx, gs, "")
-    assert result["meta.conversation.saturation"] == 1.0
+    assert result["meta.saturation.conversation"] == 1.0
 
 
 @pytest.mark.asyncio
@@ -48,7 +48,7 @@ async def test_half_peak_yields_half():
     ctx = _make_context(prev_surface=25, peak=10.0)
     gs = _make_graph_state(node_count=30)  # delta=5, peak=10 -> ratio=0.5 -> sat=0.5
     result = await ConversationSaturationSignal().detect(ctx, gs, "")
-    assert result["meta.conversation.saturation"] == 0.5
+    assert result["meta.saturation.conversation"] == 0.5
 
 
 @pytest.mark.asyncio
@@ -59,7 +59,7 @@ async def test_exceeds_peak_clamps_to_zero():
         node_count=30
     )  # delta=10, peak=5 -> ratio=2.0 -> clamped -> sat=0.0
     result = await ConversationSaturationSignal().detect(ctx, gs, "")
-    assert result["meta.conversation.saturation"] == 0.0
+    assert result["meta.saturation.conversation"] == 0.0
 
 
 @pytest.mark.asyncio
@@ -68,7 +68,7 @@ async def test_zero_peak_yields_zero():
     ctx = _make_context(prev_surface=0, peak=0.0)
     gs = _make_graph_state(node_count=5)
     result = await ConversationSaturationSignal().detect(ctx, gs, "")
-    assert result["meta.conversation.saturation"] == 0.0
+    assert result["meta.saturation.conversation"] == 0.0
 
 
 @pytest.mark.asyncio
@@ -76,4 +76,4 @@ async def test_no_graph_state_returns_full_saturation():
     """When graph_state is None, node_count=0, so delta is clamped to 0 -> saturation=1.0."""
     ctx = _make_context(prev_surface=10, peak=5.0)
     result = await ConversationSaturationSignal().detect(ctx, None, "")
-    assert result["meta.conversation.saturation"] == 1.0
+    assert result["meta.saturation.conversation"] == 1.0

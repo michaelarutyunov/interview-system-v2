@@ -27,12 +27,12 @@ class NodeExhaustedSignal(NodeSignalDetector):
     - Current focus streak is 2+ (persistent focus without yield)
     - 2/3 of recent responses are shallow (shallow_ratio >= 0.66)
 
-    Namespaced signal: graph.node.exhausted
+    Namespaced signal: convgraph.node.exhausted
     Cost: low (reads from NodeStateTracker state)
     Refresh: per_turn (recomputed each turn after state updates)
     """
 
-    signal_name = "graph.node.exhausted"
+    signal_name = "convgraph.node.exhausted"
     description = "Binary exhaustion indicator. True if node is exhausted (no yield, shallow responses, persistent focus), False otherwise."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
@@ -105,12 +105,12 @@ class NodeExhaustionScoreSignal(NodeSignalDetector):
     - Current focus streak (30% weight, max at 5 consecutive)
     - Shallow response ratio (30% weight, 0.0-1.0 range)
 
-    Namespaced signal: graph.node.exhaustion_score
+    Namespaced signal: convgraph.node.exhaustion
     Cost: low (reads from NodeStateTracker state)
     Refresh: per_turn (recomputed each turn after state updates)
     """
 
-    signal_name = "graph.node.exhaustion_score"
+    signal_name = "convgraph.node.exhaustion"
     description = "Continuous exhaustion score 0.0-1.0. Higher values indicate the node has been explored thoroughly without yielding new information."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
@@ -179,12 +179,12 @@ class NodeYieldStagnationSignal(NodeSignalDetector):
     - Node has been focused on at least once (focus_count > 0)
     - No yield for 3+ consecutive turns (turns_since_last_yield >= 3)
 
-    Namespaced signal: graph.node.yield_stagnation
+    Namespaced signal: convgraph.node.yield_stagnation
     Cost: low (reads from NodeStateTracker state)
     Refresh: per_turn (recomputed each turn after state updates)
     """
 
-    signal_name = "graph.node.yield_stagnation"
+    signal_name = "convgraph.node.yield_stagnation"
     description = "Whether node has yield stagnation (no yield for 3+ consecutive turns). True if stagnated, False otherwise."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
@@ -249,12 +249,12 @@ class NodeFocusStreakSignal(NodeSignalDetector):
     - medium: 2-3 consecutive turns (moderate persistence)
     - high: 4+ consecutive turns (strong persistence, may need strategy change)
 
-    Namespaced signal: graph.node.focus_streak
+    Namespaced signal: convgraph.node.focus.streak
     Cost: low (reads from NodeStateTracker state)
     Refresh: per_turn (recomputed each turn after state updates)
     """
 
-    signal_name = "graph.node.focus_streak"
+    signal_name = "convgraph.node.focus.streak"
     description = "Current focus streak category: none (0), low (1), medium (2-3), high (4+). Indicates persistent focus on a node."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
@@ -318,12 +318,12 @@ class NodeIsCurrentFocusSignal(NodeSignalDetector):
     prior turn. This is by design (to allow strategies to reference the incumbent
     focus) but the name is slightly misleading due to pipeline stage ordering.
 
-    Namespaced signal: graph.node.is_current_focus
+    Namespaced signal: convgraph.node.is_current_focus
     Cost: low (reads from NodeStateTracker.previous_focus)
     Refresh: per_turn (recomputed each turn after state updates)
     """
 
-    signal_name = "graph.node.is_current_focus"
+    signal_name = "convgraph.node.is_current_focus"
     description = "Whether this node is the current focus. True for focused node, False for others."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
@@ -359,12 +359,12 @@ class NodeRecencyScoreSignal(NodeSignalDetector):
 
     Scoring formula: max(0.0, 1.0 - (turns_since_last_focus / 20.0))
 
-    Namespaced signal: graph.node.recency_score
+    Namespaced signal: convgraph.node.recency
     Cost: low (reads from NodeStateTracker state)
     Refresh: per_turn (recomputed each turn after state updates)
     """
 
-    signal_name = "graph.node.recency_score"
+    signal_name = "convgraph.node.recency"
     description = "Recency score 0.0-1.0. Higher values indicate the node was focused more recently. Decays over 20 turns."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
@@ -423,12 +423,12 @@ class NodeIsOrphanSignal(NodeSignalDetector):
     represent opportunities to clarify relationships or may indicate
     extracted concepts that need contextualization.
 
-    Namespaced signal: graph.node.is_orphan
+    Namespaced signal: convgraph.node.is_orphan
     Cost: low (reads from NodeStateTracker state)
     Refresh: per_turn (recomputed each turn after state updates)
     """
 
-    signal_name = "graph.node.is_orphan"
+    signal_name = "convgraph.node.is_orphan"
     description = (
         "Whether node is an orphan (no edges). True if isolated, False if connected."
     )
@@ -464,12 +464,12 @@ class NodeEdgeCountSignal(NodeSignalDetector):
     central, important concepts; low counts indicate peripheral
     or under-explored nodes.
 
-    Namespaced signal: graph.node.edge_count
+    Namespaced signal: convgraph.node.edge_count
     Cost: low (reads from NodeStateTracker state)
     Refresh: per_turn (recomputed each turn after state updates)
     """
 
-    signal_name = "graph.node.edge_count"
+    signal_name = "convgraph.node.edge_count"
     description = "Total number of edges (incoming + outgoing) connected to this node. Higher values indicate more connected concepts."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
@@ -503,12 +503,12 @@ class NodeHasOutgoingSignal(NodeSignalDetector):
     and connected to other concepts; nodes without may be leaf
     concepts that haven't been elaborated on.
 
-    Namespaced signal: graph.node.has_outgoing
+    Namespaced signal: convgraph.node.has_outgoing
     Cost: low (reads from NodeStateTracker state)
     Refresh: per_turn (recomputed each turn after state updates)
     """
 
-    signal_name = "graph.node.has_outgoing"
+    signal_name = "convgraph.node.has_outgoing"
     description = "Whether node has outgoing edges. True if node has been explored and has connections, False otherwise."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
@@ -555,12 +555,12 @@ class NodeNoveltySignal(NodeSignalDetector):
     - medium: 0.3 <= score < 0.6 (3-4 turns old)
     - low: score < 0.3 (5+ turns old, novelty exhausted)
 
-    Namespaced signal: graph.node.novelty
+    Namespaced signal: convgraph.node.novelty
     Cost: low (reads from NodeStateTracker state)
     Refresh: per_turn
     """
 
-    signal_name = "graph.node.novelty"
+    signal_name = "convgraph.node.novelty"
     description = "Age-based novelty score: 1.0 for nodes created this turn, decays to 0.0 over 5 turns."
 
     DECAY_WINDOW: int = 5
@@ -607,12 +607,12 @@ class NodeFocusCountSignal(NodeSignalDetector):
     - medium: 3-4 total focuses
     - high: 5+ total focuses (overused node)
 
-    Namespaced signal: graph.node.focus_count
+    Namespaced signal: convgraph.node.focus.count
     Cost: low (reads from NodeStateTracker state)
     Refresh: per_turn
     """
 
-    signal_name = "graph.node.focus_count"
+    signal_name = "convgraph.node.focus.count"
     description = "Cumulative total times this node has been selected as focus across the entire interview. Never resets."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
@@ -657,12 +657,12 @@ class NodeCanonicalNoveltySignal(NodeSignalDetector):
     When enable_canonical_slots is False (canonical_slot_repo is None),
     returns an empty dict to gracefully skip.
 
-    Namespaced signal: graph.node.canonical_novelty
+    Namespaced signal: canongraph.node.novelty
     Cost: low (reads from NodeStateTracker canonical mapping)
     Refresh: per_turn
     """
 
-    signal_name = "graph.node.canonical_novelty"
+    signal_name = "canongraph.node.novelty"
     description = "Whether this node introduced a new canonical concept (new) vs confirming existing territory (confirming) or is unmapped (orphan)."
 
     def __init__(self, node_tracker=None) -> None:
@@ -718,8 +718,8 @@ class NodeCanonicalNoveltySignal(NodeSignalDetector):
 # These signals surface per-concept LLM ratings (elaboration, charge) recorded
 # via NodeStateTracker.append_quality() in the MethodologyStrategyService
 # bridge step. They emit dict-valued signals whose sub-keys are binary bins;
-# NodeSignalDetectionService flattens them into `graph.node.{name}.{bin}` so
-# YAML `signal_weights` can reference e.g. `graph.node.elaboration.low`.
+# NodeSignalDetectionService flattens them into `convgraph.node.llm.{name}.{bin}` so
+# YAML `signal_weights` can reference e.g. `convgraph.node.llm.elaboration.low`.
 #
 # Spec: docs/drafts/signal-migration-contract.md §C
 
@@ -741,7 +741,7 @@ class NodeElaborationSignal(NodeSignalDetector):
     NodeStateTracker.append_quality() during the per-concept signal bridge.
     """
 
-    signal_name = "graph.node.elaboration"
+    signal_name = "convgraph.node.llm.elaboration"
     description = (
         "Per-node elaboration bin (low/mid/high) from LLM per-concept ratings."
     )
@@ -752,9 +752,9 @@ class NodeElaborationSignal(NodeSignalDetector):
             mean_elab = _mean_or_none(state.quality_history.elaboration_scores)
             if mean_elab is None:
                 continue
-            # Sub-keys use dot notation so the flattener (prefix=graph.node.,
+            # Sub-keys use dot notation so the flattener (prefix=convgraph.node.llm.,
             # tail=signal_name dropped) produces YAML-matching keys like
-            # 'graph.node.elaboration.low'.
+            # 'convgraph.node.llm.elaboration.low'.
             results[node_id] = {
                 "elaboration.low": mean_elab < _ELAB_LOW,
                 "elaboration.mid": _ELAB_LOW <= mean_elab < _ELAB_HIGH,
@@ -766,7 +766,7 @@ class NodeElaborationSignal(NodeSignalDetector):
 class NodeChargeSignal(NodeSignalDetector):
     """Per-node mean LLM emotional charge → categorical bins (negative/neutral/positive)."""
 
-    signal_name = "graph.node.charge"
+    signal_name = "convgraph.node.llm.charge"
     description = (
         "Per-node charge bin (negative/neutral/positive) from LLM per-concept ratings."
     )
@@ -792,7 +792,7 @@ class NodeHasQualityDataSignal(NodeSignalDetector):
     on nodes that haven't been rated (e.g. first-turn orphans).
     """
 
-    signal_name = "graph.node.has_quality_data"
+    signal_name = "convgraph.node.llm.has_quality_data"
     description = "True if node has any per-concept LLM elaboration/charge history."
 
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001

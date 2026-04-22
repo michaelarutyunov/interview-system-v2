@@ -25,33 +25,35 @@ class ChainTopologySignalDetector(NodeSignalDetector):
     """Chain topology signals per node for chain-aware strategy selection.
 
     Namespaced signals (all per-node):
-        - graph.node.gap_above (bool): Node is highest in its chain AND non-terminal.
-        - graph.node.gap_below (bool): No incoming leads_to from lower level AND above origin.
-        - graph.node.level_skip (bool): Direct edge skips intermediate ontology levels.
-        - graph.node.branching_deficit (float [0,1]): 1 - (actual_siblings / expected_siblings).
-        - graph.node.fan_in (int): Distinct origin-level nodes with paths to this node.
-        - graph.node.level_gap_size (int): Ontology levels between this node and terminal/origin.
+        - convgraph.node.chain.gap.above (bool): Node is highest in its chain AND non-terminal.
+        - convgraph.node.chain.gap.below (bool): No incoming leads_to from lower level AND above origin.
+        - convgraph.node.chain.level.skip (bool): Direct edge skips intermediate ontology levels.
+        - convgraph.node.chain.branching_deficit (float [0,1]): 1 - (actual_siblings / expected_siblings).
+        - convgraph.node.chain.fan_in (int): Distinct origin-level nodes with paths to this node.
+        - convgraph.node.chain.level.gap_size (int): Ontology levels between this node and terminal/origin.
 
     For non-chain methodologies (JTBD, CJM, Repertory Grid, Critical Incident),
     returns empty dict — signal absent means zero contribution to scoring.
 
     Returns nested dict structure for per-node access:
     {
-        "graph.node.chain_topology": {
+        "convgraph.node.chain.role": {
             node_id: {
-                "gap_above": bool,
-                "gap_below": bool,
-                "level_skip": bool,
+                "gap.above": bool,
+                "gap.below": bool,
+                "level.skip": bool,
                 "branching_deficit": float,
                 "fan_in": int,
-                "level_gap_size": int,
+                "level.gap_size": int,
+                "has_attribute_foundation": bool,
+                "has_terminal_apex": bool,
             }
             for node in nodes
         }
     }
     """
 
-    signal_name = "graph.node.chain_topology"
+    signal_name = "convgraph.node.chain.role"
     description = (
         "Chain topology structural signals per node for chain-aware strategy selection."
     )
@@ -151,14 +153,14 @@ class ChainTopologySignalDetector(NodeSignalDetector):
             )
 
             results[node_id] = {
-                "gap_above": gap_above,
-                "gap_below": gap_below,
-                "level_skip": level_skip,
+                "gap.above": gap_above,
+                "gap.below": gap_below,
+                "level.skip": level_skip,
                 "branching_deficit": branching_deficit,
                 "fan_in": fan_in,
-                "level_gap_size": level_gap_size,
-                "chain.has_attribute_foundation": has_attribute_foundation,
-                "chain.has_terminal_apex": has_terminal_apex,
+                "level.gap_size": level_gap_size,
+                "has_attribute_foundation": has_attribute_foundation,
+                "has_terminal_apex": has_terminal_apex,
             }
 
         # Return in node signal format: {node_id: signal_value}
@@ -445,10 +447,10 @@ class ChainTopologySignalDetector(NodeSignalDetector):
 #
 # NodeSignalDetectionService flattens the nested dict returned by
 # ChainTopologySignalDetector into individual keys per node
-# (e.g. graph.node.gap_above, graph.node.fan_in).  These sentinel classes
-# register those names in the SignalDetector registry so the YAML validator
-# accepts them in `valid_when` and `signal_weights` without needing real
-# detector logic (values always come from the flattening step).
+# (e.g. convgraph.node.chain.gap.above, convgraph.node.chain.fan_in).  These
+# sentinel classes register those names in the SignalDetector registry so the
+# YAML validator accepts them in `valid_when` and `signal_weights` without
+# needing real detector logic (values always come from the flattening step).
 # ---------------------------------------------------------------------------
 
 
@@ -466,7 +468,7 @@ class _ChainTopoFlatSentinel(NodeSignalDetector):
 
 
 class _GapAboveSentinel(_ChainTopoFlatSentinel):
-    signal_name = "graph.node.gap_above"
+    signal_name = "convgraph.node.chain.gap.above"
     description = (
         "True if node has no outgoing edge to a higher ontology level (chain frontier)."
     )
@@ -474,7 +476,7 @@ class _GapAboveSentinel(_ChainTopoFlatSentinel):
 
 
 class _GapBelowSentinel(_ChainTopoFlatSentinel):
-    signal_name = "graph.node.gap_below"
+    signal_name = "convgraph.node.chain.gap.below"
     description = (
         "True if node has no incoming edge from a lower ontology level (ungrounded)."
     )
@@ -482,13 +484,13 @@ class _GapBelowSentinel(_ChainTopoFlatSentinel):
 
 
 class _LevelSkipSentinel(_ChainTopoFlatSentinel):
-    signal_name = "graph.node.level_skip"
+    signal_name = "convgraph.node.chain.level.skip"
     description = "True if node has a direct leads_to edge that skips one or more ontology levels."
     dependencies = []
 
 
 class _BranchingDeficitSentinel(_ChainTopoFlatSentinel):
-    signal_name = "graph.node.branching_deficit"
+    signal_name = "convgraph.node.chain.branching_deficit"
     description = (
         "Branching deficit: 1 - (actual_siblings / expected_siblings) in [0,1]."
     )
@@ -496,19 +498,19 @@ class _BranchingDeficitSentinel(_ChainTopoFlatSentinel):
 
 
 class _FanInSentinel(_ChainTopoFlatSentinel):
-    signal_name = "graph.node.fan_in"
+    signal_name = "convgraph.node.chain.fan_in"
     description = "Count of distinct origin-level nodes with paths to this node."
     dependencies = []
 
 
 class _LevelGapSizeSentinel(_ChainTopoFlatSentinel):
-    signal_name = "graph.node.level_gap_size"
+    signal_name = "convgraph.node.chain.level.gap_size"
     description = "Number of ontology levels between this node and terminal/origin."
     dependencies = []
 
 
 class _HasAttributeFoundationSentinel(_ChainTopoFlatSentinel):
-    signal_name = "graph.node.chain.has_attribute_foundation"
+    signal_name = "convgraph.node.chain.has_attribute_foundation"
     description = (
         "True if a downward path (reverse edges) reaches an attribute-level node."
     )
@@ -516,7 +518,7 @@ class _HasAttributeFoundationSentinel(_ChainTopoFlatSentinel):
 
 
 class _HasTerminalApexSentinel(_ChainTopoFlatSentinel):
-    signal_name = "graph.node.chain.has_terminal_apex"
+    signal_name = "convgraph.node.chain.has_terminal_apex"
     description = (
         "True if an upward path (forward edges) reaches a terminal-value node."
     )

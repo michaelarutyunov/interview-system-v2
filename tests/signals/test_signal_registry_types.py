@@ -38,10 +38,10 @@ class TestLLMSignalInheritance:
     def test_specific_llm_signals_inherit_correctly(self):
         """Test specific known LLM signals have correct inheritance."""
         expected_signals = [
-            "llm.elaboration",
-            "llm.charge",
-            "llm.certainty",
-            "llm.engagement",
+            "response.semantic.llm.elaboration",
+            "response.semantic.llm.charge",
+            "response.semantic.llm.certainty",
+            "response.semantic.llm.engagement",
         ]
 
         for signal_name in expected_signals:
@@ -66,10 +66,10 @@ class TestIsLLMSignalMethod:
         """
         # Test with known LLM signals
         llm_signal_names = [
-            "llm.elaboration",
-            "llm.charge",
-            "llm.certainty",
-            "llm.engagement",
+            "response.semantic.llm.elaboration",
+            "response.semantic.llm.charge",
+            "response.semantic.llm.certainty",
+            "response.semantic.llm.engagement",
         ]
 
         for signal_name in llm_signal_names:
@@ -81,9 +81,9 @@ class TestIsLLMSignalMethod:
     def test_is_llm_signal_rejects_non_llm_signals(self):
         """Verify _is_llm_signal() returns False for non-LLM signals."""
         non_llm_signals = [
-            "graph.node_count",
-            "graph.orphan_count",
-            "temporal.strategy_repetition_count",
+            "convgraph.state.node.count",
+            "convgraph.state.node.orphan_count",
+            "interview.strategy.self_count",
             "meta.interview_progress",
             "nonexistent.signal",
         ]
@@ -103,7 +103,9 @@ class TestIsLLMSignalMethod:
         """
         # Should not raise NameError
         try:
-            result = ComposedSignalDetector._is_llm_signal("llm.elaboration")
+            result = ComposedSignalDetector._is_llm_signal(
+                "response.semantic.llm.elaboration"
+            )
             assert result is True
         except NameError as e:
             pytest.fail(
@@ -124,7 +126,7 @@ class TestSignalRegistryLoopLogic:
         from src.signals.signal_base import SignalDetector
 
         # Get a sample signal detector
-        signal_names = ["graph.node_count"]
+        signal_names = ["convgraph.state.node.count"]
         detector_class = SignalDetector.get_signal_class(signal_names[0])
 
         assert detector_class is not None, "Could not get sample detector class"
@@ -142,7 +144,10 @@ class TestSignalRegistryLoopLogic:
 
     def test_composed_detector_stores_detectors_correctly(self):
         """Verify ComposedSignalDetector stores detector instances, not names."""
-        signal_names = ["graph.node_count", "graph.orphan_count"]
+        signal_names = [
+            "convgraph.state.node.count",
+            "convgraph.state.node.orphan_count",
+        ]
 
         detector = ComposedSignalDetector(
             signal_names=signal_names,

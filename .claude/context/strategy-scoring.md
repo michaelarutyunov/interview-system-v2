@@ -28,25 +28,25 @@ determines both the selected strategy and the target node for question generatio
 
 | Weight key pattern | Resolved as |
 |---|---|
-| `graph.max_depth` | Raw signal value (float in [0,1] or bool) |
-| `llm.response_depth.deep` | `True` (→1.0) if `response_depth == "deep"`, else `False` (→0.0) |
+| `convgraph.state.max_depth` | Raw signal value (float in [0,1] or bool) |
+| `response.semantic.response.semantic.llm.response_depth.deep` | `True` (→1.0) if `response_depth == "deep"`, else `False` (→0.0) |
 | `llm.specificity.high` | `True` if value >= 0.75 |
 | `llm.specificity.mid` | `True` if 0.25 < value < 0.75 |
 | `llm.specificity.low` | `True` if value <= 0.25 |
-| `graph.node.exhausted.true` | `True` if node signal `exhausted == True` |
-| `graph.node.gap_above.true` | `True` if node has no outgoing edge to a higher ontology level |
-| `graph.node.gap_below.true` | `True` if node has no incoming edge from a lower ontology level |
-| `graph.node.level_skip.true` | `True` if node has a direct leads_to edge skipping >1 ontology level |
-| `graph.node.branching_deficit` | Float in [0,1]: 1 - (actual_siblings / expected_siblings) |
-| `graph.node.fan_in` | Int: count of distinct origin-level nodes with paths to this node |
-| `graph.node.level_gap_size` | Int: ontology levels between this node and terminal/origin |
-| `graph.node.chain.has_attribute_foundation.true` | `True` if a downward path reaches an attribute-level node |
-| `graph.node.chain.has_terminal_apex.true` | `True` if an upward path reaches a terminal-value node |
-| `graph.node.is_orphan.true` | `True` if node has no edges at all (isolated) |
-| `graph.node.recency_score` | Float in [0,1]: how recently the node was last discussed |
-| `graph.node.elaboration.low` / `.mid` / `.high` | `True` if per-concept elaboration score falls in bin |
-| `graph.node.charge.positive` / `.negative` | `True` if per-concept charge (emotional tone) is positive/negative |
-| `graph.node.has_quality_data.true` | `True` if node has at least one per-concept LLM rating history entry |
+| `convconvgraph.node.exhausted.true` | `True` if node signal `exhausted == True` |
+| `convgraph.node.chain.gap.above.true` | `True` if node has no outgoing edge to a higher ontology level |
+| `convgraph.node.chain.gap.below.true` | `True` if node has no incoming edge from a lower ontology level |
+| `convgraph.node.chain.level.skip.true` | `True` if node has a direct leads_to edge skipping >1 ontology level |
+| `convgraph.node.chain.branching_deficit` | Float in [0,1]: 1 - (actual_siblings / expected_siblings) |
+| `convgraph.node.chain.fan_in` | Int: count of distinct origin-level nodes with paths to this node |
+| `convgraph.node.chain.level.gap_size` | Int: ontology levels between this node and terminal/origin |
+| `convconvgraph.node.chain.has_attribute_foundation.true` | `True` if a downward path reaches an attribute-level node |
+| `convconvgraph.node.chain.has_terminal_apex.true` | `True` if an upward path reaches a terminal-value node |
+| `convconvgraph.node.is_orphan.true` | `True` if node has no edges at all (isolated) |
+| `convgraph.node.recency` | Float in [0,1]: how recently the node was last discussed |
+| `convgraph.node.response.semantic.llm.elaboration.low` / `.mid` / `.high` | `True` if per-concept elaboration score falls in bin |
+| `convgraph.node.response.semantic.llm.charge.positive` / `.negative` | `True` if per-concept charge (emotional tone) is positive/negative |
+| `convgraph.node.llm.has_quality_data.true` | `True` if node has at least one per-concept LLM rating history entry |
 
 Threshold binning (`.low`/`.mid`/`.high`) applies only to float signals
 normalized to [0, 1]. Categorical signals use exact string equality.
@@ -66,12 +66,12 @@ Node-level signal detectors then consume this history:
 
 | Signal key | Source | Description |
 |---|---|---|
-| `graph.node.elaboration` | `NodeElaborationSignal` | Avg per-concept elaboration for this node, binned to low/mid/high |
-| `graph.node.charge` | `NodeChargeSignal` | Dominant emotional charge for this node, mapped to positive/negative |
-| `graph.node.has_quality_data` | `NodeHasQualityDataSignal` | `True` if node has any quality history entries |
+| `convgraph.node.response.semantic.llm.elaboration` | `NodeElaborationSignal` | Avg per-concept elaboration for this node, binned to low/mid/high |
+| `convgraph.node.response.semantic.llm.charge` | `NodeChargeSignal` | Dominant emotional charge for this node, mapped to positive/negative |
+| `convgraph.node.llm.has_quality_data` | `NodeHasQualityDataSignal` | `True` if node has any quality history entries |
 
 This bridges the gap between extraction-time concepts and strategy-time node
-scoring. `llm.response_depth` is now **derived** from mean per-concept
+scoring. `response.semantic.response.semantic.llm.response_depth` is now **derived** from mean per-concept
 elaboration (via `_score_to_category()` in `batch_detector.py`) for backward
 compatibility with `global_response_trend` and `node_opportunity` signals.
 
@@ -154,11 +154,11 @@ from MEC YAMLs. The default fallback strategy in code is now `ascend` (was
 
 | Strategy | `node_binding` | `valid_when` | Purpose |
 |---|---|---|---|
-| `ascend` | `required` | `graph.node.gap_above` | Extend an incomplete chain upward toward terminal values |
-| `ground` | `required` | `graph.node.gap_below` | Establish causal antecedents for ungrounded high-level nodes |
-| `bridge` | `required` | `graph.node.level_skip` | Fill missing intermediate levels in a chain with skipped ontology levels |
-| `branch` | `required` | `graph.node.branching_deficit` | Expand breadth where methodology expects more siblings |
-| `anchor` | `required` | `graph.node.is_orphan` | Connect isolated nodes to existing graph structure |
+| `ascend` | `required` | `convgraph.node.chain.gap.above` | Extend an incomplete chain upward toward terminal values |
+| `ground` | `required` | `convgraph.node.chain.gap.below` | Establish causal antecedents for ungrounded high-level nodes |
+| `bridge` | `required` | `convgraph.node.chain.level.skip` | Fill missing intermediate levels in a chain with skipped ontology levels |
+| `branch` | `required` | `convgraph.node.chain.branching_deficit` | Expand breadth where methodology expects more siblings |
+| `anchor` | `required` | `convconvgraph.node.is_orphan` | Connect isolated nodes to existing graph structure |
 | `revitalize` | `none` | *(none)* | Conversation-level fallback for fatigue/disengagement |
 | `validate` | `none` | *(none)* | Late-phase closing strategy — generates closing question |
 
@@ -183,8 +183,8 @@ in `src/methodologies/registry.py`.
 methodology config after Stage 1 scoring. When `best_strategy_score < threshold`,
 it evaluates fatigue/engagement signals:
 
-1. Reads `llm.global_response_trend` — if `"fatigued"`, triggers fallback
-2. Reads `llm.engagement` — if `< 0.3` (float), triggers fallback
+1. Reads `response.semantic.response.semantic.response.semantic.llm.engagement.trend` — if `"fatigued"`, triggers fallback
+2. Reads `response.semantic.response.semantic.llm.engagement` — if `< 0.3` (float), triggers fallback
 3. Fallback selects `revitalize` (if defined in the methodology's strategies)
 
 The production threshold in MEC YAMLs is `score_threshold: 0.15`. Set to `0.0`
@@ -195,7 +195,7 @@ strategy is used regardless — the fallback is conservative, not mandatory.
 
 Late-phase closing is handled by `validate` (node_binding: none,
 generates_closing_question: true), which uses heavy early/mid phase gates
-(`meta.interview.phase.early: -3.0`, `mid: -3.0`) to prevent premature
+(`interview.phase.early: -3.0`, `mid: -3.0`) to prevent premature
 termination. `validate` is the preferred late-phase strategy across all v2
 methodologies.
 
@@ -207,7 +207,7 @@ no LLM calls.
 
 **Source architecture**:
 - `ChainTopologySignalDetector` (extends `NodeSignalDetector`) computes a nested
-  dict per node under the key `graph.node.chain_topology`
+  dict per node under the key `convgraph.node.chain.role`
 - `NodeSignalDetectionService` flattens this into individual per-node signal keys
   for use in `signal_weights` and `valid_when`
 - Flat sentinel classes (`_GapAboveSentinel`, `_GapBelowSentinel`, etc.) register
@@ -220,14 +220,14 @@ no LLM calls.
 
 | Signal key | Type | Description |
 |---|---|---|
-| `graph.node.gap_above` | bool | Node has no outgoing edge to a higher ontology level AND is non-terminal |
-| `graph.node.gap_below` | bool | Node has no incoming edge from a lower ontology level AND is above origin level |
-| `graph.node.level_skip` | bool | Node has a direct `leads_to` edge that skips >1 ontology level |
-| `graph.node.branching_deficit` | float [0,1] | 1 - (actual_siblings / expected_siblings); 1.0 = full deficit |
-| `graph.node.fan_in` | int | Count of distinct origin-level nodes with paths to this node |
-| `graph.node.level_gap_size` | int | Ontology levels between this node and terminal/origin |
-| `graph.node.chain.has_attribute_foundation` | bool | Downward path (reverse edges) reaches an attribute-level node |
-| `graph.node.chain.has_terminal_apex` | bool | Upward path (forward edges) reaches a terminal-value node |
+| `convgraph.node.chain.gap.above` | bool | Node has no outgoing edge to a higher ontology level AND is non-terminal |
+| `convgraph.node.chain.gap.below` | bool | Node has no incoming edge from a lower ontology level AND is above origin level |
+| `convgraph.node.chain.level.skip` | bool | Node has a direct `leads_to` edge that skips >1 ontology level |
+| `convgraph.node.chain.branching_deficit` | float [0,1] | 1 - (actual_siblings / expected_siblings); 1.0 = full deficit |
+| `convgraph.node.chain.fan_in` | int | Count of distinct origin-level nodes with paths to this node |
+| `convgraph.node.chain.level.gap_size` | int | Ontology levels between this node and terminal/origin |
+| `convconvgraph.node.chain.has_attribute_foundation` | bool | Downward path (reverse edges) reaches an attribute-level node |
+| `convconvgraph.node.chain.has_terminal_apex` | bool | Upward path (forward edges) reaches a terminal-value node |
 
 **Non-chain methodologies**: `ChainTopologySignalDetector` returns an empty dict
 for methodologies with fewer than 2 distinct ontology levels (e.g., JTBD, CJM,
@@ -238,9 +238,9 @@ scoring.
 
 | Signal key | Type | Description |
 |---|---|---|
-| `graph.node.is_orphan` | bool | Node has no edges at all (used by `anchor` strategy's `valid_when`) |
-| `graph.node.recency_score` | float [0,1] | How recently the node was last discussed (higher = more recent) |
-| `graph.node.exhaustion_score` | float [0,1] | How exhausted the node is from repeated probing (negative weight in strategies) |
+| `convconvgraph.node.is_orphan` | bool | Node has no edges at all (used by `anchor` strategy's `valid_when`) |
+| `convgraph.node.recency` | float [0,1] | How recently the node was last discussed (higher = more recent) |
+| `convgraph.node.exhaustion` | float [0,1] | How exhausted the node is from repeated probing (negative weight in strategies) |
 
 ### Chain Lifecycle Matrix
 
@@ -258,15 +258,15 @@ The `has_attribute_foundation` and `has_terminal_apex` signals encode where a no
 - `ground`: `has_attribute_foundation.false +0.250`, `has_attribute_foundation.true -0.2`
 - `branch`: `has_attribute_foundation.true +0.3`, `has_terminal_apex.true +0.5`
 - `anchor`: `is_orphan.true: +0.50`
-- `validate`: heavy early/mid phase gates (`meta.interview.phase.early: -3.0`, `mid: -3.0`), closing question generator
+- `validate`: heavy early/mid phase gates (`interview.phase.early: -3.0`, `mid: -3.0`), closing question generator
 
-The old `graph.chain_completion.has_complete: -0.2` suppressor on `ascend` was removed — the chain-lifecycle signals provide a more principled replacement.
+The old `convgraph.chain.completion.has_complete: -0.2` suppressor on `ascend` was removed — the chain-lifecycle signals provide a more principled replacement.
 
 **f965 migration (per-concept LLM signals)** — legacy LLM signals (`response_depth`, `specificity`, `valence`, `intellectual_engagement`) were replaced by per-concept `elaboration`/`charge` plus global `certainty`/`engagement`. Weight equivalents:
-- `llm.response_depth.deep` → `graph.node.elaboration.high`
-- `llm.specificity.low` → `graph.node.elaboration.low`
-- `llm.valence.low` → `graph.node.charge.negative`
-- `llm.valence.high` → `graph.node.charge.positive`
+- `response.semantic.response.semantic.llm.response_depth.deep` → `convgraph.node.response.semantic.llm.elaboration.high`
+- `llm.specificity.low` → `convgraph.node.response.semantic.llm.elaboration.low`
+- `llm.valence.low` → `convgraph.node.response.semantic.llm.charge.negative`
+- `llm.valence.high` → `convgraph.node.response.semantic.llm.charge.positive`
 
 **N7 calibration changes** (from N6 baseline — targeting 15-turn interview):
 - Ascend `exhaustion_score` strengthened: -0.6 → -0.8
@@ -282,7 +282,7 @@ The old `graph.chain_completion.has_complete: -0.2` suppressor on `ascend` was r
 
 **N6 calibration changes** (from N5 baseline):
 - Ground `has_attribute_foundation.false` reduced from +0.6 → +0.4 (was causing 10-turn ground streaks; ground now competes rather than dominates in F+F state)
-- Revitalize `temporal.strategy_repetition_count` restored to +0.15 (was removed in N5; phase-gated via multipliers to prevent early bursts)
+- Revitalize `interview.strategy.self_count` restored to +0.15 (was removed in N5; phase-gated via multipliers to prevent early bursts)
 - Early phase: `ground` multiplier boosted to 1.4 (was 1.1) to establish attribute foundation before ascending
 - Mid phase: `ascend` reduced 1.4→1.3, `ground` increased 1.2→1.3 — equalized to let node signals decide
 - Mid phase: `ascend` `phase_bonus` 0.15 removed — was pushing ascend past all competition structurally
@@ -303,7 +303,7 @@ Phase 4 (2026-04-15 through 2026-04-17) was a multi-tier calibration exercise ac
 
 ### 1. Strategy-Scoped Repetition Signals
 
-`temporal.strategy_repetition_count` previously returned a single scalar equal to the frequency of the **last-selected** strategy over the last 5 turns. The scorer applied this scalar to **every** candidate using each candidate's own weight. This meant:
+`interview.strategy.self_count` previously returned a single scalar equal to the frequency of the **last-selected** strategy over the last 5 turns. The scorer applied this scalar to **every** candidate using each candidate's own weight. This meant:
 - `ascend` with weight `-1.5` was penalized whenever `ground` (weight `-0.15`) repeated, because the shared scalar (~0.6) × `-1.5` = `-0.90` penalty.
 - The feedback sign was inverted: the strategy most needing to fire (to break monoculture) was punished in proportion to how entrenched the dominant strategy was.
 
@@ -324,31 +324,31 @@ When a strategy's typical base score exceeds its repetition brake magnitude by >
 **Rule of thumb**: repetition brake magnitude should be ≥50% of the strategy's typical base score when that strategy is intended to fire 2–3× per interview. For dominant structural strategies (base >1.5), either:
 - Reduce structural positive mass (audit which signals contribute >0.5)
 - Strengthen brake to ≥1.0
-- Add a `graph.node.focus_count.high` penalty (-0.8 to -1.0) that compounds with repetition
+- Add a `convgraph.node.focus.count.high` penalty (-0.8 to -1.0) that compounds with repetition
 
 ### 3. Node Binding Mismatch Silently Strips Weights
 
-`partition_signal_weights()` routes all `graph.node.*` / `technique.node.*` / `meta.node.*` weights to Stage 2 (joint strategy-node scoring). If a strategy is `node_binding: none`, it never enters Stage 2 — all node-scoped weights are silently discarded.
+`partition_signal_weights()` routes all `convgraph.node.*` / `interview.focus.*` / `meta.node.*` weights to Stage 2 (joint strategy-node scoring). If a strategy is `node_binding: none`, it never enters Stage 2 — all node-scoped weights are silently discarded.
 
 **Example from RG**:
 ```yaml
 node_binding: none
 signal_weights:
-  graph.node.is_orphan.true: 0.7      # stripped — never scored
-  graph.node.focus_streak.none: 0.5    # stripped — never scored
-  graph.node.elaboration.low: 0.4      # stripped — never scored
-  llm.engagement: 0.5                   # retained — only ~1.0 of positive mass
+  convconvgraph.node.is_orphan.true: 0.7      # stripped — never scored
+  convgraph.node.focus.streak.none: 0.5    # stripped — never scored
+  convgraph.node.response.semantic.llm.elaboration.low: 0.4      # stripped — never scored
+  response.semantic.response.semantic.llm.engagement: 0.5                   # retained — only ~1.0 of positive mass
 ```
 
 Result: `triadic_elicit` competed on ~1.0 positive mass vs. `explore_construct` at ~2.7. Never selected across 10 turns.
 
-**Fix**: Strategies with `graph.node.*` weights must use `node_binding: required`. The registry does NOT validate this alignment — it is a semantic contract.
+**Fix**: Strategies with `convgraph.node.*` weights must use `node_binding: required`. The registry does NOT validate this alignment — it is a semantic contract.
 
-**Fixed (Phase 4.3)**: RG `triadic_elicit` and `explore_ideal` flipped to `node_binding: required`. Remaining `node_binding: none` strategies in RG (`revitalize`, `validate`) have no `graph.node.*` weights that affect selection — their node-scoped weights are secondary (revitalize's fresh-territory seeking) or decorative (validate's summary mode), and both strategies function correctly on global signals alone.
+**Fixed (Phase 4.3)**: RG `triadic_elicit` and `explore_ideal` flipped to `node_binding: required`. Remaining `node_binding: none` strategies in RG (`revitalize`, `validate`) have no `convgraph.node.*` weights that affect selection — their node-scoped weights are secondary (revitalize's fresh-territory seeking) or decorative (validate's summary mode), and both strategies function correctly on global signals alone.
 
 ### 4. Escape Valve Positive Feedback
 
-Using a *positive* weight on `temporal.strategy_repetition_count` (e.g., `revitalize: +0.15`) creates a self-reinforcing loop:
+Using a *positive* weight on `interview.strategy.self_count` (e.g., `revitalize: +0.15`) creates a self-reinforcing loop:
 1. Structural strategies are suppressed (brakes, valid_when gates)
 2. `revitalize` wins as path of least resistance
 3. `+0.15` makes it stronger each turn it fires
@@ -360,19 +360,19 @@ Observed in CIT (70% revitalize), RG, and CJM.
 
 ### 5. Per-Concept Signal Weight Guidance
 
-Phase C wiring (per-concept LLM ratings → `NodeStateTracker` → node signals) is functional but underutilized. Per-concept signals (`graph.node.elaboration.*`, `graph.node.charge.*`) typically carry weights of 0.1–0.2, while structural graph signals carry 0.25–0.40. The result: per-concept signals rarely determine the winner.
+Phase C wiring (per-concept LLM ratings → `NodeStateTracker` → node signals) is functional but underutilized. Per-concept signals (`convgraph.node.response.semantic.llm.elaboration.*`, `convgraph.node.response.semantic.llm.charge.*`) typically carry weights of 0.1–0.2, while structural graph signals carry 0.25–0.40. The result: per-concept signals rarely determine the winner.
 
 **Guideline**: At least one strategy per methodology should use per-concept signals at weight ≥0.3 to ensure they can compete with structural signals. Good pairings:
-- `ascend` / `elaborate` → `graph.node.elaboration.high` (deep content → ladder up)
-- `triadic_elicit` → `graph.node.elaboration.low` (shallow content → needs triadic probing)
-- `track_emotions` → `graph.node.charge.positive` / `.negative` (emotional content → trace it)
-- `elicit_narrative` → `graph.node.charge.*` (emotional charge → narrate it)
+- `ascend` / `elaborate` → `convgraph.node.response.semantic.llm.elaboration.high` (deep content → ladder up)
+- `triadic_elicit` → `convgraph.node.response.semantic.llm.elaboration.low` (shallow content → needs triadic probing)
+- `track_emotions` → `convgraph.node.response.semantic.llm.charge.positive` / `.negative` (emotional content → trace it)
+- `elicit_narrative` → `convgraph.node.response.semantic.llm.charge.*` (emotional charge → narrate it)
 
 ### 6. Persona-Driven Graph Starvation
 
 Sparse-response personas (`brief_responder`) produce few extracted concepts → small graph → node-bound strategies have few nodes to score against. Conversation-level strategies (`revitalize`, `validate`) win by elimination, even with correct brakes.
 
-This is a **methodology-agnostic dynamic**, not a YAML-tunable issue. The correct response is NOT to boost node-bound strategies artificially — it's to accept that some persona/methodology combinations produce degraded interviews by design, or to add an active-probing strategy (new-topic-seeder) that fires when `graph.node_count.low` is true.
+This is a **methodology-agnostic dynamic**, not a YAML-tunable issue. The correct response is NOT to boost node-bound strategies artificially — it's to accept that some persona/methodology combinations produce degraded interviews by design, or to add an active-probing strategy (new-topic-seeder) that fires when `convgraph.state.node.count.low` is true.
 
 ### 7. Calibration Workflow Principle
 
@@ -390,11 +390,11 @@ Phase 4 demonstrated that weight tuning must follow a strict order:
    them into `signal_weights`.
 
 2. **Node-scoped weight key namespace**: keys that should influence node ranking
-   must start with `graph.node.*`, `technique.node.*`, or `meta.node.*`.
+   must start with `convgraph.node.*`, `interview.focus.*`, or `meta.node.*`.
    Any other prefix routes the weight to strategy-level scoring only.
 
 3. **Negative weights are valid** — use them for diversity penalties
-   (e.g., `temporal.strategy_repetition_count: -0.5`, `graph.node.exhaustion_score: -0.4`).
+   (e.g., `interview.strategy.self_count: -0.5`, `convgraph.node.exhaustion: -0.4`).
 
 4. **Strategy names in `phases:` must match names in `strategies:`** — the
    registry validates this at load time and raises `ValueError` on mismatch.
@@ -406,13 +406,13 @@ Phase 4 demonstrated that weight tuning must follow a strict order:
 6. **All signals must be declared in `signals:`** — the registry validates every
    `signal_weights` key against known signal names at load time.
 
-7. **Unbounded count signals are rejected in `signal_weights`** — `graph.node_count`,
-   `graph.edge_count`, and `graph.orphan_count` return raw integers that can't be
+7. **Unbounded count signals are rejected in `signal_weights`** — `convgraph.state.node.count`,
+   `convgraph.state.edge.count`, and `convgraph.state.node.orphan_count` return raw integers that can't be
    safely multiplied by weights. The registry raises `ValueError` at load time if
    any of these appear in a strategy's `signal_weights`. Use normalized or
-   threshold-binned variants instead (e.g., `graph.node_count.low`).
+   threshold-binned variants instead (e.g., `convgraph.state.node.count.low`).
 
-8. **`valid_when` gates strategy-node pairs** — a strategy with `valid_when: graph.node.gap_above`
+8. **`valid_when` gates strategy-node pairs** — a strategy with `valid_when: convgraph.node.chain.gap.above`
    is only scored for nodes where that signal is `True`. Invalid pairs are skipped entirely
    (no score, no contribution). This is a hard gate, not a weight.
    - `valid_when` must reference a known signal name (validated at load time)
@@ -424,11 +424,11 @@ Phase 4 demonstrated that weight tuning must follow a strict order:
 
 9. **Chain topology signals are flat per-node** — `ChainTopologySignalDetector` returns a
    nested dict per node. `NodeSignalDetectionService` flattens it into individual signal keys:
-   - `graph.node.gap_above`, `graph.node.gap_below`, `graph.node.level_skip`
-   - `graph.node.branching_deficit`, `graph.node.fan_in`, `graph.node.level_gap_size`
-   - `graph.node.chain.has_attribute_foundation`, `graph.node.chain.has_terminal_apex`
+   - `convgraph.node.chain.gap.above`, `convgraph.node.chain.gap.below`, `convgraph.node.chain.level.skip`
+   - `convgraph.node.chain.branching_deficit`, `convgraph.node.chain.fan_in`, `convgraph.node.chain.level.gap_size`
+   - `convconvgraph.node.chain.has_attribute_foundation`, `convconvgraph.node.chain.has_terminal_apex`
    Use these flat keys in `signal_weights` and `valid_when`. The parent key
-   `graph.node.chain_topology` also remains available but holds the full dict.
+   `convgraph.node.chain.role` also remains available but holds the full dict.
 
 10. **Score threshold fallback** — `MethodologyStrategyService` checks `chain_completion.score_threshold`
     from the methodology config. If `best_strategy_score < threshold` AND fatigue/low-engagement
@@ -443,16 +443,16 @@ Phase 4 demonstrated that weight tuning must follow a strict order:
 |---|---|---|
 | Strategy never selected despite high signal match | Phase multiplier is near zero, suppressing final score | Check `phases.<phase>.signal_weights` for that strategy name |
 | Phase bonus not applying | Strategy name typo in `phase_bonuses` | Fix typo; registry will catch it as a `ValueError` on next load |
-| Node-level signal weight treated as strategy-level (ignored in node ranking) | Weight key missing `graph.node.*` / `technique.node.*` / `meta.node.*` prefix | Rename key to correct namespace |
+| Node-level signal weight treated as strategy-level (ignored in node ranking) | Weight key missing `convgraph.node.*` / `interview.focus.*` / `meta.node.*` prefix | Rename key to correct namespace |
 | All strategies scoring equally (≈ 0) | No `signal_weights` defined, or no declared signals are firing | Verify `signal_weights` in YAML and check that signals listed under `signals:` are detected at runtime |
 | `strategies_ranked` log shows unexpected order | `node_binding: none` strategy competing against node-binding strategies in Stage 2 | `node_binding: none` strategies are Stage 1 only; ensure the consuming code picks from the right ranking list |
 | `ValueError` at startup: unknown strategy in phases | Strategy renamed in `strategies:` but not updated in `phases:` | Sync both sections; registry enforces referential integrity |
-| `ValueError` at startup: unbounded count signal in signal_weights | `graph.node_count`, `graph.edge_count`, or `graph.orphan_count` used as weight key | Remove the raw count key; use a normalized or binned variant |
+| `ValueError` at startup: unbounded count signal in signal_weights | `convgraph.state.node.count`, `convgraph.state.edge.count`, or `convgraph.state.node.orphan_count` used as weight key | Remove the raw count key; use a normalized or binned variant |
 | `valid_when` strategy never fires | `valid_when` references a known signal but the signal is never True for any node | Check that chain topology signals are computed (methodology must be chain-based, graph must have nodes) |
 | `valid_when` strategy never fires despite signal returning truthy float | `gate_value is not True` identity check rejects floats (e.g. `branching_deficit=1.0` is truthy but `1.0 is True` is `False` in Python) | Use truthiness check: `if not gate_value` — handles bool, float, and None correctly. Fixed in `scoring.py` 2026-04-14. |
 | New strategy scores near zero despite valid_when passing | Chain topology signal sub-keys not resolving | Ensure flat sentinel classes are imported via `src/signals/__init__.py`; check flattening in `NodeSignalDetectionService` |
 | Legacy strategy name (`deepen`, `explore`, `clarify`, `reflect`) in YAML or code | These strategies were removed from MEC methodologies | Replace with the appropriate chain-aware strategy (see 7 MEC Strategies table above) |
-| Legacy LLM signal key (`llm.response_depth`, `llm.specificity`, `llm.valence`, `llm.intellectual_engagement`) in YAML weights | f965 migration replaced these with per-concept signals | Map to per-concept equivalents: `response_depth` → `graph.node.elaboration.*`; `specificity` → `graph.node.elaboration.*`; `valence` → `graph.node.charge.*`; `intellectual_engagement` → split across `elaboration` and `charge` |
+| Legacy LLM signal key (`response.semantic.response.semantic.llm.response_depth`, `llm.specificity`, `llm.valence`, `llm.intellectual_engagement`) in YAML weights | f965 migration replaced these with per-concept signals | Map to per-concept equivalents: `response_depth` → `convgraph.node.response.semantic.llm.elaboration.*`; `specificity` → `convgraph.node.response.semantic.llm.elaboration.*`; `valence` → `convgraph.node.response.semantic.llm.charge.*`; `intellectual_engagement` → split across `elaboration` and `charge` |
 | Revitalize selected too aggressively | `score_threshold` too high, causing low-scoring but valid strategies to be bypassed | Lower `chain_completion.score_threshold` in YAML (production: 0.15) |
 
 ---

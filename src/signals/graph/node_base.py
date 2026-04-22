@@ -24,7 +24,7 @@ class NodeSignalDetector(SignalDetector):
 
     Example:
         class NodeExhaustedSignal(NodeSignalDetector):
-            signal_name = "graph.node.exhausted"
+            signal_name = "convgraph.node.exhausted"
             requires_node_tracker = True  # Mark as node-level signal
 
             async def detect(self, context, graph_state, response_text):
@@ -35,7 +35,7 @@ class NodeSignalDetector(SignalDetector):
 
     Attributes:
         node_tracker: NodeStateTracker instance for accessing node states (always set)
-        signal_name: Namespaced signal name (e.g., "graph.node.exhausted")
+        signal_name: Namespaced signal name (e.g., "convgraph.node.exhausted")
         requires_node_tracker: Marker for node-level signals (class attribute)
     """
 

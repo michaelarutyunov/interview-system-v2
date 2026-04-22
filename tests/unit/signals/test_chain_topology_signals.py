@@ -92,7 +92,7 @@ class TestCompleteChain:
 
     @pytest.mark.asyncio
     async def test_complete_chain_no_gaps(self):
-        """A complete chain A→B→C→D→E has no gap_above or gap_below."""
+        """A complete chain A→B→C→D→E has no gap.above or gap.below."""
         # Complete chain: attribute → functional → psychosocial → instrumental → terminal
         nodes = [
             MockNode("a", "attribute"),
@@ -144,15 +144,15 @@ class TestCompleteChain:
 
         # All nodes should have all signal fields
         for node_id in topology:
-            assert "gap_above" in topology[node_id]
-            assert "gap_below" in topology[node_id]
-            assert "level_skip" in topology[node_id]
+            assert "gap.above" in topology[node_id]
+            assert "gap.below" in topology[node_id]
+            assert "level.skip" in topology[node_id]
             assert "branching_deficit" in topology[node_id]
             assert "fan_in" in topology[node_id]
-            assert "level_gap_size" in topology[node_id]
+            assert "level.gap_size" in topology[node_id]
 
         # No level_skip in a proper chain
-        assert all(not topology[n]["level_skip"] for n in topology)
+        assert all(not topology[n]["level.skip"] for n in topology)
 
         # fan_in: all nodes except origin have 1 fan_in
         assert topology["a"]["fan_in"] == 0  # origin
@@ -163,11 +163,11 @@ class TestCompleteChain:
 
 
 class TestLevelSkip:
-    """Tests for level_skip detection when edges skip ontology levels."""
+    """Tests for level.skip detection when edges skip ontology levels."""
 
     @pytest.mark.asyncio
     async def test_level_skip_detected(self):
-        """An edge that skips >1 level triggers level_skip=True."""
+        """An edge that skips >1 level triggers level.skip=True."""
         nodes = [
             MockNode("a", "attribute"),  # level 1
             MockNode("c", "psychosocial_consequence"),  # level 3
@@ -202,7 +202,7 @@ class TestLevelSkip:
         topology = result
 
         # "a" has an edge skipping from level 1 to level 3
-        assert topology["a"]["level_skip"] is True
+        assert topology["a"]["level.skip"] is True
 
 
 class TestFanIn:
@@ -326,7 +326,7 @@ class TestOrphanNode:
         assert topology["orphan"]["fan_in"] == 0
 
         # No level_skip with no edges
-        assert topology["orphan"]["level_skip"] is False
+        assert topology["orphan"]["level.skip"] is False
 
 
 class TestEmptyGraph:
@@ -361,7 +361,7 @@ class TestEmptyGraph:
 
             result = await detector.detect(ctx, MagicMock(), "")
 
-        assert result == {"graph.node.chain_topology": {}}
+        assert result == {"convgraph.node.chain.role": {}}
 
 
 class TestNonLeadsToEdges:
@@ -457,18 +457,18 @@ class TestIncompleteChain:
 
         # Verify signal fields exist
         for node_id in topology:
-            assert "gap_above" in topology[node_id]
-            assert "gap_below" in topology[node_id]
-            assert "level_skip" in topology[node_id]
+            assert "gap.above" in topology[node_id]
+            assert "gap.below" in topology[node_id]
+            assert "level.skip" in topology[node_id]
             assert "branching_deficit" in topology[node_id]
             assert "fan_in" in topology[node_id]
-            assert "level_gap_size" in topology[node_id]
-            assert "chain.has_attribute_foundation" in topology[node_id]
-            assert "chain.has_terminal_apex" in topology[node_id]
+            assert "level.gap_size" in topology[node_id]
+            assert "has_attribute_foundation" in topology[node_id]
+            assert "has_terminal_apex" in topology[node_id]
 
 
 class TestChainLifecycleSignals:
-    """Tests for chain.has_attribute_foundation and chain.has_terminal_apex."""
+    """Tests for has_attribute_foundation and has_terminal_apex."""
 
     @pytest.mark.asyncio
     async def test_complete_chain_lifecycle(self):
@@ -515,8 +515,8 @@ class TestChainLifecycleSignals:
         # all nodes in a complete chain can reach both an attribute (downward)
         # and a terminal (upward), including the attribute and terminal themselves
         for node_id in ["a", "b", "c", "d", "e"]:
-            assert topology[node_id]["chain.has_attribute_foundation"] is True
-            assert topology[node_id]["chain.has_terminal_apex"] is True
+            assert topology[node_id]["has_attribute_foundation"] is True
+            assert topology[node_id]["has_terminal_apex"] is True
 
     @pytest.mark.asyncio
     async def test_floating_consequence_no_foundation(self):
@@ -554,10 +554,10 @@ class TestChainLifecycleSignals:
 
         topology = result
 
-        assert topology["b"]["chain.has_attribute_foundation"] is False
-        assert topology["b"]["chain.has_terminal_apex"] is False
-        assert topology["c"]["chain.has_attribute_foundation"] is False
-        assert topology["c"]["chain.has_terminal_apex"] is False
+        assert topology["b"]["has_attribute_foundation"] is False
+        assert topology["b"]["has_terminal_apex"] is False
+        assert topology["c"]["has_attribute_foundation"] is False
+        assert topology["c"]["has_terminal_apex"] is False
 
     @pytest.mark.asyncio
     async def test_grounded_but_no_terminal(self):
@@ -595,10 +595,10 @@ class TestChainLifecycleSignals:
 
         topology = result
 
-        assert topology["a"]["chain.has_attribute_foundation"] is True
-        assert topology["a"]["chain.has_terminal_apex"] is False
-        assert topology["b"]["chain.has_attribute_foundation"] is True
-        assert topology["b"]["chain.has_terminal_apex"] is False
+        assert topology["a"]["has_attribute_foundation"] is True
+        assert topology["a"]["has_terminal_apex"] is False
+        assert topology["b"]["has_attribute_foundation"] is True
+        assert topology["b"]["has_terminal_apex"] is False
 
     @pytest.mark.asyncio
     async def test_terminal_without_attribute(self):
@@ -636,10 +636,10 @@ class TestChainLifecycleSignals:
 
         topology = result
 
-        assert topology["c"]["chain.has_attribute_foundation"] is False
-        assert topology["c"]["chain.has_terminal_apex"] is True
-        assert topology["e"]["chain.has_attribute_foundation"] is False
-        assert topology["e"]["chain.has_terminal_apex"] is True
+        assert topology["c"]["has_attribute_foundation"] is False
+        assert topology["c"]["has_terminal_apex"] is True
+        assert topology["e"]["has_attribute_foundation"] is False
+        assert topology["e"]["has_terminal_apex"] is True
 
     @pytest.mark.asyncio
     async def test_branched_chains_keep_lifecycle(self):
@@ -684,5 +684,5 @@ class TestChainLifecycleSignals:
         topology = result
 
         for node_id in ["a1", "a2", "b", "c", "e"]:
-            assert topology[node_id]["chain.has_attribute_foundation"] is True
-            assert topology[node_id]["chain.has_terminal_apex"] is True
+            assert topology[node_id]["has_attribute_foundation"] is True
+            assert topology[node_id]["has_terminal_apex"] is True

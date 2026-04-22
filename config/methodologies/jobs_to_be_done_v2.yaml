@@ -26,7 +26,7 @@
 #     (level 1) for emotional_job and social_job
 #   - level_skip unlikely to fire (only 2 levels), so bridge strategy is omitted
 #   - branching_deficit would only apply at level 0, omitted for simplicity
-#   - graph.node.chain.has_attribute_foundation / has_terminal_apex retained for
+#   - convgraph.node.chain.has_attribute_foundation / has_terminal_apex retained for
 #     structural grounding checks (checks whether chains have functional roots)
 #
 # Incompleteness tolerance:
@@ -200,40 +200,40 @@ ontology:
 
 signals:
   graph:
-    - graph.node_count
-    - graph.max_depth
-    - graph.orphan_count
-    - graph.chain_completion
+    - convgraph.state.node.count
+    - convgraph.state.max_depth
+    - convgraph.state.node.orphan_count
+    - convgraph.chain.completion
     # Canonical graph signals (experimental)
-    - graph.canonical_concept_count
-    - graph.canonical_edge_density
-    - graph.canonical_exhaustion_score
-    # Note: Node-level chain topology signals (graph.node.gap_above, gap_below,
+    - canongraph.state.node.count
+    - canongraph.state.edge.density
+    - canongraph.state.exhaustion
+    # Note: Node-level chain topology signals (convgraph.node.chain.gap.above, gap_below,
     # is_orphan, etc.) are auto-discovered from strategy signal_weights and
     # do not need to be listed here.
     # f965 — per-concept-derived node signals:
-    - graph.node.elaboration
-    - graph.node.charge
-    - graph.node.has_quality_data
+    - convgraph.node.response.semantic.llm.elaboration
+    - convgraph.node.response.semantic.llm.charge
+    - convgraph.node.llm.has_quality_data
 
   llm:
-    - llm.certainty
-    - llm.engagement
-    - llm.elaboration
-    - llm.charge
-    # Note: llm.global_response_trend is session-scoped and managed separately
+    - response.semantic.llm.certainty
+    - response.semantic.llm.engagement
+    - response.semantic.llm.elaboration
+    - response.semantic.llm.charge
+    # Note: response.semantic.response.semantic.llm.engagement.trend is session-scoped and managed separately
     # Per-concept LLM signals (elaboration, charge) produce per-concept ratings that route to graph.node.* via Stage 6 bridge.
 
   temporal:
-    - temporal.strategy_repetition_count
-    - temporal.turns_since_strategy_change
+    - interview.strategy.self_count
+    - interview.strategy.turns_since_change
 
   meta:
-    - meta.interview.phase
-    - meta.conversation.saturation
-    - meta.canonical.saturation
+    - interview.phase
+    - meta.saturation.conversation
+    - meta.saturation.canonical
     # Note: meta.interview_progress is intentionally excluded from JTBD.
-    # Replaced by meta.conversation.saturation and meta.canonical.saturation
+    # Replaced by meta.saturation.conversation and meta.saturation.canonical
     # which are information-velocity-based rather than structural.
 
 strategies:
@@ -246,29 +246,29 @@ strategies:
     description: "Explore new aspects of the respondent's experience — situations, contexts, and jobs that haven't been discussed yet"
     signal_weights:
       # Fatigue detection — suppress exploration during declining quality
-      llm.global_response_trend.fatigued: -0.6
-      llm.global_response_trend.shallowing: -0.4
+      response.semantic.response.semantic.llm.engagement.trend.fatigued: -0.6
+      response.semantic.response.semantic.llm.engagement.trend.shallowing: -0.4
       # Engagement — moderate engagement = breadth is productive
-      llm.engagement.mid: 0.4
-      llm.engagement.low: -0.3              # Disengaged respondent = don't explore
+      response.semantic.llm.engagement.mid: 0.4
+      response.semantic.llm.engagement.low: -0.3              # Disengaged respondent = don't explore
       # Novelty — favor fresh, unexplored territory
-      graph.node.novelty.high: 0.6          # Recently-created nodes = rich territory
-      graph.node.novelty.medium: 0.3
-      graph.node.focus_streak.none: 0.6     # Nodes never focused on = prime targets
-      graph.node.focus_streak.medium: -0.4
-      graph.node.focus_streak.high: -0.7
-      graph.node.focus_count.none: 0.3
-      graph.node.focus_count.medium: -0.3
-      graph.node.focus_count.high: -0.6
-      graph.node.canonical_novelty.new: 0.5
-      graph.node.canonical_novelty.orphan: 0.3
-      graph.node.yield_stagnation.false: 0.5  # Nodes still yielding = productive
-      graph.node.exhaustion_score.low: 0.4    # Avoid exhausted nodes
+      convgraph.node.novelty.high: 0.6          # Recently-created nodes = rich territory
+      convgraph.node.novelty.medium: 0.3
+      convgraph.node.focus.streak.none: 0.6     # Nodes never focused on = prime targets
+      convgraph.node.focus.streak.medium: -0.4
+      convgraph.node.focus.streak.high: -0.7
+      convgraph.node.focus.count.none: 0.3
+      convgraph.node.focus.count.medium: -0.3
+      convgraph.node.focus.count.high: -0.6
+      canonconvgraph.node.novelty.new: 0.5
+      canonconvgraph.node.novelty.orphan: 0.3
+      convgraph.node.yield_stagnation.false: 0.5  # Nodes still yielding = productive
+      convgraph.node.exhaustion.low: 0.4    # Avoid exhausted nodes
       # Repetition brake — prevent elaborate monoculture
-      temporal.strategy_repetition_count: -0.7
+      interview.strategy.self_count: -0.7
       # f965: specificity.low (0.4) + response_depth.surface (0.4) + response_depth.shallow (0.3)
-      # all map to graph.node.elaboration.low → merged 1.1 (preserves strong trigger intent)
-      graph.node.elaboration.low: 1.1
+      # all map to convgraph.node.response.semantic.llm.elaboration.low → merged 1.1 (preserves strong trigger intent)
+      convgraph.node.response.semantic.llm.elaboration.low: 1.1
 
   # Strategy 2: Ascend — move from functional job toward emotional/social driver
   # Replaces legacy dig_motivation. Binds to nodes with gap_above (functional
@@ -276,29 +276,29 @@ strategies:
   # JTBD's "why does that matter?" laddering question.
   - name: ascend
     node_binding: required
-    valid_when: graph.node.gap_above
+    valid_when: convgraph.node.chain.gap.above
     description: "Ladder from a functional job toward its emotional or social driver by asking why the job matters to the respondent"
     signal_weights:
       # Structural signal — gap_above is the primary trigger
-      graph.node.gap_above.true: 0.25
+      convgraph.node.chain.gap.above.true: 0.25
       # Recency — prefer recently-discussed nodes for natural laddering flow
-      graph.node.recency_score: 0.2
+      convgraph.node.recency: 0.2
       # Exhaustion — avoid nodes already thoroughly explored
-      graph.node.exhaustion_score: -0.6
-      graph.node.focus_count.high: -0.4
-      graph.node.focus_count.medium: -0.2
+      convgraph.node.exhaustion: -0.6
+      convgraph.node.focus.count.high: -0.4
+      convgraph.node.focus.count.medium: -0.2
       # Chain foundation — T2 calibration: reduced from 0.4 to 0.2 to prevent ground dominance
-      graph.node.chain.has_attribute_foundation.true: 0.2
-      graph.node.chain.has_attribute_foundation.false: -0.5
+      convgraph.node.chain.has_attribute_foundation.true: 0.2
+      convgraph.node.chain.has_attribute_foundation.false: -0.5
       # Engagement — engaged respondent = safe to probe deeper
-      llm.engagement.low: -0.3
+      response.semantic.llm.engagement.low: -0.3
       # f965: intellectual_engagement.high (0.2) → 0.5× elaboration.high + 0.5× charge.positive
-      graph.node.elaboration.high: 0.1
-      graph.node.charge.positive: 0.1
+      convgraph.node.response.semantic.llm.elaboration.high: 0.1
+      convgraph.node.response.semantic.llm.charge.positive: 0.1
       # f965: response_depth.surface (0.1) + response_depth.shallow (0.05) → elaboration.low 0.15
-      graph.node.elaboration.low: 0.15
+      convgraph.node.response.semantic.llm.elaboration.low: 0.15
       # Mild repetition brake
-      temporal.strategy_repetition_count: -0.15
+      interview.strategy.self_count: -0.15
 
   # Strategy 3: Ground — find functional antecedents for emotional/social jobs
   # Replaces legacy uncover_obstacles. Binds to nodes with gap_below (terminal
@@ -306,22 +306,22 @@ strategies:
   # causes this feeling/social need?"
   - name: ground
     node_binding: required
-    valid_when: graph.node.gap_below
+    valid_when: convgraph.node.chain.gap.below
     description: "Ground an emotional or social job by exploring what functional circumstances, triggers, or job statements lead to it"
     signal_weights:
       # Structural signal — gap_below is the primary trigger
-      graph.node.gap_below.true: 0.3
+      convgraph.node.chain.gap.below.true: 0.3
       # Recency — prefer recently-mentioned terminal nodes
-      graph.node.recency_score: 0.25
+      convgraph.node.recency: 0.25
       # Exhaustion — avoid over-probed nodes
-      graph.node.exhaustion_score: -0.4
+      convgraph.node.exhaustion: -0.4
       # Chain foundation — prioritize ungrounded chains (no functional roots)
-      graph.node.chain.has_attribute_foundation.false: 0.4
-      graph.node.chain.has_attribute_foundation.true: -0.2
-      # f965: llm.response_depth.deep (0.05) → graph.node.elaboration.high
-      graph.node.elaboration.high: 0.05
+      convgraph.node.chain.has_attribute_foundation.false: 0.4
+      convgraph.node.chain.has_attribute_foundation.true: -0.2
+      # f965: response.semantic.llm.response_depth.deep (0.05) → convgraph.node.response.semantic.llm.elaboration.high
+      convgraph.node.response.semantic.llm.elaboration.high: 0.05
       # Mild repetition brake
-      temporal.strategy_repetition_count: -0.15
+      interview.strategy.self_count: -0.15
 
   # Strategy 4: Probe pain — identify frustrations and obstacles at orphan nodes
   # Replaces parts of legacy probe_alternatives and uncover_obstacles. Uses
@@ -330,58 +330,58 @@ strategies:
   # the graph.
   - name: probe_pain
     node_binding: required
-    valid_when: graph.node.is_orphan
+    valid_when: convgraph.node.is_orphan
     description: "Explore frustrations, obstacles, or unmet needs at isolated concepts — connect them to existing jobs and situations"
     signal_weights:
       # Structural signal — orphan node is the trigger
-      graph.node.is_orphan.true: 0.50
+      convgraph.node.is_orphan.true: 0.50
       # Recency — prefer recently-mentioned orphans
-      graph.node.recency_score: 0.2
+      convgraph.node.recency: 0.2
       # Exhaustion — avoid exhausted nodes even if orphan
-      graph.node.exhaustion_score: -0.4
+      convgraph.node.exhaustion: -0.4
       # f965: valence.low (0.3) → charge.negative; valence.mid (0.1) dropped (neutral band contributes 0)
-      graph.node.charge.negative: 0.3
-      # f965: specificity.high (0.2) → graph.node.elaboration.high
-      graph.node.elaboration.high: 0.2
+      convgraph.node.response.semantic.llm.charge.negative: 0.3
+      # f965: specificity.high (0.2) → convgraph.node.response.semantic.llm.elaboration.high
+      convgraph.node.response.semantic.llm.elaboration.high: 0.2
       # Novelty — newly-created orphan nodes are most likely pain points
-      graph.node.novelty.high: 0.4
-      graph.node.canonical_novelty.new: 0.5
-      graph.node.canonical_novelty.orphan: 0.3
+      convgraph.node.novelty.high: 0.4
+      canonconvgraph.node.novelty.new: 0.5
+      canonconvgraph.node.novelty.orphan: 0.3
       # Focus freshness — prefer never-explored orphans
-      graph.node.focus_streak.none: 0.5
-      graph.node.focus_streak.medium: -0.3
-      graph.node.focus_streak.high: -0.6
-      graph.node.focus_count.none: 0.3
-      graph.node.focus_count.medium: -0.3
-      graph.node.focus_count.high: -0.6
+      convgraph.node.focus.streak.none: 0.5
+      convgraph.node.focus.streak.medium: -0.3
+      convgraph.node.focus.streak.high: -0.6
+      convgraph.node.focus.count.none: 0.3
+      convgraph.node.focus.count.medium: -0.3
+      convgraph.node.focus.count.high: -0.6
       # Mild repetition brake
-      temporal.strategy_repetition_count: -0.15
+      interview.strategy.self_count: -0.15
 
   # Strategy 5: Anchor — connect isolated concepts to existing graph structure
   # Replaces parts of legacy clarify_assumption. Pure structural strategy that
   # asks how an orphan node relates to existing jobs, contexts, or outcomes.
   - name: anchor
     node_binding: required
-    valid_when: graph.node.is_orphan
+    valid_when: convgraph.node.is_orphan
     description: "Connect an isolated concept to the existing graph by exploring how it relates to other known jobs, contexts, or outcomes"
     signal_weights:
       # Structural signal — orphan node is the trigger
-      graph.node.is_orphan.true: 0.35
+      convgraph.node.is_orphan.true: 0.35
       # Recency — prefer recent orphans
-      graph.node.recency_score: 0.2
+      convgraph.node.recency: 0.2
       # Exhaustion — avoid exhausted orphans
-      graph.node.exhaustion_score: -0.2
+      convgraph.node.exhaustion: -0.2
       # Engagement — need respondent engagement for relational questions
-      llm.engagement.high: 0.1
-      llm.engagement.low: -0.3
+      response.semantic.llm.engagement.high: 0.1
+      response.semantic.llm.engagement.low: -0.3
       # Novelty — fresh orphans are more interesting
-      graph.node.novelty.high: 0.3
-      graph.node.canonical_novelty.new: 0.3
+      convgraph.node.novelty.high: 0.3
+      canonconvgraph.node.novelty.new: 0.3
       # Focus freshness — prefer unexplored orphans
-      graph.node.focus_streak.none: 0.3
-      graph.node.focus_count.none: 0.2
+      convgraph.node.focus.streak.none: 0.3
+      convgraph.node.focus.count.none: 0.2
       # Mild repetition brake
-      temporal.strategy_repetition_count: -0.15
+      interview.strategy.self_count: -0.15
 
   # Strategy 6: Revitalize — conversation-level fatigue fallback
   # Same pattern as MEC strict's revitalize. No valid_when gate, no node binding.
@@ -391,35 +391,35 @@ strategies:
     description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
     signal_weights:
       # Fatigue detection triggers
-      llm.global_response_trend.fatigued: 1.0
-      llm.global_response_trend.shallowing: 0.8
+      response.semantic.response.semantic.llm.engagement.trend.fatigued: 1.0
+      response.semantic.response.semantic.llm.engagement.trend.shallowing: 0.8
       meta.node.opportunity.exhausted: 0.3
       # Engagement & valence triggers
-      llm.engagement.low: 0.8
-      llm.engagement.mid: 0.4
-      llm.engagement.high: -0.4
+      response.semantic.llm.engagement.low: 0.8
+      response.semantic.llm.engagement.mid: 0.4
+      response.semantic.llm.engagement.high: -0.4
       # f965: valence.low (0.5) + intellectual_engagement.low × 0.5 (0.1) → charge.negative 0.6
-      graph.node.charge.negative: 0.6
+      convgraph.node.response.semantic.llm.charge.negative: 0.6
       # f965: intellectual_engagement.low × 0.5 (0.1) → elaboration.low (merged with specificity.low below)
       # Repetition — T2 + Critique: FLIPPED from +0.15 to -0.5
       # The +0.15 "escape valve" created runaway loops with brief responders:
       # brief → fatigue signal → revitalize → still brief → revitalize again
-      temporal.strategy_repetition_count: -0.5
+      interview.strategy.self_count: -0.5
       # High-streak brake: prevent revitalize loops at 3+ consecutive
-      temporal.strategy_repetition_count.high: -1.0
+      interview.strategy.self_count.high: -1.0
       # f965: specificity.low (-0.2) + intellectual_engagement.low × 0.5 (0.1) → elaboration.low -0.1
-      graph.node.elaboration.low: -0.1
+      convgraph.node.response.semantic.llm.elaboration.low: -0.1
       # Late-phase suppression — allow structural strategies to re-assert
-      meta.interview.phase.late: -0.5
+      interview.phase.late: -0.5
       # Node-level signals — favor fresh territory
-      graph.node.focus_streak.none: 0.8
-      graph.node.focus_streak.medium: -0.4
-      graph.node.focus_streak.high: -0.7
-      graph.node.exhaustion_score.low: 0.5
-      graph.node.novelty.high: 0.4
-      graph.node.focus_count.high: -0.6
-      graph.node.focus_count.medium: -0.3
-      graph.node.focus_count.none: 0.3
+      convgraph.node.focus.streak.none: 0.8
+      convgraph.node.focus.streak.medium: -0.4
+      convgraph.node.focus.streak.high: -0.7
+      convgraph.node.exhaustion.low: 0.5
+      convgraph.node.novelty.high: 0.4
+      convgraph.node.focus.count.high: -0.6
+      convgraph.node.focus.count.medium: -0.3
+      convgraph.node.focus.count.none: 0.3
 
   # Strategy 7: Validate — late-phase closing strategy
   # Replaces legacy validate_outcome. Heavy early/mid phase gate (-3.0) prevents
@@ -433,31 +433,31 @@ strategies:
       # Late-stage gate: prevent premature interview termination
       # generates_closing_question=true means this strategy ENDS the interview,
       # so it must not win before late phase. -3.0 overwhelms any positive triggers.
-      meta.interview.phase.early: -3.0
-      meta.interview.phase.mid: -3.0
+      interview.phase.early: -3.0
+      interview.phase.mid: -3.0
       # Saturation triggers — high saturation = ready to validate
-      meta.conversation.saturation: 0.3
-      meta.canonical.saturation: 0.2
+      meta.saturation.conversation: 0.3
+      meta.saturation.canonical: 0.2
       # Uncertainty/hedging triggers — uncertain respondent = validate to confirm
-      llm.certainty.low: 1.0
-      llm.certainty.mid: 0.7
+      response.semantic.llm.certainty.low: 1.0
+      response.semantic.llm.certainty.mid: 0.7
       # Engagement — low engagement suggests wrapping up
-      llm.engagement.low: 0.6
+      response.semantic.llm.engagement.low: 0.6
       # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
-      graph.node.elaboration.high: 0.3
-      graph.node.elaboration.mid: 0.2
+      convgraph.node.response.semantic.llm.elaboration.high: 0.3
+      convgraph.node.response.semantic.llm.elaboration.mid: 0.2
       # Node-level — prefer well-connected nodes for validation
-      graph.node.has_outgoing.true: 0.4
-      graph.node.focus_streak.high: 0.5      # Often-focused = good summary target
-      graph.node.novelty.high: 0.1
-      graph.node.focus_count.high: -0.4       # But not so overused it's stale
-      graph.node.focus_count.medium: -0.2
-      graph.node.canonical_novelty.confirming: 0.2
+      convgraph.node.has_outgoing.true: 0.4
+      convgraph.node.focus.streak.high: 0.5      # Often-focused = good summary target
+      convgraph.node.novelty.high: 0.1
+      convgraph.node.focus.count.high: -0.4       # But not so overused it's stale
+      convgraph.node.focus.count.medium: -0.2
+      canonconvgraph.node.novelty.confirming: 0.2
       # Node extraction opportunity
       meta.node.opportunity.probe_deeper: 0.6
       # Strategy repetition — lighter penalty; OK to re-validate
-      technique.node.strategy_repetition.low: 0.3
-      temporal.strategy_repetition_count: -0.7
+      interview.focus.streak.low: 0.3
+      interview.strategy.self_count: -0.7
 
 chain_completion:
   expected_branching:

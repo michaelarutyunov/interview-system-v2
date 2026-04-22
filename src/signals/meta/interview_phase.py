@@ -29,12 +29,12 @@ class InterviewPhaseSignal(SignalDetector):
     allowing the system to prioritize different strategies based on interview
     maturity (e.g., exploration early, deepening mid, validation late).
 
-    Namespaced signal: meta.interview.phase
+    Namespaced signal: interview.phase
     Cost: low (reads context.turn_number and context.max_turns)
     Refresh: per_turn (recomputed each turn)
     """
 
-    signal_name = "meta.interview.phase"
+    signal_name = "interview.phase"
     description = "Current interview phase: 'early', 'mid', or 'late'. Phase boundaries are automatically calculated from max_turns: early=~10%, mid=max_turns-2, late=last 2 turns."
 
     # Proportional phase allocation constants
@@ -82,9 +82,9 @@ class InterviewPhaseSignal(SignalDetector):
         Returns:
             Dict with phase, phase_reason, and is_late_stage signals:
             {
-                "meta.interview.phase": "early" | "mid" | "late",
-                "meta.interview.phase_reason": str,
-                "meta.interview.is_late_stage": bool,
+                "interview.phase": "early" | "mid" | "late",
+                "interview.phase.reason": str,
+                "interview.phase.is_late_stage": bool,
             }
         """
         # Calculate phase boundaries proportionally from max_turns
@@ -109,8 +109,8 @@ class InterviewPhaseSignal(SignalDetector):
 
         return {
             self.signal_name: phase,
-            "meta.interview.phase_reason": phase_reason,
-            "meta.interview.is_late_stage": phase == "late",
+            "interview.phase.reason": phase_reason,
+            "interview.phase.is_late_stage": phase == "late",
         }
 
     def _get_phase_boundaries(self, context) -> dict:
@@ -130,7 +130,9 @@ class InterviewPhaseSignal(SignalDetector):
             from src.core.config import interview_config
 
             phases = interview_config.phases
-            exploratory_n = (phases.exploratory.n_turns or 0) if phases.exploratory else 0
+            exploratory_n = (
+                (phases.exploratory.n_turns or 0) if phases.exploratory else 0
+            )
             focused_n = (phases.focused.n_turns or 0) if phases.focused else 0
             closing_n = (phases.closing.n_turns or 0) if phases.closing else 0
             total_yaml_turns = exploratory_n + focused_n + closing_n

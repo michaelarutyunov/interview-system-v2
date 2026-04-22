@@ -61,8 +61,8 @@ async def test_detect_returns_dict_with_expected_keys(
         ) as mock_create_detector:
             mock_detector = AsyncMock()
             mock_detector.detect.return_value = {
-                "llm.response_depth": "deep",
-                "graph.node_count": 5,
+                "response.semantic.llm.response_depth": "deep",
+                "convgraph.state.node.count": 5,
             }
             mock_create_detector.return_value = mock_detector
 
@@ -73,7 +73,9 @@ async def test_detect_returns_dict_with_expected_keys(
                 "detect",
                 new_callable=AsyncMock,
             ) as mock_trend_detect:
-                mock_trend_detect.return_value = {"llm.global_response_trend": "stable"}
+                mock_trend_detect.return_value = {
+                    "response.semantic.llm.engagement.trend": "stable"
+                }
 
                 # Call detect
                 result = await global_signal_service.detect(
@@ -85,10 +87,10 @@ async def test_detect_returns_dict_with_expected_keys(
 
                 # Verify result structure
                 assert isinstance(result, dict)
-                assert "llm.response_depth" in result
-                assert "llm.global_response_trend" in result
-                assert result["llm.response_depth"] == "deep"
-                assert result["llm.global_response_trend"] == "stable"
+                assert "response.semantic.llm.response_depth" in result
+                assert "response.semantic.llm.engagement.trend" in result
+                assert result["response.semantic.llm.response_depth"] == "deep"
+                assert result["response.semantic.llm.engagement.trend"] == "stable"
 
 
 @pytest.mark.asyncio

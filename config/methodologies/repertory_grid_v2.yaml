@@ -192,40 +192,40 @@ ontology:
 
 signals:
   graph:
-    - graph.node_count
-    - graph.edge_count              # Primary quality metric for RG (dense grid = good)
-    - graph.orphan_count
-    - graph.max_depth               # Less meaningful for RG but still tracked
+    - convgraph.state.node.count
+    - convgraph.state.edge.count              # Primary quality metric for RG (dense grid = good)
+    - convgraph.state.node.orphan_count
+    - convgraph.state.max_depth               # Less meaningful for RG but still tracked
     # Canonical graph signals
-    - graph.canonical_concept_count
-    - graph.canonical_edge_density  # Especially important for RG grid density
-    - graph.canonical_exhaustion_score
+    - canongraph.state.node.count
+    - canongraph.state.edge.density  # Especially important for RG grid density
+    - canongraph.state.exhaustion
     # Note: Node-level signals (graph.node.*) are auto-discovered from strategy
     # signal_weights and do not need to be listed here.
     # Note: Chain topology signals (gap_above, gap_below, level_skip,
     # branching_deficit, fan_in, has_attribute_foundation, has_terminal_apex)
     # are deliberately excluded — they are meaningless for RG's flat ontology.
     # f965 — per-concept-derived node signals:
-    - graph.node.elaboration
-    - graph.node.charge
-    - graph.node.has_quality_data
+    - convgraph.node.response.semantic.llm.elaboration
+    - convgraph.node.response.semantic.llm.charge
+    - convgraph.node.llm.has_quality_data
 
   llm:
-    - llm.certainty
-    - llm.engagement
-    - llm.elaboration
-    - llm.charge
-    # Note: llm.global_response_trend is session-scoped and managed separately
+    - response.semantic.llm.certainty
+    - response.semantic.llm.engagement
+    - response.semantic.llm.elaboration
+    - response.semantic.llm.charge
+    # Note: response.semantic.response.semantic.llm.engagement.trend is session-scoped and managed separately
     # Per-concept LLM signals (elaboration, charge) produce per-concept ratings that route to graph.node.* via Stage 6 bridge.
 
   temporal:
-    - temporal.strategy_repetition_count
-    - temporal.turns_since_strategy_change
+    - interview.strategy.self_count
+    - interview.strategy.turns_since_change
 
   meta:
-    - meta.interview.phase
-    - meta.conversation.saturation
-    - meta.canonical.saturation
+    - interview.phase
+    - meta.saturation.conversation
+    - meta.saturation.canonical
 
 strategies:
   # ===================================================================
@@ -243,65 +243,65 @@ strategies:
     description: "Compare elements to surface personal constructs — ask how two are similar but different from a third."
     signal_weights:
       # Engagement: high engagement means productive comparing
-      llm.engagement.high: 0.5             # Productive comparing = keep eliciting
-      llm.engagement.mid: 0.3
-      llm.engagement.low: -0.4             # Disengaged = suppress triadic (comparison fatigue)
+      response.semantic.llm.engagement.high: 0.5             # Productive comparing = keep eliciting
+      response.semantic.llm.engagement.mid: 0.3
+      response.semantic.llm.engagement.low: -0.4             # Disengaged = suppress triadic (comparison fatigue)
       # Novelty: prefer new elements for fresh comparisons
-      graph.node.novelty.high: 0.4         # New elements = unexplored comparison material
-      graph.node.canonical_novelty.high: 0.3
+      convgraph.node.novelty.high: 0.4         # New elements = unexplored comparison material
+      canonconvgraph.node.novelty.high: 0.3
       # f965: response_depth.{deep,moderate,shallow} → elaboration.{high,mid,low}
-      graph.node.elaboration.high: 0.3
-      graph.node.elaboration.mid: 0.2
+      convgraph.node.response.semantic.llm.elaboration.high: 0.3
+      convgraph.node.response.semantic.llm.elaboration.mid: 0.2
       # Phase 4.2: FLIPPED from -0.2 to +0.4 (low elaboration → triadic needed to generate quality data)
-      graph.node.elaboration.low: 0.4
+      convgraph.node.response.semantic.llm.elaboration.low: 0.4
       # Certainty: uncertain = structured comparison helps clarify
-      llm.certainty.low: 0.3
-      llm.certainty.mid: 0.2
+      response.semantic.llm.certainty.low: 0.3
+      response.semantic.llm.certainty.mid: 0.2
       # Fatigue suppression
-      llm.global_response_trend.fatigued: -0.6   # Comparison fatigue is real in RG
-      llm.global_response_trend.shallowing: -0.3
+      response.semantic.response.semantic.llm.engagement.trend.fatigued: -0.6   # Comparison fatigue is real in RG
+      response.semantic.response.semantic.llm.engagement.trend.shallowing: -0.3
       # Repetition penalty: triadic is core but shouldn't dominate every turn
-      temporal.strategy_repetition_count: -0.5
+      interview.strategy.self_count: -0.5
       # Phase 4.2: added per-concept signal (no quality data → triadic needed to generate it)
-      graph.node.has_quality_data.false: 0.3
+      convgraph.node.llm.has_quality_data.false: 0.3
       # Node-level: orphan elements need constructs
-      graph.node.is_orphan.true: 0.7       # RG-specific: orphan elements = primary trigger
-      graph.node.focus_streak.none: 0.5    # Fresh elements preferred
-      graph.node.focus_streak.medium: -0.3
-      graph.node.focus_streak.high: -0.6
-      graph.node.exhaustion_score.low: 0.4
-      graph.node.focus_count.high: -0.4    # Over-probed elements = less comparison value
+      convgraph.node.is_orphan.true: 0.7       # RG-specific: orphan elements = primary trigger
+      convgraph.node.focus.streak.none: 0.5    # Fresh elements preferred
+      convgraph.node.focus.streak.medium: -0.3
+      convgraph.node.focus.streak.high: -0.6
+      convgraph.node.exhaustion.low: 0.4
+      convgraph.node.focus.count.high: -0.4    # Over-probed elements = less comparison value
 
   # ===================================================================
   # Strategy 2: explore_construct
   # Dig into what a construct means to the respondent personally.
-  # valid_when: graph.node.is_orphan — unexplained constructs are
+  # valid_when: convgraph.node.is_orphan — unexplained constructs are
   # the exploration target. Uses exhaustion_score (negative weight),
   # focus_streak (negative for high).
   # ===================================================================
   - name: explore_construct
     node_binding: required
-    valid_when: graph.node.is_orphan
+    valid_when: convgraph.node.is_orphan
     description: "Dig into what a construct means to the respondent personally — clarify subjective meaning for valid grid interpretation."
     signal_weights:
       # is_orphan gate handles the primary trigger; weights refine scoring
-      graph.node.is_orphan.true: 0.4       # Reinforce gate — orphan constructs need meaning
-      graph.node.recency_score: 0.2         # Prefer recently mentioned constructs
+      convgraph.node.is_orphan.true: 0.4       # Reinforce gate — orphan constructs need meaning
+      convgraph.node.recency: 0.2         # Prefer recently mentioned constructs
       # Exhaustion: suppress over-explored nodes
-      graph.node.exhaustion_score: -0.4     # Negative weight on raw score — exhausted nodes are poor targets
+      convgraph.node.exhaustion: -0.4     # Negative weight on raw score — exhausted nodes are poor targets
       # Focus streak: prefer fresh targets
-      graph.node.focus_streak.none: 0.4
-      graph.node.focus_streak.medium: -0.3
-      graph.node.focus_streak.high: -0.6    # Don't explore already-discussed constructs
+      convgraph.node.focus.streak.none: 0.4
+      convgraph.node.focus.streak.medium: -0.3
+      convgraph.node.focus.streak.high: -0.6    # Don't explore already-discussed constructs
       # LLM signals
       # f965: specificity.low (0.4) → elaboration.low
-      graph.node.elaboration.low: 0.4
+      convgraph.node.response.semantic.llm.elaboration.low: 0.4
       # f965: specificity.mid (0.2) + intellectual_engagement.mid (0.2) → elaboration.mid 0.4
-      graph.node.elaboration.mid: 0.4
-      llm.engagement.mid: 0.2
-      llm.engagement.low: -0.3              # Disengaged = probing meaning won't help
+      convgraph.node.response.semantic.llm.elaboration.mid: 0.4
+      response.semantic.llm.engagement.mid: 0.2
+      response.semantic.llm.engagement.low: -0.3              # Disengaged = probing meaning won't help
       # Phase 4.2: strengthened from -0.4 to -0.7 to prevent explore_construct dominance
-      temporal.strategy_repetition_count: -0.7
+      interview.strategy.self_count: -0.7
 
   # ===================================================================
   # Strategy 3: ladder_construct
@@ -318,27 +318,27 @@ strategies:
       #   response_depth.deep (0.25) + intellectual_engagement.high × 0.5 (0.15) → elaboration.high 0.40
       #   response_depth.moderate (0.2) + intellectual_engagement.mid (0.2) → elaboration.mid 0.40
       #   intellectual_engagement.high × 0.5 (0.15) + valence.high (0.2) → charge.positive 0.35
-      graph.node.elaboration.high: 0.40
-      graph.node.elaboration.mid: 0.40
-      graph.node.charge.positive: 0.35
+      convgraph.node.response.semantic.llm.elaboration.high: 0.40
+      convgraph.node.response.semantic.llm.elaboration.mid: 0.40
+      convgraph.node.response.semantic.llm.charge.positive: 0.35
       # Engagement: need engaged respondent for laddering
-      llm.engagement.high: 0.2
-      llm.engagement.mid: 0.2
-      llm.engagement.low: -0.5              # Disengaged = don't push "why?"
+      response.semantic.llm.engagement.high: 0.2
+      response.semantic.llm.engagement.mid: 0.2
+      response.semantic.llm.engagement.low: -0.5              # Disengaged = don't push "why?"
       # Certainty: confident evaluation = ready for "why?"
-      llm.certainty.high: 0.3
-      llm.certainty.mid: 0.2
+      response.semantic.llm.certainty.high: 0.3
+      response.semantic.llm.certainty.mid: 0.2
       # Node-level: prefer constructs with established context
-      graph.node.has_outgoing.true: 0.4     # Connected construct = ready to ladder
-      graph.node.recency_score: 0.2
-      graph.node.exhaustion_score: -0.4
-      graph.node.focus_streak.none: 0.3
-      graph.node.focus_streak.high: -0.7    # Avoid laddering loops
+      convgraph.node.has_outgoing.true: 0.4     # Connected construct = ready to ladder
+      convgraph.node.recency: 0.2
+      convgraph.node.exhaustion: -0.4
+      convgraph.node.focus.streak.none: 0.3
+      convgraph.node.focus.streak.high: -0.7    # Avoid laddering loops
       # Heavy repetition penalty — T2 + Critique: strengthened from -1.2 to -2.0
-      temporal.strategy_repetition_count: -2.0
+      interview.strategy.self_count: -2.0
       # Saturation suppression — pivot when themes exhausted
-      meta.canonical.saturation.high: -0.4
-      meta.conversation.saturation.high: -0.3
+      meta.saturation.canonical.high: -0.4
+      meta.saturation.conversation.high: -0.3
 
   # ===================================================================
   # Strategy 4: rate_elements
@@ -352,24 +352,24 @@ strategies:
     signal_weights:
       # f965: specificity.high (0.5) → elaboration.high;
       #       specificity.mid (0.3) + response_depth.moderate (0.2) → elaboration.mid 0.5
-      graph.node.elaboration.high: 0.5
-      graph.node.elaboration.mid: 0.5
+      convgraph.node.response.semantic.llm.elaboration.high: 0.5
+      convgraph.node.response.semantic.llm.elaboration.mid: 0.5
       # Certainty: confident respondent can give clear ratings
-      llm.certainty.high: 0.4
-      llm.certainty.mid: 0.3
+      response.semantic.llm.certainty.high: 0.4
+      response.semantic.llm.certainty.mid: 0.3
       # Engagement: rating is structured, works at moderate engagement
-      llm.engagement.mid: 0.3
-      llm.engagement.low: -0.3
+      response.semantic.llm.engagement.mid: 0.3
+      response.semantic.llm.engagement.low: -0.3
       # Node-level: prefer elements with construct connections to rate against
-      graph.node.has_outgoing.true: 0.5     # Element linked to constructs = rate it
-      graph.node.exhaustion_score: -0.3
-      graph.node.focus_streak.none: 0.3
+      convgraph.node.has_outgoing.true: 0.5     # Element linked to constructs = rate it
+      convgraph.node.exhaustion: -0.3
+      convgraph.node.focus.streak.none: 0.3
       # Phase 4.2: strengthened from -0.5 to -0.8 to prevent rate_elements dominance
-      graph.node.focus_streak.high: -0.8
+      convgraph.node.focus.streak.high: -0.8
       # Repetition penalty: moderate — rating is structured, respondents tolerate it
-      temporal.strategy_repetition_count: -0.5
+      interview.strategy.self_count: -0.5
       # Late phase boost
-      meta.interview.phase.late: 0.3
+      interview.phase.late: 0.3
 
   # ===================================================================
   # Strategy 5: explore_ideal
@@ -384,43 +384,43 @@ strategies:
     description: "Understand the ideal product specification — which construct poles define perfection, and which elements come closest."
     signal_weights:
       # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
-      graph.node.elaboration.high: 0.3
-      graph.node.elaboration.mid: 0.2
-      llm.certainty.high: 0.3               # Confident = can articulate ideals
-      llm.certainty.mid: 0.2
+      convgraph.node.response.semantic.llm.elaboration.high: 0.3
+      convgraph.node.response.semantic.llm.elaboration.mid: 0.2
+      response.semantic.llm.certainty.high: 0.3               # Confident = can articulate ideals
+      response.semantic.llm.certainty.mid: 0.2
       # Engagement
-      llm.engagement.high: 0.3
-      llm.engagement.mid: 0.2
-      llm.engagement.low: -0.3
+      response.semantic.llm.engagement.high: 0.3
+      response.semantic.llm.engagement.mid: 0.2
+      response.semantic.llm.engagement.low: -0.3
       # Saturation: high saturation supports ideal exploration
-      meta.conversation.saturation: 0.3
-      meta.canonical.saturation: 0.2
+      meta.saturation.conversation: 0.3
+      meta.saturation.canonical: 0.2
       # Node-level: prefer well-explored constructs
-      graph.node.has_outgoing.true: 0.4
-      graph.node.exhaustion_score: -0.2
+      convgraph.node.has_outgoing.true: 0.4
+      convgraph.node.exhaustion: -0.2
       # Repetition penalty: naturally rare, but avoid re-asking
-      temporal.strategy_repetition_count: -0.5
+      interview.strategy.self_count: -0.5
       # Heavy late-phase boost — T2 + Critique: reduced from 0.5 to 0.3 to allow validate to compete
-      meta.interview.phase.late: 0.3
+      interview.phase.late: 0.3
 
   # ===================================================================
   # Strategy 6: anchor
   # Connect isolated elements/constructs to the grid structure.
-  # valid_when: graph.node.is_orphan. Same structural role as MEC
+  # valid_when: convgraph.node.is_orphan. Same structural role as MEC
   # anchor but in RG context (connecting to grid, not chains).
   # ===================================================================
   - name: anchor
     node_binding: required
-    valid_when: graph.node.is_orphan
+    valid_when: convgraph.node.is_orphan
     description: "Connect an isolated element or construct to the grid structure by exploring how it relates to known constructs and elements."
     signal_weights:
-      graph.node.is_orphan.true: 0.5        # Orphan growth threshold — needs strengthening
-      graph.node.recency_score: 0.2
-      graph.node.exhaustion_score: -0.2
+      convgraph.node.is_orphan.true: 0.5        # Orphan growth threshold — needs strengthening
+      convgraph.node.recency: 0.2
+      convgraph.node.exhaustion: -0.2
       # Repetition penalty
-      temporal.strategy_repetition_count: -0.15
+      interview.strategy.self_count: -0.15
       # Engagement: anchoring works at moderate engagement
-      llm.engagement.mid: 0.1
+      response.semantic.llm.engagement.mid: 0.1
 
   # ===================================================================
   # Strategy 7: revitalize
@@ -432,30 +432,30 @@ strategies:
     description: "Shift to fresh element comparisons or new angles when respondent shows comparison fatigue."
     signal_weights:
       # Fatigue detection triggers
-      llm.global_response_trend.fatigued: 1.0
-      llm.global_response_trend.shallowing: 0.8
+      response.semantic.response.semantic.llm.engagement.trend.fatigued: 1.0
+      response.semantic.response.semantic.llm.engagement.trend.shallowing: 0.8
       meta.node.opportunity.exhausted: 0.3
       # Engagement & valence triggers
-      llm.engagement.low: 0.8
-      llm.engagement.mid: 0.4
-      llm.engagement.high: -0.4             # Already engaged = not needed
+      response.semantic.llm.engagement.low: 0.8
+      response.semantic.llm.engagement.mid: 0.4
+      response.semantic.llm.engagement.high: -0.4             # Already engaged = not needed
       # f965: valence.low (0.5) + intellectual_engagement.low × 0.5 (0.1) → charge.negative 0.6
-      graph.node.charge.negative: 0.6
+      convgraph.node.response.semantic.llm.charge.negative: 0.6
       # f965: specificity.low (-0.2) + intellectual_engagement.low × 0.5 (0.1) → elaboration.low -0.1
-      graph.node.elaboration.low: -0.1
+      convgraph.node.response.semantic.llm.elaboration.low: -0.1
       # Late phase: allow revitalize to compete
-      meta.interview.phase.late: -0.3       # Moderate suppression — still useful for RG fatigue
+      interview.phase.late: -0.3       # Moderate suppression — still useful for RG fatigue
       # Phase 4.2: FLIPPED from +0.15 to -0.5 (escape valve to brake, matching JTBD fix)
-      temporal.strategy_repetition_count: -0.5
+      interview.strategy.self_count: -0.5
       # Node-level signals: seek fresh territory
-      graph.node.focus_streak.none: 0.8
-      graph.node.focus_streak.medium: -0.4
-      graph.node.focus_streak.high: -0.7
-      graph.node.exhaustion_score.low: 0.5
-      graph.node.novelty.high: 0.4
-      graph.node.focus_count.high: -0.6
-      graph.node.focus_count.medium: -0.3
-      graph.node.focus_count.none: 0.3
+      convgraph.node.focus.streak.none: 0.8
+      convgraph.node.focus.streak.medium: -0.4
+      convgraph.node.focus.streak.high: -0.7
+      convgraph.node.exhaustion.low: 0.5
+      convgraph.node.novelty.high: 0.4
+      convgraph.node.focus.count.high: -0.6
+      convgraph.node.focus.count.medium: -0.3
+      convgraph.node.focus.count.none: 0.3
 
   # ===================================================================
   # Strategy 8: validate
@@ -471,26 +471,26 @@ strategies:
     description: "Summarize the construct grid — key dimensions, element ratings, and ideal — and invite correction or addition."
     signal_weights:
       # Heavy early/mid phase gates — T2 calibration: added to prevent premature validation
-      meta.interview.phase.early: -3.0
-      meta.interview.phase.mid: -3.0
+      interview.phase.early: -3.0
+      interview.phase.mid: -3.0
       # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
-      graph.node.elaboration.high: 0.3
-      graph.node.elaboration.mid: 0.2
+      convgraph.node.response.semantic.llm.elaboration.high: 0.3
+      convgraph.node.response.semantic.llm.elaboration.mid: 0.2
       # Uncertainty triggers: uncertain = good time to validate
-      llm.certainty.low: 0.6
-      llm.certainty.mid: 0.4
+      response.semantic.llm.certainty.low: 0.6
+      response.semantic.llm.certainty.mid: 0.4
       # Engagement: low engagement = pivot to summary
-      llm.engagement.low: 0.4
+      response.semantic.llm.engagement.low: 0.4
       # Node-level: well-connected nodes support validation
-      graph.node.has_outgoing.true: 0.5
-      graph.node.focus_streak.high: 0.3     # Often-discussed = part of grid summary
+      convgraph.node.has_outgoing.true: 0.5
+      convgraph.node.focus.streak.high: 0.3     # Often-discussed = part of grid summary
       # Repetition penalty
-      temporal.strategy_repetition_count: -0.5
+      interview.strategy.self_count: -0.5
       # Saturation triggers: high saturation = ready to validate
-      meta.conversation.saturation: 0.3
-      meta.canonical.saturation: 0.2
+      meta.saturation.conversation: 0.3
+      meta.saturation.canonical: 0.2
       # Late-phase boost — T2 + Critique: increased from 0.8 to 1.0 to outcompete explore_ideal
-      meta.interview.phase.late: 1.0
+      interview.phase.late: 1.0
 
 # chain_completion is conceptually incoherent for RG — no chains exist
 # in a dimensional/comparative ontology. Set to near-zero threshold.

@@ -82,9 +82,9 @@ def test_get_response_depth_reads_current_turn_global_signals():
     """Must return depth from current_turn_global_signals, not context.signals."""
     signal = _make_signal({})
     ctx = _make_context(
-        current_turn_global_signals={"llm.response_depth": "deep"},
+        current_turn_global_signals={"response.semantic.llm.response_depth": "deep"},
         previous_turn_signals={
-            "llm.response_depth": "surface"
+            "response.semantic.llm.response_depth": "surface"
         },  # stale — must be ignored
     )
 
@@ -101,7 +101,7 @@ def test_get_response_depth_falls_back_to_context_signals_when_no_current_turn()
     signal = _make_signal({})
     ctx = _make_context(
         current_turn_global_signals=None,  # absent
-        previous_turn_signals={"llm.response_depth": "moderate"},
+        previous_turn_signals={"response.semantic.llm.response_depth": "moderate"},
     )
 
     depth = signal._get_response_depth(ctx)
@@ -139,9 +139,9 @@ async def test_probe_deeper_triggers_with_current_turn_deep():
     states = {"node-a": state}
     signal = _make_signal(states)
     ctx = _make_context(
-        current_turn_global_signals={"llm.response_depth": "deep"},
+        current_turn_global_signals={"response.semantic.llm.response_depth": "deep"},
         previous_turn_signals={
-            "llm.response_depth": "surface"
+            "response.semantic.llm.response_depth": "surface"
         },  # stale — must be ignored
     )
 
@@ -166,8 +166,8 @@ async def test_probe_deeper_does_not_trigger_with_stale_surface_depth():
     signal = _make_signal(states)
     # current turn: surface; stale previous turn: deep
     ctx = _make_context(
-        current_turn_global_signals={"llm.response_depth": "surface"},
-        previous_turn_signals={"llm.response_depth": "deep"},
+        current_turn_global_signals={"response.semantic.llm.response_depth": "surface"},
+        previous_turn_signals={"response.semantic.llm.response_depth": "deep"},
     )
 
     result = await signal.detect(ctx, MagicMock(), "")
@@ -194,7 +194,7 @@ async def test_exhausted_classification_independent_of_depth():
     states = {"node-a": state}
     signal = _make_signal(states)
     ctx = _make_context(
-        current_turn_global_signals={"llm.response_depth": "deep"},
+        current_turn_global_signals={"response.semantic.llm.response_depth": "deep"},
     )
 
     result = await signal.detect(ctx, MagicMock(), "")

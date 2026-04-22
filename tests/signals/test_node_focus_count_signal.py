@@ -120,7 +120,7 @@ class TestNodeFocusCountSignalMetadata:
     """Verify signal name and class attributes."""
 
     def test_signal_name(self):
-        assert NodeFocusCountSignal.signal_name == "graph.node.focus_count"
+        assert NodeFocusCountSignal.signal_name == "convgraph.node.focus.count"
 
     def test_requires_node_tracker(self):
         assert NodeFocusCountSignal.requires_node_tracker is True

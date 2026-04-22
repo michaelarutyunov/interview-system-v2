@@ -58,19 +58,20 @@ class TestJointScoring:
         service.global_signal_service.detect.return_value = {
             "meta.interview_progress": 0.9
         }
-        service.global_signal_service.detect_with_per_concept.return_value = ({
-            "meta.interview_progress": 0.9
-        }, {})
+        service.global_signal_service.detect_with_per_concept.return_value = (
+            {"meta.interview_progress": 0.9},
+            {},
+        )
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {
-            "node_1": {"graph.node.exhaustion_score": 0.5}
+            "node_1": {"convgraph.node.exhaustion": 0.5}
         }
 
         with patch(
             "src.services.methodology_strategy_service.InterviewPhaseSignal"
         ) as MockPhase:
             mock_instance = AsyncMock()
-            mock_instance.detect.return_value = {"meta.interview.phase": "mid"}
+            mock_instance.detect.return_value = {"interview.phase": "mid"}
             MockPhase.return_value = mock_instance
 
             result = await service.select_strategy_and_focus(
@@ -89,8 +90,8 @@ class TestJointScoring:
             name="deepen",
             description="Deepen",
             signal_weights={
-                "llm.response_depth.low": 0.8,
-                "graph.node.exhaustion_score.low": 1.0,
+                "response.semantic.llm.response_depth.low": 0.8,
+                "convgraph.node.exhaustion.low": 1.0,
             },
             node_binding="required",
         )
@@ -107,19 +108,24 @@ class TestJointScoring:
         service.methodology_registry.get_methodology.return_value = config
 
         service.global_signal_service = AsyncMock()
-        service.global_signal_service.detect.return_value = {"llm.response_depth": 0.1}
-        service.global_signal_service.detect_with_per_concept.return_value = ({"llm.response_depth": 0.1}, {})
+        service.global_signal_service.detect.return_value = {
+            "response.semantic.llm.response_depth": 0.1
+        }
+        service.global_signal_service.detect_with_per_concept.return_value = (
+            {"response.semantic.llm.response_depth": 0.1},
+            {},
+        )
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {
-            "node_a": {"graph.node.exhaustion_score": 0.8},  # high → .low=False
-            "node_b": {"graph.node.exhaustion_score": 0.1},  # low → .low=True
+            "node_a": {"convgraph.node.exhaustion": 0.8},  # high → .low=False
+            "node_b": {"convgraph.node.exhaustion": 0.1},  # low → .low=True
         }
 
         with patch(
             "src.services.methodology_strategy_service.InterviewPhaseSignal"
         ) as MockPhase:
             mock_instance = AsyncMock()
-            mock_instance.detect.return_value = {"meta.interview.phase": "mid"}
+            mock_instance.detect.return_value = {"interview.phase": "mid"}
             MockPhase.return_value = mock_instance
 
             result = await service.select_strategy_and_focus(
@@ -135,12 +141,12 @@ class TestJointScoring:
         s1 = StrategyConfig(
             name="deepen",
             description="D",
-            signal_weights={"llm.response_depth.low": 0.8},
+            signal_weights={"response.semantic.llm.response_depth.low": 0.8},
         )
         s2 = StrategyConfig(
             name="explore",
             description="E",
-            signal_weights={"llm.response_depth.low": 0.5},
+            signal_weights={"response.semantic.llm.response_depth.low": 0.5},
         )
         config = MethodologyConfig(
             name="test", description="T", signals={}, strategies=[s1, s2], phases=None
@@ -151,8 +157,13 @@ class TestJointScoring:
         service.methodology_registry.get_methodology.return_value = config
 
         service.global_signal_service = AsyncMock()
-        service.global_signal_service.detect.return_value = {"llm.response_depth": 0.1}
-        service.global_signal_service.detect_with_per_concept.return_value = ({"llm.response_depth": 0.1}, {})
+        service.global_signal_service.detect.return_value = {
+            "response.semantic.llm.response_depth": 0.1
+        }
+        service.global_signal_service.detect_with_per_concept.return_value = (
+            {"response.semantic.llm.response_depth": 0.1},
+            {},
+        )
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {"node_1": {}}
 
@@ -160,7 +171,7 @@ class TestJointScoring:
             "src.services.methodology_strategy_service.InterviewPhaseSignal"
         ) as MockPhase:
             mock_instance = AsyncMock()
-            mock_instance.detect.return_value = {"meta.interview.phase": "mid"}
+            mock_instance.detect.return_value = {"interview.phase": "mid"}
             MockPhase.return_value = mock_instance
 
             result = await service.select_strategy_and_focus(
@@ -184,15 +195,15 @@ class TestJointScoringDecompositionCapture:
             name="deepen",
             description="D",
             signal_weights={
-                "llm.response_depth.low": 0.8,
-                "llm.engagement.high": 0.7,
-                "graph.node.exhaustion_score.low": 1.0,  # Node-scoped weight
+                "response.semantic.llm.response_depth.low": 0.8,
+                "response.semantic.llm.engagement.high": 0.7,
+                "convgraph.node.exhaustion.low": 1.0,  # Node-scoped weight
             },
         )
         explore = StrategyConfig(
             name="explore",
             description="E",
-            signal_weights={"llm.response_depth.low": 0.5},
+            signal_weights={"response.semantic.llm.response_depth.low": 0.5},
         )
         config = MethodologyConfig(
             name="test",
@@ -215,24 +226,27 @@ class TestJointScoringDecompositionCapture:
 
         service.global_signal_service = AsyncMock()
         service.global_signal_service.detect.return_value = {
-            "llm.response_depth": 0.1,  # low → True
-            "llm.engagement": 0.9,  # high → True
+            "response.semantic.llm.response_depth": 0.1,  # low → True
+            "response.semantic.llm.engagement": 0.9,  # high → True
         }
-        service.global_signal_service.detect_with_per_concept.return_value = ({
-            "llm.response_depth": 0.1,  # low → True
-            "llm.engagement": 0.9,  # high → True
-        }, {})
+        service.global_signal_service.detect_with_per_concept.return_value = (
+            {
+                "response.semantic.llm.response_depth": 0.1,  # low → True
+                "response.semantic.llm.engagement": 0.9,  # high → True
+            },
+            {},
+        )
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {
-            "node_a": {"graph.node.exhaustion_score": 0.8},
-            "node_b": {"graph.node.exhaustion_score": 0.1},
+            "node_a": {"convgraph.node.exhaustion": 0.8},
+            "node_b": {"convgraph.node.exhaustion": 0.1},
         }
 
         with patch(
             "src.services.methodology_strategy_service.InterviewPhaseSignal"
         ) as MockPhase:
             mock_instance = AsyncMock()
-            mock_instance.detect.return_value = {"meta.interview.phase": "mid"}
+            mock_instance.detect.return_value = {"interview.phase": "mid"}
             MockPhase.return_value = mock_instance
 
             result = await service.select_strategy_and_focus(
@@ -275,9 +289,10 @@ class TestJointScoringDecompositionCapture:
         service.global_signal_service.detect.return_value = {
             "meta.interview_progress": 0.9
         }
-        service.global_signal_service.detect_with_per_concept.return_value = ({
-            "meta.interview_progress": 0.9
-        }, {})
+        service.global_signal_service.detect_with_per_concept.return_value = (
+            {"meta.interview_progress": 0.9},
+            {},
+        )
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {}
 
@@ -285,7 +300,7 @@ class TestJointScoringDecompositionCapture:
             "src.services.methodology_strategy_service.InterviewPhaseSignal"
         ) as MockPhase:
             mock_instance = AsyncMock()
-            mock_instance.detect.return_value = {"meta.interview.phase": "late"}
+            mock_instance.detect.return_value = {"interview.phase": "late"}
             MockPhase.return_value = mock_instance
 
             result = await service.select_strategy_and_focus(
@@ -321,21 +336,21 @@ class TestJointScoringOverride:
             name="ascend",
             description="Ascend",
             signal_weights={
-                "graph.node.gap_above.true": 0.5,
-                "graph.node.exhaustion_score": -0.3,
+                "convgraph.node.chain.gap.above.true": 0.5,
+                "convgraph.node.exhaustion": -0.3,
             },
             node_binding="required",
-            valid_when="graph.node.gap_above",
+            valid_when="convgraph.node.chain.gap.above",
         )
         bridge = StrategyConfig(
             name="bridge",
             description="Bridge",
             signal_weights={
-                "graph.node.level_skip.true": 0.8,
-                "graph.node.exhaustion_score": -0.3,
+                "convgraph.node.chain.level.skip.true": 0.8,
+                "convgraph.node.exhaustion": -0.3,
             },
             node_binding="required",
-            valid_when="graph.node.level_skip",
+            valid_when="convgraph.node.chain.level.skip",
         )
         config = MethodologyConfig(
             name="test",
@@ -359,14 +374,14 @@ class TestJointScoringOverride:
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {
             "node_a": {
-                "graph.node.gap_above": True,
-                "graph.node.level_skip": False,
-                "graph.node.exhaustion_score": 0.9,  # High exhaustion → big penalty
+                "convgraph.node.chain.gap.above": True,
+                "convgraph.node.chain.level.skip": False,
+                "convgraph.node.exhaustion": 0.9,  # High exhaustion → big penalty
             },
             "node_b": {
-                "graph.node.gap_above": False,
-                "graph.node.level_skip": True,
-                "graph.node.exhaustion_score": 0.1,  # Low exhaustion → small penalty
+                "convgraph.node.chain.gap.above": False,
+                "convgraph.node.chain.level.skip": True,
+                "convgraph.node.exhaustion": 0.1,  # Low exhaustion → small penalty
             },
         }
 
@@ -374,7 +389,7 @@ class TestJointScoringOverride:
             "src.services.methodology_strategy_service.InterviewPhaseSignal"
         ) as MockPhase:
             mock_instance = AsyncMock()
-            mock_instance.detect.return_value = {"meta.interview.phase": "mid"}
+            mock_instance.detect.return_value = {"interview.phase": "mid"}
             MockPhase.return_value = mock_instance
 
             result = await service.select_strategy_and_focus(
@@ -396,9 +411,9 @@ class TestJointScoringOverride:
         ascend = StrategyConfig(
             name="ascend",
             description="Ascend",
-            signal_weights={"graph.node.gap_above.true": 0.5},
+            signal_weights={"convgraph.node.chain.gap.above.true": 0.5},
             node_binding="required",
-            valid_when="graph.node.gap_above",
+            valid_when="convgraph.node.chain.gap.above",
         )
         config = MethodologyConfig(
             name="test",
@@ -420,7 +435,7 @@ class TestJointScoringOverride:
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {
             "node_a": {
-                "graph.node.gap_above": False,
+                "convgraph.node.chain.gap.above": False,
             },
         }
 
@@ -428,7 +443,7 @@ class TestJointScoringOverride:
             "src.services.methodology_strategy_service.InterviewPhaseSignal"
         ) as MockPhase:
             mock_instance = AsyncMock()
-            mock_instance.detect.return_value = {"meta.interview.phase": "mid"}
+            mock_instance.detect.return_value = {"interview.phase": "mid"}
             MockPhase.return_value = mock_instance
 
             with pytest.raises(ScoringError, match="No valid"):
@@ -441,7 +456,7 @@ class TestJointScoringOverride:
         revitalize = StrategyConfig(
             name="revitalize",
             description="Revitalize",
-            signal_weights={"llm.engagement.low": 0.8},
+            signal_weights={"response.semantic.llm.engagement.low": 0.8},
             node_binding="none",
         )
         config = MethodologyConfig(
@@ -458,11 +473,14 @@ class TestJointScoringOverride:
 
         service.global_signal_service = AsyncMock()
         service.global_signal_service.detect.return_value = {
-            "llm.engagement": 0.1,  # low -> True
+            "response.semantic.llm.engagement": 0.1,  # low -> True
         }
-        service.global_signal_service.detect_with_per_concept.return_value = ({
-            "llm.engagement": 0.1,  # low -> True
-        }, {})
+        service.global_signal_service.detect_with_per_concept.return_value = (
+            {
+                "response.semantic.llm.engagement": 0.1,  # low -> True
+            },
+            {},
+        )
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {"node_1": {}}
 
@@ -470,7 +488,7 @@ class TestJointScoringOverride:
             "src.services.methodology_strategy_service.InterviewPhaseSignal"
         ) as MockPhase:
             mock_instance = AsyncMock()
-            mock_instance.detect.return_value = {"meta.interview.phase": "mid"}
+            mock_instance.detect.return_value = {"interview.phase": "mid"}
             MockPhase.return_value = mock_instance
 
             result = await service.select_strategy_and_focus(

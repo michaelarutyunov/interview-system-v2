@@ -14,7 +14,7 @@ from src.signals.signal_base import SignalDetector
 class GlobalResponseTrendSignal(SignalDetector):
     """Track if responses are getting shallower globally (fatigue?).
 
-    Namespaced signal: llm.global_response_trend
+    Namespaced signal: response.semantic.llm.engagement.trend
 
     This signal maintains session-scoped history of response depths
     and computes trends to detect user engagement/fatigue.
@@ -26,7 +26,7 @@ class GlobalResponseTrendSignal(SignalDetector):
     - fatigued: 4+ shallow responses in last 5 (user disengaged)
     """
 
-    signal_name = "llm.global_response_trend"
+    signal_name = "response.semantic.llm.engagement.trend"
     description = "Trend in response quality over time. 'deepening' = engaged, 'stable' = consistent, 'shallowing' = declining quality, 'fatigued' = disengaged (4+ shallow responses). 'fatigued' suggests need for rapport repair or closing."
 
     def __init__(self, history_size: int = 10):

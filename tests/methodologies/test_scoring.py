@@ -19,102 +19,150 @@ class TestGetSignalValue:
 
     def test_direct_match(self):
         """Test direct signal key match."""
-        signals = {"graph.node_count": 10, "llm.response_depth": 4}
-        assert _get_signal_value("graph.node_count", signals) == 10
-        assert _get_signal_value("llm.response_depth", signals) == 4
+        signals = {
+            "convgraph.state.node.count": 10,
+            "response.semantic.llm.response_depth": 4,
+        }
+        assert _get_signal_value("convgraph.state.node.count", signals) == 10
+        assert _get_signal_value("response.semantic.llm.response_depth", signals) == 4
 
     def test_direct_match_not_found(self):
         """Test direct match returns None when key not present."""
-        signals = {"graph.node_count": 10}
-        assert _get_signal_value("llm.response_depth", signals) is None
+        signals = {"convgraph.state.node.count": 10}
+        assert (
+            _get_signal_value("response.semantic.llm.response_depth", signals) is None
+        )
 
     def test_threshold_low_boundary(self):
         """Test low threshold matches values <= 0.25."""
-        signals = {"llm.response_depth": 0.0}
-        assert _get_signal_value("llm.response_depth.low", signals) is True
+        signals = {"response.semantic.llm.response_depth": 0.0}
+        assert (
+            _get_signal_value("response.semantic.llm.response_depth.low", signals)
+            is True
+        )
 
-        signals = {"llm.response_depth": 0.25}
-        assert _get_signal_value("llm.response_depth.low", signals) is True
+        signals = {"response.semantic.llm.response_depth": 0.25}
+        assert (
+            _get_signal_value("response.semantic.llm.response_depth.low", signals)
+            is True
+        )
 
     def test_threshold_low_non_match(self):
         """Test low threshold does not match values > 0.25."""
-        signals = {"llm.response_depth": 0.5}
-        assert _get_signal_value("llm.response_depth.low", signals) is False
+        signals = {"response.semantic.llm.response_depth": 0.5}
+        assert (
+            _get_signal_value("response.semantic.llm.response_depth.low", signals)
+            is False
+        )
 
-        signals = {"llm.response_depth": 0.75}
-        assert _get_signal_value("llm.response_depth.low", signals) is False
+        signals = {"response.semantic.llm.response_depth": 0.75}
+        assert (
+            _get_signal_value("response.semantic.llm.response_depth.low", signals)
+            is False
+        )
 
-        signals = {"llm.response_depth": 1.0}
-        assert _get_signal_value("llm.response_depth.low", signals) is False
+        signals = {"response.semantic.llm.response_depth": 1.0}
+        assert (
+            _get_signal_value("response.semantic.llm.response_depth.low", signals)
+            is False
+        )
 
     def test_threshold_mid_boundary(self):
         """Test mid threshold matches values in (0.25, 0.75)."""
-        signals = {"llm.response_depth": 0.5}
-        assert _get_signal_value("llm.response_depth.mid", signals) is True
+        signals = {"response.semantic.llm.response_depth": 0.5}
+        assert (
+            _get_signal_value("response.semantic.llm.response_depth.mid", signals)
+            is True
+        )
 
     def test_threshold_mid_non_match(self):
         """Test mid threshold does not match boundary or extreme values."""
         for value in [0.0, 0.25, 0.75, 1.0]:
-            signals = {"llm.response_depth": value}
-            assert _get_signal_value("llm.response_depth.mid", signals) is False
+            signals = {"response.semantic.llm.response_depth": value}
+            assert (
+                _get_signal_value("response.semantic.llm.response_depth.mid", signals)
+                is False
+            )
 
     def test_threshold_high_boundary(self):
         """Test high threshold matches values >= 0.75."""
-        signals = {"llm.response_depth": 0.75}
-        assert _get_signal_value("llm.response_depth.high", signals) is True
+        signals = {"response.semantic.llm.response_depth": 0.75}
+        assert (
+            _get_signal_value("response.semantic.llm.response_depth.high", signals)
+            is True
+        )
 
-        signals = {"llm.response_depth": 1.0}
-        assert _get_signal_value("llm.response_depth.high", signals) is True
+        signals = {"response.semantic.llm.response_depth": 1.0}
+        assert (
+            _get_signal_value("response.semantic.llm.response_depth.high", signals)
+            is True
+        )
 
     def test_threshold_high_non_match(self):
         """Test high threshold does not match values < 0.75."""
         for value in [0.0, 0.25, 0.5]:
-            signals = {"llm.response_depth": value}
-            assert _get_signal_value("llm.response_depth.high", signals) is False
+            signals = {"response.semantic.llm.response_depth": value}
+            assert (
+                _get_signal_value("response.semantic.llm.response_depth.high", signals)
+                is False
+            )
 
     def test_string_compound_key_match(self):
         """Test string-based compound keys still work."""
-        signals = {"llm.global_response_trend": "fatigued"}
-        assert _get_signal_value("llm.global_response_trend.fatigued", signals) is True
+        signals = {"response.semantic.llm.engagement.trend": "fatigued"}
+        assert (
+            _get_signal_value(
+                "response.semantic.llm.engagement.trend.fatigued", signals
+            )
+            is True
+        )
 
     def test_string_compound_key_no_match(self):
         """Test string compound key returns False when values differ."""
-        signals = {"llm.global_response_trend": "engaged"}
-        assert _get_signal_value("llm.global_response_trend.fatigued", signals) is False
+        signals = {"response.semantic.llm.engagement.trend": "engaged"}
+        assert (
+            _get_signal_value(
+                "response.semantic.llm.engagement.trend.fatigued", signals
+            )
+            is False
+        )
 
     def test_deep_compound_key_float_threshold(self):
         """Test deeply nested compound keys with float threshold binning."""
-        signals = {"graph.chain_completion.ratio": 0.5}
-        # The compound key "graph.chain_completion.ratio.high" has base
-        # "graph.chain_completion.ratio" which is a float (0.5),
+        signals = {"convgraph.chain.completion.ratio": 0.5}
+        # The compound key "convgraph.chain.completion.ratio.high" has base
+        # "convgraph.chain.completion.ratio" which is a float (0.5),
         # threshold binning applies: 0.5 < 0.75 → not high → False
-        result = _get_signal_value("graph.chain_completion.ratio.high", signals)
+        result = _get_signal_value("convgraph.chain.completion.ratio.high", signals)
         assert result is False  # 0.5 < 0.75, not high
 
     def test_bool_compound_key_true_match(self):
         """Test Python bool True matches compound key .true."""
-        signals = {"graph.node.is_orphan": True}
-        assert _get_signal_value("graph.node.is_orphan.true", signals) is True
+        signals = {"convgraph.node.is_orphan": True}
+        assert _get_signal_value("convgraph.node.is_orphan.true", signals) is True
 
     def test_bool_compound_key_true_no_match(self):
         """Test Python bool False does not match compound key .true."""
-        signals = {"graph.node.is_orphan": False}
-        assert _get_signal_value("graph.node.is_orphan.true", signals) is False
+        signals = {"convgraph.node.is_orphan": False}
+        assert _get_signal_value("convgraph.node.is_orphan.true", signals) is False
 
     def test_bool_compound_key_false_match(self):
         """Test Python bool False matches compound key .false."""
-        signals = {"graph.node.exhausted": False}
-        assert _get_signal_value("graph.node.exhausted.false", signals) is True
+        signals = {"convgraph.node.exhausted": False}
+        assert _get_signal_value("convgraph.node.exhausted.false", signals) is True
 
     def test_bool_compound_key_false_no_match(self):
         """Test Python bool True does not match compound key .false."""
-        signals = {"graph.node.exhausted": True}
-        assert _get_signal_value("graph.node.exhausted.false", signals) is False
+        signals = {"convgraph.node.exhausted": True}
+        assert _get_signal_value("convgraph.node.exhausted.false", signals) is False
 
     def test_compound_key_base_not_found(self):
         """Test compound key returns None when base signal not present."""
-        signals = {"graph.node_count": 10}
-        assert _get_signal_value("llm.response_depth.low", signals) is None
+        signals = {"convgraph.state.node.count": 10}
+        assert (
+            _get_signal_value("response.semantic.llm.response_depth.low", signals)
+            is None
+        )
 
 
 class TestScoreStrategy:
@@ -125,9 +173,11 @@ class TestScoreStrategy:
         strategy = StrategyConfig(
             name="test",
             description="Test strategy",
-            signal_weights={"llm.response_depth.low": 0.8},
+            signal_weights={"response.semantic.llm.response_depth.low": 0.8},
         )
-        signals = {"llm.response_depth": 0.25}  # Normalized: low (<= 0.25)
+        signals = {
+            "response.semantic.llm.response_depth": 0.25
+        }  # Normalized: low (<= 0.25)
         score = score_strategy(strategy, signals)
         assert score == 0.8
 
@@ -136,9 +186,11 @@ class TestScoreStrategy:
         strategy = StrategyConfig(
             name="test",
             description="Test strategy",
-            signal_weights={"llm.response_depth.low": 0.8},
+            signal_weights={"response.semantic.llm.response_depth.low": 0.8},
         )
-        signals = {"llm.response_depth": 0.75}  # Normalized: high (>= 0.75)
+        signals = {
+            "response.semantic.llm.response_depth": 0.75
+        }  # Normalized: high (>= 0.75)
         score = score_strategy(strategy, signals)
         assert score == 0.0
 
@@ -147,9 +199,9 @@ class TestScoreStrategy:
         strategy = StrategyConfig(
             name="test",
             description="Test strategy",
-            signal_weights={"graph.node_count": 0.5},
+            signal_weights={"convgraph.state.node.count": 0.5},
         )
-        signals = {"graph.node_count": 0.5}  # Pre-normalized to [0,1]
+        signals = {"convgraph.state.node.count": 0.5}  # Pre-normalized to [0,1]
         score = score_strategy(strategy, signals)
         assert score == 0.25  # 0.5 * 0.5
 
@@ -159,12 +211,12 @@ class TestScoreStrategy:
             name="test",
             description="Test strategy",
             signal_weights={
-                "llm.response_depth.high": 0.7,
+                "response.semantic.llm.response_depth.high": 0.7,
                 "llm.valence.high": 0.3,
             },
         )
         signals = {
-            "llm.response_depth": 1.0,  # Normalized: high (>= 0.75)
+            "response.semantic.llm.response_depth": 1.0,  # Normalized: high (>= 0.75)
             "llm.valence": 0.75,  # Normalized: high (>= 0.75)
         }
         score = score_strategy(strategy, signals)
@@ -176,11 +228,13 @@ class TestScoreStrategy:
             name="test",
             description="Test strategy",
             signal_weights={
-                "llm.response_depth.high": 0.7,
+                "response.semantic.llm.response_depth.high": 0.7,
                 "missing.signal": 0.5,
             },
         )
-        signals = {"llm.response_depth": 1.0}  # Normalized: high (>= 0.75)
+        signals = {
+            "response.semantic.llm.response_depth": 1.0
+        }  # Normalized: high (>= 0.75)
         score = score_strategy(strategy, signals)
         assert score == 0.7  # Only counts the matching signal
 
@@ -189,9 +243,11 @@ class TestScoreStrategy:
         strategy = StrategyConfig(
             name="test",
             description="Test strategy",
-            signal_weights={"llm.response_depth.low": -0.5},
+            signal_weights={"response.semantic.llm.response_depth.low": -0.5},
         )
-        signals = {"llm.response_depth": 0.0}  # Normalized: low (<= 0.25)
+        signals = {
+            "response.semantic.llm.response_depth": 0.0
+        }  # Normalized: low (<= 0.25)
         score = score_strategy(strategy, signals)
         assert score == -0.5
 
@@ -205,20 +261,22 @@ class TestRankStrategies:
             StrategyConfig(
                 name="low",
                 description="Low score",
-                signal_weights={"llm.response_depth.low": 0.3},
+                signal_weights={"response.semantic.llm.response_depth.low": 0.3},
             ),
             StrategyConfig(
                 name="high",
                 description="High score",
-                signal_weights={"llm.response_depth.high": 0.8},
+                signal_weights={"response.semantic.llm.response_depth.high": 0.8},
             ),
             StrategyConfig(
                 name="mid",
                 description="Mid score",
-                signal_weights={"llm.response_depth.high": 0.5},
+                signal_weights={"response.semantic.llm.response_depth.high": 0.5},
             ),
         ]
-        signals = {"llm.response_depth": 1.0}  # Normalized: high (>= 0.75)
+        signals = {
+            "response.semantic.llm.response_depth": 1.0
+        }  # Normalized: high (>= 0.75)
         ranked = rank_strategies(strategies, signals)
 
         assert len(ranked) == 3
@@ -231,9 +289,12 @@ class TestRankStrategies:
         strategy = StrategyConfig(
             name="test",
             description="Test strategy",
-            signal_weights={"llm.response_depth.high": 0.5},
+            signal_weights={"response.semantic.llm.response_depth.high": 0.5},
         )
-        signals = {"llm.response_depth": 1.0, "meta.interview.phase": "explore"}  # high
+        signals = {
+            "response.semantic.llm.response_depth": 1.0,
+            "interview.phase": "explore",
+        }  # high
         ranked = rank_strategies(
             [strategy],
             signals,
@@ -247,9 +308,9 @@ class TestRankStrategies:
         strategy = StrategyConfig(
             name="test",
             description="Test strategy",
-            signal_weights={"llm.response_depth.high": 0.5},
+            signal_weights={"response.semantic.llm.response_depth.high": 0.5},
         )
-        signals = {"llm.response_depth": 1.0}  # high
+        signals = {"response.semantic.llm.response_depth": 1.0}  # high
         ranked = rank_strategies(
             [strategy],
             signals,
@@ -263,9 +324,9 @@ class TestRankStrategies:
         strategy = StrategyConfig(
             name="test",
             description="Test strategy",
-            signal_weights={"llm.response_depth.high": 0.5},
+            signal_weights={"response.semantic.llm.response_depth.high": 0.5},
         )
-        signals = {"llm.response_depth": 1.0}  # high
+        signals = {"response.semantic.llm.response_depth": 1.0}  # high
         ranked = rank_strategies(
             [strategy],
             signals,
@@ -286,13 +347,13 @@ class TestRankStrategyNodePairs:
             StrategyConfig(
                 name="explore_high",
                 description="High depth",
-                signal_weights={"llm.response_depth.high": 1.0},
+                signal_weights={"response.semantic.llm.response_depth.high": 1.0},
             ),
         ]
-        global_signals = {"meta.interview.phase": "explore"}
+        global_signals = {"interview.phase": "explore"}
         node_signals = {
-            "node_1": {"llm.response_depth": 0.25},  # Not high (low)
-            "node_2": {"llm.response_depth": 1.0},  # High
+            "node_1": {"response.semantic.llm.response_depth": 0.25},  # Not high (low)
+            "node_2": {"response.semantic.llm.response_depth": 1.0},  # High
         }
 
         ranked, decomposition = rank_strategy_node_pairs(
@@ -312,10 +373,10 @@ class TestRankStrategyNodePairs:
             StrategyConfig(
                 name="test",
                 description="Test",
-                signal_weights={"llm.response_depth.high": 1.0},
+                signal_weights={"response.semantic.llm.response_depth.high": 1.0},
             ),
         ]
-        global_signals = {"llm.response_depth": 1.0}  # High (>= 0.75)
+        global_signals = {"response.semantic.llm.response_depth": 1.0}  # High (>= 0.75)
         node_signals = {
             "node_1": {},  # No override, uses global
         }
@@ -330,12 +391,12 @@ class TestRankStrategyNodePairs:
             StrategyConfig(
                 name="test",
                 description="Test",
-                signal_weights={"llm.response_depth.high": 1.0},
+                signal_weights={"response.semantic.llm.response_depth.high": 1.0},
             ),
         ]
-        global_signals = {"llm.response_depth": 1.0}  # High (>= 0.75)
+        global_signals = {"response.semantic.llm.response_depth": 1.0}  # High (>= 0.75)
         node_signals = {
-            "node_1": {"llm.response_depth": 0.25},  # Override to low
+            "node_1": {"response.semantic.llm.response_depth": 0.25},  # Override to low
         }
 
         ranked, _ = rank_strategy_node_pairs(strategies, global_signals, node_signals)
@@ -348,10 +409,10 @@ class TestRankStrategyNodePairs:
             StrategyConfig(
                 name="test",
                 description="Test",
-                signal_weights={"llm.response_depth.high": 0.5},
+                signal_weights={"response.semantic.llm.response_depth.high": 0.5},
             ),
         ]
-        global_signals = {"llm.response_depth": 1.0}  # High (>= 0.75)
+        global_signals = {"response.semantic.llm.response_depth": 1.0}  # High (>= 0.75)
         node_signals = {"node_1": {}}
 
         ranked, _ = rank_strategy_node_pairs(
@@ -371,13 +432,13 @@ class TestRankStrategyNodePairs:
             name="dig_motivation",
             description="Dig motivation",
             signal_weights={
-                "llm.engagement.high": 0.5,
-                "llm.response_depth.deep": 0.3,
+                "response.semantic.llm.engagement.high": 0.5,
+                "response.semantic.llm.response_depth.deep": 0.3,
             },
         )
         global_signals = {
-            "llm.engagement": 0.75,  # >= 0.75 → "high" → True
-            "llm.response_depth": "deep",
+            "response.semantic.llm.engagement": 0.75,  # >= 0.75 → "high" → True
+            "response.semantic.llm.response_depth": "deep",
         }
         node_signals = {"node-1": {}}
 
@@ -429,17 +490,17 @@ class TestLLMSignalThresholdsIntegration:
     ):
         """Test all LLM signals use consistent threshold binning."""
         signals = {
-            "llm.response_depth": signal_value,
+            "response.semantic.llm.response_depth": signal_value,
             "llm.valence": signal_value,
-            "llm.certainty": signal_value,
+            "response.semantic.llm.certainty": signal_value,
             "llm.specificity": signal_value,
-            "llm.engagement": signal_value,
+            "response.semantic.llm.engagement": signal_value,
         }
 
         for signal_name in signals:
-            if signal_name == "llm.response_depth":
+            if signal_name == "response.semantic.llm.response_depth":
                 continue  # Skip, we use it as the key
-            key = f"llm.response_depth.{qualifier}"
+            key = f"response.semantic.llm.response_depth.{qualifier}"
             result = _get_signal_value(key, signals)
             assert result == expected, (
                 f"Failed for {key} with value {signal_value}: expected {expected}, got {result}"
@@ -453,8 +514,8 @@ class TestLLMSignalThresholdsIntegration:
             signal_weights={
                 "llm.valence.low": 0.6,
                 "llm.valence.high": 0.6,
-                "llm.certainty.low": 0.4,
-                "llm.engagement.high": 0.8,
+                "response.semantic.llm.certainty.low": 0.4,
+                "response.semantic.llm.engagement.high": 0.8,
             },
         )
 
@@ -469,12 +530,14 @@ class TestLLMSignalThresholdsIntegration:
         assert score == pytest.approx(0.6)
 
         # Test high engagement
-        signals = {"llm.engagement": 1.0}  # Normalized: high (>= 0.75)
+        signals = {
+            "response.semantic.llm.engagement": 1.0
+        }  # Normalized: high (>= 0.75)
         score = score_strategy(strategy, signals)
         assert score == pytest.approx(0.8)
 
         # Test low certainty (previously high uncertainty/hedging)
-        signals = {"llm.certainty": 0.0}  # Normalized: low (<= 0.25)
+        signals = {"response.semantic.llm.certainty": 0.0}  # Normalized: low (<= 0.25)
         score = score_strategy(strategy, signals)
         assert score == pytest.approx(0.4)
 
@@ -486,7 +549,7 @@ class TestStrategyConfigNodeBinding:
         config = StrategyConfig(
             name="test",
             description="Test",
-            signal_weights={"llm.engagement.high": 0.5},
+            signal_weights={"response.semantic.llm.engagement.high": 0.5},
         )
         assert config.node_binding == "required"
 
@@ -505,31 +568,34 @@ class TestPartitionSignalWeights:
 
     def test_separates_node_signals(self):
         weights = {
-            "llm.response_depth.low": 0.8,
-            "llm.engagement.high": 0.7,
-            "graph.node.exhaustion_score.low": 1.0,
-            "graph.node.focus_streak.high": -0.8,
-            "technique.node.strategy_repetition.low": 0.3,
+            "response.semantic.llm.response_depth.low": 0.8,
+            "response.semantic.llm.engagement.high": 0.7,
+            "convgraph.node.exhaustion.low": 1.0,
+            "convgraph.node.focus.streak.high": -0.8,
+            "interview.focus.streak.low": 0.3,
         }
         strategy_weights, node_weights = partition_signal_weights(weights)
         assert strategy_weights == {
-            "llm.response_depth.low": 0.8,
-            "llm.engagement.high": 0.7,
+            "response.semantic.llm.response_depth.low": 0.8,
+            "response.semantic.llm.engagement.high": 0.7,
         }
         assert node_weights == {
-            "graph.node.exhaustion_score.low": 1.0,
-            "graph.node.focus_streak.high": -0.8,
-            "technique.node.strategy_repetition.low": 0.3,
+            "convgraph.node.exhaustion.low": 1.0,
+            "convgraph.node.focus.streak.high": -0.8,
+            "interview.focus.streak.low": 0.3,
         }
 
     def test_all_global(self):
-        weights = {"llm.engagement.high": 0.5, "meta.interview_progress": 0.3}
+        weights = {
+            "response.semantic.llm.engagement.high": 0.5,
+            "meta.interview_progress": 0.3,
+        }
         strategy_weights, node_weights = partition_signal_weights(weights)
         assert strategy_weights == weights
         assert node_weights == {}
 
     def test_all_node(self):
-        weights = {"graph.node.exhaustion_score.low": 1.0}
+        weights = {"convgraph.node.exhaustion.low": 1.0}
         strategy_weights, node_weights = partition_signal_weights(weights)
         assert strategy_weights == {}
         assert node_weights == weights
@@ -554,22 +620,22 @@ class TestRankStrategiesExcludesNodeSignals:
             name="deepen",
             description="Deepen",
             signal_weights={
-                "llm.response_depth.low": 0.8,
-                "graph.node.exhaustion_score.low": 5.0,  # node → must be excluded
+                "response.semantic.llm.response_depth.low": 0.8,
+                "convgraph.node.exhaustion.low": 5.0,  # node → must be excluded
             },
         )
         strategy_b = StrategyConfig(
             name="explore",
             description="Explore",
             signal_weights={
-                "llm.response_depth.low": 0.9,
+                "response.semantic.llm.response_depth.low": 0.9,
             },
         )
-        # Include graph.node.exhaustion_score in global signals to simulate
+        # Include convgraph.node.exhaustion in global signals to simulate
         # a scenario where node signal bleeds into strategy scoring
         signals = {
-            "llm.response_depth": 0.1,  # low
-            "graph.node.exhaustion_score": 0.1,  # low — node signal in global dict
+            "response.semantic.llm.response_depth": 0.1,  # low
+            "convgraph.node.exhaustion": 0.1,  # low — node signal in global dict
         }
 
         ranked = rank_strategies([strategy_a, strategy_b], signals)
@@ -590,19 +656,19 @@ class TestRankNodesForStrategy:
             name="deepen",
             description="Deepen",
             signal_weights={
-                "llm.response_depth.low": 0.8,
-                "graph.node.exhaustion_score.low": 1.0,
-                "graph.node.focus_streak.high": -0.8,
+                "response.semantic.llm.response_depth.low": 0.8,
+                "convgraph.node.exhaustion.low": 1.0,
+                "convgraph.node.focus.streak.high": -0.8,
             },
         )
         node_signals = {
             "node_a": {
-                "graph.node.exhaustion_score": 0.1,
-                "graph.node.focus_streak": 0.9,
+                "convgraph.node.exhaustion": 0.1,
+                "convgraph.node.focus.streak": 0.9,
             },
             "node_b": {
-                "graph.node.exhaustion_score": 0.1,
-                "graph.node.focus_streak": 0.1,
+                "convgraph.node.exhaustion": 0.1,
+                "convgraph.node.focus.streak": 0.1,
             },
         }
         ranked, candidates = rank_nodes_for_strategy(strategy, node_signals)
@@ -617,7 +683,7 @@ class TestRankNodesForStrategy:
         strategy = StrategyConfig(
             name="deepen",
             description="Deepen",
-            signal_weights={"graph.node.exhaustion_score.low": 1.0},
+            signal_weights={"convgraph.node.exhaustion.low": 1.0},
         )
         ranked, candidates = rank_nodes_for_strategy(strategy, {})
         assert ranked == []
@@ -628,11 +694,11 @@ class TestRankNodesForStrategy:
             name="deepen",
             description="Deepen",
             signal_weights={
-                "llm.response_depth.low": 0.8,
-                "graph.node.exhaustion_score.low": 1.0,
+                "response.semantic.llm.response_depth.low": 0.8,
+                "convgraph.node.exhaustion.low": 1.0,
             },
         )
-        node_signals = {"node_a": {"graph.node.exhaustion_score": 0.1}}
+        node_signals = {"node_a": {"convgraph.node.exhaustion": 0.1}}
         ranked, _ = rank_nodes_for_strategy(strategy, node_signals)
         assert ranked[0][1] == pytest.approx(1.0)  # Only node weight, not global
 
@@ -640,9 +706,9 @@ class TestRankNodesForStrategy:
         strategy = StrategyConfig(
             name="deepen",
             description="Deepen",
-            signal_weights={"graph.node.exhaustion_score.low": 1.0},
+            signal_weights={"convgraph.node.exhaustion.low": 1.0},
         )
-        node_signals = {"node_a": {"graph.node.exhaustion_score": 0.1}}
+        node_signals = {"node_a": {"convgraph.node.exhaustion": 0.1}}
         _, candidates = rank_nodes_for_strategy(strategy, node_signals)
         assert len(candidates) == 1
         assert candidates[0].strategy == "deepen"
@@ -650,7 +716,7 @@ class TestRankNodesForStrategy:
         assert len(candidates[0].signal_contributions) == 1
         assert (
             candidates[0].signal_contributions[0].name
-            == "graph.node.exhaustion_score.low"
+            == "convgraph.node.exhaustion.low"
         )
 
 
@@ -664,17 +730,20 @@ class TestRankStrategiesDecomposition:
                 name="deepen",
                 description="D",
                 signal_weights={
-                    "llm.response_depth.low": 0.8,
-                    "llm.engagement.high": 0.7,
+                    "response.semantic.llm.response_depth.low": 0.8,
+                    "response.semantic.llm.engagement.high": 0.7,
                 },
             ),
             StrategyConfig(
                 name="explore",
                 description="E",
-                signal_weights={"llm.response_depth.low": 0.5},
+                signal_weights={"response.semantic.llm.response_depth.low": 0.5},
             ),
         ]
-        signals = {"llm.response_depth": 0.1, "llm.engagement": 0.9}
+        signals = {
+            "response.semantic.llm.response_depth": 0.1,
+            "response.semantic.llm.engagement": 0.9,
+        }
         phase_weights = {"deepen": 1.3}
         phase_bonuses = {"deepen": 0.2}
 
@@ -706,8 +775,8 @@ class TestRankStrategiesDecomposition:
         # Verify signal contributions are captured
         assert len(deepen_decomp.signal_contributions) == 2
         contrib_names = {c.name for c in deepen_decomp.signal_contributions}
-        assert "llm.response_depth.low" in contrib_names
-        assert "llm.engagement.high" in contrib_names
+        assert "response.semantic.llm.response_depth.low" in contrib_names
+        assert "response.semantic.llm.engagement.high" in contrib_names
 
     def test_backward_compatible_when_not_requested(self):
         """rank_strategies should return only ranked list when return_decomposition=False (default)."""
@@ -715,10 +784,10 @@ class TestRankStrategiesDecomposition:
             StrategyConfig(
                 name="test",
                 description="T",
-                signal_weights={"llm.engagement.high": 0.5},
+                signal_weights={"response.semantic.llm.engagement.high": 0.5},
             ),
         ]
-        signals = {"llm.engagement": 0.8}
+        signals = {"response.semantic.llm.engagement": 0.8}
 
         # Default behavior (return_decomposition=False)
         result = rank_strategies(strategies, signals)
@@ -777,24 +846,24 @@ class TestChainLifecycleSignalWeights:
                 name="ascend",
                 description="A",
                 signal_weights={
-                    "graph.node.chain.has_attribute_foundation.true": 0.4,
-                    "graph.node.chain.has_attribute_foundation.false": -0.5,
+                    "convgraph.node.chain.has_attribute_foundation.true": 0.4,
+                    "convgraph.node.chain.has_attribute_foundation.false": -0.5,
                 },
             ),
             StrategyConfig(
                 name="ground",
                 description="G",
                 signal_weights={
-                    "graph.node.chain.has_attribute_foundation.false": 0.6,
-                    "graph.node.chain.has_attribute_foundation.true": -0.2,
+                    "convgraph.node.chain.has_attribute_foundation.false": 0.6,
+                    "convgraph.node.chain.has_attribute_foundation.true": -0.2,
                 },
             ),
         ]
         # Node with no foundation
         node_signals = {
             "node-ff": {
-                "graph.node.chain.has_attribute_foundation": False,
-                "graph.node.chain.has_terminal_apex": False,
+                "convgraph.node.chain.has_attribute_foundation": False,
+                "convgraph.node.chain.has_terminal_apex": False,
             }
         }
 
@@ -817,23 +886,23 @@ class TestChainLifecycleSignalWeights:
                 name="ascend",
                 description="A",
                 signal_weights={
-                    "graph.node.chain.has_attribute_foundation.true": 0.4,
-                    "graph.node.chain.has_attribute_foundation.false": -0.5,
+                    "convgraph.node.chain.has_attribute_foundation.true": 0.4,
+                    "convgraph.node.chain.has_attribute_foundation.false": -0.5,
                 },
             ),
             StrategyConfig(
                 name="ground",
                 description="G",
                 signal_weights={
-                    "graph.node.chain.has_attribute_foundation.false": 0.6,
-                    "graph.node.chain.has_attribute_foundation.true": -0.2,
+                    "convgraph.node.chain.has_attribute_foundation.false": 0.6,
+                    "convgraph.node.chain.has_attribute_foundation.true": -0.2,
                 },
             ),
         ]
         node_signals = {
             "node-tf": {
-                "graph.node.chain.has_attribute_foundation": True,
-                "graph.node.chain.has_terminal_apex": False,
+                "convgraph.node.chain.has_attribute_foundation": True,
+                "convgraph.node.chain.has_terminal_apex": False,
             }
         }
 
@@ -856,23 +925,23 @@ class TestChainLifecycleSignalWeights:
                 name="ascend",
                 description="A",
                 signal_weights={
-                    "graph.node.chain.has_attribute_foundation.true": 0.4,
-                    "graph.node.chain.has_attribute_foundation.false": -0.5,
+                    "convgraph.node.chain.has_attribute_foundation.true": 0.4,
+                    "convgraph.node.chain.has_attribute_foundation.false": -0.5,
                 },
             ),
             StrategyConfig(
                 name="branch",
                 description="B",
                 signal_weights={
-                    "graph.node.chain.has_attribute_foundation.true": 0.3,
-                    "graph.node.chain.has_terminal_apex.true": 0.4,
+                    "convgraph.node.chain.has_attribute_foundation.true": 0.3,
+                    "convgraph.node.chain.has_terminal_apex.true": 0.4,
                 },
             ),
         ]
         node_signals = {
             "node-tt": {
-                "graph.node.chain.has_attribute_foundation": True,
-                "graph.node.chain.has_terminal_apex": True,
+                "convgraph.node.chain.has_attribute_foundation": True,
+                "convgraph.node.chain.has_terminal_apex": True,
             }
         }
 
@@ -895,23 +964,23 @@ class TestChainLifecycleSignalWeights:
                 name="ascend",
                 description="A",
                 signal_weights={
-                    "graph.node.chain.has_attribute_foundation.true": 0.4,
-                    "graph.node.chain.has_attribute_foundation.false": -0.5,
+                    "convgraph.node.chain.has_attribute_foundation.true": 0.4,
+                    "convgraph.node.chain.has_attribute_foundation.false": -0.5,
                 },
             ),
             StrategyConfig(
                 name="ground",
                 description="G",
                 signal_weights={
-                    "graph.node.chain.has_attribute_foundation.false": 0.6,
-                    "graph.node.chain.has_attribute_foundation.true": -0.2,
+                    "convgraph.node.chain.has_attribute_foundation.false": 0.6,
+                    "convgraph.node.chain.has_attribute_foundation.true": -0.2,
                 },
             ),
         ]
         node_signals = {
             "node-ft": {
-                "graph.node.chain.has_attribute_foundation": False,
-                "graph.node.chain.has_terminal_apex": True,
+                "convgraph.node.chain.has_attribute_foundation": False,
+                "convgraph.node.chain.has_terminal_apex": True,
             }
         }
 

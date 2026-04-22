@@ -13,7 +13,36 @@ from src.methodologies.registry import StrategyConfig
 log = structlog.get_logger(__name__)
 
 # Prefixes that indicate node-scoped signals
-NODE_SIGNAL_PREFIXES = ("graph.node.", "technique.node.", "meta.node.")
+NODE_SIGNAL_PREFIXES = (
+    "convgraph.node.",
+    "canongraph.node.",
+    "interview.focus.",
+    "meta.node.",
+)
+
+# Signals whose raw value is a {strategy_name: scalar} dict and must be
+# resolved to the candidate strategy's own scalar before weight application.
+# Keeping this list explicit (rather than duck-typing on dict) avoids
+# misresolving any future signal that legitimately emits a mapping.
+STRATEGY_SCOPED_SIGNALS = ("interview.strategy.self_count",)
+
+
+def _resolve_strategy_scoped_signals(
+    signals: Dict[str, Any], strategy_name: str
+) -> Dict[str, Any]:
+    """Return a new signals dict with strategy-scoped dicts flattened to the
+    current candidate's scalar.
+
+    If the signal is missing or the strategy has no entry, the scalar is 0.0
+    (i.e. the strategy has not been picked in the window — no penalty).
+    """
+    resolved = dict(signals)
+    for key in STRATEGY_SCOPED_SIGNALS:
+        raw = resolved.get(key)
+        if isinstance(raw, dict):
+            resolved[key] = float(raw.get(strategy_name, 0.0))
+        # If raw is already a scalar (legacy/tests) or missing, leave it.
+    return resolved
 
 
 def partition_signal_weights(
@@ -21,8 +50,9 @@ def partition_signal_weights(
 ) -> tuple[Dict[str, float], Dict[str, float]]:
     """Split signal_weights into strategy weights and node weights by namespace.
 
-    Keys starting with graph.node.*, technique.node.*, or meta.node.* are
-    routed to node_weights. Everything else goes to strategy_weights.
+    Keys starting with convgraph.node.*, canongraph.node.*, interview.focus.*,
+    or meta.node.* are routed to node_weights. Everything else goes to
+    strategy_weights.
 
     Args:
         signal_weights: Combined signal weights from YAML config
@@ -166,18 +196,20 @@ def _get_signal_value(signal_key: str, signals: Dict[str, Any]) -> Any:
     """Get signal value by key, handling compound keys.
 
     Examples:
-        - "graph.max_depth" -> signals.get("graph.max_depth")
-        - "llm.response_depth.surface" -> Check if signals["llm.response_depth"] == "surface"
+        - "convgraph.state.max_depth" -> signals.get("convgraph.state.max_depth")
+        - "response.semantic.llm.response_depth.surface" -> Check if signals["response.semantic.llm.response_depth"] == "surface"
     """
     # Direct match
     if signal_key in signals:
         return signals[signal_key]
 
-    # Compound key (e.g., "llm.response_depth.surface")
-    # This means: signal "llm.response_depth" should have value "surface"
+    # Compound key (e.g., "response.semantic.llm.response_depth.surface")
+    # This means: signal "response.semantic.llm.response_depth" should have value "surface"
     if "." in signal_key:
         parts = signal_key.split(".")
-        base_signal = ".".join(parts[:-1])  # e.g., "llm.response_depth"
+        base_signal = ".".join(
+            parts[:-1]
+        )  # e.g., "response.semantic.llm.response_depth"
         expected_value = parts[-1]  # e.g., "surface"
 
         if base_signal in signals:
@@ -269,13 +301,19 @@ def rank_strategies(
             signal_weights=global_weights,
         )
 
+        # Resolve strategy-scoped signals (e.g. interview.strategy.self_count)
+        # to this candidate's own scalar before weight application.
+        candidate_signals = _resolve_strategy_scoped_signals(
+            signals, strategy_config.name
+        )
+
         # Score with decomposition (needed for return_decomposition)
         if return_decomposition:
             base_score, contributions = score_strategy_with_decomposition(
-                global_only_strategy, signals
+                global_only_strategy, candidate_signals
             )
         else:
-            base_score = score_strategy(global_only_strategy, signals)
+            base_score = score_strategy(global_only_strategy, candidate_signals)
             contributions = []
 
         # Apply phase weight multiplier if available
@@ -324,7 +362,7 @@ def rank_strategies(
     # Log scores for debugging
     log.info(
         "strategies_ranked",
-        phase=signals.get("meta.interview.phase", "unknown"),
+        phase=signals.get("interview.phase", "unknown"),
         phase_weights=phase_weights,
         phase_bonuses=phase_bonuses,
         ranked=[(s.name, score) for s, score in scored],
@@ -368,7 +406,7 @@ def rank_strategy_node_pairs(
         - ranked_pairs: List of (strategy_config, node_id, score) sorted descending
         - decomposition: List of ScoredCandidate with per-signal contribution breakdown
     """
-    current_phase = global_signals.get("meta.interview.phase", "unknown")
+    current_phase = global_signals.get("interview.phase", "unknown")
 
     scored_pairs: List[Tuple[StrategyConfig, str, float]] = []
     candidates: List[ScoredCandidate] = []
@@ -405,6 +443,12 @@ def rank_strategy_node_pairs(
             # Merge global + node signals
             # Node signals take precedence when keys overlap
             combined_signals = {**global_signals, **node_signal_dict}
+
+            # Resolve strategy-scoped signals to this candidate's own scalar
+            # (e.g. interview.strategy.self_count stored as per-strategy dict).
+            combined_signals = _resolve_strategy_scoped_signals(
+                combined_signals, strategy.name
+            )
 
             # Score strategy for this specific node (with decomposition)
             base_score, contributions = score_strategy_with_decomposition(
@@ -481,7 +525,7 @@ def rank_nodes_for_strategy(
     """Rank nodes for a specific strategy using only node-scoped signal weights.
 
     Auto-partitions the strategy's signal_weights to extract only node-scoped
-    weights (graph.node.*, technique.node.*, meta.node.*), then scores each
+    weights (convgraph.node.*, canongraph.node.*, interview.focus.*, meta.node.*), then scores each
     node against those weights. Applies phase multiplier and bonus to final scores.
 
     Args:

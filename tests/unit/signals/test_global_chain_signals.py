@@ -71,8 +71,12 @@ class TestGlobalChainTopology:
             patch.object(detector, "_get_session_edges", return_value=edges),
         ):
             result = await detector.detect(_make_context(), None, "")
-            assert result["graph.global.frontier_count"] == 1  # B is frontier
-            assert result["graph.global.ungrounded_count"] == 1  # T has no incoming
+            assert (
+                result["convgraph.chain.structure.frontier_count"] == 1
+            )  # B is frontier
+            assert (
+                result["convgraph.chain.structure.ungrounded_count"] == 1
+            )  # T has no incoming
 
     @pytest.mark.asyncio
     async def test_ungrounded_spontaneous_node(self, mock_methodology_schema):
@@ -93,8 +97,12 @@ class TestGlobalChainTopology:
             patch.object(detector, "_get_session_edges", return_value=edges),
         ):
             result = await detector.detect(_make_context(), None, "")
-            assert result["graph.global.frontier_count"] == 1  # a has no outgoing
-            assert result["graph.global.ungrounded_count"] == 1  # t has no incoming
+            assert (
+                result["convgraph.chain.structure.frontier_count"] == 1
+            )  # a has no outgoing
+            assert (
+                result["convgraph.chain.structure.ungrounded_count"] == 1
+            )  # t has no incoming
 
     @pytest.mark.asyncio
     async def test_complete_chain_no_counts(self, mock_methodology_schema):
@@ -116,8 +124,8 @@ class TestGlobalChainTopology:
             patch.object(detector, "_get_session_edges", return_value=edges),
         ):
             result = await detector.detect(_make_context(), None, "")
-            assert result["graph.global.frontier_count"] == 0
-            assert result["graph.global.ungrounded_count"] == 0
+            assert result["convgraph.chain.structure.frontier_count"] == 0
+            assert result["convgraph.chain.structure.ungrounded_count"] == 0
 
     @pytest.mark.asyncio
     async def test_non_chain_methodology_returns_empty(self):
@@ -157,5 +165,5 @@ class TestGlobalChainTopology:
             patch.object(detector, "_get_session_edges", return_value=[]),
         ):
             result = await detector.detect(_make_context(), None, "")
-            assert result["graph.global.frontier_count"] == 0
-            assert result["graph.global.ungrounded_count"] == 0
+            assert result["convgraph.chain.structure.frontier_count"] == 0
+            assert result["convgraph.chain.structure.ungrounded_count"] == 0

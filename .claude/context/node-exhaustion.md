@@ -94,9 +94,9 @@ Save happens inside `ScoringPersistenceStage` (Stage 10/12). If Stage 10/12 is s
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `graph.node.focus_streak` always 0 for a focused node | `record_yield()` was resetting `current_focus_streak = 0` | Remove that reset from `record_yield()`; streak resets only in `update_focus()` on focus change |
+| `convgraph.node.focus.streak` always 0 for a focused node | `record_yield()` was resetting `current_focus_streak = 0` | Remove that reset from `record_yield()`; streak resets only in `update_focus()` on focus change |
 | `exhaustion_score` not growing despite repeated focus on same node | `turns_since_last_yield` not ticking for unfocused nodes | Ensure `update_focus()` increments `turns_since_last_yield` for ALL nodes, not just the new focus |
-| Node rotation not occurring (interview stays on one node) | Exhaustion signal weights missing or too low in strategy YAML | Add `graph.node.exhaustion_score.high: -0.8` and `focus_streak.high: -0.6` penalty weights to rotation-sensitive strategies |
+| Node rotation not occurring (interview stays on one node) | Exhaustion signal weights missing or too low in strategy YAML | Add `convgraph.node.exhaustion.high: -0.8` and `focus_streak.high: -0.6` penalty weights to rotation-sensitive strategies |
 | NodeStateTracker state lost between turns | `_save_node_tracker()` not called (ScoringPersistenceStage skipped) | Ensure Stage 10/12 always executes; check pipeline error handling |
 | `all_response_depths` always empty | `append_response_signal()` not called, or called with wrong node_id | Verify StrategySelectionStage calls `append_response_signal()` before `update_focus()` |
 | Fresh tracker loaded each turn despite completed turns existing | `node_tracker_state` column NULL or deserialization failing | Check `from_dict()` for schema version mismatch; verify `_save_node_tracker()` is writing |

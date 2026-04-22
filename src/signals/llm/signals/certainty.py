@@ -5,7 +5,7 @@ from src.signals.llm.llm_signal_base import BaseLLMSignal
 
 
 @llm_global_signal(  # type: ignore[type-var]
-    signal_name="llm.certainty",
+    signal_name="response.semantic.llm.certainty",
     description="Respondent's expressed confidence in their claims (1-5).",
 )
 class CertaintySignal(BaseLLMSignal):

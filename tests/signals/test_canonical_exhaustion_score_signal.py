@@ -77,7 +77,7 @@ async def test_fresh_node_scores_zero():
     ctx = _make_context(states={"node-a": _make_node_state(focus_count=0)})
     signal = CanonicalExhaustionScoreSignal()
     result = await signal.detect(ctx, MagicMock(), "")
-    assert result["graph.canonical_exhaustion_score"] == pytest.approx(0.0)
+    assert result["canongraph.state.exhaustion"] == pytest.approx(0.0)
 
 
 @pytest.mark.asyncio
@@ -92,7 +92,7 @@ async def test_returns_float_in_range_for_single_node():
     )
     signal = CanonicalExhaustionScoreSignal()
     result = await signal.detect(ctx, MagicMock(), "")
-    score = result["graph.canonical_exhaustion_score"]
+    score = result["canongraph.state.exhaustion"]
     assert 0.0 <= score <= 1.0
 
 
@@ -106,6 +106,6 @@ async def test_returns_average_across_multiple_nodes():
     ctx = _make_context(states={"fresh": fresh, "exhausted": exhausted})
     signal = CanonicalExhaustionScoreSignal()
     result = await signal.detect(ctx, MagicMock(), "")
-    score = result["graph.canonical_exhaustion_score"]
+    score = result["canongraph.state.exhaustion"]
     # fresh=0.0, exhausted=0.7 (max: 0.4+0.3+0.0) → average 0.35
     assert 0.0 < score < 1.0

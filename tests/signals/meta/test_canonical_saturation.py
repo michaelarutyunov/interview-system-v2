@@ -35,7 +35,7 @@ async def test_pure_dedup_yields_one():
     ctx.graph_state = _make_graph_state(node_count=30)
     ctx.canonical_graph_state = _make_canonical_state(concept_count=2)
     result = await CanonicalSaturationSignal().detect(ctx, ctx.graph_state, "")
-    assert result["meta.canonical.saturation"] == 1.0
+    assert result["meta.saturation.canonical"] == 1.0
 
 
 @pytest.mark.asyncio
@@ -45,7 +45,7 @@ async def test_all_novel_yields_zero():
     ctx.graph_state = _make_graph_state(node_count=15)
     ctx.canonical_graph_state = _make_canonical_state(concept_count=10)
     result = await CanonicalSaturationSignal().detect(ctx, ctx.graph_state, "")
-    assert result["meta.canonical.saturation"] == 0.0
+    assert result["meta.saturation.canonical"] == 0.0
 
 
 @pytest.mark.asyncio
@@ -55,7 +55,7 @@ async def test_partial_novelty():
     ctx.graph_state = _make_graph_state(node_count=30)
     ctx.canonical_graph_state = _make_canonical_state(concept_count=6)
     result = await CanonicalSaturationSignal().detect(ctx, ctx.graph_state, "")
-    assert result["meta.canonical.saturation"] == 0.75
+    assert result["meta.saturation.canonical"] == 0.75
 
 
 @pytest.mark.asyncio
@@ -70,7 +70,7 @@ async def test_no_surface_extraction_yields_one():
     ctx.graph_state = _make_graph_state(node_count=30)
     ctx.canonical_graph_state = _make_canonical_state(concept_count=10)
     result = await CanonicalSaturationSignal().detect(ctx, ctx.graph_state, "")
-    assert result["meta.canonical.saturation"] == 1.0
+    assert result["meta.saturation.canonical"] == 1.0
 
 
 @pytest.mark.asyncio
@@ -90,4 +90,4 @@ async def test_canonical_exceeds_surface_clamps():
     ctx.graph_state = _make_graph_state(node_count=12)
     ctx.canonical_graph_state = _make_canonical_state(concept_count=10)
     result = await CanonicalSaturationSignal().detect(ctx, ctx.graph_state, "")
-    assert result["meta.canonical.saturation"] == 0.0
+    assert result["meta.saturation.canonical"] == 0.0

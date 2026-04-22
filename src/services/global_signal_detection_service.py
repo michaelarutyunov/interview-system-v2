@@ -20,8 +20,8 @@ class GlobalSignalDetectionService:
     """Detects global-level signals from response text and graph state.
 
     Global signals include:
-    - llm.response_depth: How detailed the response is
-    - llm.global_response_trend: Trend over recent responses (improving/degrading/stable)
+    - response.semantic.llm.response_depth: How detailed the response is
+    - response.semantic.llm.engagement.trend: Trend over recent responses (improving/degrading/stable)
     - graph.* signals: Graph state metrics
     """
 
@@ -55,7 +55,7 @@ class GlobalSignalDetectionService:
             response_text: User's response text
 
         Returns:
-            Dict mapping signal_name to value (e.g., {"llm.response_depth": "deep"})
+            Dict mapping signal_name to value (e.g., {"response.semantic.llm.response_depth": "deep"})
         """
         config = self.methodology_registry.get_methodology(methodology_name)
         if not config:
@@ -152,15 +152,19 @@ class GlobalSignalDetectionService:
         )
 
         # Update and detect global response trend
-        current_depth = global_signals.get("llm.response_depth", "surface")
+        current_depth = global_signals.get(
+            "response.semantic.llm.response_depth", "surface"
+        )
         trend_signal = self._get_global_trend_signal()
 
         try:
             trend_result = await trend_signal.detect(
                 context, graph_state, response_text, current_depth=current_depth
             )
-            global_trend = trend_result.get("llm.global_response_trend", "stable")
-            global_signals["llm.global_response_trend"] = global_trend
+            global_trend = trend_result.get(
+                "response.semantic.llm.engagement.trend", "stable"
+            )
+            global_signals["response.semantic.llm.engagement.trend"] = global_trend
 
             log.debug(
                 "global_response_trend_detected",
@@ -175,7 +179,7 @@ class GlobalSignalDetectionService:
                 error=str(e),
                 error_type=type(e).__name__,
             )
-            global_signals["llm.global_response_trend"] = "stable"
+            global_signals["response.semantic.llm.engagement.trend"] = "stable"
 
         # Stash per-concept ratings from the batch detector for the bridge step
         # in MethodologyStrategyService (read via detect_with_per_concept).

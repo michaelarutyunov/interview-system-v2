@@ -224,13 +224,15 @@ class NodeOpportunitySignal(NodeSignalDetector):
             hasattr(context, "current_turn_global_signals")
             and context.current_turn_global_signals
         ):
-            return context.current_turn_global_signals.get("llm.response_depth")
+            return context.current_turn_global_signals.get(
+                "response.semantic.llm.response_depth"
+            )
 
         # Fallback: previous-turn signals from StrategySelectionOutput.
         # NOTE: this path is intentionally stale — it is only reached when
         # current_turn_global_signals is absent (e.g. isolated unit tests).
         if hasattr(context, "signals") and context.signals:
-            return context.signals.get("llm.response_depth")
+            return context.signals.get("response.semantic.llm.response_depth")
 
         return None
 

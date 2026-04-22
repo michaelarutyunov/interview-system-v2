@@ -19,17 +19,17 @@ class GlobalChainTopologySignal(SignalDetector):
     """Global chain topology aggregates for observability and threshold checks.
 
     Namespaced signals:
-        - graph.global.frontier_count (int): Nodes with gap_above=True (chain frontiers).
-        - graph.global.ungrounded_count (int): Nodes with gap_below=True (ungrounded nodes).
+        - convgraph.chain.structure.frontier_count (int): Nodes with gap_above=True (chain frontiers).
+        - convgraph.chain.structure.ungrounded_count (int): Nodes with gap_below=True (ungrounded nodes).
 
     Returns empty dict for non-chain methodologies (fewer than 2 distinct ontology levels).
     """
 
-    signal_name = "graph.global.chain_topology"
+    signal_name = "convgraph.chain.structure"
     description = (
         "Global chain topology aggregates. "
-        "graph.global.frontier_count = chain frontiers (gap_above nodes). "
-        "graph.global.ungrounded_count = ungrounded nodes (gap_below nodes)."
+        "convgraph.chain.structure.frontier_count = chain frontiers (gap_above nodes). "
+        "convgraph.chain.structure.ungrounded_count = ungrounded nodes (gap_below nodes)."
     )
     dependencies = []
 
@@ -67,8 +67,8 @@ class GlobalChainTopologySignal(SignalDetector):
 
         if not nodes:
             return {
-                "graph.global.frontier_count": 0,
-                "graph.global.ungrounded_count": 0,
+                "convgraph.chain.structure.frontier_count": 0,
+                "convgraph.chain.structure.ungrounded_count": 0,
             }
 
         # Filter to leads_to edges only
@@ -94,8 +94,8 @@ class GlobalChainTopologySignal(SignalDetector):
                 ungrounded_count += 1
 
         return {
-            "graph.global.frontier_count": frontier_count,
-            "graph.global.ungrounded_count": ungrounded_count,
+            "convgraph.chain.structure.frontier_count": frontier_count,
+            "convgraph.chain.structure.ungrounded_count": ungrounded_count,
         }
 
     async def _get_session_nodes(self, context: Any) -> List[Any]:
