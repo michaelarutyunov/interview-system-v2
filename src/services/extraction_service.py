@@ -310,8 +310,7 @@ class ExtractionService:
         response = await self.llm.complete(
             prompt=user_prompt,
             system=system_prompt,
-            temperature=0.2,  # Low temperature for consistent classification
-            max_tokens=4000,  # Increased from 2000 to handle long responses
+            max_tokens=4000,
             response_format={"type": "json_object"},
         )
 

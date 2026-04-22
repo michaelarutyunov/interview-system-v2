@@ -246,7 +246,6 @@ class CanonicalSlotService:
         response = await self.llm.complete(
             prompt=prompt,
             system=system,
-            temperature=0.3,
             max_tokens=2000,
             timeout=60.0,
             response_format={"type": "json_object"},
