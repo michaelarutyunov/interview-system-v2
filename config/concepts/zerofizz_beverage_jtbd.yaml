@@ -1,0 +1,8 @@
+# domain_bundle: zerofizz_beverage_v1
+# Immutable: revisions become v2, not silent edits to v1.
+# See docs/concepts/zerofizz_beverage_v1/domain_brief.md for methodology-agnostic source of truth.
+id: zerofizz_beverage_jtbd
+name: "ZeroFizz Sugar-Free Carbonated Beverage - Jobs to be Done"
+methodology: jobs_to_be_done_v2
+
+objective: "Understand what jobs health-conscious adults 18-35 are trying to accomplish when they reach for a sugar-free carbonated beverage — functional jobs (power through the 2pm desk slump without another coffee, substitute for a beer at a rooftop bar, scratch the soda craving without a calorie hit), emotional jobs (feel indulgent without guilt, feel alert without jittery, feel like the kind of person who reads labels), and social jobs (have an adult-coded drink in hand while friends are doing Dry January, signal wellness alignment without preaching). Probe the pains driving switching — sweetener aftertaste fatigue, a TikTok creator calling out an ingredient, price creep, availability drops at their usual grocery. Elicit desired outcomes — clean energy, recognizable short-label ingredients, a flavor that doesn't get boring. Treat Coke Zero, Celsius, LaCroix, and Olipop as category alternatives respondents are hiring against."

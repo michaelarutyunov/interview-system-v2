@@ -111,7 +111,7 @@ uv run python scripts/run_eval_matrix.py \
 | `--methodology` | yes | — | Short name or full YAML name |
 | `--concept` | yes | — | Concept ID from `config/concepts/` |
 | `--personas` | yes | — | Comma-separated persona IDs |
-| `--replicates` | no | 10 | Replicates per persona cell |
+| `--replicates` | no | 10 | Replicates per persona cell (default is a floor — use ≥25 for calibration and A/B comparisons; see Statistical Notes) |
 | `--max-turns` | no | 15 | Max turns per simulation |
 | `--max-parallel` | no | 4 | Concurrent simulations (LLM API budget) |
 | `--label` | yes | — | Human-readable config label for scoreboard |
@@ -183,7 +183,8 @@ The `domain:zerofizz_beverage_v1` concept suite provides methodology-matched con
 
 ## Statistical Notes
 
-- **Replicates**: Default R=10. Increase if baseline-vs-baseline CIs don't overlap.
-- **Paired comparison**: Same `(persona_id, replicate_seed)` pairs run under both configs, enabling paired analysis.
-- **Replicate seeds**: Deterministic from `hash(persona_id:replicate_idx)` — stable across runs for pairing.
-- **95% CI**: Computed as `1.96 × std / sqrt(n)` using sample standard deviation.
+- **Replicates**: Default R=10 is a floor, not a target. For baseline-vs-baseline calibration and real config comparisons use R≥25. Step 5 determinism audit (2026-04-23) showed `node_count` drift of up to ~30% between repeated runs of the same config, which means small effect sizes need more samples to detect.
+- **Comparisons are unpaired.** `replicate_seed` is stored as a row label (for uniqueness and traceability) but is **not threaded into the simulation or LLM calls** — `simulate_interview()` receives no seed, and the Anthropic Messages API does not expose a `seed` parameter. Two runs with the same `(persona_id, replicate_seed)` are independent samples, not paired observations. Treat all analysis as unpaired; do not expect the variance reduction a paired design would give.
+- **Replicate seeds**: Deterministic from `hash(persona_id:replicate_idx)` — stable as a *label* across runs, but does not fix LLM state. Useful for joining rows, not for reducing variance.
+- **95% CI**: Computed as `1.96 × std / sqrt(n)` using sample standard deviation. With unpaired variance, expect wider CIs than a paired design would produce.
+- **Determinism boundary**: `temperature=0` is forced for extraction, slot scoring, and signal scoring. Persona and question generation keep stochastic temperatures. Observed divergence across identical-config runs is driven by those generative calls, not by the deterministic pathway.

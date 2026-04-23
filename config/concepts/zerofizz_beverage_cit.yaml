@@ -1,0 +1,8 @@
+# domain_bundle: zerofizz_beverage_v1
+# Immutable: revisions become v2, not silent edits to v1.
+# See docs/concepts/zerofizz_beverage_v1/domain_brief.md for methodology-agnostic source of truth.
+id: zerofizz_beverage_cit
+name: "ZeroFizz Sugar-Free Carbonated Beverage - Critical Incident"
+methodology: critical_incident_v2
+
+objective: "Elicit a single memorable incident in which the respondent's relationship with sugar-free carbonated beverages shifted — a first trial at a friend's barbecue, a disappointing aftertaste that ended a favorite, a TikTok video that made them drop a brand mid-12-pack, a rooftop-bar moment when ordering a ZeroFizz instead of a cocktail felt unexpectedly easy, or a workplace meeting where the office fridge swap from regular soda felt like a quiet identity statement. Focus on one concrete incident, not general attitudes. Reconstruct the circumstances (when, where, with whom, what preceded it), the moment itself (what they noticed, tasted, heard, thought), the emotional response (surprise, relief, regret, validation, suspicion), and the aftermath (what changed in their consumption afterward, what they told others, whether they later revised the verdict). Use Coke Zero, Celsius, and LaCroix as comparison references when respondents ground the incident."

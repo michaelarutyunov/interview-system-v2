@@ -1,0 +1,8 @@
+# domain_bundle: zerofizz_beverage_v1
+# Immutable: revisions become v2, not silent edits to v1.
+# See docs/concepts/zerofizz_beverage_v1/domain_brief.md for methodology-agnostic source of truth.
+id: zerofizz_beverage_rg
+name: "ZeroFizz Sugar-Free Carbonated Beverage - Repertory Grid"
+methodology: repertory_grid_v2
+
+objective: "Elicit how a health-conscious adult 18-35 personally differentiates among sugar-free carbonated beverages and category alternatives — ZeroFizz, Coke Zero, Pepsi Zero, Celsius, LaCroix, Olipop, plain sparkling water — using their own bipolar constructs rather than predefined attributes. Through triadic comparisons, surface what truly drives preference: respondents might contrast 'clean energy vs. jittery,' 'grown-up vs. teenage,' 'label I'd show a friend vs. label I'd hide,' 'for when I'm earning it vs. for when I'm defaulting,' 'belongs at a rooftop bar vs. belongs at a gas station,' or 'trustworthy ingredients vs. chemistry-class.' Reveal the latent dimensions — functional, sensory, identity-signaling, social-contextual, values-aligned — along which respondents organize the category, including constructs they'd never volunteer in open-ended questioning and the tensions they hold between indulgence, health, sociability, and authenticity."

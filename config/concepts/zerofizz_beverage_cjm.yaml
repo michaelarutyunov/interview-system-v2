@@ -1,0 +1,8 @@
+# domain_bundle: zerofizz_beverage_v1
+# Immutable: revisions become v2, not silent edits to v1.
+# See docs/concepts/zerofizz_beverage_v1/domain_brief.md for methodology-agnostic source of truth.
+id: zerofizz_beverage_cjm
+name: "ZeroFizz Sugar-Free Carbonated Beverage - Customer Journey Map"
+methodology: customer_journey_mapping_v2
+
+objective: "Map the end-to-end customer journey for a health-conscious adult 18-35 with a sugar-free carbonated beverage — from first awareness (TikTok ad, a friend's can at a picnic, an endcap at Trader Joe's) through curiosity and research (ingredient-label scrutiny, Reddit and creator reviews, sweetener identity comparison), first single-can trial (where, when, what occasion), first-taste reaction and aftertaste verdict, second-can decision and 12-pack commitment, integration into weekly rituals (2pm desk slump, post-workout, rooftop-bar alcohol substitute), social use in peer settings where others are cutting back, and the evaluation moments that drive recommendation, switching to Celsius or Olipop, or outright abandonment after an ingredient controversy or price increase. Capture touchpoints, friction (availability drops, sweetener distrust, lifestyle-marketing skepticism), and moments of delight (a flavor discovery, a clean energy boost, a Dry-January social win) at each stage."

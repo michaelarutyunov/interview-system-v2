@@ -1,0 +1,8 @@
+# domain_bundle: zerofizz_beverage_v1
+# Immutable: revisions become v2, not silent edits to v1.
+# See docs/concepts/zerofizz_beverage_v1/domain_brief.md for methodology-agnostic source of truth.
+id: zerofizz_beverage_mec
+name: "ZeroFizz Sugar-Free Carbonated Beverage - Means-End Chain"
+methodology: means_end_chain_v2_strict
+
+objective: "Explore how health-conscious adults 18-35 navigate sugar-free carbonated beverage choices — from concrete product attributes (zero-sugar sweetener identity, caffeine dose, carbonation intensity, can design, price per 12-pack, availability at their usual grocery) to the functional consequences they produce (no 2pm crash, alertness without jitters, satisfying the soda craving without calories) to the psychosocial consequences they enable (feeling in control, belonging at a rooftop bar without a cocktail, signaling a modern wellness identity without preaching) to the deeper values these consequences serve (autonomy over ingredient choices, vitality, authenticity in lifestyle signaling, belonging with peers who are cutting back on alcohol, pragmatism over purity). Treat category alternatives — Coke Zero, LaCroix, Celsius — as contrast references when respondents describe why a given attribute led them to choose or reject a product."
