@@ -64,6 +64,20 @@ The key metric. Counts how many "root" node types have an undirected path to a "
 | CJM | `stage` | `friction`, `moment_of_truth` | Stage with discovered pain or insight |
 | RG | `construct_pole` | `laddered_construct` | Construct deepened via laddering |
 
+### Methodology-specific: max chain depth
+
+Captures partial chain progress for hierarchical ontologies. Measures the deepest ontology level reached by any path starting at a root node, in 1–N levels (where N is the methodology's ontology depth).
+
+| Methodology | Levels (root → terminal) | Depth | `max_chain_depth` meaning |
+|---|---|---|---|
+| MEC | attribute → functional_consequence → psychosocial_consequence → instrumental_value → terminal_value | 5 | 4 = reached instrumental_value, 5 = reached terminal_value (equivalent to structural_completeness ≥ 1) |
+| JTBD | job_statement → emotional_job / social_job | 2 | 2 = reached emotional/social job (equivalent to structural_completeness ≥ 1) |
+| CIT | incident → situation → action → outcome → emotion/attribution/learning/behavior_change | 5 | 4 = reached outcome, 5 = reached resolution |
+| CJM | — | 0 | Flat ontology — not applicable |
+| RG | — | 0 | Flat ontology — not applicable |
+
+**Consistency check:** `max_chain_depth == ontology_depth` implies `structural_completeness ≥ 1` for the same run.
+
 ### Methodology-specific: breadth and depth
 
 - **`ontology_breadth`** — Fraction of ontology node types that have at least one instance (how much of the conceptual space was covered)
