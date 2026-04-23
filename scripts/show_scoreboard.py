@@ -214,6 +214,10 @@ def main():
         "--compare-to", help="Baseline config hash for delta comparison"
     )
     parser.add_argument(
+        "--compare-to-label",
+        help="Explicit label for baseline when multiple labels exist under the same hash",
+    )
+    parser.add_argument(
         "--by-persona", action="store_true", help="Group by persona instead of config"
     )
     parser.add_argument(
@@ -239,7 +243,33 @@ def main():
 
     baseline_agg = None
     if args.compare_to:
-        baseline_runs = query_runs(DB_PATH, config_hash=args.compare_to)
+        baseline_label = args.compare_to_label
+        if not baseline_label:
+            # Check if multiple labels exist under this hash
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            label_rows = conn.execute(
+                """SELECT run_label, MAX(timestamp) as latest
+                   FROM eval_runs
+                   WHERE config_hash = ?
+                   GROUP BY run_label
+                   ORDER BY latest DESC""",
+                (args.compare_to,),
+            ).fetchall()
+            conn.close()
+            if len(label_rows) > 1:
+                baseline_label = label_rows[0]["run_label"]
+                other_labels = ", ".join(r["run_label"] for r in label_rows[1:])
+                print(
+                    f"Warning: multiple labels under baseline hash {args.compare_to}. "
+                    f"Using most recent: '{baseline_label}' (others: {other_labels}). "
+                    f"Use --compare-to-label to specify explicitly."
+                )
+            elif label_rows:
+                baseline_label = label_rows[0]["run_label"]
+        baseline_runs = query_runs(
+            DB_PATH, config_hash=args.compare_to, label=baseline_label
+        )
         if baseline_runs:
             baseline_aggs = compute_config_aggregates(baseline_runs)
             if baseline_aggs:
