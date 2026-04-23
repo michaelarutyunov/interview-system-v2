@@ -1706,7 +1706,7 @@ uv run python scripts/run_simulation.py --concept headphones_mec --persona basel
 
 ```bash
 # Reads score_decomposition from JSON — accurate live scores, not post-hoc recomputation
-uv run python scripts/generate_scoring_csv.py synthetic_interviews/<file>.json
+uv run python scripts/reporting/generate_scoring_csv.py synthetic_interviews/<file>.json
 ```
 
 ---

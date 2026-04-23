@@ -6,10 +6,10 @@ Queries the SQLite database directly for surface and canonical graph metrics.
 Outputs a markdown table comparing sessions side-by-side.
 
 Usage:
-    uv run python scripts/compare_extraction_metrics.py <session_id_1> [session_id_2] ...
+    uv run python scripts/diagnostics/compare_extraction_metrics.py <session_id_1> [session_id_2] ...
 
 Example:
-    uv run python scripts/compare_extraction_metrics.py \
+    uv run python scripts/diagnostics/compare_extraction_metrics.py \
         abc123 def456 ghi789 jkl012
 
 Bead: pong (Phase 4: Signal Pool Extensions)
@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional
 import aiosqlite
 
 # Add project root to path for imports
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.core.config import settings  # noqa: E402

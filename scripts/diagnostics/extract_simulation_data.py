@@ -6,7 +6,7 @@ Produces three Parquet files from a directory of simulation outputs:
   3. interviews.parquet — one row per interview with terminal graph/outcome stats
 
 Usage:
-    uv run python scripts/extract_simulation_data.py [INPUT_DIR] [OUTPUT_DIR]
+    uv run python scripts/diagnostics/extract_simulation_data.py [INPUT_DIR] [OUTPUT_DIR]
 
     INPUT_DIR  defaults to synthetic_interviews/v2
     OUTPUT_DIR defaults to analysis/simulation_extract

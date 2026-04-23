@@ -11,7 +11,7 @@ CONTEXT: After switching from spaCy word vectors to sentence-transformers
 determines if threshold tuning is necessary.
 
 USAGE:
-    uv run python scripts/analyze_similarity_distribution.py <session_id>
+    uv run python scripts/diagnostics/analyze_similarity_distribution.py <session_id>
 
 OUTPUT:
     - Total mappings count

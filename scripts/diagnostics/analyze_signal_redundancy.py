@@ -17,16 +17,16 @@ Classification:
 
 Usage:
     # From pre-extracted parquet:
-    uv run python scripts/analyze_signal_redundancy.py analysis/simulation_extract/
+    uv run python scripts/diagnostics/analyze_signal_redundancy.py analysis/simulation_extract/
 
     # From raw simulation JSONs (extracts on the fly):
-    uv run python scripts/analyze_signal_redundancy.py synthetic_interviews/v2/
+    uv run python scripts/diagnostics/analyze_signal_redundancy.py synthetic_interviews/v2/
 
     # Filter to one methodology:
-    uv run python scripts/analyze_signal_redundancy.py analysis/simulation_extract/ --methodology means_end_chain_v3_flex
+    uv run python scripts/diagnostics/analyze_signal_redundancy.py analysis/simulation_extract/ --methodology means_end_chain_v3_flex
 
     # Filter to one or more personas:
-    uv run python scripts/analyze_signal_redundancy.py analysis/simulation_extract/ --personas health_conscious skeptical_analyst
+    uv run python scripts/diagnostics/analyze_signal_redundancy.py analysis/simulation_extract/ --personas health_conscious skeptical_analyst
 """
 
 from __future__ import annotations

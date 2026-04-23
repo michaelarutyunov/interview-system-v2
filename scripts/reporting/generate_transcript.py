@@ -2,8 +2,8 @@
 """Generate a structured markdown transcript from a simulation JSON file.
 
 Usage:
-    python scripts/generate_transcript.py synthetic_interviews/<filename>.json
-    python scripts/generate_transcript.py  # processes most recent JSON
+    python scripts/reporting/generate_transcript.py synthetic_interviews/<filename>.json
+    python scripts/reporting/generate_transcript.py  # processes most recent JSON
 
 Output is saved to reports/transcripts/<timestamp>_transcript.md
 where <timestamp> is extracted from the source filename.

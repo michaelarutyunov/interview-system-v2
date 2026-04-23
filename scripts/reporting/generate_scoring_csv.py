@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 # Allow running from scripts/ or from project root
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 CSV_FIELDNAMES = [

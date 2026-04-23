@@ -7,23 +7,23 @@ column. Nodes are color-coded by turn and cross-column edges show relationships.
 Both a .mmd source file and a rendered .png are saved next to the input JSON.
 
 Usage:
-    uv run python scripts/generate_mermaid_graph.py <json_file> [options]
+    uv run python scripts/reporting/generate_mermaid_graph.py <json_file> [options]
 
 Examples:
     # Full graph, auto-saved as <json_file>.mmd + <json_file>.png
-    uv run python scripts/generate_mermaid_graph.py synthetic_interviews/foo.json
+    uv run python scripts/reporting/generate_mermaid_graph.py synthetic_interviews/foo.json
 
     # Simplified graph (top connected nodes only), saved as foo_simple.mmd + .png
-    uv run python scripts/generate_mermaid_graph.py synthetic_interviews/foo.json -s
+    uv run python scripts/reporting/generate_mermaid_graph.py synthetic_interviews/foo.json -s
 
     # Simplified with custom node limit
-    uv run python scripts/generate_mermaid_graph.py synthetic_interviews/foo.json -s --max-nodes 20
+    uv run python scripts/reporting/generate_mermaid_graph.py synthetic_interviews/foo.json -s --max-nodes 20
 
     # Custom output path (PNG saved alongside it)
-    uv run python scripts/generate_mermaid_graph.py synthetic_interviews/foo.json -o /tmp/out.mmd
+    uv run python scripts/reporting/generate_mermaid_graph.py synthetic_interviews/foo.json -o /tmp/out.mmd
 
     # High resolution output (2x scale for 4800x2800)
-    uv run python scripts/generate_mermaid_graph.py synthetic_interviews/foo.json --scale 2
+    uv run python scripts/reporting/generate_mermaid_graph.py synthetic_interviews/foo.json --scale 2
 
 Flags:
     json_file           Path to simulation JSON file (required)

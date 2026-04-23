@@ -9,9 +9,9 @@ This is a one-time migration for JSON files produced before focus_node_id was
 added to SimulationTurn. Safe to re-run — already-patched turns are skipped.
 
 Usage:
-    python scripts/backfill_focus_nodes.py                    # all files
-    python scripts/backfill_focus_nodes.py --dry-run          # preview only
-    python scripts/backfill_focus_nodes.py synthetic_interviews/20260411_*.json
+    python scripts/migration/backfill_focus_nodes.py                    # all files
+    python scripts/migration/backfill_focus_nodes.py --dry-run          # preview only
+    python scripts/migration/backfill_focus_nodes.py synthetic_interviews/20260411_*.json
 """
 
 import json

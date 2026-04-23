@@ -3,7 +3,7 @@
 Analyze the latest interview log file for pipeline timing and LLM call metrics.
 
 Usage:
-    uv run python scripts/analyze_latest_log.py
+    uv run python scripts/diagnostics/analyze_latest_log.py
 """
 
 import re
