@@ -47,6 +47,9 @@ packages = ["src"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "quality_baseline: opt-in tests that incur LLM cost (run with -m quality_baseline)",
+]
 
 [tool.black]
 line-length = 100

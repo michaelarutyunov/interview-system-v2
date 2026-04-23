@@ -1,0 +1,411 @@
+{
+  "source_file": "20260417_140252_glp1_food_mec_strict_baseline_cooperative.json",
+  "session_id": "ea1b6f82-8490-46ca-97c7-353bcc314636",
+  "methodology": "means_end_chain_v2_strict",
+  "concept_id": "glp1_food_mec_strict",
+  "persona_id": "baseline_cooperative",
+  "total_turns": 10,
+  "turns": [
+    {
+      "turn_number": 1,
+      "strategy": "ground",
+      "focus_node_label": "reduced appetite throughout the day",
+      "concepts": [
+        {
+          "label": "reduced appetite throughout the day",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "eating less than usual",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "natural stopping point when eating",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "no sense of forced restriction",
+          "node_type": "psychosocial_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "reduced appetite throughout the day",
+          "target_label": "eating less than usual",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced appetite throughout the day",
+          "target_label": "natural stopping point when eating",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "natural stopping point when eating",
+          "target_label": "no sense of forced restriction",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "eating less than usual",
+          "target_label": "no sense of forced restriction",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 2,
+      "strategy": "branch",
+      "focus_node_label": "GLP-1 mechanism acting on brain/stomach",
+      "concepts": [
+        {
+          "label": "GLP-1 mechanism acting on brain/stomach",
+          "node_type": "attribute"
+        },
+        {
+          "label": "suppressed hunger signals",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "reduced food preoccupation",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "absence of food cravings/urges",
+          "node_type": "functional_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "GLP-1 mechanism acting on brain/stomach",
+          "target_label": "suppressed hunger signals",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "suppressed hunger signals",
+          "target_label": "reduced food preoccupation",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "suppressed hunger signals",
+          "target_label": "absence of food cravings/urges",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced food preoccupation",
+          "target_label": "reduced appetite throughout the day",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "absence of food cravings/urges",
+          "target_label": "eating less than usual",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "absence of food cravings/urges",
+          "target_label": "no sense of forced restriction",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 3,
+      "strategy": "branch",
+      "focus_node_label": "GLP-1 mechanism acting on brain/stomach",
+      "concepts": [
+        {
+          "label": "accelerated fullness during meals",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "automatic plate-finishing behavior (past)",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "reduced flavor noticeability",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "reduced eating focus/attention",
+          "node_type": "functional_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "GLP-1 mechanism acting on brain/stomach",
+          "target_label": "43823036-2a6f-4330-b956-a414d963829d",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "GLP-1 mechanism acting on brain/stomach",
+          "target_label": "reduced flavor noticeability",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "43823036-2a6f-4330-b956-a414d963829d",
+          "target_label": "natural stopping point when eating",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "43823036-2a6f-4330-b956-a414d963829d",
+          "target_label": "no sense of forced restriction",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "automatic plate-finishing behavior (past)",
+          "target_label": "43823036-2a6f-4330-b956-a414d963829d",
+          "edge_type": "revises"
+        },
+        {
+          "source_label": "reduced food preoccupation",
+          "target_label": "reduced eating focus/attention",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced eating focus/attention",
+          "target_label": "reduced flavor noticeability",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 4,
+      "strategy": "ground",
+      "focus_node_label": "automatic plate-finishing behavior (past)",
+      "concepts": [
+        {
+          "label": "accelerated satiety onset",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "reduced snacking between meals",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "forgetting to eat meals",
+          "node_type": "functional_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "GLP-1 mechanism acting on brain/stomach",
+          "target_label": "accelerated satiety onset",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "accelerated satiety onset",
+          "target_label": "reduced snacking between meals",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced food preoccupation",
+          "target_label": "forgetting to eat meals",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "accelerated satiety onset",
+          "target_label": "eating less than usual",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 5,
+      "strategy": "ascend",
+      "focus_node_label": "no sense of forced restriction",
+      "concepts": [
+        {
+          "label": "food not registering as a need",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "suppressed hunger signals",
+          "node_type": "functional_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "suppressed hunger signals",
+          "target_label": "food not registering as a need",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "food not registering as a need",
+          "target_label": "forgetting to eat meals",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "suppressed hunger signals",
+          "target_label": "no sense of forced restriction",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced food preoccupation",
+          "target_label": "food not registering as a need",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 6,
+      "strategy": "ascend",
+      "focus_node_label": "no sense of forced restriction",
+      "concepts": [
+        {
+          "label": "food management consuming mental headspace",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "freed mental space for other priorities",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "being mentally present and focused",
+          "node_type": "instrumental_value"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "no sense of forced restriction",
+          "target_label": "1bd6853e-8386-4cf4-bb9c-4d599bebec2a",
+          "edge_type": "revises"
+        },
+        {
+          "source_label": "reduced food preoccupation",
+          "target_label": "1bd6853e-8386-4cf4-bb9c-4d599bebec2a",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "1bd6853e-8386-4cf4-bb9c-4d599bebec2a",
+          "target_label": "freed mental space for other priorities",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 7,
+      "strategy": "ground",
+      "focus_node_label": "automatic plate-finishing behavior (past)",
+      "concepts": [
+        {
+          "label": "engaging in normal daily activities (work, socializing)",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "skepticism about magnitude of freed mental space",
+          "node_type": "psychosocial_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "freed mental space for other priorities",
+          "target_label": "26ace83c-75be-4b30-a9ad-9d4ac5da30e7",
+          "edge_type": "revises"
+        },
+        {
+          "source_label": "engaging in normal daily activities (work, socializing)",
+          "target_label": "26ace83c-75be-4b30-a9ad-9d4ac5da30e7",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 8,
+      "strategy": "ascend",
+      "focus_node_label": "active listening instead of half-listening",
+      "concepts": [
+        {
+          "label": "distraction from hunger thoughts during social/work interactions",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "quieter mental food noise",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "active listening instead of half-listening",
+          "node_type": "functional_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "reduced food preoccupation",
+          "target_label": "quieter mental food noise",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "suppressed hunger signals",
+          "target_label": "distraction from hunger thoughts during social/work interactions",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "quieter mental food noise",
+          "target_label": "active listening instead of half-listening",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "distraction from hunger thoughts during social/work interactions",
+          "target_label": "active listening instead of half-listening",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "freed mental space for other priorities",
+          "target_label": "active listening instead of half-listening",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 9,
+      "strategy": "branch",
+      "focus_node_label": "active listening instead of half-listening",
+      "concepts": [
+        {
+          "label": "actually understanding what others are saying",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "being respectful of others' time and attention",
+          "node_type": "instrumental_value"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "active listening instead of half-listening",
+          "target_label": "actually understanding what others are saying",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 10,
+      "strategy": "validate",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "being fully present with others",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "avoiding half-tuning others out",
+          "node_type": "functional_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "quieter mental food noise",
+          "target_label": "being fully present with others",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "absence of food cravings/urges",
+          "target_label": "avoiding half-tuning others out",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "active listening instead of half-listening",
+          "target_label": "avoiding half-tuning others out",
+          "edge_type": "leads_to"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,590 @@
+{
+  "source_file": "20260415_225923_plant_milk_comparison_rg_baseline_cooperative.json",
+  "session_id": "dbd841f1-3695-4ac5-8e2b-aa6943f26bcc",
+  "methodology": "repertory_grid_v2",
+  "concept_id": "plant_milk_comparison_rg",
+  "persona_id": "baseline_cooperative",
+  "total_turns": 9,
+  "turns": [
+    {
+      "turn_number": 1,
+      "strategy": "triadic_elicit",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "oat milk",
+          "node_type": "element"
+        },
+        {
+          "label": "almond milk",
+          "node_type": "element"
+        },
+        {
+          "label": "froths well in coffee",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "does not froth well in coffee",
+          "node_type": "opposite_pole"
+        },
+        {
+          "label": "froths well vs does not froth well in coffee",
+          "node_type": "construct"
+        },
+        {
+          "label": "thin / watered down taste",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "full / rich taste",
+          "node_type": "opposite_pole"
+        },
+        {
+          "label": "thin vs full taste",
+          "node_type": "construct"
+        },
+        {
+          "label": "price-driven purchase decision",
+          "node_type": "laddered_construct"
+        },
+        {
+          "label": "coffee frothing performance is primary criterion",
+          "node_type": "laddered_construct"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "oat milk",
+          "target_label": "froths well in coffee",
+          "edge_type": "evaluated_by"
+        },
+        {
+          "source_label": "froths well in coffee",
+          "target_label": "does not froth well in coffee",
+          "edge_type": "opposite_of"
+        },
+        {
+          "source_label": "thin / watered down taste",
+          "target_label": "full / rich taste",
+          "edge_type": "opposite_of"
+        },
+        {
+          "source_label": "almond milk",
+          "target_label": "thin / watered down taste",
+          "edge_type": "evaluated_by"
+        },
+        {
+          "source_label": "oat milk",
+          "target_label": "almond milk",
+          "edge_type": "differs_on"
+        },
+        {
+          "source_label": "froths well in coffee",
+          "target_label": "coffee frothing performance is primary criterion",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "price-driven purchase decision",
+          "target_label": "oat milk",
+          "edge_type": "evaluated_by"
+        }
+      ]
+    },
+    {
+      "turn_number": 2,
+      "strategy": "explore_construct",
+      "focus_node_label": "froths well vs does not froth well in coffee",
+      "concepts": [
+        {
+          "label": "thick foam",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "separates and gets watery",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "thick foam vs separates and gets watery",
+          "node_type": "construct"
+        },
+        {
+          "label": "oat milk froths similarly to dairy milk",
+          "node_type": "similarity"
+        },
+        {
+          "label": "oat milk froths better than almond milk",
+          "node_type": "difference"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "thick foam",
+          "target_label": "separates and gets watery",
+          "edge_type": "opposite_of"
+        },
+        {
+          "source_label": "oat milk",
+          "target_label": "thick foam",
+          "edge_type": "similar_on"
+        },
+        {
+          "source_label": "almond milk",
+          "target_label": "separates and gets watery",
+          "edge_type": "similar_on"
+        },
+        {
+          "source_label": "froths well in coffee",
+          "target_label": "thick foam",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "does not froth well in coffee",
+          "target_label": "separates and gets watery",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "thick foam",
+          "target_label": "coffee frothing performance is primary criterion",
+          "edge_type": "implies"
+        }
+      ]
+    },
+    {
+      "turn_number": 3,
+      "strategy": "triadic_elicit",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "complete coffee experience",
+          "node_type": "laddered_construct"
+        },
+        {
+          "label": "intentional / considered",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "just hot milk in a cup",
+          "node_type": "opposite_pole"
+        },
+        {
+          "label": "intentional vs just hot milk in a cup",
+          "node_type": "construct"
+        },
+        {
+          "label": "satisfying sensory experience",
+          "node_type": "laddered_construct"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "froths well vs does not froth well in coffee",
+          "target_label": "complete coffee experience",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "complete coffee experience",
+          "target_label": "intentional / considered",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "intentional / considered",
+          "target_label": "just hot milk in a cup",
+          "edge_type": "opposite_of"
+        },
+        {
+          "source_label": "intentional / considered",
+          "target_label": "satisfying sensory experience",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "thick foam",
+          "target_label": "intentional / considered",
+          "edge_type": "implies"
+        }
+      ]
+    },
+    {
+      "turn_number": 4,
+      "strategy": "rate_elements",
+      "focus_node_label": "oat milk",
+      "concepts": [
+        {
+          "label": "creamy with grainy character",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "generic / trying to be milk",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "distinctive character vs generic imitation",
+          "node_type": "construct"
+        },
+        {
+          "label": "sensory awareness / noticeably present",
+          "node_type": "laddered_construct"
+        },
+        {
+          "label": "choosing something specific",
+          "node_type": "laddered_construct"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "oat milk",
+          "target_label": "creamy with grainy character",
+          "edge_type": "similar_on"
+        },
+        {
+          "source_label": "almond milk",
+          "target_label": "generic / trying to be milk",
+          "edge_type": "similar_on"
+        },
+        {
+          "source_label": "creamy with grainy character",
+          "target_label": "generic / trying to be milk",
+          "edge_type": "opposite_of"
+        },
+        {
+          "source_label": "creamy with grainy character",
+          "target_label": "choosing something specific",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "choosing something specific",
+          "target_label": "intentional / considered",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "creamy with grainy character",
+          "target_label": "sensory awareness / noticeably present",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "sensory awareness / noticeably present",
+          "target_label": "satisfying sensory experience",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "generic / trying to be milk",
+          "target_label": "thin / watered down taste",
+          "edge_type": "implies"
+        }
+      ]
+    },
+    {
+      "turn_number": 5,
+      "strategy": "rate_elements",
+      "focus_node_label": "almond milk",
+      "concepts": [
+        {
+          "label": "deliberate / most intentional choice",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "middle ground on intentionality",
+          "node_type": "rating"
+        },
+        {
+          "label": "default / unremarkable choice",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "deliberate vs default choice",
+          "node_type": "construct"
+        },
+        {
+          "label": "familiarity reduces perceived intentionality",
+          "node_type": "laddered_construct"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "oat milk",
+          "target_label": "deliberate / most intentional choice",
+          "edge_type": "evaluated_by"
+        },
+        {
+          "source_label": "almond milk",
+          "target_label": "middle ground on intentionality",
+          "edge_type": "rated_on"
+        },
+        {
+          "source_label": "deliberate / most intentional choice",
+          "target_label": "default / unremarkable choice",
+          "edge_type": "opposite_of"
+        },
+        {
+          "source_label": "deliberate / most intentional choice",
+          "target_label": "deliberate vs default choice",
+          "edge_type": "opposite_of"
+        },
+        {
+          "source_label": "choosing something specific",
+          "target_label": "deliberate / most intentional choice",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "intentional / considered",
+          "target_label": "deliberate vs default choice",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "familiarity reduces perceived intentionality",
+          "target_label": "middle ground on intentionality",
+          "edge_type": "implies"
+        }
+      ]
+    },
+    {
+      "turn_number": 6,
+      "strategy": "ladder_construct",
+      "focus_node_label": "oat milk",
+      "concepts": [
+        {
+          "label": "soy milk rated 8-9 on intentionality",
+          "node_type": "rating"
+        },
+        {
+          "label": "oat milk rated 7 on intentionality",
+          "node_type": "rating"
+        },
+        {
+          "label": "original / OG alternative",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "switched for a reason / purpose-driven adoption",
+          "node_type": "laddered_construct"
+        },
+        {
+          "label": "trendy / adopted for trend not reason",
+          "node_type": "opposite_pole"
+        },
+        {
+          "label": "purpose-driven vs trend-driven adoption",
+          "node_type": "construct"
+        },
+        {
+          "label": "mainstream normalisation reduces intentionality",
+          "node_type": "laddered_construct"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "oat milk",
+          "target_label": "oat milk rated 7 on intentionality",
+          "edge_type": "rated_on"
+        },
+        {
+          "source_label": "original / OG alternative",
+          "target_label": "deliberate / most intentional choice",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "switched for a reason / purpose-driven adoption",
+          "target_label": "deliberate / most intentional choice",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "switched for a reason / purpose-driven adoption",
+          "target_label": "trendy / adopted for trend not reason",
+          "edge_type": "opposite_of"
+        },
+        {
+          "source_label": "familiarity reduces perceived intentionality",
+          "target_label": "mainstream normalisation reduces intentionality",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "oat milk",
+          "target_label": "mainstream normalisation reduces intentionality",
+          "edge_type": "evaluated_by"
+        },
+        {
+          "source_label": "almond milk",
+          "target_label": "trendy / adopted for trend not reason",
+          "edge_type": "similar_on"
+        },
+        {
+          "source_label": "oat milk",
+          "target_label": "trendy / adopted for trend not reason",
+          "edge_type": "similar_on"
+        }
+      ]
+    },
+    {
+      "turn_number": 7,
+      "strategy": "rate_elements",
+      "focus_node_label": "froths well in coffee",
+      "concepts": [
+        {
+          "label": "making my own call / autonomous choice",
+          "node_type": "laddered_construct"
+        },
+        {
+          "label": "feel good about the choice",
+          "node_type": "laddered_construct"
+        },
+        {
+          "label": "choosing because it tastes good to me",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "choosing because it's trendy",
+          "node_type": "opposite_pole"
+        },
+        {
+          "label": "personal taste vs trend-following",
+          "node_type": "construct"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "deliberate vs default choice",
+          "target_label": "making my own call / autonomous choice",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "making my own call / autonomous choice",
+          "target_label": "feel good about the choice",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "choosing because it tastes good to me",
+          "target_label": "choosing because it's trendy",
+          "edge_type": "opposite_of"
+        },
+        {
+          "source_label": "purpose-driven vs trend-driven adoption",
+          "target_label": "personal taste vs trend-following",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "trendy / adopted for trend not reason",
+          "target_label": "choosing because it's trendy",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "personal taste vs trend-following",
+          "target_label": "making my own call / autonomous choice",
+          "edge_type": "implies"
+        }
+      ]
+    },
+    {
+      "turn_number": 8,
+      "strategy": "rate_elements",
+      "focus_node_label": "does not froth well in coffee",
+      "concepts": [
+        {
+          "label": "dairy milk rated low on intentionality",
+          "node_type": "rating"
+        },
+        {
+          "label": "always been there / habitual presence",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "just what you grab / unconsidered habit",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "alternatives require active decision-making",
+          "node_type": "construct_pole"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "deliberate vs default choice",
+          "target_label": "dairy milk rated low on intentionality",
+          "edge_type": "evaluated_by"
+        },
+        {
+          "source_label": "dairy milk rated low on intentionality",
+          "target_label": "just what you grab / unconsidered habit",
+          "edge_type": "evaluated_by"
+        },
+        {
+          "source_label": "just what you grab / unconsidered habit",
+          "target_label": "alternatives require active decision-making",
+          "edge_type": "opposite_of"
+        },
+        {
+          "source_label": "always been there / habitual presence",
+          "target_label": "just what you grab / unconsidered habit",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "always been there / habitual presence",
+          "target_label": "familiarity reduces perceived intentionality",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "alternatives require active decision-making",
+          "target_label": "making my own call / autonomous choice",
+          "edge_type": "implies"
+        }
+      ]
+    },
+    {
+      "turn_number": 9,
+      "strategy": "validate",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "almond milk rated mid on intentionality",
+          "node_type": "rating"
+        },
+        {
+          "label": "fallback / situational default",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "not actively chosen for quality reasons",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "not randomly grabbed / semi-considered",
+          "node_type": "construct_pole"
+        },
+        {
+          "label": "availability-driven substitution",
+          "node_type": "laddered_construct"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "deliberate vs default choice",
+          "target_label": "almond milk rated mid on intentionality",
+          "edge_type": "rated_on"
+        },
+        {
+          "source_label": "almond milk rated mid on intentionality",
+          "target_label": "fallback / situational default",
+          "edge_type": "evaluated_by"
+        },
+        {
+          "source_label": "fallback / situational default",
+          "target_label": "not actively chosen for quality reasons",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "fallback / situational default",
+          "target_label": "availability-driven substitution",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "availability-driven substitution",
+          "target_label": "middle ground on intentionality",
+          "edge_type": "implies"
+        },
+        {
+          "source_label": "not actively chosen for quality reasons",
+          "target_label": "not randomly grabbed / semi-considered",
+          "edge_type": "opposite_of"
+        }
+      ]
+    }
+  ]
+}

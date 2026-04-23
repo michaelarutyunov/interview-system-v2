@@ -1,0 +1,463 @@
+{
+  "source_file": "20260415_231223_cold_brew_discovery_cit_baseline_cooperative.json",
+  "session_id": "0d33f368-1358-40ef-b5c5-9f5d6c02ced2",
+  "methodology": "critical_incident_v2",
+  "concept_id": "cold_brew_discovery_cit",
+  "persona_id": "baseline_cooperative",
+  "total_turns": 9,
+  "turns": [
+    {
+      "turn_number": 1,
+      "strategy": "elicit_narrative",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "trying cold brew at a friend's place",
+          "node_type": "incident"
+        },
+        {
+          "label": "at a friend's place a year or two ago",
+          "node_type": "situation"
+        },
+        {
+          "label": "grabbing whatever cold coffee was available at coffee shops",
+          "node_type": "action"
+        },
+        {
+          "label": "surprised by smoothness compared to regular iced coffee",
+          "node_type": "emotion"
+        },
+        {
+          "label": "cold brew tasted way less bitter than regular iced coffee",
+          "node_type": "outcome"
+        },
+        {
+          "label": "cold brew is noticeably smoother than regular iced coffee",
+          "node_type": "attribution"
+        },
+        {
+          "label": "cold brew is meaningfully different from regular iced coffee",
+          "node_type": "learning"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "trying cold brew at a friend's place",
+          "target_label": "at a friend's place a year or two ago",
+          "edge_type": "occurred_in"
+        },
+        {
+          "source_label": "trying cold brew at a friend's place",
+          "target_label": "surprised by smoothness compared to regular iced coffee",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "trying cold brew at a friend's place",
+          "target_label": "cold brew tasted way less bitter than regular iced coffee",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "cold brew tasted way less bitter than regular iced coffee",
+          "target_label": "surprised by smoothness compared to regular iced coffee",
+          "edge_type": "elicited"
+        },
+        {
+          "source_label": "cold brew tasted way less bitter than regular iced coffee",
+          "target_label": "cold brew is noticeably smoother than regular iced coffee",
+          "edge_type": "attributed_to"
+        },
+        {
+          "source_label": "trying cold brew at a friend's place",
+          "target_label": "cold brew is meaningfully different from regular iced coffee",
+          "edge_type": "led_to_learning"
+        },
+        {
+          "source_label": "grabbing whatever cold coffee was available at coffee shops",
+          "target_label": "trying cold brew at a friend's place",
+          "edge_type": "contrasts_with"
+        }
+      ]
+    },
+    {
+      "turn_number": 2,
+      "strategy": "elicit_narrative",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "asking friend about brand and preparation method",
+          "node_type": "action"
+        },
+        {
+          "label": "curious about cold brew after tasting it",
+          "node_type": "emotion"
+        },
+        {
+          "label": "previously assumed cold brew tasted harsh",
+          "node_type": "attribution"
+        },
+        {
+          "label": "written off cold brew before trying friend's version",
+          "node_type": "incident"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "cold brew tasted way less bitter than regular iced coffee",
+          "target_label": "asking friend about brand and preparation method",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "cold brew tasted way less bitter than regular iced coffee",
+          "target_label": "curious about cold brew after tasting it",
+          "edge_type": "elicited"
+        },
+        {
+          "source_label": "curious about cold brew after tasting it",
+          "target_label": "asking friend about brand and preparation method",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "written off cold brew before trying friend's version",
+          "target_label": "previously assumed cold brew tasted harsh",
+          "edge_type": "attributed_to"
+        },
+        {
+          "source_label": "written off cold brew before trying friend's version",
+          "target_label": "trying cold brew at a friend's place",
+          "edge_type": "contrasts_with"
+        }
+      ]
+    },
+    {
+      "turn_number": 3,
+      "strategy": "elicit_narrative",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "hanging out with friend like normal",
+          "node_type": "situation"
+        },
+        {
+          "label": "grabbing coffee together with friend",
+          "node_type": "action"
+        },
+        {
+          "label": "trying cold brew at a friend's place",
+          "node_type": "incident"
+        },
+        {
+          "label": "not paying attention to cold brew at that point",
+          "node_type": "action"
+        },
+        {
+          "label": "cold brew curiosity was momentary, not sustained",
+          "node_type": "learning"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "trying cold brew at a friend's place",
+          "target_label": "hanging out with friend like normal",
+          "edge_type": "occurred_in"
+        },
+        {
+          "source_label": "grabbing coffee together with friend",
+          "target_label": "hanging out with friend like normal",
+          "edge_type": "occurred_in"
+        },
+        {
+          "source_label": "trying cold brew at a friend's place",
+          "target_label": "not paying attention to cold brew at that point",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "curious about cold brew after tasting it",
+          "target_label": "cold brew curiosity was momentary, not sustained",
+          "edge_type": "contrasts_with"
+        },
+        {
+          "source_label": "asking friend about brand and preparation method",
+          "target_label": "cold brew curiosity was momentary, not sustained",
+          "edge_type": "led_to_learning"
+        }
+      ]
+    },
+    {
+      "turn_number": 4,
+      "strategy": "revitalize",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "ordered a basic iced latte",
+          "node_type": "action"
+        },
+        {
+          "label": "friend was the one exploring different drinks",
+          "node_type": "situation"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "ordered a basic iced latte",
+          "target_label": "grabbing coffee together with friend",
+          "edge_type": "occurred_in"
+        },
+        {
+          "source_label": "ordered a basic iced latte",
+          "target_label": "cold brew curiosity was momentary, not sustained",
+          "edge_type": "similar_to"
+        },
+        {
+          "source_label": "friend was the one exploring different drinks",
+          "target_label": "not paying attention to cold brew at that point",
+          "edge_type": "contrasts_with"
+        }
+      ]
+    },
+    {
+      "turn_number": 5,
+      "strategy": "elicit_narrative",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "cold brew looked visually different from usual order",
+          "node_type": "situation"
+        },
+        {
+          "label": "seen cold brew around but never paid attention",
+          "node_type": "incident"
+        },
+        {
+          "label": "friend handed over their cold brew to taste",
+          "node_type": "action"
+        },
+        {
+          "label": "immediate reaction of surprising smoothness",
+          "node_type": "emotion"
+        },
+        {
+          "label": "cold brew is noticeably smoother than regular iced coffee",
+          "node_type": "attribution"
+        },
+        {
+          "label": "decided it was worth asking friend about cold brew",
+          "node_type": "action"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "cold brew looked visually different from usual order",
+          "target_label": "seen cold brew around but never paid attention",
+          "edge_type": "contrasts_with"
+        },
+        {
+          "source_label": "friend handed over their cold brew to taste",
+          "target_label": "immediate reaction of surprising smoothness",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "immediate reaction of surprising smoothness",
+          "target_label": "cold brew is noticeably smoother than regular iced coffee",
+          "edge_type": "elicited"
+        },
+        {
+          "source_label": "cold brew is noticeably smoother than regular iced coffee",
+          "target_label": "decided it was worth asking friend about cold brew",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "decided it was worth asking friend about cold brew",
+          "target_label": "asking friend about brand and preparation method",
+          "edge_type": "similar_to"
+        },
+        {
+          "source_label": "cold brew looked visually different from usual order",
+          "target_label": "friend handed over their cold brew to taste",
+          "edge_type": "occurred_in"
+        },
+        {
+          "source_label": "immediate reaction of surprising smoothness",
+          "target_label": "surprised by smoothness compared to regular iced coffee",
+          "edge_type": "similar_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 6,
+      "strategy": "elicit_narrative",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "previously assumed cold brew tasted harsh",
+          "node_type": "attribution"
+        },
+        {
+          "label": "decided it was worth asking friend about cold brew",
+          "node_type": "action"
+        },
+        {
+          "label": "made mental note to try cold brew at the store",
+          "node_type": "behavior_change"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "immediate reaction of surprising smoothness",
+          "target_label": "decided it was worth asking friend about cold brew",
+          "edge_type": "involved"
+        },
+        {
+          "source_label": "previously assumed cold brew tasted harsh",
+          "target_label": "decided it was worth asking friend about cold brew",
+          "edge_type": "attributed_to"
+        },
+        {
+          "source_label": "previously assumed cold brew tasted harsh",
+          "target_label": "previously assumed cold brew tasted harsh",
+          "edge_type": "similar_to"
+        },
+        {
+          "source_label": "decided it was worth asking friend about cold brew",
+          "target_label": "made mental note to try cold brew at the store",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "friend handed over their cold brew to taste",
+          "target_label": "made mental note to try cold brew at the store",
+          "edge_type": "influenced"
+        }
+      ]
+    },
+    {
+      "turn_number": 7,
+      "strategy": "revitalize",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "picked up cold brew during regular shopping run",
+          "node_type": "action"
+        },
+        {
+          "label": "regular grocery shopping trip",
+          "node_type": "situation"
+        },
+        {
+          "label": "uneventful first cold brew purchase",
+          "node_type": "outcome"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "made mental note to try cold brew at the store",
+          "target_label": "picked up cold brew during regular shopping run",
+          "edge_type": "influenced"
+        },
+        {
+          "source_label": "picked up cold brew during regular shopping run",
+          "target_label": "regular grocery shopping trip",
+          "edge_type": "occurred_in"
+        },
+        {
+          "source_label": "picked up cold brew during regular shopping run",
+          "target_label": "uneventful first cold brew purchase",
+          "edge_type": "resulted_in"
+        }
+      ]
+    },
+    {
+      "turn_number": 8,
+      "strategy": "elicit_narrative",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "friend's genuine excitement about cold brew",
+          "node_type": "attribution"
+        },
+        {
+          "label": "enthusiastic word-of-mouth sticks more than casual mentions",
+          "node_type": "learning"
+        },
+        {
+          "label": "cold brew described as hard to find at regular stores",
+          "node_type": "attribution"
+        },
+        {
+          "label": "cold brew felt special due to perceived scarcity",
+          "node_type": "outcome"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "friend's genuine excitement about cold brew",
+          "target_label": "enthusiastic word-of-mouth sticks more than casual mentions",
+          "edge_type": "led_to_learning"
+        },
+        {
+          "source_label": "friend's genuine excitement about cold brew",
+          "target_label": "made mental note to try cold brew at the store",
+          "edge_type": "attributed_to"
+        },
+        {
+          "source_label": "cold brew described as hard to find at regular stores",
+          "target_label": "cold brew felt special due to perceived scarcity",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "cold brew felt special due to perceived scarcity",
+          "target_label": "picked up cold brew during regular shopping run",
+          "edge_type": "influenced"
+        }
+      ]
+    },
+    {
+      "turn_number": 9,
+      "strategy": "validate",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "premium-looking packaging stood out on shelf",
+          "node_type": "incident"
+        },
+        {
+          "label": "visually distinctive label with nicer colors",
+          "node_type": "attribution"
+        },
+        {
+          "label": "stopped to read the label instead of grabbing usual brand",
+          "node_type": "action"
+        },
+        {
+          "label": "curiosity triggered by premium packaging",
+          "node_type": "emotion"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "picked up cold brew during regular shopping run",
+          "target_label": "premium-looking packaging stood out on shelf",
+          "edge_type": "involved"
+        },
+        {
+          "source_label": "premium-looking packaging stood out on shelf",
+          "target_label": "visually distinctive label with nicer colors",
+          "edge_type": "attributed_to"
+        },
+        {
+          "source_label": "premium-looking packaging stood out on shelf",
+          "target_label": "curiosity triggered by premium packaging",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "curiosity triggered by premium packaging",
+          "target_label": "stopped to read the label instead of grabbing usual brand",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "cold brew felt special due to perceived scarcity",
+          "target_label": "premium-looking packaging stood out on shelf",
+          "edge_type": "similar_to"
+        }
+      ]
+    }
+  ]
+}

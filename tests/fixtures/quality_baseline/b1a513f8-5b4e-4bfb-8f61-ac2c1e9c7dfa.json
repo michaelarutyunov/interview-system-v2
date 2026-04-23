@@ -1,0 +1,437 @@
+{
+  "source_file": "20260415_224733_glp1_food_mec_strict_baseline_cooperative.json",
+  "session_id": "b1a513f8-5b4e-4bfb-8f61-ac2c1e9c7dfa",
+  "methodology": "means_end_chain_v2_strict",
+  "concept_id": "glp1_food_mec_strict",
+  "persona_id": "baseline_cooperative",
+  "total_turns": 10,
+  "turns": [
+    {
+      "turn_number": 1,
+      "strategy": "ground",
+      "focus_node_label": "reduced appetite throughout the day",
+      "concepts": [
+        {
+          "label": "reduced appetite throughout the day",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "skipping breakfast",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "eating smaller portions at meals",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "early satiety during meals",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "eating something reasonable at dinner",
+          "node_type": "functional_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "reduced appetite throughout the day",
+          "target_label": "skipping breakfast",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced appetite throughout the day",
+          "target_label": "eating smaller portions at meals",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced appetite throughout the day",
+          "target_label": "early satiety during meals",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "early satiety during meals",
+          "target_label": "eating smaller portions at meals",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "early satiety during meals",
+          "target_label": "eating something reasonable at dinner",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 2,
+      "strategy": "branch",
+      "focus_node_label": "slowed gastric emptying",
+      "concepts": [
+        {
+          "label": "slowed gastric emptying",
+          "node_type": "attribute"
+        },
+        {
+          "label": "food stays in stomach longer",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "prolonged feeling of fullness",
+          "node_type": "functional_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "slowed gastric emptying",
+          "target_label": "food stays in stomach longer",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "food stays in stomach longer",
+          "target_label": "prolonged feeling of fullness",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "prolonged feeling of fullness",
+          "target_label": "reduced appetite throughout the day",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "prolonged feeling of fullness",
+          "target_label": "early satiety during meals",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 3,
+      "strategy": "branch",
+      "focus_node_label": "slowed gastric emptying",
+      "concepts": [
+        {
+          "label": "reduced cravings for previously desired foods",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "effortless food refusal (no willpower required)",
+          "node_type": "functional_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "slowed gastric emptying",
+          "target_label": "reduced cravings for previously desired foods",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced cravings for previously desired foods",
+          "target_label": "effortless food refusal (no willpower required)",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 4,
+      "strategy": "branch",
+      "focus_node_label": "slowed gastric emptying",
+      "concepts": [
+        {
+          "label": "reaching satiety with half normal food intake",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "reduced post-meal heaviness",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "altered post-meal stomach sensation",
+          "node_type": "attribute"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "slowed gastric emptying",
+          "target_label": "reaching satiety with half normal food intake",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "slowed gastric emptying",
+          "target_label": "altered post-meal stomach sensation",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "altered post-meal stomach sensation",
+          "target_label": "reduced post-meal heaviness",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reaching satiety with half normal food intake",
+          "target_label": "eating smaller portions at meals",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "early satiety during meals",
+          "target_label": "reaching satiety with half normal food intake",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 5,
+      "strategy": "branch",
+      "focus_node_label": "slowed gastric emptying",
+      "concepts": [
+        {
+          "label": "reduced mental preoccupation with food",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "unconscious frequent snacking (pre-medication)",
+          "node_type": "attribute"
+        },
+        {
+          "label": "going hours without eating without distress",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "food as low background mental priority",
+          "node_type": "psychosocial_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "slowed gastric emptying",
+          "target_label": "reduced mental preoccupation with food",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced mental preoccupation with food",
+          "target_label": "going hours without eating without distress",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "going hours without eating without distress",
+          "target_label": "reduced appetite throughout the day",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced mental preoccupation with food",
+          "target_label": "food as low background mental priority",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 6,
+      "strategy": "branch",
+      "focus_node_label": "effortless food refusal (no willpower required)",
+      "concepts": [
+        {
+          "label": "reduced between-meal hunger",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "habitual afternoon snacking (pre-medication)",
+          "node_type": "attribute"
+        },
+        {
+          "label": "absence of food thoughts for hours",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "positive surprise at changed relationship with food",
+          "node_type": "psychosocial_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "slowed gastric emptying",
+          "target_label": "reduced between-meal hunger",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced between-meal hunger",
+          "target_label": "absence of food thoughts for hours",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "absence of food thoughts for hours",
+          "target_label": "reduced mental preoccupation with food",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "habitual afternoon snacking (pre-medication)",
+          "target_label": "unconscious frequent snacking (pre-medication)",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced between-meal hunger",
+          "target_label": "positive surprise at changed relationship with food",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 7,
+      "strategy": "revitalize",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "reduced decision-making stress around food choices",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "high mental effort around portion and seconds decisions (pre-medication)",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "automatic body-led stopping cue",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "reduced internal conflict around eating",
+          "node_type": "psychosocial_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "effortless food refusal (no willpower required)",
+          "target_label": "reduced decision-making stress around food choices",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "early satiety during meals",
+          "target_label": "automatic body-led stopping cue",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "automatic body-led stopping cue",
+          "target_label": "reduced decision-making stress around food choices",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced decision-making stress around food choices",
+          "target_label": "reduced internal conflict around eating",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced mental preoccupation with food",
+          "target_label": "reduced decision-making stress around food choices",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 8,
+      "strategy": "ground",
+      "focus_node_label": "high mental effort around portion and seconds decisions (pre-medication)",
+      "concepts": [
+        {
+          "label": "freedom from monitoring food intake mentally",
+          "node_type": "functional_consequence"
+        },
+        {
+          "label": "reduced stress around eating",
+          "node_type": "psychosocial_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "automatic body-led stopping cue",
+          "target_label": "freedom from monitoring food intake mentally",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "freedom from monitoring food intake mentally",
+          "target_label": "reduced stress around eating",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced decision-making stress around food choices",
+          "target_label": "reduced stress around eating",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 9,
+      "strategy": "ascend",
+      "focus_node_label": "high mental effort around portion and seconds decisions (pre-medication)",
+      "concepts": [
+        {
+          "label": "automatic craving response before hunger awareness (pre-medication)",
+          "node_type": "attribute"
+        },
+        {
+          "label": "ingrained eating habits driving food desire",
+          "node_type": "attribute"
+        },
+        {
+          "label": "conflict between habit and body signals",
+          "node_type": "functional_consequence"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "automatic craving response before hunger awareness (pre-medication)",
+          "target_label": "high mental effort around portion and seconds decisions (pre-medication)",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "ingrained eating habits driving food desire",
+          "target_label": "automatic craving response before hunger awareness (pre-medication)",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "automatic craving response before hunger awareness (pre-medication)",
+          "target_label": "conflict between habit and body signals",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "conflict between habit and body signals",
+          "target_label": "high mental effort around portion and seconds decisions (pre-medication)",
+          "edge_type": "leads_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 10,
+      "strategy": "validate",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "mental quietude around eating ('the noise just stops')",
+          "node_type": "psychosocial_consequence"
+        },
+        {
+          "label": "freedom from post-meal guilt and second-guessing",
+          "node_type": "psychosocial_consequence"
+        },
+        {
+          "label": "being present and out of one's head around food",
+          "node_type": "instrumental_value"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "high mental effort around portion and seconds decisions (pre-medication)",
+          "target_label": "freedom from post-meal guilt and second-guessing",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "reduced internal conflict around eating",
+          "target_label": "freedom from post-meal guilt and second-guessing",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "freedom from post-meal guilt and second-guessing",
+          "target_label": "mental quietude around eating ('the noise just stops')",
+          "edge_type": "leads_to"
+        },
+        {
+          "source_label": "mental quietude around eating ('the noise just stops')",
+          "target_label": "being present and out of one's head around food",
+          "edge_type": "leads_to"
+        }
+      ]
+    }
+  ]
+}

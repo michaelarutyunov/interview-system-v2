@@ -1,0 +1,476 @@
+{
+  "source_file": "20260415_225117_glp1_food_jtbd_baseline_cooperative.json",
+  "session_id": "49169917-0435-46f0-b5f9-0d20b0542b3c",
+  "methodology": "jobs_to_be_done_v2",
+  "concept_id": "glp1_food_jtbd",
+  "persona_id": "baseline_cooperative",
+  "total_turns": 9,
+  "turns": [
+    {
+      "turn_number": 1,
+      "strategy": "ascend",
+      "focus_node_label": "at work during typical lunch hour",
+      "concepts": [
+        {
+          "label": "deciding whether to eat based on actual hunger",
+          "node_type": "job_statement"
+        },
+        {
+          "label": "at work during typical lunch hour",
+          "node_type": "job_context"
+        },
+        {
+          "label": "eating by the clock rather than hunger",
+          "node_type": "solution_approach"
+        },
+        {
+          "label": "absence of hunger cues despite mealtime",
+          "node_type": "job_trigger"
+        },
+        {
+          "label": "expected afternoon energy crash",
+          "node_type": "pain_point"
+        },
+        {
+          "label": "avoiding afternoon energy crash",
+          "node_type": "gain_point"
+        },
+        {
+          "label": "GLP-1 medication suppressing hunger and crash cycle",
+          "node_type": "solution_approach"
+        },
+        {
+          "label": "disorientation from changed eating patterns",
+          "node_type": "pain_point"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "absence of hunger cues despite mealtime",
+          "target_label": "0fd5e731-cc66-405d-a0a7-797d1786acff",
+          "edge_type": "triggers"
+        },
+        {
+          "source_label": "0fd5e731-cc66-405d-a0a7-797d1786acff",
+          "target_label": "at work during typical lunch hour",
+          "edge_type": "occurs_in"
+        },
+        {
+          "source_label": "eating by the clock rather than hunger",
+          "target_label": "0fd5e731-cc66-405d-a0a7-797d1786acff",
+          "edge_type": "revises"
+        },
+        {
+          "source_label": "GLP-1 medication suppressing hunger and crash cycle",
+          "target_label": "expected afternoon energy crash",
+          "edge_type": "addresses"
+        },
+        {
+          "source_label": "GLP-1 medication suppressing hunger and crash cycle",
+          "target_label": "avoiding afternoon energy crash",
+          "edge_type": "enables"
+        },
+        {
+          "source_label": "GLP-1 medication suppressing hunger and crash cycle",
+          "target_label": "disorientation from changed eating patterns",
+          "edge_type": "triggers"
+        }
+      ]
+    },
+    {
+      "turn_number": 2,
+      "strategy": "ascend",
+      "focus_node_label": "at work during typical lunch hour",
+      "concepts": [
+        {
+          "label": "maintain focus and productivity at work",
+          "node_type": "job_statement"
+        },
+        {
+          "label": "zoning out for the rest of the afternoon",
+          "node_type": "pain_point"
+        },
+        {
+          "label": "get things done without mental resistance",
+          "node_type": "gain_point"
+        },
+        {
+          "label": "feeling like fighting my own brain",
+          "node_type": "pain_point"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "expected afternoon energy crash",
+          "target_label": "zoning out for the rest of the afternoon",
+          "edge_type": "triggers"
+        },
+        {
+          "source_label": "zoning out for the rest of the afternoon",
+          "target_label": "maintain focus and productivity at work",
+          "edge_type": "conflicts_with"
+        },
+        {
+          "source_label": "feeling like fighting my own brain",
+          "target_label": "maintain focus and productivity at work",
+          "edge_type": "conflicts_with"
+        },
+        {
+          "source_label": "avoiding afternoon energy crash",
+          "target_label": "get things done without mental resistance",
+          "edge_type": "enables"
+        },
+        {
+          "source_label": "avoiding afternoon energy crash",
+          "target_label": "maintain focus and productivity at work",
+          "edge_type": "enables"
+        },
+        {
+          "source_label": "GLP-1 medication suppressing hunger and crash cycle",
+          "target_label": "get things done without mental resistance",
+          "edge_type": "enables"
+        }
+      ]
+    },
+    {
+      "turn_number": 3,
+      "strategy": "ground",
+      "focus_node_label": "feel at ease and unburdened through the day",
+      "concepts": [
+        {
+          "label": "reduced mental load around food and exercise decisions",
+          "node_type": "gain_point"
+        },
+        {
+          "label": "mental bandwidth for things that matter",
+          "node_type": "gain_point"
+        },
+        {
+          "label": "constant self-negotiation over food and exercise choices",
+          "node_type": "pain_point"
+        },
+        {
+          "label": "feel at ease and unburdened through the day",
+          "node_type": "emotional_job"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "at work during typical lunch hour",
+          "target_label": "constant self-negotiation over food and exercise choices",
+          "edge_type": "triggers"
+        },
+        {
+          "source_label": "get things done without mental resistance",
+          "target_label": "reduced mental load around food and exercise decisions",
+          "edge_type": "enables"
+        },
+        {
+          "source_label": "GLP-1 medication suppressing hunger and crash cycle",
+          "target_label": "reduced mental load around food and exercise decisions",
+          "edge_type": "addresses"
+        },
+        {
+          "source_label": "constant self-negotiation over food and exercise choices",
+          "target_label": "feeling like fighting my own brain",
+          "edge_type": "supports"
+        },
+        {
+          "source_label": "reduced mental load around food and exercise decisions",
+          "target_label": "mental bandwidth for things that matter",
+          "edge_type": "enables"
+        },
+        {
+          "source_label": "mental bandwidth for things that matter",
+          "target_label": "feel at ease and unburdened through the day",
+          "edge_type": "supports"
+        }
+      ]
+    },
+    {
+      "turn_number": 4,
+      "strategy": "ground",
+      "focus_node_label": "feel at ease and unburdened through the day",
+      "concepts": [
+        {
+          "label": "pushing through mental resistance despite urges",
+          "node_type": "solution_approach"
+        },
+        {
+          "label": "giving in to food urges on hard days",
+          "node_type": "solution_approach"
+        },
+        {
+          "label": "external stress worsening mental resistance",
+          "node_type": "job_trigger"
+        },
+        {
+          "label": "inconsistent ability to stick with healthy choices",
+          "node_type": "pain_point"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "external stress worsening mental resistance",
+          "target_label": "inconsistent ability to stick with healthy choices",
+          "edge_type": "triggers"
+        },
+        {
+          "source_label": "external stress worsening mental resistance",
+          "target_label": "constant self-negotiation over food and exercise choices",
+          "edge_type": "triggers"
+        },
+        {
+          "source_label": "feel at ease and unburdened through the day",
+          "target_label": "external stress worsening mental resistance",
+          "edge_type": "conflicts_with"
+        },
+        {
+          "source_label": "feel at ease and unburdened through the day",
+          "target_label": "inconsistent ability to stick with healthy choices",
+          "edge_type": "conflicts_with"
+        },
+        {
+          "source_label": "pushing through mental resistance despite urges",
+          "target_label": "feel at ease and unburdened through the day",
+          "edge_type": "supports"
+        },
+        {
+          "source_label": "giving in to food urges on hard days",
+          "target_label": "feel at ease and unburdened through the day",
+          "edge_type": "conflicts_with"
+        }
+      ]
+    },
+    {
+      "turn_number": 5,
+      "strategy": "ground",
+      "focus_node_label": "feel at ease and unburdened through the day",
+      "concepts": [
+        {
+          "label": "back-to-back meetings and urgent demands",
+          "node_type": "job_context"
+        },
+        {
+          "label": "too busy to think about food choices",
+          "node_type": "pain_point"
+        },
+        {
+          "label": "grabbing whatever food is fastest",
+          "node_type": "solution_approach"
+        },
+        {
+          "label": "not planning meals on busy days",
+          "node_type": "pain_point"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "back-to-back meetings and urgent demands",
+          "target_label": "too busy to think about food choices",
+          "edge_type": "triggers"
+        },
+        {
+          "source_label": "too busy to think about food choices",
+          "target_label": "not planning meals on busy days",
+          "edge_type": "triggers"
+        },
+        {
+          "source_label": "not planning meals on busy days",
+          "target_label": "grabbing whatever food is fastest",
+          "edge_type": "triggers"
+        },
+        {
+          "source_label": "grabbing whatever food is fastest",
+          "target_label": "feel at ease and unburdened through the day",
+          "edge_type": "conflicts_with"
+        },
+        {
+          "source_label": "back-to-back meetings and urgent demands",
+          "target_label": "external stress worsening mental resistance",
+          "edge_type": "supports"
+        },
+        {
+          "source_label": "feel at ease and unburdened through the day",
+          "target_label": "too busy to think about food choices",
+          "edge_type": "conflicts_with"
+        }
+      ]
+    },
+    {
+      "turn_number": 6,
+      "strategy": "ground",
+      "focus_node_label": "feel at ease and unburdened through the day",
+      "concepts": [
+        {
+          "label": "reduced guilt after eating quickly between meetings",
+          "node_type": "gain_point"
+        },
+        {
+          "label": "guilt spiral ruminating on food choices all afternoon",
+          "node_type": "pain_point"
+        },
+        {
+          "label": "GLP-1 taking the edge off guilt and self-judgment",
+          "node_type": "solution_approach"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "feel at ease and unburdened through the day",
+          "target_label": "reduced guilt after eating quickly between meetings",
+          "edge_type": "enables"
+        },
+        {
+          "source_label": "feel at ease and unburdened through the day",
+          "target_label": "guilt spiral ruminating on food choices all afternoon",
+          "edge_type": "conflicts_with"
+        },
+        {
+          "source_label": "GLP-1 taking the edge off guilt and self-judgment",
+          "target_label": "guilt spiral ruminating on food choices all afternoon",
+          "edge_type": "addresses"
+        },
+        {
+          "source_label": "GLP-1 taking the edge off guilt and self-judgment",
+          "target_label": "reduced guilt after eating quickly between meetings",
+          "edge_type": "enables"
+        },
+        {
+          "source_label": "grabbing whatever food is fastest",
+          "target_label": "guilt spiral ruminating on food choices all afternoon",
+          "edge_type": "triggers"
+        }
+      ]
+    },
+    {
+      "turn_number": 7,
+      "strategy": "ground",
+      "focus_node_label": "feel at ease and unburdened through the day",
+      "concepts": [
+        {
+          "label": "cooking balanced meals with vegetables when time allows",
+          "node_type": "solution_approach"
+        },
+        {
+          "label": "defaulting to a small repertoire of familiar meals",
+          "node_type": "solution_approach"
+        },
+        {
+          "label": "planned healthy eating is infrequent and not a strong pattern",
+          "node_type": "pain_point"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "feel at ease and unburdened through the day",
+          "target_label": "cooking balanced meals with vegetables when time allows",
+          "edge_type": "enables"
+        },
+        {
+          "source_label": "cooking balanced meals with vegetables when time allows",
+          "target_label": "defaulting to a small repertoire of familiar meals",
+          "edge_type": "enables"
+        },
+        {
+          "source_label": "planned healthy eating is infrequent and not a strong pattern",
+          "target_label": "cooking balanced meals with vegetables when time allows",
+          "edge_type": "conflicts_with"
+        },
+        {
+          "source_label": "not planning meals on busy days",
+          "target_label": "planned healthy eating is infrequent and not a strong pattern",
+          "edge_type": "supports"
+        }
+      ]
+    },
+    {
+      "turn_number": 8,
+      "strategy": "ground",
+      "focus_node_label": "feel at ease and unburdened through the day",
+      "concepts": [
+        {
+          "label": "feeling low energy or sluggish",
+          "node_type": "job_trigger"
+        },
+        {
+          "label": "feeling off after days of repetitive takeout",
+          "node_type": "pain_point"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "feeling low energy or sluggish",
+          "target_label": "cooking balanced meals with vegetables when time allows",
+          "edge_type": "triggers"
+        },
+        {
+          "source_label": "feeling off after days of repetitive takeout",
+          "target_label": "cooking balanced meals with vegetables when time allows",
+          "edge_type": "triggers"
+        },
+        {
+          "source_label": "feeling off after days of repetitive takeout",
+          "target_label": "feel at ease and unburdened through the day",
+          "edge_type": "conflicts_with"
+        },
+        {
+          "source_label": "feeling low energy or sluggish",
+          "target_label": "feel at ease and unburdened through the day",
+          "edge_type": "conflicts_with"
+        }
+      ]
+    },
+    {
+      "turn_number": 9,
+      "strategy": "validate",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "reduced urge to switch up food after repetitive eating",
+          "node_type": "gain_point"
+        },
+        {
+          "label": "boredom and heaviness after days of same food",
+          "node_type": "pain_point"
+        },
+        {
+          "label": "GLP-1 reducing food preoccupation rather than changing taste perception",
+          "node_type": "solution_approach"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "feeling off after days of repetitive takeout",
+          "target_label": "boredom and heaviness after days of same food",
+          "edge_type": "supports"
+        },
+        {
+          "source_label": "GLP-1 medication suppressing hunger and crash cycle",
+          "target_label": "reduced urge to switch up food after repetitive eating",
+          "edge_type": "enables"
+        },
+        {
+          "source_label": "GLP-1 reducing food preoccupation rather than changing taste perception",
+          "target_label": "reduced urge to switch up food after repetitive eating",
+          "edge_type": "enables"
+        },
+        {
+          "source_label": "boredom and heaviness after days of same food",
+          "target_label": "feeling off after days of repetitive takeout",
+          "edge_type": "triggers"
+        },
+        {
+          "source_label": "feel at ease and unburdened through the day",
+          "target_label": "reduced urge to switch up food after repetitive eating",
+          "edge_type": "enables"
+        },
+        {
+          "source_label": "feel at ease and unburdened through the day",
+          "target_label": "GLP-1 reducing food preoccupation rather than changing taste perception",
+          "edge_type": "enables"
+        }
+      ]
+    }
+  ]
+}

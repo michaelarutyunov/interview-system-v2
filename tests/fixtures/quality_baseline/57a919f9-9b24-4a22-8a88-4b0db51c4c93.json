@@ -1,0 +1,499 @@
+{
+  "source_file": "20260415_225511_cold_brew_discovery_cit_baseline_cooperative.json",
+  "session_id": "57a919f9-9b24-4a22-8a88-4b0db51c4c93",
+  "methodology": "critical_incident_v2",
+  "concept_id": "cold_brew_discovery_cit",
+  "persona_id": "baseline_cooperative",
+  "total_turns": 9,
+  "turns": [
+    {
+      "turn_number": 1,
+      "strategy": "elicit_narrative",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "grabbing cold brew at a coffee shop in a rush",
+          "node_type": "incident"
+        },
+        {
+          "label": "being in a rush",
+          "node_type": "situation"
+        },
+        {
+          "label": "hearing people talk about cold brew without seeking it out",
+          "node_type": "situation"
+        },
+        {
+          "label": "noticing cold brew was much smoother and less bitter than regular iced coffee",
+          "node_type": "outcome"
+        },
+        {
+          "label": "surprised by the smoothness and lack of bitterness",
+          "node_type": "emotion"
+        },
+        {
+          "label": "expected cold brew to taste more intense",
+          "node_type": "attribution"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "grabbing cold brew at a coffee shop in a rush",
+          "target_label": "being in a rush",
+          "edge_type": "occurred_in"
+        },
+        {
+          "source_label": "hearing people talk about cold brew without seeking it out",
+          "target_label": "grabbing cold brew at a coffee shop in a rush",
+          "edge_type": "occurred_in"
+        },
+        {
+          "source_label": "grabbing cold brew at a coffee shop in a rush",
+          "target_label": "noticing cold brew was much smoother and less bitter than regular iced coffee",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "noticing cold brew was much smoother and less bitter than regular iced coffee",
+          "target_label": "surprised by the smoothness and lack of bitterness",
+          "edge_type": "elicited"
+        },
+        {
+          "source_label": "surprised by the smoothness and lack of bitterness",
+          "target_label": "expected cold brew to taste more intense",
+          "edge_type": "attributed_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 2,
+      "strategy": "elicit_narrative",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "friends talking about cold brew at work",
+          "node_type": "situation"
+        },
+        {
+          "label": "coworker bringing cold brew from a coffee shop",
+          "node_type": "incident"
+        },
+        {
+          "label": "coworker mentioning cold brew's smoothness",
+          "node_type": "action"
+        },
+        {
+          "label": "social media exposure to cold brew",
+          "node_type": "situation"
+        },
+        {
+          "label": "not paying close attention to social media",
+          "node_type": "action"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "hearing people talk about cold brew without seeking it out",
+          "target_label": "friends talking about cold brew at work",
+          "edge_type": "occurred_in"
+        },
+        {
+          "source_label": "coworker bringing cold brew from a coffee shop",
+          "target_label": "friends talking about cold brew at work",
+          "edge_type": "occurred_in"
+        },
+        {
+          "source_label": "coworker bringing cold brew from a coffee shop",
+          "target_label": "coworker mentioning cold brew's smoothness",
+          "edge_type": "involved"
+        },
+        {
+          "source_label": "coworker mentioning cold brew's smoothness",
+          "target_label": "hearing people talk about cold brew without seeking it out",
+          "edge_type": "similar_to"
+        },
+        {
+          "source_label": "social media exposure to cold brew",
+          "target_label": "hearing people talk about cold brew without seeking it out",
+          "edge_type": "similar_to"
+        },
+        {
+          "source_label": "social media exposure to cold brew",
+          "target_label": "not paying close attention to social media",
+          "edge_type": "involved"
+        }
+      ]
+    },
+    {
+      "turn_number": 3,
+      "strategy": "revitalize",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "back-to-back meetings at work that morning",
+          "node_type": "situation"
+        },
+        {
+          "label": "running late for meetings",
+          "node_type": "situation"
+        },
+        {
+          "label": "needing caffeine fast before first meeting",
+          "node_type": "situation"
+        },
+        {
+          "label": "ducking into coffee shop on route to work",
+          "node_type": "action"
+        },
+        {
+          "label": "coffee shop conveniently on commute route",
+          "node_type": "attribution"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "back-to-back meetings at work that morning",
+          "target_label": "running late for meetings",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "running late for meetings",
+          "target_label": "being in a rush",
+          "edge_type": "similar_to"
+        },
+        {
+          "source_label": "back-to-back meetings at work that morning",
+          "target_label": "grabbing cold brew at a coffee shop in a rush",
+          "edge_type": "occurred_in"
+        },
+        {
+          "source_label": "needing caffeine fast before first meeting",
+          "target_label": "ducking into coffee shop on route to work",
+          "edge_type": "occurred_in"
+        },
+        {
+          "source_label": "ducking into coffee shop on route to work",
+          "target_label": "grabbing cold brew at a coffee shop in a rush",
+          "edge_type": "involved"
+        },
+        {
+          "source_label": "ducking into coffee shop on route to work",
+          "target_label": "coffee shop conveniently on commute route",
+          "edge_type": "attributed_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 4,
+      "strategy": "ascend",
+      "focus_node_label": "grabbing cold brew at a coffee shop in a rush",
+      "concepts": [
+        {
+          "label": "looking forward to mornings after cold brew",
+          "node_type": "outcome"
+        },
+        {
+          "label": "cold brew feels less rushed than hot coffee",
+          "node_type": "attribution"
+        },
+        {
+          "label": "sitting with cold brew instead of chugging it",
+          "node_type": "behavior_change"
+        },
+        {
+          "label": "burning mouth from chugging hot coffee",
+          "node_type": "outcome"
+        },
+        {
+          "label": "sense of calm and intentionality in morning routine",
+          "node_type": "emotion"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "grabbing cold brew at a coffee shop in a rush",
+          "target_label": "looking forward to mornings after cold brew",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "looking forward to mornings after cold brew",
+          "target_label": "sense of calm and intentionality in morning routine",
+          "edge_type": "elicited"
+        },
+        {
+          "source_label": "cold brew feels less rushed than hot coffee",
+          "target_label": "sitting with cold brew instead of chugging it",
+          "edge_type": "led_to_learning"
+        },
+        {
+          "source_label": "burning mouth from chugging hot coffee",
+          "target_label": "cold brew feels less rushed than hot coffee",
+          "edge_type": "contrasts_with"
+        },
+        {
+          "source_label": "cold brew feels less rushed than hot coffee",
+          "target_label": "sitting with cold brew instead of chugging it",
+          "edge_type": "influenced"
+        }
+      ]
+    },
+    {
+      "turn_number": 5,
+      "strategy": "ascend",
+      "focus_node_label": "grabbing cold brew at a coffee shop in a rush",
+      "concepts": [
+        {
+          "label": "permission to slow down",
+          "node_type": "emotion"
+        },
+        {
+          "label": "coffee as a transition between tasks",
+          "node_type": "situation"
+        },
+        {
+          "label": "not having somewhere else to be in that moment",
+          "node_type": "attribution"
+        },
+        {
+          "label": "cold brew as a moment of presence rather than a caffeine fix",
+          "node_type": "learning"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "grabbing cold brew at a coffee shop in a rush",
+          "target_label": "permission to slow down",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "sitting with cold brew instead of chugging it",
+          "target_label": "permission to slow down",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "permission to slow down",
+          "target_label": "not having somewhere else to be in that moment",
+          "edge_type": "attributed_to"
+        },
+        {
+          "source_label": "permission to slow down",
+          "target_label": "cold brew as a moment of presence rather than a caffeine fix",
+          "edge_type": "led_to_learning"
+        },
+        {
+          "source_label": "coffee as a transition between tasks",
+          "target_label": "permission to slow down",
+          "edge_type": "contrasts_with"
+        }
+      ]
+    },
+    {
+      "turn_number": 6,
+      "strategy": "ascend",
+      "focus_node_label": "grabbing cold brew at a coffee shop in a rush",
+      "concepts": [
+        {
+          "label": "being more present in the moment",
+          "node_type": "outcome"
+        },
+        {
+          "label": "checking phone while grabbing coffee",
+          "node_type": "situation"
+        },
+        {
+          "label": "actually sitting with cold brew and noticing it",
+          "node_type": "action"
+        },
+        {
+          "label": "cold brew tasting better because of slowing down",
+          "node_type": "outcome"
+        },
+        {
+          "label": "mindful consumption enhances taste perception",
+          "node_type": "attribution"
+        },
+        {
+          "label": "distracted, autopilot coffee consumption as usual habit",
+          "node_type": "situation"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "grabbing cold brew at a coffee shop in a rush",
+          "target_label": "actually sitting with cold brew and noticing it",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "actually sitting with cold brew and noticing it",
+          "target_label": "being more present in the moment",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "actually sitting with cold brew and noticing it",
+          "target_label": "cold brew tasting better because of slowing down",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "cold brew tasting better because of slowing down",
+          "target_label": "mindful consumption enhances taste perception",
+          "edge_type": "attributed_to"
+        },
+        {
+          "source_label": "checking phone while grabbing coffee",
+          "target_label": "distracted, autopilot coffee consumption as usual habit",
+          "edge_type": "similar_to"
+        },
+        {
+          "source_label": "distracted, autopilot coffee consumption as usual habit",
+          "target_label": "being more present in the moment",
+          "edge_type": "contrasts_with"
+        },
+        {
+          "source_label": "being more present in the moment",
+          "target_label": "cold brew as a moment of presence rather than a caffeine fix",
+          "edge_type": "led_to_learning"
+        }
+      ]
+    },
+    {
+      "turn_number": 7,
+      "strategy": "elicit_narrative",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "realizing coffee was consumed without tasting it",
+          "node_type": "learning"
+        },
+        {
+          "label": "unexpectedly pleasant feeling of recognition",
+          "node_type": "emotion"
+        },
+        {
+          "label": "flavor becoming perceptible when slowing down",
+          "node_type": "outcome"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "actually sitting with cold brew and noticing it",
+          "target_label": "realizing coffee was consumed without tasting it",
+          "edge_type": "led_to_learning"
+        },
+        {
+          "source_label": "realizing coffee was consumed without tasting it",
+          "target_label": "unexpectedly pleasant feeling of recognition",
+          "edge_type": "elicited"
+        },
+        {
+          "source_label": "flavor becoming perceptible when slowing down",
+          "target_label": "mindful consumption enhances taste perception",
+          "edge_type": "attributed_to"
+        },
+        {
+          "source_label": "distracted, autopilot coffee consumption as usual habit",
+          "target_label": "realizing coffee was consumed without tasting it",
+          "edge_type": "similar_to"
+        },
+        {
+          "source_label": "cold brew tasting better because of slowing down",
+          "target_label": "flavor becoming perceptible when slowing down",
+          "edge_type": "similar_to"
+        }
+      ]
+    },
+    {
+      "turn_number": 8,
+      "strategy": "revitalize",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "sitting at kitchen table with laptop before work",
+          "node_type": "situation"
+        },
+        {
+          "label": "cold brew already prepared in fridge from day before",
+          "node_type": "situation"
+        },
+        {
+          "label": "grabbing cold brew without thinking about it",
+          "node_type": "action"
+        },
+        {
+          "label": "scrolling through stuff on laptop",
+          "node_type": "action"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "grabbing cold brew without thinking about it",
+          "target_label": "sitting at kitchen table with laptop before work",
+          "edge_type": "occurred_in"
+        },
+        {
+          "source_label": "cold brew already prepared in fridge from day before",
+          "target_label": "grabbing cold brew without thinking about it",
+          "edge_type": "attributed_to"
+        },
+        {
+          "source_label": "grabbing cold brew without thinking about it",
+          "target_label": "distracted, autopilot coffee consumption as usual habit",
+          "edge_type": "similar_to"
+        },
+        {
+          "source_label": "scrolling through stuff on laptop",
+          "target_label": "checking phone while grabbing coffee",
+          "edge_type": "similar_to"
+        },
+        {
+          "source_label": "sitting at kitchen table with laptop before work",
+          "target_label": "being more present in the moment",
+          "edge_type": "contrasts_with"
+        }
+      ]
+    },
+    {
+      "turn_number": 9,
+      "strategy": "validate",
+      "focus_node_label": null,
+      "concepts": [
+        {
+          "label": "kitchen table cold brew moment as a one-off experience",
+          "node_type": "incident"
+        },
+        {
+          "label": "rushing through mornings as default habit",
+          "node_type": "situation"
+        },
+        {
+          "label": "grabbing whatever is available without deliberate choice",
+          "node_type": "action"
+        },
+        {
+          "label": "no change in cold brew consumption behavior",
+          "node_type": "behavior_change"
+        }
+      ],
+      "relationships": [
+        {
+          "source_label": "rushing through mornings as default habit",
+          "target_label": "grabbing whatever is available without deliberate choice",
+          "edge_type": "involved"
+        },
+        {
+          "source_label": "rushing through mornings as default habit",
+          "target_label": "no change in cold brew consumption behavior",
+          "edge_type": "resulted_in"
+        },
+        {
+          "source_label": "kitchen table cold brew moment as a one-off experience",
+          "target_label": "no change in cold brew consumption behavior",
+          "edge_type": "influenced"
+        },
+        {
+          "source_label": "kitchen table cold brew moment as a one-off experience",
+          "target_label": "distracted, autopilot coffee consumption as usual habit",
+          "edge_type": "contrasts_with"
+        }
+      ]
+    }
+  ]
+}
