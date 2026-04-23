@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Smoke test for eval harness: 2 personas × 2 replicates.
 
-Usage: uv run python scripts/smoke_test_eval.py
+Usage: uv run python scripts/eval/smoke_test.py
 
 Verifies:
 1. Matrix runner produces scoreboard rows
@@ -14,7 +14,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 DB_PATH = "data/interview.db"
 PERSONAS = ["baseline_cooperative", "brief_responder"]
@@ -23,7 +23,7 @@ REPLICATES = 2
 
 
 async def run_smoke():
-    from scripts.run_eval_matrix import run_matrix
+    from scripts.eval.run_matrix import run_matrix
 
     await run_matrix(
         methodology="means_end_chain_v2_strict",
@@ -98,7 +98,7 @@ def main():
     import subprocess
 
     subprocess.run(
-        [sys.executable, "scripts/show_scoreboard.py", "--label", "smoke_test"],
+        [sys.executable, "scripts/eval/show_scoreboard.py", "--label", "smoke_test"],
         check=False,
     )
 

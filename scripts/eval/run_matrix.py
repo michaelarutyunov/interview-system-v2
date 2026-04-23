@@ -1,7 +1,7 @@
 """Eval harness: run a simulation matrix and record results to the scoreboard.
 
 Usage:
-    uv run python scripts/run_eval_matrix.py \
+    uv run python scripts/eval/run_matrix.py \
         --methodology mec \
         --concept zerofizz_beverage_mec \
         --personas baseline_cooperative,brief_responder \
@@ -21,11 +21,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import aiosqlite
 
-DB_PATH = str(Path(__file__).parent.parent / "data" / "interview.db")
+DB_PATH = str(Path(__file__).parent.parent.parent / "data" / "interview.db")
 
 
 def compute_config_hash(methodology_name: str) -> str:
@@ -392,7 +392,7 @@ async def run_matrix(
                 run.update(res)
 
                 if not res.get("error_flag") and res.get("session_id"):
-                    from scripts.eval_metrics import compute_metrics
+                    from scripts.eval.metrics import compute_metrics
 
                     metrics = await compute_metrics(DB_PATH, res["session_id"])
                     run["node_count"] = metrics.node_count

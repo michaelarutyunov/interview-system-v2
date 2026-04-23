@@ -89,11 +89,11 @@ mappings:
     doc: "docs/SYSTEM_DESIGN.md"
 
   - sources:
-      - "scripts/eval_metrics.py"
-      - "scripts/run_eval_matrix.py"
-      - "scripts/show_scoreboard.py"
-      - "scripts/smoke_test_eval.py"
-      - "scripts/test_paired_labels.py"
+      - "scripts/eval/metrics.py"
+      - "scripts/eval/run_matrix.py"
+      - "scripts/eval/show_scoreboard.py"
+      - "scripts/eval/smoke_test.py"
+      - "scripts/eval/test_paired_labels.py"
     doc: "docs/testing_harness.md"
 
   - sources:

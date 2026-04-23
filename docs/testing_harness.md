@@ -24,11 +24,11 @@ This is measurement infrastructure only. It does not tune configs automatically.
 
 | File | Purpose |
 |------|---------|
-| `scripts/eval_metrics.py` | Metric computation from DB graph (BFS path analysis) |
-| `scripts/run_eval_matrix.py` | Matrix runner — config hashing, parallel execution, temperature control |
-| `scripts/show_scoreboard.py` | Aggregation, CI computation, pretty-print, delta-vs-baseline |
-| `scripts/smoke_test_eval.py` | Minimal validation (2 personas × 2 replicates) |
-| `scripts/eval_harness_README.md` | CLI quick reference |
+| `scripts/eval/metrics.py` | Metric computation from DB graph (BFS path analysis) |
+| `scripts/eval/run_matrix.py` | Matrix runner — config hashing, parallel execution, temperature control |
+| `scripts/eval/show_scoreboard.py` | Aggregation, CI computation, pretty-print, delta-vs-baseline |
+| `scripts/eval/smoke_test.py` | Minimal validation (2 personas × 2 replicates) |
+| `scripts/eval/README.md` | CLI quick reference |
 
 ### DB Tables (in `data/interview.db`)
 
@@ -96,7 +96,7 @@ Captures partial chain progress for hierarchical ontologies. Measures the deepes
 ### Run a matrix
 
 ```bash
-uv run python scripts/run_eval_matrix.py \
+uv run python scripts/eval/run_matrix.py \
   --methodology mec \
   --concept zerofizz_beverage_mec \
   --personas baseline_cooperative,brief_responder,verbose_tangential \
@@ -120,25 +120,25 @@ uv run python scripts/run_eval_matrix.py \
 
 ```bash
 # All runs for a methodology
-uv run python scripts/show_scoreboard.py --methodology mec
+uv run python scripts/eval/show_scoreboard.py --methodology mec
 
 # Specific config version
-uv run python scripts/show_scoreboard.py --config-hash 9b7a0a1d03d0913f
+uv run python scripts/eval/show_scoreboard.py --config-hash 9b7a0a1d03d0913f
 
 # Compare experiment vs baseline (shows delta column)
-uv run python scripts/show_scoreboard.py --config-hash <experiment> --compare-to <baseline>
+uv run python scripts/eval/show_scoreboard.py --config-hash <experiment> --compare-to <baseline>
 
 # Group by persona instead of config
-uv run python scripts/show_scoreboard.py --label mec_baseline --by-persona
+uv run python scripts/eval/show_scoreboard.py --label mec_baseline --by-persona
 
 # List all registered configs
-uv run python scripts/show_scoreboard.py --list-configs
+uv run python scripts/eval/show_scoreboard.py --list-configs
 ```
 
 ### Smoke test
 
 ```bash
-uv run python scripts/smoke_test_eval.py
+uv run python scripts/eval/smoke_test.py
 ```
 
 Runs 2 personas × 2 replicates with `max_turns=5`. Takes ~3-4 minutes. Verifies plumbing works — does NOT verify statistical properties.
@@ -147,14 +147,14 @@ Runs 2 personas × 2 replicates with `max_turns=5`. Takes ~3-4 minutes. Verifies
 
 ```
 1. Establish baseline
-   └─ run_eval_matrix.py ... --label "mec_baseline_2026_04"
+   └─ run_matrix.py ... --label "mec_baseline_2026_04"
 
 2. Edit config
    └─ vim config/methodologies/means_end_chain_v2_strict.yaml
    (tweak signal weights, strategy thresholds)
 
 3. Run experiment
-   └─ run_eval_matrix.py ... --label "mec_ascend_weight_v1"
+   └─ run_matrix.py ... --label "mec_ascend_weight_v1"
 
 4. Compare
    └─ show_scoreboard.py --methodology mec
@@ -197,7 +197,7 @@ Numeric exit criteria (define *before* running anything):
 ### 1. Establish the baseline (~1.5 hr wall-clock at `--max-parallel=4`)
 
 ```bash
-uv run python scripts/run_eval_matrix.py \
+uv run python scripts/eval/run_matrix.py \
   --methodology mec \
   --concept zerofizz_beverage_mec \
   --personas baseline_cooperative,brief_responder,verbose_tangential,fatiguing_responder,single_topic_fixator,uncertain_hedger,skeptical_analyst,disengaged_responder \
@@ -212,7 +212,7 @@ uv run python scripts/run_eval_matrix.py \
 Run the exact same command again, changing only the label to `mec_baseline_2026_04_23_b`. This does nothing to the config — it exercises the harness against itself to measure the noise floor.
 
 ```bash
-uv run python scripts/show_scoreboard.py \
+uv run python scripts/eval/show_scoreboard.py \
   --config-hash <mec_baseline_hash> \
   --by-persona
 ```
@@ -236,7 +236,7 @@ Commit the edit in isolation — no other YAML changes. This makes the experimen
 ### 4. Run the experiment (~1.5 hr)
 
 ```bash
-uv run python scripts/run_eval_matrix.py \
+uv run python scripts/eval/run_matrix.py \
   --methodology mec \
   --concept zerofizz_beverage_mec \
   --personas <same 8> \
@@ -249,7 +249,7 @@ uv run python scripts/run_eval_matrix.py \
 ### 5. Compare against baseline
 
 ```bash
-uv run python scripts/show_scoreboard.py \
+uv run python scripts/eval/show_scoreboard.py \
   --config-hash <experiment_hash> \
   --compare-to <baseline_a_hash>
 ```

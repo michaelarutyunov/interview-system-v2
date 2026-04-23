@@ -11,7 +11,7 @@ Measurement infrastructure for empirical methodology tuning. Runs simulation mat
 ### Run a full eval matrix
 
 ```bash
-uv run python scripts/run_eval_matrix.py \
+uv run python scripts/eval/run_matrix.py \
   --methodology mec \
   --concept zerofizz_beverage_mec \
   --personas baseline_cooperative,brief_responder,verbose_tangential \
@@ -28,33 +28,33 @@ uv run python scripts/run_eval_matrix.py \
 
 ```bash
 # All runs for a methodology
-uv run python scripts/show_scoreboard.py --methodology mec
+uv run python scripts/eval/show_scoreboard.py --methodology mec
 
 # Specific config
-uv run python scripts/show_scoreboard.py --config-hash abc123
+uv run python scripts/eval/show_scoreboard.py --config-hash abc123
 
 # Compare against baseline
-uv run python scripts/show_scoreboard.py --config-hash abc123 --compare-to def456
+uv run python scripts/eval/show_scoreboard.py --config-hash abc123 --compare-to def456
 
 # List registered configs
-uv run python scripts/show_scoreboard.py --list-configs
+uv run python scripts/eval/show_scoreboard.py --list-configs
 ```
 
 ### Baseline-vs-baseline calibration
 
 ```bash
 # Run same config twice under different labels
-uv run python scripts/run_eval_matrix.py ... --label "mec_baseline_A"
-uv run python scripts/run_eval_matrix.py ... --label "mec_baseline_B"
+uv run python scripts/eval/run_matrix.py ... --label "mec_baseline_A"
+uv run python scripts/eval/run_matrix.py ... --label "mec_baseline_B"
 
 # Compare — if CIs don't overlap materially, increase replicates
-uv run python scripts/show_scoreboard.py --methodology mec
+uv run python scripts/eval/show_scoreboard.py --methodology mec
 ```
 
 ### Smoke test
 
 ```bash
-uv run python scripts/smoke_test_eval.py
+uv run python scripts/eval/smoke_test.py
 ```
 
 ## Workflow
@@ -91,10 +91,10 @@ uv run python scripts/smoke_test_eval.py
 ## Architecture
 
 ```
-scripts/eval_metrics.py        — Metric computation from DB graph
-scripts/run_eval_matrix.py     — Matrix runner (config hash, parallel, temperature control)
-scripts/show_scoreboard.py     — Aggregation + pretty-print + delta-vs-baseline
-scripts/smoke_test_eval.py     — Minimal validation (2 personas × 2 replicates)
+scripts/eval/metrics.py        — Metric computation from DB graph
+scripts/eval/run_matrix.py     — Matrix runner (config hash, parallel, temperature control)
+scripts/eval/show_scoreboard.py — Aggregation + pretty-print + delta-vs-baseline
+scripts/eval/smoke_test.py     — Minimal validation (2 personas × 2 replicates)
 ```
 
 **Tables in `data/interview.db`:**

@@ -1,9 +1,9 @@
 """Eval harness: display aggregated scoreboard with CI and delta-vs-baseline.
 
 Usage:
-    uv run python scripts/show_scoreboard.py --methodology mec
-    uv run python scripts/show_scoreboard.py --config-hash abc123 --compare-to def456
-    uv run python scripts/show_scoreboard.py --label mec_baseline_2026_04
+    uv run python scripts/eval/show_scoreboard.py --methodology mec
+    uv run python scripts/eval/show_scoreboard.py --config-hash abc123 --compare-to def456
+    uv run python scripts/eval/show_scoreboard.py --label mec_baseline_2026_04
 """
 
 import argparse
@@ -11,7 +11,7 @@ import math
 import sqlite3
 from pathlib import Path
 
-DB_PATH = str(Path(__file__).parent.parent / "data" / "interview.db")
+DB_PATH = str(Path(__file__).parent.parent.parent / "data" / "interview.db")
 
 METRIC_COLUMNS = [
     "structural_completeness",

@@ -4,14 +4,14 @@
 This tests the schema fix directly by inserting rows with the same
 (config_hash, persona_id, replicate_seed) but different run_label values.
 
-Usage: uv run python scripts/test_paired_labels.py
+Usage: uv run python scripts/eval/test_paired_labels.py
 """
 
 import sqlite3
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 DB_PATH = "data/interview.db"
 
