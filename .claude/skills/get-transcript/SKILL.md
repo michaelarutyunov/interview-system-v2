@@ -18,17 +18,17 @@ Generates a structured markdown transcript from a simulation JSON file.
 
 **Most recent simulation:**
 ```bash
-uv run python scripts/generate_transcript.py
+uv run python scripts/reporting/generate_transcript.py
 ```
 
 **Specific file:**
 ```bash
-uv run python scripts/generate_transcript.py synthetic_interviews/<filename>.json
+uv run python scripts/reporting/generate_transcript.py synthetic_interviews/<filename>.json
 ```
 
 **Backfill all existing JSONs** (adds `focus_node_id`/`focus_node_label` to old files):
 ```bash
-uv run python scripts/backfill_focus_nodes.py
+uv run python scripts/migration/backfill_focus_nodes.py
 ```
 
 ## Step-by-step
@@ -39,7 +39,7 @@ uv run python scripts/backfill_focus_nodes.py
 
 2. Run the transcript generator:
    ```bash
-   uv run python scripts/generate_transcript.py <path-to-json>
+   uv run python scripts/reporting/generate_transcript.py <path-to-json>
    ```
 
 3. Report the output path: `reports/transcripts/<timestamp>_transcript.md`
@@ -67,7 +67,7 @@ The backfill is idempotent — safe to re-run. Already-patched turns are skipped
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/generate_transcript.py` | JSON → Markdown transcript |
-| `scripts/backfill_focus_nodes.py` | Patch focus_node_id into existing JSONs |
+| `scripts/reporting/generate_transcript.py` | JSON → Markdown transcript |
+| `scripts/migration/backfill_focus_nodes.py` | Patch focus_node_id into existing JSONs |
 | `reports/transcripts/` | Output directory |
 | `synthetic_interviews/` | Source JSON files |

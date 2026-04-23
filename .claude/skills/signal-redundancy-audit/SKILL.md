@@ -106,7 +106,7 @@ Why two personas: graph/temporal signals are persona-independent; LLM signals (e
 ### Step 2: Extract scoring data
 
 ```bash
-uv run python scripts/extract_simulation_data.py synthetic_interviews/v2/ analysis/simulation_extract/
+uv run python scripts/diagnostics/extract_simulation_data.py synthetic_interviews/v2/ analysis/simulation_extract/
 ```
 
 Or skip this and pass the JSON dir directly to the audit script.
@@ -115,16 +115,16 @@ Or skip this and pass the JSON dir directly to the audit script.
 
 ```bash
 # Against all available data
-uv run python scripts/analyze_signal_redundancy.py analysis/simulation_extract/
+uv run python scripts/diagnostics/analyze_signal_redundancy.py analysis/simulation_extract/
 
 # Filter to one methodology
-uv run python scripts/analyze_signal_redundancy.py analysis/simulation_extract/ --methodology means_end_chain_v3_flex
+uv run python scripts/diagnostics/analyze_signal_redundancy.py analysis/simulation_extract/ --methodology means_end_chain_v3_flex
 
 # Filter to specific personas
-uv run python scripts/analyze_signal_redundancy.py analysis/simulation_extract/ --personas health_conscious skeptical_analyst
+uv run python scripts/diagnostics/analyze_signal_redundancy.py analysis/simulation_extract/ --personas health_conscious skeptical_analyst
 
 # Against raw JSONs (no extract step needed)
-uv run python scripts/analyze_signal_redundancy.py synthetic_interviews/v2/
+uv run python scripts/diagnostics/analyze_signal_redundancy.py synthetic_interviews/v2/
 ```
 
 ### Step 4: Interpret the report
@@ -171,7 +171,7 @@ Once a signal is confirmed redundant:
    ```
 4. **Re-run audit** to confirm the signal no longer appears:
    ```bash
-   uv run python scripts/analyze_signal_redundancy.py analysis/simulation_extract/ --methodology <name>
+   uv run python scripts/diagnostics/analyze_signal_redundancy.py analysis/simulation_extract/ --methodology <name>
    ```
 5. **Commit with rationale** in the commit message: which signals were removed and why (DEAD/DORMANT/MARGINAL + evidence from audit).
 
@@ -182,7 +182,7 @@ Once a signal is confirmed redundant:
 Save audit reports to `analysis/signal_audit/` with a datestamp:
 
 ```bash
-uv run python scripts/analyze_signal_redundancy.py analysis/simulation_extract/ \
+uv run python scripts/diagnostics/analyze_signal_redundancy.py analysis/simulation_extract/ \
   --methodology means_end_chain_v3_flex \
   > analysis/signal_audit/$(date +%Y%m%d)_means_end_chain_v3_flex.txt
 ```
