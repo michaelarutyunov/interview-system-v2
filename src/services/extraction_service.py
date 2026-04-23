@@ -307,9 +307,18 @@ class ExtractionService:
             has_context=bool(context),
         )
 
+        # Build system prompt as block-list for Anthropic prompt caching.
+        # Non-Anthropic providers flatten the block-list to a plain string.
+        system_blocks = [
+            {
+                "type": "text",
+                "text": system_prompt,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ]
         response = await self.llm.complete(
             prompt=user_prompt,
-            system=system_prompt,
+            system=system_blocks,  # type: ignore[arg-type]
             max_tokens=4000,
             response_format={"type": "json_object"},
         )

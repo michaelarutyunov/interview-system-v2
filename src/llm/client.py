@@ -18,7 +18,7 @@ Supported providers:
 from abc import ABC, abstractmethod
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, Literal
+from typing import Optional, Dict, Any, Literal, Union
 import json
 import time
 
@@ -164,7 +164,7 @@ class AnthropicClient(LLMClient):
     async def complete(
         self,
         prompt: str,
-        system: Optional[str] = None,
+        system: Optional[Union[str, list[dict[str, Any]]]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         effort: Optional[str] = None,
@@ -177,7 +177,9 @@ class AnthropicClient(LLMClient):
 
         Args:
             prompt: User message
-            system: Optional system prompt
+            system: Optional system prompt — plain string (no caching) or block-list
+                of content dicts with cache_control markers for prompt caching.
+                Block-list form: [{"type": "text", "text": "...", "cache_control": {"type": "ephemeral"}}]
             temperature: Sampling temperature (defaults to init value)
             max_tokens: Max tokens (defaults to init value)
             effort: Effort level for Sonnet 4.6 ("low", "medium", "high")
@@ -185,7 +187,7 @@ class AnthropicClient(LLMClient):
             session_id: Optional session ID for usage tracking
 
         Returns:
-            LLMResponse with content and usage stats
+            LLMResponse with content and usage stats (includes cache metrics for Anthropic)
 
         Raises:
             LLMTimeoutError: After all retries exhausted on timeout
@@ -225,6 +227,8 @@ class AnthropicClient(LLMClient):
         }
 
         if system:
+            # Anthropic API accepts system as plain string or block-list of
+            # content dicts. Block-list form preserves cache_control markers.
             payload["system"] = system
 
         if response_format is not None:
@@ -304,6 +308,12 @@ class AnthropicClient(LLMClient):
                 usage = {
                     "input_tokens": data.get("usage", {}).get("input_tokens", 0),
                     "output_tokens": data.get("usage", {}).get("output_tokens", 0),
+                    "cache_creation_input_tokens": data.get("usage", {}).get(
+                        "cache_creation_input_tokens", 0
+                    ),
+                    "cache_read_input_tokens": data.get("usage", {}).get(
+                        "cache_read_input_tokens", 0
+                    ),
                 }
 
                 log.info(
@@ -314,6 +324,10 @@ class AnthropicClient(LLMClient):
                     latency_ms=round(latency_ms, 2),
                     input_tokens=usage["input_tokens"],
                     output_tokens=usage["output_tokens"],
+                    cache_creation_input_tokens=usage.get(
+                        "cache_creation_input_tokens", 0
+                    ),
+                    cache_read_input_tokens=usage.get("cache_read_input_tokens", 0),
                     attempt=attempt + 1,
                 )
 
@@ -455,7 +469,7 @@ class OpenAICompatibleClient(LLMClient):
     async def complete(
         self,
         prompt: str,
-        system: Optional[str] = None,
+        system: Optional[Union[str, list[dict[str, Any]]]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         effort: Optional[str] = None,  # Ignored for OpenAI-compatible APIs
@@ -512,6 +526,12 @@ class OpenAICompatibleClient(LLMClient):
         # Build messages array
         messages = []
         if system:
+            # Flatten block-list system prompts (Anthropic cache_control form)
+            # to plain string for OpenAI-compatible APIs
+            if isinstance(system, list):
+                system = " ".join(
+                    block.get("text", "") for block in system if isinstance(block, dict)
+                )
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
