@@ -158,22 +158,24 @@ The extractability prompt already exists in `src/llm/prompts/extraction.py`. A H
 
 **Current**: Stages run strictly sequentially: 4.5 (SlotDiscovery, ~3.3s) → 5 (StateComputation, ~4ms) → 6 (StrategySelection, ~4.7s). Total: ~8s.
 
-**Proposal**: The signal_scoring LLM call inside StrategySelection depends on `response_text`, `methodology`, and `graph_state` — all available after Stage 5. It does NOT depend on `node_tracker` state modified by SlotDiscovery's `remap_to_canonical_slots()`. Therefore, the LLM call can fire in parallel with SlotDiscovery.
+**Proposal**: The signal_scoring LLM call inside StrategySelection depends on `response_text`, `methodology`, and `graph_state` — all available after Stage 5. The LLM call itself can fire in parallel with SlotDiscovery, but the **bridge step** (routing per-concept ratings into `node_tracker.append_quality()`) must wait for SlotDiscovery to complete, because `append_quality()` resolves surface node IDs to canonical slot IDs via `_resolve_canonical_slot_id()`, which queries the surface→canonical mappings that SlotDiscovery creates.
 
 ```
 CURRENT:   [4.5 SlotDiscovery 3.3s] → [5 State 4ms] → [6 StrategySelection 4.7s]  = 8.0s
 PROPOSED:  [4.5 SlotDiscovery 3.3s] ─┐
-            [6 LLM signal_scoring 4.8s]─┤→ [6 CPU scoring]                         = 5.0s
+            [6 LLM signal_scoring 4.8s]─┤→ [await SlotDiscovery] → [bridge + CPU scoring] = 5.0s
 ```
 
-The node_tracker state from SlotDiscovery would still be used for CPU-based graph signal computation (in-memory), but the LLM call (the latency bottleneck at ~4.8s) would overlap with SlotDiscovery.
+The LLM call (the latency bottleneck at ~4.8s) overlaps with SlotDiscovery. After both complete, the bridge step routes per-concept `elaboration` and `charge` ratings into node_tracker via `concept_to_node_id` → `_resolve_canonical_slot_id()` → `append_quality()`. This bridge must run after SlotDiscovery because canonical slot mappings don't exist until Stage 4.5 writes them to the DB.
+
+**Dependency detail**: The LLM produces both global signals (engagement, valence, certainty, response_depth) and per-concept ratings (elaboration, charge). The global signals feed directly into CPU scoring. The per-concept ratings need `concept_to_node_id` (from Stage 4) and canonical slot mappings (from Stage 4.5) to land correctly in the tracker. Running the LLM call early and deferring only the bridge step preserves correctness while gaining the overlap.
 
 | Factor | Assessment |
 |--------|-----------|
 | **Estimated latency saved** | 2-3s per turn (overlap of signal_scoring LLM with SlotDiscovery) |
-| **Implementation complexity** | Medium — extract LLM call from GlobalSignalDetectionService.detect(), fire it before SlotDiscovery completes, await both results |
-| **Quality risk** | Low — LLM signals (engagement, valence, certainty) are response-level, not graph-level |
-| **Prerequisite** | Refactor MethodologyStrategyService to accept pre-computed LLM signal results |
+| **Implementation complexity** | Medium — split `detect_with_per_concept()` into (a) fire LLM call, (b) await + bridge; defer bridge until SlotDiscovery completes |
+| **Quality risk** | Low — LLM signals are response-level; the bridge step is deterministic once mappings exist |
+| **Prerequisite** | Refactor `MethodologyStrategyService.select_strategy_and_focus()` to separate LLM dispatch from node_tracker write-back |
 
 ### Opportunity 3: Speculative Question Generation (estimated savings: ~1.2s)
 
