@@ -501,6 +501,86 @@ class NodeStateTracker:
         # Default to depth 0 (root level)
         return 0
 
+    async def remap_to_canonical_slots(self) -> None:
+        """Re-key tracked states from surface node_id to canonical_slot_id.
+
+        Called after Stage 4.5 (SlotDiscoveryStage) creates surface-to-slot
+        mappings. Without this, all lookups via _resolve_canonical_slot_id()
+        fail because states were registered under surface UUIDs but queried
+        under canonical slot IDs.
+
+        Handles two cases:
+        1. Simple re-key: surface node maps to a canonical slot not yet tracked
+        2. Merge: multiple surface nodes map to same canonical slot (paraphrases)
+        """
+        if self.canonical_slot_repo is None:
+            return
+
+        remap_pairs: list[tuple[str, str]] = []
+        for surface_id in list(self.states.keys()):
+            mapping = await self.canonical_slot_repo.get_mapping_for_node(surface_id)
+            if mapping and mapping.canonical_slot_id != surface_id:
+                remap_pairs.append((surface_id, mapping.canonical_slot_id))
+
+        if not remap_pairs:
+            return
+
+        remapped = 0
+        merged = 0
+        previous_focus_remapped = False
+
+        for surface_id, canonical_id in remap_pairs:
+            state = self.states.pop(surface_id)
+            if canonical_id in self.states:
+                existing = self.states[canonical_id]
+                # Merge: aggregate paraphrase tracking into canonical state
+                existing.focus_count += state.focus_count
+                existing.yield_count += state.yield_count
+                existing.all_response_depths.extend(state.all_response_depths)
+                existing.quality_history.elaboration_scores.extend(
+                    state.quality_history.elaboration_scores
+                )
+                existing.quality_history.charge_scores.extend(
+                    state.quality_history.charge_scores
+                )
+                existing.connected_node_ids |= state.connected_node_ids
+                for strat, count in state.strategy_usage_count.items():
+                    existing.strategy_usage_count[strat] = (
+                        existing.strategy_usage_count.get(strat, 0) + count
+                    )
+                # Take the more active of the two for streak/yield timing
+                if state.last_focus_turn is not None and (
+                    existing.last_focus_turn is None
+                    or state.last_focus_turn > existing.last_focus_turn
+                ):
+                    existing.last_focus_turn = state.last_focus_turn
+                    existing.current_focus_streak = state.current_focus_streak
+                    existing.turns_since_last_focus = state.turns_since_last_focus
+                if state.last_yield_turn is not None and (
+                    existing.last_yield_turn is None
+                    or state.last_yield_turn > existing.last_yield_turn
+                ):
+                    existing.last_yield_turn = state.last_yield_turn
+                    existing.turns_since_last_yield = state.turns_since_last_yield
+                existing.edge_count_outgoing += state.edge_count_outgoing
+                existing.edge_count_incoming += state.edge_count_incoming
+                merged += 1
+            else:
+                state.node_id = canonical_id
+                self.states[canonical_id] = state
+                remapped += 1
+
+            if self.previous_focus == surface_id:
+                self.previous_focus = canonical_id
+                previous_focus_remapped = True
+
+        self.log.info(
+            "canonical_slot_remap_complete",
+            remapped=remapped,
+            merged=merged,
+            previous_focus_remapped=previous_focus_remapped,
+        )
+
     # ==================== SERIALIZATION FOR PERSISTENCE ====================
 
     def to_dict(self) -> Dict[str, Any]:

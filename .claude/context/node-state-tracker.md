@@ -35,9 +35,10 @@ Changes made after Stage 12 are lost; changes made before Stage 1 in the next tu
 
 | Stage | Stage Name | Method | What It Does |
 |-------|-----------|--------|--------------|
-| Stage 5 | `GraphUpdateStage` | `register_node(node, turn_number)` | Creates a new `NodeState` for newly extracted nodes; no-op if already registered |
+| Stage 5 | `GraphUpdateStage` | `register_node(node, turn_number)` | Creates a new `NodeState` for newly extracted nodes; no-op if already registered. **Registers under surface `node.id` (UUID), not canonical slot ID.** |
 | Stage 5 | `GraphUpdateStage` | `update_edge_counts(node_id, outgoing_delta, incoming_delta)` | Adjusts edge counts; floors at 0 |
 | Stage 5 | `GraphUpdateStage` | `record_yield(node_id, turn_number, graph_changes)` | Credits `previous_focus` with graph changes; resets `turns_since_last_yield` to 0; increments `yield_count`; recalculates `yield_rate`; does **NOT** touch `current_focus_streak` |
+| Stage 6 | `SlotDiscoveryStage` | `remap_to_canonical_slots()` | Re-keys `self.states` from surface UUID → canonical slot ID. Runs after Stage 4.5 creates surface-to-slot mappings. Merges states when multiple surface nodes map to the same canonical slot (paraphrase aggregation). Updates `previous_focus` if re-keyed. **Must run before Stage 8 lookups.** |
 | Stage 8 | `StrategySelectionStage` | `update_focus(node_id, turn_number, strategy)` | Increments `focus_count`; sets `last_focus_turn`; resets streak to 1 on focus change, increments streak on same focus; ticks `turns_since_last_yield += 1` for **ALL** nodes; updates `previous_focus` |
 | Stage 8 | `StrategySelectionStage` (bridge) | `append_quality(node_id, elaboration, charge)` | Records per-concept LLM ratings: appends normalized `elaboration`/`charge` to `quality_history`, derives and appends a categorical `response_depth` to `all_response_depths`. Called once per concept via the per-concept→node bridge step. Replaces the prior `append_response_signal`. |
 | Stage 1 | `ContextLoadingStage` | `from_dict(data)` | Deserializes persisted tracker state; raises `ValueError` on schema version mismatch |
@@ -51,7 +52,7 @@ Stage 2:  UtteranceSavingStage
 Stage 3:  SRLPreprocessingStage
 Stage 4:  ExtractionStage
 Stage 5:  GraphUpdateStage             ← register_node(), update_edge_counts(), record_yield()
-Stage 6:  SlotDiscoveryStage
+Stage 6:  SlotDiscoveryStage           ← remap_to_canonical_slots() (after mappings created)
 Stage 7:  StateComputationStage
 Stage 8:  StrategySelectionStage       ← global signals → per-concept→node bridge (append_quality) → node signals → update_focus()
 Stage 9:  ContinuationStage
@@ -133,6 +134,8 @@ When `canonical_slot_repo` is provided (i.e. `enable_canonical_slots=True`), sur
 
 8. **`NodeStateTracker` is strategy-agnostic**: The tracker records which strategy was used (`strategy_usage_count`, `last_strategy_used`, `consecutive_same_strategy`) but does not know about chain topology strategies (ascend/ground/bridge/branch/anchor) vs legacy strategies. No changes to this subsystem were needed for Phase 2 chain-aware strategy selection.
 
+9. **Canonical slot re-keying after Stage 4.5**: `register_node()` stores entries under surface `node.id` (UUID) because canonical slot mappings don't exist yet at Stage 4. After Stage 4.5 (`SlotDiscoveryStage`) creates the mappings, `remap_to_canonical_slots()` must run to re-key entries from UUID → canonical slot ID. Without this, all lookups via `_resolve_canonical_slot_id()` fail because they return `canonical_slot_id` (e.g., `slot_<hash>`) but `self.states` is keyed by UUID. The re-map also handles merging when multiple surface nodes (paraphrases) map to the same canonical slot.
+
 ---
 
 ## Symptom → Cause → Fix
@@ -145,6 +148,7 @@ When `canonical_slot_repo` is provided (i.e. `enable_canonical_slots=True`), sur
 | Node signals missing / wrong for newly extracted nodes | New node not yet in tracker when `update_focus()` is called | Confirm `register_node()` is called in Stage 5 (before Stage 8); check `register_node()` call path in `graph_update_stage.py:_update_node_state_tracker()` |
 | Canonical slot aggregation not working (metrics split across paraphrase nodes) | `canonical_slot_repo` not injected into `NodeStateTracker` constructor | Confirm `NodeStateTracker(canonical_slot_repo=repo)` is used when `enable_canonical_slots=True` in session config |
 | `ValueError: Incompatible node_tracker_state schema version` | DB has state serialized at an older schema version | Migrate DB rows or reset `node_tracker_state` to `null` for affected sessions; schema is currently version 3 |
+| `focus_update_failed_node_not_found` / `append_quality_failed_node_not_found` warnings on every turn | `register_node()` stores under surface UUID but lookups resolve via `_resolve_canonical_slot_id()` to canonical slot ID. If `remap_to_canonical_slots()` is not called after Stage 4.5, 100% of lookups fail when canonical slots are enabled. | Verify `remap_to_canonical_slots()` is called at end of `SlotDiscoveryStage.process()` after mappings are created. Check `canonical_slot_remap_complete` log for remapped/merged counts. |
 
 ---
 
@@ -155,6 +159,7 @@ When `canonical_slot_repo` is provided (i.e. `enable_canonical_slots=True`), sur
 | `src/services/node_state_tracker.py` | `NodeStateTracker` class and `GraphChangeSummary` dataclass |
 | `src/domain/models/node_state.py` | `NodeState` dataclass (all tracked fields) |
 | `src/services/turn_pipeline/stages/graph_update_stage.py` | Stage 5: calls `register_node()`, `update_edge_counts()`, `record_yield()` |
+| `src/services/turn_pipeline/stages/slot_discovery_stage.py` | Stage 6: calls `remap_to_canonical_slots()` after creating surface-to-slot mappings |
 | `src/services/turn_pipeline/stages/strategy_selection_stage.py` | Stage 8: hosts the per-concept→node bridge (`append_quality()`) and calls `update_focus()` |
 | `src/services/turn_pipeline/stages/context_loading_stage.py` | Stage 1: loads tracker via `from_dict()` |
 | `src/services/turn_pipeline/stages/scoring_persistence_stage.py` | Stage 12: saves tracker via `to_dict()` |
