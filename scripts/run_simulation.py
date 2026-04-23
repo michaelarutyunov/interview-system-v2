@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""
-Run a synthetic interview simulation.
+"""Run a synthetic interview simulation.
 
 Usage:
-    python scripts/run_simulation.py headphones_mec baseline_cooperative 10
-    python scripts/run_simulation.py meal_planning_jtbd brief_responder 5
+    uv run python scripts/run_simulation.py --concept glp1_food_mec --persona baseline_cooperative --max-turns 10
+
+Legacy positional form (no longer supported):
+    python scripts/run_simulation.py glp1_food_mec baseline_cooperative 10
+    -> Use --concept, --persona, --max-turns flags instead.
 """
 
+import argparse
 import asyncio
 import sys
 from pathlib import Path
@@ -30,28 +33,95 @@ from src.api.dependencies import (  # noqa: E402
 from src.core.config import settings  # noqa: E402
 
 
+def _detect_legacy_positional_args() -> list[str] | None:
+    """Detect if the user passed positional args instead of --flags."""
+    if not sys.argv[1:]:
+        return None
+    # If first arg doesn't start with --, it's likely a positional invocation
+    if not sys.argv[1].startswith("-"):
+        return sys.argv[1:]
+    return None
+
+
+def _print_legacy_migration_hint(positional_args: list[str]) -> None:
+    """Print a helpful migration hint for the legacy positional form."""
+    concept = positional_args[0] if len(positional_args) > 0 else "<concept_id>"
+    persona = positional_args[1] if len(positional_args) > 1 else "<persona_id>"
+    max_turns = positional_args[2] if len(positional_args) > 2 else "10"
+    print(
+        f"Error: Positional args are no longer supported.\n"
+        f"\n"
+        f"Instead of:\n"
+        f"  python scripts/run_simulation.py {concept} {persona} {max_turns}\n"
+        f"\n"
+        f"Use:\n"
+        f"  uv run python scripts/run_simulation.py --concept {concept} --persona {persona} --max-turns {max_turns}\n"
+        f"\n"
+        f"Run with --help for full options."
+    )
+    sys.exit(2)
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    """Build the argument parser with help text listing available options."""
+    concept_lines = []
+    for cf in sorted(Path("config/concepts").glob("*.yaml")):
+        import yaml
+
+        cd = yaml.safe_load(cf.read_text())
+        concept_lines.append(f"  {cd['id']:<40s} ({cd['methodology']})")
+
+    persona_lines = []
+    from src.llm.prompts.synthetic import get_available_personas
+
+    for pid, pname in get_available_personas().items():
+        persona_lines.append(f"  {pid:<30s} {pname}")
+
+    epilog_parts = []
+    if concept_lines:
+        epilog_parts.append("Available concepts (see config/concepts/):")
+        epilog_parts.extend(concept_lines)
+    if persona_lines:
+        epilog_parts.append("")
+        epilog_parts.append("Available personas (see config/personas/):")
+        epilog_parts.extend(persona_lines)
+
+    parser = argparse.ArgumentParser(
+        description="Run a single synthetic interview simulation.",
+        epilog="\n".join(epilog_parts),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--concept",
+        required=True,
+        help="Concept ID (e.g. glp1_food_mec, zerofizz_beverage_mec)",
+    )
+    parser.add_argument(
+        "--persona",
+        required=True,
+        help="Persona ID (e.g. baseline_cooperative, brief_responder)",
+    )
+    parser.add_argument(
+        "--max-turns",
+        type=int,
+        default=10,
+        help="Max interview turns (default: 10, matches SimulationService.DEFAULT_MAX_TURNS)",
+    )
+    return parser
+
+
 async def main():
-    if len(sys.argv) < 3:
-        print("Usage: python run_simulation.py <concept_id> <persona_id> [max_turns]")
-        print("\nAvailable concepts:")
-        # List available concepts dynamically
-        from pathlib import Path as P
+    # Detect legacy positional form before argparse sees it
+    legacy_args = _detect_legacy_positional_args()
+    if legacy_args is not None:
+        _print_legacy_migration_hint(legacy_args)
 
-        for cf in sorted(P("config/concepts").glob("*.yaml")):
-            import yaml
+    parser = _build_parser()
+    args = parser.parse_args()
 
-            cd = yaml.safe_load(cf.read_text())
-            print(f"  - {cd['id']} ({cd['methodology']})")
-        print("\nAvailable personas:")
-        from src.llm.prompts.synthetic import get_available_personas
-
-        for pid, pname in get_available_personas().items():
-            print(f"  - {pid}: {pname}")
-        sys.exit(1)
-
-    concept_id = sys.argv[1]
-    persona_id = sys.argv[2]
-    max_turns = int(sys.argv[3]) if len(sys.argv) > 3 else 10
+    concept_id = args.concept
+    persona_id = args.persona
+    max_turns = args.max_turns
 
     print("Running simulation:")
     print(f"  Concept: {concept_id}")
@@ -110,7 +180,6 @@ async def main():
 
     # Generate scoring decomposition CSV
     output_dir = Path("synthetic_interviews")
-    # Find the most recently written JSON for this simulation
     json_files = sorted(
         output_dir.glob(f"*_{result.concept_id}_{result.persona_id}.json"),
         key=lambda p: p.stat().st_mtime,

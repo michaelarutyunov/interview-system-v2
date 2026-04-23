@@ -394,7 +394,7 @@ For running multiple simulations efficiently, use the provided script:
 
 ```bash
 # Run single simulation
-uv run python scripts/run_simulation.py glp1_food_mec baseline_cooperative 10
+uv run python scripts/run_simulation.py --concept glp1_food_mec --persona baseline_cooperative --max-turns 10
 
 # Output files:
 # - synthetic_interviews/TIMESTAMP_glp1_food_mec_baseline_cooperative.json

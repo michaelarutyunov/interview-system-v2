@@ -258,13 +258,8 @@ Run `/deep-code-quality` for the full framework when a diagnostic doesn't obviou
 # Start API server locally
 uv run uvicorn src.main:app --reload
 
-# Run simulation (valid concept IDs: glp1_food_mec, glp1_food_mec_strict, glp1_food_mec_flex, glp1_food_jtbd, coffee_jtbd_v2, meal_planning_jtbd_v2)
-# Persona axes:
-#   Failure-mode axis (methodology-agnostic, 8): baseline_cooperative, brief_responder, verbose_tangential, fatiguing_responder, single_topic_fixator, uncertain_hedger, skeptical_analyst, disengaged_responder
-#   Domain fixtures (content-specific, pair with matching concepts): glp1_user
-#   Methodology fixtures (not agnostic — JTBD-specific): retrospective_rationalizer
-#   Excluded from eval axis (file retained): emotionally_reactive
-uv run python scripts/run_simulation.py glp1_food_mec baseline_cooperative 10
+# Run simulation (use --help for full concept/persona listings)
+uv run python scripts/run_simulation.py --concept glp1_food_mec --persona baseline_cooperative --max-turns 10
 
 # Run tests
 uv run pytest

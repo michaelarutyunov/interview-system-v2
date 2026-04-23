@@ -177,7 +177,7 @@ curl -X POST "http://localhost:8000/simulation/interview" \
 Or use the convenience script:
 
 ```bash
-uv run python scripts/run_simulation.py headphones_mec baseline_cooperative 10
+uv run python scripts/run_simulation.py --concept headphones_mec --persona baseline_cooperative --max-turns 10
 ```
 
 **See [Interview AI Simulation System](interview_ai_simulation.md)** for:
@@ -1691,7 +1691,7 @@ Utility scripts for testing, analysis, and visualization. All scripts live in `s
 ### Simulation output fields
 
 ```bash
-uv run python scripts/run_simulation.py headphones_mec baseline_cooperative 10
+uv run python scripts/run_simulation.py --concept headphones_mec --persona baseline_cooperative --max-turns 10
 # Outputs: synthetic_interviews/TIMESTAMP_concept_persona.json
 #          synthetic_interviews/TIMESTAMP_concept_persona_scoring.csv
 # JSON turn fields:
