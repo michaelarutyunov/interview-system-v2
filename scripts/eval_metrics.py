@@ -29,6 +29,7 @@ class EvalMetrics:
 
     # Methodology-specific
     structural_completeness: int = 0
+    max_chain_depth: int = 0
     ontology_breadth: float = 0.0
     exploration_depth: float = 0.0
 
@@ -101,6 +102,69 @@ def load_methodology_ontology(methodology_name: str) -> set[str]:
         data = yaml.safe_load(f)
     ontology = data.get("ontology", {})
     return {n["name"] for n in ontology.get("nodes", [])}
+
+
+def load_methodology_level_map(methodology_name: str) -> dict[str, int]:
+    """Load {node_type: level} from methodology YAML's ontology section.
+
+    Returns empty dict for flat ontologies (CJM, RG) where no 'level' key exists.
+    """
+    config_path = Path("config/methodologies") / f"{methodology_name}.yaml"
+    if not config_path.exists():
+        return {}
+    with open(config_path) as f:
+        data = yaml.safe_load(f)
+    ontology = data.get("ontology", {})
+    level_map: dict[str, int] = {}
+    for node in ontology.get("nodes", []):
+        if "level" in node:
+            level_map[node["name"]] = node["level"]
+    return level_map
+
+
+def compute_max_chain_depth(graph: Graph, methodology_name: str) -> int:
+    """Compute deepest ontology level reached from any root node.
+
+    For hierarchical ontologies (MEC, JTBD, CIT), BFS from each root node
+    and track the maximum ontology level encountered. Normalized to 1-based
+    depth (e.g., MEC level 4 -> depth 4).
+
+    Returns 0 for flat ontologies (CJM, RG) where no hierarchy is defined.
+    """
+    level_map = load_methodology_level_map(methodology_name)
+    if not level_map:
+        return 0  # Flat ontology — no hierarchy defined
+
+    levels = sorted(set(level_map.values()))
+    if not levels:
+        return 0
+
+    min_level = min(levels)
+    root_types = {t for t, lvl in level_map.items() if lvl == min_level}
+
+    max_reached_level = min_level
+
+    for root_type in root_types:
+        for node_id in graph.by_type.get(root_type, []):
+            visited: set[str] = set()
+            queue = [node_id]
+            while queue:
+                current = queue.pop(0)
+                if current in visited:
+                    continue
+                visited.add(current)
+                node = graph.nodes.get(current)
+                if node:
+                    node_level = level_map.get(node.node_type, min_level)
+                    if node_level > max_reached_level:
+                        max_reached_level = node_level
+                for nbr in _neighbors(graph, current):
+                    if nbr not in visited:
+                        queue.append(nbr)
+
+    # Normalize to 1-based depth
+    level_to_depth = {lvl: i + 1 for i, lvl in enumerate(levels)}
+    return level_to_depth.get(max_reached_level, 0)
 
 
 def _neighbors(graph: Graph, node_id: str) -> set[str]:
@@ -258,10 +322,13 @@ def compute_graph_metrics(graph: Graph, methodology_name: str) -> dict:
 
     exploration_depth = sum(path_lengths) / len(path_lengths) if path_lengths else 0.0
 
+    max_chain_depth = compute_max_chain_depth(graph, methodology_name)
+
     return {
         "node_count": node_count,
         "orphan_ratio": round(orphan_ratio, 4),
         "structural_completeness": structural_completeness,
+        "max_chain_depth": max_chain_depth,
         "ontology_breadth": round(ontology_breadth, 4),
         "exploration_depth": round(exploration_depth, 2),
     }
@@ -285,6 +352,7 @@ async def compute_metrics(db_path: str, session_id: str) -> EvalMetrics:
     metrics.node_count = graph_metrics["node_count"]
     metrics.orphan_ratio = graph_metrics["orphan_ratio"]
     metrics.structural_completeness = graph_metrics["structural_completeness"]
+    metrics.max_chain_depth = graph_metrics["max_chain_depth"]
     metrics.ontology_breadth = graph_metrics["ontology_breadth"]
     metrics.exploration_depth = graph_metrics["exploration_depth"]
     metrics.canonical_slot_coverage = await load_canonical_slot_coverage(

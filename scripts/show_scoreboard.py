@@ -15,6 +15,7 @@ DB_PATH = str(Path(__file__).parent.parent / "data" / "interview.db")
 
 METRIC_COLUMNS = [
     "structural_completeness",
+    "max_chain_depth",
     "ontology_breadth",
     "exploration_depth",
     "node_count",
@@ -135,6 +136,7 @@ def print_aggregates(aggregates: list[dict], baseline_agg: dict | None = None) -
     cols = ["label", "config_hash", "n"]
     for metric in [
         "structural_completeness",
+        "max_chain_depth",
         "exploration_depth",
         "ontology_breadth",
         "node_count",

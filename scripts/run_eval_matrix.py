@@ -42,6 +42,18 @@ def make_replicate_seed(persona_id: str, replicate_idx: int) -> str:
     return hashlib.sha256(f"{persona_id}:{replicate_idx}".encode()).hexdigest()[:12]
 
 
+async def _add_max_chain_depth_if_needed(db_path: str) -> None:
+    """Add max_chain_depth column to eval_runs if missing."""
+    async with aiosqlite.connect(db_path) as db:
+        cursor = await db.execute("PRAGMA table_info(eval_runs)")
+        columns = {c[1] for c in await cursor.fetchall()}
+        if "max_chain_depth" not in columns:
+            await db.execute(
+                "ALTER TABLE eval_runs ADD COLUMN max_chain_depth INTEGER DEFAULT 0"
+            )
+            await db.commit()
+
+
 async def _migrate_eval_runs_if_needed(db_path: str) -> None:
     """Migrate eval_runs to include run_label in the unique constraint.
 
@@ -80,6 +92,7 @@ async def _migrate_eval_runs_if_needed(db_path: str) -> None:
                 canonical_slot_coverage REAL DEFAULT 0.0,
                 total_turns INTEGER DEFAULT 0,
                 structural_completeness INTEGER DEFAULT 0,
+                max_chain_depth INTEGER DEFAULT 0,
                 ontology_breadth REAL DEFAULT 0.0,
                 exploration_depth REAL DEFAULT 0.0,
                 error_flag INTEGER DEFAULT 0,
@@ -138,6 +151,7 @@ async def ensure_eval_tables(db_path: str) -> None:
                 canonical_slot_coverage REAL DEFAULT 0.0,
                 total_turns INTEGER DEFAULT 0,
                 structural_completeness INTEGER DEFAULT 0,
+                max_chain_depth INTEGER DEFAULT 0,
                 ontology_breadth REAL DEFAULT 0.0,
                 exploration_depth REAL DEFAULT 0.0,
                 error_flag INTEGER DEFAULT 0,
@@ -183,9 +197,9 @@ async def record_run(db_path: str, run: dict) -> None:
                (id, config_hash, methodology, concept_id, persona_id, replicate_seed,
                 session_id, run_label, timestamp,
                 node_count, orphan_ratio, canonical_slot_coverage, total_turns,
-                structural_completeness, ontology_breadth, exploration_depth,
+                structural_completeness, max_chain_depth, ontology_breadth, exploration_depth,
                 error_flag, error_message)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 run["id"],
                 run["config_hash"],
@@ -201,6 +215,7 @@ async def record_run(db_path: str, run: dict) -> None:
                 run.get("canonical_slot_coverage", 0.0),
                 run.get("total_turns", 0),
                 run.get("structural_completeness", 0),
+                run.get("max_chain_depth", 0),
                 run.get("ontology_breadth", 0.0),
                 run.get("exploration_depth", 0.0),
                 int(run.get("error_flag", False)),
@@ -318,6 +333,7 @@ async def run_matrix(
     print()
 
     await _migrate_eval_runs_if_needed(DB_PATH)
+    await _add_max_chain_depth_if_needed(DB_PATH)
     await ensure_eval_tables(DB_PATH)
     await register_config(DB_PATH, config_hash, label, methodology)
 
@@ -384,6 +400,7 @@ async def run_matrix(
                     run["canonical_slot_coverage"] = metrics.canonical_slot_coverage
                     run["total_turns"] = metrics.total_turns
                     run["structural_completeness"] = metrics.structural_completeness
+                    run["max_chain_depth"] = metrics.max_chain_depth
                     run["ontology_breadth"] = metrics.ontology_breadth
                     run["exploration_depth"] = metrics.exploration_depth
                     if metrics.error_flag:
