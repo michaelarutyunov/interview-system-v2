@@ -194,6 +194,29 @@ Numeric exit criteria (define *before* running anything):
 - `structural_completeness` stays within the baseline's 95% CI on every persona.
 - `max_chain_depth` does not decrease by more than one full level on any persona.
 
+### Cost & Cadence (read before launching step 1)
+
+A full first-cycle tuning experiment at R=25 is three batches of 200 runs each:
+
+| Step | Batch | Runs | Wall-clock @ `--max-parallel=4` |
+|------|-------|------|---------------------------------|
+| 1 | Baseline `_a` | 8 personas × 25 replicates = 200 | ~1.5 hr |
+| 2 | Baseline `_b` (same config, noise-floor calibration) | 200 | ~1.5 hr |
+| 4 | Experiment (one YAML parameter changed) | 200 | ~1.5 hr |
+| | **First-cycle total** | **600 runs** | **~4.5 hr** |
+
+**Subsequent cycles on the same baseline are cheaper.** The baseline-vs-baseline calibration (step 2) is per-*baseline*, not per-experiment. Once you've confirmed noise-floor stability for a given config, you reuse that result across many experiments — only re-calibrate if the baseline itself changes (e.g., a methodology refactor). So subsequent cycles are baseline reference + experiment = ~400 runs, ~3 hr.
+
+**LLM spend is non-trivial.** Each 15-turn run triggers ~6-10 LLM calls per turn (extraction + slot scoring + signal scoring + persona gen + question gen). 600 runs ≈ 40,000-60,000 LLM calls. Check the Anthropic dashboard after the first cycle to decide whether R=25 is sustainable for routine tuning or whether to drop to R=15 and reserve R=25 for final-before-adoption validation.
+
+**Don't start at R=25 blind.** The R=25 figure is a starting estimate from a single determinism audit (2026-04-23) — it's the right order of magnitude, not a calibrated value. A sensible first-time approach:
+
+1. Run step 2 (baseline-vs-baseline) at R=10 first — ~40 min.
+2. If CIs for `structural_completeness` and `max_chain_depth` overlap between `_a` and `_b` → you're calibrated at R=10. Skip the R=25 escalation entirely. Full cycle becomes ~1.8 hr.
+3. If CIs don't overlap → escalate to R=25 and re-run both batches. If they still don't overlap at R=25, go to R=50 before spending more on experiments.
+
+Use R as a *fitted* value, not a *fixed* value.
+
 ### 1. Establish the baseline (~1.5 hr wall-clock at `--max-parallel=4`)
 
 ```bash
