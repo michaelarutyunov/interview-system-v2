@@ -181,6 +181,100 @@ The `domain:zerofizz_beverage_v1` concept suite provides methodology-matched con
 | `zerofizz_beverage_cjm` | customer_journey_mapping_v2 |
 | `zerofizz_beverage_rg` | repertory_grid_v2 |
 
+## Worked Example: an MEC Tuning Cycle
+
+A concrete walkthrough for reducing `revitalize` self-repetition in MEC's late phase without regressing structural completeness. Use this as a template — the same shape applies to any single-parameter tuning experiment.
+
+### Goal
+
+Hypothesis: the current `revitalize` weight on `interview.strategy.self_count` (-0.5) allows the strategy to reappear too often in late phase. Tightening the brake to -0.8 should reduce the strategy's share without hurting chain completion.
+
+Numeric exit criteria (define *before* running anything):
+- `revitalize` share of selected strategies drops by ≥20% vs. baseline.
+- `structural_completeness` stays within the baseline's 95% CI on every persona.
+- `max_chain_depth` does not decrease by more than one full level on any persona.
+
+### 1. Establish the baseline (~1.5 hr wall-clock at `--max-parallel=4`)
+
+```bash
+uv run python scripts/run_eval_matrix.py \
+  --methodology mec \
+  --concept zerofizz_beverage_mec \
+  --personas baseline_cooperative,brief_responder,verbose_tangential,fatiguing_responder,single_topic_fixator,uncertain_hedger,skeptical_analyst,disengaged_responder \
+  --replicates 25 \
+  --max-turns 15 \
+  --max-parallel 4 \
+  --label "mec_baseline_2026_04_23_a"
+```
+
+### 2. Baseline-vs-baseline calibration (~1.5 hr)
+
+Run the exact same command again, changing only the label to `mec_baseline_2026_04_23_b`. This does nothing to the config — it exercises the harness against itself to measure the noise floor.
+
+```bash
+uv run python scripts/show_scoreboard.py \
+  --config-hash <mec_baseline_hash> \
+  --by-persona
+```
+
+Decision gate:
+- CIs for `structural_completeness` and `max_chain_depth` overlap between `_a` and `_b` → statistical framing is valid, proceed to step 3.
+- CIs do not overlap → the baseline itself is unstable. Increase `--replicates` to 50 and re-run both batches. Do not proceed until this gate passes.
+
+### 3. Edit exactly one parameter
+
+```yaml
+# config/methodologies/means_end_chain_v2_strict.yaml
+strategies:
+  revitalize:
+    weights:
+      interview.strategy.self_count: -0.8   # was -0.5
+```
+
+Commit the edit in isolation — no other YAML changes. This makes the experiment attributable: if the scoreboard improves, the cause is unambiguous.
+
+### 4. Run the experiment (~1.5 hr)
+
+```bash
+uv run python scripts/run_eval_matrix.py \
+  --methodology mec \
+  --concept zerofizz_beverage_mec \
+  --personas <same 8> \
+  --replicates 25 \
+  --max-turns 15 \
+  --max-parallel 4 \
+  --label "mec_revitalize_brake_v1"
+```
+
+### 5. Compare against baseline
+
+```bash
+uv run python scripts/show_scoreboard.py \
+  --config-hash <experiment_hash> \
+  --compare-to <baseline_a_hash>
+```
+
+Evaluate against the numeric exit criteria from step 0:
+- **`revitalize` share delta**: is it ≥20% lower?
+- **`structural_completeness` delta per persona**: any drop below baseline's lower CI bound?
+- **`max_chain_depth` delta per persona**: any level regression?
+
+### 6. Decide
+
+- All three criteria met → adopt the change. Update CLAUDE.md's strategy-scoring notes if the rationale generalizes. Close the tuning bead.
+- Structural regression on any persona → revert. The brake was too harsh; try -0.65 next. Do not stack experiments; one parameter per cycle.
+- `revitalize` share unchanged but no regression → the brake isn't load-bearing at this weight. Pick a different signal to tune, or increase the magnitude further.
+
+### What not to do
+
+- Don't tune two parameters in the same cycle. Coupled effects mean you won't know which delta caused which outcome. See CLAUDE.md Known Failure Modes ("Base score asymmetry overwhelms repetition brakes") for a concrete case.
+- Don't inspect transcripts and tune based on moderator intuition. The scoreboard is the objective function; use it. Transcript review is for canary cases only (step 7 below).
+- Don't skip baseline-vs-baseline. If you do, you'll attribute noise to effects.
+
+### Optional: canary regression check
+
+Before adopting a change, spot-check the specific failure-mode scenarios referenced in CLAUDE.md — e.g., CIT `revitalize` runaway, CJM `deepen_stage` monoculture. The harness's aggregate metrics can hide pathological single-interview behavior that a targeted transcript review catches. If canaries pass and scoreboard passes, you're safe to adopt.
+
 ## Statistical Notes
 
 - **Replicates**: Default R=10 is a floor, not a target. For baseline-vs-baseline calibration and real config comparisons use R≥25. Step 5 determinism audit (2026-04-23) showed `node_count` drift of up to ~30% between repeated runs of the same config, which means small effect sizes need more samples to detect.
