@@ -110,3 +110,48 @@ class TestWarmupModels:
 
         # Should not raise
         service._warmup_models()
+
+
+class TestWarmupOnStartSession:
+    """Test that start_session() triggers model warmup."""
+
+    @patch("src.services.session_service.settings")
+    @pytest.mark.asyncio
+    async def test_start_session_calls_warmup(self, mock_settings, mock_repos, mock_llm_clients):
+        """start_session() should call _warmup_models before generating question."""
+        mock_settings.enable_srl = True
+        mock_settings.enable_canonical_slots = True
+
+        session_repo, graph_repo = mock_repos
+        extraction_client, generation_client = mock_llm_clients
+
+        service = SessionService(
+            session_repo=session_repo,
+            graph_repo=graph_repo,
+            extraction_llm_client=extraction_client,
+            generation_llm_client=generation_client,
+        )
+
+        # Mock session for start_session
+        mock_session = MagicMock()
+        mock_session.concept_id = "test_concept"
+        mock_session.config = json.dumps({"metadata": {}})
+        session_repo.get = AsyncMock(return_value=mock_session)
+
+        # Mock load_concept
+        with patch("src.services.session_service.load_concept") as mock_load:
+            mock_concept = MagicMock()
+            mock_concept.methodology = "means_end_chain"
+            mock_concept.name = "test"
+            mock_concept.context.objective = "test objective"
+            mock_load.return_value = mock_concept
+
+            with patch.object(service, "_warmup_models") as mock_warmup:
+                with patch.object(
+                    service.question, "generate_opening_question", new_callable=AsyncMock
+                ) as mock_gen:
+                    mock_gen.return_value = "What brings you here today?"
+                    with patch.object(service, "_save_utterance", new_callable=AsyncMock):
+                        await service.start_session("test-session-id")
+
+                        mock_warmup.assert_called_once()

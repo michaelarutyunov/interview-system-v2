@@ -445,6 +445,9 @@ class SessionService:
         # Update question service with the correct methodology
         self.question.methodology = concept.methodology
 
+        # Eagerly load ML models so user sees delay at Start, not first response
+        self._warmup_models()
+
         # Extract objective from concept context
         objective = concept.context.objective or concept.name
 
