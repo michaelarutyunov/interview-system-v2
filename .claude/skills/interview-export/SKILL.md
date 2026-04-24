@@ -68,5 +68,5 @@ uv run python scripts/reporting/export_interview.py <json> --output-dir /tmp/my_
 
 - **PNG rendering** requires Chrome/Chromium. If not available (e.g. WSL without Chrome), the `.mmd` file is still generated and can be rendered manually with `npx @mermaid-js/mermaid-cli -i file.mmd -o file.png`.
 - **Log copying** requires the JSON to have `metadata.log_file` set. Simulations saved after the logging fix include this. Older simulations will have an empty `log_file` in `00_meta.yaml`.
-- **Causal chains** (`02_causal_chains.md`) is initially a placeholder. Run the `extract-causal-chains` logic on the source JSON to populate it, or use the skill `/interview-review` which reads the raw graph data directly.
+- **Causal chains** (`02_causal_chains.md`) is generated directly by the export pipeline via `scripts/reporting/generate_causal_chains.py`.
 - The export is **idempotent** — re-running overwrites files in the same folder.

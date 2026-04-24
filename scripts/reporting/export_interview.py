@@ -40,6 +40,7 @@ from pathlib import Path
 # Allow imports from project root
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from scripts.reporting.generate_causal_chains import generate_causal_chains
 from scripts.reporting.generate_transcript import generate_transcript
 from scripts.reporting.generate_scoring_csv import generate_scoring_csv
 from scripts.reporting.generate_scoring_summary import generate_summary
@@ -99,15 +100,7 @@ def _write_meta_yaml(json_path: Path, export_dir: Path) -> None:
 
 def _generate_causal_chains(json_path: Path, output_path: Path) -> None:
     """Run causal chain extraction and write to output path."""
-    # Import and run the inline extraction logic from the skill
-    # For now, delegate to a subprocess call to the skill's script
-    # TODO: Refactor causal chain extraction into an importable module
-    # For the initial implementation, we write a placeholder
-    output_path.write_text(
-        "# Causal Chain Extraction\n\n"
-        f"Source: {json_path.name}\n\n"
-        "_Run extract-causal-chains skill to populate this file._\n"
-    )
+    generate_causal_chains(json_path, output_path)
 
 
 def _generate_mermaid(json_path: Path, mmd_path: Path, png_path: Path) -> None:
@@ -208,7 +201,7 @@ def export_interview(json_path: Path, output_dir: Path | None = None) -> Path:
     # 02_causal_chains.md
     chains_path = export_dir / "02_causal_chains.md"
     _generate_causal_chains(json_path, chains_path)
-    print("  ✓ 02_causal_chains.md (placeholder)")
+    print("  ✓ 02_causal_chains.md")
 
     # 03_graph.mmd + .png
     mmd_path = export_dir / "03_graph.mmd"
