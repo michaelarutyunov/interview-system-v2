@@ -6,7 +6,7 @@
 
 **Pipeline per turn:**
 1. **Fast extractability check** — heuristics filter out responses that are too short (< `min_word_count`, default 3), single words, or pure yes/no affirmatives. Returns `is_extractable=False` without calling LLM.
-2. **LLM extraction** — calls `_extract_via_llm()` with a methodology-aware system prompt (node types, edge types, naming convention from `MethodologySchema`) and a user prompt containing the response text plus conversation context. Temperature 0.2, max tokens 4000, `response_format={"type": "json_object"}`.
+2. **LLM extraction** — calls `_extract_via_llm()` with a methodology-aware system prompt (node types, edge types, naming convention from `MethodologySchema`) and a user prompt containing the response text plus conversation context. Temperature 0.2, max tokens 4000, `response_format={"type": "json_object"}`. System prompt is passed as a block-list with `cache_control` for Anthropic prompt caching (see Prompt Caching section).
 3. **Concept parsing** (`_parse_concepts`) — validates each concept's `node_type` against the methodology schema. Enriches valid concepts with `is_terminal` and `level` from the schema. Sets `source_utterance_id` for traceability. Invalid node types are skipped with a warning log (`invalid_node_type`).
 4. **Relationship parsing** (`_parse_relationships`) — validates `relationship_type` against the methodology schema. `permitted_connections` is validated via `schema.is_valid_connection()`: strict methodologies (with `permitted_connections` defined) reject invalid type pairs; flex methodologies (no `permitted_connections`) allow all connections. Validation only covers current-turn concepts — cross-turn edges referencing prior-turn nodes bypass this check (see known gap in ui0f). The prompt includes type-pair hints for strict methodologies via `get_edge_descriptions_with_connections()`.
 5. **Element linking** — if `concept_id` is configured, concepts are linked to methodology elements via LLM-provided `linked_elements` field, with an alias-matching fallback.
@@ -14,6 +14,31 @@
 Returns `ExtractionResult` with `concepts`, `relationships`, `is_extractable`, and `latency_ms`.
 
 **Fail-fast:** `ExtractionError` is raised immediately on LLM failure — no silent degradation.
+
+## Prompt Caching
+
+Extraction uses Anthropic prompt caching to reduce input token cost on turns 2+. The system prompt (methodology instructions, node types, edge types, edge-case rules, worked example) is stable across turns within a session — no timestamps, session IDs, or non-deterministic serialization.
+
+**Architecture**: `_extract_via_llm()` builds the system prompt as a block-list with a `cache_control` marker:
+```python
+system_blocks = [
+    {"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}
+]
+```
+The user prompt (response text + context) varies per turn and sits in `messages`, after the cached system prefix.
+
+**Client-layer handling**: `AnthropicClient.complete()` accepts `system` as either `str` (legacy, no caching) or `list[dict]` (block-list with cache_control). Non-Anthropic providers (OpenAI-compatible) flatten block-lists to a plain string, stripping `cache_control` — no provider leakage.
+
+**Token threshold**: Anthropic caching requires a minimum cacheable prefix. Empirically confirmed (2026-04): `claude-sonnet-4-6` minimum is exactly 2048 tokens (NOT 1024 as Anthropic docs claim). All 5 methodology extraction prompts exceed this threshold after the edge-case additions (~320 tokens of contradiction/reformulation/partial-info rules, disambiguation rule, and worked example).
+
+**Verification**: Cache hits visible in `llm_call_complete` logs:
+- `cache_creation_input_tokens`: tokens written to cache (1.25× write premium)
+- `cache_read_input_tokens`: tokens served from cache (0.1× base input price)
+- Both fields extracted from Anthropic response `usage` object
+
+**Cost impact**: ~2658 tokens cached per extraction call. After the initial write, subsequent calls pay 0.1× instead of 1× for the cached portion — ~90% cost reduction on that prefix. Latency impact is minimal (output token generation dominates).
+
+**Design principle**: "capability at the client layer, policy at the call site." Future stages (signal scoring, question generation) can enable caching by switching from `system=str` to `system=[{block with cache_control}]` — no further client-layer work needed.
 
 ## Node Type Description Pipeline
 
@@ -26,6 +51,20 @@ Counter-examples flow to the extraction LLM as: `"<description> NOT this type: c
 **Important:** `OntologySpec` uses `model_config = ConfigDict(extra="ignore")`. Unknown fields on a node spec are silently dropped by Pydantic. If you add a new field to `NodeTypeSpec` it must be declared as a class attribute — adding it only to the YAML will have no effect. The `non_attribute_examples` field was added to `NodeTypeSpec` after being silently dropped for multiple simulation iterations.
 
 Use `non_attribute_examples` when a node type boundary is ambiguous — e.g., when a related concept (like `functional_consequence`) is systematically misclassified as this type. Positive examples alone are insufficient when LLMs generalise the category too broadly.
+
+## Edge-Case Handling Rules
+
+The extraction prompt includes explicit rules for three failure modes observed in simulation testing:
+
+1. **Contradictions**: Both concepts extracted (graph captures thinking evolution). No overwriting.
+2. **Reformulations**: Only one concept extracted (most precise phrasing). Source quote from clearest formulation.
+3. **Partial information**: Implied concepts extracted only with confidence 0.6–0.75. Ambiguous hints omitted.
+
+Additionally, a **disambiguation rule** handles same-word-different-meaning across turns (e.g., "routine" as exercise vs. coffee ritual) — extracted as separate concepts with disambiguating labels.
+
+A **worked example** demonstrates multi-cluster extraction from a single utterance, showing that disconnected concept clusters should be extracted independently without forcing cross-cluster relationships.
+
+These rules add ~320 tokens to the system prompt, pushing all 5 methodologies above the 2048-token caching threshold.
 
 ## Correctness Requirements
 
@@ -123,6 +162,7 @@ Bridge relationships have an inherent `source_quote` problem: the source node wa
 - `src/services/extraction_service.py` — `ExtractionService` class
 - `src/services/turn_pipeline/stages/extraction_stage.py` — Stage 3 wiring
 - `src/llm/prompts/extraction.py` — prompt builders and response parser
+- `src/llm/client.py` — LLM client with prompt caching infrastructure (block-list system prompts)
 - `src/domain/models/extraction.py` — `ExtractedConcept`, `ExtractedRelationship`, `ExtractionResult`
 - `src/domain/models/methodology_schema.py` — `MethodologySchema` (ontology validation)
 - `config/methodologies/*.yaml` — node types, edge types, naming conventions

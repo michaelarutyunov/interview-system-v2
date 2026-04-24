@@ -47,6 +47,7 @@ mappings:
       - "src/services/extraction_service.py"
       - "src/services/turn_pipeline/stages/extraction_stage.py"
       - "src/llm/prompts/extraction.py"
+      - "src/llm/client.py"
     doc: ".claude/context/extraction.md"
 
   - sources:
@@ -94,6 +95,8 @@ mappings:
       - "scripts/eval/show_scoreboard.py"
       - "scripts/eval/smoke_test.py"
       - "scripts/eval/test_paired_labels.py"
+      - "scripts/eval/latency_audit.py"
+      - "scripts/eval/build_quality_baseline.py"
     doc: "docs/testing_harness.md"
 
   - sources:
