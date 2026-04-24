@@ -1,58 +1,45 @@
 #!/usr/bin/env python3
-"""
-Analyze the latest interview log file for pipeline timing and LLM call metrics.
+"""Analyze an interview log file for pipeline timing and LLM call metrics.
+
+Produces structured output suitable for the interview export pipeline:
+  - summary.md   — human-readable markdown report
+  - llm_calls.csv — per-LLM-call data (model, tokens, latency, cost)
+  - stages.csv    — per-stage timing data
 
 Usage:
+    # Analyze latest log (auto-detect)
     uv run python scripts/diagnostics/analyze_latest_log.py
+
+    # Analyze specific log file
+    uv run python scripts/diagnostics/analyze_latest_log.py --log-file logs/interview_20260424_183318.log
+
+    # Write to specific output directory
+    uv run python scripts/diagnostics/analyze_latest_log.py --output-dir reports/interviews/20260424_183318/05_latency/
 """
 
+from __future__ import annotations
+
+import argparse
+import csv
 import re
 from collections import defaultdict
 from pathlib import Path
 
 
-def load_env_file(env_path: Path = Path(".env")) -> dict[str, str]:
-    """Load environment variables from .env file."""
-    env_vars = {}
-    if env_path.exists():
-        with open(env_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, _, value = line.partition("=")
-                    env_vars[key] = value.strip("\"'")
-    return env_vars
-
-
-# Load environment variables for pricing
-_env_vars = load_env_file()
+# ── Pricing ───────────────────────────────────────────────────────────────────
 
 # Pricing per million tokens (input, output)
+# These are defaults; actual pricing comes from .env in production
 MODEL_PRICING: dict[str, tuple[float, float]] = {
-    # Anthropic models
-    "claude-sonnet-4-6": (
-        float(_env_vars.get("ANTHROPIC_SONNET_INPUT", "3.00")),
-        float(_env_vars.get("ANTHROPIC_SONNET_OUTPUT", "15.00")),
-    ),
-    "claude-haiku-4-5": (
-        float(_env_vars.get("ANTHROPIC_HAIKU_INPUT", "1.00")),
-        float(_env_vars.get("ANTHROPIC_HAIKU_OUTPUT", "5.00")),
-    ),
-    # Kimi models
-    "kimi-k2-0905-preview": (
-        float(_env_vars.get("KIMI_K2_INPUT", "0.60")),
-        float(_env_vars.get("KIMI_K2_OUTPUT", "2.50")),
-    ),
-    "kimi-k2": (
-        float(_env_vars.get("KIMI_K2_INPUT", "0.60")),
-        float(_env_vars.get("KIMI_K2_OUTPUT", "2.50")),
-    ),
+    "claude-sonnet-4-6": (3.00, 15.00),
+    "claude-haiku-4-5": (1.00, 5.00),
+    "kimi-k2-0905-preview": (0.60, 2.50),
+    "kimi-k2": (0.60, 2.50),
 }
 
 
-def calculate_cost(model: str, tokens_in: int, tokens_out: int) -> float:
+def _calculate_cost(model: str, tokens_in: int, tokens_out: int) -> float:
     """Calculate cost in USD for a given model and token usage."""
-    # Normalize model name (handle prefixes)
     model_key = model
     for key in MODEL_PRICING:
         if key in model:
@@ -60,7 +47,6 @@ def calculate_cost(model: str, tokens_in: int, tokens_out: int) -> float:
             break
 
     if model_key not in MODEL_PRICING:
-        # Unknown model, return 0 cost
         return 0.0
 
     input_price, output_price = MODEL_PRICING[model_key]
@@ -69,16 +55,19 @@ def calculate_cost(model: str, tokens_in: int, tokens_out: int) -> float:
     return input_cost + output_cost
 
 
-def strip_ansi(text: str) -> str:
+# ── Utilities ─────────────────────────────────────────────────────────────────
+
+
+def _strip_ansi(text: str) -> str:
     """Remove ANSI escape sequences from text."""
-    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\-_]|\[[0-?]*[ -/]*[@-~])")
     return ansi_escape.sub("", text)
 
 
-def calc_stats(values: list) -> dict:
+def _calc_stats(values: list[float]) -> dict[str, float]:
     """Calculate statistics for a list of values."""
     if not values:
-        return {"count": 0, "mean": 0, "min": 0, "max": 0, "total": 0}
+        return {"count": 0, "mean": 0.0, "min": 0.0, "max": 0.0, "total": 0.0}
     return {
         "count": len(values),
         "mean": sum(values) / len(values),
@@ -88,7 +77,7 @@ def calc_stats(values: list) -> dict:
     }
 
 
-def find_latest_log(logs_dir: str = "logs") -> Path | None:
+def _find_latest_log(logs_dir: str = "logs") -> Path | None:
     """Find the most recent log file in the logs directory."""
     log_path = Path(logs_dir)
     if not log_path.exists():
@@ -103,15 +92,15 @@ def find_latest_log(logs_dir: str = "logs") -> Path | None:
     if not log_files:
         return None
 
-    # Sort by modification time (most recent first)
     log_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
     return log_files[0]
 
 
+# ── Analysis ──────────────────────────────────────────────────────────────────
+
+
 def analyze_log(log_file: Path) -> dict:
     """Analyze a log file and return timing metrics."""
-
-    # Data structures
     pipeline_times: list[float] = []
     stage_times: dict[str, list[float]] = defaultdict(list)
     llm_calls: dict[str, dict] = {}
@@ -131,7 +120,7 @@ def analyze_log(log_file: Path) -> dict:
 
     with open(log_file, "r", encoding="utf-8") as f:
         content = f.read()
-        clean_content = strip_ansi(content)
+        clean_content = _strip_ansi(content)
 
     # Stage completion
     for match in stage_completed_pattern.finditer(clean_content):
@@ -146,7 +135,7 @@ def analyze_log(log_file: Path) -> dict:
         duration = float(match.group(3))
         model = match.group(4)
         tokens_out = int(match.group(5))
-        cost = calculate_cost(model, tokens_in, tokens_out)
+        cost = _calculate_cost(model, tokens_in, tokens_out)
         if module not in llm_calls:
             llm_calls[module] = {
                 "durations": [],
@@ -156,12 +145,12 @@ def analyze_log(log_file: Path) -> dict:
                 "models": set(),
                 "costs": [],
             }
-        llm_calls[module]["durations"].append(duration)  # type: ignore
-        llm_calls[module]["tokens_in"].append(tokens_in)  # type: ignore
-        llm_calls[module]["tokens_out"].append(tokens_out)  # type: ignore
-        llm_calls[module]["costs"].append(cost)  # type: ignore
-        llm_calls[module]["count"] = llm_calls[module]["count"] + 1  # type: ignore
-        llm_calls[module]["models"].add(model)  # type: ignore
+        llm_calls[module]["durations"].append(duration)
+        llm_calls[module]["tokens_in"].append(tokens_in)
+        llm_calls[module]["tokens_out"].append(tokens_out)
+        llm_calls[module]["costs"].append(cost)
+        llm_calls[module]["count"] = llm_calls[module]["count"] + 1
+        llm_calls[module]["models"].add(model)
 
     # Pipeline completion
     for match in pipeline_completed_pattern.finditer(clean_content):
@@ -170,15 +159,17 @@ def analyze_log(log_file: Path) -> dict:
 
     return {
         "pipeline_times": pipeline_times,
-        "stage_times": stage_times,
+        "stage_times": dict(stage_times),
         "llm_calls": llm_calls,
         "log_file": log_file.name,
     }
 
 
-def print_report(data: dict) -> None:
-    """Print formatted analysis report."""
+# ── Report generation ─────────────────────────────────────────────────────────
 
+
+def _write_summary_md(data: dict, output_dir: Path) -> Path:
+    """Write human-readable markdown summary."""
     pipeline_times = data["pipeline_times"]
     stage_times = data["stage_times"]
     llm_calls = data["llm_calls"]
@@ -187,18 +178,18 @@ def print_report(data: dict) -> None:
     # Calculate stage stats
     stage_stats = []
     for stage, times in stage_times.items():
-        stats = calc_stats(times)
+        stats = _calc_stats(times)
         stage_stats.append((stage, stats))
     stage_stats.sort(key=lambda x: x[1]["total"], reverse=True)
 
     # Calculate LLM stats
     llm_stats = []
-    for module, data_item in llm_calls.items():
-        stats = calc_stats(data_item["durations"])
-        tokens_in_stats = calc_stats(data_item["tokens_in"])
-        tokens_out_stats = calc_stats(data_item["tokens_out"])
-        cost_stats = calc_stats(data_item["costs"])
-        models = data_item["models"]
+    for module, module_data in llm_calls.items():
+        stats = _calc_stats(module_data["durations"])
+        tokens_in_stats = _calc_stats(module_data["tokens_in"])
+        tokens_out_stats = _calc_stats(module_data["tokens_out"])
+        cost_stats = _calc_stats(module_data["costs"])
+        models = module_data["models"]
         llm_stats.append(
             (module, stats, tokens_in_stats, tokens_out_stats, models, cost_stats)
         )
@@ -211,102 +202,222 @@ def print_report(data: dict) -> None:
     total_tokens_out = sum(s[3]["total"] for s in llm_stats)
     total_cost = sum(s[5]["total"] for s in llm_stats)
 
-    # Print report
-    width = 85
-    print("=" * width)
-    print("PIPELINE TIMING ANALYSIS".center(width))
-    print("=" * width)
-    print(f"\nLog file: {log_file}")
-    print(f"Pipeline runs: {len(pipeline_times)}")
+    lines = [
+        "# Pipeline Timing Analysis",
+        "",
+        f"- **Log file**: `{log_file}`",
+        f"- **Pipeline runs**: {len(pipeline_times)}",
+    ]
 
     if pipeline_times:
-        stats = calc_stats(pipeline_times)
-        print(
-            f"Avg pipeline: {stats['mean'] / 1000:.2f}s (range: {stats['min'] / 1000:.2f}s - {stats['max'] / 1000:.2f}s)"
+        stats = _calc_stats(pipeline_times)
+        lines.append(
+            f"- **Avg pipeline**: {stats['mean'] / 1000:.2f}s "
+            f"(range: {stats['min'] / 1000:.2f}s – {stats['max'] / 1000:.2f}s)"
         )
 
-    print("\n" + "-" * width)
-    print("STAGE TIMING (by total time)")
-    print("-" * width)
-    print(f"{'Stage':<38} {'Calls':>6} {'Total(s)':>10} {'Mean(ms)':>10} {'%':>6}")
-    print("-" * width)
+    lines.extend(["", "## Stage Timing (by total time)", ""])
+    lines.append(
+        f"| {'Stage':<38} | {'Calls':>6} | {'Total(s)':>10} | {'Mean(ms)':>10} | {'%':>6} |"
+    )
+    lines.append(f"|{'-' * 40}|{'-' * 8}|{'-' * 12}|{'-' * 12}|{'-' * 8}|")
 
     for stage, stats in stage_stats:
         pct = (stats["total"] / total_stage_time * 100) if total_stage_time else 0
-        print(
-            f"{stage:<38} {stats['count']:>6} {stats['total'] / 1000:>10.2f} {stats['mean']:>10.1f} {pct:>6.1f}"
+        lines.append(
+            f"| {stage:<38} | {stats['count']:>6} | "
+            f"{stats['total'] / 1000:>10.2f} | {stats['mean']:>10.1f} | {pct:>6.1f} |"
         )
 
-    print("-" * width)
-    print(f"{'TOTAL':<38} {'':>6} {total_stage_time / 1000:>10.2f}")
-
-    print("\n" + "=" * width)
-    print("LLM CALLS BY MODULE (by total time)")
-    print("=" * width)
-    print(
-        f"{'Module':<20} {'Model':<16} {'Calls':>5} {'Time(s)':>8} {'Cost($)':>8} {'TokIn':>7} {'TokOut':>7}"
+    lines.append(
+        f"| {'TOTAL':<38} | {'':>6} | {total_stage_time / 1000:>10.2f} | {'':>10} | {'':>6} |"
     )
-    print("-" * width)
+
+    lines.extend(["", "## LLM Calls by Module (by total time)", ""])
+    lines.append(
+        f"| {'Module':<20} | {'Model':<16} | {'Calls':>5} | "
+        f"{'Time(s)':>8} | {'Cost($)':>8} | {'TokIn':>7} | {'TokOut':>7} |"
+    )
+    lines.append(
+        f"|{'-' * 22}|{'-' * 18}|{'-' * 7}|{'-' * 10}|{'-' * 10}|{'-' * 9}|{'-' * 9}|"
+    )
 
     for module, stats, tok_in, tok_out, models, cost_stats in llm_stats:
         model_str = ", ".join(sorted(models)) if models else "unknown"
         if len(model_str) > 15:
             model_str = model_str[:12] + ".."
-        print(
-            f"{module:<20} {model_str:<16} {stats['count']:>5} {stats['total'] / 1000:>8.2f} {cost_stats['total']:>8.4f} {tok_in['mean']:>7.0f} {tok_out['mean']:>7.0f}"
+        lines.append(
+            f"| {module:<20} | {model_str:<16} | {stats['count']:>5} | "
+            f"{stats['total'] / 1000:>8.2f} | {cost_stats['total']:>8.4f} | "
+            f"{tok_in['mean']:>7.0f} | {tok_out['mean']:>7.0f} |"
         )
 
-    print("-" * width)
-    print(
-        f"{'TOTAL':<20} {'':<16} {total_llm_calls:>5} {total_llm_time / 1000:>8.2f} {total_cost:>8.4f}"
+    lines.append(
+        f"| {'TOTAL':<20} | {'':<16} | {total_llm_calls:>5} | "
+        f"{total_llm_time / 1000:>8.2f} | {total_cost:>8.4f} | {'':>7} | {'':>7} |"
     )
 
-    print("\n" + "=" * width)
-    print("KEY FINDINGS")
-    print("=" * width)
-
-    print("\n1. TOP BOTTLENECKS:")
+    lines.extend(["", "## Key Findings", "", "### Top Bottlenecks"])
     for i, (stage, stats) in enumerate(stage_stats[:3], 1):
-        pct = stats["total"] / total_stage_time * 100
-        print(f"   {i}. {stage}: {stats['total'] / 1000:.1f}s ({pct:.1f}%)")
+        pct = stats["total"] / total_stage_time * 100 if total_stage_time else 0
+        lines.append(f"{i}. **{stage}**: {stats['total'] / 1000:.1f}s ({pct:.1f}%)")
 
-    print("\n2. LLM COST BREAKDOWN:")
+    lines.extend(["", "### LLM Cost Breakdown"])
     for module, stats, _, _, models, cost_stats in llm_stats:
-        pct = stats["total"] / total_llm_time * 100
-        model_info = f" [{', '.join(sorted(models))}]" if models else ""
-        print(
-            f"   - {module}: ${cost_stats['total']:.4f} ({stats['count']} calls){model_info}"
+        pct = stats["total"] / total_llm_time * 100 if total_llm_time else 0
+        model_info = f" `[{', '.join(sorted(models))}]`" if models else ""
+        lines.append(
+            f"- **{module}**: ${cost_stats['total']:.4f} "
+            f"({stats['count']} calls){model_info}"
         )
 
-    print(f"\n   TOTAL ESTIMATED COST: ${total_cost:.4f}")
+    lines.extend(
+        [
+            "",
+            f"**Total estimated cost: ${total_cost:.4f}**",
+            "",
+            "### Token Usage",
+            f"- Input:  {total_tokens_in:,.0f} tokens",
+            f"- Output: {total_tokens_out:,.0f} tokens",
+            f"- Total:  {total_tokens_in + total_tokens_out:,.0f} tokens",
+        ]
+    )
 
-    print("\n3. TOKEN USAGE:")
-    print(f"   - Input:  {total_tokens_in:,.0f} tokens")
-    print(f"   - Output: {total_tokens_out:,.0f} tokens")
-    print(f"   - Total:  {total_tokens_in + total_tokens_out:,.0f} tokens")
-
-    print("\n" + "=" * width)
+    out_path = output_dir / "summary.md"
+    out_path.write_text("\n".join(lines) + "\n")
+    return out_path
 
 
-def main():
+def _write_stages_csv(data: dict, output_dir: Path) -> Path:
+    """Write per-stage timing CSV."""
+    out_path = output_dir / "stages.csv"
+    with open(out_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            ["stage_name", "call_count", "total_ms", "mean_ms", "min_ms", "max_ms"]
+        )
+        for stage, times in data["stage_times"].items():
+            stats = _calc_stats(times)
+            writer.writerow(
+                [
+                    stage,
+                    int(stats["count"]),
+                    round(stats["total"], 2),
+                    round(stats["mean"], 2),
+                    round(stats["min"], 2),
+                    round(stats["max"], 2),
+                ]
+            )
+    return out_path
+
+
+def _write_llm_calls_csv(data: dict, output_dir: Path) -> Path:
+    """Write per-LLM-call aggregated CSV (one row per module)."""
+    out_path = output_dir / "llm_calls.csv"
+    with open(out_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            [
+                "module",
+                "model",
+                "call_count",
+                "total_latency_ms",
+                "mean_latency_ms",
+                "total_tokens_in",
+                "mean_tokens_in",
+                "total_tokens_out",
+                "mean_tokens_out",
+                "total_cost_usd",
+            ]
+        )
+        for module, module_data in data["llm_calls"].items():
+            dur_stats = _calc_stats(module_data["durations"])
+            tok_in_stats = _calc_stats(module_data["tokens_in"])
+            tok_out_stats = _calc_stats(module_data["tokens_out"])
+            cost_stats = _calc_stats(module_data["costs"])
+            models = (
+                ", ".join(sorted(module_data["models"]))
+                if module_data["models"]
+                else "unknown"
+            )
+            writer.writerow(
+                [
+                    module,
+                    models,
+                    int(dur_stats["count"]),
+                    round(dur_stats["total"], 2),
+                    round(dur_stats["mean"], 2),
+                    int(tok_in_stats["total"]),
+                    round(tok_in_stats["mean"], 1),
+                    int(tok_out_stats["total"]),
+                    round(tok_out_stats["mean"], 1),
+                    round(cost_stats["total"], 6),
+                ]
+            )
+    return out_path
+
+
+def write_report(data: dict, output_dir: Path) -> dict[str, Path]:
+    """Write all report artifacts to output_dir.
+
+    Returns:
+        Dict mapping artifact name to file path.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return {
+        "summary": _write_summary_md(data, output_dir),
+        "stages": _write_stages_csv(data, output_dir),
+        "llm_calls": _write_llm_calls_csv(data, output_dir),
+    }
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+
+def main() -> int:
     """Main entry point."""
-    log_file = find_latest_log()
+    parser = argparse.ArgumentParser(
+        description="Analyze an interview log file for pipeline timing and LLM metrics."
+    )
+    parser.add_argument(
+        "--log-file",
+        type=Path,
+        default=None,
+        help="Path to specific log file (default: most recent in logs/)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("reports/latency"),
+        help="Output directory for report files (default: reports/latency)",
+    )
+    args = parser.parse_args()
 
-    if not log_file:
-        print("ERROR: No log files found in logs/ directory")
-        print("Expected files matching: interview_*.log")
+    log_file = args.log_file
+    if log_file is None:
+        log_file = _find_latest_log()
+        if not log_file:
+            print("ERROR: No log files found in logs/ directory", file=sys.stderr)
+            return 1
+
+    if not log_file.exists():
+        print(f"ERROR: Log file not found: {log_file}", file=sys.stderr)
         return 1
 
-    print(f"Analyzing: {log_file}\n")
+    print(f"Analyzing: {log_file}")
 
     try:
         data = analyze_log(log_file)
-        print_report(data)
+        paths = write_report(data, args.output_dir)
+        for name, path in paths.items():
+            print(f"  Wrote {name}: {path}")
         return 0
     except Exception as e:
-        print(f"ERROR: Failed to analyze log: {e}")
+        print(f"ERROR: Failed to analyze log: {e}", file=sys.stderr)
         return 1
 
 
 if __name__ == "__main__":
-    exit(main())
+    import sys
+
+    sys.exit(main())

@@ -40,6 +40,7 @@ from pathlib import Path
 # Allow imports from project root
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from scripts.diagnostics.analyze_latest_log import analyze_log, write_report
 from scripts.reporting.generate_causal_chains import generate_causal_chains
 from scripts.reporting.generate_transcript import generate_transcript
 from scripts.reporting.generate_scoring_csv import generate_scoring_csv
@@ -155,16 +156,8 @@ def _generate_latency_audit(log_path: Path | None, latency_dir: Path) -> None:
         )
         return
 
-    # Run the latency audit on this specific log file
-    # The existing latency_audit.py processes ALL logs; we need a single-log version
-    # For now, we copy the log and note that full audit requires running latency_audit.py
-    latency_dir.mkdir(parents=True, exist_ok=True)
-    (latency_dir / "summary.md").write_text(
-        f"# Latency Audit\n\n"
-        f"Log file: {log_path.name}\n\n"
-        f"_Run `uv run python scripts/eval/latency_audit.py` for full audit._\n"
-        f"_Per-session latency parsing to be implemented._\n"
-    )
+    data = analyze_log(log_path)
+    write_report(data, latency_dir)
 
 
 def export_interview(json_path: Path, output_dir: Path | None = None) -> Path:
@@ -231,7 +224,7 @@ def export_interview(json_path: Path, output_dir: Path | None = None) -> Path:
     log_path = LOGS_DIR / log_file_name if log_file_name else None
     latency_dir = export_dir / "05_latency"
     _generate_latency_audit(log_path, latency_dir)
-    print("  ✓ 05_latency/")
+    print("  ✓ 05_latency/ (summary.md, llm_calls.csv, stages.csv)")
 
     # 06_insights.md — placeholder for reviewer skill
     insights_path = export_dir / "06_insights.md"
