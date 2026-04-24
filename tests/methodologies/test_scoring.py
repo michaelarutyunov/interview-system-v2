@@ -212,12 +212,12 @@ class TestScoreStrategy:
             description="Test strategy",
             signal_weights={
                 "response.semantic.llm.response_depth.high": 0.7,
-                "llm.valence.high": 0.3,
+                "response.semantic.llm.charge.high": 0.3,
             },
         )
         signals = {
             "response.semantic.llm.response_depth": 1.0,  # Normalized: high (>= 0.75)
-            "llm.valence": 0.75,  # Normalized: high (>= 0.75)
+            "response.semantic.llm.charge": 0.75,  # Normalized: high (>= 0.75)
         }
         score = score_strategy(strategy, signals)
         assert score == pytest.approx(1.0)  # 0.7 + 0.3
@@ -491,9 +491,9 @@ class TestLLMSignalThresholdsIntegration:
         """Test all LLM signals use consistent threshold binning."""
         signals = {
             "response.semantic.llm.response_depth": signal_value,
-            "llm.valence": signal_value,
+            "response.semantic.llm.charge": signal_value,
             "response.semantic.llm.certainty": signal_value,
-            "llm.specificity": signal_value,
+            "response.semantic.llm.elaboration": signal_value,
             "response.semantic.llm.engagement": signal_value,
         }
 
@@ -506,26 +506,26 @@ class TestLLMSignalThresholdsIntegration:
                 f"Failed for {key} with value {signal_value}: expected {expected}, got {result}"
             )
 
-    def test_new_llm_signal_names_in_strategy(self):
-        """Test scoring with new LLM signal names (post-migration)."""
+    def test_llm_signal_names_in_strategy(self):
+        """Test scoring with current LLM signal names."""
         strategy = StrategyConfig(
             name="explore_emotions",
             description="Explore emotional content",
             signal_weights={
-                "llm.valence.low": 0.6,
-                "llm.valence.high": 0.6,
+                "response.semantic.llm.charge.low": 0.6,
+                "response.semantic.llm.charge.high": 0.6,
                 "response.semantic.llm.certainty.low": 0.4,
                 "response.semantic.llm.engagement.high": 0.8,
             },
         )
 
-        # Test low valence (negative sentiment)
-        signals = {"llm.valence": 0.0}  # Normalized: low (<= 0.25)
+        # Test low charge (negative sentiment)
+        signals = {"response.semantic.llm.charge": 0.0}  # Normalized: low (<= 0.25)
         score = score_strategy(strategy, signals)
         assert score == pytest.approx(0.6)
 
-        # Test high valence (positive sentiment)
-        signals = {"llm.valence": 1.0}  # Normalized: high (>= 0.75)
+        # Test high charge (positive sentiment)
+        signals = {"response.semantic.llm.charge": 1.0}  # Normalized: high (>= 0.75)
         score = score_strategy(strategy, signals)
         assert score == pytest.approx(0.6)
 

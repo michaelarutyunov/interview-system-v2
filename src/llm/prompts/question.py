@@ -263,14 +263,6 @@ def _build_strategy_rationale(signals: Dict[str, Any], strategy: str) -> str:
         elif resp_depth == "deep":
             rationale_parts.append("- Deep response indicates strong engagement")
 
-    if "llm.hedging_language" in signals:
-        hedging = signals["llm.hedging_language"]
-        if hedging in ["medium", "high"]:
-            rationale_parts.append(
-                f"- Hedging language ({hedging}) suggests uncertainty"
-            )
-        elif hedging in ["none", "low"]:
-            rationale_parts.append("- Confident response with low uncertainty")
 
     # Strategy rationale (description already in system/user prompt from YAML)
     rationale_parts.append(f"- Strategy: {strategy}")
