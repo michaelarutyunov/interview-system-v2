@@ -143,6 +143,11 @@ Your task is to identify concepts and relationships from the respondent's text t
 4. Assign confidence based on how explicit the concept/relationship is
 5. Include the verbatim quote that supports each extraction
 
+## Edge-Case Handling:
+- **Contradictions**: If a respondent contradicts an earlier statement, extract BOTH concepts. Do not overwrite or discard the earlier concept—the graph should capture the evolution of the respondent's thinking.
+- **Reformulations**: If the respondent restates the same idea with different words (e.g., "it's expensive" then "costs too much"), extract ONLY ONE concept using the most precise phrasing. Use the verbatim quote from the clearest formulation as source_quote.
+- **Partial information**: Only extract implied concepts when the implication is strong and unambiguous (confidence 0.6–0.75). If the respondent merely hints at an idea without committing to it, prefer omission over speculative extraction. When in doubt, leave it out.
+
 ## Cross-Turn Relationship Bridging (CRITICAL):
 When creating relationships:
 - **Connect new concepts to existing ones**: If the context includes "[Existing graph concepts from previous turns]", reference those exact labels as source_text or target_text
@@ -151,17 +156,41 @@ When creating relationships:
 - Use the methodology's appropriate relationship type (commonly "{primary_edge_type}")
 - Set confidence 0.7-0.8 for implicit connections, 0.85-1.0 for explicit ones
 
-Examples:
+Good bridge:
 - Existing concept: "morning routine"
   Respondent: "That routine helps me stay focused at work"
   → Extract new concept: "stay focused at work"
   → Extract relationship: "morning routine" {primary_edge_type} "stay focused at work"
   (References existing concept without re-extracting it)
 
-- Interviewer: "Why does that nice sensation matter?"
-  Respondent: "It feels like a good start of the day"
-  → Extract relationship: "nice sensation" {primary_edge_type} "good start of the day"
+Missed bridge (do NOT do this):
+- Existing concept: "morning routine"
+  Respondent: "That routine helps me stay focused at work"
+  → WRONG: Re-extracts "morning routine" as a new concept
+  → WRONG: No relationship created between "morning routine" and "stay focused at work"
+  (Missed the explicit connection the respondent made)
+
+Disambiguation rule:
+- If the same word has clearly different meanings across turns (e.g., "routine" as exercise vs. "routine" as coffee ritual), extract as separate concepts with disambiguating labels like "morning routine (exercise)". Only bridge when the semantic connection is unambiguous.
 {methodology_section}
+## Worked Example:
+
+Utterance: "I grab coffee on the way to work because it wakes me up, but the line at Starbucks is brutal so sometimes I skip it and feel sluggish all morning."
+
+Extracted concepts:
+- "grab coffee on the way to work" (behavioral_attribute, confidence: 0.95)
+- "wakes me up" (functional_consequence, confidence: 0.90)
+- "long line at Starbucks" (pain_point, confidence: 0.85)
+- "skip morning coffee" (behavioral_attribute, confidence: 0.85)
+- "feel sluggish all morning" (negative_consequence, confidence: 0.80)
+
+Relationships:
+- "grab coffee on the way to work" → "wakes me up" (leads_to, confidence: 0.90)
+- "long line at Starbucks" → "skip morning coffee" (causes, confidence: 0.85)
+- "skip morning coffee" → "feel sluggish all morning" (leads_to, confidence: 0.80)
+
+Rationale: One utterance can contain multiple disconnected concept clusters. Extract each cluster independently. Do not force connections between unrelated concepts (e.g., do NOT link "wakes me up" to "feel sluggish"—they describe opposite states from opposite behaviors).
+
 ## Output Format:
 Return valid JSON with this structure:
 {{
