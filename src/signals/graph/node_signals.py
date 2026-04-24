@@ -14,84 +14,6 @@ from src.signals.graph.node_base import NodeSignalDetector
 # =============================================================================
 
 
-class NodeExhaustedSignal(NodeSignalDetector):
-    """Binary exhaustion flag for node-level strategy selection.
-
-    Detects when nodes are exhausted based on yield history, focus streak,
-    and response depth. Exhausted nodes are deprioritized in joint strategy-node
-    scoring to avoid questioning spent concepts.
-
-    A node is considered exhausted when:
-    - It has been focused on at least once (focus_count > 0)
-    - No yield for 2+ turns (turns_since_last_yield >= 2)
-    - Current focus streak is 2+ (persistent focus without yield)
-    - 2/3 of recent responses are shallow (shallow_ratio >= 0.66)
-
-    Namespaced signal: convgraph.node.exhausted
-    Cost: low (reads from NodeStateTracker state)
-    Refresh: per_turn (recomputed each turn after state updates)
-    """
-
-    signal_name = "convgraph.node.exhausted"
-    description = "Binary exhaustion indicator. True if node is exhausted (no yield, shallow responses, persistent focus), False otherwise."
-
-    async def detect(self, context, graph_state, response_text):  # noqa: ARG001
-        """Detect exhausted nodes for joint strategy-node scoring.
-
-        Iterates through all tracked node states and applies exhaustion criteria
-        to determine which nodes have been fully explored without yielding
-        new information.
-
-        Args:
-            context: Pipeline context with conversation state
-            graph_state: Current knowledge graph state
-            response_text: User's response text (not directly used)
-
-        Returns:
-            Dict mapping node_id -> True if exhausted, False otherwise
-        """
-        results = {}
-
-        for node_id, state in self._get_all_node_states().items():
-            is_exhausted = self._is_exhausted(state)
-            results[node_id] = is_exhausted
-
-        return results
-
-    def _is_exhausted(self, state) -> bool:
-        """Check if a node state indicates exhaustion using multi-factor criteria.
-
-        Applies four exhaustion filters in sequence:
-        1. Must have been focused (focus_count > 0)
-        2. No recent yield (turns_since_last_yield >= 2)
-        3. Persistent focus streak (current_focus_streak >= 2)
-        4. High shallow ratio in recent responses (>= 66%)
-
-        Args:
-            state: NodeState to check for exhaustion indicators
-
-        Returns:
-            True if node meets all exhaustion criteria, False otherwise
-        """
-        # Must have been focused on at least once
-        if state.focus_count == 0:
-            return False
-
-        # No yield for 2+ turns (flags stale nodes before yield_stagnation at 3+)
-        if state.turns_since_last_yield < 2:
-            return False
-
-        # Current focus streak is 2+ (persistent focus without yield)
-        if state.current_focus_streak < 2:
-            return False
-
-        # 2/3 of recent responses are shallow
-        shallow_ratio = self._calculate_shallow_ratio(state, recent_count=3)
-        if shallow_ratio < 0.66:
-            return False
-
-        return True
-
 
 class NodeExhaustionScoreSignal(NodeSignalDetector):
     """Continuous exhaustion score for fine-grained node ranking.
@@ -805,7 +727,6 @@ class NodeHasQualityDataSignal(NodeSignalDetector):
 
 __all__ = [
     # Exhaustion
-    "NodeExhaustedSignal",
     "NodeExhaustionScoreSignal",
     "NodeYieldStagnationSignal",
     # Engagement

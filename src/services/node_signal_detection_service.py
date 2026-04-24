@@ -48,7 +48,7 @@ class NodeSignalDetectionService:
 
         Returns:
             Dict mapping node_id to dict of signal_name: value
-            Example: {"node-123": {"convgraph.node.exhausted": True, ...}}
+            Example: {"node-123": {"convgraph.node.exhaustion": 0.4, ...}}
         """
         import src.signals  # noqa: F401 — ensure all node signal modules are registered
         from src.signals.graph.node_base import NodeSignalDetector

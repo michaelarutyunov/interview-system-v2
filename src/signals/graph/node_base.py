@@ -23,19 +23,18 @@ class NodeSignalDetector(SignalDetector):
     return a dictionary mapping node_id to signal value.
 
     Example:
-        class NodeExhaustedSignal(NodeSignalDetector):
-            signal_name = "convgraph.node.exhausted"
-            requires_node_tracker = True  # Mark as node-level signal
+        class NodeExhaustionScoreSignal(NodeSignalDetector):
+            signal_name = "convgraph.node.exhaustion"
 
             async def detect(self, context, graph_state, response_text):
                 results = {}
                 for node_id, state in self.node_tracker.get_all_states().items():
-                    results[node_id] = self._is_exhausted(state)
+                    results[node_id] = self._calculate_exhaustion_score(state)
                 return results
 
     Attributes:
         node_tracker: NodeStateTracker instance for accessing node states (always set)
-        signal_name: Namespaced signal name (e.g., "convgraph.node.exhausted")
+        signal_name: Namespaced signal name (e.g., "convgraph.node.exhaustion")
         requires_node_tracker: Marker for node-level signals (class attribute)
     """
 

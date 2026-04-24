@@ -52,7 +52,6 @@ def test_all_node_signals_auto_registered():
     signal_names = {cls.signal_name for cls in node_classes}
 
     expected = {
-        "convgraph.node.exhausted",
         "convgraph.node.exhaustion",
         "convgraph.node.yield_stagnation",
         "convgraph.node.focus.streak",

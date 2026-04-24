@@ -148,13 +148,13 @@ class TestGetSignalValue:
 
     def test_bool_compound_key_false_match(self):
         """Test Python bool False matches compound key .false."""
-        signals = {"convgraph.node.exhausted": False}
-        assert _get_signal_value("convgraph.node.exhausted.false", signals) is True
+        signals = {"convgraph.node.is_orphan": False}
+        assert _get_signal_value("convgraph.node.is_orphan.false", signals) is True
 
     def test_bool_compound_key_false_no_match(self):
         """Test Python bool True does not match compound key .false."""
-        signals = {"convgraph.node.exhausted": True}
-        assert _get_signal_value("convgraph.node.exhausted.false", signals) is False
+        signals = {"convgraph.node.is_orphan": True}
+        assert _get_signal_value("convgraph.node.is_orphan.false", signals) is False
 
     def test_compound_key_base_not_found(self):
         """Test compound key returns None when base signal not present."""

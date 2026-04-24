@@ -25,7 +25,6 @@ from src.signals.graph.global_chain_signals import GlobalChainTopologySignal
 
 # Node-level signals (consolidated)
 from src.signals.graph.node_signals import (
-    NodeExhaustedSignal,
     NodeExhaustionScoreSignal,
     NodeYieldStagnationSignal,
     NodeFocusStreakSignal,
@@ -56,7 +55,6 @@ __all__ = [
     "ChainTopologySignalDetector",
     "GlobalChainTopologySignal",
     # Node-level: Exhaustion
-    "NodeExhaustedSignal",
     "NodeExhaustionScoreSignal",
     "NodeYieldStagnationSignal",
     # Node-level: Engagement

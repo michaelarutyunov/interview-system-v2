@@ -94,7 +94,7 @@ class MethodologyStrategyService:
 
         Detection flow:
         1. Detect global signals (response.semantic.llm.response_depth, convgraph.*, interview.*)
-        2. Detect node-level signals (convgraph.node.exhausted, meta.node.opportunity)
+        2. Detect node-level signals (convgraph.node.exhaustion, convgraph.node.focus.streak, etc.)
         3. Detect interview phase (early/mid/late) for phase weights/bonuses
         4. Score all eligible (strategy, node) pairs using combined signals
         5. Select highest-scoring pair

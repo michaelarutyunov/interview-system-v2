@@ -12,7 +12,7 @@ Core Metrics:
     - Strategy: strategy_usage_count for repetition detection
 
 Consumers:
-    - NodeExhaustedSignal (graph.node.exhausted)
+    - NodeExhaustionScoreSignal (convgraph.node.exhaustion)
     - StrategyDiversityScorer (temporal.strategy_repetition_count)
 """
 

@@ -24,7 +24,6 @@ from src.signals.graph import (
     ChainTopologySignalDetector,
     GlobalChainTopologySignal,
     # Node-level graph signals
-    NodeExhaustedSignal,
     NodeExhaustionScoreSignal,
     NodeYieldStagnationSignal,
     NodeFocusStreakSignal,
@@ -78,7 +77,6 @@ __all__ = [
     "ChainTopologySignalDetector",
     "GlobalChainTopologySignal",
     # Node-level graph signals
-    "NodeExhaustedSignal",
     "NodeExhaustionScoreSignal",
     "NodeYieldStagnationSignal",
     "NodeFocusStreakSignal",
