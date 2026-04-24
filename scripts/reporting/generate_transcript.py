@@ -71,11 +71,13 @@ def _find_focus_node_in_question(question: str, node_label: str) -> str:
     return f"Focus node ({node_label}) shaped question direction via strategy selection"
 
 
-def generate_transcript(json_path: Path) -> Path:
+def generate_transcript(json_path: Path, output_path: Path | None = None) -> Path:
     """Generate a markdown transcript from a simulation JSON file.
 
     Args:
         json_path: Path to the simulation JSON file.
+        output_path: Optional explicit output path. If not provided, uses
+            reports/transcripts/<timestamp>_transcript.md.
 
     Returns:
         Path to the generated markdown file.
@@ -103,8 +105,11 @@ def generate_transcript(json_path: Path) -> Path:
     ts_match = re.match(r"(\d{8}_\d{6})", stem)
     timestamp = ts_match.group(1) if ts_match else stem
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = OUTPUT_DIR / f"{timestamp}_transcript.md"
+    if output_path:
+        out_path = output_path
+    else:
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        out_path = OUTPUT_DIR / f"{timestamp}_transcript.md"
 
     lines: list[str] = []
 

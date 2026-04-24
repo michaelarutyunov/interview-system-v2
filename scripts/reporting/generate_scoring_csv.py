@@ -109,11 +109,13 @@ def _rows_from_decomposition(
     return rows
 
 
-def generate_scoring_csv(json_path: Path) -> Path:
+def generate_scoring_csv(json_path: Path, output_path: Path | None = None) -> Path:
     """Generate a scoring decomposition CSV from a simulation JSON artifact.
 
     Args:
         json_path: Path to the simulation JSON file.
+        output_path: Optional explicit output path. If not provided, uses
+            <json_stem>_scoring.csv next to the JSON.
 
     Returns:
         Path to the written CSV file.
@@ -168,9 +170,13 @@ def generate_scoring_csv(json_path: Path) -> Path:
             _rows_from_decomposition(turn_number, phase, decomposition, node_labels)
         )
 
-    # Derive CSV path: replace .json suffix with _scoring.csv
-    csv_path = json_path.with_name(json_path.stem + "_scoring.csv")
+    if output_path:
+        csv_path = output_path
+    else:
+        # Derive CSV path: replace .json suffix with _scoring.csv
+        csv_path = json_path.with_name(json_path.stem + "_scoring.csv")
 
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
     with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=CSV_FIELDNAMES)
         writer.writeheader()

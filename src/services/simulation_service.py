@@ -18,6 +18,7 @@ Key Design:
 
 import asyncio
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -665,6 +666,13 @@ class SimulationService:
         Returns:
             Path to saved file
         """
+        # Detect the current session log file from root logger handlers
+        log_file: str | None = None
+        for handler in logging.root.handlers:
+            if isinstance(handler, logging.FileHandler):
+                log_file = Path(handler.baseFilename).name
+                break
+
         # Create output directory if it doesn't exist
         SYNTHETIC_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -687,6 +695,7 @@ class SimulationService:
                 "total_turns": result.total_turns,
                 "status": result.status,
                 "saved_at": datetime.now(timezone.utc).isoformat(),
+                "log_file": log_file,
             },
             # Surface graph section (kg_nodes, kg_edges)
             "graph": {
