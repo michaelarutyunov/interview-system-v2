@@ -1685,7 +1685,7 @@ Utility scripts for testing, analysis, and visualization. All scripts live in `s
 | `compare_extraction_metrics.py` | Compare surface & canonical metrics across multiple sessions |
 | `review_canonical_slots.py` | Dump canonical slots, mappings, and edges to JSON for review |
 | `generate_mermaid_graph.py` | Visualize interview KG as Mermaid diagram; outputs both .mmd and .png |
-| `analyze_latest_log.py` | Quick pipeline timing & LLM cost analysis from latest log |
+| `generate_latency_report.py` | Pipeline timing & LLM cost analysis from log (used by export pipeline) |
 | `test_extraction.py` | Quick LLM extraction test without full simulation |
 
 ### Simulation output fields

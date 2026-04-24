@@ -8,13 +8,13 @@ Produces structured output suitable for the interview export pipeline:
 
 Usage:
     # Analyze latest log (auto-detect)
-    uv run python scripts/diagnostics/analyze_latest_log.py
+    uv run python scripts/reporting/generate_latency_report.py
 
     # Analyze specific log file
-    uv run python scripts/diagnostics/analyze_latest_log.py --log-file logs/interview_20260424_183318.log
+    uv run python scripts/reporting/generate_latency_report.py --log-file logs/interview_20260424_183318.log
 
     # Write to specific output directory
-    uv run python scripts/diagnostics/analyze_latest_log.py --output-dir reports/interviews/20260424_183318/05_latency/
+    uv run python scripts/reporting/generate_latency_report.py --output-dir reports/interviews/20260424_183318/05_latency/
 """
 
 from __future__ import annotations

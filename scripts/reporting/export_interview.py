@@ -40,7 +40,7 @@ from pathlib import Path
 # Allow imports from project root
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from scripts.diagnostics.analyze_latest_log import analyze_log, write_report
+from scripts.reporting.generate_latency_report import analyze_log, write_report
 from scripts.reporting.generate_causal_chains import generate_causal_chains
 from scripts.reporting.generate_transcript import generate_transcript
 from scripts.reporting.generate_scoring_csv import generate_scoring_csv
