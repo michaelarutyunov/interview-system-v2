@@ -124,6 +124,9 @@ class SessionService:
         # Will be initialized in _build_pipeline() when pipeline is first constructed
         self.canonical_slot_repo: Optional[CanonicalSlotRepository] = None
 
+        # Initialized by _build_pipeline() — placeholder for warmup access
+        self._srl_service: Optional[SRLService] = None
+
         # Create services with graph_repo where needed
         if extraction_service:
             self.extraction = extraction_service
@@ -185,6 +188,7 @@ class SessionService:
         """
         # SRL service: lazy-loads spaCy model on first use, None disables gracefully
         srl_service = SRLService() if settings.enable_srl else None
+        self._srl_service = srl_service
 
         # Canonical slot discovery dependencies (conditionally enabled)
         canonical_slot_repo = None
