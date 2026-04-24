@@ -403,6 +403,21 @@ uv run python scripts/run_simulation.py --concept glp1_food_mec --persona baseli
 
 The CSV export contains live `score_decomposition` data from the simulation JSON, providing per-turn scoring breakdown with signal contributions, phase multipliers, and strategy rankings.
 
+## Post-Simulation Analysis
+
+After generating simulation JSONs, several scripts produce derived outputs:
+
+| Script | Location | Output |
+|--------|----------|--------|
+| `generate_scoring_csv.py` | `scripts/reporting/` | Flat CSV from `score_decomposition` |
+| `generate_reviews.py` | `scripts/reporting/` | Markdown review with strategy distribution, graph health, signal diagnostics |
+| `generate_transcript.py` | `scripts/reporting/` | Human-readable markdown transcript |
+| `generate_mermaid_graph.py` | `scripts/reporting/` | Visual graph diagram (.mmd + .png) |
+| `extract_simulation_data.py` | `scripts/diagnostics/` | Parquet tables (turns, scoring, interviews) for analytical queries |
+| `analyze_signal_redundancy.py` | `scripts/diagnostics/` | Signal activity/decisiveness audit |
+
+All scripts use the current signal taxonomy (`convgraph.*`, `response.semantic.llm.*`, `meta.saturation.*`, `interview.*`). See `.claude/context/simulation-export-schema.md` for the stable field contract.
+
 ## Troubleshooting
 
 **Error: Unknown persona**
