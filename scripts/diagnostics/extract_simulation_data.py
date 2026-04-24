@@ -5,10 +5,13 @@ Produces three Parquet files from a directory of simulation outputs:
   2. scoring.parquet   — one row per signal×strategy×turn (score decomposition)
   3. interviews.parquet — one row per interview with terminal graph/outcome stats
 
+Signal keys use the current taxonomy (convgraph.*, response.semantic.llm.*, etc.).
+See .claude/context/simulation-export-schema.md for the stable field contract.
+
 Usage:
     uv run python scripts/diagnostics/extract_simulation_data.py [INPUT_DIR] [OUTPUT_DIR]
 
-    INPUT_DIR  defaults to synthetic_interviews/v2
+    INPUT_DIR  defaults to synthetic_interviews/
     OUTPUT_DIR defaults to analysis/simulation_extract
 """
 
@@ -33,6 +36,20 @@ def _to_float(val: object) -> float | None:
         except ValueError:
             return None
     return None
+
+
+def _resolve_strategy_self_count(
+    signals: dict, strategy_selected: str | None
+) -> float | None:
+    """Extract the self-count for the selected strategy from the strategy-scoped signal.
+
+    interview.strategy.self_count is a dict {strategy_name: normalized_count}.
+    Returns the value for the selected strategy, or None if unavailable.
+    """
+    sc = signals.get("interview.strategy.self_count")
+    if not isinstance(sc, dict) or not strategy_selected:
+        return None
+    return _to_float(sc.get(strategy_selected))
 
 
 def extract_interview(path: Path) -> dict:
@@ -61,7 +78,10 @@ def extract_interview(path: Path) -> dict:
         alts = t.get("strategy_alternatives") or []
 
         # Score margin: difference between rank 1 and rank 2
-        alt_scores = sorted([a["score"] for a in alts], reverse=True) if alts else []
+        alt_scores = sorted(
+            [v for a in alts if (v := _to_float(a.get("score"))) is not None],
+            reverse=True,
+        )
         score_margin = (alt_scores[0] - alt_scores[1]) if len(alt_scores) >= 2 else None
 
         # Best alternative node_id (may be None for conversation strategies)
@@ -78,23 +98,25 @@ def extract_interview(path: Path) -> dict:
             # Graph growth this turn
             "nodes_added": len(t.get("nodes_added") or []),
             "edges_added": len(t.get("edges_added") or []),
-            # Key signals (flattened) — coerce to float, some may be raw LLM strings
-            "engagement": _to_float(signals.get("llm.intellectual_engagement")),
-            "certainty": _to_float(signals.get("llm.certainty")),
-            "specificity": _to_float(signals.get("llm.specificity")),
-            "response_depth": _to_float(signals.get("llm.response_depth")),
-            "valence": _to_float(signals.get("llm.valence")),
-            "node_count": signals.get("graph.node_count"),
-            "orphan_count": signals.get("graph.orphan_count"),
-            "max_depth": signals.get("graph.max_depth"),
-            "strategy_repetition": signals.get("temporal.strategy_repetition_count"),
-            "turns_since_strategy_change": signals.get(
-                "temporal.turns_since_strategy_change"
+            # Key signals (flattened) using current taxonomy
+            "engagement": _to_float(signals.get("response.semantic.llm.engagement")),
+            "certainty": _to_float(signals.get("response.semantic.llm.certainty")),
+            "response_depth": signals.get("response.semantic.llm.response_depth"),
+            "engagement_trend": signals.get("response.semantic.llm.engagement.trend"),
+            "node_count": signals.get("convgraph.state.node.count"),
+            "orphan_count": signals.get("convgraph.state.node.orphan_count"),
+            "max_depth": _to_float(signals.get("convgraph.state.max_depth")),
+            "strategy_self_count": _resolve_strategy_self_count(
+                signals, t.get("strategy_selected")
             ),
-            "conversation_saturation": signals.get("meta.conversation.saturation"),
-            "canonical_saturation": signals.get("meta.canonical.saturation"),
-            "is_late_stage": signals.get("meta.interview.is_late_stage"),
-            "global_response_trend": signals.get("llm.global_response_trend"),
+            "turns_since_strategy_change": _to_float(
+                signals.get("interview.strategy.turns_since_change")
+            ),
+            "conversation_saturation": _to_float(
+                signals.get("meta.saturation.conversation")
+            ),
+            "canonical_saturation": _to_float(signals.get("meta.saturation.canonical")),
+            "is_late_stage": signals.get("interview.phase.is_late_stage"),
             # Saturation metrics
             "new_info_rate": sat.get("new_info_rate"),
             "is_saturated": sat.get("is_saturated"),
@@ -107,7 +129,7 @@ def extract_interview(path: Path) -> dict:
             "exhausted_nodes": sum(
                 1
                 for ns in (t.get("node_signals") or {}).values()
-                if ns.get("graph.node.exhausted")
+                if (_to_float(ns.get("convgraph.node.exhaustion")) or 0) >= 0.8
             ),
         }
         turns_records.append(turn_row)
@@ -166,9 +188,11 @@ def extract_interview(path: Path) -> dict:
         "unique_strategies": len(unique_strategies),
         "strategy_diversity": len(unique_strategies) / max(len(strategies_used), 1),
         # Final signals
-        "final_saturation": last_signals.get("meta.conversation.saturation"),
-        "final_canonical_saturation": last_signals.get("meta.canonical.saturation"),
-        "final_max_depth": last_signals.get("graph.max_depth"),
+        "final_saturation": _to_float(last_signals.get("meta.saturation.conversation")),
+        "final_canonical_saturation": _to_float(
+            last_signals.get("meta.saturation.canonical")
+        ),
+        "final_max_depth": _to_float(last_signals.get("convgraph.state.max_depth")),
         # Per-type node counts
         **{f"nodes_{k}": v for k, v in summary.get("nodes_by_type", {}).items()},
         **{f"edges_{k}": v for k, v in summary.get("edges_by_type", {}).items()},
@@ -182,9 +206,7 @@ def extract_interview(path: Path) -> dict:
 
 
 def main() -> None:
-    input_dir = (
-        Path(sys.argv[1]) if len(sys.argv) > 1 else Path("synthetic_interviews/v2")
-    )
+    input_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("synthetic_interviews")
     output_dir = (
         Path(sys.argv[2]) if len(sys.argv) > 2 else Path("analysis/simulation_extract")
     )

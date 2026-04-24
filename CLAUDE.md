@@ -39,6 +39,7 @@ Any codebase change should follow these principles:
 |----------|---------|
 | `docs/SYSTEM_DESIGN.md` | System architecture overview |
 | `docs/interview_ai_simulation.md` | AI-to-AI simulation system for testing with synthetic personas |
+| `.claude/context/simulation-export-schema.md` | Stable JSON/CSV export contract and signal taxonomy |
 | `.claude/context/` | Subsystem specs — primary reference for implementation and debugging |
 | `.claude/context/pipeline-contracts.md` | Stage input/output contracts |
 | `.claude/context/signal-detection-graph.md` | Graph & node signal detection |
@@ -194,6 +195,7 @@ Run `uv run python scripts/check_doc_drift.py` any time to check for drift. The 
 | Any pipeline stage (`stages/*.py`), `context.py`, `pipeline_contracts.py` | `.claude/context/pipeline-contracts.md` |
 | `src/services/node_state_tracker.py`, `src/services/node_signal_detection_service.py` | `.claude/context/node-state-tracker.md` |
 | `src/main.py`, `src/routers/*.py` | `docs/API.md` |
+| `scripts/reporting/*.py`, `scripts/diagnostics/extract_simulation_data.py` | `.claude/context/simulation-export-schema.md` |
 
 ### After editing — update the same doc
 Same mappings apply symmetrically. Update the corresponding doc in the same commit or the commit immediately after.
