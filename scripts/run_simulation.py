@@ -186,7 +186,7 @@ async def main():
         reverse=True,
     )
     if json_files:
-        from scripts.generate_scoring_csv import generate_scoring_csv
+        from scripts.reporting.generate_scoring_csv import generate_scoring_csv
 
         csv_path = generate_scoring_csv(json_files[0])
         print(f"Scoring CSV saved to: {csv_path}")
