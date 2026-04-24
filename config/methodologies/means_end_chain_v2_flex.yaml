@@ -153,8 +153,8 @@ signals:
     # Note: Node-level chain topology signals are auto-discovered
     # from strategy signal_weights and do not need to be listed here.
     # Per-concept-derived node signals (added by f965 migration):
-    - convgraph.node.response.semantic.llm.elaboration
-    - convgraph.node.response.semantic.llm.charge
+    - convgraph.node.llm.elaboration
+    - convgraph.node.llm.charge
     - convgraph.node.llm.has_quality_data
 
   llm:
@@ -162,7 +162,7 @@ signals:
     - response.semantic.llm.engagement
     - response.semantic.llm.elaboration
     - response.semantic.llm.charge
-    # Note: response.semantic.response.semantic.llm.engagement.trend is session-scoped and managed separately
+    # Note: response.semantic.llm.engagement.trend is session-scoped and managed separately
     # Per-concept LLM signals (elaboration, charge) produce per-concept ratings that route to graph.node.* via Stage 6 bridge.
 
   temporal:
@@ -181,9 +181,8 @@ strategies:
     description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
     signal_weights:
       # Fatigue detection triggers
-      response.semantic.response.semantic.llm.engagement.trend.fatigued: 1.0
-      response.semantic.response.semantic.llm.engagement.trend.shallowing: 0.8
-      meta.node.opportunity.exhausted: 0.3
+      response.semantic.llm.engagement.trend.fatigued: 1.0
+      response.semantic.llm.engagement.trend.shallowing: 0.8
       # Engagement (kept global) triggers
       response.semantic.llm.engagement.low: 0.8
       response.semantic.llm.engagement.mid: 0.4
@@ -191,8 +190,8 @@ strategies:
       # f965 migration:
       #   valence.low (0.5) + intellectual_engagement.low × 0.5 (0.1) → charge.negative 0.6
       #   specificity.low (-0.2) + intellectual_engagement.low × 0.5 (0.1) → elaboration.low -0.1
-      convgraph.node.response.semantic.llm.charge.negative: 0.6
-      convgraph.node.response.semantic.llm.elaboration.low: -0.1
+      convgraph.node.llm.charge.negative: 0.6
+      convgraph.node.llm.elaboration.low: -0.1
       # Repetition escape valve — phase-gated via multipliers
       interview.strategy.self_count: 0.15
       # Suppress revitalize floor in late phase
@@ -220,13 +219,13 @@ strategies:
       convgraph.node.focus.count.high: -0.4
       convgraph.node.focus.count.medium: -0.2
       # f965: response_depth.deep (0.1) + intellectual_engagement.high × 0.5 (0.1) → elaboration.high 0.2
-      convgraph.node.response.semantic.llm.elaboration.high: 0.2
+      convgraph.node.llm.elaboration.high: 0.2
       # f965: intellectual_engagement.high × 0.5 (0.1) → charge.positive 0.1
-      convgraph.node.response.semantic.llm.charge.positive: 0.1
+      convgraph.node.llm.charge.positive: 0.1
       response.semantic.llm.engagement.low: -0.3
       interview.strategy.self_count: -0.15
-      convconvgraph.node.chain.has_attribute_foundation.true: 0.4
-      convconvgraph.node.chain.has_attribute_foundation.false: -0.5
+      convgraph.node.chain.has_attribute_foundation.true: 0.4
+      convgraph.node.chain.has_attribute_foundation.false: -0.5
 
   # Strategy 3: Ground — establish causal antecedents for ungrounded high-level node
   - name: ground
@@ -237,11 +236,11 @@ strategies:
       convgraph.node.chain.gap.below.true: 0.3
       convgraph.node.recency: 0.25
       convgraph.node.exhaustion: -0.4
-      # f965: response.semantic.llm.response_depth.deep (0.05) → convgraph.node.response.semantic.llm.elaboration.high
-      convgraph.node.response.semantic.llm.elaboration.high: 0.05
+      # f965: response.semantic.llm.response_depth.deep (0.05) → convgraph.node.llm.elaboration.high
+      convgraph.node.llm.elaboration.high: 0.05
       interview.strategy.self_count: -0.15
-      convconvgraph.node.chain.has_attribute_foundation.false: 0.4
-      convconvgraph.node.chain.has_attribute_foundation.true: -0.2
+      convgraph.node.chain.has_attribute_foundation.false: 0.4
+      convgraph.node.chain.has_attribute_foundation.true: -0.2
 
   # Strategy 4: Bridge — fill missing intermediate level in a skipped chain
   # NOTE: Bridge fires more often in flex than strict because flex allows
@@ -268,8 +267,8 @@ strategies:
       convgraph.node.exhaustion: -0.3
       response.semantic.llm.engagement.high: 0.1
       interview.strategy.self_count: -0.15
-      convconvgraph.node.chain.has_attribute_foundation.true: 0.3
-      convconvgraph.node.chain.has_terminal_apex.true: 0.5
+      convgraph.node.chain.has_attribute_foundation.true: 0.3
+      convgraph.node.chain.has_terminal_apex.true: 0.5
 
   # Strategy 6: Anchor — connect isolated node to existing graph structure
   - name: anchor

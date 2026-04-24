@@ -205,8 +205,8 @@ signals:
     # level_skip) are auto-discovered from strategy signal_weights and do not
     # need to be listed here.
     # f965 — per-concept-derived node signals:
-    - convgraph.node.response.semantic.llm.elaboration
-    - convgraph.node.response.semantic.llm.charge
+    - convgraph.node.llm.elaboration
+    - convgraph.node.llm.charge
     - convgraph.node.llm.has_quality_data
 
   llm:
@@ -214,7 +214,7 @@ signals:
     - response.semantic.llm.engagement
     - response.semantic.llm.elaboration
     - response.semantic.llm.charge
-    # Note: response.semantic.response.semantic.llm.engagement.trend is session-scoped and managed separately
+    # Note: response.semantic.llm.engagement.trend is session-scoped and managed separately
     # Per-concept LLM signals (elaboration, charge) produce per-concept ratings that route to graph.node.* via Stage 6 bridge.
 
   temporal:
@@ -236,15 +236,15 @@ strategies:
     description: "Elicit a specific, concrete story — who, what, when, where. Prompt for vivid details and narrative context."
     signal_weights:
       # f965: specificity.low (0.9) → elaboration.low; specificity.mid (0.3) → elaboration.mid
-      convgraph.node.response.semantic.llm.elaboration.low: 0.9
-      convgraph.node.response.semantic.llm.elaboration.mid: 0.3
+      convgraph.node.llm.elaboration.low: 0.9
+      convgraph.node.llm.elaboration.mid: 0.3
       # Certainty — uncertain respondent needs help anchoring in a memory
       response.semantic.llm.certainty.low: 0.6
       response.semantic.llm.certainty.mid: 0.3
       # f965: valence.high (0.3) → charge.positive; valence.low (0.2) → charge.negative
-      convgraph.node.response.semantic.llm.charge.positive: 0.3
+      convgraph.node.llm.charge.positive: 0.3
       # Phase 4.2: boosted from 0.2 to 0.3 (negative charge → emotional content to narrate)
-      convgraph.node.response.semantic.llm.charge.negative: 0.3
+      convgraph.node.llm.charge.negative: 0.3
       # Engagement — moderate engagement supports elicitation
       response.semantic.llm.engagement.mid: 0.4
       response.semantic.llm.engagement.high: 0.2
@@ -254,8 +254,8 @@ strategies:
       meta.saturation.canonical.high: -0.5
       meta.saturation.conversation.high: -0.4
       # Response quality — don't push for new stories when answers declining
-      response.semantic.response.semantic.llm.engagement.trend.shallowing: -0.3
-      response.semantic.response.semantic.llm.engagement.trend.fatigued: -0.5
+      response.semantic.llm.engagement.trend.shallowing: -0.3
+      response.semantic.llm.engagement.trend.fatigued: -0.5
       # Phase 4.2: softened from -0.5 to -0.3 (allow re-firing after 1-2 turns to maintain narrative flow)
       # Diversity — T2 + Critique: reduced from -0.7 to -0.5 to stay competitive with ascend
       # The high self-penalty was suppressing elicit_narrative after 1-2 firings while ascend ran unchecked
@@ -284,8 +284,8 @@ strategies:
       # Engagement gates — ascending needs willing participation
       response.semantic.llm.engagement.low: -0.3
       # f965: intellectual_engagement.high (0.2) → 0.5× elaboration.high + 0.5× charge.positive
-      convgraph.node.response.semantic.llm.elaboration.high: 0.1
-      convgraph.node.response.semantic.llm.charge.positive: 0.1
+      convgraph.node.llm.elaboration.high: 0.1
+      convgraph.node.llm.charge.positive: 0.1
       # Repetition brake — T2 + Critique: strengthened from -0.15 to -0.5 to prevent ascend monopoly
       interview.strategy.self_count: -0.5
 
@@ -300,8 +300,8 @@ strategies:
       convgraph.node.chain.gap.below.true: 0.3           # Structural gap below = room to ground
       convgraph.node.recency: 0.25            # Prefer recently discussed nodes
       convgraph.node.exhaustion: -0.6         # T2 calibration: strengthened from -0.4 to enforce node rotation
-      # f965: response_depth.shallow (0.05) → convgraph.node.response.semantic.llm.elaboration.low
-      convgraph.node.response.semantic.llm.elaboration.low: 0.05
+      # f965: response_depth.shallow (0.05) → convgraph.node.llm.elaboration.low
+      convgraph.node.llm.elaboration.low: 0.05
       # Mild repetition penalty
       interview.strategy.self_count: -0.15
 
@@ -340,16 +340,16 @@ strategies:
     description: "Shift to a fresh incident or new angle when the current narrative is exhausted or respondent shows fatigue"
     signal_weights:
       # Fatigue detection triggers
-      response.semantic.response.semantic.llm.engagement.trend.fatigued: 1.0
-      response.semantic.response.semantic.llm.engagement.trend.shallowing: 0.8
+      response.semantic.llm.engagement.trend.fatigued: 1.0
+      response.semantic.llm.engagement.trend.shallowing: 0.8
       # Engagement & valence triggers
       response.semantic.llm.engagement.low: 0.8
       response.semantic.llm.engagement.mid: 0.4
       response.semantic.llm.engagement.high: -0.4
       # f965: valence.low (0.5) + intellectual_engagement.low × 0.5 (0.1) → charge.negative 0.6
-      convgraph.node.response.semantic.llm.charge.negative: 0.6
+      convgraph.node.llm.charge.negative: 0.6
       # f965: specificity.low (-0.2) + intellectual_engagement.low × 0.5 (0.1) → elaboration.low -0.1
-      convgraph.node.response.semantic.llm.elaboration.low: -0.1
+      convgraph.node.llm.elaboration.low: -0.1
       # Phase 4.2: FLIPPED from +0.15 to -0.5 (escape valve to brake, matching JTBD fix)
       interview.strategy.self_count: -0.5
       # Phase gate — suppress in late phase so validate/ascend dominate
@@ -374,8 +374,8 @@ strategies:
     description: "Summarize the incident narrative — key events, emotions, attributions, and takeaways — and invite correction or addition"
     signal_weights:
       # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
-      convgraph.node.response.semantic.llm.elaboration.high: 0.3
-      convgraph.node.response.semantic.llm.elaboration.mid: 0.2
+      convgraph.node.llm.elaboration.high: 0.3
+      convgraph.node.llm.elaboration.mid: 0.2
       # Certainty — uncertainty triggers validation (confirm understanding)
       response.semantic.llm.certainty.low: 0.8
       response.semantic.llm.certainty.mid: 0.6

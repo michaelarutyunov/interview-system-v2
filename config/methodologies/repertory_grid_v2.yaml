@@ -206,8 +206,8 @@ signals:
     # branching_deficit, fan_in, has_attribute_foundation, has_terminal_apex)
     # are deliberately excluded — they are meaningless for RG's flat ontology.
     # f965 — per-concept-derived node signals:
-    - convgraph.node.response.semantic.llm.elaboration
-    - convgraph.node.response.semantic.llm.charge
+    - convgraph.node.llm.elaboration
+    - convgraph.node.llm.charge
     - convgraph.node.llm.has_quality_data
 
   llm:
@@ -215,7 +215,7 @@ signals:
     - response.semantic.llm.engagement
     - response.semantic.llm.elaboration
     - response.semantic.llm.charge
-    # Note: response.semantic.response.semantic.llm.engagement.trend is session-scoped and managed separately
+    # Note: response.semantic.llm.engagement.trend is session-scoped and managed separately
     # Per-concept LLM signals (elaboration, charge) produce per-concept ratings that route to graph.node.* via Stage 6 bridge.
 
   temporal:
@@ -248,18 +248,18 @@ strategies:
       response.semantic.llm.engagement.low: -0.4             # Disengaged = suppress triadic (comparison fatigue)
       # Novelty: prefer new elements for fresh comparisons
       convgraph.node.novelty.high: 0.4         # New elements = unexplored comparison material
-      canonconvgraph.node.novelty.high: 0.3
+      canongraph.node.novelty.high: 0.3
       # f965: response_depth.{deep,moderate,shallow} → elaboration.{high,mid,low}
-      convgraph.node.response.semantic.llm.elaboration.high: 0.3
-      convgraph.node.response.semantic.llm.elaboration.mid: 0.2
+      convgraph.node.llm.elaboration.high: 0.3
+      convgraph.node.llm.elaboration.mid: 0.2
       # Phase 4.2: FLIPPED from -0.2 to +0.4 (low elaboration → triadic needed to generate quality data)
-      convgraph.node.response.semantic.llm.elaboration.low: 0.4
+      convgraph.node.llm.elaboration.low: 0.4
       # Certainty: uncertain = structured comparison helps clarify
       response.semantic.llm.certainty.low: 0.3
       response.semantic.llm.certainty.mid: 0.2
       # Fatigue suppression
-      response.semantic.response.semantic.llm.engagement.trend.fatigued: -0.6   # Comparison fatigue is real in RG
-      response.semantic.response.semantic.llm.engagement.trend.shallowing: -0.3
+      response.semantic.llm.engagement.trend.fatigued: -0.6   # Comparison fatigue is real in RG
+      response.semantic.llm.engagement.trend.shallowing: -0.3
       # Repetition penalty: triadic is core but shouldn't dominate every turn
       interview.strategy.self_count: -0.5
       # Phase 4.2: added per-concept signal (no quality data → triadic needed to generate it)
@@ -295,9 +295,9 @@ strategies:
       convgraph.node.focus.streak.high: -0.6    # Don't explore already-discussed constructs
       # LLM signals
       # f965: specificity.low (0.4) → elaboration.low
-      convgraph.node.response.semantic.llm.elaboration.low: 0.4
+      convgraph.node.llm.elaboration.low: 0.4
       # f965: specificity.mid (0.2) + intellectual_engagement.mid (0.2) → elaboration.mid 0.4
-      convgraph.node.response.semantic.llm.elaboration.mid: 0.4
+      convgraph.node.llm.elaboration.mid: 0.4
       response.semantic.llm.engagement.mid: 0.2
       response.semantic.llm.engagement.low: -0.3              # Disengaged = probing meaning won't help
       # Phase 4.2: strengthened from -0.4 to -0.7 to prevent explore_construct dominance
@@ -318,9 +318,9 @@ strategies:
       #   response_depth.deep (0.25) + intellectual_engagement.high × 0.5 (0.15) → elaboration.high 0.40
       #   response_depth.moderate (0.2) + intellectual_engagement.mid (0.2) → elaboration.mid 0.40
       #   intellectual_engagement.high × 0.5 (0.15) + valence.high (0.2) → charge.positive 0.35
-      convgraph.node.response.semantic.llm.elaboration.high: 0.40
-      convgraph.node.response.semantic.llm.elaboration.mid: 0.40
-      convgraph.node.response.semantic.llm.charge.positive: 0.35
+      convgraph.node.llm.elaboration.high: 0.40
+      convgraph.node.llm.elaboration.mid: 0.40
+      convgraph.node.llm.charge.positive: 0.35
       # Engagement: need engaged respondent for laddering
       response.semantic.llm.engagement.high: 0.2
       response.semantic.llm.engagement.mid: 0.2
@@ -352,8 +352,8 @@ strategies:
     signal_weights:
       # f965: specificity.high (0.5) → elaboration.high;
       #       specificity.mid (0.3) + response_depth.moderate (0.2) → elaboration.mid 0.5
-      convgraph.node.response.semantic.llm.elaboration.high: 0.5
-      convgraph.node.response.semantic.llm.elaboration.mid: 0.5
+      convgraph.node.llm.elaboration.high: 0.5
+      convgraph.node.llm.elaboration.mid: 0.5
       # Certainty: confident respondent can give clear ratings
       response.semantic.llm.certainty.high: 0.4
       response.semantic.llm.certainty.mid: 0.3
@@ -384,8 +384,8 @@ strategies:
     description: "Understand the ideal product specification — which construct poles define perfection, and which elements come closest."
     signal_weights:
       # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
-      convgraph.node.response.semantic.llm.elaboration.high: 0.3
-      convgraph.node.response.semantic.llm.elaboration.mid: 0.2
+      convgraph.node.llm.elaboration.high: 0.3
+      convgraph.node.llm.elaboration.mid: 0.2
       response.semantic.llm.certainty.high: 0.3               # Confident = can articulate ideals
       response.semantic.llm.certainty.mid: 0.2
       # Engagement
@@ -432,17 +432,16 @@ strategies:
     description: "Shift to fresh element comparisons or new angles when respondent shows comparison fatigue."
     signal_weights:
       # Fatigue detection triggers
-      response.semantic.response.semantic.llm.engagement.trend.fatigued: 1.0
-      response.semantic.response.semantic.llm.engagement.trend.shallowing: 0.8
-      meta.node.opportunity.exhausted: 0.3
+      response.semantic.llm.engagement.trend.fatigued: 1.0
+      response.semantic.llm.engagement.trend.shallowing: 0.8
       # Engagement & valence triggers
       response.semantic.llm.engagement.low: 0.8
       response.semantic.llm.engagement.mid: 0.4
       response.semantic.llm.engagement.high: -0.4             # Already engaged = not needed
       # f965: valence.low (0.5) + intellectual_engagement.low × 0.5 (0.1) → charge.negative 0.6
-      convgraph.node.response.semantic.llm.charge.negative: 0.6
+      convgraph.node.llm.charge.negative: 0.6
       # f965: specificity.low (-0.2) + intellectual_engagement.low × 0.5 (0.1) → elaboration.low -0.1
-      convgraph.node.response.semantic.llm.elaboration.low: -0.1
+      convgraph.node.llm.elaboration.low: -0.1
       # Late phase: allow revitalize to compete
       interview.phase.late: -0.3       # Moderate suppression — still useful for RG fatigue
       # Phase 4.2: FLIPPED from +0.15 to -0.5 (escape valve to brake, matching JTBD fix)
@@ -474,8 +473,8 @@ strategies:
       interview.phase.early: -3.0
       interview.phase.mid: -3.0
       # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
-      convgraph.node.response.semantic.llm.elaboration.high: 0.3
-      convgraph.node.response.semantic.llm.elaboration.mid: 0.2
+      convgraph.node.llm.elaboration.high: 0.3
+      convgraph.node.llm.elaboration.mid: 0.2
       # Uncertainty triggers: uncertain = good time to validate
       response.semantic.llm.certainty.low: 0.6
       response.semantic.llm.certainty.mid: 0.4

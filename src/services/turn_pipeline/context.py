@@ -123,12 +123,6 @@ class PipelineContext:
     # Ephemeral intra-stage state (not persisted, not part of any contract)
     # =============================================================================
 
-    # Set by MethodologyStrategyService after global signal detection and before
-    # node signal detection, so node-level detectors (e.g. meta.node.opportunity)
-    # can read current-turn LLM signals rather than the stale previous-turn
-    # context.signals. Cleared / unused after strategy selection completes.
-    current_turn_global_signals: Optional[Dict[str, Any]] = None
-
     # Populated by GraphUpdateStage (Stage 4) from GraphService.add_extraction_to_graph:
     # maps concept.text.lower() → surface node.id for all concepts in the current turn's
     # extraction. Consumed by MethodologyStrategyService bridge step to route per-concept

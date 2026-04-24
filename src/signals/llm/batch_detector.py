@@ -4,7 +4,7 @@ Loads the base prompt (sibling `llm_signal_baseprompt.md`), injects per-concept
 and global rubrics from signal classes, and returns a nested dict partitioned
 into `concepts` and `global` sections. Derives `response.semantic.llm.response_depth` categorical
 from per-concept elaboration aggregation for backward compatibility with
-`llm_response_trend`, `node_opportunity`, and the question-generation prompt.
+`llm_response_trend` and the question-generation prompt.
 """
 
 from __future__ import annotations
@@ -80,7 +80,7 @@ def _score_to_category(mean_score: float, n: int) -> str:
     """Derive categorical `response.semantic.llm.response_depth` from mean per-concept elaboration.
 
     See `docs/drafts/signal-migration-contract.md` §3. Downstream consumers
-    (llm_response_trend, node_opportunity, node_base.all_response_depths,
+    (llm_response_trend, node_base.all_response_depths,
     question.py prompt) expect strings: surface / shallow / moderate / deep.
     """
     if n == 0:

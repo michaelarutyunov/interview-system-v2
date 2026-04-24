@@ -214,8 +214,8 @@ signals:
     # branching_deficit, fan_in, has_attribute_foundation, has_terminal_apex)
     # are intentionally excluded — they are meaningless for CJM's flat ontology.
     # f965 — per-concept-derived node signals:
-    - convgraph.node.response.semantic.llm.elaboration
-    - convgraph.node.response.semantic.llm.charge
+    - convgraph.node.llm.elaboration
+    - convgraph.node.llm.charge
     - convgraph.node.llm.has_quality_data
 
   llm:
@@ -223,7 +223,7 @@ signals:
     - response.semantic.llm.engagement
     - response.semantic.llm.elaboration
     - response.semantic.llm.charge
-    # Note: response.semantic.response.semantic.llm.engagement.trend is session-scoped and managed separately
+    # Note: response.semantic.llm.engagement.trend is session-scoped and managed separately
     # Per-concept LLM signals (elaboration, charge) produce per-concept ratings that route to graph.node.* via Stage 6 bridge.
 
   temporal:
@@ -252,11 +252,11 @@ strategies:
       response.semantic.llm.engagement.high: 0.3                 # High engagement = productive mapping
       response.semantic.llm.engagement.low: -0.3                 # Low engagement = suppress, wait for revitalize
       # f965: specificity.low (0.5) → elaboration.low; specificity.mid (0.2) → elaboration.mid
-      convgraph.node.response.semantic.llm.elaboration.low: 0.5
-      convgraph.node.response.semantic.llm.elaboration.mid: 0.2
+      convgraph.node.llm.elaboration.low: 0.5
+      convgraph.node.llm.elaboration.mid: 0.2
       # Response quality — suppress when fatigued
-      response.semantic.response.semantic.llm.engagement.trend.shallowing: -0.3
-      response.semantic.response.semantic.llm.engagement.trend.fatigued: -0.5
+      response.semantic.llm.engagement.trend.shallowing: -0.3
+      response.semantic.llm.engagement.trend.fatigued: -0.5
       # Repetition — core strategy but needs variety
       interview.strategy.self_count: -0.5
       interview.strategy.self_count.high: -0.3
@@ -276,14 +276,14 @@ strategies:
     signal_weights:
       # f965 migration (response_depth.surface+shallow + specificity.low → elaboration.low;
       #                 response_depth.moderate + specificity.mid + intellectual_engagement.mid → elaboration.mid)
-      convgraph.node.response.semantic.llm.elaboration.low: 1.4
-      convgraph.node.response.semantic.llm.elaboration.mid: 0.7
+      convgraph.node.llm.elaboration.low: 1.4
+      convgraph.node.llm.elaboration.mid: 0.7
       # Engagement — need engagement to deepen
       response.semantic.llm.engagement.high: 0.4
       response.semantic.llm.engagement.mid: 0.3
       response.semantic.llm.engagement.low: -0.4                 # Disengaged = risky to deepen
       # Response trend — shallowing can mean try deepening a touchpoint
-      response.semantic.response.semantic.llm.engagement.trend.shallowing: 0.2
+      response.semantic.llm.engagement.trend.shallowing: 0.2
       # Phase 4.2: strengthened from -0.6 to -1.2 (deepen_stage base score 2.3 needs stronger brake)
       interview.strategy.self_count: -1.2
       # Node signals — prefer underexplored, recently mentioned nodes
@@ -303,12 +303,12 @@ strategies:
     description: "Explore pain points, obstacles, and frustrations — what went wrong, what was confusing, what took too long."
     signal_weights:
       # f965: valence.low (0.8) → charge.negative; valence.mid (0.3) dropped (neutral contributes 0)
-      convgraph.node.response.semantic.llm.charge.negative: 0.8
+      convgraph.node.llm.charge.negative: 0.8
       # Certainty — hedging may signal unspoken friction
       response.semantic.llm.certainty.mid: 0.3
       # f965: response_depth.shallow (0.3) → elaboration.low; .moderate (0.2) → elaboration.mid
-      convgraph.node.response.semantic.llm.elaboration.low: 0.3
-      convgraph.node.response.semantic.llm.elaboration.mid: 0.2
+      convgraph.node.llm.elaboration.low: 0.3
+      convgraph.node.llm.elaboration.mid: 0.2
       # Engagement — can probe at moderate engagement
       response.semantic.llm.engagement.mid: 0.3
       response.semantic.llm.engagement.high: 0.3
@@ -332,11 +332,11 @@ strategies:
     signal_weights:
       # f965: valence.high (0.6) → charge.positive; valence.low (0.6) → charge.negative;
       #       valence.mid (0.2) dropped (neutral contributes 0)
-      convgraph.node.response.semantic.llm.charge.positive: 0.6
-      convgraph.node.response.semantic.llm.charge.negative: 0.6
+      convgraph.node.llm.charge.positive: 0.6
+      convgraph.node.llm.charge.negative: 0.6
       # f965: response_depth.shallow (0.3) → elaboration.low; .moderate (0.3) → elaboration.mid
-      convgraph.node.response.semantic.llm.elaboration.low: 0.3
-      convgraph.node.response.semantic.llm.elaboration.mid: 0.3
+      convgraph.node.llm.elaboration.low: 0.3
+      convgraph.node.llm.elaboration.mid: 0.3
       # Engagement — emotions need engagement to explore
       response.semantic.llm.engagement.high: 0.4
       response.semantic.llm.engagement.mid: 0.3
@@ -373,7 +373,7 @@ strategies:
       response.semantic.llm.engagement.high: 0.2
       response.semantic.llm.engagement.low: -0.3                 # Disengaged = advance may re-engage
       # Phase 4.2: added per-concept signal integration (high elaboration = ready to advance)
-      convgraph.node.response.semantic.llm.elaboration.high: 0.3
+      convgraph.node.llm.elaboration.high: 0.3
       # Novelty — seek unexplored stages
       convgraph.node.novelty.high: 0.3             # Fresh nodes = new stage territory
       # Repetition — advance is a transition strategy, penalize over-use
@@ -406,17 +406,16 @@ strategies:
     description: "Shift to an unexplored part of the journey or a fresh angle when the current section is exhausted or respondent shows fatigue."
     signal_weights:
       # Fatigue detection triggers
-      response.semantic.response.semantic.llm.engagement.trend.fatigued: 1.0
-      response.semantic.response.semantic.llm.engagement.trend.shallowing: 0.8
-      meta.node.opportunity.exhausted: 0.4
+      response.semantic.llm.engagement.trend.fatigued: 1.0
+      response.semantic.llm.engagement.trend.shallowing: 0.8
       # Engagement & valence triggers
       response.semantic.llm.engagement.low: 0.8
       response.semantic.llm.engagement.mid: 0.3
       response.semantic.llm.engagement.high: -0.4               # High engagement = no need to revitalize
-      # f965: valence.low (0.4) → convgraph.node.response.semantic.llm.charge.negative
-      convgraph.node.response.semantic.llm.charge.negative: 0.4
-      # f965: specificity.low (-0.2) → convgraph.node.response.semantic.llm.elaboration.low
-      convgraph.node.response.semantic.llm.elaboration.low: -0.2
+      # f965: valence.low (0.4) → convgraph.node.llm.charge.negative
+      convgraph.node.llm.charge.negative: 0.4
+      # f965: specificity.low (-0.2) → convgraph.node.llm.elaboration.low
+      convgraph.node.llm.elaboration.low: -0.2
       # Late phase suppression — allow other strategies to assert
       interview.phase.late: -0.5
       # Phase 4.2: FLIPPED from +0.15 to -0.5 (escape valve to brake, matching JTBD fix)
@@ -441,12 +440,11 @@ strategies:
     description: "Summarize the journey map — stages, key touchpoints, emotional highs/lows, and friction points — and invite correction or addition."
     signal_weights:
       # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
-      convgraph.node.response.semantic.llm.elaboration.high: 0.3
-      convgraph.node.response.semantic.llm.elaboration.mid: 0.2
+      convgraph.node.llm.elaboration.high: 0.3
+      convgraph.node.llm.elaboration.mid: 0.2
       # Uncertainty triggers — validate when respondent is uncertain
       response.semantic.llm.certainty.low: 0.8
       response.semantic.llm.certainty.mid: 0.6
-      meta.node.opportunity.probe_deeper: 0.5
       # Engagement — validate when engagement drops (confirm what we have)
       response.semantic.llm.engagement.low: 0.6
       # Connected nodes = enough structure to validate

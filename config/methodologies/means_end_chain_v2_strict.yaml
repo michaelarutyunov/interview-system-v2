@@ -172,7 +172,6 @@ strategies:
       # Fatigue detection triggers
       response.semantic.llm.engagement.trend.fatigued: 1.0
       response.semantic.llm.engagement.trend.shallowing: 0.8
-      meta.node.opportunity.exhausted: 0.3
       # Engagement & valence triggers
       response.semantic.llm.engagement.low: 0.8
       response.semantic.llm.engagement.mid: 0.4
@@ -298,7 +297,6 @@ strategies:
       convgraph.node.focus.count.medium: -0.2
       canongraph.node.novelty.confirming: 0.2
       # Node extraction opportunity
-      meta.node.opportunity.probe_deeper: 0.6
       # Strategy repetition — lighter penalty; OK to re-validate
       interview.strategy.self_count: -0.7
 

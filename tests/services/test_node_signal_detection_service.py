@@ -65,7 +65,6 @@ def test_all_node_signals_auto_registered():
         "convgraph.node.focus.count",
         "canongraph.node.novelty",
         "interview.focus.streak",
-        "meta.node.opportunity",
         # Chain topology (computed by ChainTopologySignalDetector, flat sentinels register names)
         "convgraph.node.chain.role",
         "convgraph.node.chain.gap.above",

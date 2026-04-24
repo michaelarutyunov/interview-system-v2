@@ -58,7 +58,6 @@ from src.signals.session import (
 # Meta signals - imports all meta signals via meta/__init__.py
 from src.signals.meta import (
     InterviewPhaseSignal,
-    NodeOpportunitySignal,
 )
 
 __all__ = [
@@ -98,5 +97,4 @@ __all__ = [
     "GlobalResponseTrendSignal",
     # Meta signals
     "InterviewPhaseSignal",
-    "NodeOpportunitySignal",
 ]
