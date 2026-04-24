@@ -100,5 +100,5 @@ mappings:
     doc: "docs/testing_harness.md"
 
   - sources:
-      - "scripts/reporting/generate_reviews.py"
+      - "scripts/reporting/*.py"
     doc: "docs/interview_ai_simulation.md"

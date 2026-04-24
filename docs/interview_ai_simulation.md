@@ -407,14 +407,46 @@ The CSV export contains live `score_decomposition` data from the simulation JSON
 
 After generating simulation JSONs, several scripts produce derived outputs:
 
+### Individual Generators
+
 | Script | Location | Output |
 |--------|----------|--------|
-| `generate_scoring_csv.py` | `scripts/reporting/` | Flat CSV from `score_decomposition` |
-| `generate_reviews.py` | `scripts/reporting/` | Markdown review with strategy distribution, graph health, signal diagnostics |
 | `generate_transcript.py` | `scripts/reporting/` | Human-readable markdown transcript |
+| `generate_causal_chains.py` | `scripts/reporting/` | Causal chain extraction (surface + canonical, tier-classified) |
 | `generate_mermaid_graph.py` | `scripts/reporting/` | Visual graph diagram (.mmd + .png) |
+| `generate_scoring_csv.py` | `scripts/reporting/` | Flat CSV from `score_decomposition` |
+| `generate_scoring_summary.md` | `scripts/reporting/` | Aggregated markdown tables (firing rates, dead signals, budget decomposition) |
+| `generate_latency_report.py` | `scripts/reporting/` | Pipeline timing + LLM cost analysis from session log |
+| `generate_reviews.py` | `scripts/reporting/` | Markdown review with strategy distribution, graph health, signal diagnostics |
 | `extract_simulation_data.py` | `scripts/diagnostics/` | Parquet tables (turns, scoring, interviews) for analytical queries |
 | `analyze_signal_redundancy.py` | `scripts/diagnostics/` | Signal activity/decisiveness audit |
+
+### Unified Export (Recommended)
+
+Run all individual generators at once into a single timestamped folder:
+
+```bash
+uv run python scripts/reporting/export_interview.py synthetic_interviews/20260424_*.json
+```
+
+Produces `reports/interviews/<timestamp>/` with:
+
+```
+reports/interviews/<timestamp>/
+├── 00_meta.yaml              # Interview metadata
+├── 01_transcript.md          # Q&A transcript
+├── 02_causal_chains.md       # Causal chain analysis
+├── 03_graph.mmd              # Mermaid graph source
+├── 03_graph.png              # Rendered graph diagram
+├── 04_scoring.csv            # Raw scoring decomposition
+├── 04_scoring_summary.md     # Aggregated scoring tables
+├── 05_latency/               # Pipeline timing & cost analysis
+│   ├── summary.md
+│   ├── llm_calls.csv
+│   └── stages.csv
+├── 06_insights.md            # Placeholder for qualitative review
+└── 99_session.log            # Copied session log
+```
 
 All scripts use the current signal taxonomy (`convgraph.*`, `response.semantic.llm.*`, `meta.saturation.*`, `interview.*`). See `.claude/context/simulation-export-schema.md` for the stable field contract.
 
