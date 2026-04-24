@@ -35,6 +35,10 @@ Convenience properties on `PipelineContext` derive computed values from contract
 
 Stage 2.5 (SRL) is gated by `settings.enable_srl`. Stage 4.5 (SlotDiscovery) is gated by `settings.enable_canonical_slots`. When a stage is skipped, it still writes a default/empty contract to its context field — it does not leave the field as `None`. Downstream stages can safely access these contracts without null-guarding.
 
+### Model Warmup on Start
+
+`SessionService.start_session()` calls `_warmup_models()` which eagerly loads spaCy and SentenceTransformer via the existing lazy-load properties on `EmbeddingService` and `SRLService`. This shifts the ~3-5s loading delay from "after first user response" to "when Start button is pressed." The warmup respects feature flags: skips SRLService when `enable_srl=False`, skips entirely when `graph` or `embedding_service` is None.
+
 ### Latency-Optimized Stages (3.1 + 4.7)
 
 Stages 3.1 and 4.7 form a latency-optimized pair for LLM signal detection:
