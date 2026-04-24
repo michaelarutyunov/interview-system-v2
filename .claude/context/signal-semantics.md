@@ -63,15 +63,7 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 
 ### 🚨 Critical findings (must fix)
 
-1. **`canonconvgraph.node.novelty` is functionally broken** (graph-node).
-   `_slot_first_seen` is an instance attribute on a class re-instantiated every turn by `NodeSignalDetectionService.detect()`. Cross-turn memory is destroyed. Result: every canonical slot reads as `"new"` every turn; `"confirming"` is effectively unreachable. YAML strategies in MEC and JTBD weight against this signal.
-   **Fix:** Move `_slot_first_seen` into `NodeStateTracker` (persisted via `to_dict`/`from_dict`) OR change the service to maintain a single signal instance across turns for this signal.
-
-2. **`convgraph.node.exhausted` threshold drift** (graph-node).
-   Class docstring, moderator guide, and sibling `yield_stagnation` all say "3+ turns." Code uses `turns_since_last_yield >= 2`. A node can be flagged `exhausted` *before* `yield_stagnation` triggers, inverting intuitive severity ordering.
-   **Fix:** Pick one canonical value (likely 3 to match docs) and align code, docstring, guide, and sibling signal.
-
-3. **`response.semantic.llm.engagement.trend` doc drift in agent spec** (session/temporal).
+1. **`response.semantic.llm.engagement.trend` doc drift in agent spec** (session/temporal).
    Code returns `deepening/stable/shallowing/fatigued`. Moderator guide and YAML agree. But `signal-specialist/AGENT.md` Section 10 falsely claims values are `improving/degrading/stable`. This vocabulary appears nowhere in code or YAML — it's a fabrication that would mislead any future agent loading the spec.
    **Fix:** Correct Section 10 of `signal-specialist/AGENT.md`. Also clarify the moderator guide's "last 4" claim — code actually uses a last-6 window with 4-sample minimum gate.
 
@@ -101,15 +93,7 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
    When `surface_delta == 0` (no extraction), code returns `novelty_ratio = 1.0` → `saturation = 0.0`. But "no extraction at all" is arguably the *most* saturated state, not the least. The comment "no extraction — not saturated" encodes a debatable design choice.
    **Fix:** Either return `1.0` (truly saturated) or split into two signals — one for novelty, one for productivity.
 
-10. **`meta.node.opportunity` reads stale `response_depth`** (meta).
-    `_get_response_depth()` reads from `context.signals` which holds the *previous* turn's signals (per the comment in `_get_previous_opportunity`). The `probe_deeper` classification therefore depends on prior-turn depth, not current. Signal name and behavior mismatch.
-    **Fix:** Either rename to clarify it's a lagging indicator, or rewire to read current-turn `response_depth` from the active signal pool.
-
-11. **`meta.node.opportunity` exhaustion threshold disagrees with `convgraph.node.exhausted`** (meta).
-    `meta.node.opportunity._is_exhausted()` uses `turns_since_last_yield >= 3`. `NodeExhaustedSignal` uses `>= 2`. Same logical concept, two different thresholds.
-    **Fix:** Linked to finding #2 — pick one canonical threshold and use it everywhere.
-
-12. **`convgraph.node.is_current_focus` reads `previous_focus`** (graph-node).
+10. **`convgraph.node.is_current_focus` reads `previous_focus`** (graph-node).
     Behavior is correct given Stage 8 ordering (`update_focus()` hasn't been called yet at signal detection time), but the name "is current focus" is misleading. Reads as "the node focused in the prior turn at detection time."
     **Fix:** Rename to `convgraph.node.is_prior_focus` OR add a clarifying note in the moderator guide.
 
@@ -133,15 +117,12 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 
 | Priority | Action | Effort |
 |----------|--------|--------|
-| P0 | Fix `canonconvgraph.node.novelty` instance lifecycle bug | Medium (touches NodeSignalDetectionService) |
-| P0 | Reconcile `convgraph.node.exhausted` / `meta.node.opportunity` exhaustion threshold (2 vs 3) | Low (pick one, update both) |
+| P0 | Fix `canongraph.node.novelty` instance lifecycle bug | Medium (touches NodeSignalDetectionService) |
 | P0 | Correct `signal-specialist/AGENT.md` Section 10 `global_response_trend` values | Trivial (text edit) |
 | P1 | Normalize or guard raw count signals (`node_count`, `edge_count`, `orphan_count`) | Low |
 | P1 | Decide rename or document for `response.semantic.llm.response_depth` (depth vs richness) | Low (decision); medium (rename) |
-| P1 | Fix `meta.node.opportunity` stale `response_depth` read | Medium |
 | P1 | Fix `meta.saturation.canonical` empty-extraction edge case (or accept design) | Low (decision) |
 | ✅ | **DONE:** Fix `signal-specialist/AGENT.md` Section 4 shallow_ratio definition | Trivial |
-| P2 | Fix `llm.specificity` inverted class docstring | Trivial |
 | P2 | Update moderator guide for the documented likely-trivial drifts | Low |
 
 ---
@@ -170,7 +151,6 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 
 | Signal | Stated intent (guide) | Actual computation | Match | Failure mode | Severity | Recommended action |
 |---|---|---|---|---|---|---|
-| `convgraph.node.exhausted` | Focused before, no yield 3+ turns, ≥66% of last 3 shallow | `focus_count >= 1` AND `turns_since_last_yield >= 2` (not 3) AND `focus_streak >= 2` AND `shallow_ratio >= 0.66` | ⚠️ | Mode 2+5: docstring/guide say 3 turns, code uses 2; can fire before sibling `yield_stagnation` | plausible-impact | Pick canonical threshold; align code, docstring, guide, sibling signal |
 | `convgraph.node.exhaustion` | 0–1 weighted sum: 40% turns_since_yield + 30% focus_streak + 30% shallow_ratio | Formula matches exactly. `shallow_ratio` counts both `surface` AND `shallow`. ✅ **FIXED** — agent doc and moderator guide now correctly state both categories are counted | ✅ | none | none | None — all docs now align |
 | `convgraph.node.yield_stagnation` | Boolean: no yield for 3+ consecutive turns on previously-focused node | `focus_count > 0` AND `turns_since_last_yield >= 3` | ✅ | none | none | None |
 | `convgraph.node.focus.streak` | Categorical count of consecutive focus turns: none=0, low=1, medium=2-3, high=4+ | Bins exactly as documented; reads `state.current_focus_streak` (correctly NOT reset in `record_yield()`) | ✅ | none | none | None — bin thresholds match guide |
@@ -181,7 +161,7 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 | `convgraph.node.has_outgoing` | Boolean: at least one outgoing edge | `state.edge_count_outgoing > 0` | ✅ | none | none | None |
 | `convgraph.node.novelty` | Age-based freshness; high≥0.6 (last 2 turns), medium 0.3-0.6, low <0.3 | `max(0.0, 1.0 - age/5)` where age=current_turn-created_at_turn; bins high≥0.6, medium≥0.3 | ⚠️ | Mode 3: boundary-inclusive — age=2 → score=0.6 → still `high`, effectively "last 3 turns" | likely-trivial | Fix guide wording to "last 3 turns (age 0–2)" |
 | `convgraph.node.focus.count` | Cumulative total focus turns; none=0, low=1-2, medium=3-4, high=5+ | Bins exactly as documented; reads `state.focus_count` | ✅ | none | none | None — bin thresholds match guide |
-| `canonconvgraph.node.novelty` | Classifies node as new/confirming/orphan based on canonical slot history | `_slot_first_seen` is an instance attribute on a class re-instantiated every turn — cross-turn memory destroyed; every slot reads as "new" | ❌ | Mode 4+5: hidden dependency on persistent instance, invalidated by service architecture | plausible-impact | **CRITICAL** — move `_slot_first_seen` into `NodeStateTracker` or maintain singleton signal instance |
+| `canongraph.node.novelty` | Classifies node as new/confirming/orphan based on canonical slot history | `_slot_first_seen` is an instance attribute on a class re-instantiated every turn — cross-turn memory destroyed; every slot reads as "new" | ❌ | Mode 4+5: hidden dependency on persistent instance, invalidated by service architecture | plausible-impact | **CRITICAL** — move `_slot_first_seen` into `NodeStateTracker` or maintain singleton signal instance |
 
 ### LLM signals
 
@@ -190,10 +170,7 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 | Signal | Stated intent (guide) | Actual computation (rubric) | Match | Failure mode | Severity | Recommended action |
 |---|---|---|---|---|---|---|
 | `response.semantic.llm.response_depth` | How much information is shared; 1=surface, 4-5=deep | Rubric counts **distinct propositions/concepts introduced** (informational breadth, not semantic depth). Score 4 and 5 collapse to `"deep"` | ⚠️ | Mode 1: name evokes laddering depth, rubric measures proposition count; Mode 3: 5→4 collapse undocumented | plausible-impact (mode 1) / likely-trivial (collapse) | Rename to `llm.response_richness` OR update guide to clarify "depth = proposition count" |
-| `llm.specificity` | Concrete vs abstract; low=vague, high=specific | Rubric: 1=abstract generalities, 5=precise with names/places/quantities. Continuous, normalized | ⚠️ | Mode 2: class docstring + decorator description have **inverted scale** (say 1=specific). Rubric (injected to LLM) is correct, runtime unaffected | likely-trivial | Fix class docstring + decorator description to match rubric direction |
 | `response.semantic.llm.certainty` | Confidence; low=hedging, high=unqualified | Rubric scores expressed confidence with social-softener calibration ("I think" as opener ≠ hedge). Continuous | ✅ | none | none | None — most precisely specified LLM signal |
-| `llm.valence` | Emotional tone; low=negative, high=positive | Rubric scores **expressed emotional affect** (frustration vs delight); calm description of negative event scores 3 (neutral) | ⚠️ | Mode 2: moderators may expect topic sentiment, not response affect | likely-trivial | Add note to guide: tracks expressed affect, not topic sentiment |
-| `llm.intellectual_engagement` | Reasoning and "why" presence | Rubric: motivational structure, causal "because," tradeoffs, value expressions; orthogonal to articulateness | ✅ | none | none | None |
 | `response.semantic.llm.engagement` | Willingness to participate | Rubric: participatory behavior, volunteering, deflection; orthogonal to intellectual_engagement | ⚠️ | Mode 4: name risks YAML authors confusing with intellectual_engagement | likely-trivial | Add callout in guide distinguishing the two signals |
 
 ### Session / temporal signals
@@ -216,7 +193,6 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 | `interview.phase` | Categorical early/mid/late from turn count + YAML phase boundaries | Reads `interview_config.phases.{exploratory,focused}.n_turns` from YAML; maps `early_max = exploratory_n + 1`, `mid_max = exploratory_n + focused_n + 1`. Returns 3 keys: `phase`, `phase_reason`, `is_late_stage` | ⚠️ | Mode 2 (mild): guide documents only the `phase` key, not `phase_reason` and `is_late_stage` | likely-trivial | Document the auxiliary keys in the guide |
 | `meta.saturation.conversation` | "Are responses drying up?"; 1 - min(current_new_nodes / peak, 1) | Formula matches exactly. When `peak == 0` (turn 1), returns `yield_ratio = 1.0` → saturation = 0.0 | ⚠️ | Mode 5: at turn 1, never saturated regardless of yield (peak undefined). Guide claims "respondent can be at 1.0 in early turns" — impossible at turn 1 | likely-trivial | Fix guide claim about turn-1 behavior |
 | `meta.saturation.canonical` | "Are we in redundant territory?"; 1 - min(new_canonical / new_surface, 1) | Formula matches. When `surface_delta == 0`, returns `novelty_ratio = 1.0` → saturation = 0.0. Comment: "no extraction — not saturated" | ⚠️ | Mode 5: empty-extraction edge case is debatable. "No extraction at all" is arguably the *most* saturated state, not the least | plausible-impact | Decide: return 1.0 (truly saturated) or split into two signals (novelty + productivity) |
-| `meta.node.opportunity` | Per-node: exhausted/probe_deeper/fresh; depends on exhaustion + response_depth | `_is_exhausted` uses `turns_since_last_yield >= 3` (disagrees with `NodeExhaustedSignal` which uses `>= 2`). `_get_response_depth()` reads `context.signals` which holds **prior turn's** signals, not current | ⚠️ | Mode 4+6: stale `response_depth` from prior turn; threshold disagreement with sibling `NodeExhaustedSignal` | plausible-impact | Reconcile with finding #2 (single canonical threshold). Rewire to read current-turn signals or rename to clarify lagging behavior |
 
 ---
 
@@ -224,5 +200,5 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 
 - **Auditors:** 4 parallel Sonnet sub-agents (graph-global, graph-node, LLM, session/temporal) + 1 inline review (meta)
 - **Method:** A+C blend per `## Ground truth approach`. Each signal: read source class, read moderator guide entry, read YAML usage, assess against failure mode taxonomy.
-- **Coverage gaps:** None — all 34 active signals audited. The 3 deleted signals (`convgraph.state.avg_depth`, `graph.depth_by_element`, `meta.interview_progress`) are excluded.
+- **Coverage gaps:** None — all active signals audited. Deleted signals excluded: `convgraph.state.avg_depth`, `graph.depth_by_element`, `meta.interview_progress`, `meta.node.opportunity`, `convgraph.node.exhausted`, `llm.specificity`, `llm.valence`, `llm.intellectual_engagement`.
 - **Next audit:** Should be a diff against this file. Re-grade rows whose code has changed; add rows for any new signals.

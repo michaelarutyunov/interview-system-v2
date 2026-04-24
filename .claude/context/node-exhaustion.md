@@ -32,21 +32,6 @@ Score ranges: **0.0–0.3** = fresh, **0.3–0.6** = moderate, **0.6–1.0** = e
 
 `shallow_response_ratio` = fraction of recent `all_response_depths` values that are `"surface"`.
 
-### Binary Exhaustion Criteria (`NodeExhaustedSignal`)
-
-A node is considered exhausted when **all four** conditions hold:
-1. `focus_count >= 1` (minimum engagement)
-2. `turns_since_last_yield >= 2` (yield stagnation)
-3. `current_focus_streak >= 2` (persistent focus)
-4. At least 2/3 of recent responses are `"surface"`
-
-### Node Opportunity Signal
-
-`meta.node.opportunity` classifies each node:
-- `"exhausted"` — meets exhaustion criteria; backtrack recommended
-- `"probe_deeper"` — deep responses but no yield yet; extraction opportunity
-- `"fresh"` — open for exploration
-
 ### State Timing Within a Turn
 
 ```
@@ -108,5 +93,5 @@ Save happens inside `ScoringPersistenceStage` (Stage 10/12). If Stage 10/12 is s
 - `src/services/turn_pipeline/stages/strategy_selection_stage.py` — calls `append_response_signal()`, `update_focus()` (Stage 6/8)
 - `src/services/turn_pipeline/stages/scoring_persistence_stage.py` — saves NodeStateTracker to DB (Stage 10/12)
 - `src/services/session_service.py` — `_get_or_create_node_tracker()`, `_save_node_tracker()`
-- `src/signals/graph/node_signals.py` — `NodeExhaustedSignal`, `NodeExhaustionScoreSignal`, `NodeOpportunitySignal`, `NodeFocusStreakSignal`
+- `src/signals/graph/node_signals.py` — `NodeExhaustionScoreSignal`, `NodeYieldStagnationSignal`, `NodeFocusStreakSignal`
 - `docs/NodeStateTracker_mutation.md` — per-turn state transition tables and timing diagrams

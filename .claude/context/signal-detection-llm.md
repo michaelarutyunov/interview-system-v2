@@ -10,7 +10,7 @@ Signal classes are partitioned into two scopes:
 
 The decorators wire up `signal_name`, `description`, and `scope` as class attributes. They also validate at import time that the class defines a non-empty `RUBRIC: str` class constant covering bands 1–5. Signal classes live in `src/signals/llm/signals/` and must be imported and listed in `__all__` in `src/signals/llm/signals/__init__.py` for auto-discovery.
 
-At detection time, global signals and per-concept scores (except elaboration) are **normalised to [0, 1]** via `(score - 1) / 4`. Per-concept `elaboration` is used to derive the categorical `response.semantic.llm.response_depth` for backward compatibility with `llm_response_trend`, `node_opportunity`, and question-generation prompts.
+At detection time, global signals and per-concept scores (except elaboration) are **normalised to [0, 1]** via `(score - 1) / 4`. Per-concept `elaboration` is used to derive the categorical `response.semantic.llm.response_depth` for backward compatibility with `llm_response_trend` and question-generation prompts.
 
 `response.semantic.llm.engagement.trend` is **not** a per-turn signal. It is a session-level aggregate computed separately in `GlobalSignalDetectionService` from the rolling history of per-turn `response.semantic.llm.response_depth` values. Its values are categorical strings (`deepening`, `shallowing`, `stable`, `fatigued`).
 
@@ -31,7 +31,7 @@ A signal is **only active** if it appears in the methodology YAML under `signals
 - `moderate` — normalised mean < 0.67
 - `deep` — normalised mean ≥ 0.67
 
-This preserves downstream contracts (`llm_response_trend`, `node_opportunity`, `all_response_depths`, question prompt) that expect categorical response depth.
+This preserves downstream contracts (`llm_response_trend`, `all_response_depths`, question prompt) that expect categorical response depth.
 
 ## Per-Concept → Node Routing (Phase C)
 

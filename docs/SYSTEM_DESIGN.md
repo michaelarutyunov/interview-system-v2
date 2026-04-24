@@ -214,8 +214,7 @@ Rubrics loaded from `src/signals/llm/prompts/signals.md` and
 
 `response.semantic.llm.response_depth` is **derived** from mean per-concept elaboration
 (via `_score_to_category()` in `batch_detector.py`) for backward
-compatibility with `response.semantic.llm.engagement.trend`, `meta.node.opportunity`, and
-question-generation prompts.
+compatibility with `response.semantic.llm.engagement.trend` and question-generation prompts.
 
 Signal creation uses `@llm_global_signal` and `@llm_per_concept_signal` decorators:
 ```python
@@ -228,7 +227,6 @@ class ElaborationSignal(BaseLLMSignal):
 
 | Signal | Type | Detector |
 |--------|------|----------|
-| `convgraph.node.exhausted` | bool | `NodeExhaustedSignal` |
 | `convgraph.node.exhaustion` | float 0–1 | `NodeExhaustionScoreSignal` |
 | `convgraph.node.yield_stagnation` | bool (3+ turns) | `NodeYieldStagnationSignal` |
 | `convgraph.node.focus.streak` | categorical | `NodeFocusStreakSignal` |
@@ -244,8 +242,6 @@ All inherit `NodeSignalDetector` (`src/signals/graph/node_base.py`); return `Dic
 ### Meta Signals
 
 **`interview.phase`**: Proportional from `max_turns` — early (~10%, min 2 turns), mid (middle), late (last 2 turns). Computed per-turn from `context.turn_number` and `context.max_turns`.
-
-**`meta.node.opportunity`**: Combines `convgraph.node.exhausted`, `convgraph.node.focus.streak`, `response.semantic.llm.elaboration` (mean drives depth) → exhausted / probe_deeper / fresh.
 
 **`meta.saturation.conversation`**: `1.0 - min(current_delta / peak, 1.0)` — extraction yield vs peak.
 

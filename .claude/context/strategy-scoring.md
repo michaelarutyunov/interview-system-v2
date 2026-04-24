@@ -32,7 +32,7 @@ determines both the selected strategy and the target node for question generatio
 | `response.semantic.llm.elaboration` | Raw float [0,1]: mean per-concept elaboration score; depth categories derived from this |
 | `convgraph.node.llm.elaboration.high` | `True` (→1.0) if node-level mean elaboration ≥ 0.67, else `False` (→0.0) |
 | `convgraph.node.llm.elaboration.low` | `True` (→1.0) if node-level mean elaboration < 0.34, else `False` (→0.0) |
-| `convgraph.node.exhausted.true` | `True` if node signal `exhausted == True` |
+| `convgraph.node.exhaustion.high` | `True` if node exhaustion score ≥ 0.67 |
 | `convgraph.node.chain.gap.above.true` | `True` if node has no outgoing edge to a higher ontology level |
 | `convgraph.node.chain.gap.below.true` | `True` if node has no incoming edge from a lower ontology level |
 | `convgraph.node.chain.level.skip.true` | `True` if node has a direct leads_to edge skipping >1 ontology level |
@@ -451,7 +451,7 @@ Phase 4 demonstrated that weight tuning must follow a strict order:
 | `valid_when` strategy never fires despite signal returning truthy float | `gate_value is not True` identity check rejects floats (e.g. `branching_deficit=1.0` is truthy but `1.0 is True` is `False` in Python) | Use truthiness check: `if not gate_value` — handles bool, float, and None correctly. Fixed in `scoring.py` 2026-04-14. |
 | New strategy scores near zero despite valid_when passing | Chain topology signal sub-keys not resolving | Ensure flat sentinel classes are imported via `src/signals/__init__.py`; check flattening in `NodeSignalDetectionService` |
 | Legacy strategy name (`deepen`, `explore`, `clarify`, `reflect`) in YAML or code | These strategies were removed from MEC methodologies | Replace with the appropriate chain-aware strategy (see 7 MEC Strategies table above) |
-| Legacy LLM signal key (`response.semantic.llm.response_depth`, `llm.specificity`, `llm.valence`, `llm.intellectual_engagement`) in YAML weights | f965 migration replaced these with per-concept signals | Map to per-concept equivalents: `response_depth` → `convgraph.node.llm.elaboration.*`; `specificity` → `convgraph.node.llm.elaboration.*`; `valence` → `convgraph.node.llm.charge.*`; `intellectual_engagement` → split across `elaboration` and `charge` |
+| Old LLM signal key (`llm.specificity`, `llm.valence`, `llm.intellectual_engagement`) in YAML weights or tests | Pre-taxonomy names removed during e4030c4 rename | Use: `specificity` → `convgraph.node.llm.elaboration.*`; `valence` → `convgraph.node.llm.charge.*`; `intellectual_engagement` → split across `elaboration` and `charge` |
 | Revitalize selected too aggressively | `score_threshold` too high, causing low-scoring but valid strategies to be bypassed | Lower `chain_completion.score_threshold` in YAML (production: 0.15) |
 
 ---

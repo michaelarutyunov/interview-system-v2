@@ -85,7 +85,7 @@ Both candidate pools are merged and sorted by score. The highest-scoring pair de
 
 ## Key Files
 
-- `src/services/turn_pipeline/context.py` — `PipelineContext` dataclass: contract fields, ordering-enforced convenience properties, `current_turn_global_signals` for current-turn LLM signal access
+- `src/services/turn_pipeline/context.py` — `PipelineContext` dataclass: contract fields, ordering-enforced convenience properties
 - `src/domain/models/pipeline_contracts.py` — All 12 contract Pydantic models
 - `src/services/session_service.py` — `_build_pipeline()`: stage wiring and execution order
 - `src/services/turn_pipeline/stages/scoring_persistence_stage.py` — `TurnResult` assembly from final context
