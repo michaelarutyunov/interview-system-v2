@@ -33,14 +33,25 @@ A signal is **only active** if it appears in the methodology YAML under `signals
 
 This preserves downstream contracts (`llm_response_trend`, `all_response_depths`, question prompt) that expect categorical response depth.
 
-## Per-Concept → Node Routing (Phase C)
+## Prefetch and Bridge Architecture
 
-Per-concept ratings from `LLMBatchDetector.detect()` are routed to specific graph nodes via a bridge step in `MethodologyStrategyService.select_strategy_and_focus()`, between global and node signal detection:
+LLM batch detection is **prefetched** in Stage 3.1 (`LLMPrefetchStage`), which fires immediately after extraction completes. The LLM call runs as an `asyncio.Task`, overlapping with Stages 4 (GraphUpdate) and 4.5 (SlotDiscovery) to hide latency.
 
-1. `GraphUpdateStage` populates `PipelineContext.concept_to_node_id` (keyed by `concept.text.lower()`) from inside the concept loop in `GraphService.add_extraction_to_graph`.
-2. `GlobalSignalDetectionService.detect_with_per_concept()` returns `(global_signals, per_concept_ratings)` by stashing the `concepts` sub-dict from the batch detector.
-3. The bridge step iterates `per_concept_ratings`, looks up the target node, and calls `NodeStateTracker.append_quality(node_id, elaboration, charge)` on each.
-4. `append_quality` records scores into `NodeState.quality_history` and derives a categorical `response_depth` for `all_response_depths` (bins: 0.125 / 0.375 / 0.625).
+### Stage 3.1 — LLMPrefetchStage
+- Invokes `LLMBatchDetector.detect()` and stores the resulting `asyncio.Task` on `PipelineContext.llm_signal_task`.
+- Does **not** await the task — it runs concurrently with graph update and slot discovery.
+
+### Stage 4.7 — LLMSignalBridgeStage
+- Awaits `PipelineContext.llm_signal_task` to resolve the batch detector result.
+- Routes per-concept ratings to `NodeStateTracker`:
+  1. Reads `PipelineContext.concept_to_node_id` (populated by `GraphUpdateStage` in Stage 4, keyed by `concept.text.lower()`).
+  2. Iterates per-concept ratings from the batch result, looks up the target node, and calls `NodeStateTracker.append_quality(node_id, elaboration, charge)` on each.
+  3. `append_quality` records scores into `NodeState.quality_history` and derives a categorical `response_depth` for `all_response_depths` (bins: 0.125 / 0.375 / 0.625).
+- Passes global signals forward to Stage 6 via `PipelineContext.llm_global_signals`.
+
+### Stage 6 — StrategySelectionStage
+- `GlobalSignalDetectionService.detect()` no longer calls the LLM itself. It accepts `llm_global_signals` (from the bridge stage output) and computes session-level aggregates (`engagement.trend`) from rolling history.
+- The removed method `GlobalSignalDetectionService.detect_with_per_concept()` has been replaced by the prefetch/bridge split above.
 
 Three node signals surface the per-concept history as YAML-weightable bins:
 - `convgraph.node.llm.elaboration` → flattened sub-keys `convgraph.node.llm.elaboration.{low,mid,high}`
@@ -93,7 +104,7 @@ The LLM returns a JSON object with two top-level sections:
 | Strategy weight never triggers for a continuous signal | Weight key uses integer instead of bin name | Replace with `.low`, `.mid`, or `.high` |
 | `global_response_trend` always `stable` | Session history too short or LLM call failed silently | Check `GlobalSignalDetectionService` logs; minimum history requires 4+ turns |
 | `response.semantic.llm.response_depth` stuck at `surface` | No concepts extracted, or all elaboration scores are 1 | Check extraction output and per-concept elaboration scores |
-| `bridged_count=0` every turn; `convgraph.node.llm.has_quality_data` always False | `response.semantic.llm.elaboration` and/or `response.semantic.llm.charge` missing from `signals: llm:` in methodology YAML — `per_concept_classes` is empty so batch detector generates no per-concept records | Add `response.semantic.llm.elaboration` and `response.semantic.llm.charge` to `signals: llm:` in the YAML |
+| `bridged_count=0` every turn; `convgraph.node.llm.has_quality_data` always False | `response.semantic.llm.elaboration` and/or `response.semantic.llm.charge` missing from `signals: llm:` in methodology YAML — `per_concept_classes` is empty so batch detector generates no per-concept records; or `LLMSignalBridgeStage` not wired into pipeline | Add `response.semantic.llm.elaboration` and `response.semantic.llm.charge` to `signals: llm:` in the YAML; verify Stage 4.7 is in pipeline |
 | Per-concept records are empty dicts `{}` despite LLM responding with concept data | `_concept_fields` in batch_detector reading `.name` instead of `.text` on `ExtractedConcept` — lookup misses all concepts | Use `concept.text` (not `.name`) everywhere an `ExtractedConcept` label is accessed |
 
 ## Key Files
@@ -107,5 +118,7 @@ The LLM returns a JSON object with two top-level sections:
 | `src/signals/llm/llm_signal_base.py` | `BaseLLMSignal` base class |
 | `src/signals/llm/batch_detector.py` | `LLMBatchDetector` — prompt building, LLM call, parsing, normalisation, and `response_depth` derivation |
 | `src/signals/session/llm_response_trend.py` | `response.semantic.llm.engagement.trend` session-level signal |
-| `src/services/global_signal_detection_service.py` | Computes `global_response_trend` from rolling history |
+| `src/services/turn_pipeline/stages/llm_prefetch_stage.py` | Stage 3.1 — fires `LLMBatchDetector.detect()` as `asyncio.Task`, stores on `PipelineContext.llm_signal_task` |
+| `src/services/turn_pipeline/stages/llm_signal_bridge_stage.py` | Stage 4.7 — awaits LLM task, routes per-concept ratings to `NodeStateTracker`, passes global signals to Stage 6 |
+| `src/services/global_signal_detection_service.py` | Computes `global_response_trend` from rolling history; accepts `llm_global_signals` param (no longer calls LLM itself) |
 | `config/methodologies/*.yaml` | `signals: llm:` lists that gate which signals are active |

@@ -16,8 +16,10 @@ Convenience properties on `PipelineContext` derive computed values from contract
 | 2 | UtteranceSavingStage | `UtteranceSavingOutput` | `turn_number`, `user_utterance_id`, `user_utterance` |
 | 2.5 | SRLPreprocessingStage | `SrlPreprocessingOutput` | `discourse_relations`, `srl_frames`, `discourse_count`, `frame_count`, `timestamp` |
 | 3 | ExtractionStage | `ExtractionOutput` | `extraction` (ExtractionResult), `methodology`, `timestamp`, `concept_count`, `relationship_count` |
-| 4 | GraphUpdateStage | `GraphUpdateOutput` | `nodes_added`, `edges_added`, `node_count`, `edge_count`, `timestamp`. Performs permitted_connections validation for cross-turn edges after dedup resolution. Populates `PipelineContext.concept_to_node_id` (keyed by `concept.text.lower()`) for the per-concept→node bridge consumed in Stage 6. |
+| 3.1 | LLMPrefetchStage | *(no contract — stores asyncio.Task)* | Fires LLM batch signal detection as an `asyncio.Task` immediately after extraction, storing it on `PipelineContext._llm_prefetch_task`. The task runs concurrently with Stages 4–4.5, overlapping the LLM call latency with graph update and slot discovery. |
+| 4 | GraphUpdateStage | `GraphUpdateOutput` | `nodes_added`, `edges_added`, `node_count`, `edge_count`, `timestamp`. Performs permitted_connections validation for cross-turn edges after dedup resolution. Populates `PipelineContext.concept_to_node_id` (keyed by `concept.text.lower()`) for the per-concept→node bridge consumed in Stage 4.7 and Stage 6. |
 | 4.5 | SlotDiscoveryStage | `SlotDiscoveryOutput` | `slots_created`, `slots_updated`, `mappings_created`, `timestamp` |
+| 4.7 | LLMSignalBridgeStage | `LLMSignalBridgeOutput` | `global_signals`, `per_concept_ratings`, `bridge_applied` (bool), `bridged_count` (int), `error` (Optional[str]), `timestamp`. Awaits the prefetch task from Stage 3.1, routes per-concept LLM ratings to `NodeStateTracker.append_quality()` via `concept_to_node_id`, and stores the bridge output on the context for downstream consumption. |
 | 5 | StateComputationStage | `StateComputationOutput` | `graph_state`, `recent_nodes`, `computed_at`, `saturation_metrics`, `canonical_graph_state` |
 | 6 | StrategySelectionStage | `StrategySelectionOutput` | `strategy`, `focus`, `selected_at`, `signals`, `node_signals`, `strategy_alternatives` (uniform 3-tuples `(strategy, node_id_or_None, score)`), `generates_closing_question`, `focus_mode`, `score_decomposition` (unified joint scoring output), `threshold_fallback` |
 | 7 | ContinuationStage | `ContinuationOutput` | `should_continue`, `focus_concept` (Union[str, Dict[str, str]] — dict with `label`+`node_type` when resolved from graph node, plain string for backward compat/when not continuing), `reason`, `turns_remaining`, `timestamp` |
@@ -33,6 +35,15 @@ Convenience properties on `PipelineContext` derive computed values from contract
 
 Stage 2.5 (SRL) is gated by `settings.enable_srl`. Stage 4.5 (SlotDiscovery) is gated by `settings.enable_canonical_slots`. When a stage is skipped, it still writes a default/empty contract to its context field — it does not leave the field as `None`. Downstream stages can safely access these contracts without null-guarding.
 
+### Latency-Optimized Stages (3.1 + 4.7)
+
+Stages 3.1 and 4.7 form a latency-optimized pair for LLM signal detection:
+
+- **Stage 3.1 (LLMPrefetchStage)** fires the LLM batch signal detection call as a background `asyncio.Task` immediately after extraction completes. It does not produce a contract — instead it stores the task reference on `PipelineContext._llm_prefetch_task`.
+- **Stage 4.7 (LLMSignalBridgeStage)** awaits the prefetch task and routes the results. By placing the await after Stages 4 and 4.5, the LLM call overlaps with graph update and slot discovery, hiding most or all of the LLM latency behind work the pipeline already needs to do.
+
+The bridge stage writes an `LLMSignalBridgeOutput` contract even on error (with `bridge_applied=False` and the error message in the `error` field), so downstream stages can safely access the contract without null-guarding.
+
 ### TurnResult Assembly
 
 `ScoringPersistenceStage` (Stage 10) assembles the final `TurnResult` from the completed context. Any field that is not forwarded from a contract at this point will be absent from the API response. Missing fields in the API response always trace back to this assembly, not to the pipeline stages themselves.
@@ -41,7 +52,7 @@ Stage 2.5 (SRL) is gated by `settings.enable_srl`. Stage 4.5 (SlotDiscovery) is 
 
 **StrategyConfig.valid_when gate.** Each `StrategyConfig` (defined in `src/methodologies/registry.py`) has an optional `valid_when` field — a string naming a boolean signal. When set, the (strategy, node) pair is skipped during joint scoring if the named signal is not `True` in the node's signal dict. This gates chain-aware strategies (e.g., `bridge`, `branch`, `anchor`) so they are only scored when chain topology signals indicate a relevant graph structure. Strategies without `valid_when` are always eligible.
 
-**Per-concept → node bridge.** Between global and node signal detection, Stage 6 iterates `per_concept_ratings` from `GlobalSignalDetectionService.detect_with_per_concept()` and, for each concept whose name appears in `context.concept_to_node_id`, calls `node_tracker.append_quality(node_id, elaboration, charge)`. This populates `NodeState.quality_history` so the downstream `convgraph.node.llm.elaboration` / `convgraph.node.llm.charge` / `convgraph.node.llm.has_quality_data` signals have fresh data within the same turn.
+**Per-concept → node bridge (Stage 4.7).** The LLM signal detection call is fired as a prefetch task in Stage 3.1 and awaited in Stage 4.7 (`LLMSignalBridgeStage`). Stage 4.7 iterates `per_concept_ratings` from the prefetch result and, for each concept whose name appears in `context.concept_to_node_id`, calls `node_tracker.append_quality(node_id, elaboration, charge)`. This populates `NodeState.quality_history` so the downstream `convgraph.node.llm.elaboration` / `convgraph.node.llm.charge` / `convgraph.node.llm.has_quality_data` signals have fresh data within the same turn. The bridge output is stored as `LLMSignalBridgeOutput` on the context; Stage 6 reads the pre-populated node signals rather than performing its own LLM call.
 
 **Joint scoring architecture.** `MethodologyStrategyService.select_strategy_and_focus()` partitions strategies by `node_binding`:
 - `node_binding='required'` strategies are scored via `rank_strategy_node_pairs()` — each (strategy, node) pair gets merged global+node signals, valid_when gates filter ineligible pairs
@@ -65,6 +76,8 @@ Both candidate pools are merged and sorted by score. The highest-scoring pair de
 4. Optional stages (2.5 and 4.5) write their contracts even when skipped — they write empty/default contracts, not `None`. This ensures downstream code accessing e.g. `context.srl_preprocessing_output.discourse_relations` gets an empty list rather than an `AttributeError`.
 5. `TurnResult` is assembled from the final context in `ScoringPersistenceStage` — missing fields there propagate directly as missing fields in the API response.
 6. GraphUpdateStage performs permitted_connections validation for cross-turn edges after dedup resolution. Edges violating the methodology schema are rejected with `invalid_connection_post_dedup` log. This validation uses the resolved KGNode types (post-dedup), not the LLM-assigned types from extraction.
+7. `LLMPrefetchStage` (3.1) must run after `ExtractionStage` (3) and before `LLMSignalBridgeStage` (4.7). The bridge stage awaits the prefetch task; if the prefetch was never fired, the bridge writes an error contract with `bridge_applied=False`.
+8. `LLMSignalBridgeStage` (4.7) must run after `GraphUpdateStage` (4) because it depends on `context.concept_to_node_id` populated during graph update. The prefetch task is independent of graph state and runs concurrently.
 
 ---
 
@@ -80,13 +93,15 @@ Both candidate pools are merged and sorted by score. The highest-scoring pair de
 | Cross-turn edges accepted despite violating permitted_connections | ExtractionService only validates current-turn concepts; cross-turn edges bypass validation | GraphUpdateStage now validates post-dedup; check for `invalid_connection_post_dedup` log if edges are unexpectedly rejected |
 | Strategy never appears in scored candidates despite being in YAML | Strategy has `valid_when` gate and the named signal is `False`/`None`/missing for all nodes | Check `strategy_node_pair_gated` log entries; verify the gate signal is being produced by the relevant signal detector |
 | `revitalize` selected unexpectedly (score was adequate for another strategy) | Global fatigue or low engagement triggered threshold fallback, overriding the best-scored candidate | Check `strategy_threshold_fallback` log for `global_fatigue_or_low_engagement` reason; inspect `response.semantic.llm.engagement.trend` (fatigued) and `response.semantic.llm.engagement` signal values |
+| `LLMSignalBridgeOutput` has `bridge_applied=False` | Prefetch task failed or `concept_to_node_id` was empty when bridge ran | Check `error` field in the bridge output; verify `GraphUpdateStage` populated `concept_to_node_id` before Stage 4.7; check logs for prefetch task exceptions |
+| LLM signal values missing for nodes in Stage 6 despite successful extraction | Bridge stage (4.7) did not route per-concept ratings to node tracker — `concept_to_node_id` mapping may be stale or concepts may not match | Verify `concept.text.lower()` keys in `concept_to_node_id` match the concept names from LLM signal detection; check `bridged_count` in bridge output |
 
 ---
 
 ## Key Files
 
 - `src/services/turn_pipeline/context.py` — `PipelineContext` dataclass: contract fields, ordering-enforced convenience properties
-- `src/domain/models/pipeline_contracts.py` — All 12 contract Pydantic models
+- `src/domain/models/pipeline_contracts.py` — All 14 contract Pydantic models
 - `src/services/session_service.py` — `_build_pipeline()`: stage wiring and execution order
 - `src/services/turn_pipeline/stages/scoring_persistence_stage.py` — `TurnResult` assembly from final context
 - `src/services/graph_service.py` — Cross-turn edge validation in `_add_edge_from_relationship()` (see `graph-dedup.md`)

@@ -57,11 +57,27 @@ avoid dominance.
 
 The LLM signal detector produces **per-concept ratings** (`elaboration`, `charge`)
 for each extracted concept, plus **global ratings** (`certainty`, `engagement`).
-During Stage 6 (`strategy_selection_stage.py`), per-concept ratings are mapped
-from extracted concepts to graph nodes via `concept_to_node_id` and appended to
-`NodeState.quality_history` via `NodeStateTracker.append_quality()`.
+Per-concept ratings are routed from concepts to graph nodes in a dedicated
+pipeline stage:
 
-Node-level signal detectors then consume this history:
+- **LLMPrefetchStage (Stage 3.1)** fires the LLM batch call as an `asyncio.Task`
+  (non-blocking, overlapped with Stages 3–4.5).
+- **LLMSignalBridgeStage (Stage 4.7)** awaits the prefetch task, maps per-concept
+  ratings to graph nodes via `concept_to_node_id`, and appends them to
+  `NodeState.quality_history` via `NodeStateTracker.append_quality()`.
+  The stage emits an `LLMSignalBridgeOutput` contract on `PipelineContext`.
+
+Stage 4.7 is the earliest point where all bridge dependencies are satisfied:
+concept_to_node_id (from GraphUpdateStage, Stage 4), NodeStateTracker keys
+(from Stages 4 + 4.5), and LLM results (from Stage 3.1).
+
+**MethodologyStrategyService** reads global LLM signals from
+`context.llm_signal_bridge_output.global_signals` (the Stage 4.7 contract)
+and passes them to `GlobalSignalDetectionService.detect()` via the
+`llm_global_signals` parameter, which merges them into the non-LLM global
+signals. The old `detect_with_per_concept()` method has been removed.
+
+Node-level signal detectors consume the quality history appended by Stage 4.7:
 
 | Signal key | Source | Description |
 |---|---|---|
@@ -462,8 +478,10 @@ Phase 4 demonstrated that weight tuning must follow a strict order:
 |---|---|
 | `src/methodologies/scoring.py` | `rank_strategy_node_pairs()`, `rank_strategies()`, `partition_signal_weights()`, `ScoredCandidate`, `SignalContribution` |
 | `src/methodologies/registry.py` | `MethodologyRegistry`, `StrategyConfig` (with `valid_when` field), `PhaseConfig` — YAML loading and validation |
-| `src/services/methodology_strategy_service.py` | Orchestrates joint strategy-node scoring via `select_strategy_and_focus()`; threshold fallback logic; retrieves phase weights/bonuses from loaded config |
+| `src/services/methodology_strategy_service.py` | Orchestrates joint strategy-node scoring via `select_strategy_and_focus()`; reads LLM global signals from `context.llm_signal_bridge_output`; threshold fallback logic; retrieves phase weights/bonuses from loaded config |
 | `src/services/turn_pipeline/stages/strategy_selection_stage.py` | Pipeline stage that calls `MethodologyStrategyService` |
+| `src/services/turn_pipeline/stages/llm_signal_bridge_stage.py` | Stage 4.7: awaits LLM prefetch task, routes per-concept ratings to `NodeStateTracker.append_quality()`, emits `LLMSignalBridgeOutput` contract |
+| `src/services/global_signal_detection_service.py` | Detects non-LLM global signals; merges pre-fetched LLM global signals from Stage 4.7 contract via `llm_global_signals` parameter |
 | `src/signals/graph/chain_topology_signals.py` | `ChainTopologySignalDetector` — computes per-node chain topology signals (gap_above, gap_below, level_skip, branching_deficit, fan_in, level_gap_size, chain.has_attribute_foundation, chain.has_terminal_apex); flat sentinel classes for registry |
 | `src/signals/graph/graph_traversal.py` | Shared graph traversal utilities — `build_adjacency_list`, `build_reverse_adjacency_list`, `get_node_type_map`, `bfs_reachable`, `bfs_to_target` |
 | `config/methodologies/means_end_chain_v2_strict.yaml` | Reference MEC methodology YAML with 6 chain-aware strategies, valid_when gates, signal_weights, score_threshold, and phases |
