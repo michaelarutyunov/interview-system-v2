@@ -17,7 +17,7 @@ Key responsibilities:
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List, Dict, Any, Union, TYPE_CHECKING
+from typing import Any, Optional, List, Dict, Union, TYPE_CHECKING
 
 from src.domain.models.knowledge_graph import GraphState, KGNode
 from src.domain.models.utterance import Utterance
@@ -28,6 +28,7 @@ from src.domain.models.pipeline_contracts import (
     ExtractionOutput,
     GraphUpdateOutput,
     SlotDiscoveryOutput,
+    LLMSignalBridgeOutput,
     StateComputationOutput,
     StrategySelectionOutput,
     ContinuationOutput,
@@ -59,6 +60,7 @@ class PipelineContext:
     - Stage 3: ExtractionOutput - extracted concepts and relationships
     - Stage 4: GraphUpdateOutput - nodes and edges added to graph
     - Stage 4.5: SlotDiscoveryOutput - canonical slot mappings (dual-graph)
+    - Stage 4.7: LLMSignalBridgeOutput - LLM signal bridge (prefetch await + node routing)
     - Stage 5: StateComputationOutput - graph state metrics, recent nodes, saturation
     - Stage 6: StrategySelectionOutput - selected strategy, focus, signals
     - Stage 7: ContinuationOutput - should_continue flag, focus concept
@@ -101,6 +103,9 @@ class PipelineContext:
     # Stage 4.5: SlotDiscoveryStage output
     slot_discovery_output: Optional[SlotDiscoveryOutput] = None
 
+    # Stage 4.7: LLMSignalBridgeStage output
+    llm_signal_bridge_output: Optional[LLMSignalBridgeOutput] = None
+
     # Stage 5: StateComputationStage output
     state_computation_output: Optional[StateComputationOutput] = None
 
@@ -123,9 +128,14 @@ class PipelineContext:
     # Ephemeral intra-stage state (not persisted, not part of any contract)
     # =============================================================================
 
+    # asyncio.Task for LLM batch call, fired by LLMPrefetchStage (Stage 3.1),
+    # awaited by LLMSignalBridgeStage (Stage 4.7). Not a contract field — this
+    # is a transient reference that only exists within a single turn.
+    _llm_prefetch_task: Any = None
+
     # Populated by GraphUpdateStage (Stage 4) from GraphService.add_extraction_to_graph:
     # maps concept.text.lower() → surface node.id for all concepts in the current turn's
-    # extraction. Consumed by MethodologyStrategyService bridge step to route per-concept
+    # extraction. Consumed by LLMSignalBridgeStage (Stage 4.7) to route per-concept
     # LLM ratings (elaboration, charge) to specific nodes via NodeStateTracker.append_quality.
     concept_to_node_id: Dict[str, str] = field(default_factory=dict)
 

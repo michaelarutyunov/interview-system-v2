@@ -89,8 +89,6 @@ class ComposedSignalDetector:
         # LLM detector will be set separately via set_llm_detector()
         self._llm_detector: Optional[LLMBatchDetector] = None
         self.llm_signal_names = llm_signal_names
-        # Per-concept ratings from last detect() call — read via get_last_per_concept_ratings().
-        self._last_per_concept_ratings: dict[str, dict[str, Any]] = {}
 
         # Combine all detectors (will be set after LLM detector is configured)
         self.detectors: List[SignalDetector] = []
@@ -205,16 +203,13 @@ class ComposedSignalDetector:
                 )
 
                 # Merge only the global sub-dict into flat all_signals.
-                # Stash per-concept ratings on self for caller retrieval.
                 global_part = llm_signals.get("global", {})
-                per_concept_part = llm_signals.get("concepts", {})
                 all_signals.update(global_part)
-                self._last_per_concept_ratings = per_concept_part
 
                 log.info(
                     "llm_batch_detection_complete",
                     global_signals=list(global_part.keys()),
-                    per_concept_count=len(per_concept_part),
+                    per_concept_count=len(llm_signals.get("concepts", {})),
                 )
 
             except Exception as e:

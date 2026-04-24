@@ -92,17 +92,21 @@ class MethodologyStrategyService:
         Evaluates all eligible (strategy, node) pairs by combining global signals
         with node-level signals. Selects the globally highest-scoring pair.
 
+        LLM signals are read from context.llm_signal_bridge_output (produced by
+        LLMSignalBridgeStage at Stage 4.7), not detected here.
+
         Detection flow:
-        1. Detect global signals (response.semantic.llm.response_depth, convgraph.*, interview.*)
-        2. Detect node-level signals (convgraph.node.exhaustion, convgraph.node.focus.streak, etc.)
-        3. Detect interview phase (early/mid/late) for phase weights/bonuses
-        4. Score all eligible (strategy, node) pairs using combined signals
-        5. Select highest-scoring pair
+        1. Read LLM global signals from Stage 4.7 contract
+        2. Detect non-LLM global signals (convgraph.*, interview.*) and merge LLM signals
+        3. Detect node-level signals (convgraph.node.exhaustion, convgraph.node.focus.streak, etc.)
+        4. Detect interview phase (early/mid/late) for phase weights/bonuses
+        5. Score all eligible (strategy, node) pairs using combined signals
+        6. Select highest-scoring pair
 
         Args:
-            context: Pipeline context with methodology, node_tracker, recent_utterances
+            context: Pipeline context with methodology, node_tracker, llm_signal_bridge_output
             graph_state: Current knowledge graph state with node/edge counts
-            response_text: User's response text for LLM signal analysis
+            response_text: User's response text
 
         Returns:
             Tuple of (strategy_name, focus_node_id, alternatives, global_signals,
@@ -157,53 +161,26 @@ class MethodologyStrategyService:
                 "Ensure node_tracker is set in PipelineContext."
             )
 
-        # Detect global signals AND per-concept ratings (single LLM call).
-        (
-            global_signals,
-            per_concept_ratings,
-        ) = await self.global_signal_service.detect_with_per_concept(
+        # Get LLM global signals from Stage 4.7 contract (fired by LLMPrefetchStage
+        # at Stage 3.1, bridged by LLMSignalBridgeStage at Stage 4.7).
+        llm_global_signals: Dict[str, Any] = {}
+        if context.llm_signal_bridge_output:
+            llm_global_signals = context.llm_signal_bridge_output.global_signals
+
+        # Detect non-LLM global signals and merge LLM signals from Stage 4.7.
+        global_signals = await self.global_signal_service.detect(
             methodology_name=methodology_name,
             context=context,
             graph_state=graph_state,
             response_text=response_text,
+            llm_global_signals=llm_global_signals,
         )
 
         log.debug(
             "global_signals_detected",
             methodology=methodology_name,
             signals=global_signals,
-            per_concept_count=len(per_concept_ratings),
-        )
-
-        # Bridge: route per-concept LLM ratings → NodeStateTracker.append_quality
-        # via concept_to_node_id (populated by GraphUpdateStage). This replaces
-        # the previous_focus-only append_response_signal path with per-concept
-        # node-scoped quality history. Spec: docs/drafts/signal-migration-contract.md §C.
-        concept_to_node_id = getattr(context, "concept_to_node_id", {}) or {}
-        bridged_count = 0
-        for concept_key, ratings in per_concept_ratings.items():
-            node_id = concept_to_node_id.get(concept_key)
-            if not node_id:
-                # Concept not mapped to a node (e.g. extraction dedup collapsed it
-                # into an earlier concept, or non-concept text). Skip silently.
-                continue
-            elaboration = ratings.get("response.semantic.llm.elaboration")
-            charge = ratings.get("response.semantic.llm.charge")
-            if elaboration is None and charge is None:
-                continue
-            await node_tracker.append_quality(
-                node_id=node_id,
-                elaboration=float(elaboration) if elaboration is not None else 0.0,
-                charge=float(charge) if charge is not None else 0.0,
-            )
-            bridged_count += 1
-
-        log.info(
-            "per_concept_ratings_bridged",
-            methodology=methodology_name,
-            bridged_count=bridged_count,
-            total_ratings=len(per_concept_ratings),
-            mapped_concepts=len(concept_to_node_id),
+            has_llm_signals=bool(llm_global_signals),
         )
 
         # Detect node-level signals (delegated to NodeSignalDetectionService)

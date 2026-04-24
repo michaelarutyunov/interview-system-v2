@@ -410,6 +410,45 @@ class ContinuationOutput(BaseModel):
     )
 
 
+class LLMSignalBridgeOutput(BaseModel):
+    """Contract: LLMSignalBridgeStage output (Stage 4.7).
+
+    Stage 4.7 awaits the LLM prefetch task (fired by LLMPrefetchStage at Stage 3.1),
+    routes per-concept ratings into NodeStateTracker via concept_to_node_id,
+    and emits this contract for downstream stages.
+
+    When the LLM call failed (network error, timeout, invalid JSON), bridge_applied
+    is False and downstream stages fall back to neutral signal defaults.
+    """
+
+    global_signals: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Global LLM signals (response_depth, engagement, certainty, etc.)",
+    )
+    per_concept_ratings: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Per-concept LLM ratings keyed by concept text (lowercase). "
+        "Each value maps signal_name to normalized score.",
+    )
+    bridge_applied: bool = Field(
+        default=False,
+        description="True if at least one concept was bridged to NodeStateTracker",
+    )
+    bridged_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of concepts successfully bridged",
+    )
+    error: Optional[str] = Field(
+        default=None,
+        description="Error message if LLM prefetch task failed",
+    )
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When bridge processing completed",
+    )
+
+
 class ScoringPersistenceOutput(BaseModel):
     """Contract: ScoringPersistenceStage output (Stage 10).
 

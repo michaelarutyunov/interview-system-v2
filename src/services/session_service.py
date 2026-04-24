@@ -44,8 +44,10 @@ from src.services.turn_pipeline.stages import (
     UtteranceSavingStage,
     SRLPreprocessingStage,
     ExtractionStage,
+    LLMPrefetchStage,
     GraphUpdateStage,
     SlotDiscoveryStage,
+    LLMSignalBridgeStage,
     StateComputationStage,
     StrategySelectionStage,
     ContinuationStage,
@@ -256,6 +258,8 @@ class SessionService:
             ExtractionStage(
                 extraction_service=self.extraction,
             ),
+            # Stage 3.1: Fire LLM batch signal call async (overlaps with Stages 4-4.5)
+            LLMPrefetchStage(),
             GraphUpdateStage(
                 graph_service=self.graph,
             ),
@@ -265,6 +269,8 @@ class SessionService:
             SlotDiscoveryStage(
                 slot_service=canonical_slot_service, graph_service=self.graph
             ),
+            # Stage 4.7: Await LLM prefetch, bridge per-concept ratings to node tracker
+            LLMSignalBridgeStage(),
         ]
 
         # StateComputationStage: Refresh graph state and compute canonical graph state

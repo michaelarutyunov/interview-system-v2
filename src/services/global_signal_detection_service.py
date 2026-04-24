@@ -1,9 +1,14 @@
 """Global signal detection service.
 
 Extracts global signal detection from MethodologyStrategyService for single responsibility.
+
+LLM signal detection has been moved to the pipeline: LLMPrefetchStage (Stage 3.1) fires
+the LLM batch call, LLMSignalBridgeStage (Stage 4.7) awaits it and emits the contract.
+This service now detects non-LLM signals and merges pre-fetched LLM global signals
+passed via the `llm_global_signals` parameter.
 """
 
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import structlog
 
@@ -20,7 +25,7 @@ class GlobalSignalDetectionService:
     """Detects global-level signals from response text and graph state.
 
     Global signals include:
-    - response.semantic.llm.response_depth: How detailed the response is
+    - response.semantic.llm.response_depth: How detailed the response is (from Stage 4.7 contract)
     - response.semantic.llm.engagement.trend: Trend over recent responses (improving/degrading/stable)
     - graph.* signals: Graph state metrics
     """
@@ -44,15 +49,22 @@ class GlobalSignalDetectionService:
         context: "PipelineContext",
         graph_state: "GraphState",
         response_text: str,
+        llm_global_signals: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """
-        Detect all global signals for the given context.
+        """Detect all global signals for the given context.
+
+        Detects non-LLM global signals via ComposedSignalDetector, then merges
+        pre-fetched LLM global signals from Stage 4.7 contract (passed via
+        llm_global_signals parameter). Finally, detects the response trend signal
+        which depends on response_depth from the LLM signals.
 
         Args:
             methodology_name: Name of methodology (e.g., "means_end_chain")
             context: Pipeline context
             graph_state: Current knowledge graph state
             response_text: User's response text
+            llm_global_signals: Pre-fetched LLM global signals from Stage 4.7 contract.
+                When provided, merged into the result instead of making the LLM call here.
 
         Returns:
             Dict mapping signal_name to value (e.g., {"response.semantic.llm.response_depth": "deep"})
@@ -75,65 +87,16 @@ class GlobalSignalDetectionService:
                 f"and is properly registered."
             )
 
-        # Detect global signals via methodology's signal detector
+        # Detect non-LLM global signals via methodology's signal detector.
+        # Note: ComposedSignalDetector is created without _llm_detector, so it
+        # skips the LLM batch call block and only detects graph/temporal/meta signals.
         signal_detector = self.methodology_registry.create_signal_detector(config)
-
-        # Set up LLM batch detector for LLM signals (response_depth, engagement, etc.)
-        llm_signal_names = signal_detector.llm_signal_names
-        if llm_signal_names:
-            from src.signals.llm.batch_detector import LLMBatchDetector
-            from src.llm.client import get_llm_client
-
-            try:
-                scoring_client = get_llm_client("signal_scoring")
-                llm_detector = LLMBatchDetector(scoring_client)
-                signal_detector.set_llm_detector(llm_detector)
-                log.debug(
-                    "llm_detector_set",
-                    methodology=methodology_name,
-                    llm_signals=list(llm_signal_names),
-                )
-            except Exception as e:
-                log.error(
-                    "llm_detector_setup_failed",
-                    methodology=methodology_name,
-                    error=str(e),
-                    exc_info=True,
-                )
-
-        # Extract the previous question (the one that prompted this response)
-        # so the LLM scorer can assess response adequacy in context
-        last_question = None
-        if context.recent_utterances:
-            for utt in reversed(context.recent_utterances):
-                if utt.get("role") == "system":
-                    last_question = utt.get("content")
-                    break
-
-        log.debug(
-            "signal_detector_context_prepared",
-            methodology=methodology_name,
-            has_last_question=bool(last_question),
-            recent_utterance_count=len(context.recent_utterances)
-            if context.recent_utterances
-            else 0,
-        )
-
-        # Thread extracted concepts through to batch detector so per-concept
-        # signals (elaboration, charge) have targets. Empty list is safe for
-        # methodologies without per-concept signals (batch detector will only
-        # raise if concepts list is empty AND per-concept signals are registered).
-        concepts = []
-        if context.extraction_output and context.extraction_output.extraction:
-            concepts = list(context.extraction_output.extraction.concepts or [])
 
         try:
             global_signals = await signal_detector.detect(
                 context,
                 graph_state,
                 response_text,
-                question=last_question,
-                concepts=concepts,
             )
         except Exception as e:
             log.error(
@@ -144,6 +107,15 @@ class GlobalSignalDetectionService:
                 exc_info=True,
             )
             raise
+
+        # Merge pre-fetched LLM global signals from Stage 4.7 contract
+        if llm_global_signals:
+            global_signals.update(llm_global_signals)
+            log.debug(
+                "llm_global_signals_merged",
+                methodology=methodology_name,
+                merged_keys=list(llm_global_signals.keys()),
+            )
 
         log.debug(
             "global_signals_detected",
@@ -181,38 +153,4 @@ class GlobalSignalDetectionService:
             )
             global_signals["response.semantic.llm.engagement.trend"] = "stable"
 
-        # Stash per-concept ratings from the batch detector for the bridge step
-        # in MethodologyStrategyService (read via detect_with_per_concept).
-        self._last_per_concept_ratings = getattr(
-            signal_detector, "_last_per_concept_ratings", {}
-        )
-
         return global_signals
-
-    async def detect_with_per_concept(
-        self,
-        methodology_name: str,
-        context: "PipelineContext",
-        graph_state: "GraphState",
-        response_text: str,
-    ) -> tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
-        """Detect global signals AND return per-concept LLM ratings.
-
-        Used by MethodologyStrategyService bridge step to route per-concept
-        elaboration/charge into NodeStateTracker.append_quality() via the
-        concept→node_id map from PipelineContext.
-
-        Returns:
-            Tuple of (global_signals_dict, per_concept_ratings_dict).
-            per_concept_ratings_dict maps concept.text (lowercased) → {signal_name: value}.
-        """
-        global_signals = await self.detect(
-            methodology_name=methodology_name,
-            context=context,
-            graph_state=graph_state,
-            response_text=response_text,
-        )
-        per_concept = getattr(self, "_last_per_concept_ratings", {}) or {}
-        # Normalize keys to lowercase to align with concept_to_node_id map.
-        per_concept_lc = {str(k).lower(): v for k, v in per_concept.items()}
-        return global_signals, per_concept_lc

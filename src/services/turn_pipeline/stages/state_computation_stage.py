@@ -229,9 +229,9 @@ class StateComputationStage(TurnStage):
 
         # --- Quality degradation tracking (shallow responses) ---
         if context.node_tracker and context.node_tracker.states:
-            # Check if the most recent response depths are all shallow/surface
-            # Note: response_depth is appended in Stage 6 (StrategySelectionStage)
-            # so we need to look at the PREVIOUS turn's data
+            # Check if the most recent response depths are all shallow/surface.
+            # response_depth is appended by LLMSignalBridgeStage (Stage 4.7) via
+            # NodeStateTracker.append_quality, which runs before this stage.
             has_any_depth_data = False
             has_any_deep = False
             for ns in context.node_tracker.states.values():

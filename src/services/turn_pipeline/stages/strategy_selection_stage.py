@@ -218,11 +218,11 @@ class StrategySelectionStage(TurnStage):
             response_text,
         )
 
-        # Note: per-concept quality (elaboration/charge → response_depth) is now
-        # routed via MethodologyStrategyService bridge into NodeStateTracker
-        # .append_quality for each extracted concept's node. The previous
-        # previous_focus-only append_response_signal path has been removed
-        # (spec: docs/drafts/signal-migration-contract.md §C).
+        # Note: per-concept quality (elaboration/charge → response_depth) is routed
+        # by LLMSignalBridgeStage (Stage 4.7) into NodeStateTracker.append_quality
+        # for each extracted concept's node. LLM global signals are merged by
+        # GlobalSignalDetectionService.detect() from the Stage 4.7 contract.
+        # The previous bridge in MethodologyStrategyService has been removed.
 
         # Alternatives are already (strategy_name, score) tuples from two-stage selection
         return (

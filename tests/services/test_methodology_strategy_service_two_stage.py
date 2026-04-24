@@ -22,6 +22,8 @@ def _make_context(methodology="means_end_chain", turn_number=5, max_turns=20):
     ctx.node_tracker = MagicMock()
     ctx.node_tracker.previous_focus = None
     ctx.recent_utterances = []
+    # Stage 4.7 contract — None means LLM signals are merged by GlobalSignalDetectionService.detect()
+    ctx.llm_signal_bridge_output = None
     return ctx
 
 
@@ -58,10 +60,6 @@ class TestJointScoring:
         service.global_signal_service.detect.return_value = {
             "meta.interview_progress": 0.9
         }
-        service.global_signal_service.detect_with_per_concept.return_value = (
-            {"meta.interview_progress": 0.9},
-            {},
-        )
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {
             "node_1": {"convgraph.node.exhaustion": 0.5}
@@ -111,10 +109,6 @@ class TestJointScoring:
         service.global_signal_service.detect.return_value = {
             "response.semantic.llm.response_depth": 0.1
         }
-        service.global_signal_service.detect_with_per_concept.return_value = (
-            {"response.semantic.llm.response_depth": 0.1},
-            {},
-        )
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {
             "node_a": {"convgraph.node.exhaustion": 0.8},  # high → .low=False
@@ -160,10 +154,6 @@ class TestJointScoring:
         service.global_signal_service.detect.return_value = {
             "response.semantic.llm.response_depth": 0.1
         }
-        service.global_signal_service.detect_with_per_concept.return_value = (
-            {"response.semantic.llm.response_depth": 0.1},
-            {},
-        )
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {"node_1": {}}
 
@@ -229,13 +219,6 @@ class TestJointScoringDecompositionCapture:
             "response.semantic.llm.response_depth": 0.1,  # low → True
             "response.semantic.llm.engagement": 0.9,  # high → True
         }
-        service.global_signal_service.detect_with_per_concept.return_value = (
-            {
-                "response.semantic.llm.response_depth": 0.1,  # low → True
-                "response.semantic.llm.engagement": 0.9,  # high → True
-            },
-            {},
-        )
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {
             "node_a": {"convgraph.node.exhaustion": 0.8},
@@ -289,10 +272,6 @@ class TestJointScoringDecompositionCapture:
         service.global_signal_service.detect.return_value = {
             "meta.interview_progress": 0.9
         }
-        service.global_signal_service.detect_with_per_concept.return_value = (
-            {"meta.interview_progress": 0.9},
-            {},
-        )
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {}
 
@@ -366,7 +345,6 @@ class TestJointScoringOverride:
 
         service.global_signal_service = AsyncMock()
         service.global_signal_service.detect.return_value = {}  # No global signals
-        service.global_signal_service.detect_with_per_concept.return_value = ({}, {})
 
         # Node A: has gap_above=True, NOT level_skip → only ascend is eligible
         # Node B: has level_skip=True, NOT gap_above → only bridge is eligible
@@ -429,7 +407,6 @@ class TestJointScoringOverride:
 
         service.global_signal_service = AsyncMock()
         service.global_signal_service.detect.return_value = {}
-        service.global_signal_service.detect_with_per_concept.return_value = ({}, {})
 
         # No nodes pass the gap_above gate
         service.node_signal_service = AsyncMock()
@@ -475,12 +452,6 @@ class TestJointScoringOverride:
         service.global_signal_service.detect.return_value = {
             "response.semantic.llm.engagement": 0.1,  # low -> True
         }
-        service.global_signal_service.detect_with_per_concept.return_value = (
-            {
-                "response.semantic.llm.engagement": 0.1,  # low -> True
-            },
-            {},
-        )
         service.node_signal_service = AsyncMock()
         service.node_signal_service.detect.return_value = {"node_1": {}}
 
