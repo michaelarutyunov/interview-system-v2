@@ -392,6 +392,7 @@ class SessionService:
                 error=str(e),
                 error_type=type(e).__name__,
             )
+
     def _warmup_models(self) -> None:
         """Eagerly load ML models to avoid latency on first pipeline turn.
 
