@@ -49,6 +49,8 @@ session_service:
   context_node_limit: 5
   # Number of recent utterances to include in extraction context
   extraction_context_limit: 5
+  # Maximum surface node labels to include in extraction prompt for cross-turn bridging
+  extraction_node_label_limit: 50
 
 # ============================================================================
 # Deduplication Thresholds

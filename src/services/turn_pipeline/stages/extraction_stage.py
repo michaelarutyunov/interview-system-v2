@@ -330,8 +330,11 @@ class ExtractionStage(TurnStage):
         if not labels:
             return ""
 
-        # Limit to most recent 30 labels to avoid prompt bloat
-        labels_to_show = labels[-30:]
+        # Limit to most recent N labels to avoid prompt bloat (configurable)
+        from src.core.config import interview_config
+
+        limit = interview_config.session_service.extraction_node_label_limit
+        labels_to_show = labels[-limit:] if limit > 0 else []
         label_items = "\n".join(f'  - "{label}"' for label in labels_to_show)
 
         return (

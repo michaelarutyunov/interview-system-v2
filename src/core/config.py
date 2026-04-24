@@ -256,6 +256,12 @@ class SessionServiceConfig(BaseModel):
     extraction_context_limit: int = Field(
         default=5, ge=1, le=20, description="Recent utterances for extraction context"
     )
+    extraction_node_label_limit: int = Field(
+        default=50,
+        ge=1,
+        le=200,
+        description="Maximum surface node labels included in extraction prompt for cross-turn bridging",
+    )
 
 
 class PhasesConfig(BaseModel):
