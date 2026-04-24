@@ -66,3 +66,47 @@ class TestSRLServiceReference:
         )
 
         assert service._srl_service is None
+
+
+class TestWarmupModels:
+    """Test _warmup_models eagerly loads ML models."""
+
+    @patch("src.services.session_service.settings")
+    def test_warmup_skips_srl_when_disabled(self, mock_settings, mock_repos, mock_llm_clients):
+        """Warmup should not touch SRLService.nlp when enable_srl is False."""
+        mock_settings.enable_srl = False
+        mock_settings.enable_canonical_slots = True
+
+        session_repo, graph_repo = mock_repos
+        extraction_client, generation_client = mock_llm_clients
+
+        service = SessionService(
+            session_repo=session_repo,
+            graph_repo=graph_repo,
+            extraction_llm_client=extraction_client,
+            generation_llm_client=generation_client,
+        )
+
+        assert service._srl_service is None
+        # Warmup should not raise despite no SRLService
+        service._warmup_models()
+
+    @patch("src.services.session_service.settings")
+    def test_warmup_skips_when_graph_is_none(self, mock_settings, mock_repos, mock_llm_clients):
+        """Warmup should handle graph being None gracefully."""
+        mock_settings.enable_srl = False
+        mock_settings.enable_canonical_slots = True
+
+        session_repo, graph_repo = mock_repos
+        extraction_client, generation_client = mock_llm_clients
+
+        service = SessionService(
+            session_repo=session_repo,
+            graph_repo=graph_repo,
+            extraction_llm_client=extraction_client,
+            generation_llm_client=generation_client,
+        )
+        service.graph = None
+
+        # Should not raise
+        service._warmup_models()

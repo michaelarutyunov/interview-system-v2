@@ -392,6 +392,35 @@ class SessionService:
                 error=str(e),
                 error_type=type(e).__name__,
             )
+    def _warmup_models(self) -> None:
+        """Eagerly load ML models to avoid latency on first pipeline turn.
+
+        Touches lazy-loaded properties of EmbeddingService and SRLService,
+        triggering spaCy and SentenceTransformer initialization. Called from
+        start_session() so the user sees loading delay at the Start button
+        instead of after their first response.
+        """
+        if self.graph is None:
+            log.warning("warmup_skipped_no_graph_service")
+            return
+
+        embedding_svc = self.graph.embedding_service
+
+        if embedding_svc is None:
+            log.warning("warmup_skipped_no_embedding_service")
+            return
+
+        _ = embedding_svc.nlp
+        log.info("warmup_spacy_loaded", source="embedding_service")
+
+        _ = embedding_svc.model
+        log.info("warmup_sentence_transformer_loaded")
+
+        if self._srl_service is not None:
+            _ = self._srl_service.nlp
+            log.info("warmup_spacy_loaded", source="srl_service")
+
+        log.info("warmup_complete")
 
     async def start_session(
         self,
