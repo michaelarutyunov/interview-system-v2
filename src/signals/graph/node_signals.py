@@ -14,7 +14,6 @@ from src.signals.graph.node_base import NodeSignalDetector
 # =============================================================================
 
 
-
 class NodeExhaustionScoreSignal(NodeSignalDetector):
     """Continuous exhaustion score for fine-grained node ranking.
 

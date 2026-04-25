@@ -109,7 +109,11 @@ class TestRemapToCanonicalSlots:
     def _register_surface_node(self, tracker, node_id, label="test", turn=1):
         """Register a node directly under its surface ID (bypassing KGNode)."""
         state = NodeState(
-            node_id=node_id, label=label, created_at_turn=turn, depth=0, node_type="attribute"
+            node_id=node_id,
+            label=label,
+            created_at_turn=turn,
+            depth=0,
+            node_type="attribute",
         )
         tracker.states[node_id] = state
         return state
@@ -130,9 +134,7 @@ class TestRemapToCanonicalSlots:
     @pytest.mark.asyncio
     async def test_remap_merges_paraphrases(self):
         """Two surface nodes mapping to same slot merge their state."""
-        tracker = self._make_tracker_with_repo(
-            {"uuid-a": "slot-1", "uuid-b": "slot-1"}
-        )
+        tracker = self._make_tracker_with_repo({"uuid-a": "slot-1", "uuid-b": "slot-1"})
         state_a = self._register_surface_node(tracker, "uuid-a", "taste", 1)
         state_a.focus_count = 3
         state_a.yield_count = 2

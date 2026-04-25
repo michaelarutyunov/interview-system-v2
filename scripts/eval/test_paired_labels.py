@@ -76,7 +76,15 @@ def test_paired_labels():
                (id, config_hash, methodology, concept_id, persona_id, replicate_seed,
                 run_label, timestamp)
                VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
-            (duplicate_id, test_hash, "mec", "test_concept", test_persona, test_seed, "baseline_A"),
+            (
+                duplicate_id,
+                test_hash,
+                "mec",
+                "test_concept",
+                test_persona,
+                test_seed,
+                "baseline_A",
+            ),
         )
         conn.commit()
         print("FAIL: Duplicate label insert should have raised IntegrityError")

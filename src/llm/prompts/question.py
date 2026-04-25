@@ -263,7 +263,6 @@ def _build_strategy_rationale(signals: Dict[str, Any], strategy: str) -> str:
         elif resp_depth == "deep":
             rationale_parts.append("- Deep response indicates strong engagement")
 
-
     # Strategy rationale (description already in system/user prompt from YAML)
     rationale_parts.append(f"- Strategy: {strategy}")
 
