@@ -242,7 +242,7 @@ async def test_extraction_extract_requires_methodology():
 
         result = await service.extract(
             text="This is a longer text that passes heuristic checks",
-            methodology="means_end_chain",
+            methodology="means_end_chain_v2_strict",
         )
 
         assert result is not None
