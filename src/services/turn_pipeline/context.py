@@ -76,11 +76,6 @@ class PipelineContext:
     user_input: str
 
     # =============================================================================
-    # Service References (shared across stages)
-    # =============================================================================
-    node_tracker: Optional["NodeStateTracker"] = None
-
-    # =============================================================================
     # Stage Outputs (Contracts)
     # =============================================================================
     # Each stage produces a formal contract output. These contracts ARE the state.
@@ -132,6 +127,11 @@ class PipelineContext:
     # awaited by LLMSignalBridgeStage (Stage 4.7). Not a contract field — this
     # is a transient reference that only exists within a single turn.
     _llm_prefetch_task: Any = None
+
+    # NodeStateTracker in-flight before Stage 4.7 seals it.
+    # Written by Stages 4, 4.5, 4.7 only. Read via the node_tracker property
+    # (which enforces the seal) by Stages 5+.
+    _evolving_node_tracker: Optional["NodeStateTracker"] = None
 
     # Populated by GraphUpdateStage (Stage 4) from GraphService.add_extraction_to_graph:
     # maps concept.text.lower() → surface node.id for all concepts in the current turn's
@@ -399,6 +399,21 @@ class PipelineContext:
         if self.graph_update_output:
             return self.graph_update_output.edges_added
         return []
+
+    @property
+    def node_tracker(self) -> "NodeStateTracker":
+        """Sealed NodeStateTracker from Stage 4.7. Raises before Stage 4.7 completes.
+
+        Raises:
+            RuntimeError: If LLMSignalBridgeStage (Stage 4.7) has not completed.
+        """
+        if self.llm_signal_bridge_output is not None:
+            return self.llm_signal_bridge_output.sealed_node_tracker
+        raise RuntimeError(
+            "Pipeline contract violation: node_tracker accessed before "
+            "LLMSignalBridgeStage (Stage 4.7) sealed it. "
+            f"Session: {self.session_id}"
+        )
 
     @property
     def strategy(self) -> str:

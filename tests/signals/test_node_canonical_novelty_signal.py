@@ -1,55 +1,27 @@
-"""Tests for NodeCanonicalNoveltySignal — canonical-slot-based novelty detection."""
+"""Tests for NodeCanonicalNoveltySignal — canonical-slot-based novelty detection.
 
-from unittest.mock import AsyncMock, MagicMock
+In the new design, Stage 4.7 pre-populates canonical_slot_first_seen on the
+sealed tracker before signals run. The signal is now read-only: it reads
+canonical_slot_first_seen to classify nodes as new / confirming / orphan.
+"""
+
+from unittest.mock import MagicMock
 
 import pytest
 
 from src.signals.graph.node_signals import NodeCanonicalNoveltySignal
 
 
-def _make_mapping(slot_id: str) -> MagicMock:
-    """Build a mock SlotMapping with the given canonical_slot_id."""
-    mapping = MagicMock()
-    mapping.canonical_slot_id = slot_id
-    return mapping
-
-
-def _make_tracker(
-    node_states: dict,
-    *,
-    has_canonical_repo: bool = True,
-    mapping_lookup: dict | None = None,
-) -> MagicMock:
-    """Build a mock NodeStateTracker.
+def _make_tracker(node_ids: list[str], first_seen: dict[str, int]) -> MagicMock:
+    """Build a mock NodeStateTracker with pre-populated canonical_slot_first_seen.
 
     Args:
-        node_states: Dict of node_id -> NodeState (can be mock objects)
-        has_canonical_repo: Whether canonical_slot_repo is set (True = enabled)
-        mapping_lookup: Dict of node_id -> slot_id (None means no mapping exists)
+        node_ids: tracking keys present in tracker.states
+        first_seen: canonical_slot_first_seen dict (maps tracking_key → first_seen_turn)
     """
     tracker = MagicMock()
-    tracker.get_all_states.return_value = node_states
-
-    if not has_canonical_repo:
-        tracker.canonical_slot_repo = None
-        return tracker
-
-    repo = MagicMock()
-    mapping_lookup = mapping_lookup or {}
-
-    async def get_mapping(node_id: str):
-        slot_id = mapping_lookup.get(node_id)
-        if slot_id is None:
-            return None
-        return _make_mapping(slot_id)
-
-    repo.get_mapping_for_node = AsyncMock(side_effect=get_mapping)
-    tracker.canonical_slot_repo = repo
-    # Real dict needed — the detect() method reads/writes this dict to track
-    # when each canonical slot was first seen. A MagicMock __setitem__ records
-    # calls but __getitem__ returns a new mock (not the stored value), causing
-    # every slot to appear as "confirming" instead of "new" on first encounter.
-    tracker.canonical_slot_first_seen = {}
+    tracker.get_all_states.return_value = {nid: MagicMock() for nid in node_ids}
+    tracker.canonical_slot_first_seen = first_seen
     return tracker
 
 
@@ -59,20 +31,9 @@ def _make_context(turn_number: int = 5) -> MagicMock:
     return ctx
 
 
-def _make_signal(
-    node_states: dict,
-    *,
-    has_canonical_repo: bool = True,
-    mapping_lookup: dict | None = None,
-) -> NodeCanonicalNoveltySignal:
-    """Instantiate NodeCanonicalNoveltySignal with a mocked node_tracker."""
-    tracker = _make_tracker(
-        node_states,
-        has_canonical_repo=has_canonical_repo,
-        mapping_lookup=mapping_lookup,
-    )
-    signal = NodeCanonicalNoveltySignal(tracker)
-    return signal
+def _make_signal(node_ids: list[str], first_seen: dict[str, int]) -> NodeCanonicalNoveltySignal:
+    tracker = _make_tracker(node_ids, first_seen)
+    return NodeCanonicalNoveltySignal(tracker)
 
 
 # ---------------------------------------------------------------------------
@@ -82,68 +43,43 @@ def _make_signal(
 
 @pytest.mark.asyncio
 async def test_node_with_new_slot_returns_new():
-    """Node whose slot is first seen on the current turn -> 'new'."""
-    states = {"node-a": MagicMock()}
-    signal = _make_signal(states, mapping_lookup={"node-a": "slot-1"})
-    ctx = _make_context(turn_number=3)
-
-    result = await signal.detect(ctx, MagicMock(), "")
-
+    """Node whose tracking key first appeared on the current turn -> 'new'."""
+    signal = _make_signal(["node-a"], first_seen={"node-a": 3})
+    result = await signal.detect(_make_context(turn_number=3), MagicMock(), "")
     assert result["node-a"] == "new"
 
 
 @pytest.mark.asyncio
 async def test_node_with_preexisting_slot_returns_confirming():
-    """Node whose slot was first seen on a prior turn -> 'confirming'."""
-    states = {"node-b": MagicMock()}
-    signal = _make_signal(states, mapping_lookup={"node-b": "slot-1"})
-
-    # First encounter: turn 2
-    await signal.detect(_make_context(turn_number=2), MagicMock(), "")
-
-    # Subsequent encounter on different node mapping to same slot: turn 5.
-    # Preserve the first-seen dict from the original tracker so the signal
-    # correctly sees slot-1 as pre-existing (first seen on turn 2).
-    first_seen_memory = signal.node_tracker.canonical_slot_first_seen
-    states2 = {"node-b2": MagicMock()}
-    signal.node_tracker = _make_tracker(
-        states2,
-        has_canonical_repo=True,
-        mapping_lookup={"node-b2": "slot-1"},
-    )
-    signal.node_tracker.canonical_slot_first_seen = first_seen_memory
+    """Node whose tracking key first appeared on a prior turn -> 'confirming'."""
+    signal = _make_signal(["node-b"], first_seen={"node-b": 2})
     result = await signal.detect(_make_context(turn_number=5), MagicMock(), "")
-
-    assert result["node-b2"] == "confirming"
+    assert result["node-b"] == "confirming"
 
 
 @pytest.mark.asyncio
-async def test_node_with_no_canonical_mapping_returns_orphan():
-    """Node with no slot mapping -> 'orphan'."""
-    states = {"node-c": MagicMock()}
-    # No mapping for node-c
-    signal = _make_signal(states, mapping_lookup={})
-    ctx = _make_context(turn_number=4)
+async def test_node_not_in_first_seen_returns_orphan():
+    """Node whose tracking key is absent from canonical_slot_first_seen -> 'orphan'.
 
-    result = await signal.detect(ctx, MagicMock(), "")
-
+    canonical_slot_first_seen must be non-empty overall (otherwise signal
+    returns {} immediately), but the specific node is absent.
+    """
+    # "other-node" keeps the dict non-empty; "node-c" is absent → orphan
+    signal = _make_signal(["node-c"], first_seen={"other-node": 1})
+    result = await signal.detect(_make_context(turn_number=4), MagicMock(), "")
     assert result["node-c"] == "orphan"
 
 
 # ---------------------------------------------------------------------------
-# Feature flag: canonical slots disabled
+# Feature flag: canonical slots effectively disabled (empty first_seen)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_returns_empty_dict_when_canonical_slots_disabled():
-    """When canonical_slot_repo is None, returns empty dict."""
-    states = {"node-d": MagicMock()}
-    signal = _make_signal(states, has_canonical_repo=False)
-    ctx = _make_context(turn_number=1)
-
-    result = await signal.detect(ctx, MagicMock(), "")
-
+async def test_returns_empty_dict_when_first_seen_is_empty():
+    """When canonical_slot_first_seen is empty, returns {} (canonical slots not yet active)."""
+    signal = _make_signal(["node-d"], first_seen={})
+    result = await signal.detect(_make_context(turn_number=1), MagicMock(), "")
     assert result == {}
 
 
@@ -155,33 +91,13 @@ async def test_returns_empty_dict_when_canonical_slots_disabled():
 @pytest.mark.asyncio
 async def test_multiple_nodes_correct_categories():
     """Mixed nodes: some new, some confirming, some orphan."""
-    # Pre-seed slot-existing as seen on turn 1
-    signal = _make_signal(
-        {"seeder": MagicMock()},
-        mapping_lookup={"seeder": "slot-existing"},
-    )
-    await signal.detect(_make_context(turn_number=1), MagicMock(), "")
-
-    # Preserve first-seen dict so slot-existing (seen on turn 1) is correctly
-    # recognized as pre-existing when the tracker is swapped.
-    first_seen_memory = signal.node_tracker.canonical_slot_first_seen
-
-    # Now detect on turn 5 with three different nodes
-    states = {
-        "node-new": MagicMock(),
-        "node-confirming": MagicMock(),
-        "node-orphan": MagicMock(),
+    first_seen = {
+        "node-new": 5,       # first seen this turn → new
+        "node-confirming": 1,  # first seen on turn 1 → confirming
+        # node-orphan absent → orphan
+        "sentinel": 1,         # keeps dict non-empty so signal doesn't short-circuit
     }
-    signal.node_tracker = _make_tracker(
-        states,
-        has_canonical_repo=True,
-        mapping_lookup={
-            "node-new": "slot-brand-new",  # first time → new
-            "node-confirming": "slot-existing",  # seen on turn 1 → confirming
-            # node-orphan has no mapping → orphan
-        },
-    )
-    signal.node_tracker.canonical_slot_first_seen = first_seen_memory
+    signal = _make_signal(["node-new", "node-confirming", "node-orphan"], first_seen=first_seen)
     result = await signal.detect(_make_context(turn_number=5), MagicMock(), "")
 
     assert result["node-new"] == "new"
@@ -192,29 +108,31 @@ async def test_multiple_nodes_correct_categories():
 @pytest.mark.asyncio
 async def test_empty_tracker_returns_empty_dict():
     """When no nodes are tracked, result is an empty dict."""
-    signal = _make_signal({})
-    ctx = _make_context(turn_number=5)
-
-    result = await signal.detect(ctx, MagicMock(), "")
-
+    signal = _make_signal([], first_seen={"slot-x": 1})
+    result = await signal.detect(_make_context(turn_number=5), MagicMock(), "")
     assert result == {}
 
 
 # ---------------------------------------------------------------------------
-# Slot first-seen persistence across turns
+# Slot first-seen persistence across turns (simulated via tracker state)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_slot_first_seen_persists_across_detect_calls():
-    """Slot first seen on turn 2 is correctly identified as confirming on turn 3."""
-    states = {"node-e": MagicMock()}
-    signal = _make_signal(states, mapping_lookup={"node-e": "slot-alpha"})
+async def test_slot_first_seen_persists_across_turns():
+    """Slot first seen on turn 2 is correctly identified as confirming on turn 3.
 
+    In production, canonical_slot_first_seen is persisted to DB and loaded
+    next turn by SessionService → NodeStateTracker.from_dict(). This test
+    simulates that by constructing the second-turn tracker with the prior
+    first_seen dict already populated.
+    """
     # Turn 2: slot-alpha first seen
-    result_t2 = await signal.detect(_make_context(turn_number=2), MagicMock(), "")
+    signal_t2 = _make_signal(["node-e"], first_seen={"node-e": 2})
+    result_t2 = await signal_t2.detect(_make_context(turn_number=2), MagicMock(), "")
     assert result_t2["node-e"] == "new"
 
-    # Turn 3: same node, same slot → confirming (slot already in _slot_first_seen)
-    result_t3 = await signal.detect(_make_context(turn_number=3), MagicMock(), "")
+    # Turn 3: same node, same slot still present in first_seen with turn=2 → confirming
+    signal_t3 = _make_signal(["node-e"], first_seen={"node-e": 2})
+    result_t3 = await signal_t3.detect(_make_context(turn_number=3), MagicMock(), "")
     assert result_t3["node-e"] == "confirming"

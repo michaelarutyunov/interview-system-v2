@@ -237,11 +237,11 @@ class ScoringPersistenceStage(TurnStage):
         )
         focus_node_id = focus.get("focus_node_id") if focus else None
 
-        # Look up node label and type from node_tracker if node_id is available
+        # Look up node label and type from sealed node_tracker if available
         node_label = ""
         node_type = ""
-        if focus_node_id and context.node_tracker:
-            node_state = await context.node_tracker.get_state(focus_node_id)
+        if focus_node_id and context.llm_signal_bridge_output is not None:
+            node_state = context.node_tracker.try_get_state(focus_node_id)
             if node_state:
                 node_label = node_state.label
                 node_type = node_state.node_type

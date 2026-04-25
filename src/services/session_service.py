@@ -39,6 +39,7 @@ from src.services.turn_pipeline import (
     PipelineContext,
     TurnResult as PipelineTurnResult,
 )
+from src.services.node_state_tracker import NodeStateTracker, CanonicalSlotResolver
 from src.services.turn_pipeline.stages import (
     ContextLoadingStage,
     UtteranceSavingStage,
@@ -266,6 +267,7 @@ class SessionService:
             LLMPrefetchStage(),
             GraphUpdateStage(
                 graph_service=self.graph,
+                canonical_slot_resolver=CanonicalSlotResolver(canonical_slot_repo),
             ),
             # Stage 4.5: SlotDiscoveryStage (always wired, skips if service is None)
             # Maps surface nodes to canonical slots via LLM proposal + embedding similarity
@@ -273,8 +275,10 @@ class SessionService:
             SlotDiscoveryStage(
                 slot_service=canonical_slot_service, graph_service=self.graph
             ),
-            # Stage 4.7: Await LLM prefetch, bridge per-concept ratings to node tracker
-            LLMSignalBridgeStage(),
+            # Stage 4.7: Await LLM prefetch, bridge per-concept ratings to node tracker, seal
+            LLMSignalBridgeStage(
+                canonical_slot_resolver=CanonicalSlotResolver(canonical_slot_repo),
+            ),
         ]
 
         # StateComputationStage: Refresh graph state and compute canonical graph state
@@ -287,7 +291,9 @@ class SessionService:
 
         stages.extend(
             [
-                StrategySelectionStage(),
+                StrategySelectionStage(
+                    canonical_slot_resolver=CanonicalSlotResolver(canonical_slot_repo),
+                ),
                 ContinuationStage(
                     focus_selection_service=self.focus_selection,
                 ),
@@ -337,22 +343,25 @@ class SessionService:
         log.info("processing_turn", session_id=session_id, input_length=len(user_input))
 
         # Load or create NodeStateTracker for this turn
-        # If persisted state exists, load it; otherwise create fresh tracker
         node_tracker = await self._get_or_create_node_tracker(session_id)
 
-        # Create initial context with node_tracker
-        context = PipelineContext(
-            session_id=session_id,
-            user_input=user_input,
-            node_tracker=node_tracker,
-        )
+        # Seed the evolving tracker into context (written by Stages 4, 4.5, 4.7)
+        context = PipelineContext(session_id=session_id, user_input=user_input)
+        context._evolving_node_tracker = node_tracker
 
         # Execute pipeline
         result = await self.pipeline.execute(context)
 
-        # Persist node_tracker state after turn completes
-        # This ensures previous_focus and all_response_depths are saved for next turn
-        await self._save_node_tracker(session_id, node_tracker)
+        # Persist the next-turn tracker (sealed + focus update applied by Stage 6)
+        tracker_to_save = (
+            result.context.strategy_selection_output.next_turn_node_tracker
+            if result.context.strategy_selection_output is not None
+            and result.context.strategy_selection_output.next_turn_node_tracker is not None
+            else result.context.llm_signal_bridge_output.sealed_node_tracker
+            if result.context.llm_signal_bridge_output is not None
+            else node_tracker
+        )
+        await self._save_node_tracker(session_id, tracker_to_save)
 
         log.info(
             "turn_processed",
@@ -651,24 +660,12 @@ class SessionService:
 
     # ==================== NODE TRACKER STATE PERSISTENCE ====================
 
-    async def _get_or_create_node_tracker(self, session_id: str):
-        """
-        Load existing node tracker state or create new tracker.
-
-        Args:
-            session_id: Session ID to load tracker state for
-
-        Returns:
-            NodeStateTracker with restored state or fresh tracker
-        """
-        from src.services.node_state_tracker import NodeStateTracker
-
-        # Try to load persisted state
+    async def _get_or_create_node_tracker(self, session_id: str) -> NodeStateTracker:
+        """Load persisted NodeStateTracker or create a fresh one."""
         tracker_state_json = await self.session_repo.get_node_tracker_state(session_id)
 
         if tracker_state_json:
             try:
-                # Deserialize from JSON
                 state_data = json.loads(tracker_state_json)
                 tracker = NodeStateTracker.from_dict(state_data)
                 log.debug(
@@ -684,16 +681,9 @@ class SessionService:
                     session_id=session_id,
                     error=str(e),
                 )
-                # Fall through to create fresh tracker
 
-        # No persisted state or load failed - create fresh tracker
-        log.debug(
-            "node_tracker_created_fresh",
-            session_id=session_id,
-            reason="no_persisted_state_or_load_failed",
-        )
-        # Create fresh tracker with canonical_slot_repo for node aggregation across paraphrases
-        return NodeStateTracker(canonical_slot_repo=self.canonical_slot_repo)
+        log.debug("node_tracker_created_fresh", session_id=session_id)
+        return NodeStateTracker()
 
     async def _save_node_tracker(self, session_id: str, node_tracker) -> None:
         """

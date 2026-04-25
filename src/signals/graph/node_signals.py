@@ -592,39 +592,29 @@ class NodeCanonicalNoveltySignal(NodeSignalDetector):
     async def detect(self, context, graph_state, response_text):  # noqa: ARG001
         """Detect canonical novelty for all tracked nodes.
 
-        For each tracked node, resolves its canonical slot mapping and
-        determines whether the slot is new (first seen this turn),
-        confirming (pre-existing slot), or orphan (no mapping).
+        Reads canonical_slot_first_seen from the sealed tracker (populated by
+        Stage 4.7 before signals run). Returns "new" for slots first seen this
+        turn, "confirming" for pre-existing slots, "orphan" if not recorded.
 
         Args:
-            context: Pipeline context with turn_number and settings
+            context: Pipeline context with turn_number
             graph_state: Current knowledge graph state (unused)
             response_text: User's response text (unused)
 
         Returns:
             Dict mapping node_id -> "new" | "confirming" | "orphan"
-            Empty dict if canonical slots are disabled.
         """
-        canonical_repo = self.node_tracker.canonical_slot_repo
-        if canonical_repo is None:
-            # enable_canonical_slots=False — gracefully skip
+        slot_first_seen = self.node_tracker.canonical_slot_first_seen
+        if not slot_first_seen:
             return {}
 
         current_turn = context.turn_number
         results: dict[str, str] = {}
 
         for node_id in self._get_all_node_states():
-            mapping = await canonical_repo.get_mapping_for_node(node_id)
-            if mapping is None:
+            if node_id not in slot_first_seen:
                 results[node_id] = "orphan"
-                continue
-
-            slot_id = mapping.canonical_slot_id
-            slot_first_seen = self.node_tracker.canonical_slot_first_seen
-            if slot_id not in slot_first_seen:
-                slot_first_seen[slot_id] = current_turn
-
-            if slot_first_seen[slot_id] == current_turn:
+            elif slot_first_seen[node_id] == current_turn:
                 results[node_id] = "new"
             else:
                 results[node_id] = "confirming"

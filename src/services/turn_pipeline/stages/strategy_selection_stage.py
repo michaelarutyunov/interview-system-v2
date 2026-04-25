@@ -16,6 +16,7 @@ from src.domain.models.pipeline_contracts import (
     StrategySelectionOutput,
 )
 from src.services.methodology_strategy_service import MethodologyStrategyService
+from src.services.node_state_tracker import CanonicalSlotResolver
 
 
 if TYPE_CHECKING:
@@ -38,14 +39,9 @@ class StrategySelectionStage(TurnStage):
     - PipelineContext.strategy_alternatives (for observability)
     """
 
-    def __init__(self):
-        """
-        Initialize stage with methodology-based strategy service.
-
-        Note: Strategy selection uses methodology-specific signal detection
-        configured in YAML (config/methodologies/*.yaml).
-        """
+    def __init__(self, canonical_slot_resolver: Optional[CanonicalSlotResolver] = None):
         self.methodology_strategy = MethodologyStrategyService()
+        self._resolver = canonical_slot_resolver or CanonicalSlotResolver()
 
     async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
@@ -111,18 +107,27 @@ class StrategySelectionStage(TurnStage):
             score_decomposition,
         ) = await self._select_strategy_and_node(context)
 
-        # Update node_tracker with the new focus (sets previous_focus for next turn)
-        # This must be done AFTER response depth append (which uses previous_focus)
-        # and BEFORE the next turn starts
-        if context.node_tracker and focus_node_id:
-            await context.node_tracker.update_focus(
-                node_id=focus_node_id,
-                strategy=strategy,
-                turn_number=context.turn_number,
-            )
+        # Compute next_turn_node_tracker: sealed tracker + update_focus applied.
+        # This is persisted to DB so the NEXT turn starts with the correct previous_focus.
+        sealed = context.node_tracker
+        next_turn_tracker = sealed
+        if focus_node_id:
+            tracking_key = await self._resolver.resolve(focus_node_id)
+            if tracking_key in sealed.states:
+                next_turn_tracker = sealed.update_focus(
+                    tracking_key=tracking_key,
+                    strategy=strategy,
+                    turn_number=context.turn_number,
+                )
+            else:
+                log.warning(
+                    "focus_update_skipped_node_not_tracked",
+                    focus_node_id=focus_node_id,
+                    tracking_key=tracking_key,
+                    turn_number=context.turn_number,
+                )
 
         # Track strategy history for diversity tracking
-        # This enables the system to avoid repetitive questioning patterns
         if context.graph_state:
             context.graph_state.add_strategy_used(strategy)
 
@@ -144,18 +149,16 @@ class StrategySelectionStage(TurnStage):
         )
         focus_mode = selected_config.focus_mode if selected_config else "recent_node"
 
-        # Create contract output (single source of truth)
-        # No need to set individual fields - they're derived from the contract
         context.strategy_selection_output = StrategySelectionOutput(
             strategy=strategy,
             focus=focus_dict,
-            # selected_at auto-set
             signals=signals,
             node_signals=node_signals,
             strategy_alternatives=list(alternatives) if alternatives else [],
             generates_closing_question=generates_closing_question,
             focus_mode=focus_mode,
             score_decomposition=score_decomposition,
+            next_turn_node_tracker=next_turn_tracker,
         )
 
         log.info(

@@ -197,11 +197,18 @@ class SlotDiscoveryStage(TurnStage):
                 reason="no_graph_service",
             )
 
-        # Re-key node tracker from surface UUIDs to canonical slot IDs
-        # Without this, all tracker lookups fail because register_node()
-        # stores under surface UUID but lookups resolve via canonical_slot_id
-        if context.node_tracker and mappings_created > 0:
-            await context.node_tracker.remap_to_canonical_slots()
+        # Re-key node tracker from surface UUIDs to canonical slot IDs.
+        # Fetch mappings from the repo and apply functionally to _evolving_node_tracker.
+        if context._evolving_node_tracker is not None and mappings_created > 0:
+            surface_to_slot: dict[str, str] = {}
+            for surface_id in list(context._evolving_node_tracker.states.keys()):
+                mapping = await self.slot_service.slot_repo.get_mapping_for_node(surface_id)
+                if mapping and mapping.canonical_slot_id != surface_id:
+                    surface_to_slot[surface_id] = mapping.canonical_slot_id
+            if surface_to_slot:
+                context._evolving_node_tracker = (
+                    context._evolving_node_tracker.remap_to_canonical_slots(surface_to_slot)
+                )
 
         # Set contract output
         context.slot_discovery_output = SlotDiscoveryOutput(

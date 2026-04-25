@@ -260,8 +260,10 @@ class ContinuationStage(TurnStage):
     @staticmethod
     def _all_nodes_exhausted(context: "PipelineContext") -> bool:
         """Check if all explored nodes are exhausted (nothing left to explore)."""
+        if context.llm_signal_bridge_output is None:
+            return False
         tracker = context.node_tracker
-        if not tracker or not tracker.states:
+        if not tracker.states:
             return False
 
         explored = [ns for ns in tracker.states.values() if ns.focus_count > 0]

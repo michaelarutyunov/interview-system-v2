@@ -17,6 +17,7 @@ from src.domain.models.session import FocusEntry
 # Import ScoredCandidate at runtime for Pydantic v2 validation
 # (TYPE_CHECKING alone is insufficient for Pydantic's runtime type checking)
 from src.methodologies.scoring import ScoredCandidate
+from src.services.node_state_tracker import NodeStateTracker
 
 
 class ContextLoadingOutput(BaseModel):
@@ -266,6 +267,13 @@ class StrategySelectionOutput(BaseModel):
             "Populated during simulation; None in live API."
         ),
     )
+    # Tracker snapshot for the NEXT turn — sealed tracker + focus update applied.
+    # SessionService persists this to DB; None only when Stage 6 did not run.
+    next_turn_node_tracker: Optional[NodeStateTracker] = Field(
+        default=None,
+        description="NodeStateTracker snapshot to persist for the next turn. "
+                    "Equals sealed_node_tracker with update_focus() applied for the selected node.",
+    )
 
 
 class ExtractionOutput(BaseModel):
@@ -446,6 +454,12 @@ class LLMSignalBridgeOutput(BaseModel):
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         description="When bridge processing completed",
+    )
+    # Sealed immutable tracker — written by Stage 4.7, read by Stages 5–10.
+    # Always present (even when bridge_applied=False); represents the tracker
+    # as evolved through Stages 4 and 4.5 plus any quality appends this turn.
+    sealed_node_tracker: NodeStateTracker = Field(
+        description="Sealed NodeStateTracker snapshot. Never written to after Stage 4.7.",
     )
 
 

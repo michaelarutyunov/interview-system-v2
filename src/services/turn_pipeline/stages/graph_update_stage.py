@@ -6,13 +6,13 @@ GraphUpdateOutput contract. Integrates with NodeStateTracker for
 per-node state tracking.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import structlog
 
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import GraphUpdateOutput
-from src.services.node_state_tracker import GraphChangeSummary
+from src.services.node_state_tracker import GraphChangeSummary, CanonicalSlotResolver, NodeNotTrackedError
 from src.services.graph_service import GraphService
 
 
@@ -28,14 +28,13 @@ class GraphUpdateStage(TurnStage):
     Populates PipelineContext.nodes_added and PipelineContext.edges_added.
     """
 
-    def __init__(self, graph_service: GraphService):
-        """
-        Initialize stage.
-
-        Args:
-            graph_service: GraphService instance
-        """
+    def __init__(
+        self,
+        graph_service: GraphService,
+        canonical_slot_resolver: Optional[CanonicalSlotResolver] = None,
+    ):
         self.graph = graph_service
+        self._resolver = canonical_slot_resolver or CanonicalSlotResolver()
 
     async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
@@ -114,8 +113,8 @@ class GraphUpdateStage(TurnStage):
         )
 
         # Integrate with NodeStateTracker if available
-        if context.node_tracker:
-            await self._update_node_state_tracker(
+        if context._evolving_node_tracker is not None:
+            context._evolving_node_tracker = await self._update_node_state_tracker(
                 context=context,
                 nodes_added=nodes,
                 edges_added=edges,
@@ -135,85 +134,62 @@ class GraphUpdateStage(TurnStage):
         context: "PipelineContext",
         nodes_added: list,
         edges_added: list,
-    ) -> None:
-        """
-        Update NodeStateTracker with new nodes and edges.
+    ):
+        """Functionally update the evolving NodeStateTracker; returns new instance."""
+        tracker = context._evolving_node_tracker
 
-        This method:
-        1. Registers newly created nodes
-        2. Updates edge counts for affected nodes
-        3. Records yield if graph changes occurred
+        # Batch-register new nodes (single dict rebuild)
+        if nodes_added:
+            tracker = tracker.register_nodes(nodes_added, context.turn_number)
 
-        Args:
-            context: Pipeline context
-            nodes_added: List of newly added KGNode objects
-            edges_added: List of newly added KGEdge objects
-        """
-        node_tracker = context.node_tracker
-        if not node_tracker:
-            return
-
-        # Register new nodes
-        for node in nodes_added:
-            await node_tracker.register_node(
-                node=node,
-                turn_number=context.turn_number,
-            )
-
-        # Update edge counts for all affected nodes
-        edge_counts = {}  # node_id -> (outgoing_delta, incoming_delta)
+        # Resolve edge source/target surface IDs to tracking keys and batch-update
+        edge_deltas: dict[str, tuple[int, int]] = {}
         for edge in edges_added:
-            source_id = (
-                edge.source_node_id
-                if hasattr(edge, "source_node_id")
-                else edge.get("source_node_id")
-            )
-            target_id = (
-                edge.target_node_id
-                if hasattr(edge, "target_node_id")
-                else edge.get("target_node_id")
-            )
+            source_id = getattr(edge, "source_node_id", None) or edge.get("source_node_id")
+            target_id = getattr(edge, "target_node_id", None) or edge.get("target_node_id")
 
-            # Update outgoing count for source
-            if source_id not in edge_counts:
-                edge_counts[source_id] = [0, 0]
-            edge_counts[source_id][0] += 1
+            if source_id:
+                key = await self._resolver.resolve(source_id)
+                if key in tracker.states:
+                    out_d, in_d = edge_deltas.get(key, (0, 0))
+                    edge_deltas[key] = (out_d + 1, in_d)
+                else:
+                    log.debug("edge_count_skip_untracked", tracking_key=key)
 
-            # Update incoming count for target
-            if target_id not in edge_counts:
-                edge_counts[target_id] = [0, 0]
-            edge_counts[target_id][1] += 1
+            if target_id:
+                key = await self._resolver.resolve(target_id)
+                if key in tracker.states:
+                    out_d, in_d = edge_deltas.get(key, (0, 0))
+                    edge_deltas[key] = (out_d, in_d + 1)
+                else:
+                    log.debug("edge_count_skip_untracked", tracking_key=key)
 
-        # Apply edge count updates
-        for node_id, (outgoing_delta, incoming_delta) in edge_counts.items():
-            await node_tracker.update_edge_counts(
-                node_id=node_id,
-                outgoing_delta=outgoing_delta,
-                incoming_delta=incoming_delta,
-            )
+        if edge_deltas:
+            tracker = tracker.update_edge_counts_batch(edge_deltas)
 
-        # Record yield if there were changes
-        if nodes_added or edges_added:
-            # Determine which node to credit with the yield
-            # This should be the focus from the previous turn
-            # For now, we'll record yield for all nodes that were involved
+        # Record yield against previous_focus if graph changed
+        if (nodes_added or edges_added) and tracker.previous_focus:
             graph_changes = GraphChangeSummary(
                 nodes_added=len(nodes_added),
                 edges_added=len(edges_added),
-                nodes_modified=0,
             )
-
-            # If we have a previous focus, record yield for it
-            if node_tracker.previous_focus:
-                await node_tracker.record_yield(
-                    node_id=node_tracker.previous_focus,
+            try:
+                tracker = tracker.record_yield(
+                    tracking_key=tracker.previous_focus,
                     turn_number=context.turn_number,
                     graph_changes=graph_changes,
                 )
+            except NodeNotTrackedError:
+                log.warning(
+                    "record_yield_failed_previous_focus_not_found",
+                    previous_focus=tracker.previous_focus,
+                    turn_number=context.turn_number,
+                )
 
-            log.debug(
-                "node_state_tracker_updated",
-                session_id=context.session_id,
-                nodes_registered=len(nodes_added),
-                edges_updated=len(edge_counts),
-            )
+        log.debug(
+            "node_state_tracker_updated",
+            session_id=context.session_id,
+            nodes_registered=len(nodes_added),
+            edges_updated=len(edge_deltas),
+        )
+        return tracker
