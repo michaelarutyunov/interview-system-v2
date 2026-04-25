@@ -89,7 +89,7 @@ Invoked when work touches any of:
 - Builds user prompt via `get_extraction_user_prompt()`:
   - Current user utterance text
   - Optional context from previous turns (conversation history)
-- LLM parameters: `temperature=0.4`, `max_tokens=4000`, `response_format={"type": "json_object"}`
+- LLM parameters: `max_tokens=4000`, `response_format={"type": "json_object"}`. Temperature is NOT set in the extraction call — it inherits the client default (0.3 from `LLMCallConfig.temperature`).
 - Parses JSON response via `parse_extraction_response()`
 
 **Step 3: Concept parsing** (`_parse_concepts`)
@@ -235,7 +235,7 @@ Concepts can be linked to methodology-defined elements for coverage tracking:
 3. **Never treat empty extraction as an error.** `ExtractionResult(is_extractable=False)` with empty concepts/relationships is a normal outcome for short or ambiguous responses.
 4. **Always include methodology-specific content in the system prompt.** The extraction prompt must reflect the current ontology — stale prompts produce nodes with invalid types that are silently dropped.
 5. **Never bypass the extractability check unless testing.** The fast heuristic filter prevents wasted LLM calls on low-information responses. Only skip via `skip_extractability_check=True` for testing.
-6. **Always use temperature 0.4 for extraction.** This balances consistency with relationship inference across conversation context. Lower temperatures (0.0-0.2) miss implicit relationships; higher temperatures (0.7+) produce hallucinations.
+6. **Do not override temperature in the extraction LLM call.** The default (0.3 from `LLMCallConfig`) provides consistent extraction. Override via `config/interview_config.yaml` if needed — not by adding a parameter to `llm.complete()`.
 7. **Never modify extraction output after timestamp is set.** The timestamp is the freshness anchor for Stage 6 staleness detection. Post-hoc modification breaks freshness guarantees.
 8. **Always pass the correct methodology parameter to extract().** The methodology determines which ontology is used for validation. Passing the wrong methodology produces schema mismatches and silent drops.
 9. **Never rely on permitted_connections validation.** It is intentionally disabled to allow unrestricted edge extraction. The LLM is methodology-aware from the system prompt.
@@ -254,7 +254,7 @@ Each entry below records a real failure observed in this codebase or a design co
 - **Modifying extraction output after timestamp is set.** The timestamp anchors freshness detection in Stage 6. Post-hoc modification (e.g., adding concepts after the fact) produces stale data that fails staleness checks.
 - **Assuming permitted_connections is enforced.** The validation is commented out in `_parse_relationships`. The LLM is expected to produce valid connections from the methodology prompt alone. If invalid connections appear, fix the prompt, not the code.
 - **Skipping the extractability check in production.** The fast heuristic filter prevents wasted LLM calls. Only skip via `skip_extractability_check=True` for testing.
-- **Using temperature outside 0.3-0.5 range.** Temperatures below 0.3 miss implicit relationships; temperatures above 0.5 produce hallucinations. 0.4 is the balanced default.
+- **Hardcoding temperature in the extraction `llm.complete()` call.** Temperature is configured centrally via `LLMCallConfig.temperature` (default 0.3). Adding it to the extraction call overrides the config silently. Always tune temperature in `config/interview_config.yaml`, not in code.
 - **Accessing the concept label via `.name` instead of `.text`.** `ExtractedConcept` stores the normalized concept label in the `text` field. `.name` does not exist on the model — it raises `AttributeError` at runtime or silently produces the wrong value if some fallback handles it. Any code that reads concept labels (e.g. `LLMBatchDetector._concept_fields`, bridge lookups in `MethodologyStrategyService`) must use `concept.text`, not `concept.name`. This is a Phase C failure mode: batch_detector was initially coded to `.name` and produced empty per-concept records for every concept.
 - **Forgetting to link elements when concept_id is provided.** If `concept_id` is set but `linked_elements` is always empty, check: (1) element list is included in system prompt, (2) LLM is instructed to link, (3) alias matching fallback is enabled.
 - **Treating invalid_node_type logs as warnings.** Concepts with invalid node types are **silently dropped**, not just warned. If extraction produces zero concepts, check for `invalid_node_type` log entries — the ontology is out of sync with the prompt.

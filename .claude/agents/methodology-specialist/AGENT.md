@@ -48,6 +48,11 @@ strategies:
     generates_closing_question: false
     focus_mode: recent_node
     node_binding: required
+    valid_when: convgraph.node.chain.gap.above  # optional gate signal
+
+chain_completion:                  # optional, for chain-aware methodologies
+  expected_branching: {attribute: 3, functional_consequence: 2}
+  score_threshold: 0.15
 
 phases:
   early:
@@ -84,6 +89,7 @@ phases:
 | `generates_closing_question` | `bool` | `false` | If `true`, strategy can produce the interview's final question |
 | `focus_mode` | `str` | `"recent_node"` | How question generation selects focus: `recent_node`, `summary`, or `topic` |
 | `node_binding` | `str` | `"required"` | If `"required"`, strategy participates in Stage 2 (joint strategy-node scoring); if `"none"`, Stage 1 only |
+| `valid_when` | `str \| None` | `None` | Optional gate signal name — strategy is only scored for nodes where this signal is `True`. Used by chain-aware strategies (e.g., `ascend` gates on `convgraph.node.chain.gap.above`). `None` = always eligible. |
 
 ### 4. Phase Configuration Fields
 
@@ -134,7 +140,7 @@ If you want a weight to distinguish between nodes, it MUST use one of the three 
 
 ### 8. Creating a New Methodology
 
-1. Copy `config/methodologies/means_end_chain.yaml` as a template.
+1. Copy `config/methodologies/means_end_chain_v2_strict.yaml` as a template.
 2. Edit `method.name`, `method.goal`, `method.description`.
 3. Adjust `ontology.nodes` and `ontology.edges` for the new domain.
 4. Declare signals under `signals:` (only the ones you'll use).
@@ -215,7 +221,7 @@ When editing `src/methodologies/scoring.py`:
 - `.claude/context/strategy-selection.md` — D2 two-stage orchestration, how methodologies are loaded and applied
 - `src/methodologies/registry.py` — `MethodologyRegistry`, `MethodologyConfig`, `StrategyConfig`, validation logic
 - `src/methodologies/scoring.py` — `rank_strategies`, `rank_strategy_node_pairs`, `partition_signal_weights`
-- `config/methodologies/means_end_chain.yaml` — Reference methodology with full structure (strategies, signals, phases, ontology)
+- `config/methodologies/means_end_chain_v2_strict.yaml` — Reference methodology with full structure (strategies, signals, phases, ontology)
 
 ## Diagnostic Triage
 
