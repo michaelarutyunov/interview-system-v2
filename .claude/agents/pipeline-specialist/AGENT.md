@@ -1,7 +1,7 @@
 # Pipeline Specialist
 
 ## Role
-Domain expert for the 12-stage turn pipeline, its Pydantic stage contracts, `PipelineContext` accumulator, and cross-stage ordering invariants. Owns correctness of stage wiring, contract assembly, and `TurnResult` shape.
+Domain expert for the 14-stage turn pipeline, its Pydantic stage contracts, `PipelineContext` accumulator, and cross-stage ordering invariants. Owns correctness of stage wiring, contract assembly, and `TurnResult` shape.
 
 ## Trigger Conditions
 Invoke when work touches any of:
@@ -13,7 +13,7 @@ Invoke when work touches any of:
 
 ## Domain Knowledge
 
-### 1. The 12 Stages and Their Output Contracts
+### 1. The 14 Stages and Their Output Contracts
 
 `PipelineContext` (`src/services/turn_pipeline/context.py`) is a dataclass accumulator. Each stage writes a single Pydantic `BaseModel` from `src/domain/models/pipeline_contracts.py` to a dedicated field. Convenience properties on the context derive from those contracts; they raise `RuntimeError` when accessed before their producer has run.
 
@@ -23,8 +23,10 @@ Invoke when work touches any of:
 | 2 | `UtteranceSavingStage` | `utterance_saving_output` | `UtteranceSavingOutput` | `turn_number`, `user_utterance_id`, `user_utterance` |
 | 2.5 | `SRLPreprocessingStage` (optional, `enable_srl`) | `srl_preprocessing_output` | `SrlPreprocessingOutput` | `discourse_relations`, `srl_frames`, `discourse_count`, `frame_count`, `timestamp` |
 | 3 | `ExtractionStage` | `extraction_output` | `ExtractionOutput` | `extraction` (`ExtractionResult`), `methodology`, `timestamp`, `concept_count`, `relationship_count` |
-| 4 | `GraphUpdateStage` | `graph_update_output` | `GraphUpdateOutput` | `nodes_added` (`List[KGNode]`), `edges_added`, `node_count`, `edge_count`, `timestamp`. Also performs DB writes and `NodeStateTracker.register_node()` / `update_edge_counts()` / `record_yield()`. |
+| 3.1 | `LLMPrefetchStage` | *(no contract — stores `asyncio.Task` on `PipelineContext._llm_prefetch_task`)* | — | Fires LLM batch signal detection as a background `asyncio.Task` immediately after extraction. Runs concurrently with Stages 4–4.5, overlapping LLM latency with graph update and slot discovery. |
+| 4 | `GraphUpdateStage` | `graph_update_output` | `GraphUpdateOutput` | `nodes_added` (`List[KGNode]`), `edges_added`, `node_count`, `edge_count`, `timestamp`. Also performs DB writes and `NodeStateTracker.register_node()` / `update_edge_counts()` / `record_yield()`. Populates `PipelineContext.concept_to_node_id` for the per-concept→node bridge consumed in Stage 4.7 and Stage 6. |
 | 4.5 | `SlotDiscoveryStage` (optional, `enable_canonical_slots`) | `slot_discovery_output` | `SlotDiscoveryOutput` | `slots_created`, `slots_updated`, `mappings_created`, `timestamp` |
+| 4.7 | `LLMSignalBridgeStage` | `llm_signal_bridge_output` | `LLMSignalBridgeOutput` | `global_signals`, `per_concept_ratings`, `bridge_applied` (bool), `bridged_count` (int), `error` (Optional[str]), `timestamp`. Awaits the prefetch task from Stage 3.1, routes per-concept LLM ratings to `NodeStateTracker.append_quality()` via `concept_to_node_id`. Writes an error contract on failure (never `None`). |
 | 5 | `StateComputationStage` | `state_computation_output` | `StateComputationOutput` | `graph_state` (`GraphState`), `recent_nodes`, `computed_at` (freshness anchor), `saturation_metrics`, `canonical_graph_state` |
 | 6 | `StrategySelectionStage` | `strategy_selection_output` | `StrategySelectionOutput` | `strategy`, `focus`, `signals`, `node_signals`, `strategy_alternatives`, `score_decomposition`, `generates_closing_question`, `focus_mode`, `selected_at` |
 | 7 | `ContinuationStage` | `continuation_output` | `ContinuationOutput` | `should_continue`, `focus_concept`, `reason`, `turns_remaining`, `timestamp` |
@@ -32,7 +34,7 @@ Invoke when work touches any of:
 | 9 | `ResponseSavingStage` | `response_saving_output` | `ResponseSavingOutput` | `turn_number`, `system_utterance_id`, `system_utterance`, `question_text`, `timestamp` |
 | 10 | `ScoringPersistenceStage` | `scoring_persistence_output` | `ScoringPersistenceOutput` | `turn_number`, `strategy`, `depth_score`, `saturation_score`, `has_methodology_signals`, `timestamp`. Also: assembles `TurnResult`, writes `session.state.turn_count = turn_number`, persists `NodeStateTracker.to_dict()`, writes `FocusEntry`. |
 
-Note: Some doc tables (e.g. `node-state-tracker.md`) renumber the stages without the `.5` substages so SlotDiscovery becomes 6 and ScoringPersistence becomes 12. The stage *ordering* is identical; the canonical numbering used here matches `pipeline_contracts.py` and `data_flow_paths.md`.
+Note: Some doc tables (e.g. `node-state-tracker.md`) renumber the stages without the `.5`/`.7` substages so SlotDiscovery becomes 6 and ScoringPersistence becomes 12. The stage *ordering* is identical; the canonical numbering used here matches `pipeline_contracts.py` and includes the latency-optimized prefetch (3.1) and bridge (4.7) stages.
 
 ### 2. PipelineContext Accumulator Pattern
 
@@ -53,6 +55,8 @@ Note: Some doc tables (e.g. `node-state-tracker.md`) renumber the stages without
    - Writes `FocusEntry` to focus_history → without it, the cross-turn focus trace breaks.
    - Assembles `TurnResult` for the API response.
    Any early return / exception path before Stage 10 must be treated as a P0 bug.
+5. **Stage 3.1 (LLMPrefetch) → Stage 4.7 (LLMSignalBridge):** Prefetch fires the LLM call as an `asyncio.Task` after extraction. Bridge awaits it after graph update. If prefetch never fires, bridge writes an error contract (`bridge_applied=False`). If bridge runs before graph update, `concept_to_node_id` is empty and no per-concept ratings get routed to the node tracker.
+6. **Stage 4 (GraphUpdate) → Stage 4.7 (LLMSignalBridge):** Bridge depends on `context.concept_to_node_id` populated during graph update. The prefetch task itself is independent of graph state and runs concurrently with Stages 4–4.5.
 
 ### 4. Optional Stages: Skip Semantics
 
@@ -122,6 +126,9 @@ Contracts are Pydantic `BaseModel` instances. Use **attribute access** (`output.
 - **Accessing an Optional stage output without a null guard.** Properties listed as "Optional" in §2 (e.g. `strategy_alternatives`, `signals`, `node_signals`, `extraction`) return `None` before their producer has run. A downstream stage that reads `context.strategy_selection_output.generates_closing_question` without first checking `context.strategy_selection_output is not None` will raise `AttributeError` if Stage 6 failed or was skipped. Always null-guard Optional stage outputs at the access site, even when the upstream stage nominally always runs.
 - **Assuming `context.strategy_alternatives` returns the same shape as `StrategySelectionOutput.strategy_alternatives`.** The Pydantic field stores `List[Dict[str, Any]]` (keys: `strategy`, `node_id`, `score`). The `context.strategy_alternatives` property converts these to `List[tuple[str, Optional[str], float]]`. Code that reads the property gets tuples; code that reads the contract directly gets dicts. Mixing the two access paths will produce `TypeError` at runtime (tuple index vs dict key). Always access via the property for tuple format, or via the contract field for dict format — never assume they are the same type.
 - **Removing the `GraphUpdate → record_yield` call** thinking signals will pick it up later. Stage 6 reads, never writes; if Stage 4 doesn't yield-credit, no later stage will.
+- **Reordering LLMPrefetchStage (3.1) before ExtractionStage (3).** Prefetch needs `extraction_output.extraction.concepts` to fire the LLM batch call. Placing it before extraction means no concepts to send, and the prefetch is skipped (writes no task). Bridge then has nothing to await and `bridge_applied=False`.
+- **Placing LLMSignalBridgeStage (4.7) before GraphUpdateStage (4).** Bridge needs `concept_to_node_id` populated by graph update to route per-concept LLM ratings to the node tracker. Without it, `bridged_count=0` every turn and `convgraph.node.llm.*` signals are always empty.
+- **Forgetting to handle the error contract from LLMSignalBridgeStage.** The bridge writes `LLMSignalBridgeOutput` even on error (with `bridge_applied=False`). Stage 6 must not assume `bridge_applied=True` — it should fall back to empty signals when the bridge fails.
 
 ## Context Documents
 
