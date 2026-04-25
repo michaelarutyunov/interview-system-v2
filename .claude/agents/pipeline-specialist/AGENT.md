@@ -129,6 +129,9 @@ Contracts are Pydantic `BaseModel` instances. Use **attribute access** (`output.
 - `.claude/context/turn-count.md` — `turn_count` vs `turn_number`, `max_turns` derivation, phase boundaries
 - `.claude/context/graph-mutation.md` — Extraction → GraphUpdate → StateComputation flow, dedup, DB round-trip
 - `.claude/context/node-state-tracker.md` — `NodeState` fields, per-stage method table, dual-graph resolution
+- `.claude/context/canonical-slots.md` — Stage 4.5 slot discovery pipeline, promotion thresholds, embedding similarity matching
+- `.claude/context/simulation-export-schema.md` — Stable JSON/CSV export contract for simulation output; governs downstream reporting scripts
+- `.claude/context/debugging-protocol.md` — Root cause analysis protocol for tracing type mismatches and data loss across pipeline stages
 - `src/services/turn_pipeline/context.py` — `PipelineContext` dataclass and convenience properties
 - `src/domain/models/pipeline_contracts.py` — all 12 Pydantic contracts, including `StrategySelectionInput.verify_state_freshness`
 - `src/services/session_service.py` — `_build_pipeline()` stage wiring (the source of truth for ordering)
