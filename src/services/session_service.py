@@ -354,11 +354,11 @@ class SessionService:
 
         # Persist the next-turn tracker (sealed + focus update applied by Stage 6)
         tracker_to_save = (
-            result.context.strategy_selection_output.next_turn_node_tracker
-            if result.context.strategy_selection_output is not None
-            and result.context.strategy_selection_output.next_turn_node_tracker is not None
-            else result.context.llm_signal_bridge_output.sealed_node_tracker
-            if result.context.llm_signal_bridge_output is not None
+            context.strategy_selection_output.next_turn_node_tracker
+            if context.strategy_selection_output is not None
+            and context.strategy_selection_output.next_turn_node_tracker is not None
+            else context.llm_signal_bridge_output.sealed_node_tracker
+            if context.llm_signal_bridge_output is not None
             else node_tracker
         )
         await self._save_node_tracker(session_id, tracker_to_save)

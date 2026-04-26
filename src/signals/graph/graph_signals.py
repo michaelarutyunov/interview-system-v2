@@ -363,7 +363,7 @@ class CanonicalExhaustionScoreSignal(SignalDetector):
 
         # When canonical slots are disabled, skip this signal to avoid silent fallback
         # to surface-node exhaustion (which would contradict the "canonical" name)
-        if node_tracker.canonical_slot_repo is None:
+        if context.canonical_graph_state is None:
             log.debug(
                 "canonical_slots_disabled",
                 signal=self.signal_name,

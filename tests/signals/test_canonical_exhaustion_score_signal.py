@@ -21,14 +21,12 @@ def _make_node_state(
     return state
 
 
-def _make_context(states: dict, canonical_slot_repo=None) -> MagicMock:
-    if canonical_slot_repo is None:
-        canonical_slot_repo = MagicMock()
+def _make_context(states: dict, canonical_slots_enabled: bool = True) -> MagicMock:
     ctx = MagicMock()
     tracker = MagicMock()
     tracker.states = states
-    tracker.canonical_slot_repo = canonical_slot_repo
     ctx.node_tracker = tracker
+    ctx.canonical_graph_state = MagicMock() if canonical_slots_enabled else None
     return ctx
 
 
@@ -59,8 +57,8 @@ async def test_returns_empty_when_canonical_slot_repo_is_none():
     """Bug-fix guard: must return {} rather than silently using surface nodes."""
     ctx = _make_context(
         states={"node-a": _make_node_state(focus_count=3, turns_since_last_yield=2)},
+        canonical_slots_enabled=False,
     )
-    ctx.node_tracker.canonical_slot_repo = None
     signal = CanonicalExhaustionScoreSignal()
     result = await signal.detect(ctx, MagicMock(), "")
     assert result == {}
