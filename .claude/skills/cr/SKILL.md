@@ -41,11 +41,13 @@ ls .claude/context/*.md 2>/dev/null
 # Drift check + cross-reference validation (orphaned docs, missing agents, stale source refs)
 uv run python scripts/check_doc_drift.py
 
-# Complete trigger coverage: every src/ directory vs. trigger table
-for dir in $(fd -t d --maxdepth 2 . src/ | sort); do
-  covered=$(rg -c "$dir" CLAUDE.md 2>/dev/null || echo "0")
-  echo "  $dir → $( [ \"$covered\" -gt 0 ] && echo 'covered' || echo 'UNCOVERED' )"
-done
+# Trigger table for manual coverage analysis (globs can't be evaluated by grep)
+echo "=== All src/ directories ===" && fd -t d --maxdepth 2 . src/ | sort
+echo ""
+echo "=== Trigger patterns from CLAUDE.md ==="
+rg -N '^\| `src/' CLAUDE.md | head -20
+echo ""
+echo "↑ Compare manually: each directory should match a trigger glob (e.g. src/signals/** covers src/signals/meta/)"
 
 # Tier 2/3 counts for growth benchmarks
 echo "Tier 2 agents: $(ls .claude/agents/*/AGENT.md 2>/dev/null | wc -l)"
@@ -67,7 +69,7 @@ Run each check and record findings. Zero warnings from `check_doc_drift.py` mean
 |-------|-----|---------|
 | **CLAUDE.md size** | `wc -l CLAUDE.md` | > 800 lines (extract to Tier 2/3) |
 | **Agent coverage (session)** | Compare changed files against trigger table in CLAUDE.md | Files touched that match no agent pattern |
-| **Agent coverage (full tree)** | Compare ALL `src/` directories against trigger table | Production directory with no trigger match |
+| **Agent coverage (full tree)** | Manually compare ALL `src/` directories against trigger table globs (simple grep won't resolve `**` patterns) | Production directory with no trigger match and not in intentional gaps list |
 | **Doc drift** | `check_doc_drift.py` output | Any `⚠  Doc drift detected` lines |
 | **Cross-reference validation** | `check_doc_drift.py` output | Any `⚠  Cross-reference validation failed` lines (covers: missing agents, missing docs, missing source files, orphaned context docs) |
 | **Doc mapping gaps** | Compare changed source files against `.claude/doc_mapping.yaml` | Source file with no mapping entry |
