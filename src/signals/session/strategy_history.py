@@ -1,5 +1,7 @@
 """Strategy history signals - repetition count, turns since change."""
 
+from typing import ClassVar
+
 import structlog
 
 from src.signals.signal_base import SignalDetector
@@ -25,6 +27,7 @@ class StrategyRepetitionCountSignal(SignalDetector):
         "resolves to each candidate's own count; weight is thus a true "
         "self-repetition brake."
     )
+    scoped: ClassVar[bool] = True
 
     async def detect(self, context, graph_state, response_text):
         """Return a per-strategy repetition map.

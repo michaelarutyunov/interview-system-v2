@@ -7,8 +7,9 @@ from src.signals.signal_base import SignalDetector
 
 @pytest.fixture
 def registry_snapshot():
-    """Save and restore SignalDetector._registry to prevent test pollution."""
+    """Save, clear, and restore SignalDetector._registry to prevent test pollution."""
     saved = SignalDetector._registry.copy()
+    SignalDetector._registry.clear()
     yield
     SignalDetector._registry.clear()
     SignalDetector._registry.update(saved)
@@ -78,3 +79,21 @@ class TestGetScopedSignalNames:
         assert ExplicitFalse.scoped is False
         result = SignalDetector.get_scoped_signal_names()
         assert "test.explicit_false" not in result
+
+
+class TestScopedIntegration:
+    """Integration tests using the real signal registry (no snapshot isolation)."""
+
+    def test_strategy_repetition_count_is_scoped(self):
+        """StrategyRepetitionCountSignal is discoverable via get_scoped_signal_names."""
+        import src.signals  # noqa: F401 — side-effect import triggers auto-registration
+
+        result = SignalDetector.get_scoped_signal_names()
+        assert "interview.strategy.self_count" in result
+
+    def test_turns_since_change_not_scoped(self):
+        """TurnsSinceChangeSignal returns a scalar — not in the scoped set."""
+        import src.signals  # noqa: F401 — side-effect import triggers auto-registration
+
+        result = SignalDetector.get_scoped_signal_names()
+        assert "interview.strategy.turns_since_change" not in result
