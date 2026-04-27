@@ -5,6 +5,8 @@ defined in methodology YAML configs. All signals are expected to be
 normalized at source to [0, 1] or bool.
 """
 
+import functools
+
 import structlog
 from dataclasses import dataclass, field
 from typing import List, Tuple, Dict, Any, Optional, Union
@@ -20,11 +22,18 @@ NODE_SIGNAL_PREFIXES = (
     "meta.node.",
 )
 
-# Signals whose raw value is a {strategy_name: scalar} dict and must be
-# resolved to the candidate strategy's own scalar before weight application.
-# Keeping this list explicit (rather than duck-typing on dict) avoids
-# misresolving any future signal that legitimately emits a mapping.
-STRATEGY_SCOPED_SIGNALS = ("interview.strategy.self_count",)
+
+@functools.lru_cache(maxsize=1)
+def _scoped_signal_names() -> frozenset[str]:
+    """Return signal names whose detectors set scoped=True.
+
+    Lazily imported and cached to avoid circular-import coupling during
+    test collection. Cache must be cleared via ``_scoped_signal_names.cache_clear()``
+    in test fixtures that register throwaway scoped subclasses.
+    """
+    from src.signals.signal_base import SignalDetector
+
+    return SignalDetector.get_scoped_signal_names()
 
 
 def _resolve_strategy_scoped_signals(
@@ -33,15 +42,27 @@ def _resolve_strategy_scoped_signals(
     """Return a new signals dict with strategy-scoped dicts flattened to the
     current candidate's scalar.
 
-    If the signal is missing or the strategy has no entry, the scalar is 0.0
-    (i.e. the strategy has not been picked in the window — no penalty).
+    Scoped signals are discovered from the SignalDetector registry (not a
+    hardcoded list).  If the signal is missing or the strategy has no entry,
+    the scalar is 0.0 (i.e. the strategy has not been picked in the window).
+
+    When a signal is declared scoped but its raw value is not a dict (and not
+    None/missing), a warning is emitted — the scorer can't resolve a per-strategy
+    scalar from a non-dict value.
     """
     resolved = dict(signals)
-    for key in STRATEGY_SCOPED_SIGNALS:
+    for key in _scoped_signal_names():
         raw = resolved.get(key)
         if isinstance(raw, dict):
             resolved[key] = float(raw.get(strategy_name, 0.0))
-        # If raw is already a scalar (legacy/tests) or missing, leave it.
+        elif raw is not None:
+            log.warning(
+                "scoped_signal_returned_non_dict",
+                signal=key,
+                value_type=type(raw).__name__,
+            )
+            # Leave raw in place — downstream code handles non-scalar values
+            # by ignoring them (contribution = 0.0).
     return resolved
 
 

@@ -2,17 +2,23 @@
 
 import pytest
 
+from src.methodologies.scoring import _scoped_signal_names
 from src.signals.signal_base import SignalDetector
 
 
 @pytest.fixture
 def registry_snapshot():
-    """Save, clear, and restore SignalDetector._registry to prevent test pollution."""
+    """Save, clear, and restore SignalDetector._registry to prevent test pollution.
+
+    Also clears the _scoped_signal_names LRU cache so that scoring.py sees the
+    restored registry (not the throwaway subclasses registered during the test).
+    """
     saved = SignalDetector._registry.copy()
     SignalDetector._registry.clear()
     yield
     SignalDetector._registry.clear()
     SignalDetector._registry.update(saved)
+    _scoped_signal_names.cache_clear()
 
 
 @pytest.mark.usefixtures("registry_snapshot")
