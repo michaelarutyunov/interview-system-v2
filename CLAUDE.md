@@ -127,6 +127,14 @@ chain_completion:
   expected_branching: {attribute: 3, functional_consequence: 2, ...}
   score_threshold: 0.15  # Below this, conversation-level strategies activate
 
+# Chain construction rules (config/chain_rules/):
+# One YAML per methodology — specifies which edge types constitute narrative progression
+# and optional per-edge node-type permitted pairs for analytical chain extraction.
+# Separate from config/methodologies/ extraction rules (different tuning concerns).
+# Format: chain_edges: {edge_name: null | [[src_type, tgt_type], ...]}
+# null = unconstrained (trust extraction); list = analytical filter.
+# Methodologies without a chain_rules file fall back to leads_to unconstrained.
+
 # Active methodology configs (config/methodologies/):
 # means_end_chain_v2_strict  — 6 strategies, all with valid_when gates (reference)
 # means_end_chain_v2_flex    — same as strict, no permitted_connections on edges
@@ -196,6 +204,7 @@ Run `uv run python scripts/check_doc_drift.py` any time to check for drift. The 
 | `src/services/node_state_tracker.py`, `src/services/node_signal_detection_service.py` | `.claude/context/node-state-tracker.md` |
 | `src/main.py`, `src/routers/*.py` | `docs/API.md` |
 | `scripts/reporting/*.py`, `scripts/diagnostics/extract_simulation_data.py` | `.claude/context/simulation-export-schema.md` |
+| `config/chain_rules/*.yaml` | `.claude/context/simulation-export-schema.md` |
 
 ### After editing — update the same doc
 Same mappings apply symmetrically. Update the corresponding doc in the same commit or the commit immediately after.

@@ -92,9 +92,13 @@ Turn N ends (saved to DB):
   previous_focus = "node_A"
 ```
 
+### Model Invariants
+
+`NodeStateTracker` is a **frozen Pydantic `BaseModel`** (`model_config = ConfigDict(frozen=True)`). It has no mutable attributes and no `canonical_slot_repo` field. Canonical slot availability is checked via `context.canonical_graph_state is None` in signal detectors — never via a tracker attribute. Any code that accesses `node_tracker.canonical_slot_repo` will raise `AttributeError` at runtime.
+
 ### Dual-Graph Support
 
-When `canonical_slot_repo` is provided (i.e. `enable_canonical_slots=True`), surface node IDs are resolved to canonical slot IDs via `_resolve_canonical_slot_id()` before use as tracking keys. This aggregates metrics across paraphrase surface nodes into a single canonical slot entry. Falls back to surface node ID if no mapping exists (expected for unmapped nodes, not an error).
+When `enable_canonical_slots=True`, surface node IDs are resolved to canonical slot IDs via `_resolve_canonical_slot_id()` before use as tracking keys. This aggregates metrics across paraphrase surface nodes into a single canonical slot entry. Falls back to surface node ID if no mapping exists (expected for unmapped nodes, not an error).
 
 ### Serialization Schema
 
