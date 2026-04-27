@@ -27,6 +27,7 @@ class SignalDetector(ABC):
     - Auto-registration via __init_subclass__ (no manual registry updates)
     - Declarative dependencies (topological sort for detection order)
     - Node-level signal marker (requires_node_tracker for per-node scoring)
+    - Strategy-scoped signal marker (scoped=True for per-strategy resolution)
     - Namespaced signals (graph.*, llm.*, temporal.*, meta.*, graph.node.*, technique.node.*)
 
     Subclass pattern:
@@ -34,6 +35,7 @@ class SignalDetector(ABC):
             signal_name = "namespace.signal_name"
             description = "Human-readable description for YAML config"
             dependencies = ["namespace.dep_signal"]  # Optional
+            scoped = False  # Set True for per-strategy resolution signals
 
             async def detect(self, context, graph_state, response_text):
                 return {self.signal_name: value}
@@ -51,6 +53,7 @@ class SignalDetector(ABC):
     description: ClassVar[str] = ""
     dependencies: ClassVar[list[str]] = []
     requires_node_tracker: ClassVar[bool] = False
+    scoped: ClassVar[bool] = False
 
     # Auto-registration registry
     _registry: ClassVar[dict[str, type["SignalDetector"]]] = {}
@@ -100,6 +103,21 @@ class SignalDetector(ABC):
             Signal detector class or None if signal name not registered
         """
         return cls._registry.get(signal_name)
+
+    @classmethod
+    def get_scoped_signal_names(cls) -> frozenset[str]:
+        """Get names of registered signal detectors with scoped=True.
+
+        Scoped signals return per-strategy values (e.g. ``interview.strategy.self_count``
+        maps strategy name to count). The scorer resolves each candidate's own
+        scalar by looking up the candidate strategy name in the signal value.
+
+        Returns:
+            frozenset of signal names whose detector has scoped=True
+        """
+        return frozenset(
+            name for name, detector_cls in cls._registry.items() if detector_cls.scoped
+        )
 
     def __init__(self, node_tracker: NodeStateTracker | None = None) -> None:
         """Initialize signal detector with optional NodeStateTracker.
