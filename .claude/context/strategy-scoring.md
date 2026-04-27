@@ -322,7 +322,13 @@ Phase 4 (2026-04-15 through 2026-04-17) was a multi-tier calibration exercise ac
 - `ascend` with weight `-1.5` was penalized whenever `ground` (weight `-0.15`) repeated, because the shared scalar (~0.6) × `-1.5` = `-0.90` penalty.
 - The feedback sign was inverted: the strategy most needing to fire (to break monoculture) was punished in proportion to how entrenched the dominant strategy was.
 
-**Fix (2026-04-17)**: `StrategyRepetitionCountSignal.detect()` now returns `{signal_name: {strategy_name: normalized_count}}` — a per-strategy map. `scoring.py` gained `_resolve_strategy_scoped_signals()` + `STRATEGY_SCOPED_SIGNALS` registry. Called once per candidate before weight application, flattening the dict to the candidate's own scalar (0.0 if the strategy hasn't fired in the window).
+**Fix (2026-04-17, updated Apr 2026)**: `StrategyRepetitionCountSignal.detect()` now returns `{signal_name: {strategy_name: normalized_count}}` — a per-strategy map. Strategy-scoped signals are self-describing: a signal class declares `scoped: ClassVar[bool] = True` on the detector; the scorer discovers them via `SignalDetector.get_scoped_signal_names()` (cached in `_scoped_signal_names()`). No separate registry to maintain. Called once per candidate before weight application, flattening the dict to the candidate's own scalar (0.0 if the strategy hasn't fired in the window).
+
+    ```python
+    class StrategyRepetitionCountSignal(SignalDetector):
+        signal_name = "interview.strategy.self_count"
+        scoped: ClassVar[bool] = True  # Auto-discovered by scorer
+    ```
 
 **Implication**: All repetition brakes now behave as genuine self-brakes. Do not reintroduce the old scalar pattern.
 
