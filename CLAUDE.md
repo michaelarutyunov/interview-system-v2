@@ -202,7 +202,7 @@ Run `uv run python scripts/check_doc_drift.py` any time to check for drift. The 
 | `src/services/extraction_service.py` | `.claude/context/extraction.md` |
 | Any pipeline stage (`stages/*.py`), `context.py`, `pipeline_contracts.py` | `.claude/context/pipeline-contracts.md` |
 | `src/services/node_state_tracker.py`, `src/services/node_signal_detection_service.py` | `.claude/context/node-state-tracker.md` |
-| `src/main.py`, `src/routers/*.py` | `docs/API.md` |
+| `src/main.py`, `src/api/routes/*.py` | `docs/API.md` |
 | `scripts/reporting/*.py`, `scripts/diagnostics/extract_simulation_data.py` | `.claude/context/simulation-export-schema.md` |
 | `config/chain_rules/*.yaml` | `.claude/context/simulation-export-schema.md` |
 
@@ -226,6 +226,10 @@ Specialist agents are invoked based on which files are being modified. Agents li
 | `config/methodologies/*.yaml` (methodology definitions, strategies, signal_weights, phases), `src/methodologies/registry.py`, `src/methodologies/scoring.py`, `src/services/methodology_strategy_service.py` | `methodology-specialist` |
 
 Agents will be created iteratively as failure patterns are observed. See `.claude/codified-context-principles.md` for creation criteria.
+
+**Intentionally uncovered directories** (stable infrastructure, no specialist needed):
+- `src/core/` — config loaders, logging, exceptions; rarely modified
+- `src/persistence/` — database + SQLite repos; stable schema
 
 ---
 
