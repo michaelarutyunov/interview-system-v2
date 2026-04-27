@@ -38,8 +38,21 @@ ls .claude/agents/*/AGENT.md 2>/dev/null
 # Existing context docs
 ls .claude/context/*.md 2>/dev/null
 
-# Drift check
-uv run python scripts/check_doc_drift.py --repo-root .
+# Drift check + cross-reference validation (orphaned docs, missing agents, stale source refs)
+uv run python scripts/check_doc_drift.py
+
+# Complete trigger coverage: every src/ directory vs. trigger table
+for dir in $(fd -t d --maxdepth 2 . src/ | sort); do
+  covered=$(rg -c "$dir" CLAUDE.md 2>/dev/null || echo "0")
+  echo "  $dir → $( [ \"$covered\" -gt 0 ] && echo 'covered' || echo 'UNCOVERED' )"
+done
+
+# Tier 2/3 counts for growth benchmarks
+echo "Tier 2 agents: $(ls .claude/agents/*/AGENT.md 2>/dev/null | wc -l)"
+echo "Tier 3 docs: $(ls .claude/context/*.md 2>/dev/null | wc -l)"
+
+# Code LOC estimate (for knowledge-to-code ratio)
+fd -e py . src/ -x wc -l {} 2>/dev/null | tail -1
 
 # Open beads
 bd list --status=open 2>/dev/null
@@ -48,16 +61,18 @@ bd list --status=in_progress 2>/dev/null
 
 ### Step 2 — Structural checks
 
-Run each check and record findings:
+Run each check and record findings. Zero warnings from `check_doc_drift.py` means clean — report it as OK, not as unchecked.
 
 | Check | How | Flag if |
 |-------|-----|---------|
 | **CLAUDE.md size** | `wc -l CLAUDE.md` | > 800 lines (extract to Tier 2/3) |
-| **Agent coverage gaps** | Compare changed files against trigger table in CLAUDE.md | Files touched that match no agent pattern |
-| **Doc drift** | `check_doc_drift.py` output | Any warnings |
-| **Orphaned context docs** | `check_doc_drift.py` output (orphan_doc) | Context doc not referenced by any agent or CLAUDE.md |
+| **Agent coverage (session)** | Compare changed files against trigger table in CLAUDE.md | Files touched that match no agent pattern |
+| **Agent coverage (full tree)** | Compare ALL `src/` directories against trigger table | Production directory with no trigger match |
+| **Doc drift** | `check_doc_drift.py` output | Any `⚠  Doc drift detected` lines |
+| **Cross-reference validation** | `check_doc_drift.py` output | Any `⚠  Cross-reference validation failed` lines (covers: missing agents, missing docs, missing source files, orphaned context docs) |
 | **Doc mapping gaps** | Compare changed source files against `.claude/doc_mapping.yaml` | Source file with no mapping entry |
-| **New directories** | Compare `src/` tree against trigger table | Directory with no trigger match |
+| **Growth benchmarks** | Compare Tier 2/3 counts against `.claude/codified-context-principles.md` §Growth Benchmarks table | Outside expected range for project stage |
+| **Knowledge-to-code ratio** | `(CLAUDE.md lines + Σ agent lines + Σ context doc lines) / code LOC` | Below 1:4 (docs:code) |
 
 ### Step 3 — Semantic checks (judgment-based)
 
@@ -89,10 +104,13 @@ Present findings in this format:
 
 STRUCTURAL:
   [OK|WARN|ACTION] CLAUDE.md: N lines (limit 800)
-  [OK|WARN|ACTION] Agent coverage: N agents, X uncovered directories
+  [OK|WARN|ACTION] Agent coverage (session): N changed files, X uncovered
+  [OK|WARN|ACTION] Agent coverage (full tree): N dirs, X uncovered
   [OK|WARN|ACTION] Doc drift: N warnings
+  [OK|WARN|ACTION] Cross-reference validation: N warnings
   [OK|WARN|ACTION] Doc mapping: N unmapped source files
-  [OK|WARN|ACTION] Orphaned context docs: N
+  [OK|WARN|ACTION] Growth benchmarks: N agents (expected N-N), N context docs (expected N-N)
+  [OK|WARN|ACTION] Knowledge-to-code ratio: 1:N (target 1:4)
 
 RECOMMENDATIONS:
   1. [ACTION/WARN] <specific recommendation>
@@ -135,6 +153,18 @@ Convention creep from multiple sessions.
 ### "New directory with no agent trigger"
 Added `src/explorations/` or similar.
 → Action: Only flag if it contains production code. Exploration/experiment directories don't need agents.
+
+### "Pre-existing directory with no trigger match"
+Full-tree coverage check found `src/some/dir/` with no trigger pattern in CLAUDE.md.
+→ Action: If the directory contains actively-modified production code, add a trigger pattern. If it's stable/simple infrastructure, document the intentional gap (e.g., `-- no agent needed: stable infrastructure` comment in the trigger table). Don't create an agent just to fill a coverage hole — agents require observed failure patterns.
+
+### "Tier 3 doc count outside benchmark"
+Context docs count is above the expected range for the project stage (see `.claude/codified-context-principles.md` §Growth Benchmarks).
+→ Action: Audit docs with only 1 reference first. These are candidates for consolidation — merge related docs or remove docs that describe dead/stable subsystems. Second pass: check for docs that duplicate content from other docs. The goal is not to hit the benchmark exactly, but to prevent undocumented growth.
+
+### "Knowledge-to-code ratio below 1:4"
+Documentation volume is thin relative to code size.
+→ Action: Identify the largest undocumented subsystems (most LOC, least doc references). Prioritize subsystems that have caused debugging confusion or agent mistakes. Don't add docs for stable/simple code — the ratio is a signal, not a mandate.
 
 ## Anti-patterns
 
