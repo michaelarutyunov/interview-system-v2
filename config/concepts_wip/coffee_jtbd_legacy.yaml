@@ -1,7 +1,0 @@
-id: coffee_jtbd_legacy
-name: "Coffee Jobs to be Done (Legacy)"
-methodology: jobs_to_be_done
-
-# Objective describes what we want to explore in this interview
-# This is a one-liner that guides the AI interviewer on the research focus
-objective: "Understand the underlying jobs people are trying to accomplish when they consume coffee in the morning, and what barriers prevent them from achieving those jobs"
