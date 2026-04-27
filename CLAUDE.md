@@ -50,6 +50,8 @@ Any codebase change should follow these principles:
 | `.claude/context/extraction.md` | LLM concept/relationship extraction |
 | `.claude/context/graph-dedup.md` | Surface graph deduplication |
 | `.claude/context/canonical-slots.md` | Canonical slot discovery |
+| `.claude/context/docker-deployment.md` | Docker build decisions, Cloud Run config, update procedure |
+| `.claude/context/ui-architecture.md` | Streamlit UI components, state management, styling, API integration |
 
 ---
 
@@ -205,6 +207,8 @@ Run `uv run python scripts/check_doc_drift.py` any time to check for drift. The 
 | `src/main.py`, `src/api/routes/*.py` | `docs/API.md` |
 | `scripts/reporting/*.py`, `scripts/diagnostics/extract_simulation_data.py` | `.claude/context/simulation-export-schema.md` |
 | `config/chain_rules/*.yaml` | `.claude/context/simulation-export-schema.md` |
+| `Dockerfile`, `entrypoint.sh`, `.dockerignore`, `scripts/deploy_cloud_run.sh` | `.claude/context/docker-deployment.md` |
+| `ui/streamlit_app.py`, `ui/components/*.py`, `ui/api_client.py`, `.streamlit/config.toml` | `.claude/context/ui-architecture.md` |
 
 ### After editing — update the same doc
 Same mappings apply symmetrically. Update the corresponding doc in the same commit or the commit immediately after.
