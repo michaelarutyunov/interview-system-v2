@@ -12,7 +12,7 @@
 | `ui/streamlit_app.py` | Main app — page config, CSS injection, state init, layout, tab routing |
 | `ui/api_client.py` | HTTP client with dual sync/async interface to FastAPI backend |
 | `ui/components/chat.py` | ChatInterface — message history, input, avatars |
-| `ui/components/controls.py` | SessionControls — create/load/delete sessions, export (sidebar) |
+| `ui/components/controls.py` | *(removed Apr 2026 — was vestigial, no live imports)* |
 | `ui/components/graph.py` | GraphVisualizer — NetworkX + Plotly 2D/3D graph rendering |
 | `ui/components/metrics.py` | MetricsPanel — turn count, coverage, strategy display |
 | `ui/components/scoring.py` | ScoringTab — signal grouping, strategy ranking, legacy fallback |
@@ -172,13 +172,9 @@ All CSS is inline in `streamlit_app.py` — no external CSS files.
 - Strategy ranking with progress bars
 - Legacy mode: turn selector, tier 1 vetoes, tier 2 weighted scoring breakdown
 
-### SessionControls (`ui/components/controls.py`)
+### SessionControls (`ui/components/controls.py`) — REMOVED
 
-- Not used in the main app's current layout (inline controls in `streamlit_app.py` instead)
-- Still provides helper functions: `initialize_session_state()`, `get_current_session()`, `clear_current_session()`
-- Has its own concept/session loading — may diverge from main app's loading
-
-**Note**: `controls.py` appears to be from an earlier UI iteration. The main app (`streamlit_app.py`) handles session creation inline in the header row. This component may be vestigial.
+This component was removed in Apr 2026. It was from an earlier UI iteration where session management lived in the sidebar. The main app (`streamlit_app.py`) handles all session creation, loading, and export inline in the header row and export tab. No code imported from this module.
 
 ---
 
@@ -204,5 +200,91 @@ All CSS is inline in `streamlit_app.py` — no external CSS files.
 - **`st.rerun()` after every turn**: The entire script re-executes on each rerun. State changes that happen *after* the rerun trigger won't be visible until the *next* rerun. This is why the main app fetches status/graph at the top of the script.
 - **LLM question leaking**: The backend sometimes includes candidate questions in the response. The main app strips markers like `"Selected question:"` from `next_question` before display (lines 367-378).
 - **Focus node resolution**: The turn result returns `focus_node_id` (a UUID), not a label. The main app resolves it to a human-readable label by fetching the graph and building a lookup map.
-- **`controls.py` divergence**: `SessionControls` has its own concept loading and session management that may not match the main app's state. Be cautious when modifying — the main app has its own inline session flow.
+- **`controls.py` removed (Apr 2026)**: Was vestigial — no code imported it. Main app handles sessions inline.
 - **No multi-page architecture**: The entire UI is a single Streamlit script. Navigation is via sidebar radio, not Streamlit's native multi-page system.
+
+---
+
+## API Contract Audit (2026-04-27)
+
+Systematic comparison of frontend field access against backend response schemas (`src/api/schemas.py`).
+
+### POST `/sessions` — Create Session
+
+| Frontend reads | Backend provides | Status |
+|---------------|-----------------|--------|
+| `id` | `id: str` | Match |
+| `concept_id` | `concept_id: str` | Match |
+| `status` | `status: str` | Match |
+| `opening_question` (optional) | *(not in schema)* | Match — comes from `/start` |
+| `created_at` (optional) | `created_at: datetime` | Match |
+
+Unused: `methodology`, `config`, `turn_count`, `updated_at`, `mode`
+
+### POST `/sessions/{id}/start` — Start Session
+
+| Frontend reads | Backend provides | Status |
+|---------------|-----------------|--------|
+| `opening_question` | `opening_question: str` | Match |
+
+Unused: `session_id`
+
+### POST `/sessions/{id}/turns` — Submit Turn
+
+| Frontend reads | Backend provides | Status |
+|---------------|-----------------|--------|
+| `next_question` | `next_question: str` | Match |
+| `should_continue` | `should_continue: bool` | Match |
+| `strategy_selected` | `strategy_selected: str` | Match |
+| `latency_ms` | `latency_ms: int` | Match |
+| `focus_node_id` | `focus_node_id: str\|None` | Match |
+
+Unused: `turn_number`, `extracted`, `graph_state`, `scoring`, `signals`, `strategy_alternatives`
+
+### GET `/sessions/{id}/status` — Session Status
+
+| Frontend reads | Backend provides | Status |
+|---------------|-----------------|--------|
+| `turn_number` | `turn_number: int` | Match |
+| `phase` | `phase: str` | Match |
+| `canonical_node_count` | `canonical_node_count: int` | Match |
+
+Unused: `max_turns`, `status`, `should_continue`, `strategy_selected`, `strategy_reasoning`, `focus_tracing`
+
+### GET `/sessions/{id}/graph` — Session Graph
+
+| Frontend reads | Backend provides | Status |
+|---------------|-----------------|--------|
+| `nodes[].id` | `id: str` | Match |
+| `nodes[].label` | `label: str` | Match |
+| `nodes[].node_type` | `node_type: str` | Match |
+| `edges[].source_id` | `source_id: str` | Match |
+| `edges[].target_id` | `target_id: str` | Match |
+
+Unused: `nodes[].confidence`, `nodes[].properties`, `edges[].edge_type`, `edges[].confidence`, `edges[].properties`, `node_count`, `edge_count`
+
+### GET `/sessions` — List Sessions
+
+| Frontend reads | Backend provides | Status |
+|---------------|-----------------|--------|
+| `sessions` | `sessions: list[SessionResponse]` | Match |
+| `total` | `total: int` | Match |
+
+### GET `/concepts` — List Concepts
+
+| Frontend reads | Backend provides | Status |
+|---------------|-----------------|--------|
+| `[].id` | `id: str` | Match |
+| `[].name` | `name: str` | Match |
+| `[].methodology` | `methodology: str` | Match |
+| `[].element_count` | `element_count: int` | Match |
+
+### GET `/sessions/{id}/export?format=` — Export
+
+| Frontend reads | Backend provides | Status |
+|---------------|-----------------|--------|
+| `response.text` | Raw text (JSON/MD/CSV) | Match |
+
+### Result
+
+**Zero breakages.** All 8 endpoints return every field the frontend depends on, with matching types. No renames or type changes detected.

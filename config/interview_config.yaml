@@ -9,7 +9,7 @@
 # Used by:
 # - src/domain/models/interview_state.py:247 (termination check)
 # - ui/components/metrics.py:67 (progress display)
-# - ui/components/controls.py:82 (slider default)
+#
 session:
   # Calculated from phases (exploratory + focused + closing)
   # Can be overridden via API: config={"max_turns": custom_value}
