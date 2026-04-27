@@ -42,6 +42,34 @@ When debugging joint scoring:
 - Check `convgraph.node.focus.streak` for persistent focus patterns
 - Verify NodeStateTracker state for focus_count, turns_since_last_yield, current_focus_streak
 
+## Known Failure Signatures
+
+### Strategy monoculture (same strategy wins every turn)
+1. Check repetition brakes: `interview.strategy.self_count` weight should be negative (e.g., `-0.5`), never positive
+2. Compare base scores: `grep "base_score" logs/` — if one strategy's base is >2× the next, brakes can't compensate
+3. Verify `node_binding` alignment: strategies with `convgraph.node.*` weights must use `node_binding: required`
+4. Check `valid_when` gates aren't filtering out all alternatives for every node
+
+### Per-concept LLM signals always zero
+1. Verify `response.semantic.llm.elaboration` and `response.semantic.llm.charge` are in the methodology's `signals: llm:` list
+2. Check `bridged_count` in Stage 4.7 logs — if always 0, `concept_to_node_id` mapping is failing
+3. Verify `concept.text` (not `.name`) is used when building the concept→node map
+
+### NodeStateTracker state lost between turns
+1. Verify Stage 12 calls `node_state_tracker.to_dict()` and saves to `sessions.node_tracker_state`
+2. Verify Stage 1 loads it via `from_dict()`
+3. Check for `ValueError: Incompatible node_tracker_state schema version` — DB may have stale serialized state
+
+### Tracked metrics split across paraphrase nodes (dual-graph mode)
+1. `remap_to_canonical_slots()` must run after Stage 4.5 creates surface-to-slot mappings
+2. Check `canonical_slot_remap_complete` log for remapped/merged counts
+3. If `focus_update_failed_node_not_found` warnings appear, re-key didn't happen
+
+### Graph dedup fragmentation (same concept creates multiple nodes)
+1. Verify `embedding_service` is configured and spaCy model is installed
+2. Check `surface_similarity_threshold` — if concepts are inconsistently named, threshold may need lowering
+3. Verify `concept_naming_convention` is being followed in the methodology YAML
+
 ## Uvicorn Logging
 For debugging API/pipeline issues:
 ```bash

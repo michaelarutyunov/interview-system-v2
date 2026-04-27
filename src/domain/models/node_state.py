@@ -42,7 +42,7 @@ class NodeQualityHistory(BaseModel):
     """Per-node LLM quality signal history (per-concept ratings from batch detector).
 
     Populated via NodeStateTracker.append_quality() when a concept extracted from
-    the user's response is mapped back to a graph node via concept_to_node_id.
+    the user's response is mapped back to a graph node via GraphUpdateOutput.concept_to_node_id.
     Consumed by NodeElaborationSignal / NodeChargeSignal / NodeHasQualityDataSignal.
     """
 
@@ -53,10 +53,12 @@ class NodeQualityHistory(BaseModel):
 
     def with_scores(self, elaboration: float, charge: float) -> NodeQualityHistory:
         """Return new history with scores appended."""
-        return self.model_copy(update={
-            "elaboration_scores": self.elaboration_scores + (elaboration,),
-            "charge_scores": self.charge_scores + (charge,),
-        })
+        return self.model_copy(
+            update={
+                "elaboration_scores": self.elaboration_scores + (elaboration,),
+                "charge_scores": self.charge_scores + (charge,),
+            }
+        )
 
     def merged_with(self, other: NodeQualityHistory) -> NodeQualityHistory:
         """Return merged history when two surface nodes collapse to one canonical slot."""
@@ -134,54 +136,79 @@ class NodeState(BaseModel):
     # Functional update methods — each returns a new NodeState instance
     # ------------------------------------------------------------------
 
-    def with_focus(self, *, turn_number: int, strategy: str, is_same_as_previous: bool) -> NodeState:
+    def with_focus(
+        self, *, turn_number: int, strategy: str, is_same_as_previous: bool
+    ) -> NodeState:
         """Return new NodeState with focus metrics updated (the node that was focused)."""
         new_streak = (self.current_focus_streak + 1) if is_same_as_previous else 1
-        new_consecutive = (self.consecutive_same_strategy + 1) if self.last_strategy_used == strategy else 1
-        new_strategy_count = {**self.strategy_usage_count, strategy: self.strategy_usage_count.get(strategy, 0) + 1}
-        return self.model_copy(update={
-            "focus_count": self.focus_count + 1,
-            "last_focus_turn": turn_number,
-            "turns_since_last_focus": 0,
-            "current_focus_streak": new_streak,
-            "turns_since_last_yield": self.turns_since_last_yield + 1,
-            "strategy_usage_count": new_strategy_count,
-            "last_strategy_used": strategy,
-            "consecutive_same_strategy": new_consecutive,
-        })
+        new_consecutive = (
+            (self.consecutive_same_strategy + 1)
+            if self.last_strategy_used == strategy
+            else 1
+        )
+        new_strategy_count = {
+            **self.strategy_usage_count,
+            strategy: self.strategy_usage_count.get(strategy, 0) + 1,
+        }
+        return self.model_copy(
+            update={
+                "focus_count": self.focus_count + 1,
+                "last_focus_turn": turn_number,
+                "turns_since_last_focus": 0,
+                "current_focus_streak": new_streak,
+                "turns_since_last_yield": self.turns_since_last_yield + 1,
+                "strategy_usage_count": new_strategy_count,
+                "last_strategy_used": strategy,
+                "consecutive_same_strategy": new_consecutive,
+            }
+        )
 
     def tick_no_focus(self) -> NodeState:
         """Return new NodeState with time-ticks applied (all nodes that were NOT focused)."""
-        return self.model_copy(update={
-            "turns_since_last_focus": self.turns_since_last_focus + 1,
-            "current_focus_streak": 0,
-            "turns_since_last_yield": self.turns_since_last_yield + 1,
-        })
+        return self.model_copy(
+            update={
+                "turns_since_last_focus": self.turns_since_last_focus + 1,
+                "current_focus_streak": 0,
+                "turns_since_last_yield": self.turns_since_last_yield + 1,
+            }
+        )
 
     def with_yield(self, *, turn_number: int) -> NodeState:
         """Return new NodeState with yield recorded."""
         new_yield_count = self.yield_count + 1
-        return self.model_copy(update={
-            "last_yield_turn": turn_number,
-            "turns_since_last_yield": 0,
-            "yield_count": new_yield_count,
-            "yield_rate": new_yield_count / max(self.focus_count, 1),
-        })
+        return self.model_copy(
+            update={
+                "last_yield_turn": turn_number,
+                "turns_since_last_yield": 0,
+                "yield_count": new_yield_count,
+                "yield_rate": new_yield_count / max(self.focus_count, 1),
+            }
+        )
 
     def with_quality(self, *, elaboration: float, charge: float) -> NodeState:
         """Return new NodeState with LLM quality scores appended."""
         depth = _elaboration_to_depth(elaboration)
-        return self.model_copy(update={
-            "quality_history": self.quality_history.with_scores(elaboration, charge),
-            "all_response_depths": self.all_response_depths + (depth,),
-        })
+        return self.model_copy(
+            update={
+                "quality_history": self.quality_history.with_scores(
+                    elaboration, charge
+                ),
+                "all_response_depths": self.all_response_depths + (depth,),
+            }
+        )
 
     def with_edge_delta(self, *, outgoing_delta: int, incoming_delta: int) -> NodeState:
         """Return new NodeState with edge counts updated (clamped to zero)."""
-        return self.model_copy(update={
-            "edge_count_outgoing": max(0, self.edge_count_outgoing + outgoing_delta),
-            "edge_count_incoming": max(0, self.edge_count_incoming + incoming_delta),
-        })
+        return self.model_copy(
+            update={
+                "edge_count_outgoing": max(
+                    0, self.edge_count_outgoing + outgoing_delta
+                ),
+                "edge_count_incoming": max(
+                    0, self.edge_count_incoming + incoming_delta
+                ),
+            }
+        )
 
     def merged_with(self, other: NodeState) -> NodeState:
         """Return merged NodeState when two surface nodes collapse to the same canonical slot."""
@@ -214,19 +241,27 @@ class NodeState(BaseModel):
         new_focus_count = self.focus_count + other.focus_count
         new_yield_count = self.yield_count + other.yield_count
 
-        return self.model_copy(update={
-            "focus_count": new_focus_count,
-            "last_focus_turn": focus_turn,
-            "turns_since_last_focus": turns_since_focus,
-            "current_focus_streak": focus_streak,
-            "yield_count": new_yield_count,
-            "yield_rate": new_yield_count / max(new_focus_count, 1),
-            "last_yield_turn": yield_turn,
-            "turns_since_last_yield": turns_since_yield,
-            "all_response_depths": self.all_response_depths + other.all_response_depths,
-            "quality_history": self.quality_history.merged_with(other.quality_history),
-            "connected_node_ids": self.connected_node_ids | other.connected_node_ids,
-            "edge_count_outgoing": self.edge_count_outgoing + other.edge_count_outgoing,
-            "edge_count_incoming": self.edge_count_incoming + other.edge_count_incoming,
-            "strategy_usage_count": merged_strategy_count,
-        })
+        return self.model_copy(
+            update={
+                "focus_count": new_focus_count,
+                "last_focus_turn": focus_turn,
+                "turns_since_last_focus": turns_since_focus,
+                "current_focus_streak": focus_streak,
+                "yield_count": new_yield_count,
+                "yield_rate": new_yield_count / max(new_focus_count, 1),
+                "last_yield_turn": yield_turn,
+                "turns_since_last_yield": turns_since_yield,
+                "all_response_depths": self.all_response_depths
+                + other.all_response_depths,
+                "quality_history": self.quality_history.merged_with(
+                    other.quality_history
+                ),
+                "connected_node_ids": self.connected_node_ids
+                | other.connected_node_ids,
+                "edge_count_outgoing": self.edge_count_outgoing
+                + other.edge_count_outgoing,
+                "edge_count_incoming": self.edge_count_incoming
+                + other.edge_count_incoming,
+                "strategy_usage_count": merged_strategy_count,
+            }
+        )

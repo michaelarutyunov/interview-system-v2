@@ -18,7 +18,11 @@ import structlog
 
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import LLMSignalBridgeOutput
-from src.services.node_state_tracker import CanonicalSlotResolver, NodeNotTrackedError, NodeStateTracker
+from src.services.node_state_tracker import (
+    CanonicalSlotResolver,
+    NodeNotTrackedError,
+    NodeStateTracker,
+)
 
 if TYPE_CHECKING:
     from ..context import PipelineContext
@@ -29,7 +33,9 @@ log = structlog.get_logger(__name__)
 class LLMSignalBridgeStage(TurnStage):
     """Await LLM prefetch task, bridge per-concept ratings to tracker, then seal."""
 
-    def __init__(self, canonical_slot_resolver: Optional[CanonicalSlotResolver] = None) -> None:
+    def __init__(
+        self, canonical_slot_resolver: Optional[CanonicalSlotResolver] = None
+    ) -> None:
         self._resolver = canonical_slot_resolver or CanonicalSlotResolver()
 
     async def process(self, context: "PipelineContext") -> "PipelineContext":
@@ -68,12 +74,18 @@ class LLMSignalBridgeStage(TurnStage):
             context._evolving_node_tracker = None
             return context
 
+        if context.graph_update_output is None:
+            raise RuntimeError(
+                "Pipeline contract violation: LLMSignalBridgeStage (Stage 4.7) requires "
+                "GraphUpdateStage (Stage 4) to complete first."
+            )
+
         global_signals = llm_result.get("global", {})
         per_concept_raw = llm_result.get("concepts", {})
         per_concept_ratings = {str(k).lower(): v for k, v in per_concept_raw.items()}
 
         # Bridge: route per-concept ratings → tracker.append_quality (functional)
-        concept_to_node_id: dict = getattr(context, "concept_to_node_id", {}) or {}
+        concept_to_node_id = context.graph_update_output.concept_to_node_id
         bridged_count = 0
 
         for concept_key, ratings in per_concept_ratings.items():

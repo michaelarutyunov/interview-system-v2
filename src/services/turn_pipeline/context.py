@@ -133,12 +133,6 @@ class PipelineContext:
     # (which enforces the seal) by Stages 5+.
     _evolving_node_tracker: Optional["NodeStateTracker"] = None
 
-    # Populated by GraphUpdateStage (Stage 4) from GraphService.add_extraction_to_graph:
-    # maps concept.text.lower() → surface node.id for all concepts in the current turn's
-    # extraction. Consumed by LLMSignalBridgeStage (Stage 4.7) to route per-concept
-    # LLM ratings (elaboration, charge) to specific nodes via NodeStateTracker.append_quality.
-    concept_to_node_id: Dict[str, str] = field(default_factory=dict)
-
     # =============================================================================
     # Convenience Properties (derive from contracts, don't duplicate state)
     # =============================================================================

@@ -272,7 +272,7 @@ class StrategySelectionOutput(BaseModel):
     next_turn_node_tracker: Optional[NodeStateTracker] = Field(
         default=None,
         description="NodeStateTracker snapshot to persist for the next turn. "
-                    "Equals sealed_node_tracker with update_focus() applied for the selected node.",
+        "Equals sealed_node_tracker with update_focus() applied for the selected node.",
     )
 
 
@@ -320,6 +320,12 @@ class GraphUpdateOutput(BaseModel):
     )
     edges_added: List[Dict[str, Any]] = Field(
         default_factory=list, description="Edges added to graph"
+    )
+    concept_to_node_id: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Maps concept.text.lower() to surface node.id for all concepts "
+        "in the current turn's extraction. Consumed by LLMSignalBridgeStage (Stage 4.7) "
+        "to route per-concept LLM ratings to specific nodes.",
     )
     node_count: int = Field(default=0, ge=0, description="Number of nodes added")
     edge_count: int = Field(default=0, ge=0, description="Number of edges added")
@@ -422,7 +428,7 @@ class LLMSignalBridgeOutput(BaseModel):
     """Contract: LLMSignalBridgeStage output (Stage 4.7).
 
     Stage 4.7 awaits the LLM prefetch task (fired by LLMPrefetchStage at Stage 3.1),
-    routes per-concept ratings into NodeStateTracker via concept_to_node_id,
+    routes per-concept ratings into NodeStateTracker via GraphUpdateOutput.concept_to_node_id,
     and emits this contract for downstream stages.
 
     When the LLM call failed (network error, timeout, invalid JSON), bridge_applied

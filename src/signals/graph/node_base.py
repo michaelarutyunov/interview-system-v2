@@ -44,7 +44,7 @@ class NodeSignalDetector(SignalDetector):
     # All node-level signals require NodeStateTracker
     requires_node_tracker: bool = True  # type: ignore[misc]
 
-    async def _get_node_state(self, node_id: str) -> Optional[NodeState]:
+    def _get_node_state(self, node_id: str) -> Optional[NodeState]:
         """Get NodeState for a node.
 
         Args:
@@ -53,7 +53,7 @@ class NodeSignalDetector(SignalDetector):
         Returns:
             NodeState if tracked, None otherwise
         """
-        return await self.node_tracker.get_state(node_id)
+        return self.node_tracker.try_get_state(node_id)
 
     @classmethod
     def get_all_node_signal_classes(cls) -> list[type["NodeSignalDetector"]]:

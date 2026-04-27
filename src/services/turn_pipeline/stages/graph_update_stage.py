@@ -12,7 +12,11 @@ import structlog
 
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import GraphUpdateOutput
-from src.services.node_state_tracker import GraphChangeSummary, CanonicalSlotResolver, NodeNotTrackedError
+from src.services.node_state_tracker import (
+    GraphChangeSummary,
+    CanonicalSlotResolver,
+    NodeNotTrackedError,
+)
 from src.services.graph_service import GraphService
 
 
@@ -72,14 +76,14 @@ class GraphUpdateStage(TurnStage):
         # Get methodology from context for permitted_connections validation
         methodology = context.methodology
 
-        # Reset per-turn concept→node bridge and pass as output param to capture mapping.
-        context.concept_to_node_id = {}
+        # Build per-turn concept→node bridge as a local dict, then emit via contract.
+        concept_to_node_id: dict[str, str] = {}
         nodes, edges = await self.graph.add_extraction_to_graph(
             session_id=context.session_id,
             extraction=extraction,
             utterance_id=utterance_id,
             methodology=methodology,
-            out_concept_to_node_id=context.concept_to_node_id,
+            out_concept_to_node_id=concept_to_node_id,
         )
 
         # Convert edges to dicts for contract output
@@ -109,6 +113,7 @@ class GraphUpdateStage(TurnStage):
         context.graph_update_output = GraphUpdateOutput(
             nodes_added=nodes,
             edges_added=edges_as_dicts,
+            concept_to_node_id=concept_to_node_id,
             # timestamp, node_count, edge_count auto-set
         )
 
@@ -137,6 +142,7 @@ class GraphUpdateStage(TurnStage):
     ):
         """Functionally update the evolving NodeStateTracker; returns new instance."""
         tracker = context._evolving_node_tracker
+        assert tracker is not None  # guarded by caller at line 121
 
         # Batch-register new nodes (single dict rebuild)
         if nodes_added:
@@ -145,8 +151,12 @@ class GraphUpdateStage(TurnStage):
         # Resolve edge source/target surface IDs to tracking keys and batch-update
         edge_deltas: dict[str, tuple[int, int]] = {}
         for edge in edges_added:
-            source_id = getattr(edge, "source_node_id", None) or edge.get("source_node_id")
-            target_id = getattr(edge, "target_node_id", None) or edge.get("target_node_id")
+            source_id = getattr(edge, "source_node_id", None) or edge.get(
+                "source_node_id"
+            )
+            target_id = getattr(edge, "target_node_id", None) or edge.get(
+                "target_node_id"
+            )
 
             if source_id:
                 key = await self._resolver.resolve(source_id)

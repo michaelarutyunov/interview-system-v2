@@ -228,7 +228,7 @@ Concepts can be linked to methodology-defined elements for coverage tracking:
 - Relationships are resolved to deduplicated node IDs
 - Duplicate edges (same source, target, edge_type) are merged
 
-### 10. Key Constraints
+## Key Constraints
 
 1. **Always validate node_type and relationship_type against the methodology schema.** Invalid types are silently skipped with warning logs — if extraction is producing zero concepts/relationships, check for `invalid_node_type` / `invalid_edge_type` log entries.
 2. **Always set source_utterance_id for traceability.** The traceability chain (utterance → concept → graph node) depends on this field. The fallback value `"unknown"` breaks provenance.
@@ -241,7 +241,7 @@ Concepts can be linked to methodology-defined elements for coverage tracking:
 9. **Never rely on permitted_connections validation.** It is intentionally disabled to allow unrestricted edge extraction. The LLM is methodology-aware from the system prompt.
 10. **Always verify concept_naming_convention is followed.** If concepts are inconsistently named, deduplication fails and the graph fragments. Check the methodology YAML for naming instructions.
 
-### 11. Anti-patterns
+## Anti-patterns
 
 Each entry below records a real failure observed in this codebase or a design constraint enforced by the architecture. If you are tempted to do any of these, stop and re-read the relevant Domain Knowledge section.
 
