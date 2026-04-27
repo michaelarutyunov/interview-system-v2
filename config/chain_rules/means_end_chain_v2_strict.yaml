@@ -1,0 +1,2 @@
+chain_edges:
+  leads_to: ~   # null = unconstrained; graph was already constrained at extraction

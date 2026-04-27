@@ -1,0 +1,21 @@
+chain_edges:
+  triggers:
+    - [job_context, job_statement]
+    - [job_context, pain_point]
+    - [pain_point, solution_approach]
+    - [job_trigger, solution_approach]
+    - [job_trigger, job_statement]
+  enables:
+    - [solution_approach, emotional_job]
+    - [solution_approach, social_job]
+    - [gain_point, emotional_job]
+    - [gain_point, social_job]
+  supports:
+    - [gain_point, emotional_job]
+    - [gain_point, social_job]
+    - [solution_approach, emotional_job]
+    - [solution_approach, social_job]
+  addresses:
+    - [solution_approach, job_statement]
+    - [solution_approach, gain_point]
+    - [solution_approach, pain_point]

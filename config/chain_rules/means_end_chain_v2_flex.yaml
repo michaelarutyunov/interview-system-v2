@@ -1,0 +1,2 @@
+chain_edges:
+  leads_to: ~   # null = unconstrained; flex variant has no extraction constraints
