@@ -228,6 +228,7 @@ Specialist agents are invoked based on which files are being modified. Agents li
 Agents will be created iteratively as failure patterns are observed. See `.claude/codified-context-principles.md` for creation criteria.
 
 **Intentionally uncovered directories** (stable infrastructure, no specialist needed):
+- `src/api/` — FastAPI web layer; thin controllers, stable routes
 - `src/core/` — config loaders, logging, exceptions; rarely modified
 - `src/persistence/` — database + SQLite repos; stable schema
 
