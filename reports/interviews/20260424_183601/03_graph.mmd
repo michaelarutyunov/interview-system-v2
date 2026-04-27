@@ -1,0 +1,120 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_df25b9e6
+    t1 ~~~ n_216c881c
+    t1 ~~~ n_0141878b
+    t1 ~~~ n_1051fc4b
+    t1 ~~~ n_a9491e22
+    t1 ~~~ n_8b726cb4
+    t2 ~~~ n_73314a7d
+    t2 ~~~ n_8aaa4db5
+    t2 ~~~ n_6e42aace
+    t3 ~~~ n_1f4b571e
+    t3 ~~~ n_62266b55
+    t3 ~~~ n_db05ca3c
+    t3 ~~~ n_745d4ed4
+    t4 ~~~ n_56db2942
+    t5 ~~~ n_70c7810b
+    t5 ~~~ n_aa7070af
+    t5 ~~~ n_5516d635
+    t6 ~~~ n_1f254941
+    t6 ~~~ n_ee2a29b4
+    t6 ~~~ n_5fd3035d
+    t7 ~~~ n_e610a8fa
+    t7 ~~~ n_da90e108
+    t7 ~~~ n_39ee624a
+    t7 ~~~ n_68dcb24c
+    t8 ~~~ n_615fd8cc
+    t8 ~~~ n_555a943b
+    t9 ~~~ n_8f232438
+    t9 ~~~ n_cec64bcd
+    t9 ~~~ n_bc1d32ed
+
+    %% Node definitions
+    n_df25b9e6["(1) Diet Coke [familiar carbonated beverage]"]
+    n_216c881c["(1) availability at point of decision"]
+    n_0141878b["(1) low-effort drink selection"]
+    n_1051fc4b["(1) cold temperature of beverage"]
+    n_a9491e22["(1) carbonation / fizziness"]
+    n_8b726cb4["(1) physical refreshment after outdoor ac..."]
+    n_73314a7d["(2) greater satisfaction vs flat drink F4"]
+    n_8aaa4db5["(2) heightened refreshment sensation when..."]
+    n_6e42aace["(2) perceived active cooling effect F2 F3"]
+    n_1f4b571e["(3) artificial sweetener taste profile"]
+    n_62266b55["(3) noticeable difference from regular soda"]
+    n_db05ca3c["(3) slight aftertaste"]
+    n_745d4ed4["(3) tolerance of artificial sweetener taste"]
+    n_56db2942["(4) feeling less heavy than regular soda"]
+    n_70c7810b["(5) avoiding bloated feeling after drinking"]
+    n_aa7070af["(5) enjoying a drink without stomach full..."]
+    n_5516d635["(5) uninterrupted enjoyment during the day"]
+    n_1f254941["(6) avoiding uncomfortable fullness durin..."]
+    n_ee2a29b4["(6) ability to stay focused on tasks"]
+    n_5fd3035d["(6) maintaining momentum through daily ac..."]
+    n_e610a8fa["(7) getting things done without feeling s..."]
+    n_da90e108["(7) avoiding mid-task energy crash"]
+    n_39ee624a["(7) pushing through tasks without distrac..."]
+    n_68dcb24c["(7) being productive and self-sufficient F7 F8"]
+    n_615fd8cc["(8) mental fog from energy crash"]
+    n_555a943b["(8) fighting to stay on task instead of d..."]
+    n_8f232438["(9) no sugar spike"]
+    n_cec64bcd["(9) stable energy level [no up-then-down ..."]
+    n_bc1d32ed["(9) consistent caffeine delivery without ..."]
+
+    %% Real edges
+    n_216c881c -->|leads_to| n_0141878b
+    n_1051fc4b -->|leads_to| n_8b726cb4
+    n_a9491e22 -->|leads_to| n_8b726cb4
+    n_a9491e22 -->|leads_to| n_73314a7d
+    n_a9491e22 -->|leads_to| n_8aaa4db5
+    n_8aaa4db5 -->|leads_to| n_6e42aace
+    n_1f4b571e -->|leads_to| n_62266b55
+    n_1f4b571e -->|leads_to| n_db05ca3c
+    n_db05ca3c -->|leads_to| n_745d4ed4
+    n_56db2942 -->|leads_to| n_8b726cb4
+    n_56db2942 -->|leads_to| n_70c7810b
+    n_70c7810b -->|leads_to| n_aa7070af
+    n_aa7070af -->|leads_to| n_5516d635
+    n_aa7070af -->|leads_to| n_1f254941
+    n_1f254941 -->|leads_to| n_5fd3035d
+    n_1f254941 -->|leads_to| n_ee2a29b4
+    n_5fd3035d -->|leads_to| n_ee2a29b4
+    n_ee2a29b4 -->|leads_to| n_e610a8fa
+    n_ee2a29b4 -->|leads_to| n_da90e108
+    n_5fd3035d -->|leads_to| n_39ee624a
+    n_e610a8fa -->|leads_to| n_39ee624a
+    n_da90e108 -->|leads_to| n_615fd8cc
+    n_615fd8cc -->|leads_to| n_555a943b
+    n_8f232438 -->|leads_to| n_da90e108
+    n_8f232438 -->|leads_to| n_cec64bcd
+    n_bc1d32ed -->|leads_to| n_cec64bcd
+    n_cec64bcd -->|leads_to| n_ee2a29b4
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_73314a7d,n_6e42aace,n_68dcb24c focused
+    class n_df25b9e6,n_216c881c,n_0141878b,n_1051fc4b,n_a9491e22,n_8b726cb4,n_8aaa4db5,n_1f4b571e,n_62266b55,n_db05ca3c,n_745d4ed4,n_56db2942,n_70c7810b,n_aa7070af,n_5516d635,n_1f254941,n_ee2a29b4,n_5fd3035d,n_e610a8fa,n_da90e108,n_39ee624a,n_615fd8cc,n_555a943b,n_8f232438,n_cec64bcd,n_bc1d32ed default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9 anchor

@@ -42,15 +42,18 @@ build/
 # working docs
 synthetic_interviews/
 interviews_real/
-analysis/
-report/causal_chain/
-reports/transcripts/
+
+reports/legacy/
+reports/explorations/
 docs/archive/
+docs/concepts/
+docs/drafts/
+docs/plans/
+docs/specs/
 docs/superpowers/
 arch_queries.md
 commands.md
 logs/
-explorations/
 
 # Beads / Dolt files (added by bd init)
 .dolt/

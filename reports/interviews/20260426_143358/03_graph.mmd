@@ -1,0 +1,155 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_6474f11c
+    t1 ~~~ n_e7766170
+    t1 ~~~ n_0fee4435
+    t1 ~~~ n_a5a59a4a
+    t1 ~~~ n_c8f7bd9f
+    t2 ~~~ n_e6623d07
+    t2 ~~~ n_92f8467a
+    t2 ~~~ n_9c175526
+    t3 ~~~ n_bcd2c0c8
+    t3 ~~~ n_d7483009
+    t3 ~~~ n_7edf9e44
+    t3 ~~~ n_df133b9d
+    t3 ~~~ n_d51ad87e
+    t4 ~~~ n_d8e5e5c0
+    t4 ~~~ n_10f36af5
+    t4 ~~~ n_a9e77692
+    t4 ~~~ n_54cdda31
+    t5 ~~~ n_60c44526
+    t5 ~~~ n_93a20f39
+    t5 ~~~ n_ca9869f7
+    t5 ~~~ n_2336b3f8
+    t5 ~~~ n_b4b4a965
+    t6 ~~~ n_a306a0a8
+    t6 ~~~ n_bf5e0790
+    t6 ~~~ n_d55d3320
+    t7 ~~~ n_697ab0c7
+    t7 ~~~ n_078da254
+    t7 ~~~ n_7bf492b8
+    t7 ~~~ n_080fb5e9
+    t7 ~~~ n_f2cbbaf6
+    t8 ~~~ n_0dfb27e3
+    t8 ~~~ n_ede50201
+    t8 ~~~ n_44466c32
+    t8 ~~~ n_f668a307
+    t9 ~~~ n_4479ae9c
+    t9 ~~~ n_47ef4e26
+    t9 ~~~ n_1cfe3042
+    t9 ~~~ n_1ddbb839
+    t9 ~~~ n_e17f3af7
+    t9 ~~~ n_ee1482b9
+
+    %% Node definitions
+    n_6474f11c["(1) grab Diet Coke in the afternoon"]
+    n_e7766170["(1) get a caffeine kick"]
+    n_0fee4435["(1) feel refreshed and stimulated"]
+    n_a5a59a4a["(1) sitting at desk for hours"]
+    n_c8f7bd9f["(1) water is too boring during long desk ..."]
+    n_e6623d07["(2) feel mentally engaged while working"]
+    n_92f8467a["(2) fizzy drink makes break feel like a r..."]
+    n_9c175526["(2) carbonation is a mental ritual, not j..."]
+    n_bcd2c0c8["(3) grabbing fizzy drinks throughout the day"]
+    n_d7483009["(3) running errands"]
+    n_7edf9e44["(3) relaxing at home in the evening watch..."]
+    n_df133b9d["(3) wanting something cold and refreshing"]
+    n_d51ad87e["(3) drink consumption not tied to a speci..."]
+    n_d8e5e5c0["(4) fizzy drink feels like a treat during..."]
+    n_10f36af5["(4) errands feel boring and mundane"]
+    n_a9e77692["(4) carbonation feels more satisfying tha..."]
+    n_54cdda31["(4) treat oneself during routine or tedio..."]
+    n_60c44526["(5) ZeroFizz feels like a treat despite b..."]
+    n_93a20f39["(5) water feels purely functional, not ex..."]
+    n_ca9869f7["(5) elevate the evening TV experience bey..."]
+    n_2336b3f8["(5) drinking ZeroFizz as an experiential ..."]
+    n_b4b4a965["(5) feel like the evening is a treat or i..."]
+    n_a306a0a8["(6) energy drink when needing caffeine boost"]
+    n_bf5e0790["(6) needing a caffeine boost"]
+    n_d55d3320["(6) water doesn't deliver the same satisf..."]
+    n_697ab0c7["(7) avoid being seen as 'the diet soda pe..."]
+    n_078da254["(7) subtle branding that doesn't signal s..."]
+    n_7bf492b8["(7) obvious sugar-free branding on compet..."]
+    n_080fb5e9["(7) dining or drinking out with others at..."]
+    n_f2cbbaf6["(7) fit in socially without drawing atten..."]
+    n_0dfb27e3["(8) casually describing ZeroFizz as 'a fi..."]
+    n_ede50201["(8) others rarely care what you're drinki..."]
+    n_44466c32["(8) selectively disclosing sugar-free con..."]
+    n_f668a307["(8) low personal investment in health sig..."]
+    n_4479ae9c["(9) cut back on sugar without giving up f..."]
+    n_47ef4e26["(9) having already consumed several regul..."]
+    n_1cfe3042["(9) avoid going overboard on sugar intake"]
+    n_1ddbb839["(9) choosing ZeroFizz as a sugar-limiting..."]
+    n_e17f3af7["(9) at someone else's place where ZeroFiz..."]
+    n_ee1482b9["(9) avoid the social awkwardness of reque..."]
+
+    %% Real edges
+    n_6474f11c -->|addresses| n_e7766170
+    n_6474f11c -->|addresses| n_0fee4435
+    n_6474f11c -->|occurs_in| n_a5a59a4a
+    n_c8f7bd9f -->|triggers| n_6474f11c
+    n_a5a59a4a -->|triggers| n_c8f7bd9f
+    n_c8f7bd9f -->|conflicts_with| n_e6623d07
+    n_6474f11c -->|enables| n_92f8467a
+    n_92f8467a -->|supports| n_9c175526
+    n_9c175526 -->|enables| n_e6623d07
+    n_df133b9d -->|triggers| n_bcd2c0c8
+    n_bcd2c0c8 -->|occurs_in| n_d7483009
+    n_bcd2c0c8 -->|occurs_in| n_7edf9e44
+    n_df133b9d -->|supports| n_0fee4435
+    n_10f36af5 -->|triggers| n_54cdda31
+    n_d8e5e5c0 -->|supports| n_54cdda31
+    n_a9e77692 -->|enables| n_d8e5e5c0
+    n_10f36af5 -->|occurs_in| n_d7483009
+    n_9c175526 -->|supports| n_a9e77692
+    n_93a20f39 -->|triggers| n_ca9869f7
+    n_2336b3f8 -->|addresses| n_ca9869f7
+    n_60c44526 -->|enables| n_b4b4a965
+    n_a9e77692 -->|supports| n_60c44526
+    n_7edf9e44 -->|occurs_in| n_2336b3f8
+    n_bf5e0790 -->|triggers| n_a306a0a8
+    n_a306a0a8 -->|addresses| n_e7766170
+    n_d55d3320 -->|supports| n_a9e77692
+    n_7bf492b8 -->|conflicts_with| n_697ab0c7
+    n_078da254 -->|addresses| n_697ab0c7
+    n_078da254 -->|enables| n_f2cbbaf6
+    n_697ab0c7 -->|occurs_in| n_080fb5e9
+    n_f2cbbaf6 -->|occurs_in| n_080fb5e9
+    n_0dfb27e3 -->|addresses| n_697ab0c7
+    n_ede50201 -->|enables| n_f2cbbaf6
+    n_44466c32 -->|supports| n_078da254
+    n_f668a307 -->|supports| n_f2cbbaf6
+    n_47ef4e26 -->|triggers| n_4479ae9c
+    n_1ddbb839 -->|addresses| n_1cfe3042
+    n_47ef4e26 -->|triggers| n_1ddbb839
+    n_4479ae9c -->|supports| n_a9e77692
+    n_e17f3af7 -->|enables| n_ee1482b9
+    n_ee1482b9 -->|supports| n_f2cbbaf6
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_6474f11c,n_e7766170,n_0fee4435,n_a5a59a4a,n_c8f7bd9f,n_e6623d07,n_92f8467a,n_9c175526,n_bcd2c0c8,n_d7483009,n_7edf9e44,n_df133b9d,n_d51ad87e,n_d8e5e5c0,n_10f36af5,n_a9e77692,n_54cdda31,n_60c44526,n_93a20f39,n_ca9869f7,n_2336b3f8,n_b4b4a965,n_a306a0a8,n_bf5e0790,n_d55d3320,n_697ab0c7,n_078da254,n_7bf492b8,n_080fb5e9,n_f2cbbaf6,n_0dfb27e3,n_ede50201,n_44466c32,n_f668a307,n_4479ae9c,n_47ef4e26,n_1cfe3042,n_1ddbb839,n_e17f3af7,n_ee1482b9 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9 anchor
