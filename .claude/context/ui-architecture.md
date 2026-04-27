@@ -54,7 +54,7 @@ Streamlit's `st.session_state` holds all runtime state. Initialized once in `_in
 | `api_client` | `APIClient` | HTTP client instance (created once) |
 | `current_session` | `SessionInfo \| None` | Active session; `None` = no interview running |
 | `concepts` | `list \| None` | Cached concept list from API; `None` = not loaded |
-| `chat_history` | `list[dict]` | Message list, each with `role`, `content`, optional `caption` |
+| `chat_history` | `list[dict]` | Message list, each with `role`, `content`, optional `caption`, `extraction`, `alternatives` |
 | `opening_displayed` | `bool` | Prevents re-displaying opening question on rerun |
 | `interview_complete` | `bool` | Disables chat input when interview ends |
 | `last_turn_result` | `dict` | Most recent API response (strategy, latency, etc.) |
@@ -241,6 +241,8 @@ Unused: `session_id`
 
 Unused: `turn_number`, `extracted`, `graph_state`, `scoring`, `signals`, `strategy_alternatives`
 
+*Apr 2026 update*: `extracted` (concepts found this turn) and `strategy_alternatives` (top 3 with scores) are now surfaced in the chat history via expandable "Turn details" sections on each assistant message.
+
 ### GET `/sessions/{id}/status` — Session Status
 
 | Frontend reads | Backend provides | Status |
@@ -249,7 +251,9 @@ Unused: `turn_number`, `extracted`, `graph_state`, `scoring`, `signals`, `strate
 | `phase` | `phase: str` | Match |
 | `canonical_node_count` | `canonical_node_count: int` | Match |
 
-Unused: `max_turns`, `status`, `should_continue`, `strategy_selected`, `strategy_reasoning`, `focus_tracing`
+Unused: `status`, `should_continue`, `strategy_selected`, `strategy_reasoning`, `focus_tracing`
+
+*Apr 2026 update*: `max_turns` is now used in the sidebar Turn stat (`turn_num/max_turns`).
 
 ### GET `/sessions/{id}/graph` — Session Graph
 

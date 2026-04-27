@@ -242,6 +242,7 @@ for e in edges:
 orphan_count = sum(1 for n in nodes if n.get("id") not in connected_ids)
 
 canonical_count = status_data.get("canonical_node_count", 0)
+max_turns = status_data.get("max_turns", 20)
 
 turn_num = status_data.get("turn_number", 0)
 phase = status_data.get("phase", "—")
@@ -268,7 +269,7 @@ with st.sidebar:
 <hr class="stat-divider"/>
 <div class="stat-block">
   <div class="stat-label">Turn</div>
-  <div class="stat-value">{turn_num}</div>
+  <div class="stat-value">{turn_num}/{max_turns}</div>
 </div>
 <div class="stat-block">
   <div class="stat-label">Nodes</div>
@@ -398,6 +399,41 @@ if tab_sel == "Interview":
                             parts.append(latency_s)
                         caption = " · ".join(parts)
                         chat_interface.add_assistant_message(next_q, caption=caption)
+
+                        # Show extracted concepts from this turn
+                        extracted = result.get("extracted", {})
+                        concepts_found = extracted.get("concepts", [])
+                        if concepts_found:
+                            labels = [
+                                c.get("text", c.get("label", "?"))
+                                for c in concepts_found[:5]
+                            ]
+                            remaining = (
+                                len(concepts_found) - 5
+                                if len(concepts_found) > 5
+                                else 0
+                            )
+                            suffix = f" +{remaining} more" if remaining else ""
+                            st.session_state.chat_history[-1]["extraction"] = (
+                                ", ".join(labels) + suffix
+                            )
+
+                        # Show top strategy alternatives
+                        alternatives = result.get("strategy_alternatives")
+                        if alternatives:
+                            top3 = alternatives[:3]
+                            alt_parts = []
+                            for alt in top3:
+                                if isinstance(alt, dict):
+                                    alt_parts.append(
+                                        f"{alt.get('strategy', '?')} {alt.get('score', 0):.2f}"
+                                    )
+                                elif isinstance(alt, (list, tuple)) and len(alt) >= 2:
+                                    alt_parts.append(f"{alt[0]} {alt[1]:.2f}")
+                            if alt_parts:
+                                st.session_state.chat_history[-1]["alternatives"] = (
+                                    " | ".join(alt_parts)
+                                )
                     if not result.get("should_continue", True):
                         st.session_state.interview_complete = True
                         chat_interface.add_assistant_message(

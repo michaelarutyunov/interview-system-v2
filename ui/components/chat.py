@@ -68,6 +68,16 @@ class ChatInterface:
                 st.write(message["content"])
                 if message.get("caption"):
                     st.caption(message["caption"])
+                # Show extraction and alternative details
+                details = []
+                if message.get("extraction"):
+                    details.append(f"Extracted: {message['extraction']}")
+                if message.get("alternatives"):
+                    details.append(f"Alternatives: {message['alternatives']}")
+                if details:
+                    with st.expander("Turn details", expanded=False):
+                        for d in details:
+                            st.caption(d)
 
     def add_assistant_message(self, content: str, caption: str = ""):
         """Add an assistant message to the chat history."""
