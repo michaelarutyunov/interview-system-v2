@@ -29,22 +29,26 @@ _BASE_PROMPT_FILENAME = "llm_signal_baseprompt.md"
 # not separate files".
 
 _OUTPUT_FORMAT = """\
-Output a JSON object with two top-level sections: `concepts` and `global`.
+Output a JSON object with two top-level sections: `global` and `concepts`.
+
+IMPORTANT: Output `global` FIRST, then `concepts`. The `global` section MUST contain BOTH `engagement` AND `certainty`.
 
 {
+  "global": {
+    "engagement": {"score": <1-5>, "rationale": "<max 15 words>"},
+    "certainty":  {"score": <1-5>, "rationale": "<max 15 words>"}
+  },
   "concepts": {
     "<exact concept name from the provided list>": {
       "elaboration": {"score": <1-5>, "rationale": "<max 15 words>"},
       "charge":      {"score": <1-5>, "rationale": "<max 15 words>"}
     }
-  },
-  "global": {
-    "engagement": {"score": <1-5>, "rationale": "<max 15 words>"},
-    "certainty":  {"score": <1-5>, "rationale": "<max 15 words>"}
   }
 }
 
 Rules:
+- Output `global` FIRST in the JSON object, then `concepts`.
+- BOTH `engagement` AND `certainty` MUST appear in `global`. Omitting either is an error.
 - Use the EXACT concept name from the provided list as the key.
 - Every concept from the list MUST appear in `concepts`.
 - Every score MUST be an integer 1-5. Use the full range. Do not default to 3.
@@ -54,6 +58,10 @@ Rules:
 
 _OUTPUT_EXAMPLE = """\
 {
+  "global": {
+    "engagement": {"score": 3, "rationale": "Answers fully but does not volunteer context"},
+    "certainty":  {"score": 4, "rationale": "Confident, no hedging on practical claims"}
+  },
   "concepts": {
     "cold brew more efficient than pour-over": {
       "elaboration": {"score": 3, "rationale": "Comparative reasoning with practical specifics"},
@@ -63,10 +71,6 @@ _OUTPUT_EXAMPLE = """\
       "elaboration": {"score": 2, "rationale": "One-sentence procedural detail, no elaboration"},
       "charge":      {"score": 3, "rationale": "Neutral, purely descriptive"}
     }
-  },
-  "global": {
-    "engagement": {"score": 3, "rationale": "Answers fully but does not volunteer context"},
-    "certainty":  {"score": 4, "rationale": "Confident, no hedging on practical claims"}
   }
 }
 """

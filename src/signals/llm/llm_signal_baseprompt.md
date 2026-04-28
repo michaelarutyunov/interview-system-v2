@@ -6,8 +6,8 @@ You receive:
 3. A list of concepts extracted from the answer, each with supporting quote(s)
 
 Your task:
-- Rate EACH concept on: {per_concept_signal_names}
 - Rate the response overall on: {global_signal_names}
+- Rate EACH concept on: {per_concept_signal_names}
 
 **Critical rules (read before scoring):**
 
@@ -17,7 +17,9 @@ Your task:
 4. For per-concept ratings, score the text about THAT concept specifically — not the overall response.
 5. **Evidence independence:** If two concepts share supporting text, score each based on what the text contributes *uniquely* to that concept. Do not inherit scores from shared evidence.
 6. **Missing concepts:** If an extracted concept has no supporting text in the response, score `elaboration=1`, `charge=3`, rationale = "concept not found in text".
-7. Output valid JSON only. No preamble, no commentary.
+7. **MANDATORY global keys:** The `global` section MUST contain BOTH `engagement` AND `certainty`. Do NOT omit either key. If uncertain, score based on the best available evidence rather than leaving a key out.
+8. **Output order:** Output `global` FIRST in the JSON, then `concepts`. This ensures global ratings are not omitted.
+9. Output valid JSON only. No preamble, no commentary.
 
 **Interview context:**
 - Question asked: {question}
@@ -26,17 +28,17 @@ Your task:
 
 ---
 
-## PER-CONCEPT DIMENSIONS
+## GLOBAL DIMENSIONS
 
-{per_concept_rubrics}
+Rate the response as a whole. These capture respondent state, not concept-level properties. Output these FIRST in the JSON.
+
+{global_rubrics}
 
 ---
 
-## GLOBAL DIMENSIONS
+## PER-CONCEPT DIMENSIONS
 
-Rate the response as a whole. These capture respondent state, not concept-level properties.
-
-{global_rubrics}
+{per_concept_rubrics}
 
 ---
 
