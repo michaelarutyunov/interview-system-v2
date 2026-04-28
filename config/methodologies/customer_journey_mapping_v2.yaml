@@ -97,36 +97,47 @@ ontology:
   edges:
     - name: occurs_in
       description: "Touchpoint belongs to a journey stage"
+      chain_relevant: false
 
     - name: transitions_to
       description: "Sequential progression between nodes of the same type"
+      chain_relevant: true
 
     - name: evokes
       description: "Touchpoint or moment produces an emotional/cognitive state"
+      chain_relevant: true
 
     - name: disrupts
       description: "Friction negatively impacts a touchpoint, state, or expectation"
+      chain_relevant: true
 
     - name: via_channel
       description: "Touchpoint occurs through a specific channel"
+      chain_relevant: false
 
     - name: expected_at
       description: "Expectation held at a specific touchpoint or stage"
+      chain_relevant: false
 
     - name: confirmed_by
       description: "Expectation was met or validated by a touchpoint or outcome"
+      chain_relevant: true
 
     - name: violated_by
       description: "Expectation was unmet or contradicted by a touchpoint or friction"
+      chain_relevant: true
 
     - name: triggered
       description: "Moment of truth or touchpoint caused a change or decision"
+      chain_relevant: true
 
     - name: resolved_by
       description: "Friction was addressed or overcome by a touchpoint or action"
+      chain_relevant: true
 
     - name: revises
       description: "Contradiction — newer belief or experience supersedes older one"
+      chain_relevant: true
 
   extraction_guidelines:
     - "Ask for the full journey: 'Walk me through from the very beginning...'"

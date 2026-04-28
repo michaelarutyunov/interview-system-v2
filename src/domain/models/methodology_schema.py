@@ -42,6 +42,12 @@ class EdgeTypeSpec(BaseModel):
         default=None,
         description="List of permitted connections. Can be EdgeConnectionSpec objects or [source, target] lists.",
     )
+    chain_relevant: Optional[bool] = Field(
+        default=None,
+        description="Whether this edge type represents chain progression (causal/sequential). "
+        "Used by chain topology signal detectors to build adjacency lists. "
+        "None or False = excluded from chain topology calculations.",
+    )
 
 
 class OntologySpec(BaseModel):
@@ -141,6 +147,21 @@ class MethodologySchema(BaseModel):
         """Get list of all valid edge type names."""
         if self.ontology:
             return [et.name for et in self.ontology.edges]
+        return []
+
+    def get_chain_relevant_edge_types(self) -> List[str]:
+        """Get edge type names marked as chain-relevant.
+
+        Only edges with chain_relevant=True are included. Edges with
+        chain_relevant=None or False are excluded. Used by chain topology
+        signal detectors to build adjacency lists from the correct edge types
+        for each methodology.
+
+        Returns:
+            List of edge type names (e.g., ['leads_to'], ['triggers', 'enables']).
+        """
+        if self.ontology:
+            return [et.name for et in self.ontology.edges if et.chain_relevant is True]
         return []
 
     def get_terminal_node_types(self) -> List[str]:

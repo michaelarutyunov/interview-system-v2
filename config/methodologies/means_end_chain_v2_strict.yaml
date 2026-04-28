@@ -60,6 +60,7 @@ ontology:
   edges:
     - name: leads_to
       description: "Causal or enabling relationship"
+      chain_relevant: true
       permitted_connections:
         - [attribute, attribute]
         - [attribute, functional_consequence]
@@ -72,6 +73,7 @@ ontology:
 
     - name: revises
       description: "Contradiction - newer belief supersedes older one"
+      chain_relevant: false
       permitted_connections:
         - ["*", "*"]
 

@@ -63,6 +63,9 @@ class MockMethodologySchema:
         self.ontology = MockOntology(node_types)
         self.method = {"chain_completion": {"expected_branching": {}}}
 
+    def get_chain_relevant_edge_types(self):
+        return ["leads_to"]
+
 
 # -- Helpers --
 

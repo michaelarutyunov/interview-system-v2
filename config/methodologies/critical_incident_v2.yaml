@@ -109,30 +109,39 @@ ontology:
   edges:
     - name: occurred_in
       description: "Incident took place within a specific situation"
+      chain_relevant: true
 
     - name: involved
       description: "Action taken during the incident"
+      chain_relevant: true
 
     - name: resulted_in
       description: "Outcome produced by an action"
+      chain_relevant: true
 
     - name: elicited
       description: "Emotional response triggered by outcome"
+      chain_relevant: true
 
     - name: attributed_to
       description: "Perceived cause of an outcome"
+      chain_relevant: false
 
     - name: led_to_learning
       description: "Insight gained from the incident"
+      chain_relevant: true
 
     - name: influenced
       description: "Incident caused a change in future behavior"
+      chain_relevant: true
 
     - name: similar_to
       description: "Incident shares characteristics with another incident"
+      chain_relevant: false
 
     - name: contrasts_with
       description: "Incident differs meaningfully from another incident"
+      chain_relevant: false
 
   extraction_guidelines:
     - "Ask for specific stories: 'Tell me about a time when...' or 'Recall a recent experience where...'"

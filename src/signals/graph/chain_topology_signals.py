@@ -1,7 +1,7 @@
 """Chain topology signals for chain-aware strategy selection.
 
 Computes per-node structural signals describing gaps and opportunities
-in the knowledge graph's leads_to chains. Pure graph topology — no LLM calls.
+in the knowledge graph's chain-relevant edges. Pure graph topology — no LLM calls.
 """
 
 from typing import Any, List
@@ -26,13 +26,13 @@ class ChainTopologySignalDetector(NodeSignalDetector):
 
     Namespaced signals (all per-node):
         - convgraph.node.chain.gap.above (bool): Node is highest in its chain AND non-terminal.
-        - convgraph.node.chain.gap.below (bool): No incoming leads_to from lower level AND above origin.
+        - convgraph.node.chain.gap.below (bool): No incoming chain-relevant edge from lower level AND above origin.
         - convgraph.node.chain.level.skip (bool): Direct edge skips intermediate ontology levels.
         - convgraph.node.chain.branching_deficit (float [0,1]): 1 - (actual_siblings / expected_siblings).
         - convgraph.node.chain.fan_in (int): Distinct origin-level nodes with paths to this node.
         - convgraph.node.chain.level.gap_size (int): Ontology levels between this node and terminal/origin.
 
-    For non-chain methodologies (JTBD, CJM, Repertory Grid, Critical Incident),
+    For non-chain methodologies or methodologies with no chain_relevant edges,
     returns empty dict — signal absent means zero contribution to scoring.
 
     Returns nested dict structure for per-node access:
@@ -104,12 +104,19 @@ class ChainTopologySignalDetector(NodeSignalDetector):
         if not nodes:
             return {self.signal_name: {}}
 
-        # Filter edges to only leads_to edges (ignore revises, etc.)
-        leads_to_edges = [e for e in edges if e.edge_type == "leads_to"]
+        # Filter edges to chain-relevant types from methodology schema
+        chain_edge_types = set(schema.get_chain_relevant_edge_types())
+        if not chain_edge_types:
+            log.debug(
+                "no_chain_relevant_edges",
+                methodology=methodology_name,
+            )
+            return {}
+        chain_edges = [e for e in edges if e.edge_type in chain_edge_types]
 
         # Build adjacency lists and type map
-        adj_list = build_adjacency_list(nodes, leads_to_edges)
-        reverse_adj_list = build_reverse_adjacency_list(nodes, leads_to_edges)
+        adj_list = build_adjacency_list(nodes, chain_edges)
+        reverse_adj_list = build_reverse_adjacency_list(nodes, chain_edges)
         node_type_map = get_node_type_map(nodes)
 
         # Get expected branching from methodology config
@@ -340,7 +347,7 @@ class ChainTopologySignalDetector(NodeSignalDetector):
     ) -> bool:
         """Check if there exists a downward path (reverse edges) to an attribute node.
 
-        True if this node, or any node reachable by following reverse leads_to edges,
+        True if this node, or any node reachable by following reverse chain-relevant edges,
         has an ontology level equal to min_level (the origin/attribute level).
         """
         reachable = bfs_reachable(node_id, reverse_adj_list)
@@ -360,7 +367,7 @@ class ChainTopologySignalDetector(NodeSignalDetector):
     ) -> bool:
         """Check if there exists an upward path (forward edges) to a terminal node.
 
-        True if this node, or any node reachable by following forward leads_to edges,
+        True if this node, or any node reachable by following forward chain-relevant edges,
         has a node_type in terminal_types.
         """
         reachable = bfs_reachable(node_id, adj_list)
@@ -485,7 +492,7 @@ class _GapBelowSentinel(_ChainTopoFlatSentinel):
 
 class _LevelSkipSentinel(_ChainTopoFlatSentinel):
     signal_name = "convgraph.node.chain.level.skip"
-    description = "True if node has a direct leads_to edge that skips one or more ontology levels."
+    description = "True if node has a direct chain-relevant edge that skips one or more ontology levels."
     dependencies = []
 
 

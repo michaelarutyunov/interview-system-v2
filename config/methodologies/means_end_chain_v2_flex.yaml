@@ -76,9 +76,11 @@ ontology:
     # of leads_to remains "causal or enabling relationship."
     - name: leads_to
       description: "Causal or enabling relationship — connects any two nodes where one drives, enables, or results in the other. The LLM determines which node pairs can connect based on the respondent's expressed reasoning."
+      chain_relevant: true
 
     - name: revises
       description: "Contradiction - newer belief supersedes older one"
+      chain_relevant: false
       permitted_connections:
         - ["*", "*"]
 

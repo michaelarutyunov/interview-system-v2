@@ -100,27 +100,35 @@ ontology:
   edges:
     - name: evaluated_by
       description: "Element is assessed using a construct"
+      chain_relevant: false
 
     - name: opposite_of
       description: "The two poles of a construct"
+      chain_relevant: false
 
     - name: rated_on
       description: "Rating applies a construct to an element"
+      chain_relevant: false
 
     - name: similar_on
       description: "Elements share a characteristic"
+      chain_relevant: false
 
     - name: differs_on
       description: "Elements are distinguished by a construct"
+      chain_relevant: false
 
     - name: implies
       description: "Construct implies or leads to another construct (laddering)"
+      chain_relevant: true
 
     - name: closer_to_ideal
       description: "Element better matches ideal specification"
+      chain_relevant: false
 
     - name: defines
       description: "Construct helps define what is ideal"
+      chain_relevant: false
 
   extraction_guidelines:
     - "Use triadic elicitation: 'In what way are two of these similar but different from the third?'"
