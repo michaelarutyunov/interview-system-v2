@@ -129,6 +129,10 @@ def analyze_log(log_file: Path) -> dict:
         stage_times[stage_name].append(duration)
 
     # LLM call completion
+    # call_concurrency is an optional structured field — present on calls fired
+    # from llm_prefetch_stage.py (concurrent with stages 4–4.5), absent on
+    # serial/inline calls. Parsed via a secondary lookup on the matched line.
+    concurrency_pattern = re.compile(r"call_concurrency=(\S+)")
     for match in llm_completed_pattern.finditer(clean_content):
         module = match.group(1)
         tokens_in = int(match.group(2))
@@ -136,6 +140,11 @@ def analyze_log(log_file: Path) -> dict:
         model = match.group(4)
         tokens_out = int(match.group(5))
         cost = _calculate_cost(model, tokens_in, tokens_out)
+        line_start = clean_content.rfind("\n", 0, match.start()) + 1
+        line_end = clean_content.find("\n", match.end())
+        line = clean_content[line_start : line_end if line_end != -1 else None]
+        conc_match = concurrency_pattern.search(line)
+        concurrency = conc_match.group(1) if conc_match else "inline"
         if module not in llm_calls:
             llm_calls[module] = {
                 "durations": [],
@@ -144,6 +153,9 @@ def analyze_log(log_file: Path) -> dict:
                 "count": 0,
                 "models": set(),
                 "costs": [],
+                "concurrency": set(),
+                "prefetch_duration": 0.0,
+                "inline_duration": 0.0,
             }
         llm_calls[module]["durations"].append(duration)
         llm_calls[module]["tokens_in"].append(tokens_in)
@@ -151,6 +163,11 @@ def analyze_log(log_file: Path) -> dict:
         llm_calls[module]["costs"].append(cost)
         llm_calls[module]["count"] = llm_calls[module]["count"] + 1
         llm_calls[module]["models"].add(model)
+        llm_calls[module]["concurrency"].add(concurrency)
+        if concurrency == "prefetch":
+            llm_calls[module]["prefetch_duration"] += duration
+        else:
+            llm_calls[module]["inline_duration"] += duration
 
     # Pipeline completion
     for match in pipeline_completed_pattern.finditer(clean_content):
@@ -202,6 +219,19 @@ def _write_summary_md(data: dict, output_dir: Path) -> Path:
     total_tokens_out = sum(s[3]["total"] for s in llm_stats)
     total_cost = sum(s[5]["total"] for s in llm_stats)
 
+    # Wall-clock from pipeline_completed events. This is the truthful denominator
+    # for percentages: Σ stage durations overstates wall-clock when stages run
+    # concurrently with the prefetched LLM call (stages 4–4.5 overlap with the
+    # llm_prefetch_stage task).
+    wall_clock_total = sum(pipeline_times) if pipeline_times else 0.0
+    concurrency_savings = (
+        total_stage_time - wall_clock_total if wall_clock_total else 0.0
+    )
+
+    # Split LLM time into inline (serial) vs prefetch (concurrent with stages).
+    inline_llm_time = sum(m.get("inline_duration", 0.0) for m in llm_calls.values())
+    prefetch_llm_time = sum(m.get("prefetch_duration", 0.0) for m in llm_calls.values())
+
     lines = [
         "# Pipeline Timing Analysis",
         "",
@@ -216,14 +246,37 @@ def _write_summary_md(data: dict, output_dir: Path) -> Path:
             f"(range: {stats['min'] / 1000:.2f}s – {stats['max'] / 1000:.2f}s)"
         )
 
+    lines.extend(["", "## Wall-Clock vs. Stage Sum", ""])
+    if wall_clock_total:
+        lines.append(
+            f"- **Wall-clock pipeline total**: {wall_clock_total / 1000:.2f}s "
+            f"(authoritative — from `pipeline_completed` events)"
+        )
+        lines.append(
+            f"- **Σ stage durations**: {total_stage_time / 1000:.2f}s "
+            f"(overstates wall-clock when stages overlap)"
+        )
+        lines.append(
+            f"- **Concurrency savings**: {concurrency_savings / 1000:.2f}s "
+            f"(time hidden by the prefetched LLM call running in parallel with "
+            f"stages 4–4.5)"
+        )
+    else:
+        lines.append(
+            "- No `pipeline_completed` events found — percentages below use "
+            "Σ stages and may overstate wall-clock contribution."
+        )
+
     lines.extend(["", "## Stage Timing (by total time)", ""])
+    pct_denom = wall_clock_total if wall_clock_total else total_stage_time
+    pct_label = "%wall" if wall_clock_total else "%sum"
     lines.append(
-        f"| {'Stage':<38} | {'Calls':>6} | {'Total(s)':>10} | {'Mean(ms)':>10} | {'%':>6} |"
+        f"| {'Stage':<38} | {'Calls':>6} | {'Total(s)':>10} | {'Mean(ms)':>10} | {pct_label:>6} |"
     )
     lines.append(f"|{'-' * 40}|{'-' * 8}|{'-' * 12}|{'-' * 12}|{'-' * 8}|")
 
     for stage, stats in stage_stats:
-        pct = (stats["total"] / total_stage_time * 100) if total_stage_time else 0
+        pct = (stats["total"] / pct_denom * 100) if pct_denom else 0
         lines.append(
             f"| {stage:<38} | {stats['count']:>6} | "
             f"{stats['total'] / 1000:>10.2f} | {stats['mean']:>10.1f} | {pct:>6.1f} |"
@@ -232,6 +285,13 @@ def _write_summary_md(data: dict, output_dir: Path) -> Path:
     lines.append(
         f"| {'TOTAL':<38} | {'':>6} | {total_stage_time / 1000:>10.2f} | {'':>10} | {'':>6} |"
     )
+    if wall_clock_total:
+        lines.append(
+            f"\n_Stage `%wall` columns sum to >100% by design — overlap with "
+            f"the prefetched LLM call shows up as the gap between Σ stages "
+            f"({total_stage_time / 1000:.2f}s) and wall-clock "
+            f"({wall_clock_total / 1000:.2f}s)._"
+        )
 
     lines.extend(["", "## LLM Calls by Module (by total time)", ""])
     lines.append(
@@ -257,10 +317,28 @@ def _write_summary_md(data: dict, output_dir: Path) -> Path:
         f"{total_llm_time / 1000:>8.2f} | {total_cost:>8.4f} | {'':>7} | {'':>7} |"
     )
 
+    if prefetch_llm_time or inline_llm_time:
+        lines.extend(["", "### LLM Time by Concurrency", ""])
+        lines.append(
+            f"- **Inline (serial)**: {inline_llm_time / 1000:.2f}s — on the "
+            f"critical path, fully visible in wall-clock"
+        )
+        lines.append(
+            f"- **Prefetched (concurrent with stages 4–4.5)**: "
+            f"{prefetch_llm_time / 1000:.2f}s — runs in parallel; only the "
+            f"portion exceeding stage 4–4.5 wall-clock contributes to total"
+        )
+        lines.append(
+            f"- **Σ LLM latency**: {total_llm_time / 1000:.2f}s "
+            f"(double-counts the overlap window — do not sum against wall-clock)"
+        )
+
     lines.extend(["", "## Key Findings", "", "### Top Bottlenecks"])
     for i, (stage, stats) in enumerate(stage_stats[:3], 1):
-        pct = stats["total"] / total_stage_time * 100 if total_stage_time else 0
-        lines.append(f"{i}. **{stage}**: {stats['total'] / 1000:.1f}s ({pct:.1f}%)")
+        pct = stats["total"] / pct_denom * 100 if pct_denom else 0
+        lines.append(
+            f"{i}. **{stage}**: {stats['total'] / 1000:.1f}s ({pct:.1f}{pct_label[1:]})"
+        )
 
     lines.extend(["", "### LLM Cost Breakdown"])
     for module, stats, _, _, models, cost_stats in llm_stats:

@@ -45,6 +45,16 @@ Chain topology signals are **node-scoped** and emitted only for methodologies wi
 
 Non-chain methodologies (flat ontologies, e.g. CJM, RG) return empty dicts for node-scoped chain signals and zero/false for global chain signals. The scorer handles this gracefully — chain-aware strategies simply never become eligible.
 
+### 1b. Canonical Slot Timing (Activation Lag)
+
+Canonical slots are only `active` after `support_count >= canonical_min_support_nodes` (default 2). Before a slot reaches this threshold, it exists in `slot_discovery_output.slots_created` but is not yet promotable to the canonical graph. Consequently:
+
+- **Signals depending on canonical data return empty/zero on the first occurrence** of any concept that maps to a given slot. The slot must be observed in at least 2 turns (from distinct surface nodes) before it activates.
+- **`canongraph.node.novelty` and similar canonical-scoped signals are empty until slots activate.** Do not assume they are populated from turn 1.
+- **This is by design**, not a bug. The activation lag prevents premature canonical promotion from a single surface mention.
+
+When debugging a turn where canonical signals are unexpectedly empty, check `slot_discovery_output.slots_updated` for the slot's current `support_count`. If `< canonical_min_support_nodes`, the signal gap is expected.
+
 ### 2. Threshold Bin Format (weight key suffixes)
 
 | Signal type | Suffixes | Binning rule |
@@ -182,6 +192,7 @@ Each entry below records a real failure observed in this codebase or a design co
 - **Calling `append_response_signal()` after `update_focus()`.** Attributes the response depth to the *new* focus instead of the node that was actually being asked about. Order is: `append_response_signal()` first, then `update_focus()`.
 - **Iterating only newly-extracted nodes in a `NodeSignalDetector`.** Drop missing nodes silently default to score 0. Always iterate `self._get_all_node_states()`.
 - **Treating `enable_canonical_slots=False` returning `{}` as a bug.** It is by-design empty — downstream code must handle empty node-signal dicts.
+- **Assuming canonical-scoped signals (`canongraph.node.*`) are populated from turn 1.** Canonical slots only activate after `support_count >= canonical_min_support_nodes` (default 2). On the first occurrence of any concept mapping to a given slot, the slot exists but is not yet active — signals like `canongraph.node.novelty` return empty/zero. This is by design to prevent premature canonical promotion from a single surface mention. When debugging unexpectedly empty canonical signals, check `slot_discovery_output.slots_updated` for `support_count`. If `< canonical_min_support_nodes`, the gap is expected, not a bug.
 - **"Fixing" failing weight matches by sprinkling `.get(key, 0.0)` in scoring code.** This masks data loss upstream. The fix is to make the key match — either correct the suffix or correct the namespace.
 - **Listing only node-consumer signals in YAML without their LLM-producer counterparts.** Per-concept node signals (`convgraph.node.elaboration`, `convgraph.node.charge`, `convgraph.node.has_quality_data`) are **consumers** — they read scores that have already been bridged into `NodeStateTracker`. Their **producers** (`response.semantic.llm.elaboration`, `response.semantic.llm.charge`) must also appear in `signals: llm:` in the same YAML for the batch detector to generate per-concept ratings. If producers are absent, `per_concept_classes` is empty, the batch detector processes concepts but records nothing, and `bridged_count=0` every turn. Symptom: `convgraph.node.has_quality_data` is always False; `convgraph.node.elaboration` and `charge` bins always score 0.
 - **Adding node-level signal names to YAML `signals:` expecting ComposedSignalDetector to detect them.** `ComposedSignalDetector` skips any signal class that has `requires_node_tracker=True` — these are detected separately by `NodeSignalDetectionService`. Listing `convgraph.node.elaboration` in the YAML `signals:` pool is correct (for weight validation), but the detection happens through a different code path. Do not add node signals expecting them to appear in `signal_registry.ComposedSignalDetector.detect()` output — they won't.

@@ -100,8 +100,6 @@ def configure_logging(log_sessions_to_keep: int = 20) -> None:
         handler.close()
         root_logger.removeHandler(handler)
 
-    root_logger.setLevel(logging.INFO)
-
     # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(logging.Formatter("%(message)s"))
@@ -112,9 +110,12 @@ def configure_logging(log_sessions_to_keep: int = 20) -> None:
     file_handler.setFormatter(logging.Formatter("%(message)s"))
     root_logger.addHandler(file_handler)
 
+    min_level = logging.DEBUG if settings.debug else logging.INFO
+    root_logger.setLevel(min_level)
+
     structlog.configure(
         processors=processors,
-        wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+        wrapper_class=structlog.make_filtering_bound_logger(min_level),
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,

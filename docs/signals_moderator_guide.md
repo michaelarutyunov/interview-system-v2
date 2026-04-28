@@ -29,7 +29,7 @@ Signals are organized into categories based on what they measure. Each category 
 | Signal | Moderator Meaning | How It's Computed | What to Look For |
 |--------|------------------|-------------------|------------------|
 | **response.semantic.llm.elaboration** | How developed each specific concept is in this response | LLM scores each extracted concept 1–5. The mean drives `response_depth`; individual scores are routed to the node tracker (→ `convgraph.node.llm.elaboration`). Raw score used, not normalized | surface = barely mentioned; deep = fully reasoned with examples. Watch per-node elaboration for topic-level patterns |
-| **response.semantic.llm.elaboration.trend** | How quality is changing over time | Classified from the last 4 `elaboration` values: if most are deepening → `deepening`; if 4+ are shallow → `fatigued`; otherwise `stable` or `shallowing`. Requires 4+ turns of history | `deepening` = more engaged; `stable` = consistent; `shallowing` = declining; `fatigued` = disengaged |
+| **response.semantic.llm.engagement.trend** | How response quality is changing over time | Classified from recent response depths: compares the older half vs newer half of depth scores. Requires 4+ turns of history. `deepening` = quality rising, `stable` = consistent, `shallowing` = declining, `fatigued` = 4+ shallow responses | `deepening` = more engaged; `stable` = consistent; `shallowing` = declining; `fatigued` = disengaged |
 | **response.semantic.llm.charge** *(per-concept)* | Emotional tone toward each specific concept | LLM scores each extracted concept 1–5, normalized to [0, 1]. Individual scores routed to node tracker (→ `convgraph.node.llm.charge`). Bins: `negative` ≤0.25, `neutral` 0.25–0.75, `positive` ≥0.75 | Negative = concern or reluctance around this topic; positive = enthusiasm or desire |
 | **response.semantic.llm.certainty** | How confident the respondent sounds | LLM assigns a 1–5 score, normalized to [0, 1]. Bins: `low` ≤0.25 (hedging), `mid` 0.25–0.75 (mixed), `high` ≥0.75 (confident) | low = "maybe", "I guess"; high = unqualified statements |
 | **response.semantic.llm.engagement** | Willingness to participate | LLM assigns a 1–5 score, normalized to [0, 1]. Bins: `low` ≤0.25 (minimal effort, deflection), `mid` 0.25–0.75 (adequate), `high` ≥0.75 (enthusiastic) | low = minimal effort, deflections; high = enthusiastic, extends beyond question |
@@ -56,9 +56,9 @@ Signals are organized into categories based on what they measure. Each category 
 | **convgraph.state.edge.count** | Total relationships found | Count of directed edges between nodes in the knowledge graph | Indicates how well-connected concepts are |
 | **convgraph.state.node.orphan_count** | Concepts with no connections | Count of nodes that have zero incoming AND zero outgoing edges | High count = opportunities to clarify relationships |
 | **convgraph.state.max_depth** | Length of longest causal chain | BFS from root nodes (nodes with no incoming edges), counting nodes in the longest path, then divided by the ontology's level count (e.g., 5 for Means-End Chain) | How deep we've gone into "why" chains |
-| **convgraph.state.avg_depth** | Average depth across all topics | *Not yet implemented — always returns 0.0. Treat as placeholder.* | Below 2 = surface-focused; 2-3 = balanced; Above 3 = consistently deep |
-| **convgraph.chain.completion** | Fraction of complete "why" chains | For each level-1 node (top-level concept), BFS searches for a path to a "terminal" node type (e.g., a value in MEC). Ratio = level-1 nodes reaching terminal / total level-1 nodes | 0 = no complete chains; 1 = all chains reach terminal values |
-| **convgraph.chain.has_complete** | Does at least one chain reach terminal? | Boolean companion to `completion`: true if at least one level-1 node has a complete path to a terminal node | True = interview has produced at least one full causal chain; False = no complete chains yet |
+| **convgraph.state.avg_depth** | *(Not implemented — always returns 0.0. Do not rely on this signal.)* | - | - |
+| **convgraph.chain.completion.ratio** | Fraction of complete "why" chains | For each level-1 node (top-level concept), BFS searches for a path to a "terminal" node type (e.g., a value in MEC). Ratio = level-1 nodes reaching terminal / total level-1 nodes | 0 = no complete chains; 1 = all chains reach terminal values |
+| **convgraph.chain.completion.has_complete** | Does at least one chain reach terminal? | Boolean companion to `completion.ratio`: true if at least one level-1 node has a complete path to a terminal node | True = interview has produced at least one full causal chain; False = no complete chains yet |
 | **convgraph.chain.structure.frontier_count** | How many topics are stuck at a dead end | Count of nodes where `gap.above` is true — non-terminal nodes with no outgoing edge to a higher ontology level. Only computed for chain methodologies (MEC). Returns empty dict for non-chain methodologies | High = many chains stop short of terminal values; the ascend strategy will target these |
 | **convgraph.chain.structure.ungrounded_count** | How many topics lack a foundation | Count of nodes where `gap.below` is true — nodes above the origin level with no incoming edge from a lower level. Only computed for chain methodologies (MEC). Returns empty dict for non-chain methodologies | High = many concepts float without grounding attributes; the ground strategy will target these |
 
@@ -74,10 +74,10 @@ These signals are most meaningful for **Means-End Chain (MEC)** methodology, whe
 
 - **Depth is normalized against ontology levels**, not raw graph distance. For MEC with 5 levels, a raw depth of 3 gives `max_depth = 0.6`. This makes the signal methodology-relative — you cannot compare depth values across methodologies with different ontology structures.
 - **Depth counts nodes, not meaningful reasoning steps.** A chain of 3 paraphrased surface nodes that map to the same canonical concept will report depth=3 even though they represent one conceptual level. Deduplication happens in the canonical graph, but depth is computed on the surface graph.
-- **Chain completion is brittle with small N.** Early in an interview, there may be only 1–2 level-1 nodes, so a single complete chain makes `has_complete = true` while `completion` can swing between 0.0 and 1.0 on a single turn. Treat this signal as noisy until 5+ level-1 nodes exist.
+- **Chain completion is brittle with small N.** Early in an interview, there may be only 1–2 level-1 nodes, so a single complete chain makes `convgraph.chain.completion.has_complete = true` while `convgraph.chain.completion.ratio` can swing between 0.0 and 1.0 on a single turn. Treat this signal as noisy until 5+ level-1 nodes exist.
 - **Chain completion depends on extraction quality.** If the LLM doesn't extract intermediate linking nodes, a chain that exists in the respondent's reasoning will appear incomplete in the graph. A low ratio may reflect extraction gaps, not shallow interviewing.
-- **`avg_depth` is not yet implemented** — it always returns 0.0. Do not rely on this signal for decision-making.
-- **For non-MEC methodologies** (e.g., Jobs-To-Be-Done), chain completion and depth are less meaningful because the ontology doesn't have the same linear causal structure. The `interview_progress` signal (which uses chain completion) is already deprecated for JTBD in favor of saturation signals.
+- **`convgraph.state.avg_depth` is not implemented** — it always returns 0.0. Do not rely on this signal for decision-making.
+- **For non-MEC methodologies** (e.g., Jobs-To-Be-Done), chain completion and depth are less meaningful because the ontology doesn't have the same linear causal structure. Use saturation signals (`meta.saturation.*`) instead.
 
 ---
 
@@ -103,8 +103,7 @@ These signals are most meaningful for **Means-End Chain (MEC)** methodology, whe
 
 | Signal | Moderator Meaning | How It's Computed | What to Look For |
 |--------|------------------|-------------------|------------------|
-| **convgraph.node.exhausted** | Topic has been explored without yield | Boolean: true if the node has been focused, has had no yield for 2+ turns, and ≥66% of its last 3 responses were shallow | True = move to a different topic |
-| **convgraph.node.exhaustion** | 0.0-1.0 score of exploration depth | Weighted sum of three factors: (1) `turns_since_last_yield / 10 × 0.4` + (2) `focus_streak / 5 × 0.3` + (3) `shallow_response_ratio × 0.3`, where `shallow_response_ratio` counts responses with depth category `"surface"` OR `"shallow"` | Higher (0.7+) = thoroughly explored; Lower (0.0-0.3) = fresh territory |
+| **convgraph.node.exhaustion** | 0.0-1.0 score of exploration depth. Values ≥0.7 indicate the topic is effectively "exhausted" — move to a different topic. | Weighted sum of three factors: (1) `turns_since_last_yield / 10 × 0.4` + (2) `focus_streak / 5 × 0.3` + (3) `shallow_response_ratio × 0.3`, where `shallow_response_ratio` counts responses with depth category `"surface"` OR `"shallow"` | Higher (0.7+) = thoroughly explored; Lower (0.0-0.3) = fresh territory |
 | **convgraph.node.yield_stagnation** | No new information for 3+ turns | Boolean: true when `turns_since_last_yield ≥ 3` for a previously focused node | True = time to switch topics |
 | **convgraph.node.focus.streak** | Consecutive turns on same topic | Count of consecutive turns where this node was the focus target, reset to 0 when focus changes to a different node. Bins: `none`=0 turns, `low`=1 turn, `medium`=2-3 turns, `high`=4+ turns | none/low = fine; medium = monitor; high = consider rotating |
 | **convgraph.node.is_current_focus** | Which topic is currently active | Boolean: true for the single node targeted by this turn's strategy. **NOTE: Due to pipeline stage ordering, this reflects the PREVIOUS turn's focus node, since the focus update hasn't run yet at signal-detection time.** | Used for strategy targeting (target carries forward from prior turn) |
@@ -165,12 +164,13 @@ Importantly, yield measures **structural novelty** — whether the graph changed
 
 ### Whole-Chain Properties
 
-These signals describe properties of an entire chain, not individual nodes:
+These signals describe per-node chain position, computed for each node and aggregated where needed:
 
 | Signal | Moderator Meaning | How It's Computed | What to Look For |
 |--------|------------------|-------------------|------------------|
-| **convgraph.chain.has_attribute_foundation** | Does this chain have a concrete starting point? | Boolean: true if following reverse `leads_to` edges from this node reaches any attribute-level (origin) node via BFS | True = chain is grounded in concrete attributes; False = chain is floating without foundation. Used as a scoring modifier for ascend (boost if grounded, suppress if floating) and ground (prioritize floating chains) |
-| **convgraph.chain.has_terminal_apex** | Does this chain reach a core value? | Boolean: true if following forward `leads_to` edges from this node reaches any terminal-value node via BFS | True = this chain already reaches a terminal value; used as a scoring modifier for branch (boost when chain is complete, indicating a productive branching point) |
+| **convgraph.node.chain.role** | Compound per-node chain topology signal | Single traversal computes all 8 chain metrics per node (gap.above, gap.below, level.skip, branching_deficit, fan_in, level.gap_size, has_attribute_foundation, has_terminal_apex). Returned as a dict keyed by node_id. Individual extractor signals (e.g., `convgraph.node.chain.gap.above`) pull single values from this compound result | Used by strategy selection for valid_when gates and scoring |
+| **convgraph.node.chain.has_attribute_foundation** | Does this node's chain have a concrete starting point? | Boolean: true if following reverse `leads_to` edges from this node reaches any attribute-level (origin) node via BFS | True = chain is grounded in concrete attributes; False = chain is floating without foundation. Used as a scoring modifier for ascend (boost if grounded, suppress if floating) and ground (prioritize floating chains) |
+| **convgraph.node.chain.has_terminal_apex** | Does this node's chain reach a core value? | Boolean: true if following forward `leads_to` edges from this node reaches any terminal-value node via BFS | True = this chain already reaches a terminal value; used as a scoring modifier for branch (boost when chain is complete, indicating a productive branching point) |
 
 **Strategy Gate Reference:**
 
@@ -190,7 +190,7 @@ These signals serve as `valid_when` gates for MEC's chain-aware strategies. A st
 - **High ungrounded_count** → Many concepts lack attributes — prioritize grounding
 - **level.skip on a node** → Ask about the intermediate step that was skipped
 - **Low branching_deficit** → Sufficient variety at this level; can move on
-- **has_attribute_foundation = false** → This concept needs grounding before extending further
+- **convgraph.node.chain.has_attribute_foundation = false** → This concept needs grounding before extending further
 
 ---
 
@@ -217,12 +217,10 @@ These signals serve as `valid_when` gates for MEC's chain-aware strategies. A st
 
 | Signal | Moderator Meaning | How It's Computed | What to Look For |
 |--------|------------------|-------------------|------------------|
-| **interview.phase** | Current stage of interview | Derived from turn count and phase boundaries in `config/interview_config.yaml` (e.g., turns 1-4 = early, 5-12 = mid, 13+ = late) | early = explore broadly; mid = build depth; late = validate and close (**Note**: Phase boundaries configured in `config/interview_config.yaml` as exploratory/focused/closing) |
-| **interview.is_late_stage** | Is the interview in its final phase? | Boolean: true when `interview.phase` equals "late". Convenience signal for YAML configs that need a simple boolean gate for late-stage suppression or boosting | True = interview is in validation/closing phase; False = still in exploratory or focused phase |
-| **meta.interview_progress** | How complete the interview is | `(chain_completion_ratio × 0.5) + (max_depth / ontology_levels × 0.5)` — equally weights chain coverage and depth reached (**DEPRECATED** across all methodologies; use saturation signals and chain topology signals instead) | 0.0 = just started; 1.0 = near completion |
+| **interview.phase** | Current stage of interview | Derived dynamically from turn number and `max_turns`. Uses either YAML-configured phase proportions (exploratory/focused/closing) scaled to `max_turns`, or a proportional heuristic (~10% early, last 2 turns late, rest mid) | `early` = explore broadly; `mid` = build depth; `late` = validate and close |
+| **interview.phase.is_late_stage** | Is the interview in its final phase? | Boolean: true when `interview.phase` equals `"late"`. Returned as a sub-key of the `interview.phase` signal | True = interview is in validation/closing phase; False = still in exploratory or focused phase |
 | **meta.saturation.conversation** | Are responses drying up? | `1.0 - min(current_turn_new_nodes / best_turn_ever_new_nodes, 1.0)` — compares this turn's new surface node count against the historical peak turn | 0.0 = extracting at peak rate; 1.0 = zero extraction (regardless of quality) |
 | **meta.saturation.canonical** | Are we in redundant territory? | `1.0 - min(new_canonical_concepts / new_surface_nodes, 1.0)` — ratio of new high-level themes to new surface nodes this turn | 0.0 = all new themes; 1.0 = pure elaboration on existing themes |
-| **meta.node.opportunity** | What's the best action for each topic? | Classified from node state: **exhausted** = focused before + no yield for 3+ turns + ≥66% shallow recent responses; **probe_deeper** = high focus streak (4+) + current response is deep; **fresh** = default | exhausted = skip; probe_deeper = extraction opportunity; fresh = explore |
 
 ### Canonical Saturation: A Deeper Look
 
@@ -268,7 +266,7 @@ Signals are most powerful when interpreted together. Here are common patterns:
 - Action: Use specific examples to ground the discussion
 
 ### Pattern: "The Fatigue Signal"
-- `response.semantic.llm.elaboration.trend` = `fatigued` (4+ shallow responses)
+- `response.semantic.llm.engagement.trend` = `fatigued` (4+ shallow responses)
 - **meta.saturation.conversation > 0.7**
 - **meta.saturation.canonical > 0.7**
 - Meaning: They're done — responses are short and we're in redundant territory
@@ -295,13 +293,13 @@ Signals are most powerful when interpreted together. Here are common patterns:
 
 ### Pattern: "The Floating Chain" (MEC)
 - **High convgraph.chain.structure.frontier_count** + **High convgraph.chain.structure.ungrounded_count**
-- **convgraph.chain.has_attribute_foundation = false** on multiple nodes
+- **convgraph.node.chain.has_attribute_foundation = false** on multiple nodes
 - Meaning: Chains are neither grounded nor reaching terminal values — the graph is wide but shallow
 - Action: Prioritize grounding (build attribute foundations) before ascending to values
 
 ### Pattern: "The Near-Complete Chain" (MEC)
-- **convgraph.chain.has_complete = true**
-- **convgraph.chain.completion rising** (0.5+)
+- **convgraph.chain.completion.has_complete = true**
+- **convgraph.chain.completion.ratio rising** (0.5+)
 - **Low convgraph.chain.structure.frontier_count** relative to node count
 - Meaning: At least one chain is complete, others are close — shift from building to validating
 - Action: Use branch strategy to explore alternatives at well-established levels
@@ -342,7 +340,6 @@ Signal names follow a consistent hierarchy:
   - `interview.focus.*` — (node, strategy) pair history
 - **`meta.*`** — Cross-source composites (genuine combinations of multiple pools)
   - `meta.saturation.*` — Saturation signals combining graph state + history
-  - `meta.node.opportunity` — Combined node state classification
 
 ---
 
@@ -354,7 +351,7 @@ Signal names follow a consistent hierarchy:
 | convgraph.node.llm.elaboration (high, ≥0.75) | Concept well-developed with reasoning | surface = barely mentioned |
 | convgraph.node.llm.charge (positive, ≥0.75) | Enthusiasm toward this concept | negative (≤0.25) = concern or reluctance |
 | response.semantic.llm.engagement (0.75-1.0) | Enthusiastic participation | Minimal effort |
-| response.semantic.llm.elaboration.trend (fatigued) | Disengaged (4+ shallow) | stable or deepening |
+| response.semantic.llm.engagement.trend (fatigued) | Disengaged (4+ shallow) | stable or deepening |
 | convgraph.state.node.count | Broad coverage | Narrow focus |
 | convgraph.state.edge.count | Well-connected concepts | Isolated concepts |
 | convgraph.state.node.orphan_count | Missed connections | Well-integrated |
@@ -364,11 +361,7 @@ Signal names follow a consistent hierarchy:
 | convgraph.node.exhaustion (0.7-1.0) | Thoroughly explored | Fresh territory |
 | convgraph.node.focus.streak (high) | Persistent questioning | Varied focus |
 | interview.strategy.self_count (high for a strategy) | Overused strategy | Good variety |
-| meta.interview_progress (0.75-1.0) | Near completion | Just started (**DEPRECATED**) |
-| interview.is_late_stage (true) | In validation/closing phase | Still exploring or building depth |
-| meta.node.opportunity (probe_deeper) | Extraction opportunity | Not ready to probe |
-| meta.node.opportunity (exhausted) | Move on | Has potential |
-| meta.node.opportunity (fresh) | Ready to explore | May need attention |
+| interview.phase.is_late_stage (true) | In validation/closing phase | Still exploring or building depth |
 | canongraph.state.edge.density (>1.0) | Topics are well-interconnected | Isolated themes, few links |
 | canongraph.state.exhaustion (0.7+) | Most themes thoroughly explored | Fresh canonical territory remains |
 | convgraph.node.novelty (high) | Freshly introduced concept | Well-established node in graph |
@@ -377,12 +370,14 @@ Signal names follow a consistent hierarchy:
 | convgraph.node.llm.elaboration (high, ≥0.75) | Concept consistently explored with depth | surface/shallow elaboration history |
 | convgraph.node.llm.charge (positive, ≥0.75) | Persistent positive tone toward concept | Persistent negative (≤0.25) = emotional friction |
 | convgraph.node.llm.has_quality_data (true) | Quality tracking active for this node | No elaboration/charge data yet |
-| convgraph.chain.has_complete (true) | At least one full causal chain | No complete chains yet |
+| convgraph.chain.completion.has_complete (true) | At least one full causal chain | No complete chains yet |
 | convgraph.chain.structure.frontier_count (high) | Many chains stop short of values | Most chains extend toward terminals |
 | convgraph.chain.structure.ungrounded_count (high) | Many concepts lack attribute foundation | Most concepts are grounded |
 | convgraph.node.chain.gap.above (true) | Chain frontier — can extend upward | Chain extends or is terminal |
 | convgraph.node.chain.gap.below (true) | Ungrounded concept — needs foundation | Concept has incoming edges from lower level |
 | convgraph.node.chain.level.skip (true) | Missing intermediate link in chain | Adjacent ontology levels connected |
 | convgraph.node.chain.branching_deficit (1.0) | Only child — no sibling concepts | Sufficient variety at this level |
-| convgraph.chain.has_attribute_foundation (true) | Chain is grounded in attributes | Chain floats without foundation |
-| convgraph.chain.has_terminal_apex (true) | Chain reaches a core value | Chain doesn't reach terminal |
+| convgraph.node.chain.has_attribute_foundation (true) | This node's chain is grounded in attributes | Node's chain floats without foundation |
+| convgraph.node.chain.has_terminal_apex (true) | This node's chain reaches a core value | Node's chain doesn't reach terminal |
+| convgraph.node.chain.fan_in (high) | Many attribute-level concepts feed into this node | Few or no attributes reach this node |
+| convgraph.node.chain.level.gap_size (high) | Large chain gap to fill (ascend/ground harder) | Small or no chain gap |

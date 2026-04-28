@@ -1,6 +1,6 @@
 ---
 name: interview-review
-description: Review a simulated interview export folder to produce qualitative insights. Reads pre-generated transcript, scoring summary, and graph data from reports/interviews/<timestamp>/ and writes 06_insights.md with transcript quality, focus fidelity, strategy assessment, and methodological structural analysis. No CSV/JSON parsing required.
+description: Review a simulated interview export folder to produce qualitative insights. Reads pre-generated transcript, scoring summary, causal chains, and graph data from reports/interviews/<timestamp>/ and writes 06_insights.md with transcript quality, focus fidelity, strategy assessment, causal chain quality, graph health, and actionable recommendations. No CSV/JSON parsing required.
 ---
 
 # Interview Review
@@ -14,23 +14,24 @@ An export folder: `reports/interviews/<timestamp>/`
 **Required files:**
 - `00_meta.yaml` — metadata for context
 - `01_transcript.md` — Q&A with strategies and focus nodes
+- `02_causal_chains.md` — chain extraction with tier classification
 - `04_scoring_summary.md` — aggregated signal tables
 
 **Optional files (enrich analysis if present):**
-- `02_causal_chains.md` — chain completeness
 - `03_graph.mmd` — graph visualization
 - `05_latency/summary.md` — performance data
 - `99_session.log` — raw session log
 
 ## Output
 
-`06_insights.md` in the same export folder, with five sections:
+`06_insights.md` in the same export folder, with six sections:
 
 1. **Transcript Quality** — openness, followership, naturalness, leading, contradictions, tangents, resistance
 2. **Focus Node Fidelity** — does each question align with its declared focus node?
 3. **Strategy Assessment** — distribution, streaks, phase alignment, score separation, structural failures
-4. **Graph Health** — growth trajectory, orphan dynamics, density, compression
-5. **Actionable Recommendations** — specific fixes with module/config pointers
+4. **Causal Chain Quality** — chain meaningfulness, evidence grounding, business actionability, methodology-specific structural checks
+5. **Graph Health** — growth trajectory, orphan dynamics, density, compression
+6. **Actionable Recommendations** — specific fixes with module/config pointers
 
 ## Usage
 
@@ -167,7 +168,103 @@ Anomalies:
 - [finding] → [module or config to investigate]
 ```
 
-### Step 5 — Graph Health (Section 4)
+### Step 5 — Causal Chain Quality (Section 4)
+
+Read `02_causal_chains.md`. This is the core analysis — chains are the interview's deliverable. Assess four dimensions:
+
+#### 5a. Structural Completeness
+
+From the Chain completeness summary table:
+- **Full chains** (reaching terminal node type) vs. total chains. Ratio < 20% after 8+ turns → `low_chain_completion`.
+- **Started-only chains**: Many started chains with no full chains = interviewer can't ladder. Cross-reference with strategy assessment — if `ascend` barely fired, that's the cause.
+- **Canonical vs. surface disparity**: If canonical has zero full chains but surface has several, dedup is collapsing meaningful variation. Flag as `over_aggressive_dedup`.
+
+#### 5b. Chain Meaningfulness
+
+For each **full chain** (and the top 3 started chains by length), evaluate:
+
+**Semantic coherence**: Does the chain tell a coherent causal story? A chain like `sluggish afternoon → chose ZeroFizz → avoiding caffeine → feel less guilty → guilt-free indulgence` is coherent. A chain like `afternoon fatigue → chose ZeroFizz → chemical aftertaste` is incoherent (solution→pain_point going backwards).
+
+**Edge plausibility**: For each edge in the chain, does the stated relationship (`triggers`, `enables`, `supports`, `addresses`) match the semantic connection between source and target?
+- `triggers` should connect cause → effect
+- `enables` should connect enabler → enabled outcome
+- `addresses` should connect solution → problem it solves
+- Flag implausible edges as `misclassified_edge`.
+
+**Evidence grounding**: Does the chain have source quotes for its edges? All edges showing `(no quote)` = extraction produced relationships without textual evidence. Flag as `ungrounded_chain`. Rate:
+- Strong: all edges have supporting quotes that clearly substantiate the relationship
+- Moderate: most edges have quotes, some are weak/inferential
+- Weak: majority of edges lack quotes or quotes don't substantiate the claimed relationship
+
+**Distinctness**: Do chains represent genuinely different causal narratives, or are they minor variations of the same path? Flag chains sharing ≥ 60% of nodes as `redundant_chains`.
+
+#### 5c. Business Actionability
+
+For each full chain, assess whether the insights could inform a product or marketing decision:
+
+**Specificity**: Does the chain identify a concrete user behavior, context, or pain point? "feel less guilty about drinking a soda" is specific and actionable. "mental shift toward guilt-free indulgence" is vague and tautological.
+
+**Leverage points**: Does the chain reveal where product or positioning changes could influence the outcome? A chain reaching `permission to pause and do nothing without guilt` reveals a ritual/permission job — actionable for positioning. A chain that ends at a generic emotional job with no behavioral anchor is not.
+
+**Competitive differentiation**: Does the chain reveal why this solution vs. alternatives? Chains involving `choosing ZeroFizz over plain water` or `avoiding coffee despite needing a pick-me-up` show competitive framing. Chains that only describe internal states without reference to alternatives don't.
+
+**Business insight summary**: Synthesize the chains into 2-4 distinct business insights. Each insight should be a one-sentence statement a product manager could act on, with the supporting chain(s) cited.
+
+#### 5d. Methodology-Specific Chain Checks
+
+Apply methodology-aware evaluation rules:
+
+- **MEC**: Full chains should follow attribute → functional consequence → psychosocial consequence → instrumental value → terminal value. A chain that skips levels (attribute → terminal value) is structurally valid but analytically thin — flag as `shortcut_chain`. Expected: at least 3 chains of depth ≥ 4 after 10+ turns.
+
+- **JTBD**: Full chains should connect job_trigger/pain_point → solution_approach → gain_point → emotional_job/social_job. Chains ending at gain_point without reaching emotional/social job = incomplete job understanding. Expected: at least 2 chains reaching emotional_job or social_job after 8+ turns. Chains that only connect pain_point → solution_approach → pain_point (circular) = `circular_chain`.
+
+- **CIT**: Full chains should represent incident → action → outcome narrative. Chains that don't include a concrete behavioral action = `no_incident_chain`. Expected: at least 1 chain with situation → behavior → consequence after 8+ turns.
+
+- **CJM**: Full chains should traverse multiple journey stages. Chains staying within one stage = `single_stage_chain`. Expected: at least 2 chains spanning 3+ journey stages.
+
+- **RG**: Full chains should show construct → implication relationships. Chains that only connect elements without revealing underlying constructs = `surface_comparison`. Expected: at least 1 chain revealing a latent construct.
+
+Output format:
+```
+## 4. Causal Chain Quality
+
+### Structural Completeness
+- Full chains: [N/M] ([%]) — [sufficient / insufficient]
+- Surface vs. Canonical: [comment on dedup impact]
+- [flags if applicable]
+
+### Chain-by-Chain Assessment
+
+| Chain | Tier | Coherence | Evidence | Actionable | Key Issue |
+|-------|------|-----------|----------|------------|-----------|
+| Chain 1 [surface] | full | strong / moderate / weak | strong / moderate / weak | yes / partial / no | [issue or —] |
+...
+
+### Meaningful Chains (highlight)
+- **Chain N**: [one-line causal narrative] → [business insight]
+  - Strengths: [what makes this chain valuable]
+  - Gaps: [what's missing that would strengthen it]
+
+### Business Insights
+1. [Insight statement] — supported by Chain(s) N, N
+2. [Insight statement] — supported by Chain(s) N
+...
+
+### Methodology-Specific Assessment
+- [methodology-specific finding]
+- [flags: circular_chain, shortcut_chain, etc.]
+
+### Orphan Analysis
+- [N orphan nodes — why they didn't connect into chains]
+- [Could the interviewer have connected them? Reference transcript turns where orphans were introduced]
+```
+
+**Diagnostic rules**:
+- Zero business-actionable insights → interview failed its purpose regardless of other metrics
+- All chains ungrounded (no quotes) → extraction quality issue, not interviewer issue
+- Chains present but no full chains → interviewer never ascended far enough (cross-ref strategy assessment)
+
+### Step 6 — Graph Health (Section 5)
 
 From the transcript's graph metrics (in `01_transcript.md` Overview or `04_scoring_summary.md`):
 
@@ -181,7 +278,7 @@ From the transcript's graph metrics (in `01_transcript.md` Overview or `04_scori
 
 Output format:
 ```
-## 4. Graph Health
+## 5. Graph Health
 
 - Growth: [healthy / stalled at turn N]
 - Orphans: [peak=X%, final=X%]
@@ -189,12 +286,12 @@ Output format:
 - Node type balance: [balanced / X over-represented]
 ```
 
-### Step 6 — Recommendations (Section 5)
+### Step 7 — Recommendations (Section 6)
 
 Consolidate all findings into prioritized fixes:
 
 ```
-## 5. Actionable Recommendations
+## 6. Actionable Recommendations
 
 ### High Priority
 1. [Issue] → Fix in [file path]

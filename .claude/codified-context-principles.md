@@ -231,6 +231,26 @@ If Tier 3 is growing but agents aren't referencing the new docs, you're writing 
 
 ---
 
+## Guardrails vs. Fixtures (When to Add Validation)
+
+Before designing a guardrail (Pydantic validator, schema-enforcement wrapper, registry integrity check, runtime contract check) from `bug_patterns.jsonl` or git history, weigh two dimensions:
+
+1. **Incident count of the same root-cause shape** — distinguish root cause from symptom. Three bugs that "produce empty signal values" may have three different root causes and not constitute a cluster. Singletons rarely justify mechanism unless dimension 2 is high.
+2. **Recurrence cost & surface growth** — silent drift across many runs, wide blast radius, or a growing surface (new signals/methodologies/strategies expected) raise the value of a guardrail even at low incident count. Loud, fast-detected bugs lower it.
+
+Then weigh against the **ongoing tax** of the proposed fix:
+
+- A pytest fixture (parametrized over registered classes, run on a fixture context) is near-zero tax and rots gracefully when the rule changes.
+- A `ClassVar` schema declaration on every subclass, a Pydantic conversion of a runtime config, or a production-time validation wrapper is high tax forever — every future contributor participates, and the guardrail itself can drift from what it was meant to enforce.
+
+**Default rule.** Prefer pytest fixtures over architectural mechanisms unless the bug class has high recurrence cost OR lives on a growing surface. `bug_patterns.jsonl` is a corpus of incidents, not a spec of invariants — reading it as the latter primes for over-generalization.
+
+**Closure rationale is durable documentation.** When a guardrail bead is closed as unnecessary (vs. completed), the closure reason persists in `bd show`. State the evidence absence explicitly ("0 commits matching this shape") so the next pass through `bug_patterns.jsonl` doesn't regenerate the same bead.
+
+See `~/.claude/skills/check-bd/SKILL.md` for the evidence-audit step that operationalizes this principle when reviewing bead batches.
+
+---
+
 ## Self-Modification Protocol
 
 When an agent modifies any part of the codified context infrastructure:

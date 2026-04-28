@@ -170,6 +170,43 @@ class StrategySelectionStage(TurnStage):
             alternatives_count=len(alternatives) if alternatives else 0,
         )
 
+        # Preventative: monoculture detector. Same strategy winning ≥3 turns in a row
+        # is the canonical signature of base-score-vs-brake asymmetry (CIT revitalize,
+        # CJM deepen_stage). See CLAUDE.md known failures #10/#11.
+        prior = list(context.strategy_history or [])
+        streak = 1
+        for past in reversed(prior):
+            if past == strategy:
+                streak += 1
+            else:
+                break
+        if streak >= 3:
+            runner_up_gap: Optional[float] = None
+            if alternatives and len(alternatives) >= 2:
+                top = (
+                    alternatives[0].get("score")
+                    if isinstance(alternatives[0], dict)
+                    else None
+                )
+                second = (
+                    alternatives[1].get("score")
+                    if isinstance(alternatives[1], dict)
+                    else None
+                )
+                if isinstance(top, (int, float)) and isinstance(second, (int, float)):
+                    runner_up_gap = round(float(top) - float(second), 4)
+            log.warning(
+                "strategy_monoculture_detected",
+                session_id=context.session_id,
+                strategy=strategy,
+                streak=streak,
+                runner_up_gap=runner_up_gap,
+                hint=(
+                    "same strategy ≥3 consecutive turns; check repetition brake "
+                    "magnitude vs. base score (CLAUDE.md failure modes #10/#11)."
+                ),
+            )
+
         return context
 
     async def _select_strategy_and_node(

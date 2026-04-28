@@ -9,8 +9,22 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from src.core.logging import get_logger
+
 if TYPE_CHECKING:
     from src.signals.signal_registry import ComposedSignalDetector
+
+log = get_logger(__name__)
+
+# Mirrors NODE_SIGNAL_PREFIXES in src/methodologies/scoring.py.
+# Duplicated to avoid a circular import (scoring imports StrategyConfig from here).
+# If you change this, update scoring.NODE_SIGNAL_PREFIXES too.
+_NODE_SCOPED_PREFIXES: tuple[str, ...] = (
+    "convgraph.node.",
+    "canongraph.node.",
+    "interview.focus.",
+    "meta.node.",
+)
 
 # Signal weight prefixes that are valid but not in the main signal registry.
 # These are session-scoped signals managed separately (e.g., in
@@ -242,6 +256,38 @@ class MethodologyRegistry:
                         f"strategies[{i}] '{strategy.name}': "
                         f"valid_when cannot be set for node_binding='none' strategies "
                         f"(they don't bind to nodes)"
+                    )
+
+            # Preventative: warn if a node_binding=none strategy has node-scoped weights.
+            # partition_signal_weights() routes those to node_weights, which Stage 1
+            # (global scoring) discards — the strategy then competes with reduced mass
+            # and appears to "never fire". See CLAUDE.md known failure: "Node binding
+            # mismatch silently strips weights".
+            if strategy.node_binding == "none":
+                stripped = {
+                    k: v
+                    for k, v in strategy.signal_weights.items()
+                    if any(k.startswith(p) for p in _NODE_SCOPED_PREFIXES)
+                }
+                if stripped:
+                    total_mass = sum(abs(v) for v in strategy.signal_weights.values())
+                    stripped_mass = sum(abs(v) for v in stripped.values())
+                    log.warning(
+                        "strategy_weight_routing_mismatch",
+                        methodology=config.name,
+                        strategy=strategy.name,
+                        node_binding=strategy.node_binding,
+                        stripped_weight_keys=sorted(stripped.keys()),
+                        stripped_mass=round(stripped_mass, 4),
+                        total_mass=round(total_mass, 4),
+                        stripped_fraction=(
+                            round(stripped_mass / total_mass, 4) if total_mass else None
+                        ),
+                        hint=(
+                            "node-scoped weights on node_binding=none strategies are "
+                            "discarded; flip node_binding to 'required' or move keys "
+                            "to global namespaces."
+                        ),
                     )
 
             for weight_key in strategy.signal_weights:

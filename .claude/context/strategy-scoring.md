@@ -478,6 +478,36 @@ Phase 4 demonstrated that weight tuning must follow a strict order:
 
 ---
 
+## Observability — Diagnostic Log Events
+
+Two structured `log.warning` events were added to surface known scoring failure modes preventatively. Both use structlog kv format and are searchable by event name.
+
+### `strategy_weight_routing_mismatch`
+
+**Where**: `src/methodologies/registry.py` (validation at YAML load).
+
+**When**: A strategy declares `node_binding: none` but its `signal_weights` contain keys with node-scoped prefixes (`convgraph.node.*`, `canongraph.node.*`, `interview.focus.*`, `meta.node.*`).
+
+**Why it matters**: `partition_signal_weights()` routes those keys to `node_weights`, which Stage 1 (global scoring for `node_binding=none` strategies) discards entirely. The strategy then competes with reduced positive mass and appears to "never fire." This is the regression that broke RG `triadic_elicit` and `explore_ideal` (Phase 4.3) — caught now at startup instead of after a long simulation.
+
+**Fields**: `methodology`, `strategy`, `node_binding`, `stripped_weight_keys`, `stripped_mass`, `total_mass`, `stripped_fraction`, `hint`.
+
+**Action**: Either flip `node_binding` to `required` (so weights route to Stage 2 joint scoring) or move the keys to global namespaces. `stripped_fraction > ~0.3` indicates severe mass loss.
+
+### `strategy_monoculture_detected`
+
+**Where**: `src/services/turn_pipeline/stages/strategy_selection_stage.py` (after each `strategy_selected`).
+
+**When**: The just-selected strategy has won ≥3 consecutive turns (computed from `context.strategy_history`).
+
+**Why it matters**: Consecutive-streak monoculture is the canonical signature of two known failure modes documented in `CLAUDE.md`: (#10) escape-valve repetition weight runaway (CIT `revitalize` 7/10 turns), and (#11) base-score asymmetry overwhelming the repetition brake (CJM `deepen_stage` base 2.3 vs. brake -0.6). Frequency-based detection flags the aftermath; streak-based detection flags it at turn 3 — early enough for live triage.
+
+**Fields**: `strategy`, `streak`, `runner_up_gap` (top score minus #2; `None` if alternatives < 2), `hint`.
+
+**Action**: Inspect the strategy's repetition brake weight (`interview.strategy.self_count`) and base-score positive mass. A small `runner_up_gap` with a large streak indicates sticky equilibrium (strengthen the brake); a large gap indicates structural dominance (reduce base-score positive mass or add `convgraph.node.focus.count.high` penalty).
+
+---
+
 ## Key Files
 
 | File | Purpose |

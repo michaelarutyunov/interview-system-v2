@@ -90,15 +90,25 @@ class LLMPrefetchStage(TurnStage):
 
         question = self._extract_last_question(context)
 
-        # Fire as asyncio.Task — not awaited here
-        context._llm_prefetch_task = asyncio.create_task(
-            llm_detector.detect(
-                response_text=response_text,
-                question=question or "",
-                concepts=concepts,
-                signal_classes=llm_signal_classes,
-            )
-        )
+        # Fire as asyncio.Task — not awaited here.
+        # Wrap in a coroutine that binds call_concurrency=prefetch on the task's
+        # own context, so any log events emitted while the prefetched call runs
+        # (e.g. llm_call_complete from src/llm/client.py) carry the label. This
+        # lets latency analysis distinguish prefetched (concurrent with stages
+        # 4–4.5) from inline (serial) LLM cost.
+        async def _run_prefetched():
+            structlog.contextvars.bind_contextvars(call_concurrency="prefetch")
+            try:
+                return await llm_detector.detect(
+                    response_text=response_text,
+                    question=question or "",
+                    concepts=concepts,
+                    signal_classes=llm_signal_classes,
+                )
+            finally:
+                structlog.contextvars.unbind_contextvars("call_concurrency")
+
+        context._llm_prefetch_task = asyncio.create_task(_run_prefetched())
 
         log.info(
             "llm_prefetch_fired",
