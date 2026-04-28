@@ -317,9 +317,10 @@ strategies:
     description: "Ladder from a functional job toward its emotional or social driver by asking why the job matters to the respondent"
     signal_weights:
       # Structural signal — gap_above is the primary trigger
-      convgraph.node.chain.gap.above.true: 0.25
+      # Boosted from 0.25 to compete with probe_pain's structural mass
+      convgraph.node.chain.gap.above.true: 0.5
       # Recency — prefer recently-discussed nodes for natural laddering flow
-      convgraph.node.recency: 0.2
+      convgraph.node.recency: 0.3
       # Exhaustion — avoid nodes already thoroughly explored
       convgraph.node.exhaustion: -0.6
       convgraph.node.focus.count.high: -0.4
@@ -348,9 +349,10 @@ strategies:
     description: "Ground an emotional or social job by exploring what functional circumstances, triggers, or job statements lead to it"
     signal_weights:
       # Structural signal — gap_below is the primary trigger
-      convgraph.node.chain.gap.below.true: 0.3
+      # Boosted from 0.3 to compete with probe_pain's structural mass
+      convgraph.node.chain.gap.below.true: 0.5
       # Recency — prefer recently-mentioned terminal nodes
-      convgraph.node.recency: 0.25
+      convgraph.node.recency: 0.3
       # Exhaustion — avoid over-probed nodes
       convgraph.node.exhaustion: -0.4
       # Chain foundation — prioritize ungrounded chains (no functional roots)
@@ -381,19 +383,20 @@ strategies:
       convgraph.node.llm.charge.negative: 0.3
       # f965: specificity.high (0.2) → convgraph.node.llm.elaboration.high
       convgraph.node.llm.elaboration.high: 0.2
-      # Novelty — newly-created orphan nodes are most likely pain points
-      convgraph.node.novelty.high: 0.4
-      canongraph.node.novelty.new: 0.5
-      canongraph.node.novelty.orphan: 0.3
-      # Focus freshness — prefer never-explored orphans
-      convgraph.node.focus.streak.none: 0.5
+      # Novelty — reduced from 0.4/0.5/0.3 to prevent probe_pain monoculture
+      # (was 7× more positive mass than next competitor)
+      convgraph.node.novelty.high: 0.2
+      canongraph.node.novelty.new: 0.3
+      canongraph.node.novelty.orphan: 0.2
+      # Focus freshness — reduced from 0.5 (was firing on 94% of nodes)
+      convgraph.node.focus.streak.none: 0.3
       convgraph.node.focus.streak.medium: -0.3
       convgraph.node.focus.streak.high: -0.6
-      convgraph.node.focus.count.none: 0.3
+      convgraph.node.focus.count.none: 0.2
       convgraph.node.focus.count.medium: -0.3
       convgraph.node.focus.count.high: -0.6
-      # Mild repetition brake
-      interview.strategy.self_count: -0.15
+      # Repetition brake — strengthened from -0.15 to break monoculture streaks
+      interview.strategy.self_count: -0.5
 
   # Strategy 5: Anchor — connect isolated concepts to existing graph structure
   # Replaces parts of legacy clarify_assumption. Pure structural strategy that

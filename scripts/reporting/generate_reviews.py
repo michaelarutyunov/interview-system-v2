@@ -72,7 +72,7 @@ def analyze_run(json_path: Path, output_dir: Path | None = None) -> dict:
         signal_rows.append(
             {
                 "turn": t["turn_number"],
-                "phase": s.get("meta.interview.phase", "—"),
+                "phase": s.get("interview.phase", "—"),
                 "engagement": s.get("response.semantic.llm.engagement", "—"),
                 "certainty": s.get("response.semantic.llm.certainty", "—"),
                 "response_depth": s.get("response.semantic.llm.response_depth", "—"),

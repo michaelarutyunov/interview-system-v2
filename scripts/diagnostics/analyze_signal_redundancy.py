@@ -71,7 +71,7 @@ def _load_from_jsons(json_dir: Path) -> pd.DataFrame:
         for turn in data.get("turns", []):
             turn_num = turn.get("turn_number", 0)
             signals = turn.get("signals") or {}
-            phase = signals.get("meta.interview.phase", "unknown")
+            phase = signals.get("interview.phase", "unknown")
 
             for entry in turn.get("score_decomposition") or []:
                 for sc in entry.get("signal_contributions") or []:

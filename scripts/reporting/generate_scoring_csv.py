@@ -136,7 +136,7 @@ def generate_scoring_csv(json_path: Path, output_path: Path | None = None) -> Pa
     for turn in data.get("turns", []):
         turn_number: int = turn.get("turn_number", 0)
         signals: dict[str, Any] = turn.get("signals") or {}
-        phase: str = signals.get("meta.interview.phase", "unknown")
+        phase: str = signals.get("interview.phase", "unknown")
         decomposition = turn.get("score_decomposition")
 
         if not decomposition:

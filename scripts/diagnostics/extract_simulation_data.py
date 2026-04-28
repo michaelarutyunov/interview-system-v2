@@ -90,7 +90,7 @@ def extract_interview(path: Path) -> dict:
         turn_row = {
             **common,
             "turn": turn_num,
-            "phase": signals.get("meta.interview.phase"),
+            "phase": signals.get("interview.phase"),
             "strategy_selected": t.get("strategy_selected"),
             "score_margin": score_margin,
             "best_alt_node_id": best_alt_node_id,
@@ -143,7 +143,7 @@ def extract_interview(path: Path) -> dict:
                         "persona": common["persona"],
                         "concept": common["concept"],
                         "turn": turn_num,
-                        "phase": signals.get("meta.interview.phase"),
+                        "phase": signals.get("interview.phase"),
                         "strategy": entry["strategy"],
                         "node_id": entry.get("node_id", ""),
                         "signal_name": sc["name"],
