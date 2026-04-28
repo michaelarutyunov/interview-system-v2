@@ -130,6 +130,7 @@ CREATE TABLE IF NOT EXISTS kg_edges (
             'leads_to', 'revises',
             -- JTBD (Jobs to be Done) methodology types
             'occurs_in', 'triggered_by', 'triggers', 'addresses', 'conflicts_with', 'enables', 'supports',
+            'implies', 'drives', 'achieves',
             -- Means-End Chain methodology types
             'means_to', 'ends_to',
             -- Critical Incident Technique methodology types

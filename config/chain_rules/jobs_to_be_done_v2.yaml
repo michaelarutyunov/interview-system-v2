@@ -1,32 +1,34 @@
+# Chain rules for JTBD V3 (5-level ontology)
+#
+# Chain spine (upward):
+#   L0 context/trigger → L1 pain/gain → L2 job_statement → L3 emotional/social → L4 solution
+#
+# Chain-relevant edges (triggers, implies, supports, drives) build the main spine.
+# Cross-level edges (addresses, achieves) are excluded from chain building —
+# they connect solutions back to needs but create downward/circular paths.
+
 chain_edges:
   triggers:
-    - [job_context, job_statement]
     - [job_context, pain_point]
-    - [pain_point, solution_approach]
-    - [job_trigger, solution_approach]
-    - [job_trigger, job_statement]
-  enables:
-    - [solution_approach, emotional_job]
-    - [solution_approach, social_job]
-    - [solution_approach, gain_point]
-    - [gain_point, emotional_job]
-    - [gain_point, social_job]
-    - [gain_point, gain_point]
-    - [emotional_job, gain_point]
-    - [job_context, social_job]
-  supports:
-    - [gain_point, emotional_job]
-    - [gain_point, social_job]
-    - [gain_point, gain_point]
-    - [solution_approach, emotional_job]
-    - [solution_approach, social_job]
-    - [solution_approach, gain_point]
-    - [emotional_job, gain_point]
-    - [emotional_job, emotional_job]
-    - [social_job, emotional_job]
+    - [job_context, gain_point]
+    - [job_trigger, pain_point]
     - [job_trigger, gain_point]
-    - [job_statement, gain_point]
-  addresses:
-    - [solution_approach, job_statement]
-    - [solution_approach, gain_point]
-    - [solution_approach, pain_point]
+    - [pain_point, pain_point]
+    - [gain_point, gain_point]
+
+  implies:
+    - [pain_point, job_statement]
+    - [gain_point, job_statement]
+
+  supports:
+    - [job_statement, emotional_job]
+    - [job_statement, social_job]
+    - [emotional_job, emotional_job]
+    - [social_job, social_job]
+    - [emotional_job, social_job]
+    - [social_job, emotional_job]
+
+  drives:
+    - [job_statement, solution_approach]
+    - [emotional_job, solution_approach]
+    - [social_job, solution_approach]

@@ -1,58 +1,44 @@
-# Jobs-to-be-Done Methodology Configuration (V2 — chain-aware architecture)
+# Jobs-to-be-Done Methodology Configuration (V3 — 5-level chain-aware architecture)
 #
-# Refitted from legacy JTBD (7 freeform strategies) to the new chain-aware
-# architecture established by MEC strict. Key design decisions:
+# V3 changes from V2:
+#   - Ontology restructured from 2 levels to 5 levels reflecting the JTBD causal chain:
+#     L0: Context/Trigger → L1: Pain/Gain → L2: Job Statement → L3: Emotional/Social → L4: Solution
+#   - Terminal node changed from emotional_job/social_job to solution_approach
+#     (in JTBD theory, the solution is what you HIRE — the endpoint of the chain)
+#   - Edge types renamed for semantic precision:
+#     enables → implies (pain/gain reveals the job)
+#     enables → drives (motivation/job shapes solution selection)
+#     addresses split into addresses (solution→pain) and achieves (solution→gain)
+#   - chain_relevant flags: only the upward spine edges are chain-relevant
+#     (triggers, implies, supports, drives). addresses/achieves are downward
+#     cross-level edges used by extraction but not by chain topology.
 #
-# Strategy redesign:
-#   - 7 strategies → 7 strategies (different names, different contract model)
-#   - Legacy strategies (explore_situation, probe_alternatives, dig_motivation,
-#     validate_outcome, revitalize, uncover_obstacles, clarify_assumption)
-#     replaced by chain-aware equivalents with valid_when gates
-#   - Ontology unchanged (same 8 node types, same 7 edge types)
+# Chain topology implications (5 levels vs 2):
+#   - gap.above: meaningful — can detect chains stalled at L0, L1, L2, or L3
+#   - gap.below: meaningful — can detect chains missing antecedents at any level
+#   - level.skip: now possible (e.g., trigger → job_statement skips L1)
+#   - has_attribute_foundation: checks if chain traces back to L0 (context/trigger)
+#   - has_terminal_apex: checks if chain reaches L4 (solution_approach)
+#   - ascend/ground strategies now have precise targets at each chain level
 #
-# Strategy mapping from legacy → chain-aware:
+# Strategy mapping (unchanged from V2):
 #   explore_situation    → elaborate   (breadth exploration, no gate)
-#   probe_alternatives   → probe_pain  (re-targeted to pain points via is_orphan proxy)
-#   dig_motivation       → ascend      (ladder from functional → emotional/social)
-#   uncover_obstacles    → ground      (find functional antecedents for emotional/social jobs)
+#   probe_alternatives   → probe_pain  (targets pain points via is_orphan proxy)
+#   dig_motivation       → ascend      (ladder upward through chain levels)
+#   uncover_obstacles    → ground      (find lower-level antecedents)
 #   clarify_assumption   → anchor      (connect isolated concepts)
-#   revitalize           → revitalize  (same fatigue-fallback pattern)
-#   validate_outcome     → validate    (same late-phase closing strategy)
-#
-# Signal selection rationale:
-#   - Reuses the same signal pools as MEC strict (llm, temporal, meta, graph)
-#   - Chain topology signals (gap_above, gap_below, is_orphan) work because JTBD
-#     has a 2-level hierarchy: functional nodes (level 0) and terminal nodes
-#     (level 1) for emotional_job and social_job
-#   - level_skip unlikely to fire (only 2 levels), so bridge strategy is omitted
-#   - branching_deficit would only apply at level 0, omitted for simplicity
-#   - convgraph.node.chain.has_attribute_foundation / has_terminal_apex retained for
-#     structural grounding checks (checks whether chains have functional roots)
-#
-# Incompleteness tolerance:
-#   JTBD tolerates incompleteness better than MEC — a job statement without an
-#   emotional driver is still valuable. score_threshold set to 0.05 (vs 0.15 MEC)
-#   so conversation-level strategies activate earlier, keeping the interview
-#   breadth-oriented rather than depth-obsessed.
+#   revitalize           → revitalize  (fatigue-fallback pattern)
+#   validate_outcome     → validate    (late-phase closing strategy)
 
 method:
   name: jobs_to_be_done_v2
-  version: "2.0"
+  version: "3.0"
   goal: "Understand what jobs users are trying to accomplish and what motivates them"
   opening_bias: "Ask about a specific recent time they made a decision or change related to the topic."
   description: "Framework for understanding customer motivation and needs through job statements"
 
 ontology:
   nodes:
-    - name: job_statement
-      level: 0
-      terminal: false
-      description: "Core functional or emotional job a customer is trying to accomplish"
-      examples:
-        - "get my daily caffeine fix"
-        - "feel productive in the morning"
-        - "socialize with colleagues"
-
     - name: job_context
       level: 0
       terminal: false
@@ -72,7 +58,7 @@ ontology:
         - "hosting a gathering"
 
     - name: pain_point
-      level: 0
+      level: 1
       terminal: false
       description: "Obstacle or frustration in getting the job done"
       examples:
@@ -81,7 +67,7 @@ ontology:
         - "upsets my stomach"
 
     - name: gain_point
-      level: 0
+      level: 1
       terminal: false
       description: "Desired outcome or benefit that makes the job worthwhile"
       examples:
@@ -89,18 +75,18 @@ ontology:
         - "quick and convenient"
         - "feeling energized without jitters"
 
-    - name: solution_approach
-      level: 0
+    - name: job_statement
+      level: 2
       terminal: false
-      description: "Current or potential method for accomplishing the job"
+      description: "Core functional job a customer is trying to accomplish"
       examples:
-        - "using oat milk in coffee"
-        - "buying coffee at a cafe"
-        - "meal prepping"
+        - "get my daily caffeine fix"
+        - "feel productive in the morning"
+        - "socialize with colleagues"
 
     - name: emotional_job
-      level: 1
-      terminal: true
+      level: 3
+      terminal: false
       description: "Emotional state or identity the customer seeks to achieve"
       examples:
         - "feel healthy and conscientious"
@@ -108,35 +94,61 @@ ontology:
         - "treat myself with care"
 
     - name: social_job
-      level: 1
-      terminal: true
+      level: 3
+      terminal: false
       description: "Social impression or relationship the customer wants to influence"
       examples:
         - "fit in with health-conscious peers"
         - "signal environmental values"
         - "avoid social awkwardness"
 
-  edges:
-    - name: occurs_in
-      description: "Temporal or situational relationship between job and context"
+    - name: solution_approach
+      level: 4
+      terminal: true
+      description: "What the customer currently hires to make progress — current or potential solution"
+      examples:
+        - "using oat milk in coffee"
+        - "buying coffee at a cafe"
+        - "meal prepping"
 
+  edges:
+    # ── Chain-relevant (upward spine) ──
     - name: triggers
-      description: "Causal relationship where source initiates or causes target (A triggers B means A is the cause, B is the effect)"
+      description: "Causal: source initiates or causes target (situation gives rise to need)"
+      chain_relevant: true
+
+    - name: implies
+      description: "Need reveals or defines the job (pain/gain implies what the functional job is)"
+      chain_relevant: true
+
+    - name: supports
+      description: "Job co-occurs with or reinforces emotional/social motivation (non-causal)"
+      chain_relevant: true
+
+    - name: drives
+      description: "Motivation or job shapes solution selection (biases tradeoffs, motivates hiring)"
+      chain_relevant: true
+
+    # ── Non-chain-relevant ──
+    - name: occurs_in
+      description: "Trigger occurs within a specific context (situational containment)"
+      chain_relevant: false
 
     - name: addresses
-      description: "Solution approach resolves a pain point or enables a gain point"
+      description: "Solution resolves a pain point (downward edge, not chain progression)"
+      chain_relevant: false
+
+    - name: achieves
+      description: "Solution delivers a gain point (downward edge, not chain progression)"
+      chain_relevant: false
 
     - name: conflicts_with
       description: "Something that prevents or undermines something else"
-
-    - name: enables
-      description: "Something that makes something else more achievable or satisfying"
-
-    - name: supports
-      description: "Something that contributes to or reinforces something else"
+      chain_relevant: false
 
     - name: revises
       description: "Contradiction - newer belief or approach supersedes older one"
+      chain_relevant: false
 
   extraction_guidelines:
     - "Listen for phrases indicating what the user is trying to accomplish ('I need to...', 'I want to...', 'The goal is...')"
@@ -151,25 +163,35 @@ ontology:
     - "Actively extract social jobs: look for peer references, social signals, reputation concerns"
 
   relationship_examples:
-    explicit_job_statement:
-      description: "Direct statement of what needs to be accomplished"
-      example: "I need something that wakes me up but doesn't make me jittery"
-      extraction: "job_statement('wake up without jitters') → addresses → pain_point('caffeine jitters')"
+    trigger_to_need:
+      description: "Context or trigger gives rise to a need"
+      example: "When the afternoon slump hits at work, I feel sluggish and unfocused"
+      extraction: "job_trigger('afternoon slump at work') → triggers → pain_point('feeling sluggish and unfocused')"
 
-    implicit_context:
-      description: "Context revealed through situation description"
-      example: "When I have 8am meetings, I can't wait in line at the cafe"
-      extraction: "job_statement('get morning coffee') → occurs_in → job_context('early morning meetings')"
+    need_implies_job:
+      description: "Pain or gain reveals what the functional job is"
+      example: "I hate the chemical aftertaste of diet drinks, so I want something clean-tasting"
+      extraction: "pain_point('chemical aftertaste') → implies → job_statement('find a clean-tasting refreshment')"
 
-    pain_trigger_chain:
-      description: "Trigger reveals the pain point and the job together"
-      example: "Dairy makes me feel bloated, especially before presentations"
-      extraction: "job_trigger('before presentations') → triggers → job_statement('feel comfortable') conflicts_with pain_point('dairy bloating')"
+    job_supports_emotional:
+      description: "Functional job co-occurs with emotional motivation"
+      example: "Staying hydrated makes me feel like I'm taking care of myself"
+      extraction: "job_statement('stay hydrated') → supports → emotional_job('feel like I take care of myself')"
 
-    functional_supports_emotional:
-      description: "Functional choice enables emotional outcome"
-      example: "I choose oat milk because it aligns with my values"
-      extraction: "solution_approach('oat milk') → supports → emotional_job('feel environmentally responsible')"
+    motivation_drives_solution:
+      description: "Emotional or functional need shapes what solution is hired"
+      example: "I pick ZeroFizz because it lets me have a soda without the guilt"
+      extraction: "emotional_job('avoid guilt about drinking soda') → drives → solution_approach('choosing ZeroFizz')"
+
+    solution_addresses_pain:
+      description: "Solution resolves a specific frustration"
+      example: "ZeroFizz doesn't have that artificial taste that Diet Coke has"
+      extraction: "solution_approach('ZeroFizz') → addresses → pain_point('artificial chemical taste')"
+
+    solution_achieves_gain:
+      description: "Solution delivers a desired outcome"
+      example: "ZeroFizz gives me a refreshing break without the caffeine crash"
+      extraction: "solution_approach('ZeroFizz') → achieves → gain_point('refreshing without caffeine crash')"
 
   extractability_criteria:
     extractable_contains:
@@ -270,10 +292,11 @@ strategies:
       # all map to convgraph.node.llm.elaboration.low → merged 1.1 (preserves strong trigger intent)
       convgraph.node.llm.elaboration.low: 1.1
 
-  # Strategy 2: Ascend — move from functional job toward emotional/social driver
-  # Replaces legacy dig_motivation. Binds to nodes with gap_above (functional
-  # nodes that haven't been connected to an emotional or social job yet).
-  # JTBD's "why does that matter?" laddering question.
+  # Strategy 2: Ascend — move upward through the chain toward solution
+  # Binds to nodes with gap_above (nodes at L0-L3 that haven't been connected
+  # upward through the chain). JTBD's "why does that matter?" laddering.
+  # With 5 levels, ascend can target specific chain gaps:
+  #   L0 context/trigger → L1 pain/gain → L2 job → L3 emotional/social → L4 solution
   - name: ascend
     node_binding: required
     valid_when: convgraph.node.chain.gap.above
@@ -300,10 +323,11 @@ strategies:
       # Mild repetition brake
       interview.strategy.self_count: -0.15
 
-  # Strategy 3: Ground — find functional antecedents for emotional/social jobs
-  # Replaces legacy uncover_obstacles. Binds to nodes with gap_below (terminal
-  # nodes at level 1 that lack functional antecedents). Asks "what triggers or
-  # causes this feeling/social need?"
+  # Strategy 3: Ground — find lower-level antecedents for higher-level nodes
+  # Binds to nodes with gap_below (nodes at L1-L4 that lack chain-relevant
+  # edges from lower levels). Asks "what triggers or causes this?"
+  # With 5 levels, ground targets specific antecedent gaps:
+  #   L4 solution → L3 emotional/social → L2 job → L1 pain/gain → L0 context/trigger
   - name: ground
     node_binding: required
     valid_when: convgraph.node.chain.gap.below
@@ -459,16 +483,16 @@ strategies:
 
 chain_completion:
   expected_branching:
-    job_statement: 3
     job_context: 2
     job_trigger: 2
     pain_point: 3
     gain_point: 2
-    solution_approach: 2
-    emotional_job: 1
+    job_statement: 3
+    emotional_job: 2
     social_job: 1
+    solution_approach: 2
   # Very low threshold — JTBD tolerates incompleteness better than MEC.
-  # A job statement without an emotional driver is still valuable data.
+  # A job statement without a solution is still valuable data.
   # Conversation-level strategies (elaborate, revitalize) activate early
   # to keep the interview breadth-oriented.
   score_threshold: 0.05
