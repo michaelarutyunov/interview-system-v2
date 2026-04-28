@@ -22,14 +22,14 @@ Graph and node signals are computed from in-memory state — no LLM calls, no DB
 | `convgraph.node.chain.branching_deficit` | float [0,1] | `1 - (actual_siblings / expected_siblings)` at this node's level |
 | `convgraph.node.chain.fan_in` | int | Distinct origin-level nodes with paths to this node |
 | `convgraph.node.chain.level.gap_size` | int | Ontology levels between this node and terminal/origin |
-| `convgraph.node.chain.has_attribute_foundation` | bool | Transitive downward path (reverse `leads_to`) reaches an attribute-level node |
-| `convgraph.node.chain.has_terminal_apex` | bool | Transitive upward path (forward `leads_to`) reaches a terminal-value node |
+| `convgraph.node.chain.has_attribute_foundation` | bool | Transitive downward path (reverse chain edges) reaches an attribute-level node |
+| `convgraph.node.chain.has_terminal_apex` | bool | Transitive upward path (forward chain edges) reaches a terminal-value node |
 
 The parent key `convgraph.node.chain.role` also remains available (holds the raw dict). The 8 flat keys are registered via sentinel classes in `chain_topology_signals.py` so the YAML registry validator accepts them in `valid_when` and `signal_weights`.
 
 **Flattening mechanics** (`NodeSignalDetectionService.detect_all()`): when a detector returns a dict value per node (as `ChainTopologySignalDetector` does), the service derives a namespace prefix from the detector's `signal_name` (`convgraph.node.chain.role` → prefix `convgraph.node.`) and writes each sub-key as `{prefix}{sub_key}`. The parent key is also written. This is a general mechanism; any future detector returning a nested dict per node will auto-flatten the same way.
 
-These signals require graph traversal (O(N×D) for N nodes and D depth) and are only non-trivial for chain methodologies (MEC). For non-chain methodologies (JTBD, CJM, Repertory Grid), the detector returns `{}` and all 8 signals are absent from scoring.
+These signals require graph traversal (O(N×D) for N nodes and D depth) and are designed for chain methodologies (MEC). **Known limitation:** The detector hardcodes `leads_to` as the edge type for building adjacency lists (line 108 in `chain_topology_signals.py`). Methodologies that don't use `leads_to` edges (JTBD uses `triggers`/`enables`/`supports`/`addresses`, CIT and CJM use their own edge types) get empty adjacency, producing vacuously-true `gap.above` for all nodes and `gap.below` only for terminal-level nodes. This is not a crash bug but means chain topology signals are semantically incorrect for non-MEC methodologies. See CLAUDE.md "Known Failure Modes" → "Chain topology signals hardcode leads_to."
 
 ### Per-Concept LLM Quality Node Signals (Phase C)
 
@@ -47,8 +47,8 @@ Surface per-concept LLM ratings (stored in `NodeState.quality_history` by the St
 
 Two chain topology signals use transitive reachability to distinguish a node's position in the full chain lifecycle:
 
-- **`convgraph.node.chain.has_attribute_foundation`** — BFS over **reverse** `leads_to` edges (following edges backward from target to source). Returns `True` if any reachable node has `level == min_level` (the attribute/origin level). This means the node's chain is rooted in a concrete product attribute, not floating.
-- **`convgraph.node.chain.has_terminal_apex`** — BFS over **forward** `leads_to` edges (source to target). Returns `True` if any reachable node has a `node_type` in `terminal_types`. This means the chain has already reached a terminal value above this node.
+- **`convgraph.node.chain.has_attribute_foundation`** — BFS over **reverse** chain edges (following edges backward from target to source). Returns `True` if any reachable node has `level == min_level` (the attribute/origin level). This means the node's chain is rooted in a concrete product attribute, not floating.
+- **`convgraph.node.chain.has_terminal_apex`** — BFS over **forward** chain edges (source to target). Returns `True` if any reachable node has a `node_type` in `terminal_types`. This means the chain has already reached a terminal value above this node.
 
 Both traversals reuse `bfs_reachable()` from `src/signals/graph/graph_traversal.py`. The start node is included in the reachable set (distance 0), so an attribute node naturally has `has_attribute_foundation=True`, and a terminal node naturally has `has_terminal_apex=True`. Graph sizes in practice are 30–100 nodes; BFS cost is well under 1 ms. Computed inside `ChainTopologySignalDetector.detect()` alongside the other chain topology signals, not as a separate detector.
 
@@ -154,11 +154,12 @@ Global signals (`frontier_count`, `ungrounded_count`) provide threshold guards -
 | `convgraph.node.exhaustion` stays near 0.0 despite repeated focus | `turns_since_last_yield` never increments because the tick in `update_focus()` is missing for non-focused nodes | Ensure `update_focus()` ticks `turns_since_last_yield += 1` for ALL nodes in the loop, not only the new focus |
 | Signal weight key never matches; strategy score ignores the signal | Wrong bin name in YAML — used `.medium` instead of `.mid`, or `.yes`/`.no` instead of `.true`/`.false` | Valid bins for floats: `.low`, `.mid`, `.high`; for booleans: `.true`, `.false`; for categories: match the exact string (e.g., `.none`, `.low`, `.medium`, `.high`) |
 | `canongraph.node.novelty` missing from signals dict | `enable_canonical_slots=False` — the signal returns `{}` by design | No fix needed; downstream code must handle empty node signal dicts gracefully |
-| `convgraph.node.chain.gap.above` / chain topology flat keys missing from node signals at runtime | ChainTopologySignalDetector returned `{}` (non-chain methodology or empty graph) | Expected; signals absent for non-MEC methodologies. If on MEC, check graph has nodes and edges. |
+| `convgraph.node.chain.gap.above` / chain topology flat keys missing from node signals at runtime | ChainTopologySignalDetector returned `{}` (fewer than 2 distinct ontology levels) or edge type mismatch | Methodologies with <2 levels get `{}`. Methodologies with ≥2 levels but no `leads_to` edges (JTBD, CIT, CJM) get vacuously-true signals — the detector hardcodes `leads_to` at line 108 and produces empty adjacency for non-MEC edge types. |
 | `ValueError` at YAML load: `valid_when references unknown signal 'convgraph.node.chain.gap.above'` | Sentinel classes not imported (module not loaded before validation) | Ensure `src/signals/__init__.py` imports `chain_topology_signals` before registry validation runs |
 | New chain topology sub-signal added but not in scoring | Sub-key added to `ChainTopologySignalDetector.detect()` but no sentinel class created | Add a sentinel class in `chain_topology_signals.py` and update `__all__`; see Requirement #9 |
 | `canongraph.state.exhaustion` not in signal output despite canonical slots being active | `context.canonical_graph_state is None` — canonical graph state not yet computed (e.g. StateComputationStage hasn't run or canonical slots are disabled) | Verify `enable_canonical_slots=True` and that StateComputationStage produced a `canonical_graph_state`; see Requirement #8 |
 | `convgraph.node.is_current_focus` returns `True` for last turn's focus, not this turn's chosen node | By design — `update_focus()` hasn't run yet at detection time | Expected behavior; see Requirement #9. Do not attempt to read post-update focus during signal detection. |
+| Canonical slot nodes (`slot_*` IDs) always gated on `valid_when` chain topology checks | `ChainTopologySignalDetector` reads surface nodes from DB (`kg_nodes` table), not canonical slots from tracker. Canonical slot nodes in `node_signals` dict have no `convgraph.node.chain.*` entries, so `gate_value` is `None` (falsy) | Expected — canonical slots get novelty/exhaustion signals from tracker but not chain topology signals from DB. Surface nodes (UUIDs) get both. See CLAUDE.md "Known Failure Modes" |
 
 ---
 
