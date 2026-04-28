@@ -21,6 +21,14 @@
 #   - has_terminal_apex: checks if chain reaches L4 (solution_approach)
 #   - ascend/ground strategies now have precise targets at each chain level
 #
+# valid_when gates removed (V3.1):
+#   Node-bound strategies (ascend, ground, probe_pain, anchor) do NOT use
+#   valid_when gates. Canonical slot nodes lack chain topology signals, so
+#   hard-gating would permanently dead-lock these strategies. Signal weights
+#   (e.g., gap.above.true: 0.25, is_orphan.true: 0.50) provide soft guidance
+#   instead — strategies score higher for structurally appropriate nodes but
+#   are never hard-excluded.
+#
 # Strategy mapping (unchanged from V2):
 #   explore_situation    → elaborate   (breadth exploration, no gate)
 #   probe_alternatives   → probe_pain  (targets pain points via is_orphan proxy)
@@ -36,6 +44,10 @@ method:
   goal: "Understand what jobs users are trying to accomplish and what motivates them"
   opening_bias: "Ask about a specific recent time they made a decision or change related to the topic."
   description: "Framework for understanding customer motivation and needs through job statements"
+
+phase_boundaries:
+  early_max_turns: 3
+  mid_max_turns: 8
 
 ontology:
   nodes:
@@ -297,9 +309,11 @@ strategies:
   # upward through the chain). JTBD's "why does that matter?" laddering.
   # With 5 levels, ascend can target specific chain gaps:
   #   L0 context/trigger → L1 pain/gain → L2 job → L3 emotional/social → L4 solution
+  # No valid_when gate — canonical slot nodes lack chain topology signals,
+  # so hard-gating on gap.above would permanently dead-lock this strategy.
+  # Signal weights (gap.above.true: 0.25) provide soft guidance instead.
   - name: ascend
     node_binding: required
-    valid_when: convgraph.node.chain.gap.above
     description: "Ladder from a functional job toward its emotional or social driver by asking why the job matters to the respondent"
     signal_weights:
       # Structural signal — gap_above is the primary trigger
@@ -328,9 +342,9 @@ strategies:
   # edges from lower levels). Asks "what triggers or causes this?"
   # With 5 levels, ground targets specific antecedent gaps:
   #   L4 solution → L3 emotional/social → L2 job → L1 pain/gain → L0 context/trigger
+  # No valid_when gate — same canonical slot rationale as ascend.
   - name: ground
     node_binding: required
-    valid_when: convgraph.node.chain.gap.below
     description: "Ground an emotional or social job by exploring what functional circumstances, triggers, or job statements lead to it"
     signal_weights:
       # Structural signal — gap_below is the primary trigger
@@ -352,9 +366,9 @@ strategies:
   # is_orphan as a proxy for unconnected pain points (the most actionable kind).
   # Binds to isolated nodes that may represent frustrations not yet linked to
   # the graph.
+  # No valid_when gate — same canonical slot rationale as ascend/ground.
   - name: probe_pain
     node_binding: required
-    valid_when: convgraph.node.is_orphan
     description: "Explore frustrations, obstacles, or unmet needs at isolated concepts — connect them to existing jobs and situations"
     signal_weights:
       # Structural signal — orphan node is the trigger
@@ -384,9 +398,9 @@ strategies:
   # Strategy 5: Anchor — connect isolated concepts to existing graph structure
   # Replaces parts of legacy clarify_assumption. Pure structural strategy that
   # asks how an orphan node relates to existing jobs, contexts, or outcomes.
+  # No valid_when gate — same canonical slot rationale as ascend/ground.
   - name: anchor
     node_binding: required
-    valid_when: convgraph.node.is_orphan
     description: "Connect an isolated concept to the existing graph by exploring how it relates to other known jobs, contexts, or outcomes"
     signal_weights:
       # Structural signal — orphan node is the trigger
