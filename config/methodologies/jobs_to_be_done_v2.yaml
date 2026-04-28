@@ -321,12 +321,18 @@ strategies:
       convgraph.node.chain.gap.above.true: 0.5
       # Recency — prefer recently-discussed nodes for natural laddering flow
       convgraph.node.recency: 0.3
+      # Generic baseline — level playing field with anchor/probe_pain
+      # (essential because canonical slot nodes lack chain topology signals)
+      convgraph.node.novelty.high: 0.25
+      convgraph.node.focus.streak.none: 0.3
+      convgraph.node.focus.count.none: 0.2
       # Exhaustion — avoid nodes already thoroughly explored
       convgraph.node.exhaustion: -0.6
       convgraph.node.focus.count.high: -0.4
       convgraph.node.focus.count.medium: -0.2
-      # Chain foundation — T2 calibration: reduced from 0.4 to 0.2 to prevent ground dominance
-      convgraph.node.chain.has_attribute_foundation.true: 0.2
+      # Chain foundation — boosted from 0.2 to 0.35 to equalize with ground's
+      # has_attribute_foundation asymmetry (was 2:1 favoring ground, now symmetric)
+      convgraph.node.chain.has_attribute_foundation.true: 0.35
       convgraph.node.chain.has_attribute_foundation.false: -0.5
       # Engagement — engaged respondent = safe to probe deeper
       response.semantic.llm.engagement.low: -0.3
@@ -353,15 +359,22 @@ strategies:
       convgraph.node.chain.gap.below.true: 0.5
       # Recency — prefer recently-mentioned terminal nodes
       convgraph.node.recency: 0.3
+      # Generic baseline — level playing field with anchor/probe_pain
+      # (essential because canonical slot nodes lack chain topology signals)
+      convgraph.node.novelty.high: 0.25
+      convgraph.node.focus.streak.none: 0.3
+      convgraph.node.focus.count.none: 0.2
       # Exhaustion — avoid over-probed nodes
       convgraph.node.exhaustion: -0.4
-      # Chain foundation — prioritize ungrounded chains (no functional roots)
-      convgraph.node.chain.has_attribute_foundation.false: 0.4
+      # Chain foundation — reduced from 0.4 to 0.2 to remove structural
+      # advantage over ascend (was 2:1 ratio, now symmetric)
+      convgraph.node.chain.has_attribute_foundation.false: 0.2
       convgraph.node.chain.has_attribute_foundation.true: -0.2
       # f965: response.semantic.llm.response_depth.deep (0.05) → convgraph.node.llm.elaboration.high
       convgraph.node.llm.elaboration.high: 0.05
-      # Mild repetition brake
-      interview.strategy.self_count: -0.15
+      # Repetition brake — doubled from -0.15 to -0.30 to prevent ground monoculture
+      # (was plateauing at -0.15 which is dwarfed by 1.50+ positive mass)
+      interview.strategy.self_count: -0.30
 
   # Strategy 4: Probe pain — identify frustrations and obstacles at orphan nodes
   # Replaces parts of legacy probe_alternatives and uncover_obstacles. Uses
@@ -522,7 +535,7 @@ phases:
     # Anchor connects early orphans. Probe_pain surfaces initial frustrations.
     signal_weights:
       elaborate: 1.4          # Breadth-first: explore situations and contexts
-      ground: 1.4             # Actively establish functional foundation before ascending
+      ground: 1.2             # Reduced from 1.4 to 1.2 — still prioritizes grounding but prevents runaway lead
       probe_pain: 1.2         # Surface early pain points
       anchor: 1.2             # Connect isolated concepts
       ascend: 1.0             # Available but not dominant

@@ -63,9 +63,8 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 
 ### 🚨 Critical findings (must fix)
 
-1. **`response.semantic.llm.engagement.trend` doc drift in agent spec** (session/temporal).
-   Code returns `deepening/stable/shallowing/fatigued`. Moderator guide and YAML agree. But `signal-specialist/AGENT.md` Section 10 falsely claims values are `improving/degrading/stable`. This vocabulary appears nowhere in code or YAML — it's a fabrication that would mislead any future agent loading the spec.
-   **Fix:** Correct Section 10 of `signal-specialist/AGENT.md`. Also clarify the moderator guide's "last 4" claim — code actually uses a last-6 window with 4-sample minimum gate.
+1. **`response.semantic.llm.engagement.trend` doc drift in agent spec** (session/temporal). ✅ **FIXED** — `signal-specialist/AGENT.md` Section 10 now correctly lists `deepening/stable/shallowing/fatigued`. The prior `improving/degrading/stable` vocabulary has been corrected.
+   **Note:** Moderator guide's "last 4" claim still imprecise — code actually uses a last-6 window with 4-sample minimum gate.
 
 ### Plausible-impact findings (worth fixing)
 
@@ -118,7 +117,7 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 | Priority | Action | Effort |
 |----------|--------|--------|
 | P0 | Fix `canongraph.node.novelty` instance lifecycle bug | Medium (touches NodeSignalDetectionService) |
-| P0 | Correct `signal-specialist/AGENT.md` Section 10 `global_response_trend` values | Trivial (text edit) |
+| P0 | ✅ **DONE:** Correct `signal-specialist/AGENT.md` Section 10 `global_response_trend` values | Trivial (text edit) |
 | P1 | Normalize or guard raw count signals (`node_count`, `edge_count`, `orphan_count`) | Low |
 | P1 | Decide rename or document for `response.semantic.llm.response_depth` (depth vs richness) | Low (decision); medium (rename) |
 | P1 | Fix `meta.saturation.canonical` empty-extraction edge case (or accept design) | Low (decision) |

@@ -2,7 +2,7 @@
 
 ## Core Mechanics
 
-`StrategySelectionStage` (Stage 6/8 in pipeline) is the decision engine. It orchestrates two sub-stages to produce a selected strategy and focus node for the current turn.
+`StrategySelectionStage` (Stage 6) is the decision engine. It orchestrates signal detection and joint scoring to produce a selected strategy and focus node for the current turn.
 
 **Inputs read from context:**
 - `graph_state` — must be fresh (StateComputationStage must have run)
@@ -12,104 +12,92 @@
 
 **Output:** `StrategySelectionOutput` with `strategy`, `focus_node_id`, `signals`, `node_signals`, `score_decomposition`.
 
-### Two-Stage D2 Selection
+### Joint Scoring Architecture
 
-```mermaid
-graph LR
-    A[Global Signals] --> B[Stage 1: rank_strategies]
-    B -->|partition_signal_weights excludes node signals| C[Score strategies]
-    C -->|phase_weight * base_score + bonus| D[Best strategy]
+Strategies and nodes are scored **jointly** — all eligible (strategy, node) pairs are evaluated simultaneously, and the highest-scoring pair wins:
 
-    D --> E{node_binding = required?}
-    E -->|Yes + node_signals exist| F[Stage 2: rank_nodes_for_strategy]
-    E -->|No / none| G[focus_node_id = None]
+1. **Global signals** are detected via `GlobalSignalDetectionService`
+2. **Node signals** are detected via `NodeSignalDetectionService` (initialized from `node_tracker.get_all_states().keys()`)
+3. **Joint scoring** via `rank_strategy_node_pairs()` in `src/methodologies/scoring.py`:
+   - For each node-bound strategy × each node in `node_signals`, compute a base score from signal weights
+   - Apply phase multiplier (multiplicative) and phase bonus (additive)
+   - The single highest-scoring (strategy, node) pair determines both the strategy and the focus node
+4. **Conversation-level strategies** (with `node_binding: none`) are scored in parallel via `rank_strategies()` using only global signals
 
-    H[Node Signals per node_id] --> F
-    F -->|phase_weight * node_score + bonus| I[Best node]
-    I --> J[focus_node_id]
-```
+**Strategies with `node_binding: none`** (e.g., `revitalize`, `elaborate`, `validate`) operate at conversation level — `focus_node_id` is `None`, and `node_id = ""` appears in `score_decomposition`.
 
-**Stage 1 — Strategy Selection (`rank_strategies()`):**
-- Uses global signals only: `graph.*`, `llm.*`, `temporal.*`, `meta.*`
-- `partition_signal_weights()` auto-excludes node-scoped weights (`convgraph.node.*`, `convgraph.node.*, canongraph.node.*, interview.focus.*, meta.node.**`, `meta.node.*`)
-- Applies phase multipliers (multiplicative) and bonuses (additive) from YAML config
-- Scoring formula: `final_score = (base_score × multiplier) + bonus`
-
-**Stage 2 — Node Selection (`rank_nodes_for_strategy()`):**
-- Runs only when `node_binding = "required"` (default) and `node_signals` are available
-- Uses node-scoped weights only (extracted via `partition_signal_weights()`)
-- Same phase multiplier/bonus applied at node level
-
-**Strategies with `node_binding: none`** (e.g., `revitalize`) operate at conversation level — `focus_node_id` is `None`, and `node_id = ""` appears in `score_decomposition`.
-
-**Strategies with `valid_when` gate** (MEC chain-aware strategies: `ascend`, `ground`, `bridge`, `branch`, `anchor`) are only scored for nodes where the gate signal evaluates to `True`. A strategy with `valid_when: convgraph.node.chain.gap.above` will never appear in candidates for terminal nodes. This filtering happens in `rank_strategy_node_pairs()` before scoring. See `.claude/context/strategy-scoring.md` for full chain-aware strategy documentation.
+**Strategies with `valid_when` gate** are only scored for nodes where the gate signal evaluates to `True` in the node's signal dict. `node_signal_dict.get(gate_signal)` returns the signal value — `None` (missing) or `False` both exclude the (strategy, node) pair from scoring.
 
 ### Signal Detection
 
-`GlobalSignalDetectionService` → `ComposedSignalDetector` for global signals:
-- `graph.*` — graph structure metrics
+`GlobalSignalDetectionService` → detects global signals:
+- `graph.*` — graph structure metrics (via `ComposedSignalDetector`)
 - `llm.*` — response quality (batch-detected in single API call)
 - `temporal.*` — strategy repetition count, turns since strategy change
 - `meta.*` — interview progress, phase
 
-`NodeSignalDetectionService` → per-node detectors:
-- `convgraph.node.*` — exhaustion score, focus streak, yield stagnation, recency
-- `convgraph.node.*, canongraph.node.*, interview.focus.*, meta.node.**` — consecutive same strategy on node
-- `meta.node.*` — opportunity (exhausted / probe_deeper / fresh)
+`NodeSignalDetectionService` → detects node-level signals:
+- Initializes `node_signals` dict from `node_tracker.get_all_states().keys()` — surface UUIDs + canonical slot IDs
+- Runs all `NodeSignalDetector` subclasses (tracker-based: exhaustion, focus streak, novelty) and DB-based detectors (`ChainTopologySignalDetector` — gap_above, gap_below, is_orphan, etc.)
+- Merge step: detector results are merged into `node_signals` only if their node IDs match entries in the dict (guard: `if node_id in node_signals`)
+- See `.claude/context/signal-detection-graph.md` "Key Namespace Divergence" for the tracker-vs-DB key split and merge mechanics
 
 ### Phase Weights
 
-Phase is detected explicitly via `InterviewPhaseSignal` (not via `ComposedSignalDetector`). Phase yields `interview.phase` = `early` / `mid` / `late`.
+Phase is detected via `InterviewPhaseSignal`. Phase weights are loaded from `config.phases[phase]`:
 
-Phase weights are loaded from `config.phases[phase]`:
 ```yaml
 phases:
   early:
     signal_weights:      # multiplicative
-      branch: 1.5
-      ascend: 0.8
+      ascend: 1.0
+      ground: 1.2
     phase_bonuses:       # additive
-      branch: 0.1
+      elaborate: 0.2
 ```
+
+Scoring formula: `final_score = (base_score × phase_multiplier) + phase_bonus`
 
 ### Post-Selection Updates
 
-After strategy + node selection, before exiting Stage 6/8:
+After strategy + node selection, before exiting Stage 6:
 
-1. **Per-concept quality bridge** — `MethodologyStrategyService` iterates `per_concept_ratings` from the LLM batch detector and routes `response.semantic.llm.elaboration` / `response.semantic.llm.charge` to each concept's mapped node via `NodeStateTracker.append_quality()`. This replaces the old `append_response_signal()` single-focus-node path.
+1. **LLM quality bridge** — `LLMSignalBridgeStage` (Stage 4.7, runs before Stage 6) iterates `per_concept_ratings` from the LLM batch detector and routes `response.semantic.llm.elaboration` / `response.semantic.llm.charge` to each concept's mapped node via `NodeStateTracker.append_quality()`. This runs BEFORE strategy selection, so per-concept quality signals are available during scoring.
 2. `update_focus()` — sets new focus as `previous_focus` for next turn, increments streak counters
-
-Critical ordering: the quality bridge must run before `update_focus()`, so per-concept ratings are attributed to the nodes that were asked about last turn.
 
 ## Correctness Requirements
 
-1. **StateComputationStage must have run before Stage 6/8** — `graph_state` is stale if Stage 5 was skipped. Signal detectors that read `graph_state` will produce wrong scores.
+1. **StateComputationStage must have run before Stage 6** — `graph_state` is stale if Stage 5 was skipped. Signal detectors that read `graph_state` will produce wrong scores.
 
-2. **Phase must be detected before scoring** — `rank_strategies()` requires `phase_weights` and `phase_bonuses`. Without them, multipliers default to 1.0 and bonuses to 0.0, suppressing phase-based strategy shaping.
+2. **Phase must be detected before scoring** — `rank_strategy_node_pairs()` requires `phase_weights` and `phase_bonuses`. Without them, multipliers default to 1.0 and bonuses to 0.0, suppressing phase-based strategy shaping.
 
-3. **Node signals must not leak into Stage 1** — `partition_signal_weights()` filters them out. If node-scoped weights were applied during strategy scoring, the same node weights would affect all nodes equally and distort strategy selection.
+3. **`partition_signal_weights()` separates global from node-scoped weights** — strategies with `node_binding: required` have their weights partitioned: node-scoped weights (`convgraph.node.*`) route to stage-2 joint scoring; global weights route to stage-1 base. Strategies with `node_binding: none` use only global weights.
 
-4. **Per-concept ratings must be bridged to the correct nodes** — `concept_to_node_id` (populated by GraphUpdateStage) maps extracted concepts to graph nodes. If a concept is not mapped, its quality ratings are silently skipped.
+4. **Node signals must not leak into conversation-level strategy scoring** — `partition_signal_weights()` filters them out. A strategy with `node_binding: none` that references `convgraph.node.*` weights loses those weights' contribution.
 
-5. **`strategy_alternatives` is a list of `(strategy_name, score)` 2-tuples** — not 3-tuples. Downstream log parsers expecting 3-tuples will fail silently or raise index errors.
+5. **`strategy_alternatives` is a list of `Dict[str, Any]`** with keys `strategy`, `node_id`, `score` — not 2-tuples. Downstream consumers (`generate_transcript.py`, `generate_scoring_csv.py`) iterate these dicts.
+
+6. **`valid_when` gate is a soft check** — `node_signal_dict.get(gate_signal)` returns `None` (falsy) when the signal key is missing. This means nodes without the gating signal are excluded from that strategy's candidate set. Surface nodes (UUIDs) carry chain topology signals; canonical slot nodes do not (see `signal-detection-graph.md`).
 
 ## Symptom → Cause → Fix
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Wrong strategy always selected regardless of signals | Phase weights not loading (`interview.phase` absent) | Check `InterviewPhaseSignal` detection; verify methodology YAML has `phases` section |
-| Node signals not affecting node selection | Node-scoped weights present in `signal_weights` but `node_binding: none` on strategy | Change strategy to `node_binding: required` or move weights to node-level section |
+| Strategy with `convgraph.node.*` weights never fires | `node_binding: none` — `partition_signal_weights()` strips node-scoped weights | Change to `node_binding: required` so weights route to joint scoring |
 | Phase multipliers applying but not bonuses | `phase_bonuses` key missing from YAML phase config | Add `phase_bonuses:` section under affected phase |
-| Response depth always attributed to wrong node | `append_response_signal()` called after `update_focus()` | Restore ordering: append first, then update_focus |
 | `focus_node_id` is always `None` for node-bound strategies | `node_signals` dict is empty (NodeSignalDetectionService not running) | Check Stage ordering and NodeSignalDetectionService injection |
+| Chain topology signals absent from scoring | Key namespace mismatch — detector returns surface UUIDs, `node_signals` initialized from slot IDs | Verify surface nodes are kept in tracker after remap (see `signal-detection-graph.md`) |
+| Ground strategy dominates despite calibration | Phase multiplier asymmetry + `has_attribute_foundation` weight ratio + weak repetition brake | Equalize structural weights, strengthen self_count brake, reduce early phase gap |
 
 ## Key Files
 
-- `src/services/turn_pipeline/stages/strategy_selection_stage.py` — orchestrates signal detection + D2 selection
-- `src/services/methodology_strategy_service.py` — `rank_strategies()`, `rank_nodes_for_strategy()`
-- `src/methodologies/scoring.py` — `partition_signal_weights()`, scoring formula
+- `src/services/turn_pipeline/stages/strategy_selection_stage.py` — orchestrates signal detection + joint scoring
+- `src/services/methodology_strategy_service.py` — `select_strategy_and_focus()`, routes to `rank_strategy_node_pairs()`
+- `src/methodologies/scoring.py` — `rank_strategy_node_pairs()` (joint), `rank_strategies()` (conversation-level), `partition_signal_weights()`
 - `src/methodologies/registry.py` — YAML config loader
 - `src/services/global_signal_detection_service.py` — global signal orchestration
-- `src/services/node_signal_detection_service.py` — per-node signal detection
+- `src/services/node_signal_detection_service.py` — per-node signal detection + merge
+- `src/services/focus_selection_service.py` — resolves `focus_node_id` to label + node_type
 - `src/signals/meta/` — Meta signal implementations (InterviewPhaseSignal, etc.)
 - `config/methodologies/*.yaml` — strategy configs, `signal_weights`, `phase_bonuses`, `node_binding`

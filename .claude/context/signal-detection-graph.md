@@ -29,6 +29,40 @@ The parent key `convgraph.node.chain.role` also remains available (holds the raw
 
 **Flattening mechanics** (`NodeSignalDetectionService.detect_all()`): when a detector returns a dict value per node (as `ChainTopologySignalDetector` does), the service derives a namespace prefix from the detector's `signal_name` (`convgraph.node.chain.role` → prefix `convgraph.node.`) and writes each sub-key as `{prefix}{sub_key}`. The parent key is also written. This is a general mechanism; any future detector returning a nested dict per node will auto-flatten the same way.
 
+These signals require graph traversal (O(N×D) for N nodes and D depth) and are designed for chain methodologies (MEC).
+
+### Key Namespace Divergence: Tracker vs DB
+
+Node signal detectors fall into two categories based on their data source, creating a **key namespace split** that is critical to understand when debugging signal absence:
+
+| Category | Data source | Key domain | Example |
+|----------|------------|------------|---------|
+| Tracker-based | `self._get_all_node_states()` (NodeStateTracker) | Whatever keys are in `self.states` — surface UUIDs before Stage 4.5 remap, canonical slot IDs after | `NodeFocusStreakSignal`, `NodeExhaustionScoreSignal`, `NodeNoveltySignal` |
+| DB-based | `GraphRepository.get_nodes_by_session()` | Always surface UUIDs (from `kg_nodes`) | `ChainTopologySignalDetector`, `ChainCompletionSignal`, `GlobalChainTopologySignal` |
+
+**The merge step** in `NodeSignalDetectionService.detect_all()` (`node_signal_detection_service.py:57-74, 105-118`):
+1. Initializes `node_signals` dict from `node_tracker.get_all_states().keys()` — **slot IDs** after Stage 4.5 remap
+2. Iterates each detector's returned dict
+3. Guard: `if node_id in node_signals` — only merges results whose keys match the tracker's key set
+4. **DB-based detectors** return surface UUID keys → guard fails → signals silently dropped
+
+**Before April 2026 fix**: `remap_to_canonical_slots()` used `pop` to remove surface entries, so only `slot_*` IDs remained in the tracker. DB-based detector results (surface UUID keys) were dropped for every canonically-mapped node. This is why `convgraph.node.chain.gap.above` and related signals appeared at 0% firing rate in scoring data — they were computed but discarded at the merge step.
+
+**After April 2026 fix**: `remap_to_canonical_slots()` keeps surface entries (no `pop`), so `node_signals` contains both surface UUIDs and slot IDs. DB-based detector keys match surface entries → chain topology signals flow through. Tracker-based detectors continue to produce results for slot IDs as before.
+
+### Signal Data Flow: Detector to Scoring
+
+The complete path from detector invocation to `valid_when` gate evaluation:
+
+1. **Detectors produce per-node results**: `ChainTopologySignalDetector.detect()` loads nodes from `kg_nodes` → returns `{uuid: {gap.above: True, ...}}`. Tracker-based detectors call `_get_all_node_states()` → return `{slot_id: {exhaustion: 0.4, ...}}`.
+2. **`NodeSignalDetectionService.detect_all()`** initializes `node_signals = {node_id: {} for node_id in all_states.keys()}` (keys from tracker → surface UUIDs + slot IDs).
+3. **Merge loop**: `for node_id, signal_value in detected.items(): if node_id in node_signals:` — detector results are merged only if their keys match an entry in `node_signals`. Mismatched keys are silently dropped.
+4. **Flattening**: Nested dicts (e.g., `{gap.above: True}`) are flattened into individual flat keys (`convgraph.node.chain.gap.above.true`).
+5. **`StrategySelectionStage`** places `node_signals` into `StrategySelectionOutput.node_signals`.
+6. **`rank_strategy_node_pairs()`** iterates `node_signals.items()` — each entry is a candidate node.
+7. **`valid_when` gate**: `node_signal_dict.get(gate_signal)` returns `None` (falsy) for nodes whose detector results were dropped at step 3.
+8. **Consequence without fix**: Canonical slot nodes always gated out of chain-aware strategies. Surface nodes (UUIDs) that were popped from tracker also gated out. With fix: surface UUIDs remain in `node_signals` → chain topology signals available → gate evaluates correctly.
+
 These signals require graph traversal (O(N×D) for N nodes and D depth) and are designed for chain methodologies (MEC). The detector filters edges using the `chain_relevant` flag from methodology YAML edge definitions — only edges with `chain_relevant: true` are included in adjacency lists. Each methodology declares which edge types represent chain progression:
 - MEC: `leads_to` (chain_relevant), `revises` (not)
 - JTBD: `triggers`, `addresses`, `enables`, `supports` (chain_relevant); `occurs_in`, `conflicts_with`, `revises` (not)
@@ -167,7 +201,7 @@ Global signals (`frontier_count`, `ungrounded_count`) provide threshold guards -
 | New chain topology sub-signal added but not in scoring | Sub-key added to `ChainTopologySignalDetector.detect()` but no sentinel class created | Add a sentinel class in `chain_topology_signals.py` and update `__all__`; see Requirement #9 |
 | `canongraph.state.exhaustion` not in signal output despite canonical slots being active | `context.canonical_graph_state is None` — canonical graph state not yet computed (e.g. StateComputationStage hasn't run or canonical slots are disabled) | Verify `enable_canonical_slots=True` and that StateComputationStage produced a `canonical_graph_state`; see Requirement #8 |
 | `convgraph.node.is_current_focus` returns `True` for last turn's focus, not this turn's chosen node | By design — `update_focus()` hasn't run yet at detection time | Expected behavior; see Requirement #9. Do not attempt to read post-update focus during signal detection. |
-| Canonical slot nodes (`slot_*` IDs) always gated on `valid_when` chain topology checks | `ChainTopologySignalDetector` reads surface nodes from DB (`kg_nodes` table), not canonical slots from tracker. Canonical slot nodes in `node_signals` dict have no `convgraph.node.chain.*` entries, so `gate_value` is `None` (falsy) | Expected — canonical slots get novelty/exhaustion signals from tracker but not chain topology signals from DB. Surface nodes (UUIDs) get both. See CLAUDE.md "Known Failure Modes" |
+| Canonical slot nodes (`slot_*` IDs) always gated on `valid_when` chain topology checks | `ChainTopologySignalDetector` reads surface nodes from DB (`kg_nodes` table), not canonical slots from tracker. Canonical slot nodes in `node_signals` dict have no `convgraph.node.chain.*` entries, so `gate_value` is `None` (falsy). Additionally, after Stage 4.5 remap, surface UUIDs were removed from the tracker (pop), creating a key-namespace mismatch: `node_signals` was initialized from tracker keys (slot IDs), but the detector returned surface UUID keys. The merge guard `if node_id in node_signals` at `node_signal_detection_service.py:106` silently dropped all chain topology results. | Fixed April 2026: `remap_to_canonical_slots()` changed from `pop` to keep — surface nodes remain in tracker alongside slots, chain topology detector output keys now match `node_signals` entries, signals flow through. See "Key namespace divergence" section below. |
 
 ---
 
@@ -185,4 +219,4 @@ Global signals (`frontier_count`, `ungrounded_count`) provide threshold guards -
 | `src/services/node_signal_detection_service.py` | Runs all node-level detectors; flattens nested dict signals into individual flat keys |
 | `src/services/global_signal_detection_service.py` | Runs all global detectors and returns flat signal dict |
 | `src/services/node_state_tracker.py` | `NodeStateTracker` — `update_focus()`, `record_yield()`, `get_all_states()` |
-| `docs/NodeStateTracker_mutation.md` | Per-turn lifecycle map; Stage 5 vs Stage 8 ordering explained |
+| `.claude/context/node-state-tracker.md` | Per-turn lifecycle map; Stage 5 vs Stage 8 ordering explained |

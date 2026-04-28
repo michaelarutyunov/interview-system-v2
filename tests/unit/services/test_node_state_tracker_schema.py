@@ -97,38 +97,38 @@ class TestRemapToCanonicalSlots:
     """Test NodeStateTracker.remap_to_canonical_slots() re-keying logic."""
 
     def test_remap_simple_rekey(self):
-        """Surface node re-keyed to canonical slot when no collision."""
+        """Surface node kept alongside canonical slot entry after remap."""
         state = _make_state("uuid-a")
         tracker = _tracker_with_states({"uuid-a": state})
 
         tracker = tracker.remap_to_canonical_slots({"uuid-a": "slot-1"})
 
-        assert "uuid-a" not in tracker.states
+        assert "uuid-a" in tracker.states  # surface entry kept
         assert "slot-1" in tracker.states
         assert tracker.states["slot-1"].node_id == "slot-1"
 
     def test_remap_merges_paraphrases(self):
-        """Two surface nodes mapping to same slot merge their state."""
+        """Two surface nodes mapping to same slot — surface entries kept, slot gets merged state."""
         state_a = _make_state("uuid-a", "taste", focus_count=3, yield_count=2)
         state_b = _make_state("uuid-b", "flavor", focus_count=1, yield_count=1)
         tracker = _tracker_with_states({"uuid-a": state_a, "uuid-b": state_b})
 
         tracker = tracker.remap_to_canonical_slots({"uuid-a": "slot-1", "uuid-b": "slot-1"})
 
-        assert "uuid-a" not in tracker.states
-        assert "uuid-b" not in tracker.states
+        assert "uuid-a" in tracker.states  # surface entries kept
+        assert "uuid-b" in tracker.states
         merged = tracker.states["slot-1"]
         assert merged.focus_count == 4   # 3 + 1
         assert merged.yield_count == 3   # 2 + 1
 
     def test_remap_updates_previous_focus(self):
-        """previous_focus is re-keyed if it was a surface UUID."""
+        """previous_focus stays as surface UUID — surface entry still exists."""
         state = _make_state("uuid-a")
         tracker = NodeStateTracker(states={"uuid-a": state}, previous_focus="uuid-a")
 
         tracker = tracker.remap_to_canonical_slots({"uuid-a": "slot-1"})
 
-        assert tracker.previous_focus == "slot-1"
+        assert tracker.previous_focus == "uuid-a"
 
     def test_remap_noop_with_empty_mappings(self):
         """remap with empty mappings dict returns self unchanged."""

@@ -94,4 +94,4 @@ Save happens inside `ScoringPersistenceStage` (Stage 10/12). If Stage 10/12 is s
 - `src/services/turn_pipeline/stages/scoring_persistence_stage.py` — saves NodeStateTracker to DB (Stage 10/12)
 - `src/services/session_service.py` — `_get_or_create_node_tracker()`, `_save_node_tracker()`
 - `src/signals/graph/node_signals.py` — `NodeExhaustionScoreSignal`, `NodeYieldStagnationSignal`, `NodeFocusStreakSignal`
-- `docs/NodeStateTracker_mutation.md` — per-turn state transition tables and timing diagrams
+- `.claude/context/node-state-tracker.md` — per-turn state transition tables and timing diagrams

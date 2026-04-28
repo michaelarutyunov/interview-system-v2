@@ -141,7 +141,7 @@ All active methodologies live in `config/methodologies/`. Retired configs are in
 |---|---|---|---|---|
 | `means_end_chain_v2_strict.yaml` | 7 | ascend, ground, bridge, branch, anchor | 0.15 | 5-level hierarchy |
 | `means_end_chain_v2_flex.yaml` | 7 | Same as strict | 0.15 | Same hierarchy, no permitted_connections |
-| `jobs_to_be_done_v2.yaml` | 7 | ascend, ground, probe_pain, anchor | 0.05 | 2-level (functional → emotional/social) |
+| `jobs_to_be_done_v2.yaml` | 7 | *none* (removed April 2026) | 0.05 | 5-level chain (context/trigger → pain/gain → job → emotional/social → solution) |
 | `critical_incident_v2.yaml` | 7 | ascend, ground, bridge, anchor | 0.10 | 5-level narrative hierarchy |
 | `customer_journey_mapping_v2.yaml` | 8 | anchor only | 0.05 | Flat (no chain topology signals) |
 | `repertory_grid_v2.yaml` | 8 | explore_construct, anchor | 0.03 | Flat dimensional (no chain topology) |
@@ -244,10 +244,29 @@ no LLM calls.
 | `convgraph.node.chain.has_attribute_foundation` | bool | Downward path (reverse edges) reaches an attribute-level node |
 | `convgraph.node.chain.has_terminal_apex` | bool | Upward path (forward edges) reaches a terminal-value node |
 
-**Non-chain methodologies**: `ChainTopologySignalDetector` returns an empty dict
-for methodologies with fewer than 2 distinct ontology levels (e.g., JTBD, CJM,
-Repertory Grid, Critical Incident). Signal absence means zero contribution to
-scoring.
+### JTBD valid_when Removal (April 2026)
+
+JTBD node-bound strategies (`ascend`, `ground`, `probe_pain`, `anchor`) previously used
+`valid_when` gates referencing chain topology signals. These gates permanently dead-locked
+the strategies because canonical slot nodes (`slot_*` IDs) lack chain topology signals
+(computed on surface UUIDs). The gates were removed in April 2026 — signal weights
+(`gap.above.true: 0.5`, `is_orphan.true: 0.50`, etc.) now provide soft guidance instead.
+Chain topology signals flow to surface nodes, which are kept in the tracker alongside
+slots as of the April 2026 `remap_to_canonical_slots()` pop→keep fix.
+
+A subsequent fix to `ChainTopologySignalDetector` data loading (switching from surface
+`kg_nodes` to canonical slots) was considered but rejected in favor of the simpler
+pop→keep approach. See `.claude/context/signal-detection-graph.md` "Key Namespace Divergence."
+
+JTBD also added `phase_boundaries` (`early_max_turns: 3`, `mid_max_turns: 8`) so phase
+detection works instead of defaulting to `"unknown"`.
+
+**Weight calibrations (April 2026)** to break probe_pain monoculture (8/9 turns):
+- `probe_pain`: novelty.high 0.4→0.2, novelty.new 0.5→0.3, focus.streak.none 0.5→0.3, repetition brake -0.15→-0.5
+- `ascend`: gap.above.true 0.25→0.5, recency 0.2→0.3
+- `ground`: gap.below.true 0.3→0.5, recency 0.25→0.3
+
+**Non-chain methodologies** (CJM, Repertory Grid): These have flat ontologies with no `chain_relevant` edges. `ChainTopologySignalDetector` returns an empty dict — no `convgraph.node.chain.*` signals. Signal absence means zero contribution to scoring for chain-aware strategies; these methodologies rely on other structural signals (is_orphan, novelty, focus).
 
 **Additional per-node signals used by chain-aware strategies**:
 
@@ -521,7 +540,7 @@ Two structured `log.warning` events were added to surface known scoring failure 
 | `src/signals/graph/chain_topology_signals.py` | `ChainTopologySignalDetector` — computes per-node chain topology signals (gap_above, gap_below, level_skip, branching_deficit, fan_in, level_gap_size, chain.has_attribute_foundation, chain.has_terminal_apex); flat sentinel classes for registry |
 | `src/signals/graph/graph_traversal.py` | Shared graph traversal utilities — `build_adjacency_list`, `build_reverse_adjacency_list`, `get_node_type_map`, `bfs_reachable`, `bfs_to_target` |
 | `config/methodologies/means_end_chain_v2_strict.yaml` | Reference MEC methodology YAML with 6 chain-aware strategies, valid_when gates, signal_weights, score_threshold, and phases |
-| `config/methodologies/jobs_to_be_done_v2.yaml` | JTBD methodology — 2-level hierarchy with ascend/ground gates, chain_threshold 0.05 |
+| `config/methodologies/jobs_to_be_done_v2.yaml` | JTBD methodology — 5-level chain hierarchy (context→solution), valid_when gates removed April 2026, signal weights provide soft guidance, chain_threshold 0.05 |
 | `config/methodologies/critical_incident_v2.yaml` | CIT methodology — narrative hierarchy with ascend/ground/bridge gates |
 | `config/methodologies/customer_journey_mapping_v2.yaml` | CJM methodology — flat ontology, no chain topology signals |
 | `config/methodologies/repertory_grid_v2.yaml` | RG methodology — dimensional/comparative, no chain topology signals |

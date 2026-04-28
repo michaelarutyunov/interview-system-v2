@@ -283,7 +283,13 @@ class NodeStateTracker(BaseModel):
     # ------------------------------------------------------------------
 
     def remap_to_canonical_slots(self, mappings: Mapping[str, str]) -> NodeStateTracker:
-        """Return new tracker re-keyed from surface node IDs to canonical slot IDs.
+        """Return new tracker with canonical slot entries added alongside surface entries.
+
+        Surface node entries are kept in the tracker — canonical slot entries
+        are created/merged in addition to (not instead of) surface entries.
+        This ensures DB-based signal detectors (which produce surface UUID keys)
+        and tracker-based detectors (which iterate all keys) both have their
+        results flow through to the scoring loop.
 
         Args:
             mappings: surface_node_id → canonical_slot_id pairs to remap.
@@ -302,16 +308,13 @@ class NodeStateTracker(BaseModel):
         remapped = merged = 0
 
         for surface_id, canonical_id in remap_pairs:
-            state = new_states.pop(surface_id)
+            state = new_states[surface_id]
             if canonical_id in new_states:
                 new_states[canonical_id] = new_states[canonical_id].merged_with(state)
                 merged += 1
             else:
                 new_states[canonical_id] = state.model_copy(update={"node_id": canonical_id})
                 remapped += 1
-
-            if new_previous_focus == surface_id:
-                new_previous_focus = canonical_id
 
         log.info("canonical_slot_remap_complete", remapped=remapped, merged=merged)
         return self.model_copy(update={"states": new_states, "previous_focus": new_previous_focus})
