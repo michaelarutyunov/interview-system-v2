@@ -68,21 +68,23 @@ Sub-keys use dot notation so the `node_signal_detection_service` flattener (whic
 - Per-concept and global rubrics rendered from each signal class's `RUBRIC` constant
 - Embedded output format and JSON example (static constants in `batch_detector.py`)
 
-The LLM returns a JSON object with two top-level sections:
+The LLM returns a JSON object with two top-level sections. **`global` comes first** to prevent Haiku from dropping the trailing global keys due to output-length attention limits:
 ```json
 {
+  "global": {
+    "engagement": {"score": 1-5, "rationale": "..."},
+    "certainty":  {"score": 1-5, "rationale": "..."}
+  },
   "concepts": {
     "<exact concept name>": {
       "elaboration": {"score": 1-5, "rationale": "..."},
       "charge":      {"score": 1-5, "rationale": "..."}
     }
-  },
-  "global": {
-    "engagement": {"score": 1-5, "rationale": "..."},
-    "certainty":  {"score": 1-5, "rationale": "..."}
   }
 }
 ```
+
+**Why `global` comes first:** Smaller models like Haiku generate output token-by-token. When `concepts` came first, the variable-length per-concept section consumed most of Haiku's output budget, and the trailing `global` section was frequently truncated or omitted entirely. This caused `engagement.mid` and `certainty.mid` to fire at 100% (fallback values) across all turns, neutralizing engagement/certainty suppressors and brakes in strategy scoring. Reordering fixed the issue (commit `c1e5a7b`).
 
 ## Correctness Requirements
 
@@ -106,6 +108,7 @@ The LLM returns a JSON object with two top-level sections:
 | `response.semantic.llm.response_depth` stuck at `surface` | No concepts extracted, or all elaboration scores are 1 | Check extraction output and per-concept elaboration scores |
 | `bridged_count=0` every turn; `convgraph.node.llm.has_quality_data` always False | `response.semantic.llm.elaboration` and/or `response.semantic.llm.charge` missing from `signals: llm:` in methodology YAML — `per_concept_classes` is empty so batch detector generates no per-concept records; or `LLMSignalBridgeStage` not wired into pipeline | Add `response.semantic.llm.elaboration` and `response.semantic.llm.charge` to `signals: llm:` in the YAML; verify Stage 4.7 is in pipeline |
 | Per-concept records are empty dicts `{}` despite LLM responding with concept data | `_concept_fields` in batch_detector reading `.name` instead of `.text` on `ExtractedConcept` — lookup misses all concepts | Use `concept.text` (not `.name`) everywhere an `ExtractedConcept` label is accessed |
+| `engagement.mid` and `certainty.mid` fire at 100% across all turns; strategy suppressors/brakes never activate | Haiku drops the `global` section from JSON output because it comes after the variable-length `concepts` section and the model runs out of output attention | Fixed by reordering JSON template/example to put `global` before `concepts` (commit `c1e5a7b`). If the issue recurs with more concepts, consider switching to Sonnet for signal scoring |
 
 ## Key Files
 
