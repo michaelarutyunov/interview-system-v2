@@ -1,4 +1,5 @@
 # Signal Semantics Catalog
+## Current Version: 1.0
 
 > **Historical note:** This audit was conducted on 2026-04-17. A signal naming refactor (commit `e4030c4`, 2026-04-21) renamed all signals to a source-first namespace. Signal names in this document reflect the audit-era naming; the semantic assessments remain valid. For current names, see `docs/signals_moderator_guide.md`.
 >
@@ -194,6 +195,10 @@ A+C blend: the moderator guide (`docs/signals_moderator_guide.md`) is the author
 | `meta.saturation.canonical` | "Are we in redundant territory?"; 1 - min(new_canonical / new_surface, 1) | Formula matches. When `surface_delta == 0`, returns `novelty_ratio = 1.0` → saturation = 0.0. Comment: "no extraction — not saturated" | ⚠️ | Mode 5: empty-extraction edge case is debatable. "No extraction at all" is arguably the *most* saturated state, not the least | plausible-impact | Decide: return 1.0 (truly saturated) or split into two signals (novelty + productivity) |
 
 ---
+
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
 
 ## Audit metadata
 
