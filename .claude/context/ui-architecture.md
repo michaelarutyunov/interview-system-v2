@@ -1,4 +1,5 @@
 # UI Architecture
+## Current Version: 1.0
 
 > **Purpose**: Component structure, state management, styling conventions, and API integration for the Streamlit demo UI.
 > For the visual identity rationale (font choices, color palette), see `docs/archive/plans-root/UI/visual_identity.md`.
@@ -292,3 +293,8 @@ Unused: `nodes[].confidence`, `nodes[].properties`, `edges[].edge_type`, `edges[
 ### Result
 
 **Zero breakages.** All 8 endpoints return every field the frontend depends on, with matching types. No renames or type changes detected.
+
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+

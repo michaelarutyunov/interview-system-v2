@@ -37,6 +37,15 @@ VALID_FOCUS_MODES = frozenset({"recent_node", "summary", "topic"})
 # Valid values for StrategyConfig.node_binding
 VALID_NODE_BINDINGS = frozenset({"required", "none"})
 
+# Valid values for StrategyConfig.bridge_direction
+VALID_BRIDGE_DIRECTIONS = frozenset({"forward", "backward"})
+
+# Valid values for StrategyConfig.bridge_target
+VALID_BRIDGE_TARGETS = frozenset({"most_concrete", "most_abstract", "either"})
+
+# Valid values for StrategyConfig.extraction_mode
+VALID_EXTRACTION_MODES = frozenset({"extract_new", "prefer_existing"})
+
 
 def _is_valid_signal_weight_key(key: str, known_signals: set[str]) -> bool:
     """Check if a signal weight key has a valid signal prefix.
@@ -103,6 +112,9 @@ class StrategyConfig:
     valid_when: str | None = (
         None  # Signal name that must be True for strategy to be scored
     )
+    bridge_direction: str = "forward"  # forward: focus→answer, backward: answer→focus
+    bridge_target: str = "most_concrete"  # most_concrete, most_abstract, either
+    extraction_mode: str = "extract_new"  # extract_new, prefer_existing
 
 
 class MethodologyRegistry:
@@ -186,6 +198,9 @@ class MethodologyRegistry:
                     focus_mode=s.get("focus_mode", "recent_node"),
                     node_binding=s.get("node_binding", "required"),
                     valid_when=s.get("valid_when"),
+                    bridge_direction=s.get("bridge_direction", "forward"),
+                    bridge_target=s.get("bridge_target", "most_concrete"),
+                    extraction_mode=s.get("extraction_mode", "extract_new"),
                 )
                 for s in data.get("strategies", [])
             ],
@@ -239,6 +254,27 @@ class MethodologyRegistry:
                     f"strategies[{i}] '{strategy.name}': "
                     f"invalid focus_mode '{strategy.focus_mode}' "
                     f"(valid: {sorted(VALID_FOCUS_MODES)})"
+                )
+
+            if strategy.bridge_direction not in VALID_BRIDGE_DIRECTIONS:
+                errors.append(
+                    f"strategies[{i}] '{strategy.name}': "
+                    f"invalid bridge_direction '{strategy.bridge_direction}' "
+                    f"(valid: {sorted(VALID_BRIDGE_DIRECTIONS)})"
+                )
+
+            if strategy.bridge_target not in VALID_BRIDGE_TARGETS:
+                errors.append(
+                    f"strategies[{i}] '{strategy.name}': "
+                    f"invalid bridge_target '{strategy.bridge_target}' "
+                    f"(valid: {sorted(VALID_BRIDGE_TARGETS)})"
+                )
+
+            if strategy.extraction_mode not in VALID_EXTRACTION_MODES:
+                errors.append(
+                    f"strategies[{i}] '{strategy.name}': "
+                    f"invalid extraction_mode '{strategy.extraction_mode}' "
+                    f"(valid: {sorted(VALID_EXTRACTION_MODES)})"
                 )
 
             # Validate valid_when if set

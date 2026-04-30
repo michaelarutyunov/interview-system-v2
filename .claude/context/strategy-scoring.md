@@ -1,4 +1,5 @@
 # Strategy Scoring
+## Current Version: 1.0
 
 ## Core Mechanics
 
@@ -526,6 +527,11 @@ Two structured `log.warning` events were added to surface known scoring failure 
 **Action**: Inspect the strategy's repetition brake weight (`interview.strategy.self_count`) and base-score positive mass. A small `runner_up_gap` with a large streak indicates sticky equilibrium (strengthen the brake); a large gap indicates structural dominance (reduce base-score positive mass or add `convgraph.node.focus.count.high` penalty).
 
 ---
+
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+
 
 ## Key Files
 

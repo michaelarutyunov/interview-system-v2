@@ -1,4 +1,5 @@
 # Node Exhaustion
+## Current Version: 1.0
 
 ## Core Mechanics
 
@@ -85,6 +86,11 @@ Save happens inside `ScoringPersistenceStage` (Stage 10/12). If Stage 10/12 is s
 | NodeStateTracker state lost between turns | `_save_node_tracker()` not called (ScoringPersistenceStage skipped) | Ensure Stage 10/12 always executes; check pipeline error handling |
 | `all_response_depths` always empty | `append_response_signal()` not called, or called with wrong node_id | Verify StrategySelectionStage calls `append_response_signal()` before `update_focus()` |
 | Fresh tracker loaded each turn despite completed turns existing | `node_tracker_state` column NULL or deserialization failing | Check `from_dict()` for schema version mismatch; verify `_save_node_tracker()` is writing |
+
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+
 
 ## Key Files
 

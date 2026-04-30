@@ -213,6 +213,9 @@ strategies:
     description: "Extend an incomplete chain upward by asking what the current concept leads to at the next ontology level"
     node_binding: required
     valid_when: convgraph.node.chain.gap.above
+    bridge_direction: forward
+    bridge_target: most_abstract
+    extraction_mode: extract_new
     signal_weights:
       convgraph.node.chain.gap.above.true: 0.25
       convgraph.node.chain.fan_in: 0.067
@@ -234,6 +237,9 @@ strategies:
     description: "Ground an ungrounded node by asking what attributes or lower-level concepts directly cause or enable it — probe causal antecedents, not retrospective comparisons or general context"
     node_binding: required
     valid_when: convgraph.node.chain.gap.below
+    bridge_direction: backward
+    bridge_target: most_concrete
+    extraction_mode: extract_new
     signal_weights:
       convgraph.node.chain.gap.below.true: 0.3
       convgraph.node.recency: 0.25
@@ -252,6 +258,9 @@ strategies:
     description: "Fill a structural gap by asking what happens between a lower and higher concept that are directly connected but skip ontology levels"
     node_binding: required
     valid_when: convgraph.node.chain.level.skip
+    bridge_direction: forward
+    bridge_target: most_abstract
+    extraction_mode: extract_new
     signal_weights:
       convgraph.node.chain.level.skip.true: 0.35
       convgraph.node.recency: 0.2
@@ -263,6 +272,9 @@ strategies:
     description: "Elicit additional product attributes or features at the same level — ask what other concrete characteristics of the product the respondent experiences or values"
     node_binding: required
     valid_when: convgraph.node.chain.branching_deficit
+    bridge_direction: forward
+    bridge_target: most_concrete
+    extraction_mode: extract_new
     signal_weights:
       convgraph.node.chain.branching_deficit: 0.25
       convgraph.node.recency: 0.15
@@ -277,6 +289,9 @@ strategies:
     description: "Connect an isolated concept to the existing graph by exploring how it relates to other known concepts"
     node_binding: required
     valid_when: convgraph.node.is_orphan
+    bridge_direction: forward
+    bridge_target: either
+    extraction_mode: prefer_existing
     signal_weights:
       convgraph.node.is_orphan.true: 0.50
       convgraph.node.recency: 0.2

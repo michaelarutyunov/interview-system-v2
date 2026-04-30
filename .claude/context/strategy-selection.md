@@ -1,4 +1,5 @@
 # Strategy Selection
+## Current Version: 1.0
 
 ## Core Mechanics
 
@@ -89,6 +90,11 @@ After strategy + node selection, before exiting Stage 6:
 | `focus_node_id` is always `None` for node-bound strategies | `node_signals` dict is empty (NodeSignalDetectionService not running) | Check Stage ordering and NodeSignalDetectionService injection |
 | Chain topology signals absent from scoring | Key namespace mismatch — detector returns surface UUIDs, `node_signals` initialized from slot IDs | Verify surface nodes are kept in tracker after remap (see `signal-detection-graph.md`) |
 | Ground strategy dominates despite calibration | Phase multiplier asymmetry + `has_attribute_foundation` weight ratio + weak repetition brake | Equalize structural weights, strengthen self_count brake, reduce early phase gap |
+
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+
 
 ## Key Files
 

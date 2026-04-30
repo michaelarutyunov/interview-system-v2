@@ -1,4 +1,5 @@
 # Subsystem Debugging Guides
+## Current Version: 1.0
 
 ## Logging
 Logs are saved to `./logs/`
@@ -80,3 +81,8 @@ uvicorn src.main:app --reload --log-level debug
 tail -f /tmp/uvicorn_debug.log
 tail -f /tmp/uvicorn_phase_test.log
 ```
+
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+

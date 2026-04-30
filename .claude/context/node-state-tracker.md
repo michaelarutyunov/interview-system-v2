@@ -1,4 +1,5 @@
 # NodeStateTracker
+## Current Version: 1.0
 
 ## Core Mechanics
 
@@ -158,6 +159,11 @@ When `enable_canonical_slots=True`, surface node IDs are resolved to canonical s
 | `focus_update_failed_node_not_found` / `append_quality_failed_node_not_found` warnings on every turn | `register_node()` stores under surface UUID but lookups resolve via `_resolve_canonical_slot_id()` to canonical slot ID. If `remap_to_canonical_slots()` is not called after Stage 4.5, 100% of lookups fail when canonical slots are enabled. | Verify `remap_to_canonical_slots()` is called at end of `SlotDiscoveryStage.process()` after mappings are created. Check `canonical_slot_remap_complete` log for remapped/merged counts. |
 
 ---
+
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+
 
 ## Key Files
 

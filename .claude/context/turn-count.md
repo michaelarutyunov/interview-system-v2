@@ -1,4 +1,5 @@
 # Turn Count
+## Current Version: 1.0
 
 ## Core Mechanics
 
@@ -62,6 +63,11 @@ Phase detection (`InterviewPhaseSignal`) maps `turn_number` against cumulative p
 | Phase never changes (stuck on `early`) | `max_turns` computed incorrectly or phase boundary wrong | Check `InterviewPhaseSignal` and YAML `n_turns` sum |
 | Interview never ends despite reaching `max_turns` | `ContinuationStage` not reading `turn_number` correctly, or `max_turns` returns 0/None | Verify `turn_number` flows through context and `max_turns` is > 0 |
 | `turn_count` increments twice in one turn | `ScoringPersistenceStage` called twice in the pipeline wiring | Check `_build_pipeline()` for duplicate stage registration |
+
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+
 
 ## Key Files
 

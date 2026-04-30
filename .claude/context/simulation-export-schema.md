@@ -1,4 +1,5 @@
 # Simulation Export Schema
+## Current Version: 1.0
 
 Stable contract between simulation output (JSON/CSV) and downstream scripts.
 Any change to field names or structure must update this doc and the consuming scripts.
@@ -182,6 +183,10 @@ One row per (turn × candidate × active_signal). Generated from `score_decompos
 | `extract_simulation_data.py` | JSON | All global signals listed above |
 | `analyze_signal_redundancy.py` | JSON or Parquet | `meta.interview.phase` + score_decomposition |
 | `backfill_focus_nodes.py` | JSON | No signal keys (structural only) |
+
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
 
 ## Change Protocol
 

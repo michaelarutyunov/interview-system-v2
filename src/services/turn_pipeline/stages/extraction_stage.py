@@ -27,14 +27,38 @@ class ExtractionStage(TurnStage):
     Populates PipelineContext.extraction.
     """
 
-    def __init__(self, extraction_service: ExtractionService):
+    # Bridge target descriptions keyed by bridge_target config value
+    _BRIDGE_TARGET_DESCRIPTIONS: dict[str, str] = {
+        "most_concrete": (
+            "the most concrete new concept you extracted (the one closest "
+            "to the question's level, not the most abstract one the "
+            "respondent mentioned)"
+        ),
+        "most_abstract": (
+            "the most abstract new concept you extracted (the one furthest "
+            "from the question level, the highest-level concept the "
+            "respondent mentioned)"
+        ),
+        "either": (
+            "whichever new concept forms the most meaningful relationship "
+            "to the focus"
+        ),
+    }
+
+    def __init__(
+        self,
+        extraction_service: ExtractionService,
+        methodology_registry=None,
+    ):
         """
         Initialize stage.
 
         Args:
             extraction_service: ExtractionService instance
+            methodology_registry: Optional MethodologyRegistry for strategy config lookup
         """
         self.extraction = extraction_service
+        self._methodology_registry = methodology_registry
 
     async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
@@ -186,15 +210,15 @@ class ExtractionStage(TurnStage):
         # Uses the explicit focus node label so the LLM doesn't have to infer
         # "the question's topic" from raw question text — preventing interviewer-
         # introduced concepts from entering the graph as new nodes.
-        # Strategy-aware level hints (y8dv) tell the LLM what level of concept
-        # to expect based on the previous turn's strategy.
+        # Bridge direction, target, and extraction mode are read from the
+        # previous turn's strategy config (bridge_direction/bridge_target/extraction_mode).
         if len(recent) >= 1 and recent[-1]["speaker"] == "system":
-            focus_label, focus_type, prev_strategy = self._get_previous_focus(context)
+            focus_label, _, prev_strategy = self._get_previous_focus(context)
             lines.append("")
             lines.append(f"[Most recent question] Interviewer: {recent[-1]['text']}")
 
             # Revitalize: suppress bridge entirely — previous focus was abandoned
-            if prev_strategy == "revitalize":
+            if prev_strategy == "revitalize": # TODO veirfy against concept separation principles
                 lines.append(
                     "[Task] Extract concepts ONLY from the Respondent's answer above. "
                     "This is a new topic — extract fresh concepts without forcing a "
@@ -202,25 +226,49 @@ class ExtractionStage(TurnStage):
                     "Do NOT extract new concepts from the interviewer's question text."
                 )
             elif focus_label:
-                # Strategy-aware level hint
-                level_hint = self._build_level_hint(
-                    prev_strategy, focus_label, focus_type
+                # Read bridge parameters from strategy config
+                bridge_config = self._get_bridge_config(
+                    context.methodology, prev_strategy
                 )
-                bridge_target = (
-                    "the most concrete new concept you extracted (the one closest "
-                    "to the question's level, not the most abstract one the "
-                    "respondent mentioned)"
+                bridge_dir = bridge_config.get("bridge_direction", "forward")
+                bridge_target = bridge_config.get("bridge_target", "most_concrete")
+                extraction_mode = bridge_config.get("extraction_mode", "extract_new")
+
+                target_desc = self._BRIDGE_TARGET_DESCRIPTIONS.get(
+                    bridge_target,
+                    self._BRIDGE_TARGET_DESCRIPTIONS["most_concrete"],
                 )
+
+                if bridge_dir == "backward":
+                    bridge_clause = (
+                        f"Then create cross-turn relationships using {target_desc} "
+                        f'→ target_text="{focus_label}" '
+                        f"(the concept the question probed)."
+                    )
+                else:
+                    bridge_clause = (
+                        f"Then create cross-turn relationships using "
+                        f'source_text="{focus_label}" '
+                        f"(the concept the question probed) → {target_desc}."
+                    )
+
+                if extraction_mode == "prefer_existing":
+                    extraction_instruction = (
+                        "Focus on extracting relationships to existing graph nodes "
+                        "rather than new concepts. "
+                    )
+                else:
+                    extraction_instruction = (
+                        "If the response introduces concepts at multiple levels below "
+                        "the focus, create relationships for each. "
+                    )
+
                 task = (
                     f"[Task] Extract concepts ONLY from the Respondent's answer above. "
-                    f'Then create cross-turn relationships using source_text="{focus_label}" '
-                    f"(the concept the question probed) → {bridge_target}. "
-                    f"If the response introduces concepts at multiple levels below "
-                    f"the focus, create relationships for each. "
+                    f"{extraction_instruction}"
+                    f"{bridge_clause} "
                     f"Do NOT extract new concepts from the interviewer's question text."
                 )
-                if level_hint:
-                    lines.append(f"[Level hint] {level_hint}")
                 lines.append(task)
             else:
                 # Turn 1 or no focus history: generic bridge without pinned source
@@ -237,7 +285,7 @@ class ExtractionStage(TurnStage):
         The question the respondent just answered was generated around this node.
         Passing the label explicitly into the bridge instruction prevents the
         extractor from inferring (and potentially hallucinating) the source concept
-        from the raw question text. The strategy and node_type enable level hints.
+        from the raw question text. The strategy enables bridge parameter lookup.
 
         Args:
             context: Turn context with context_loading_output.focus_history
@@ -259,54 +307,38 @@ class ExtractionStage(TurnStage):
             last_focus.strategy or "",
         )
 
-    # Level hints keyed by strategy name for strategy-aware extraction
-    _LEVEL_HINTS: dict[str, str] = {
-        "ascend": (
-            'The question probed what "{focus_label}" leads to or means. '
-            "The response likely contains a concept at a HIGHER ontology level "
-            "than {focus_type}."
-        ),
-        "ground": (
-            'The question asked what causes or enables "{focus_label}" ({focus_type}). '
-            "The response likely contains a concept at a LOWER ontology level "
-            "— possibly an attribute."
-        ),
-        "branch": (
-            "The question asked about other features or aspects at the same level as "
-            '"{focus_label}" ({focus_type}). The response likely contains '
-            "attribute-level concepts."
-        ),
-        "bridge": (
-            'The question asked what connects "{focus_label}" ({focus_type}) to a '
-            "higher-level concept. The response likely contains an intermediate-level "
-            "concept."
-        ),
-        "anchor": (
-            'The question asked how "{focus_label}" ({focus_type}) relates to other '
-            "concepts already discussed. Focus on extracting relationships to existing "
-            "graph nodes rather than new concepts."
-        ),
-    }
+    def _get_bridge_config(
+        self, methodology: str, strategy: str
+    ) -> dict[str, str]:
+        """Read bridge parameters from the strategy's YAML config.
 
-    def _build_level_hint(
-        self, strategy: str, focus_label: str, focus_type: str
-    ) -> str:
-        """Build a strategy-aware level hint for the extraction prompt.
+        Returns a dict with bridge_direction, bridge_target, and extraction_mode.
+        Falls back to defaults if the registry is unavailable or the strategy
+        is not found.
 
         Args:
-            strategy: Previous turn's strategy name
-            focus_label: Label of the focus node
-            focus_type: Node type of the focus node
+            methodology: Methodology name (e.g. "jobs_to_be_done_v2")
+            strategy: Strategy name (e.g. "ascend")
 
         Returns:
-            Level hint string, or empty string if strategy has no hint
+            Dict with bridge_direction, bridge_target, extraction_mode
         """
-        template = self._LEVEL_HINTS.get(strategy)
-        if not template:
-            return ""
-        # Use "node" as fallback when focus_type is unavailable (old sessions)
-        display_type = focus_type if focus_type else "node"
-        return template.format(focus_label=focus_label, focus_type=display_type)
+        registry = self._methodology_registry
+        if registry is None:
+            from src.methodologies import get_registry
+            registry = get_registry()
+        try:
+            config = registry.get_methodology(methodology)
+        except Exception:
+            return {}
+        for s in config.strategies:
+            if s.name == strategy:
+                return {
+                    "bridge_direction": s.bridge_direction,
+                    "bridge_target": s.bridge_target,
+                    "extraction_mode": s.extraction_mode,
+                }
+        return {}
 
     def _format_node_labels(self, context: "PipelineContext") -> str:
         """

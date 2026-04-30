@@ -1,4 +1,5 @@
 # Canonical Slots
+## Current Version: 1.0
 
 ## Core Mechanics
 
@@ -37,6 +38,11 @@
 | LLM assigns node IDs from wrong type | Batched LLM response cross-contaminates node IDs across types | `_find_or_create_slot` guards against this with `valid_node_ids` filter; check `slot_discovery_batch_limited` logs if many nodes/turn |
 | `slot_discovery_batch_limited` warning | More than 8 nodes extracted in a single turn | Expected for information-dense responses; remaining nodes processed next turn. Raise `MAX_SLOT_DISCOVERY_BATCH_SIZE` if needed |
 | `focus_update_failed_node_not_found` / `append_quality_failed_node_not_found` warnings in NodeStateTracker | `register_node()` stores under surface UUID but lookups resolve via `_resolve_canonical_slot_id()` to canonical slot ID. Stage 4.5 creates mappings AFTER registration. | `remap_to_canonical_slots()` called at end of SlotDiscoveryStage re-keys tracker from UUID → canonical_slot_id. If warnings persist, check `canonical_slot_remap_complete` logs |
+
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+
 
 ## Key Files
 

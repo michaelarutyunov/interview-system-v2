@@ -1,4 +1,5 @@
 # Docker Deployment
+## Current Version: 1.0
 
 > **Purpose**: Architectural decisions, rationale, and update procedures for the single-container Cloud Run deployment.
 > For the *what* (architecture summary, env var table, deploy command), see `docs/SYSTEM_DESIGN.md` → "Container Deployment".
@@ -181,3 +182,8 @@ When adding a new LLM provider:
 4. Update the env var table in `docs/SYSTEM_DESIGN.md`
 
 5. Update this doc's troubleshooting section if the provider has quirks
+
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+

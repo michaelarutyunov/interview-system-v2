@@ -1,4 +1,5 @@
 # Root Cause Analysis Protocol
+## Current Version: 1.0
 
 **Before fixing any bug, trace the complete data flow back to the domain model. Never fix at the symptom site without understanding where the data was originally produced.**
 
@@ -66,3 +67,8 @@ Before debugging deeply, verify the spec you're consulting matches the source:
 2. Compare spec claims against the actual source file it references (listed under `## Key Files`)
 3. If a spec's `## Key Files` section lists paths that no longer exist, the entire doc is suspect
 4. When a spec contradicts observed behavior, trust the source code and flag the spec for update
+
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+
