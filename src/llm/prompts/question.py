@@ -101,7 +101,7 @@ Strategy: {strat_description}{methodology_section}
 ## Output:
 Before outputting your final question:
 1. Generate 3 distinct candidate questions that follow the strategy
-2. Score each silently: clarity (1-5), strategy_fit (1-5), naturalness (1-5)×2, topic_anchor (1-5)
+2. Score each silently: clarity (1-5), strategy_fit (1-5), naturalness (1-5)×2, topic_anchor (1-5), focus_fit (1-5)×3
 3. Select the highest-scoring candidate
 4. Output ONLY the selected question — no candidates, no scores, no explanation"""
 
@@ -118,6 +118,7 @@ def get_question_user_prompt(
     signals: Optional[Dict[str, Any]] = None,
     signal_descriptions: Optional[Dict[str, str]] = None,
     focus_node_type: Optional[str] = None,
+    focus_node_level: Optional[int] = None,
 ) -> str:
     """
     Get user prompt for question generation.
@@ -134,53 +135,16 @@ def get_question_user_prompt(
         signal_descriptions: Signal descriptions dict (signal_name -> description)
         focus_node_type: Methodology node type of focus concept (e.g., 'attribute',
             'functional_consequence') — helps the LLM tailor question phrasing
+        focus_node_level: Ontology level of the focus node type (e.g., 0-4) —
+            helps the LLM understand what level to target next
 
     Returns:
         User prompt string
     """
     prompt_parts = []
 
-    # Add topic context if provided
-    if topic:
-        prompt_parts.append(f"Research topic: {topic}")
-        prompt_parts.append("")
+    # ── Section 1: Focus concept + strategy (FIRST — primacy) ──
 
-    # Add recent conversation context
-    if recent_utterances:
-        context_lines = []
-        for utt in recent_utterances[-5:]:  # Last 5 turns
-            speaker = "Respondent" if utt.get("speaker") == "user" else "Interviewer"
-            context_lines.append(f"{speaker}: {utt['text']}")
-
-        prompt_parts.append("Recent conversation:")
-        prompt_parts.append("\n".join(context_lines))
-        prompt_parts.append("")
-
-    # Add graph summary if available
-    if graph_summary:
-        prompt_parts.append(f"What we know so far: {graph_summary}")
-        prompt_parts.append("")
-
-    # Build signal rationale section (inline formatting - Option B)
-    if signals and signal_descriptions:
-        signal_lines = ["## Active Signals:"]
-        for signal_name, value in signals.items():
-            description = signal_descriptions.get(signal_name, "")
-            if description:
-                signal_lines.append(f"- {signal_name}: {value}")
-                signal_lines.append(f'  → "{description}"')
-            else:
-                signal_lines.append(f"- {signal_name}: {value}")
-
-        # Add "Why This Strategy" section
-        signal_lines.append("")
-        signal_lines.append("## Why This Strategy Was Selected:")
-        signal_lines.append(_build_strategy_rationale(signals, strategy))
-
-        prompt_parts.append("\n".join(signal_lines))
-        prompt_parts.append("")
-
-    # Add focus and strategy
     # Load strategy description from methodology config
     if methodology.method is None:
         raise ValueError("MethodologySchema.method is required but is None")
@@ -195,81 +159,97 @@ def get_question_user_prompt(
         strat_name = strategy.replace("_", " ").title()
         strat_description = ""
 
-    if focus_node_type:
-        prompt_parts.append(f"Focus concept: {focus_concept} (type: {focus_node_type})")
-    else:
-        prompt_parts.append(f"Focus concept: {focus_concept}")
-    if strat_description:
-        prompt_parts.append(f"Strategy: {strat_name} - {strat_description}")
-    else:
-        prompt_parts.append(f"Strategy: {strat_name}")
+    # Build level info for the focus node
+    level_info = ""
+    if focus_node_level is not None and focus_node_type and methodology.ontology:
+        max_level = max(
+            (nt.level for nt in methodology.ontology.nodes if nt.level is not None),
+            default=4,
+        )
+        if focus_node_level < max_level:
+            level_info = (
+                f" (ontology level L{focus_node_level}, "
+                f"target L{focus_node_level + 1}–L{max_level})"
+            )
+        elif focus_node_level == max_level:
+            level_info = f" (ontology level L{focus_node_level} — terminal, already at chain end)"
 
-    # Add topic anchoring reminder when depth is high (prevents drift to abstract philosophy)
-    if topic and depth_achieved >= 2:
+    # Constraint — tells the LLM the focus concept is non-negotiable
+    if focus_node_type:
+        prompt_parts.append(
+            f"Your question MUST be about this concept: \"{focus_concept}\" "
+            f"(type: {focus_node_type}){level_info}."
+        )
+    else:
+        prompt_parts.append(
+            f"Your question MUST be about this concept: \"{focus_concept}\"."
+        )
+    prompt_parts.append(
+        "The respondent's answer below provides context — use it to phrase "
+        "the question naturally, but the question's primary subject must be "
+        "the focus concept above."
+    )
+    prompt_parts.append(f"Strategy: {strat_name} — {strat_description}")
+    prompt_parts.append("")
+
+    # ── Section 2: Recent conversation (reference, not primary signal) ──
+
+    # Add topic context if provided
+    if topic:
+        prompt_parts.append(f"Research topic: {topic}")
         prompt_parts.append("")
+
+    if recent_utterances:
+        context_lines = []
+        for utt in recent_utterances[-5:]:  # Last 5 turns
+            speaker = "Respondent" if utt.get("speaker") == "user" else "Interviewer"
+            context_lines.append(f"{speaker}: {utt['text']}")
+
+        prompt_parts.append("Recent conversation (use as context, not as the question subject):")
+        prompt_parts.append("\n".join(context_lines))
+        prompt_parts.append("")
+
+    # ── Section 3: Supplementary context ──
+
+    if graph_summary:
+        prompt_parts.append(f"What we know so far: {graph_summary}")
+        prompt_parts.append("")
+
+    # ── Section 4: Active signals (compact — only values, no rationale) ──
+
+    if signals and signal_descriptions:
+        signal_lines = ["## Active Signals:"]
+        for signal_name, value in signals.items():
+            signal_lines.append(f"- {signal_name}: {value}")
+        prompt_parts.append("\n".join(signal_lines))
+        prompt_parts.append("")
+
+    # ── Section 5: Strategy-specific notes ──
+
+    # Add topic anchoring reminder when depth is high
+    if topic and depth_achieved >= 2:
         prompt_parts.append(
             f"IMPORTANT: We're deep in the conversation. Your question MUST reference "
             f"the respondent's specific experience with {topic}, not abstract life philosophy. "
             f"Ask how {topic} connects to the value they just expressed — not why the value matters in general."
         )
+        prompt_parts.append("")
 
     if strategy == "revitalize":
-        prompt_parts.append("")
         prompt_parts.append(
             "Note: The conversation history above includes the opening question. "
             "Your revitalize question must explore a DIFFERENT aspect or domain "
             "that has not yet been discussed — do not repeat or rephrase questions already asked."
         )
+        prompt_parts.append("")
 
-    prompt_parts.append("")
-    prompt_parts.append("Generate a natural follow-up question:")
+    # ── Final instruction (recency — reinforces focus constraint) ──
+
+    prompt_parts.append(
+        f"Generate a natural follow-up question about \"{focus_concept}\":"
+    )
 
     return "\n".join(prompt_parts)
-
-
-def _build_strategy_rationale(signals: Dict[str, Any], strategy: str) -> str:
-    """Build explanation of why this strategy was selected based on active signals.
-
-    Args:
-        signals: Active signal values
-        strategy: Selected strategy ID
-
-    Returns:
-        Formatted rationale string
-    """
-    rationale_parts = []
-
-    # Common signal-based rationales
-    if "convgraph.state.max_depth" in signals:
-        depth = signals["convgraph.state.max_depth"]
-        if depth < 2:
-            rationale_parts.append("- Low depth suggests we're still at surface level")
-        elif depth >= 4:
-            rationale_parts.append("- High depth indicates we've reached deep values")
-
-    if "convgraph.chain.completion.has_complete" in signals:
-        has_chain = signals["convgraph.chain.completion.has_complete"]
-        if not has_chain:
-            rationale_parts.append(
-                "- No complete chains exist - need to reach terminal values"
-            )
-
-    if "response.semantic.llm.response_depth" in signals:
-        resp_depth = signals["response.semantic.llm.response_depth"]
-        if resp_depth == "surface":
-            rationale_parts.append(
-                "- Surface-level response suggests need for deeper probing"
-            )
-        elif resp_depth == "deep":
-            rationale_parts.append("- Deep response indicates strong engagement")
-
-    # Strategy rationale (description already in system/user prompt from YAML)
-    rationale_parts.append(f"- Strategy: {strategy}")
-
-    if not rationale_parts:
-        return f"Selected {strategy} strategy based on current state"
-
-    return "\n".join(rationale_parts)
 
 
 def get_opening_question_system_prompt(

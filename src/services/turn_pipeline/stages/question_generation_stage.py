@@ -96,6 +96,16 @@ class QuestionGenerationStage(TurnStage):
                 focus_concept = focus_raw or ""
                 focus_node_type = None
 
+            # Look up ontology level for the focus node type
+            focus_node_level = None
+            if focus_node_type:
+                try:
+                    from src.core.schema_loader import load_methodology
+                    schema = load_methodology(context.methodology)
+                    focus_node_level = schema.get_level_for_node_type(focus_node_type)
+                except Exception:
+                    pass
+
             # Build signal descriptions from active signals
             signal_descriptions = None
             if context.signals:
@@ -116,6 +126,7 @@ class QuestionGenerationStage(TurnStage):
                 strategy=strategy,
                 topic=context.concept_name,  # Anchor questions to research topic
                 focus_node_type=focus_node_type,
+                focus_node_level=focus_node_level,
                 signals=context.signals,
                 signal_descriptions=signal_descriptions or None,
             )

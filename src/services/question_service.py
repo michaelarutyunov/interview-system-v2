@@ -82,14 +82,15 @@ class QuestionService:
         signals: Optional[Dict[str, Any]] = None,
         signal_descriptions: Optional[Dict[str, str]] = None,
         focus_node_type: Optional[str] = None,
+        focus_node_level: Optional[int] = None,
     ) -> str:
         """Generate follow-up question based on strategy, context, and graph state.
 
         Uses LLM to generate a natural, conversational question that:
         - Follows the selected questioning strategy (deepen, explore, clarify, etc.)
         - Anchors to the research topic to prevent drift
-        - Incorporates signal rationale explaining why strategy was selected
         - References recent conversation context and graph state
+        - Prioritizes the focus concept as the question's primary subject
 
         Args:
             focus_concept: Concept or node to focus the question on
@@ -98,10 +99,12 @@ class QuestionService:
             recent_nodes: Recently added nodes (up to 3 shown in summary)
             strategy: Strategy name from methodology config (defaults to default_strategy)
             topic: Research topic to anchor questions to (prevents drift to abstract philosophy)
-            signals: Active signal values for strategy rationale (signal_name -> value)
-            signal_descriptions: Signal descriptions for rationale (signal_name -> description)
+            signals: Active signal values (signal_name -> value)
+            signal_descriptions: Signal descriptions (signal_name -> description)
             focus_node_type: Methodology node type of focus concept (e.g., 'attribute',
                 'functional_consequence') — helps the LLM tailor question phrasing
+            focus_node_level: Ontology level of the focus node type (e.g., 0-4) —
+                helps the LLM understand what level to target next
 
         Returns:
             Generated question string (cleaned, quoted, with appropriate punctuation)
@@ -148,6 +151,7 @@ class QuestionService:
             signals=signals,
             signal_descriptions=signal_descriptions,
             focus_node_type=focus_node_type,
+            focus_node_level=focus_node_level,
         )
 
         # Determine temperature based on self-selection mode
