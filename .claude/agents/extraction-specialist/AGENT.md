@@ -117,10 +117,11 @@ Invoked when work touches any of:
    - Cross-turn relationship bridging (connect new concepts to existing ones)
    - Bridge Q→A pairs (interviewer question → respondent answer)
    - Do NOT re-extract existing concepts
+   - Level-Aware Relationship Creation (gated — only when ≥2 ontology levels)
 
 2. **Methodology-specific content** (loaded from YAML):
-   - Valid node types with descriptions
-   - Valid edge types with descriptions
+   - Valid node types with descriptions (now include `[L0]`–`[L4]` level prefixes rendered by `methodology_schema.py:get_node_descriptions()`)
+   - Valid edge types with descriptions (include `permitted_connections` hints when present)
    - `extraction_guidelines`: methodology-specific extraction rules
    - `relationship_examples`: named examples with description, example text, extraction pattern
    - `concept_naming_convention`: instruction for how to phrase concept labels
@@ -132,6 +133,10 @@ Invoked when work touches any of:
 4. **Output format specification:**
    - JSON structure with `concepts` and `relationships` arrays
    - Field definitions match `ExtractedConcept` and `ExtractedRelationship` schemas
+
+**Contamination boundary:** Methodology-specific content (node types, edge types, guidelines, examples) lives in YAML files. The hardcoded sections must remain methodology-agnostic. A worked example hardcoding MEC types (`behavioral_attribute`, `functional_consequence`, `leads_to`) was removed April 2026 — it contaminated non-MEC extraction prompts. The YAML `relationship_examples` already provide methodology-specific examples.
+
+**Level annotations:** `get_node_descriptions()` in `methodology_schema.py` now prepends `[L{level}]` and appends `[TERMINAL — end of chain]` to node descriptions when level/terminal data is present. Flat methodologies (CJM, RG with `level: None`) get no prefixes. The Level-Aware Relationship Creation section is gated on ≥2 distinct ontology levels and guides the LLM toward level-adjacent connections.
 
 **User prompt structure** (`get_extraction_user_prompt`):
 - Previous context (conversation history from recent turns) if provided
@@ -258,13 +263,16 @@ Each entry below records a real failure observed in this codebase or a design co
 - **Accessing the concept label via `.name` instead of `.text`.** `ExtractedConcept` stores the normalized concept label in the `text` field. `.name` does not exist on the model — it raises `AttributeError` at runtime or silently produces the wrong value if some fallback handles it. Any code that reads concept labels (e.g. `LLMBatchDetector._concept_fields`, bridge lookups in `MethodologyStrategyService`) must use `concept.text`, not `concept.name`. This is a Phase C failure mode: batch_detector was initially coded to `.name` and produced empty per-concept records for every concept.
 - **Forgetting to link elements when concept_id is provided.** If `concept_id` is set but `linked_elements` is always empty, check: (1) element list is included in system prompt, (2) LLM is instructed to link, (3) alias matching fallback is enabled.
 - **Treating invalid_node_type logs as warnings.** Concepts with invalid node types are **silently dropped**, not just warned. If extraction produces zero concepts, check for `invalid_node_type` log entries — the ontology is out of sync with the prompt.
+- **Hardcoding methodology-specific content in the extraction prompt.** A worked example with MEC types (`behavioral_attribute`, `functional_consequence`) was hardcoded in `get_extraction_system_prompt()` and contaminated non-MEC extraction. Methodology-specific content (examples, guidelines, naming conventions) belongs in methodology YAML files. The hardcoded prompt sections must remain methodology-agnostic.
+- **Adding level-specific content without gating on ontology levels.** The Level-Aware Relationship Creation section is gated on `len(distinct_levels) >= 2`. Flat methodologies (CJM, RG) should not receive level guidance. Level annotations on node types use `nt.level is not None` check.
 
 ## Context Documents
 
 Consult these Tier 3 docs for full specifications and edge cases:
 
-- `.claude/context/extraction.md` — full extraction pipeline spec, correctness requirements, symptom→cause→fix table
-- `.claude/context/graph-dedup.md` — how extracted concepts flow into GraphUpdateStage, deduplication logic, cross-turn edge resolution
+- `.claude/context/extraction.md` — full extraction pipeline spec, prompt architecture boundaries, level-aware extraction, correctness requirements
+- `.claude/context/graph-mutation.md` — how extracted concepts flow into GraphUpdateStage, deduplication logic, cross-turn edge resolution
+- `.claude/context/chain-rules.md` — chain_rules are reporting-only; engine uses `chain_relevant` flag from methodology YAML
 - `src/services/extraction_service.py` — ExtractionService implementation with all pipeline stages
 - `src/llm/prompts/extraction.py` — system/user prompt builders, response parser, prompt architecture
 - `src/domain/models/extraction.py` — ExtractedConcept, ExtractedRelationship, ExtractionResult schemas

@@ -1,4 +1,5 @@
 # Graph & Node Signal Detection
+## Current Version: 1.0
 
 ## Core Mechanics
 
@@ -71,6 +72,8 @@ These signals require graph traversal (O(N×D) for N nodes and D depth) and are 
 - RG: `implies` only (chain_relevant); all others (not)
 
 Methodologies with no `chain_relevant: true` edges, or with fewer than 2 distinct ontology levels, get empty chain topology signals (`{}`). The flag is parsed by `EdgeTypeSpec.chain_relevant` and accessed via `MethodologySchema.get_chain_relevant_edge_types()`.
+
+**Engine vs reporting distinction:** This filtering uses only the `chain_relevant: true` flag from methodology YAML — it does NOT apply `config/chain_rules/*.yaml` type-pair constraints. The chain_rules files are reporting-only (used by `scripts/reporting/generate_causal_chains.py`). The engine sees ALL edges whose type is marked `chain_relevant: true`, regardless of their source/target node types. See `.claude/context/chain-rules.md`.
 
 ### Per-Concept LLM Quality Node Signals (Phase C)
 
@@ -205,6 +208,11 @@ Global signals (`frontier_count`, `ungrounded_count`) provide threshold guards -
 
 ---
 
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+
+
 ## Key Files
 
 | File | Purpose |
@@ -220,3 +228,37 @@ Global signals (`frontier_count`, `ungrounded_count`) provide threshold guards -
 | `src/services/global_signal_detection_service.py` | Runs all global detectors and returns flat signal dict |
 | `src/services/node_state_tracker.py` | `NodeStateTracker` — `update_focus()`, `record_yield()`, `get_all_states()` |
 | `.claude/context/node-state-tracker.md` | Per-turn lifecycle map; Stage 5 vs Stage 8 ordering explained |
+
+## Signal Contracts
+
+Per-signal intent vs computation mapping. Extracted from the 2026-04-17 signal semantics audit. Each row is a contract: when code changes, verify the computation still satisfies the stated intent. Severity: `plausible-impact` = could affect scoring, `likely-trivial` = wording mismatch with no behavioral effect, `none` = code/doc agree.
+
+### Global Graph Signals
+
+| Signal | Intent | Computation | Severity |
+|--------|--------|-------------|----------|
+| `convgraph.state.node.count` | Count of active surface nodes | `graph_state.node_count` (unbounded int) | plausible-impact — raw int multiplied by weight; normalize before weighting |
+| `convgraph.state.edge.count` | Count of directed edges | `graph_state.edge_count` (unbounded int) | plausible-impact — same unbounded-int issue |
+| `convgraph.state.node.orphan_count` | Nodes with zero incoming AND zero outgoing edges | `graph_state.orphan_count` (unbounded int) | plausible-impact — normalize or use `orphan_ratio` |
+| `convgraph.state.max_depth` | Length of longest chain, normalized by ontology level count | BFS from root nodes / ontology level count; clamped [0,1]; fallback=5.0 | likely-trivial — fallback constant MEC-calibrated |
+| `convgraph.chain.completion.ratio` | Fraction of level-1 nodes with complete BFS path to terminal | `complete_chain_count / max(level_1_count, 1)` | likely-trivial — brittle with N=1 |
+| `convgraph.chain.completion.has_complete` | Boolean: at least one complete chain exists | `complete_chain_count > 0` | none |
+| `canongraph.state.node.count` | Count of active canonical slots | `cg_state.concept_count`; absent when `cg_state is None` | likely-trivial — guide claims "0.0", code returns absent |
+| `canongraph.state.edge.density` | Edge-to-concept ratio in canonical graph | `edge_count / concept_count`; 0.0 when concept_count==0; absent when `cg_state is None` | plausible-impact — unbounded above 1.0; absent vs 0.0 confusion |
+| `canongraph.state.exhaustion` | Average exhaustion across canonical slots | Iterates `node_tracker.states.values()`; "canonical" guarantee depends on `enable_canonical_slots=True` | plausible-impact — silent fallback to surface-keyed states when canonical disabled |
+
+### Node-Level Graph Signals
+
+| Signal | Intent | Computation | Severity |
+|--------|--------|-------------|----------|
+| `convgraph.node.exhaustion` | 0–1 weighted sum: 40% turns_since_yield + 30% focus_streak + 30% shallow_ratio | Formula matches. `shallow_ratio` counts both `surface` and `shallow` | none — all docs aligned |
+| `convgraph.node.yield_stagnation` | Boolean: no yield for 3+ turns on previously-focused node | `focus_count > 0 AND turns_since_last_yield >= 3` | none |
+| `convgraph.node.focus.streak` | Categorical: none=0, low=1, medium=2-3, high=4+ | Bins exactly as documented | none |
+| `convgraph.node.is_current_focus` | Boolean: true for currently active focus node | Compares to `node_tracker.previous_focus` — name says "current," reads "previous" (correct given stage timing) | plausible-impact — rename to `is_prior_focus` or clarify |
+| `convgraph.node.recency` | Float 1.0→0.0 decaying over 20 turns | `max(0.0, 1.0 - turns_since_last_focus / 20.0)`; 0.0 if never focused | none |
+| `convgraph.node.is_orphan` | Boolean: zero incoming AND zero outgoing edges | `state.is_orphan` property | none |
+| `convgraph.node.edge_count` | Sum of incoming + outgoing edges | `state.edge_count_incoming + state.edge_count_outgoing` | none |
+| `convgraph.node.has_outgoing` | Boolean: at least one outgoing edge | `state.edge_count_outgoing > 0` | none |
+| `convgraph.node.novelty` | Age-based freshness; high≥0.6 (last 2 turns) | `max(0.0, 1.0 - age/5)`; boundary-inclusive: age=2→0.6→high (effectively "last 3 turns") | likely-trivial — fix guide wording |
+| `convgraph.node.focus.count` | Cumulative focus turns; none=0, low=1-2, medium=3-4, high=5+ | Bins exactly as documented | none |
+| `canongraph.node.novelty` | Classifies node as new/confirming/orphan based on slot history | `_slot_first_seen` is instance attribute re-instantiated every turn — every slot reads "new" | plausible-impact — move `_slot_first_seen` into NodeStateTracker or use singleton |

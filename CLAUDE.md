@@ -47,8 +47,10 @@ Any codebase change should follow these principles:
 | `.claude/context/strategy-scoring.md` | Joint strategy-node scoring |
 | `.claude/context/node-state-tracker.md` | NodeStateTracker per-turn lifecycle |
 | `.claude/context/turn-count.md` | Turn count evolution and phase detection |
-| `.claude/context/extraction.md` | LLM concept/relationship extraction |
-| `.claude/context/graph-dedup.md` | Surface graph deduplication |
+| `.claude/context/phase-detection.md` | Phase boundary calculation (3-tier priority), --phase-turns flag |
+| `.claude/context/extraction.md` | LLM concept/relationship extraction, prompt architecture |
+| `.claude/context/chain-rules.md` | Chain construction rules (reporting-only), direction-based format |
+| `.claude/context/graph-mutation.md` | Graph evolution, node/edge dedup, cross-turn resolution, permitted connections |
 | `.claude/context/canonical-slots.md` | Canonical slot discovery |
 | `.claude/context/docker-deployment.md` | Docker build decisions, Cloud Run config, update procedure |
 | `.claude/context/ui-architecture.md` | Streamlit UI components, state management, styling, API integration |
@@ -120,22 +122,17 @@ enable_canonical_slots: bool = True
 # zhipu: Zhipu AI GLM models (GLM-5.1, GLM-4.7, etc.)
 
 # Interview
-phase_boundaries:
-  early_max_turns: 4
-  mid_max_turns: 12
-
-# Chain-aware strategies (MEC only)
-chain_completion:
-  expected_branching: {attribute: 3, functional_consequence: 2, ...}
-  score_threshold: 0.15  # Below this, conversation-level strategies activate
+# Phase boundaries are controlled by --phase-turns flag (explicit) or
+# interview_config.yaml phases.exploratory/focused/closing n_turns (proportional).
+# See .claude/context/phase-detection.md for the 3-tier priority architecture.
+# The methodology YAML phases.{early,mid,late}.signal_weights define strategy
+# multipliers per phase but do NOT control phase boundaries themselves.
 
 # Chain construction rules (config/chain_rules/):
-# One YAML per methodology — specifies which edge types constitute narrative progression
-# and optional per-edge node-type permitted pairs for analytical chain extraction.
-# Separate from config/methodologies/ extraction rules (different tuning concerns).
-# Format: chain_edges: {edge_name: null | [[src_type, tgt_type], ...]}
-# null = unconstrained (trust extraction); list = analytical filter.
-# Methodologies without a chain_rules file fall back to leads_to unconstrained.
+# One YAML per methodology — REPORTING-ONLY, does NOT affect live engine.
+# Live engine uses chain_relevant: true flag from methodology YAML instead.
+# Direction-based format (April 2026): upward, upward_or_lateral, reverse, unconstrained.
+# See .claude/context/chain-rules.md for full specification.
 
 # Active methodology configs (config/methodologies/):
 # means_end_chain_v2_strict  — 6 strategies, all with valid_when gates (reference)
@@ -195,18 +192,21 @@ Run `uv run python scripts/check_doc_drift.py` any time to check for drift. The 
 ### Before editing — read first
 | Editing | Read first |
 |---------|-----------|
-| `src/methodologies/scoring.py`, `src/methodologies/registry.py`, `config/methodologies/*.yaml` | `.claude/context/strategy-scoring.md` |
+| `src/methodologies/scoring.py`, `src/methodologies/registry.py`, `config/methodologies/*.yaml` | `.claude/context/strategy-scoring.md`, `.claude/context/methodology-parameter-flow.md` |
+| `src/domain/models/methodology_schema.py` | `.claude/context/extraction.md`, `.claude/context/chain-rules.md` |
 | `src/services/turn_pipeline/stages/strategy_selection_stage.py`, `src/services/methodology_strategy_service.py` | `.claude/context/strategy-selection.md` |
 | `src/signals/graph/*.py`, `src/services/*signal_detection_service.py` | `.claude/context/signal-detection-graph.md` |
+| `src/signals/meta/*.py` | `.claude/context/phase-detection.md` |
 | `src/signals/llm/signals/*.py` | `.claude/context/signal-detection-llm.md` |
-| `src/services/graph_service.py` | `.claude/context/graph-dedup.md` |
+| `src/services/graph_service.py` | `.claude/context/graph-mutation.md` |
 | `src/services/canonical_slot_service.py` | `.claude/context/canonical-slots.md` |
-| `src/services/extraction_service.py` | `.claude/context/extraction.md` |
+| `src/services/extraction_service.py`, `src/llm/prompts/extraction.py` | `.claude/context/extraction.md` |
+| `src/llm/prompts/question.py`, `src/services/question_service.py`, `src/services/turn_pipeline/stages/question_generation_stage.py` | `.claude/context/pipeline-contracts.md` |
 | Any pipeline stage (`stages/*.py`), `context.py`, `pipeline_contracts.py` | `.claude/context/pipeline-contracts.md` |
 | `src/services/node_state_tracker.py`, `src/services/node_signal_detection_service.py` | `.claude/context/node-state-tracker.md` |
 | `src/main.py`, `src/api/routes/*.py` | `docs/API.md` |
 | `scripts/reporting/*.py`, `scripts/diagnostics/extract_simulation_data.py` | `.claude/context/simulation-export-schema.md` |
-| `config/chain_rules/*.yaml` | `.claude/context/simulation-export-schema.md` |
+| `config/chain_rules/*.yaml` | `.claude/context/chain-rules.md` |
 | `Dockerfile`, `entrypoint.sh`, `.dockerignore`, `scripts/deploy_cloud_run.sh` | `.claude/context/docker-deployment.md` |
 | `ui/streamlit_app.py`, `ui/components/*.py`, `ui/api_client.py`, `.streamlit/config.toml` | `.claude/context/ui-architecture.md` |
 
@@ -271,6 +271,10 @@ Run `/deep-code-quality` for the full framework when a diagnostic doesn't obviou
 - **Chain topology signals use `chain_relevant` flag from methodology YAML:** `ChainTopologySignalDetector` filters edges using `schema.get_chain_relevant_edge_types()`, which reads the `chain_relevant: true/false` flag from methodology YAML edge definitions. Each methodology declares which edges represent chain progression (e.g., MEC: `leads_to`; JTBD: `triggers`/`addresses`/`enables`/`supports`). Methodologies with no `chain_relevant` edges or <2 ontology levels get empty chain topology signals (`{}`). **When adding a new methodology YAML**, ensure every edge definition has a `chain_relevant` flag — missing flags default to `None` (excluded from chain topology). See `.claude/context/signal-detection-graph.md`.
 - **Canonical slot nodes always gated on chain topology signals:** This was caused by a key-namespace mismatch between DB-based detectors and the tracker. Full causal chain: (1) `ChainTopologySignalDetector` loads nodes from `kg_nodes` → returns signals keyed by surface UUIDs. (2) `NodeSignalDetectionService` initializes `node_signals` from `node_tracker.get_all_states().keys()` → slot IDs after Stage 4.5 remap. (3) The merge guard `if node_id in node_signals` at `node_signal_detection_service.py:106` silently drops all detector results whose keys don't match. (4) `remap_to_canonical_slots()` used `pop` to remove surface UUIDs → only slot IDs in tracker → all chain topology results dropped. (5) `valid_when` gate check returns `None` (falsy) for nodes without chain topology entries. **Fixed April 2026**: `remap_to_canonical_slots()` changed from `pop` to keep — surface UUIDs persist in tracker, DB-based detector keys now match, signals flow through. See `.claude/context/signal-detection-graph.md` "Key Namespace Divergence" and "Signal Data Flow" sections.
 - **Strategy-scoped repetition signal must resolve per-candidate:** `interview.strategy.self_count` historically returned a single scalar (frequency of the *last-selected* strategy). The scorer applied this scalar to *every* candidate using each candidate's own weight, causing strategies to be penalized when *other* strategies repeated. Fix: signal returns `{strategy_name: normalized_count}`; scorer resolves to the candidate's own scalar via `_scoped_signal_names()` (cached helper that queries `SignalDetector.get_scoped_signal_names()`). As of Architecture #6 (Apr 2026), scoped signals are auto-discovered via the `scoped` ClassVar on SignalDetector subclasses; the manual `STRATEGY_SCOPED_SIGNALS` tuple has been removed. See `.claude/context/strategy-scoring.md`.
+- **chain_rules are reporting-only — not used by the live engine:** `config/chain_rules/*.yaml` files only affect `scripts/reporting/generate_causal_chains.py`. The live interview engine filters chain edges using the `chain_relevant: true` flag from methodology YAML (`ChainTopologySignalDetector` at `src/signals/graph/chain_topology_signals.py:108`). Do NOT assume a chain_rules change will affect strategy selection. See `.claude/context/chain-rules.md`.
+- **Phase boundaries in methodology YAML are dead config:** The `phase_boundaries: {early_max_turns, mid_max_turns}` key in methodology YAML is never read by any Python code. The live engine computes phase boundaries from `interview_config.yaml` (`phases.exploratory/focused/closing.n_turns`), scaled to `max_turns`. Override with `--phase-turns` CLI flag. See `.claude/context/phase-detection.md`.
+- **Extraction prompt has hardcoded and methodology-driven sections:** The worked example was removed April 2026 (hardcoded MEC types contaminated non-MEC extraction). Methodology-specific content (node/edge descriptions, extraction guidelines, relationship examples) belongs in methodology YAML, not in `src/llm/prompts/extraction.py`. Node descriptions now include `[L0]`–`[L4]` level prefixes rendered by `methodology_schema.py:get_node_descriptions()`. See `.claude/context/extraction.md`.
+- **Level skipping in extraction produces flat chains:** Without level guidance, the extraction LLM produces edges that skip 2+ ontology levels (47% of chain-relevant edges). The Level-Aware Relationship Creation section in the extraction prompt (gated on ≥2 ontology levels) guides the LLM toward level-adjacent connections. Chain building accepts level-skipping edges but classifies resulting chains as "advanced" (with gaps) rather than "full." See `.claude/context/extraction.md` and `.claude/context/chain-rules.md`.
 
 ---
 
@@ -282,6 +286,9 @@ uv run uvicorn src.main:app --reload
 
 # Run simulation (use --help for full concept/persona listings)
 uv run python scripts/run_simulation.py --concept glp1_food_mec --persona baseline_cooperative --max-turns 10
+
+# Run with explicit phase control (4 early, 4 mid, 2 late = 10 total)
+uv run python scripts/run_simulation.py --concept glp1_food_mec --persona baseline_cooperative --phase-turns 4-4-2
 
 # Run tests
 uv run pytest

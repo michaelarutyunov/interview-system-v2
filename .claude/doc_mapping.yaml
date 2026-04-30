@@ -13,6 +13,12 @@ mappings:
     doc: ".claude/context/strategy-scoring.md"
 
   - sources:
+      - "src/methodologies/scoring.py"
+      - "src/methodologies/registry.py"
+      - "config/methodologies/*.yaml"
+    doc: ".claude/context/methodology-parameter-flow.md"
+
+  - sources:
       - "src/services/turn_pipeline/stages/strategy_selection_stage.py"
       - "src/services/methodology_strategy_service.py"
     doc: ".claude/context/strategy-scoring.md"
@@ -32,11 +38,11 @@ mappings:
 
   - sources:
       - "src/signals/meta/*.py"
-    doc: ".claude/context/signal-detection-graph.md"
+    doc: ".claude/context/phase-detection.md"
 
   - sources:
       - "src/services/graph_service.py"
-    doc: ".claude/context/graph-dedup.md"
+    doc: ".claude/context/graph-mutation.md"
 
   - sources:
       - "src/services/canonical_slot_service.py"

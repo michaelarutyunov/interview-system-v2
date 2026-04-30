@@ -6,10 +6,11 @@ Owns methodology YAML configuration — structure, validation, signals/strategie
 ## Trigger Conditions
 Invoke when work touches any of:
 - `config/methodologies/*.yaml` (methodology definitions, strategies, signal_weights, phases)
+- `config/chain_rules/*.yaml` (chain construction rules — reporting-only, but methodology-coupled)
 - `src/methodologies/registry.py` (YAML loading, validation logic)
 - `src/methodologies/scoring.py` (when editing strategy-level logic, not signal mechanics)
 - `src/services/methodology_strategy_service.py` (when modifying how methodologies are retrieved/applied)
-- Any task containing keywords: "methodology", "strategy config", "YAML validation", "phase multiplier", "phase bonus", "create new methodology", "add strategy to YAML".
+- Any task containing keywords: "methodology", "strategy config", "YAML validation", "phase multiplier", "phase bonus", "create new methodology", "add strategy to YAML", "chain rules", "chain_rules".
 
 ## Domain Knowledge
 
@@ -74,6 +75,9 @@ phases:
 | Strategy name uniqueness | No duplicate strategy names within `strategies:` | `strategies[N]: duplicate strategy name 'xxx'` |
 | Valid `node_binding` | Must be `"required"` or `"none"` | `invalid node_binding 'xxx' (valid: ['none', 'required'])` |
 | Valid `focus_mode` | Must be `"recent_node"`, `"summary"`, or `"topic"` | `invalid focus_mode 'xxx' (valid: ['recent_node', 'summary', 'topic'])` |
+| Valid `bridge_direction` | Must be `"forward"` or `"backward"` | `invalid bridge_direction 'xxx' (valid: ['backward', 'forward'])` |
+| Valid `bridge_target` | Must be `"most_concrete"`, `"most_abstract"`, or `"either"` | `invalid bridge_target 'xxx' (valid: ['either', 'most_abstract', 'most_concrete'])` |
+| Valid `extraction_mode` | Must be `"extract_new"` or `"prefer_existing"` | `invalid extraction_mode 'xxx' (valid: ['extract_new', 'prefer_existing'])` |
 | Weight key validity | Every `signal_weights` key must have a valid signal prefix (e.g., `graph.*`, `llm.*`) | `unknown signal weight key 'xxx'` |
 | Phase strategy reference | Every key in `phases.{phase}.signal_weights` and `phase_bonuses` must match a strategy name in `strategies:` | `phases.{phase}.xxx: unknown strategy 'yyy' (defined: [...])` |
 
@@ -90,6 +94,9 @@ phases:
 | `focus_mode` | `str` | `"recent_node"` | How question generation selects focus: `recent_node`, `summary`, or `topic` |
 | `node_binding` | `str` | `"required"` | If `"required"`, strategy participates in Stage 2 (joint strategy-node scoring); if `"none"`, Stage 1 only |
 | `valid_when` | `str \| None` | `None` | Optional gate signal name — strategy is only scored for nodes where this signal is `True`. Used by chain-aware strategies (e.g., `ascend` gates on `convgraph.node.chain.gap.above`). `None` = always eligible. |
+| `bridge_direction` | `str` | `"forward"` | Controls cross-turn relationship direction in extraction: `"forward"` pins focus as source, `"backward"` pins focus as target. Read on next turn via `_get_bridge_config()`. |
+| `bridge_target` | `str` | `"most_concrete"` | Which existing node to target for cross-turn edges: `"most_concrete"`, `"most_abstract"`, or `"either"`. Read on next turn. |
+| `extraction_mode` | `str` | `"extract_new"` | Extraction behavior when a focus exists: `"extract_new"` extracts at multiple levels, `"prefer_existing"` prioritizes relationships to existing nodes. Read on next turn. |
 
 ### 4. Phase Configuration Fields
 
@@ -142,13 +149,29 @@ If you want a weight to distinguish between nodes, it MUST use one of the three 
 
 1. Copy `config/methodologies/means_end_chain_v2_strict.yaml` as a template.
 2. Edit `method.name`, `method.goal`, `method.description`.
-3. Adjust `ontology.nodes` and `ontology.edges` for the new domain.
-4. Declare signals under `signals:` (only the ones you'll use).
-5. Define strategies under `strategies:` with `signal_weights`.
-6. (Optional) Add `phases:` for phase-based modifiers.
-7. Load-test via `MethodologyRegistry.get_methodology("{name}")` — validation errors fire immediately.
+3. Adjust `ontology.nodes` and `ontology.edges` for the new domain. **Ensure every node has a `level` integer** if chain topology signals should fire. **Ensure every edge has a `chain_relevant` flag** (true/false) — the engine uses this for topology signals.
+4. **Create a matching `config/chain_rules/{methodology_name}.yaml`** with direction-based rules for post-hoc chain extraction. Without this file, chain extraction falls back to `leads_to: unconstrained`.
+5. Declare signals under `signals:` (only the ones you'll use).
+6. Define strategies under `strategies:` with `signal_weights`.
+7. (Optional) Add `phases:` for phase-based modifiers.
+8. **Do NOT add `phase_boundaries`** — it is dead config never read by any code. Phase boundaries come from `interview_config.yaml` or `--phase-turns` flag.
+9. Load-test via `MethodologyRegistry.get_methodology("{name}")` — validation errors fire immediately.
 
-### 9. Adding a Strategy to Existing Methodology
+### 9. Engine vs Reporting Config
+
+Some config affects the live interview engine. Other config is **reporting-only**:
+
+| Config | Layer | Used by |
+|--------|-------|---------|
+| `ontology.edges[].chain_relevant: true` | Engine | `ChainTopologySignalDetector` — live chain topology signals |
+| `ontology.edges[].permitted_connections` | Extraction | LLM sees type-pair hints in system prompt |
+| `config/chain_rules/*.yaml` | Reporting | `generate_causal_chains.py` — post-hoc chain extraction |
+| `phases.{phase}.signal_weights` | Engine | Strategy scorer per-phase multipliers |
+| `phases.{phase}.phase_bonuses` | Engine | Strategy scorer per-phase bonuses |
+
+**Key distinction:** `chain_relevant` in methodology YAML and `chain_rules` in `config/chain_rules/` are separate systems. Changing chain_rules does NOT affect live interview behavior. When adding a new methodology, both files must be created. See `.claude/context/chain-rules.md`.
+
+### 10. Adding a Strategy to Existing Methodology
 
 1. Open the methodology YAML.
 2. Add to `strategies:` list with required fields (`name`, `signal_weights`).
@@ -156,7 +179,7 @@ If you want a weight to distinguish between nodes, it MUST use one of the three 
 4. Restart server; registry validates strategy name uniqueness and phase references.
 5. Verify the strategy fires by checking `score_decomposition` in simulation output.
 
-### 10. Signal Weight Key Validation
+### 11. Signal Weight Key Validation
 
 The registry checks weight keys by trying progressively shorter prefixes:
 
@@ -170,7 +193,7 @@ The registry checks weight keys by trying progressively shorter prefixes:
 
 If no prefix matches → `unknown signal weight key` error.
 
-### 11. Methodology vs Signal Mechanics Boundaries
+### 12. Methodology vs Signal Mechanics Boundaries
 
 This agent (methodology-specialist) owns:
 - YAML structure and validation
@@ -214,11 +237,17 @@ When editing `src/methodologies/scoring.py`:
 - **Adding `convgraph.node.*` weights to a `node_binding: none` strategy.** `partition_signal_weights()` strips all node-scoped weights before Stage 1 scoring. The strategy competes only on global signals — typically ~30% of its intended positive mass. Example: RG `triadic_elicit` was `node_binding: none` with `convgraph.node.is_orphan.true: 0.7`, `convgraph.node.llm.elaboration.low: 0.4` — all stripped, never selected in 10 turns. Fix: use `node_binding: required` when any `convgraph.node.*` weight is present.
 - **Setting a repetition brake magnitude < 50% of the strategy's typical base score.** When base is 2.3 and brake is -0.6, it takes 4 consecutive uses to halve the score — the runner-up never catches up within a 10-turn interview. Example: CJM `deepen_stage` base 2.3 vs. brake -0.6 → 8/10 turn dominance. Fix: either reduce structural positive mass or strengthen brake to ≥1.0.
 - **Using a positive `interview.strategy.self_count` weight as an "escape valve."** The `+0.15` on `revitalize` was intended to break fatigue loops but becomes self-reinforcing when structural strategies are suppressed. In CIT baseline, `revitalize` won 7/10 turns. Fix: flip to a negative brake (-0.5) so the strategy weakens, not strengthens, with repetition.
+- **Adding `phase_boundaries` to a methodology YAML.** This key was never read by any Python code and was removed April 2026. Phase boundaries come from `interview_config.yaml` (proportional) or `--phase-turns` flag (explicit). See `.claude/context/phase-detection.md`.
+- **Assuming `chain_rules` affect live interview behavior.** `config/chain_rules/*.yaml` files are reporting-only — they only affect `scripts/reporting/generate_causal_chains.py`. The live engine uses `chain_relevant: true` flags from methodology YAML. Changing chain_rules will not affect strategy selection or question generation. See `.claude/context/chain-rules.md`.
+- **Forgetting to create a matching `config/chain_rules/{name}.yaml` for a new chain methodology.** Without this file, chain extraction falls back to `leads_to: unconstrained`, which may produce chains that don't match the methodology's edge types. For methodologies with non-`leads_to` edge types (JTBD: triggers/implies/supports/drives), this fallback produces zero chains.
 
 ## Context Documents
 
+- `.claude/context/methodology-parameter-flow.md` — Parameter-to-stage matrix, engine vs reporting config distinction
 - `.claude/context/strategy-scoring.md` — Full scoring mechanics, Stage 1 vs Stage 2, weight resolution, phase modifier application
 - `.claude/context/strategy-selection.md` — D2 two-stage orchestration, how methodologies are loaded and applied
+- `.claude/context/chain-rules.md` — chain_rules are reporting-only; direction-based format; architectural split between MEC and JTBD
+- `.claude/context/phase-detection.md` — Phase boundary 3-tier priority; --phase-turns flag; phase_boundaries is dead config
 - `src/methodologies/registry.py` — `MethodologyRegistry`, `MethodologyConfig`, `StrategyConfig`, validation logic
 - `src/methodologies/scoring.py` — `rank_strategies`, `rank_strategy_node_pairs`, `partition_signal_weights`
 - `config/methodologies/means_end_chain_v2_strict.yaml` — Reference methodology with full structure (strategies, signals, phases, ontology)

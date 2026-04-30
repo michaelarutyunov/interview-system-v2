@@ -1,4 +1,5 @@
 # Pipeline Contracts
+## Current Version: 1.0
 
 ## Core Mechanics
 
@@ -102,12 +103,17 @@ Both candidate pools are merged and sorted by score. The highest-scoring pair de
 
 ---
 
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+
+
 ## Key Files
 
 - `src/services/turn_pipeline/context.py` — `PipelineContext` dataclass: contract fields, ordering-enforced convenience properties
 - `src/domain/models/pipeline_contracts.py` — All 14 contract Pydantic models
 - `src/services/session_service.py` — `_build_pipeline()`: stage wiring and execution order
 - `src/services/turn_pipeline/stages/scoring_persistence_stage.py` — `TurnResult` assembly from final context
-- `src/services/graph_service.py` — Cross-turn edge validation in `_add_edge_from_relationship()` (see `graph-dedup.md`)
+- `src/services/graph_service.py` — Cross-turn edge validation in `_add_edge_from_relationship()` (see `graph-mutation.md`)
 - `src/methodologies/registry.py` — `StrategyConfig` with `valid_when` gate; `MethodologyConfig` with strategy list
 - `src/methodologies/scoring.py` — Joint strategy-node scoring with `valid_when` gate filtering; `ScoredCandidate` decomposition

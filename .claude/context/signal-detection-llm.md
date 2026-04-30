@@ -1,4 +1,5 @@
 # LLM Signal Detection
+## Current Version: 1.0
 
 ## Core Mechanics
 
@@ -110,6 +111,11 @@ The LLM returns a JSON object with two top-level sections. **`global` comes firs
 | Per-concept records are empty dicts `{}` despite LLM responding with concept data | `_concept_fields` in batch_detector reading `.name` instead of `.text` on `ExtractedConcept` — lookup misses all concepts | Use `concept.text` (not `.name`) everywhere an `ExtractedConcept` label is accessed |
 | `engagement.mid` and `certainty.mid` fire at 100% across all turns; strategy suppressors/brakes never activate | Haiku drops the `global` section from JSON output because it comes after the variable-length `concepts` section and the model runs out of output attention | Fixed by reordering JSON template/example to put `global` before `concepts` (commit `c1e5a7b`). If the issue recurs with more concepts, consider switching to Sonnet for signal scoring |
 
+## Known Failure Modes
+
+_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+
+
 ## Key Files
 
 | File | Purpose |
@@ -125,3 +131,32 @@ The LLM returns a JSON object with two top-level sections. **`global` comes firs
 | `src/services/turn_pipeline/stages/llm_signal_bridge_stage.py` | Stage 4.7 — awaits LLM task, routes per-concept ratings to `NodeStateTracker`, passes global signals to Stage 6 |
 | `src/services/global_signal_detection_service.py` | Computes `global_response_trend` from rolling history; accepts `llm_global_signals` param (no longer calls LLM itself) |
 | `config/methodologies/*.yaml` | `signals: llm:` lists that gate which signals are active |
+
+## Signal Contracts
+
+Per-signal intent vs computation mapping for LLM, session, and meta signals. Extracted from the 2026-04-17 signal semantics audit. Each row is a contract: when code changes, verify the computation still satisfies the stated intent.
+
+### LLM Signals
+
+| Signal | Intent | Computation | Severity |
+|--------|--------|-------------|----------|
+| `response.semantic.llm.response_depth` | How much information is shared; 1=surface, 4-5=deep | Rubric counts distinct propositions (breadth, not semantic depth). Score 4 and 5 collapse to `"deep"` | plausible-impact — name evokes laddering depth, rubric measures proposition count |
+| `response.semantic.llm.certainty` | Confidence; low=hedging, high=unqualified | Rubric scores expressed confidence with social-softener calibration. Continuous | none — most precisely specified LLM signal |
+| `response.semantic.llm.engagement` | Willingness to participate | Rubric: participatory behavior, volunteering, deflection; orthogonal to intellectual_engagement | likely-trivial — risk of YAML authors conflating with intellectual_engagement |
+
+### Session / Temporal Signals
+
+| Signal | Intent | Computation | Severity |
+|--------|--------|-------------|----------|
+| `response.semantic.llm.engagement.trend` | Categorical: deepening/stable/shallowing/fatigued from response_depth history | Uses last-6 window with 4-sample minimum gate. Returns `deepening/stable/shallowing/fatigued` | plausible-impact — guide says "last 4" but code uses last-6 window |
+| `interview.strategy.self_count` | Count of current strategy in last 5 turns / 5; high≥0.75 | `count(strategy in last 5) / 5`. Current turn already in history → min value 0.2 | likely-trivial — floor of 0.2 on first use |
+| `interview.strategy.turns_since_change` | Consecutive same-strategy turns / 5; high≥0.6 | Iterates reversed history counting trailing identical entries / 5 | likely-trivial — same 0.2 floor |
+| `interview.focus.streak` | Per-node consecutive same-strategy: none=0, low=1-2, medium=3-4, high=5+ | Reads `state.consecutive_same_strategy`; bins exactly as documented | none |
+
+### Meta Signals
+
+| Signal | Intent | Computation | Severity |
+|--------|--------|-------------|----------|
+| `interview.phase` | Categorical early/mid/late from turn count | 3-tier priority: explicit `phase_turns` → YAML proportions → heuristic. Returns `phase`, `phase_reason`, `is_late_stage` | likely-trivial — guide documents only `phase` key |
+| `meta.saturation.conversation` | "Are responses drying up?"; 1 - min(current_new_nodes / peak, 1) | Formula matches. At turn 1 (peak==0): returns 0.0 | likely-trivial — guide claims "can be 1.0 in early turns" is impossible at turn 1 |
+| `meta.saturation.canonical` | "Are we in redundant territory?"; 1 - min(new_canonical / new_surface, 1) | Formula matches. When surface_delta==0: returns 0.0 ("no extraction — not saturated") | plausible-impact — empty extraction arguably = most saturated state |
