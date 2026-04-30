@@ -33,11 +33,14 @@ build/
 *.egg-info/
 
 # Cache
-.beads/
-.codegraph/
-.serena/
-.ruff_cache/
-.streamlit/
+.beads/*
+.codegraph/*
+.serena/*
+.ruff_cache/*
+.streamlit/*
+
+# .claude
+.claude/**/**/*
 
 # working docs
 synthetic_interviews/
@@ -45,6 +48,8 @@ interviews_real/
 
 reports/legacy/
 reports/explorations/
+reports/interviews/**
+
 docs/archive/
 docs/concepts/
 docs/drafts/
