@@ -39,6 +39,10 @@ class ContextLoadingOutput(BaseModel):
     turn_number: int = Field(ge=0, description="Current turn number (0-indexed)")
     mode: str = Field(description="Interview mode (e.g., 'exploratory')")
     max_turns: int = Field(ge=1, description="Maximum number of turns")
+    phase_turns: Optional[list[int]] = Field(
+        default=None,
+        description="Optional [early, mid, late] turn counts for explicit phase boundaries",
+    )
 
     # Conversation history
     recent_utterances: List[Dict[str, Any]] = Field(

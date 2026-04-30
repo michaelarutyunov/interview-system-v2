@@ -45,10 +45,6 @@ method:
   opening_bias: "Ask about a specific recent time they made a decision or change related to the topic."
   description: "Framework for understanding customer motivation and needs through job statements"
 
-phase_boundaries:
-  early_max_turns: 3
-  mid_max_turns: 8
-
 ontology:
   nodes:
     - name: job_context
@@ -271,38 +267,34 @@ signals:
     # which are information-velocity-based rather than structural.
 
 strategies:
-  # Strategy 1: Elaborate — breadth exploration, conversation-level
-  # Replaces legacy explore_situation. No valid_when gate, no node binding.
-  # Fires when engagement is moderate and topics are fresh — keeps interview
-  # exploring new ground rather than drilling into one chain.
+  # Strategy 1: Elaborate — clarity-before-depth, conversation-level
+  # Fires when the respondent is uncertain or hedges, buying clarity before
+  # structural strategies (ascend/ground) work with richer material.
+  # node_binding: none — all weights are global-scoped, nothing stripped.
+  # Gives way naturally to structural strategies when certainty returns.
   - name: elaborate
     node_binding: none
-    description: "Explore new aspects of the respondent's experience — situations, contexts, and jobs that haven't been discussed yet"
+    bridge_direction: forward
+    bridge_target: most_concrete
+    extraction_mode: extract_new
+    description: "Ask the respondent to elaborate when they're uncertain or hedging — buy clarity before depth"
     signal_weights:
-      # Fatigue detection — suppress exploration during declining quality
+      # Primary trigger — respondent is uncertain/hedging, needs clarity first
+      response.semantic.llm.certainty.low: 1.2
+      response.semantic.llm.certainty.mid: 0.5
+      # Engagement — moderate engagement supports elaboration
+      response.semantic.llm.engagement.mid: 0.5
+      # Suppressors — don't elaborate when respondent is confident or highly engaged
+      response.semantic.llm.certainty.high: -0.5
+      response.semantic.llm.engagement.high: -0.3
+      response.semantic.llm.engagement.low: -0.5
+      # Fatigue detection — suppress during declining quality
       response.semantic.llm.engagement.trend.fatigued: -0.6
       response.semantic.llm.engagement.trend.shallowing: -0.4
-      # Engagement — moderate engagement = breadth is productive
-      response.semantic.llm.engagement.mid: 0.4
-      response.semantic.llm.engagement.low: -0.3              # Disengaged respondent = don't explore
-      # Novelty — favor fresh, unexplored territory
-      convgraph.node.novelty.high: 0.6          # Recently-created nodes = rich territory
-      convgraph.node.novelty.medium: 0.3
-      convgraph.node.focus.streak.none: 0.6     # Nodes never focused on = prime targets
-      convgraph.node.focus.streak.medium: -0.4
-      convgraph.node.focus.streak.high: -0.7
-      convgraph.node.focus.count.none: 0.3
-      convgraph.node.focus.count.medium: -0.3
-      convgraph.node.focus.count.high: -0.6
-      canongraph.node.novelty.new: 0.5
-      canongraph.node.novelty.orphan: 0.3
-      convgraph.node.yield_stagnation.false: 0.5  # Nodes still yielding = productive
-      convgraph.node.exhaustion.low: 0.4    # Avoid exhausted nodes
-      # Repetition brake — prevent elaborate monoculture
-      interview.strategy.self_count: -0.7
-      # f965: specificity.low (0.4) + response_depth.surface (0.4) + response_depth.shallow (0.3)
-      # all map to convgraph.node.llm.elaboration.low → merged 1.1 (preserves strong trigger intent)
-      convgraph.node.llm.elaboration.low: 1.1
+      # Late phase — don't elaborate when wrapping up
+      interview.phase.late: -0.3
+      # Repetition brake — mild, it's a supporting strategy
+      interview.strategy.self_count: -0.5
 
   # Strategy 2: Ascend — move upward through the chain toward solution
   # Binds to nodes with gap_above (nodes at L0-L3 that haven't been connected
@@ -314,6 +306,9 @@ strategies:
   # Signal weights (gap.above.true: 0.25) provide soft guidance instead.
   - name: ascend
     node_binding: required
+    bridge_direction: forward
+    bridge_target: most_abstract
+    extraction_mode: extract_new
     description: "Ladder from a functional job toward its emotional or social driver by asking why the job matters to the respondent"
     signal_weights:
       # Structural signal — gap_above is the primary trigger
@@ -352,6 +347,9 @@ strategies:
   # No valid_when gate — same canonical slot rationale as ascend.
   - name: ground
     node_binding: required
+    bridge_direction: backward
+    bridge_target: most_concrete
+    extraction_mode: extract_new
     description: "Ground an emotional or social job by exploring what functional circumstances, triggers, or job statements lead to it"
     signal_weights:
       # Structural signal — gap_below is the primary trigger
@@ -376,55 +374,27 @@ strategies:
       # (was plateauing at -0.15 which is dwarfed by 1.50+ positive mass)
       interview.strategy.self_count: -0.30
 
-  # Strategy 4: Probe pain — identify frustrations and obstacles at orphan nodes
-  # Replaces parts of legacy probe_alternatives and uncover_obstacles. Uses
-  # is_orphan as a proxy for unconnected pain points (the most actionable kind).
-  # Binds to isolated nodes that may represent frustrations not yet linked to
-  # the graph.
-  # No valid_when gate — same canonical slot rationale as ascend/ground.
-  - name: probe_pain
-    node_binding: required
-    description: "Explore frustrations, obstacles, or unmet needs at isolated concepts — connect them to existing jobs and situations"
-    signal_weights:
-      # Structural signal — orphan node is the trigger
-      convgraph.node.is_orphan.true: 0.50
-      # Recency — prefer recently-mentioned orphans
-      convgraph.node.recency: 0.2
-      # Exhaustion — avoid exhausted nodes even if orphan
-      convgraph.node.exhaustion: -0.4
-      # f965: valence.low (0.3) → charge.negative; valence.mid (0.1) dropped (neutral band contributes 0)
-      convgraph.node.llm.charge.negative: 0.3
-      # f965: specificity.high (0.2) → convgraph.node.llm.elaboration.high
-      convgraph.node.llm.elaboration.high: 0.2
-      # Novelty — reduced from 0.4/0.5/0.3 to prevent probe_pain monoculture
-      # (was 7× more positive mass than next competitor)
-      convgraph.node.novelty.high: 0.2
-      canongraph.node.novelty.new: 0.3
-      canongraph.node.novelty.orphan: 0.2
-      # Focus freshness — reduced from 0.5 (was firing on 94% of nodes)
-      convgraph.node.focus.streak.none: 0.3
-      convgraph.node.focus.streak.medium: -0.3
-      convgraph.node.focus.streak.high: -0.6
-      convgraph.node.focus.count.none: 0.2
-      convgraph.node.focus.count.medium: -0.3
-      convgraph.node.focus.count.high: -0.6
-      # Repetition brake — strengthened from -0.15 to break monoculture streaks
-      interview.strategy.self_count: -0.5
-
-  # Strategy 5: Anchor — connect isolated concepts to existing graph structure
-  # Replaces parts of legacy clarify_assumption. Pure structural strategy that
-  # asks how an orphan node relates to existing jobs, contexts, or outcomes.
-  # No valid_when gate — same canonical slot rationale as ascend/ground.
+  # Strategy 4: Anchor — connect isolated or pain-laden concepts to existing graph structure
+  # Merged probe_pain (April 2026): absorbed charge.negative and elaboration.high
+  # to give anchor pain-point sensitivity. Both strategies targeted orphans via
+  # is_orphan.true — merging eliminates redundant orphan competition.
+  # No valid_when gate — same rationale as ascend/ground.
   - name: anchor
     node_binding: required
-    description: "Connect an isolated concept to the existing graph by exploring how it relates to other known jobs, contexts, or outcomes"
+    bridge_direction: forward
+    bridge_target: either
+    extraction_mode: prefer_existing
+    description: "Connect an isolated or pain-laden concept to the existing graph by exploring how it relates to other known jobs, contexts, or outcomes"
     signal_weights:
-      # Structural signal — orphan node is the trigger
-      convgraph.node.is_orphan.true: 0.35
+      # Structural signal — orphan node is the trigger (boosted from 0.35, was probe_pain's stronger weight)
+      convgraph.node.is_orphan.true: 0.50
       # Recency — prefer recent orphans
       convgraph.node.recency: 0.2
       # Exhaustion — avoid exhausted orphans
       convgraph.node.exhaustion: -0.2
+      # Pain sensitivity — target emotionally charged orphans (from probe_pain)
+      convgraph.node.llm.charge.negative: 0.3
+      convgraph.node.llm.elaboration.high: 0.2
       # Engagement — need respondent engagement for relational questions
       response.semantic.llm.engagement.high: 0.1
       response.semantic.llm.engagement.low: -0.3
@@ -434,10 +404,10 @@ strategies:
       # Focus freshness — prefer unexplored orphans
       convgraph.node.focus.streak.none: 0.3
       convgraph.node.focus.count.none: 0.2
-      # Mild repetition brake
-      interview.strategy.self_count: -0.15
+      # Repetition brake — strengthened from -0.15 for more positive mass
+      interview.strategy.self_count: -0.30
 
-  # Strategy 6: Revitalize — conversation-level fatigue fallback
+  # Strategy 5: Revitalize — conversation-level fatigue fallback
   # Same pattern as MEC strict's revitalize. No valid_when gate, no node binding.
   # Fires when engagement drops or responses trend shallow, shifting to fresh topics.
   - name: revitalize
@@ -474,7 +444,7 @@ strategies:
       convgraph.node.focus.count.medium: -0.3
       convgraph.node.focus.count.none: 0.3
 
-  # Strategy 7: Validate — late-phase closing strategy
+  # Strategy 6: Validate — late-phase closing strategy
   # Replaces legacy validate_outcome. Heavy early/mid phase gate (-3.0) prevents
   # premature interview termination. Generates closing questions.
   - name: validate
@@ -532,27 +502,22 @@ phases:
     description: "Initial exploration, building graph structure"
     # Early phase: prioritize breadth (elaborate) and structural grounding (ground).
     # Ascend is available but not dominant — need functional foundation first.
-    # Anchor connects early orphans. Probe_pain surfaces initial frustrations.
+    # Anchor connects early orphans and surfaces pain points.
     signal_weights:
-      elaborate: 1.4          # Breadth-first: explore situations and contexts
+      elaborate: 1.2          # Clarity-before-depth — valuable early but doesn't dominate
       ground: 1.2             # Reduced from 1.4 to 1.2 — still prioritizes grounding but prevents runaway lead
-      probe_pain: 1.2         # Surface early pain points
       anchor: 1.2             # Connect isolated concepts
       ascend: 1.0             # Available but not dominant
       revitalize: 1.0
       validate: 0.2           # Strongly suppressed — too early to wrap up
-    phase_bonuses:
-      elaborate: 0.2          # T2 calibration: increased from 0.1 to 0.2 to ensure breadth exploration
 
   mid:
     description: "Building depth and connections"
     # Mid phase: ascend and ground equalized to let node signals decide.
-    # Probe_pain competes when valence is low. Anchor available for orphans.
-    # Elaborate reduced to favor depth-building.
+    # Anchor available for orphans and pain points. Elaborate reduced to favor depth-building.
     signal_weights:
       ascend: 1.3             # Ladder toward emotional/social drivers
       ground: 1.3             # Find functional antecedents for terminal nodes
-      probe_pain: 1.2         # Pain points often surface in mid-interview
       anchor: 1.0
       elaborate: 0.8          # Reduced — mid-phase should deepen, not just explore
       revitalize: 1.0
@@ -567,9 +532,8 @@ phases:
       revitalize: 1.2         # Re-engage fatigued respondent for wrap-up
       ascend: 1.0             # Final laddering opportunities
       ground: 0.9             # Remaining grounding opportunities
-      probe_pain: 1.1         # Surface any remaining frustrations
       anchor: 0.7
-      elaborate: 0.3          # Minimal breadth — focus on consolidation
+      elaborate: 0.5          # Suppressed but available for late uncertainty
     phase_bonuses:
       validate: 0.2           # Ensure validation gets selected
       revitalize: 0.2         # Safety valve for late fatigue

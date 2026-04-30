@@ -69,6 +69,7 @@ class ContextLoadingStage(TurnStage):
         from src.core.config import interview_config
 
         max_turns = interview_config.session.max_turns
+        phase_turns = None
         async with aiosqlite.connect(str(self.session_repo.db_path)) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
@@ -78,6 +79,7 @@ class ContextLoadingStage(TurnStage):
             if row:
                 config = json.loads(row["config"]) if row["config"] else {}
                 max_turns = config.get("max_turns", max_turns)
+                phase_turns = config.get("phase_turns")
 
         # Get recent utterances
         recent_utterances = await self._get_recent_utterances(
@@ -113,6 +115,7 @@ class ContextLoadingStage(TurnStage):
             turn_number=(session.state.turn_count or 0) + 1,
             mode=session.mode.value,
             max_turns=max_turns,
+            phase_turns=phase_turns,
             recent_utterances=recent_utterances,
             strategy_history=strategy_history,
             recent_node_labels=recent_node_labels,

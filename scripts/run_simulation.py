@@ -104,8 +104,17 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--max-turns",
         type=int,
-        default=10,
-        help="Max interview turns (default: 10, matches SimulationService.DEFAULT_MAX_TURNS)",
+        default=None,
+        help="Max interview turns (default: derived from --phase-turns sum, or 10)",
+    )
+    parser.add_argument(
+        "--phase-turns",
+        type=str,
+        default=None,
+        metavar="N-N-N",
+        help="Phase turn allocation, e.g. '4-4-2' = 4 early, 4 mid, 2 late. "
+        "Overrides --max-turns (derived as sum). "
+        "Overrides interview_config.yaml phase proportions.",
     )
     return parser
 
@@ -122,10 +131,33 @@ async def main():
     concept_id = args.concept
     persona_id = args.persona
     max_turns = args.max_turns
+    phase_turns = None
+
+    if args.phase_turns:
+        parts = args.phase_turns.split("-")
+        if len(parts) != 3 or not all(p.isdigit() for p in parts):
+            parser.error(
+                "--phase-turns must be 'N-N-N' (e.g. '4-4-2'), "
+                f"got '{args.phase_turns}'"
+            )
+        phase_turns = [int(p) for p in parts]
+        derived_max = sum(phase_turns)
+        if max_turns is not None and max_turns != derived_max:
+            parser.error(
+                f"--max-turns ({max_turns}) must equal sum of --phase-turns "
+                f"({derived_max}) when both are set"
+            )
+        max_turns = derived_max
+
+    if max_turns is None:
+        max_turns = 10  # default
 
     print("Running simulation:")
     print(f"  Concept: {concept_id}")
     print(f"  Persona: {persona_id}")
+    if phase_turns:
+        print(f"  Phase turns: {phase_turns[0]}-{phase_turns[1]}-{phase_turns[2]} "
+              f"(early/mid/late)")
     print(f"  Max turns: {max_turns}")
     print()
 
@@ -152,6 +184,7 @@ async def main():
         concept_id=concept_id,
         persona_id=persona_id,
         max_turns=max_turns,
+        phase_turns=phase_turns,
     )
 
     # Close database connection

@@ -148,6 +148,7 @@ class SimulationService:
         persona_id: str = DEFAULT_PERSONA,
         max_turns: int = DEFAULT_MAX_TURNS,
         session_id: Optional[str] = None,
+        phase_turns: Optional[list[int]] = None,
     ) -> SimulationResult:
         """Simulate a complete AI-to-AI interview.
 
@@ -156,6 +157,9 @@ class SimulationService:
             persona_id: Persona ID for synthetic respondent
             max_turns: Maximum turns before forcing stop (controlled by SessionService)
             session_id: Optional session ID (generates new if None)
+            phase_turns: Optional [early, mid, late] turn counts for explicit
+                phase boundaries. Overrides proportional calculation from
+                interview_config.yaml.
 
         Returns:
             SimulationResult with complete transcript, graph diagnostics, and metadata
@@ -195,6 +199,7 @@ class SimulationService:
             product_name=product_name,
             persona_id=persona_id,
             max_turns=max_turns,
+            phase_turns=phase_turns,
         )
 
         # Create session in repository with max_turns override
@@ -204,6 +209,7 @@ class SimulationService:
             concept_name=concept.name,
             methodology=concept.methodology,
             max_turns=max_turns,
+            phase_turns=phase_turns,
         )
 
         # Generate opening question
@@ -624,6 +630,7 @@ class SimulationService:
         concept_name: str,
         methodology: str,
         max_turns: int,
+        phase_turns: Optional[list[int]] = None,
     ):
         """Create a session in the repository for simulation.
 
@@ -633,6 +640,7 @@ class SimulationService:
             concept_name: Concept name
             methodology: Methodology ID
             max_turns: Maximum turns
+            phase_turns: Optional [early, mid, late] turn counts
         """
         now = datetime.now(timezone.utc)
 
@@ -654,7 +662,9 @@ class SimulationService:
             ),
         )
 
-        config = {"max_turns": max_turns}
+        config: dict[str, object] = {"max_turns": max_turns}
+        if phase_turns:
+            config["phase_turns"] = phase_turns
         await self.session.session_repo.create(session, config)
 
     async def _save_simulation_result(self, result: SimulationResult) -> Path:

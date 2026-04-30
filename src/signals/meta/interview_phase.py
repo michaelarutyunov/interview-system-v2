@@ -114,18 +114,33 @@ class InterviewPhaseSignal(SignalDetector):
         }
 
     def _get_phase_boundaries(self, context) -> dict:
-        """Calculate phase boundaries from YAML interview config phases.
+        """Calculate phase boundaries from explicit config or proportional scaling.
 
-        Uses the configured phase n_turns (exploratory, focused, closing) to
-        derive exact boundaries, so the phase signal aligns with the YAML-defined
-        interview structure. Falls back to the heuristic if config is unavailable.
+        Priority:
+        1. Explicit phase_turns from session config (set by --phase-turns flag)
+        2. YAML interview_config proportions scaled to max_turns
+        3. Proportional heuristic (10% early, last 2 late)
 
         Args:
-            context: Pipeline context with max_turns property
+            context: Pipeline context with max_turns and context_loading_output
 
         Returns:
             Dict with 'early_max_turns' and 'mid_max_turns' keys
         """
+        # Priority 1: explicit phase_turns from --phase-turns CLI flag
+        try:
+            phase_turns = context.context_loading_output.phase_turns
+            if phase_turns and len(phase_turns) == 3:
+                early_max = phase_turns[0]
+                mid_max = early_max + phase_turns[1]
+                return {
+                    "early_max_turns": max(1, early_max),
+                    "mid_max_turns": max(early_max + 1, mid_max),
+                }
+        except (AttributeError, RuntimeError):
+            pass
+
+        # Priority 2: YAML interview_config proportions
         try:
             from src.core.config import interview_config
 
@@ -158,7 +173,7 @@ class InterviewPhaseSignal(SignalDetector):
         except Exception:
             pass
 
-        # Fallback: proportional heuristic
+        # Priority 3: proportional heuristic (fallback)
         try:
             max_turns = context.max_turns
         except (AttributeError, RuntimeError):
