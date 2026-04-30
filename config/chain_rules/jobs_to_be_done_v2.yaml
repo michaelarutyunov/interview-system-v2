@@ -1,34 +1,27 @@
 # Chain rules for JTBD V3 (5-level ontology)
 #
+# Direction-based rules replace node-type pair allowlists (pre-April 2026).
+# Each chain-relevant edge type specifies a direction constraint evaluated
+# against the source and target node's ontology levels (L0–L4).
+#
+# Directions:
+#   upward            — src_level < tgt_level (moving toward terminal L4)
+#   upward_or_lateral — src_level <= tgt_level (allows same-level elaboration)
+#   reverse           — flip direction (solution→pain becomes pain→solution),
+#                        included as inferred chain link with confidence 0.6
+#   unconstrained      — all edges of this type pass (backward compat)
+#
+# Downward edges (addresses, achieves) are included via reverse to recover
+# pain→solution and gain→solution links that respondents imply but the
+# extraction captures in the opposite direction.
+#
 # Chain spine (upward):
 #   L0 context/trigger → L1 pain/gain → L2 job_statement → L3 emotional/social → L4 solution
-#
-# Chain-relevant edges (triggers, implies, supports, drives) build the main spine.
-# Cross-level edges (addresses, achieves) are excluded from chain building —
-# they connect solutions back to needs but create downward/circular paths.
 
 chain_edges:
-  triggers:
-    - [job_context, pain_point]
-    - [job_context, gain_point]
-    - [job_trigger, pain_point]
-    - [job_trigger, gain_point]
-    - [pain_point, pain_point]
-    - [gain_point, gain_point]
-
-  implies:
-    - [pain_point, job_statement]
-    - [gain_point, job_statement]
-
-  supports:
-    - [job_statement, emotional_job]
-    - [job_statement, social_job]
-    - [emotional_job, emotional_job]
-    - [social_job, social_job]
-    - [emotional_job, social_job]
-    - [social_job, emotional_job]
-
-  drives:
-    - [job_statement, solution_approach]
-    - [emotional_job, solution_approach]
-    - [social_job, solution_approach]
+  triggers: upward
+  implies: upward
+  supports: upward_or_lateral
+  drives: upward
+  addresses: reverse
+  achieves: reverse

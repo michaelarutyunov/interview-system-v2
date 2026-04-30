@@ -1,2 +1,8 @@
+# Chain rules for MEC V2 Flex (5-level ontology)
+#
+# Direction-based format (April 2026).
+# Flex variant has no permitted_connections on edges — extraction is free-form.
+# Chain building trusts all leads_to edges (unconstrained).
+
 chain_edges:
-  leads_to: ~   # null = unconstrained; flex variant has no extraction constraints
+  leads_to: unconstrained

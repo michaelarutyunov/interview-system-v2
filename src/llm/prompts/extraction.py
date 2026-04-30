@@ -125,6 +125,26 @@ Extract: {example_spec.extraction}
     else:
         naming_instruction = "Name concepts concisely according to their node type. Use the node type descriptions and examples above as naming models. The source_quote field captures the respondent's verbatim language."
 
+    # Build level-aware relationship section for chain methodologies (gated on ≥2 distinct levels)
+    level_aware_section = ""
+    if schema.ontology:
+        distinct_levels = sorted(
+            {nt.level for nt in schema.ontology.nodes if nt.level is not None}
+        )
+        if len(distinct_levels) >= 2:
+            lo, hi = distinct_levels[0], distinct_levels[-1]
+            level_aware_section = f"""
+## Level-Aware Relationship Creation:
+Node types are annotated with [L{lo}]–[L{hi}] indicating their position in the chain hierarchy.
+L{lo} is foundational, L{hi} is the terminal end of the chain.
+
+When creating relationships between concepts:
+- **Prefer adjacent levels** (L_n → L_n+1) — these form the strongest analytical chains
+- **Skip connections are valid but weaker** (e.g., L{lo}→L{lo+2}) — capture real respondent reasoning but skip intermediate steps; use confidence 0.6–0.75
+- **Lateral connections within the same level** are valid for elaboration (e.g., multiple emotional jobs reinforcing each other)
+- **Downward connections** (higher → lower level) should use addresses/achieves edge types and are not chain-forming — use only when the respondent explicitly describes a solution resolving a pain or delivering a gain
+"""
+
     return f"""You are an expert qualitative researcher extracting knowledge from interview responses.
 
 Your task is to identify concepts and relationships from the respondent's text that reveal their mental model about the product being discussed.
@@ -172,25 +192,7 @@ Missed bridge (do NOT do this):
 
 Disambiguation rule:
 - If the same word has clearly different meanings across turns (e.g., "routine" as exercise vs. "routine" as coffee ritual), extract as separate concepts with disambiguating labels like "morning routine (exercise)". Only bridge when the semantic connection is unambiguous.
-{methodology_section}
-## Worked Example:
-
-Utterance: "I grab coffee on the way to work because it wakes me up, but the line at Starbucks is brutal so sometimes I skip it and feel sluggish all morning."
-
-Extracted concepts:
-- "grab coffee on the way to work" (behavioral_attribute, confidence: 0.95)
-- "wakes me up" (functional_consequence, confidence: 0.90)
-- "long line at Starbucks" (pain_point, confidence: 0.85)
-- "skip morning coffee" (behavioral_attribute, confidence: 0.85)
-- "feel sluggish all morning" (negative_consequence, confidence: 0.80)
-
-Relationships:
-- "grab coffee on the way to work" → "wakes me up" (leads_to, confidence: 0.90)
-- "long line at Starbucks" → "skip morning coffee" (causes, confidence: 0.85)
-- "skip morning coffee" → "feel sluggish all morning" (leads_to, confidence: 0.80)
-
-Rationale: One utterance can contain multiple disconnected concept clusters. Extract each cluster independently. Do not force connections between unrelated concepts (e.g., do NOT link "wakes me up" to "feel sluggish"—they describe opposite states from opposite behaviors).
-
+{methodology_section}{level_aware_section}
 ## Output Format:
 Return valid JSON with this structure:
 {{

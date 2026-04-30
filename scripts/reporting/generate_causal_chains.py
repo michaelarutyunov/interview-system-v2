@@ -27,10 +27,16 @@ import yaml
 # Chain rules loading
 # ---------------------------------------------------------------------------
 
-def _load_chain_rules(methodology: str) -> dict[str, list[list[str]] | None]:
+def _load_chain_rules(methodology: str) -> dict[str, list[list[str]] | str | None]:
     """Load chain construction rules for a methodology.
 
-    Returns mapping of edge_type -> permitted node-type pairs (None = unconstrained).
+    Returns mapping of edge_type -> rule.
+    Rule formats:
+      - None / "unconstrained": all edges of this type pass
+      - "upward": src_level < tgt_level
+      - "upward_or_lateral": src_level <= tgt_level
+      - "reverse": flip direction, include if reversed edge is upward
+      - [...] (list): old type-pair allowlist (backward compat)
     Falls back to {leads_to: None} when no chain_rules file exists.
     """
     path = Path(f"config/chain_rules/{methodology}.yaml")
@@ -68,11 +74,13 @@ def _classify_chain(
 ) -> str:
     """Classify a chain path into a tier.
 
-    Tiers are derived from the methodology's level structure:
-      full       — reaches the highest defined level
-      advanced   — reaches second-highest (only when >= 3 distinct levels)
-      developing — reaches third-highest (only when >= 4 distinct levels)
-      started    — anything below advanced, >= 2 nodes
+    Chains require ≥3 nodes (shorter paths are just pairs).
+    Tiers:
+      full       — ≥3 nodes, reaches Lmax, all levels between min and max present
+      advanced   — ≥3 nodes, reaches Lmax with exactly 1 missing intermediate level,
+                   OR reaches Lmax-1 (second-highest defined level)
+      developing — ≥3 nodes, everything else
+      started    — <3 nodes (not a full chain)
       lateral    — all nodes same type
     """
     types = [node_by_id[nid]["node_type"] for nid in path_nodes]
@@ -81,14 +89,28 @@ def _classify_chain(
     if len(set(types)) == 1:
         return "lateral"
 
+    chain_len = len(path_nodes)
+    if chain_len < 3:
+        return "started"
+
     max_l = max(levels)
     if max_l >= max_level:
-        return "full"
+        # Reaches terminal — check for missing intermediate levels
+        min_l = min(levels)
+        expected = set(range(min_l, max_l + 1))
+        present = set(levels)
+        missing = expected - present
+        if len(missing) == 0:
+            return "full"
+        elif len(missing) == 1:
+            return "advanced"
+        else:
+            return "developing"
+
     if num_tiers >= 3 and max_l >= sorted_levels_desc[1]:
         return "advanced"
-    if num_tiers >= 4 and max_l >= sorted_levels_desc[2]:
-        return "developing"
-    return "started"
+
+    return "developing"
 
 
 def _tier_descriptions(
@@ -105,12 +127,12 @@ def _tier_descriptions(
         return " / ".join(types_by_level.get(level, ["?"]))
 
     descs: dict[str, str] = {}
-    descs["full"] = f"Reaches {_names(sorted_levels_desc[0])}"
+    descs["full"] = f"Reaches {_names(sorted_levels_desc[0])} — complete chain, no missing levels"
     if num_tiers >= 3:
-        descs["advanced"] = f"Reaches {_names(sorted_levels_desc[1])}, not terminal"
+        descs["advanced"] = f"Reaches {_names(sorted_levels_desc[0])} (with one gap) or {_names(sorted_levels_desc[1])}"
     if num_tiers >= 4:
-        descs["developing"] = f"Reaches {_names(sorted_levels_desc[2])}"
-    descs["started"] = "Lower-level nodes only, terminal not reached"
+        descs["developing"] = f"Mid-level progression, terminal not reached"
+    descs["started"] = "Incomplete — fewer than 3 nodes"
     return descs
 
 
@@ -175,6 +197,58 @@ def _check_coverage(data: dict, utt_to_turn: dict) -> None:
         )
 
 
+def _edge_passes(
+    src_id: str,
+    tgt_id: str,
+    rule: list[list[str]] | str | None,
+    active_nodes: dict[str, dict],
+    node_levels: dict[str, int],
+) -> tuple[bool, bool]:
+    """Check whether an edge passes the chain rule.
+
+    Args:
+        src_id, tgt_id: source and target node IDs
+        rule: chain rule — None, str direction, or list of type pairs
+        active_nodes: node_id → node dict (for node_type lookup)
+        node_levels: node_type → ontology level
+
+    Returns:
+        (passes, use_reversed) — use_reversed=True means src↔tgt should be swapped
+        for traversal and the edge flagged as reversed.
+    """
+    src_type = active_nodes[src_id]["node_type"]
+    tgt_type = active_nodes[tgt_id]["node_type"]
+    src_level = node_levels.get(src_type)
+    tgt_level = node_levels.get(tgt_type)
+
+    # Old type-pair allowlist (backward compat)
+    if isinstance(rule, list):
+        return ([src_type, tgt_type] in rule, False)
+
+    # Unconstrained or None
+    if rule is None or rule == "unconstrained":
+        return (True, False)
+
+    # Reverse: flip direction, include if upward after reversal
+    if rule == "reverse":
+        if src_level is None or tgt_level is None:
+            return (False, False)
+        if src_level > tgt_level:
+            return (True, True)  # valid reversal
+        return (False, False)
+
+    # Direction-based rules require level info
+    if src_level is None or tgt_level is None:
+        return (False, False)
+
+    if rule == "upward":
+        return (src_level < tgt_level, False)
+    if rule == "upward_or_lateral":
+        return (src_level <= tgt_level, False)
+
+    return (False, False)
+
+
 def _edge_min_turn(edge: dict, utt_to_turn: dict) -> int | None:
     turns_seen = [
         utt_to_turn[u] for u in edge.get("source_utterance_ids", []) if u in utt_to_turn
@@ -189,13 +263,17 @@ def _edge_min_turn(edge: dict, utt_to_turn: dict) -> int | None:
 def _walk_chains(
     edges: list[dict],
     node_by_id: dict[str, dict],
-    chain_rules: dict[str, list[list[str]] | None],
+    chain_rules: dict[str, list[list[str]] | str | None],
+    node_levels: dict[str, int],
 ) -> list[tuple[list[str], list[dict]]]:
     """Return maximal paths of length >= 2 using edge types defined in chain_rules.
 
-    For each edge type:
-      - None  → traverse all edges of that type (unconstrained)
-      - [...]  → only traverse edges whose src/tgt node types appear in the list
+    For each edge type rule:
+      - None / "unconstrained" → traverse all edges of that type
+      - "upward"              → only if src_level < tgt_level
+      - "upward_or_lateral"   → only if src_level <= tgt_level
+      - "reverse"             → flip src↔tgt, include if new src_level < new tgt_level
+      - [...] (list)          → old type-pair allowlist (backward compat)
 
     Superseded nodes and revises edges are always excluded.
     Maximal = drop any path that is a strict prefix of another.
@@ -210,13 +288,19 @@ def _walk_chains(
         s, t = e["source_node_id"], e["target_node_id"]
         if s not in active_nodes or t not in active_nodes:
             continue
-        permitted = chain_rules[edge_type]
-        if permitted is not None:
-            src_type = active_nodes[s]["node_type"]
-            tgt_type = active_nodes[t]["node_type"]
-            if [src_type, tgt_type] not in permitted:
-                continue
-        adj[s].append((t, e))
+        rule = chain_rules[edge_type]
+        passes, use_reversed = _edge_passes(s, t, rule, active_nodes, node_levels)
+        if not passes:
+            continue
+        if use_reversed:
+            # Clone edge with swapped source/target and _reversed flag
+            rev_edge = dict(e)
+            rev_edge["source_node_id"] = t
+            rev_edge["target_node_id"] = s
+            rev_edge["_reversed"] = True
+            adj[t].append((s, rev_edge))
+        else:
+            adj[s].append((t, e))
 
     incoming: dict[str, int] = defaultdict(int)
     for s, outs in adj.items():
@@ -286,10 +370,17 @@ def _render_chain(
         src = node_by_id[e["source_node_id"]]
         tgt = node_by_id[e["target_node_id"]]
         t = _edge_min_turn(e, utt_to_turn)
+        # KGEdge has no source_quotes field (only KGNode does).
+        # Derive edge evidence from the connected nodes' verbatim quotes.
         quotes = e.get("source_quotes", []) or []
+        if not quotes:
+            quotes = (src.get("source_quotes", []) or []) + (
+                tgt.get("source_quotes", []) or []
+            )
         quote = quotes[0] if quotes else "(no quote)"
+        reversed_mark = " (reversed)" if e.get("_reversed") else ""
         lines.append(
-            f'- `{src["label"]} → {tgt["label"]}` [{e["edge_type"]}] (t={t or "?"}): _"{quote}"_'
+            f'- `{src["label"]} → {tgt["label"]}` [{e["edge_type"]}{reversed_mark}] (t={t or "?"}): _"{quote}"_'
         )
     lines.append("")
     return "\n".join(lines)
@@ -354,8 +445,8 @@ def generate_causal_chains(
         surf_paths = can_paths = []
         no_levels_note = True
     else:
-        surf_paths = _walk_chains(surface_edges, surface_by_id, chain_rules)
-        can_paths = _walk_chains(canon_edges, canon_by_id, chain_rules)
+        surf_paths = _walk_chains(surface_edges, surface_by_id, chain_rules, node_levels)
+        can_paths = _walk_chains(canon_edges, canon_by_id, chain_rules, node_levels)
         no_levels_note = False
 
     surf_by_tier: dict[str, list] = defaultdict(list)
@@ -429,11 +520,13 @@ def generate_causal_chains(
 - **Chain edge types**: {", ".join(chain_edge_types)}
 - **Permitted connections**:
 """
-    for edge_name, permitted in chain_rules.items():
-        if permitted is None:
+    for edge_name, rule in chain_rules.items():
+        if rule is None or rule == "unconstrained":
             md += f"  - `{edge_name}`: unconstrained\n"
+        elif isinstance(rule, list):
+            md += f"  - `{edge_name}`: {len(rule)} permitted pairs (legacy type-pair)\n"
         else:
-            md += f"  - `{edge_name}`: {len(permitted)} permitted pairs\n"
+            md += f"  - `{edge_name}`: {rule}\n"
 
     md += f"""- **Superseded nodes excluded**: {superseded_count}
 - **Revises edges excluded from traversal**: {rev_count_surface + rev_count_canon}
@@ -468,10 +561,10 @@ def generate_causal_chains(
 
         for tier in active_tiers:
             heading = {
-                "full": "Full chains — complete narrative arc",
-                "advanced": "Advanced chains — near-terminal",
+                "full": "Full chains — complete, no missing levels",
+                "advanced": "Advanced chains — near-complete (one gap) or near-terminal",
                 "developing": "Developing chains — mid-level progression",
-                "started": "Started chains — lower-level only",
+                "started": "Started — fewer than 3 nodes",
             }[tier]
             md += f"## {heading}\n\n"
             for i, (pn, pe) in enumerate(surf_by_tier.get(tier, []), 1):

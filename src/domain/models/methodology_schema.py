@@ -262,11 +262,13 @@ class MethodologySchema(BaseModel):
         result = {}
         if self.ontology:
             for nt in self.ontology.nodes:
+                level_prefix = f"[L{nt.level}] " if nt.level is not None else ""
+                terminal_suffix = " [TERMINAL — end of chain]" if nt.terminal else ""
                 examples = ", ".join(f"'{e}'" for e in nt.examples[:3])
                 desc = (
-                    f"{nt.description} (e.g., {examples})"
+                    f"{level_prefix}{nt.description}{terminal_suffix} (e.g., {examples})"
                     if examples
-                    else nt.description
+                    else f"{level_prefix}{nt.description}{terminal_suffix}"
                 )
                 if nt.non_attribute_examples:
                     not_examples = "; ".join(nt.non_attribute_examples[:3])

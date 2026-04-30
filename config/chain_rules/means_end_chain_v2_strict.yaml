@@ -1,2 +1,10 @@
+# Chain rules for MEC V2 Strict (5-level ontology)
+#
+# Direction-based format (April 2026).
+# leads_to is the sole chain-relevant edge type for MEC.
+# Unconstrained — all leads_to edges pass regardless of node-type pair.
+# Extraction-level filtering via permitted_connections in methodology YAML
+# provides the structural constraints.
+
 chain_edges:
-  leads_to: ~   # null = unconstrained; graph was already constrained at extraction
+  leads_to: unconstrained
