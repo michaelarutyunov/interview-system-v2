@@ -13,14 +13,14 @@
 #   both CIT and MEC are laddering instruments. We add two CIT-specific
 #   conversation-level strategies:
 #     - elicit_narrative: opens new stories, replaces the old elicit_incident
-#     - validate: confirms the narrative arc end-to-end
+#     - close: confirms the narrative arc end-to-end
 #
 #   Key differences from MEC strict:
 #     - score_threshold 0.10 (lower than MEC's 0.15) — CIT tolerates more
 #       incompleteness; incident+behavior is useful without interpretation
 #     - No branching_deficit strategy — CIT narratives are sequential chains,
 #       not branching attribute trees
-#     - validate has heavy late-phase gating (-3.0 early/mid)
+#     - close has heavy late-phase gating (-3.0 early/mid)
 #
 # Ontology is IDENTICAL to legacy — same nodes, edges, examples, descriptions.
 # Only strategies and signals change.
@@ -322,6 +322,8 @@ strategies:
       convgraph.node.llm.elaboration.low: 0.05
       # Mild repetition penalty
       interview.strategy.self_count: -0.15
+      meta.saturation.conversation.high: -0.40
+      meta.saturation.canonical.high: -0.30
 
   # Strategy 4: Bridge — fill gaps where respondent skips narrative levels
   # e.g., jumps from incident directly to learning without describing what happened.
@@ -355,6 +357,8 @@ strategies:
       convgraph.node.exhaustion: -0.2
       # Mild repetition penalty
       interview.strategy.self_count: -0.15
+      meta.saturation.conversation.high: -0.40
+      meta.saturation.canonical.high: -0.30
 
   # Strategy 6: Revitalize — conversation-level fallback for fatigue
   # Shift to a new incident when current narrative is exhausted.
@@ -363,60 +367,29 @@ strategies:
     node_binding: none
     description: "Shift to a fresh incident or new angle when the current narrative is exhausted or respondent shows fatigue"
     signal_weights:
-      # Fatigue detection triggers
-      response.semantic.llm.engagement.trend.fatigued: 1.0
-      response.semantic.llm.engagement.trend.shallowing: 0.8
-      # Engagement & valence triggers
-      response.semantic.llm.engagement.low: 0.8
-      response.semantic.llm.engagement.mid: 0.4
-      response.semantic.llm.engagement.high: -0.4
-      # f965: valence.low (0.5) + intellectual_engagement.low × 0.5 (0.1) → charge.negative 0.6
-      convgraph.node.llm.charge.negative: 0.6
-      # f965: specificity.low (-0.2) + intellectual_engagement.low × 0.5 (0.1) → elaboration.low -0.1
-      convgraph.node.llm.elaboration.low: -0.1
-      # Phase 4.2: FLIPPED from +0.15 to -0.5 (escape valve to brake, matching JTBD fix)
-      interview.strategy.self_count: -0.5
-      # Phase gate — suppress in late phase so validate/ascend dominate
-      interview.phase.late: -0.5
-      # Node-level — seek fresh territory
-      convgraph.node.focus.streak.none: 0.8
-      convgraph.node.focus.streak.medium: -0.4
-      convgraph.node.focus.streak.high: -0.7
-      convgraph.node.exhaustion.low: 0.5
-      convgraph.node.novelty.high: 0.4
-      convgraph.node.focus.count.high: -0.6
-      convgraph.node.focus.count.medium: -0.3
-      convgraph.node.focus.count.none: 0.3
+      # Engagement domain — revitalize owns engagement signals exclusively
+      response.semantic.llm.engagement.low: 0.50
+      response.semantic.llm.engagement.trend.shallowing: 0.30
+      response.semantic.llm.engagement.trend.fatigued: 0.80
+      # Saturation — don't re-engage if conversation is saturated
+      meta.saturation.conversation: -0.40
+      meta.saturation.canonical: -0.40
+      # Brake
+      interview.strategy.self_count: -0.50
 
-  # Strategy 7: Validate — confirm the story and its meaning
+  # Strategy 7: Close — confirm the story and its meaning
   # Summarizes the full narrative arc (incident → outcome → learning).
-  # Heavy late-phase gate prevents premature validation.
-  - name: validate
+  # Heavy late-phase gate prevents premature closing.
+  - name: close
     node_binding: none
     generates_closing_question: true
     focus_mode: summary
-    description: "Summarize the incident narrative — key events, emotions, attributions, and takeaways — and invite correction or addition"
+    description: "Wrap up the interview by summarizing and confirming the key insights captured"
     signal_weights:
-      # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
-      convgraph.node.llm.elaboration.high: 0.3
-      convgraph.node.llm.elaboration.mid: 0.2
-      # Certainty — uncertainty triggers validation (confirm understanding)
-      response.semantic.llm.certainty.low: 0.8
-      response.semantic.llm.certainty.mid: 0.6
-      # Engagement — low engagement = validate and wrap
-      response.semantic.llm.engagement.low: 0.6
-      # Diversity — lighter penalty, OK to repeat validation
-      interview.strategy.self_count: -0.5
-      interview.strategy.self_count.high: 0
-      # Node-level — prefer well-connected nodes (enough context)
-      convgraph.node.has_outgoing.true: 0.7
-      convgraph.node.focus.streak.high: 0.4
-      # Saturation supports validation
-      meta.saturation.conversation: 0.3
-      meta.saturation.canonical: 0.2
-      # HEAVY early/mid phase gates — validate is a late-phase strategy
-      interview.phase.early: -3.0
-      interview.phase.mid: -3.0
+      interview.phase.late: 0.80       # Primary positive trigger (fires on last turn)
+      interview.phase.early: -3.0      # Suppress in early phase
+      interview.phase.mid: -3.0        # Suppress in mid phase
+      interview.strategy.self_count: -0.50  # Light brake
 
 chain_completion:
   expected_branching:
@@ -441,7 +414,7 @@ phases:
       ascend: 1.0
       bridge: 0.8
       revitalize: 1.0
-      validate: 0.0          # Heavily gated by signal weight (-3.0)
+      close: 0.0          # Heavily gated by signal weight (-3.0)
     phase_bonuses:
       elicit_narrative: 0.2  # Ensure story elicitation fires even with zero base
 
@@ -454,12 +427,12 @@ phases:
       elicit_narrative: 0.8  # Can still elicit contrasting incidents
       anchor: 1.0
       revitalize: 1.0
-      validate: 0.0          # Heavily gated by signal weight (-3.0)
+      close: 0.0          # Heavily gated by signal weight (-3.0)
 
   late:
-    description: "Synthesize — validate the narrative, confirm learnings"
+    description: "Synthesize — close the narrative, confirm learnings"
     signal_weights:
-      validate: 1.5
+      close: 1.5
       ascend: 1.2
       bridge: 1.2
       elicit_narrative: 0.7   # T2 + Critique: boosted from 0.5 to ensure narrative strategies can fire in late phase
@@ -467,6 +440,6 @@ phases:
       anchor: 0.7
       revitalize: 1.0
     phase_bonuses:
-      validate: 0.3          # Ensure validation closes the interview
+      close: 0.3          # Ensure closing closes the interview
       elicit_narrative: 0.2  # T2 + Critique: ensure narrative elicitation stays competitive in late phase
       revitalize: 0.2

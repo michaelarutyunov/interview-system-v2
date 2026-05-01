@@ -182,31 +182,15 @@ strategies:
     node_binding: none
     description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
     signal_weights:
-      # Fatigue detection triggers
-      response.semantic.llm.engagement.trend.fatigued: 1.0
-      response.semantic.llm.engagement.trend.shallowing: 0.8
-      # Engagement (kept global) triggers
-      response.semantic.llm.engagement.low: 0.8
-      response.semantic.llm.engagement.mid: 0.4
-      response.semantic.llm.engagement.high: -0.4
-      # f965 migration:
-      #   valence.low (0.5) + intellectual_engagement.low × 0.5 (0.1) → charge.negative 0.6
-      #   specificity.low (-0.2) + intellectual_engagement.low × 0.5 (0.1) → elaboration.low -0.1
-      convgraph.node.llm.charge.negative: 0.6
-      convgraph.node.llm.elaboration.low: -0.1
-      # Repetition escape valve — phase-gated via multipliers
-      interview.strategy.self_count: 0.15
-      # Suppress revitalize floor in late phase
-      interview.phase.late: -0.5
-      # Node-level signals — drive toward fresh, unexplored territory
-      convgraph.node.focus.streak.none: 0.8
-      convgraph.node.focus.streak.medium: -0.4
-      convgraph.node.focus.streak.high: -0.7
-      convgraph.node.exhaustion.low: 0.5
-      convgraph.node.novelty.high: 0.4
-      convgraph.node.focus.count.high: -0.6
-      convgraph.node.focus.count.medium: -0.3
-      convgraph.node.focus.count.none: 0.3
+      # Engagement domain — revitalize owns engagement signals exclusively
+      response.semantic.llm.engagement.low: 0.50
+      response.semantic.llm.engagement.trend.shallowing: 0.30
+      response.semantic.llm.engagement.trend.fatigued: 0.80
+      # Saturation — don't re-engage if conversation is saturated
+      meta.saturation.conversation: -0.40
+      meta.saturation.canonical: -0.40
+      # Brake
+      interview.strategy.self_count: -0.50
 
   # Strategy 2: Ascend — extend incomplete chain upward toward terminal values
   - name: ascend
@@ -249,6 +233,8 @@ strategies:
       interview.strategy.self_count: -0.15
       convgraph.node.chain.has_attribute_foundation.false: 0.4
       convgraph.node.chain.has_attribute_foundation.true: -0.2
+      meta.saturation.conversation.high: -0.40
+      meta.saturation.canonical.high: -0.30
 
   # Strategy 4: Bridge — fill missing intermediate level in a skipped chain
   # NOTE: Bridge fires more often in flex than strict because flex allows
@@ -297,6 +283,8 @@ strategies:
       convgraph.node.recency: 0.2
       convgraph.node.exhaustion: -0.2
       interview.strategy.self_count: -0.15
+      meta.saturation.conversation.high: -0.40
+      meta.saturation.canonical.high: -0.30
 
 chain_completion:
   expected_branching:

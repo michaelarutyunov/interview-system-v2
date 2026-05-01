@@ -35,8 +35,8 @@ build/
 # Cache
 .beads/*
 .codegraph/*
-.serena/*
-.ruff_cache/*
+.serena/**/*
+.ruff_cache/**/*
 .streamlit/*
 
 # .claude
@@ -54,8 +54,10 @@ docs/archive/
 docs/concepts/
 docs/drafts/
 docs/plans/
+docs/screenshots/
 docs/specs/
 docs/superpowers/
+data/*
 arch_queries.md
 commands.md
 logs/

@@ -142,7 +142,7 @@ All active methodologies live in `config/methodologies/`. Retired configs are in
 |---|---|---|---|---|
 | `means_end_chain_v2_strict.yaml` | 7 | ascend, ground, bridge, branch, anchor | 0.15 | 5-level hierarchy |
 | `means_end_chain_v2_flex.yaml` | 7 | Same as strict | 0.15 | Same hierarchy, no permitted_connections |
-| `jobs_to_be_done_v2.yaml` | 7 | *none* (removed April 2026) | 0.05 | 5-level chain (context/trigger → pain/gain → job → emotional/social → solution) |
+| `jobs_to_be_done_v2.yaml` | 6 | *none* (removed April 2026) | 0.05 | 5-level chain (context/trigger → pain/gain → job → emotional/social → solution). `surface_tension` (node-bound, uncertainty domain) replaced `elaborate`. `close` (conversation-level) replaced `validate`. |
 | `critical_incident_v2.yaml` | 7 | ascend, ground, bridge, anchor | 0.10 | 5-level narrative hierarchy |
 | `customer_journey_mapping_v2.yaml` | 8 | anchor only | 0.05 | Flat (no chain topology signals) |
 | `repertory_grid_v2.yaml` | 8 | explore_construct, anchor | 0.03 | Flat dimensional (no chain topology) |
@@ -176,7 +176,44 @@ from MEC YAMLs. The default fallback strategy in code is now `ascend` (was
 | `branch` | `required` | `convgraph.node.chain.branching_deficit` | Expand breadth where methodology expects more siblings |
 | `anchor` | `required` | `convgraph.node.is_orphan` | Connect isolated nodes to existing graph structure |
 | `revitalize` | `none` | *(none)* | Conversation-level fallback for fatigue/disengagement |
-| `validate` | `none` | *(none)* | Late-phase closing strategy — generates closing question |
+| `close` | `none` | *(none)* | Late-phase closing strategy — generates closing question |
+
+### Conversation-Level Strategies (`node_binding: none`)
+
+Strategies with `node_binding: none` are conversation-level — they operate on the
+interview as a whole rather than targeting a specific graph node. Their node-scoped
+signal weights are stripped before scoring (`partition_signal_weights()` routes
+`convgraph.node.*` weights to the node pool which is never queried for
+`node_binding: none` candidates).
+
+**Architecture (April 2026 redesign):**
+
+| Strategy | Signal Domain | Primary Signals | Purpose |
+|----------|-------------|-----------------|---------|
+| `close` | Phase | `phase.late` (0.80), `phase.early/mid` (-3.0 suppressors) | Wrap up interview on last turn |
+| `revitalize` | Engagement | `engagement.low` (0.50), `engagement.trend.shallowing` (0.30), `engagement.trend.fatigued` (0.80) | Re-engage fatigued respondent — same topic, fresh lens |
+| `surface_tension` | Uncertainty | `elaboration.low` (0.60 node), `certainty.low` (0.80 global) | Probe the tension behind vague/uncertain answers — node-bound, uses standard question path |
+
+**Signal domain exclusivity**: Each conversation-level strategy owns its signal
+domain. No signal appears in more than one strategy's weights. This prevents
+strategies from competing on the same triggers and ensures each strategy fires
+for a distinct reason:
+- `close` → phase signals only (last turn)
+- `revitalize` → engagement signals only
+- `surface_tension` → uncertainty signals only (certainty.*, elaboration.*)
+- Structural strategies (ascend, ground, anchor) → chain topology signals only
+
+**Question generation routing**: `QuestionGenerationStage` checks
+`strategy_config.node_binding`. Strategies with `node_binding: none` route to
+`QuestionService.generate_conversation_level_question()` with strategy-specific
+Haiku-friendly prompts that do NOT require a `focus_concept`. Node-bound
+strategies continue through the existing `generate_question()` path.
+
+**Fixator pattern mitigation**: `meta.saturation.conversation.high` and
+`meta.saturation.canonical.high` are suppressors on `ground` and `anchor`
+(-0.40 / -0.30). When the graph stalls (no new nodes, same content repeating),
+these suppressors reduce ground/anchor scores, letting `ascend` win and extend
+chains. No separate `shift_focus` strategy needed.
 
 ### `valid_when` Gate
 

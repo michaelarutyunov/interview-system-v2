@@ -88,48 +88,79 @@ class QuestionGenerationStage(TurnStage):
             # Keep within the last-5 window after any prepending
             updated_utterances = updated_utterances[-5:]
 
-            # Unpack focus concept — dict (new) or string (backward compat)
-            if isinstance(focus_raw, dict):
-                focus_concept = focus_raw.get("label", "")
-                focus_node_type = focus_raw.get("node_type")
+            # Check if this is a conversation-level strategy (node_binding: none)
+            is_conversation_level = False
+            try:
+                from src.methodologies import get_registry
+                registry = get_registry()
+                config = registry.get_methodology(context.methodology)
+                strategy_config = next(
+                    (s for s in config.strategies if s.name == strategy), None
+                )
+                if strategy_config and strategy_config.node_binding == "none":
+                    is_conversation_level = True
+            except Exception:
+                pass
+
+            if is_conversation_level:
+                # Conversation-level strategies don't need a focus node.
+                # Use a dedicated Haiku-friendly prompt path.
+                focus_concept = None
+                if isinstance(focus_raw, dict):
+                    focus_concept = focus_raw.get("label", "")
+                elif isinstance(focus_raw, str) and focus_raw:
+                    focus_concept = focus_raw
+
+                next_question = await self.question.generate_conversation_level_question(
+                    strategy=strategy,
+                    recent_utterances=updated_utterances,
+                    topic=context.concept_name,
+                    focus_node_label=focus_concept or None,
+                )
             else:
-                focus_concept = focus_raw or ""
-                focus_node_type = None
+                # Node-bound strategies use the existing focus-concept-driven path.
+                # Unpack focus concept — dict (new) or string (backward compat)
+                if isinstance(focus_raw, dict):
+                    focus_concept = focus_raw.get("label", "")
+                    focus_node_type = focus_raw.get("node_type")
+                else:
+                    focus_concept = focus_raw or ""
+                    focus_node_type = None
 
-            # Look up ontology level for the focus node type
-            focus_node_level = None
-            if focus_node_type:
-                try:
-                    from src.core.schema_loader import load_methodology
-                    schema = load_methodology(context.methodology)
-                    focus_node_level = schema.get_level_for_node_type(focus_node_type)
-                except Exception:
-                    pass
+                # Look up ontology level for the focus node type
+                focus_node_level = None
+                if focus_node_type:
+                    try:
+                        from src.core.schema_loader import load_methodology
+                        schema = load_methodology(context.methodology)
+                        focus_node_level = schema.get_level_for_node_type(focus_node_type)
+                    except Exception:
+                        pass
 
-            # Build signal descriptions from active signals
-            signal_descriptions = None
-            if context.signals:
-                from src.signals.signal_base import SignalDetector
+                # Build signal descriptions from active signals
+                signal_descriptions = None
+                if context.signals:
+                    from src.signals.signal_base import SignalDetector
 
-                registry = SignalDetector.get_registered_signals()
-                signal_descriptions = {
-                    name: cls.description
-                    for name, cls in registry.items()
-                    if name in context.signals
-                }
+                    registry_sig = SignalDetector.get_registered_signals()
+                    signal_descriptions = {
+                        name: cls.description
+                        for name, cls in registry_sig.items()
+                        if name in context.signals
+                    }
 
-            next_question = await self.question.generate_question(
-                focus_concept=focus_concept,
-                recent_utterances=updated_utterances,
-                graph_state=context.graph_state,
-                recent_nodes=context.recent_nodes,
-                strategy=strategy,
-                topic=context.concept_name,  # Anchor questions to research topic
-                focus_node_type=focus_node_type,
-                focus_node_level=focus_node_level,
-                signals=context.signals,
-                signal_descriptions=signal_descriptions or None,
-            )
+                next_question = await self.question.generate_question(
+                    focus_concept=focus_concept,
+                    recent_utterances=updated_utterances,
+                    graph_state=context.graph_state,
+                    recent_nodes=context.recent_nodes,
+                    strategy=strategy,
+                    topic=context.concept_name,
+                    focus_node_type=focus_node_type,
+                    focus_node_level=focus_node_level,
+                    signals=context.signals,
+                    signal_descriptions=signal_descriptions or None,
+                )
         else:
             next_question = "Thank you for sharing your thoughts with me today. This has been very helpful."
 

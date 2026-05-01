@@ -16,6 +16,13 @@ An export folder: `reports/interviews/<timestamp>/`
 - `01_transcript.md` — Q&A with strategies and focus nodes
 - `02_causal_chains.md` — chain extraction with tier classification
 - `04_scoring_summary.md` — aggregated signal tables
+- `config/methodologies/<methodology>.yaml` — strategy definitions, node_binding, focus_mode, phases, ontology
+
+**Context docs (reference, not re-read every time):**
+- `.claude/context/canonical-slots.md` — canonical chain expectations (sparse by design)
+- `.claude/context/chain-rules.md` — chain tier definitions and methodology-specific rules
+- `.claude/context/strategy-scoring.md` — signal weight routing, node_binding behavior
+- `.claude/context/pipeline-contracts.md` — stage contracts, focus_concept flow
 
 **Optional files (enrich analysis if present):**
 - `03_graph.mmd` — graph visualization
@@ -49,9 +56,17 @@ ls -td reports/interviews/*/ | head -1
 ### Step 1 — Load context
 
 Read `00_meta.yaml` to understand:
-- Methodology (MEC/JTBD/CIT/RG/CJM)
+- Methodology name (e.g., `jobs_to_be_done_v2`) — this determines which YAML to read
 - Concept and persona
 - Total turns and status
+
+**Read the methodology YAML** (`config/methodologies/<methodology>.yaml`) to discover:
+- **Strategy names and descriptions** — the actual strategy set for this methodology (do NOT assume MEC strategies like `ascend`/`ground`/`bridge` for non-MEC methods)
+- **`node_binding`** per strategy (`required` vs `none`) — strategies with `node_binding: none` are conversation-level, not node-bound; they may have empty focus concepts by design
+- **`focus_mode`** per strategy (`recent_node`, `summary`, `topic`) — determines how focus is resolved
+- **`generates_closing_question`** — strategies that end the interview (e.g., `validate`)
+- **Phase signal weights** (`phases.early/mid/late.signal_weights`) — which strategies get phase multipliers and when
+- **Ontology node types and levels** — the expected chain structure (terminal types, level ordering)
 
 Read `01_transcript.md` for the full Q&A.
 
@@ -65,17 +80,11 @@ For each turn, assess:
 
 **Followership**: Does the interviewer follow the respondent's thread?
 
-**Naturalness**: Are transitions smooth? Conversation vs. survey feel.
+**Naturalness**: Are transitions smooth? Conversation vs. survey feel. **Critical check**: Does the question contain meta-language about the system state ("concept field", "focus node", "cannot generate")? If yes → `system_state_leak` — the LLM received bad input and improvised a meta-response.
 
 **Leading**: Does phrasing suggest the expected answer?
 
-**Strategy-intent fit**: Does the question match the selected strategy's purpose?
-- `ascend` → probe upward (why does this matter?)
-- `ground` → probe downward (what specifically?)
-- `bridge` → connect levels
-- `branch` → explore alternatives
-- `anchor` → attach orphan nodes
-- `revitalize` → re-engage (not introduce new topics)
+**Strategy-intent fit**: Does the question match the selected strategy's purpose? Use the strategy `description` from the methodology YAML (discovered in Step 1) as the ground truth for what each strategy is supposed to do. Do NOT use hardcoded MEC strategy definitions — each methodology defines its own strategy purposes.
 
 **Contradiction handling**: When the respondent contradicts themselves across turns, does the next question acknowledge it? If not → flag `missed_contradiction`.
 
@@ -105,8 +114,10 @@ Strengths:
 
 For each turn with a focus node, cross-reference:
 1. Does the question reference or build from the focus node's concept?
-2. Given the strategy's intent, does the question plausibly execute it on that node?
+2. Given the strategy's intent (from methodology YAML description), does the question plausibly execute it on that node?
 3. Does the question pivot to unrelated content from the respondent's answer?
+
+**Special handling for `node_binding: none` strategies**: These strategies (check methodology YAML) are conversation-level — they don't target a specific node. An empty or generic focus concept is expected. Assess whether the question fulfills the strategy's described purpose given the full conversation context, not whether it targets a specific node.
 
 Output format:
 ```
@@ -116,36 +127,34 @@ Fidelity Rate: [N/M turns faithful] — [acceptable/concern]
 
 Mismatches:
 - Turn N [strategy]: focus_node="X" but question probes "Y"
-  → Likely cause: [LLM attended to tangential content / question generator drift]
+  → Likely cause: [LLM attended to tangential content / question generator drift / empty focus concept for node-bound strategy]
   → Fix: src/llm/prompts/ [specific prompt file]
 
 High-Fidelity Turns:
 - Turn N [strategy]: focus_node="X", question cleanly builds from "X"
 ```
 
-**Diagnostic rule**: Fidelity rate < 70% → issue is in question generation, not signal tuning.
+**Diagnostic rule**: Fidelity rate < 70% → issue is in question generation, not signal tuning. However, exclude `node_binding: none` turns from the fidelity rate if they had no focus node by design.
 
 ### Step 4 — Strategy Assessment (Section 3)
 
-From `04_scoring_summary.md`:
+From `04_scoring_summary.md` and the methodology YAML (discovered in Step 1):
 
-**Distribution**: Any strategy > 50% of turns = monotony risk.
+**Distribution**: Use the actual strategy names from the methodology YAML. Any strategy > 50% of turns = monotony risk. Note strategies that never fired — cross-reference with their signal weights to check for dead signals.
 
 **Streaks**: Same strategy 4+ consecutive turns without penalty = stale.
 
-**Phase alignment** (check methodology YAML for boundaries and expected strategies):
-- MEC: `branch`/`ground`/`anchor` early → `ascend`/`bridge` mid → `ascend`/`revitalize` late
-- JTBD: `explore_situation` early → `dig_motivation`/`uncover_obstacles` mid → `validate_outcome` late
-- Read actual YAML for other methodologies
+**Phase alignment**: Check the methodology YAML's `phases` section for per-phase strategy multipliers. The transcript's turn-by-turn strategy list shows which strategies fired in each phase. Compare against the phase descriptions — e.g., early phase should prioritize breadth/grounding strategies, mid phase should prioritize depth/laddering strategies, late phase should prioritize validation/closing strategies. The specific strategy names and their phase-appropriate roles are defined in the methodology YAML.
+
+**`node_binding` awareness**: Strategies with `node_binding: none` (check YAML) are conversation-level — they compete on global signals only. Their node-scoped weights are stripped before scoring. If a `node_binding: none` strategy has `convgraph.node.*` weights, those weights are dead. Flag as `node_binding_mismatch`.
 
 **Score separation**: Top-2 scores within 0.30 consistently = near-random selection.
 
-**Methodology fidelity audit**:
-- **MEC**: At least one chain reaching instrumental/terminal value after 8+ turns? If `max_depth < 3` → `structural_failure`.
-- **CIT**: Concrete incident with situation/action/outcome? No depth ≥ 3 chain → `structural_failure`.
-- **RG**: At least one triadic comparison (3+ elements)? All dyadic → `structural_failure`.
-- **CJM**: At least 3 distinct journey stages? All in one stage → `structural_failure`.
-- **JTBD**: At least one emotional/social job? No terminal nodes after 8+ turns → `structural_failure`.
+**Methodology fidelity audit**: Use the ontology from the methodology YAML to determine what constitutes structural success:
+- Check the terminal node type(s) from the ontology (nodes with `terminal: true`)
+- After 8+ turns, at least one chain should reach a terminal node type
+- If the methodology has chain-aware strategies (check `valid_when` gates in YAML), verify those strategies fired at least once
+- If the methodology has flat ontology (no chain topology), laddering strategies are not expected — breadth strategies should dominate
 
 Output format:
 ```
@@ -154,15 +163,15 @@ Output format:
 Distribution: [aligned / issues]
 | Strategy | Count | % | Assessment |
 |----------|-------|---|------------|
-...
+... (use actual strategy names from methodology YAML)
 
 Phase Alignment: [aligned / misaligned]
-- [specific issues]
+- [specific issues, referencing phase weights from YAML]
 
 Score Separation: [healthy / unstable]
 
 Structural Fidelity: [pass / failure]
-- [methodology-specific finding]
+- [methodology-specific finding, referencing ontology from YAML]
 
 Anomalies:
 - [finding] → [module or config to investigate]
@@ -176,8 +185,8 @@ Read `02_causal_chains.md`. This is the core analysis — chains are the intervi
 
 From the Chain completeness summary table:
 - **Full chains** (reaching terminal node type) vs. total chains. Ratio < 20% after 8+ turns → `low_chain_completion`.
-- **Started-only chains**: Many started chains with no full chains = interviewer can't ladder. Cross-reference with strategy assessment — if `ascend` barely fired, that's the cause.
-- **Canonical vs. surface disparity**: If canonical has zero full chains but surface has several, dedup is collapsing meaningful variation. Flag as `over_aggressive_dedup`.
+- **Started-only chains**: Many started chains with no full chains = interviewer can't ladder. Cross-reference with strategy assessment — if laddering strategies barely fired, that's the cause.
+- **Canonical chains**: Per `.claude/context/canonical-slots.md`, canonical chains are expected to be sparse and incomplete — they aggregate surface edges through slot mappings, which is inherently lossy. Do NOT flag low canonical chain counts as an issue. Focus chain quality assessment exclusively on surface chains. Only mention canonical chains for cross-persona/multi-run analysis.
 
 #### 5b. Chain Meaningfulness
 
@@ -185,11 +194,7 @@ For each **full chain** (and the top 3 started chains by length), evaluate:
 
 **Semantic coherence**: Does the chain tell a coherent causal story? A chain like `sluggish afternoon → chose ZeroFizz → avoiding caffeine → feel less guilty → guilt-free indulgence` is coherent. A chain like `afternoon fatigue → chose ZeroFizz → chemical aftertaste` is incoherent (solution→pain_point going backwards).
 
-**Edge plausibility**: For each edge in the chain, does the stated relationship (`triggers`, `enables`, `supports`, `addresses`) match the semantic connection between source and target?
-- `triggers` should connect cause → effect
-- `enables` should connect enabler → enabled outcome
-- `addresses` should connect solution → problem it solves
-- Flag implausible edges as `misclassified_edge`.
+**Edge plausibility**: For each edge in the chain, does the stated relationship match the semantic connection between source and target? Use the edge type definitions from the methodology YAML's `ontology.edges` section as ground truth. Flag implausible edges as `misclassified_edge`.
 
 **Evidence grounding**: Does the chain have source quotes for its edges? All edges showing `(no quote)` = extraction produced relationships without textual evidence. Flag as `ungrounded_chain`. Rate:
 - Strong: all edges have supporting quotes that clearly substantiate the relationship
@@ -206,23 +211,20 @@ For each full chain, assess whether the insights could inform a product or marke
 
 **Leverage points**: Does the chain reveal where product or positioning changes could influence the outcome? A chain reaching `permission to pause and do nothing without guilt` reveals a ritual/permission job — actionable for positioning. A chain that ends at a generic emotional job with no behavioral anchor is not.
 
-**Competitive differentiation**: Does the chain reveal why this solution vs. alternatives? Chains involving `choosing ZeroFizz over plain water` or `avoiding coffee despite needing a pick-me-up` show competitive framing. Chains that only describe internal states without reference to alternatives don't.
+**Competitive differentiation**: Does the chain reveal why this solution vs. alternatives? Chains involving competitive framing show differentiation. Chains that only describe internal states without reference to alternatives don't.
 
 **Business insight summary**: Synthesize the chains into 2-4 distinct business insights. Each insight should be a one-sentence statement a product manager could act on, with the supporting chain(s) cited.
 
 #### 5d. Methodology-Specific Chain Checks
 
-Apply methodology-aware evaluation rules:
+Read the methodology YAML (discovered in Step 1) for the ontology structure. Apply evaluation rules based on the actual ontology levels and terminal node types, not hardcoded assumptions:
 
-- **MEC**: Full chains should follow attribute → functional consequence → psychosocial consequence → instrumental value → terminal value. A chain that skips levels (attribute → terminal value) is structurally valid but analytically thin — flag as `shortcut_chain`. Expected: at least 3 chains of depth ≥ 4 after 10+ turns.
+- **Chains should progress through ontology levels** toward the terminal node type(s). Check whether full chains reach terminal types.
+- **Chains that skip levels** are structurally valid but analytically thin — flag based on methodology expectations.
+- **Circular chains** (looping back to lower levels) indicate the interviewer is re-treading ground — flag as `circular_chain`.
+- **Shortcut chains** (jumping from L0 directly to terminal) indicate the laddering was too aggressive — flag as `shortcut_chain`.
 
-- **JTBD**: Full chains should connect job_trigger/pain_point → solution_approach → gain_point → emotional_job/social_job. Chains ending at gain_point without reaching emotional/social job = incomplete job understanding. Expected: at least 2 chains reaching emotional_job or social_job after 8+ turns. Chains that only connect pain_point → solution_approach → pain_point (circular) = `circular_chain`.
-
-- **CIT**: Full chains should represent incident → action → outcome narrative. Chains that don't include a concrete behavioral action = `no_incident_chain`. Expected: at least 1 chain with situation → behavior → consequence after 8+ turns.
-
-- **CJM**: Full chains should traverse multiple journey stages. Chains staying within one stage = `single_stage_chain`. Expected: at least 2 chains spanning 3+ journey stages.
-
-- **RG**: Full chains should show construct → implication relationships. Chains that only connect elements without revealing underlying constructs = `surface_comparison`. Expected: at least 1 chain revealing a latent construct.
+Derive expected counts from the methodology YAML's `chain_completion` section if present (e.g., `expected_branching`, `score_threshold`).
 
 Output format:
 ```
@@ -230,7 +232,6 @@ Output format:
 
 ### Structural Completeness
 - Full chains: [N/M] ([%]) — [sufficient / insufficient]
-- Surface vs. Canonical: [comment on dedup impact]
 - [flags if applicable]
 
 ### Chain-by-Chain Assessment
@@ -251,7 +252,7 @@ Output format:
 ...
 
 ### Methodology-Specific Assessment
-- [methodology-specific finding]
+- [methodology-specific finding, referencing ontology from YAML]
 - [flags: circular_chain, shortcut_chain, etc.]
 
 ### Orphan Analysis
@@ -288,7 +289,7 @@ Output format:
 
 ### Step 7 — Recommendations (Section 6)
 
-Consolidate all findings into prioritized fixes:
+Consolidate all findings into prioritized fixes. When pointing to a fix location, use the methodology YAML for config changes and reference relevant `.claude/context/` docs for subsystem context.
 
 ```
 ## 6. Actionable Recommendations
@@ -308,7 +309,9 @@ Consolidate all findings into prioritized fixes:
 ## Rules
 
 1. **No Python, no pandas, no CSV parsing.** All quantitative data comes from `04_scoring_summary.md` tables.
-2. **Read the methodology YAML** for phase boundaries and strategy names. Do not assume MEC strategy names for a JTBD interview.
-3. **Cross-reference transcript turns with scoring data.** The same turn appears in both `01_transcript.md` (qualitative) and `04_scoring_summary.md` (quantitative).
-4. **Be specific with fix pointers.** "Check config" is not enough — name the file and the key.
-5. **Flag structural failures loudly.** A MEC interview that never ladders is a methodology failure, not a minor tuning issue.
+2. **Read the methodology YAML first.** Before assessing any strategy, read `config/methodologies/<methodology>.yaml` to discover the actual strategy names, descriptions, `node_binding` settings, `focus_mode`, `generates_closing_question`, phase weights, and ontology structure. Never assume MEC strategy names for a non-MEC methodology.
+3. **Reference context docs for subsystem behavior.** `.claude/context/canonical-slots.md` governs canonical chain expectations. `.claude/context/chain-rules.md` governs chain tier definitions. `.claude/context/strategy-scoring.md` governs signal weight routing. When in doubt about subsystem behavior, check the context doc rather than inventing an assumption.
+4. **Cross-reference transcript turns with scoring data.** The same turn appears in both `01_transcript.md` (qualitative) and `04_scoring_summary.md` (quantitative).
+5. **Be specific with fix pointers.** "Check config" is not enough — name the file and the key. Use the methodology YAML for config changes, the relevant `.claude/context/` doc for subsystem context.
+6. **Flag structural failures loudly.** A methodology that never reaches its terminal node types is a structural failure, not a minor tuning issue.
+7. **`node_binding: none` strategies are different.** They don't target specific nodes. Empty/generic focus concepts are expected. Don't flag missing focus nodes for these strategies — flag whether the question fulfills the strategy's described purpose.

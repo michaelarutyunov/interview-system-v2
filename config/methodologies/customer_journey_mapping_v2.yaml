@@ -408,6 +408,8 @@ strategies:
       interview.strategy.self_count: -0.15
       # Novelty — fresh orphans are higher priority
       convgraph.node.novelty.high: 0.3
+      meta.saturation.conversation.high: -0.40
+      meta.saturation.canonical.high: -0.30
 
   # Strategy 7: Revitalize — conversation-level fallback for fatigue.
   # No gate — fires based on fatigue signals and engagement drop.
@@ -416,57 +418,29 @@ strategies:
     node_binding: none
     description: "Shift to an unexplored part of the journey or a fresh angle when the current section is exhausted or respondent shows fatigue."
     signal_weights:
-      # Fatigue detection triggers
-      response.semantic.llm.engagement.trend.fatigued: 1.0
-      response.semantic.llm.engagement.trend.shallowing: 0.8
-      # Engagement & valence triggers
-      response.semantic.llm.engagement.low: 0.8
-      response.semantic.llm.engagement.mid: 0.3
-      response.semantic.llm.engagement.high: -0.4               # High engagement = no need to revitalize
-      # f965: valence.low (0.4) → convgraph.node.llm.charge.negative
-      convgraph.node.llm.charge.negative: 0.4
-      # f965: specificity.low (-0.2) → convgraph.node.llm.elaboration.low
-      convgraph.node.llm.elaboration.low: -0.2
-      # Late phase suppression — allow other strategies to assert
-      interview.phase.late: -0.5
-      # Phase 4.2: FLIPPED from +0.15 to -0.5 (escape valve to brake, matching JTBD fix)
-      interview.strategy.self_count: -0.5
-      interview.strategy.turns_since_change: -0.5
-      # Node signals — seek unexplored journey sections
-      convgraph.node.focus.streak.none: 0.8        # Fresh focus = new territory
-      convgraph.node.focus.streak.medium: -0.4
-      convgraph.node.focus.streak.high: -0.7
-      convgraph.node.exhaustion.low: 0.5     # Fresh nodes = untapped territory
-      convgraph.node.novelty.high: 0.4
-      convgraph.node.focus.count.high: -0.6        # Over-probed = avoid
-      convgraph.node.focus.count.medium: -0.3
+      # Engagement domain — revitalize owns engagement signals exclusively
+      response.semantic.llm.engagement.low: 0.50
+      response.semantic.llm.engagement.trend.shallowing: 0.30
+      response.semantic.llm.engagement.trend.fatigued: 0.80
+      # Saturation — don't re-engage if conversation is saturated
+      meta.saturation.conversation: -0.40
+      meta.saturation.canonical: -0.40
+      # Brake
+      interview.strategy.self_count: -0.50
 
-  # Strategy 8: Validate — summarize the journey map and confirm understanding.
+  # Strategy 8: Close — summarize the journey map and confirm understanding.
   # Conversation-level, generates closing questions.
   # Heavy late-phase gate via phase_weights.
-  - name: validate
+  - name: close
     node_binding: none
-    focus_mode: summary
     generates_closing_question: true
-    description: "Summarize the journey map — stages, key touchpoints, emotional highs/lows, and friction points — and invite correction or addition."
+    focus_mode: summary
+    description: "Wrap up the interview by summarizing and confirming the key insights captured"
     signal_weights:
-      # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
-      convgraph.node.llm.elaboration.high: 0.3
-      convgraph.node.llm.elaboration.mid: 0.2
-      # Uncertainty triggers — validate when respondent is uncertain
-      response.semantic.llm.certainty.low: 0.8
-      response.semantic.llm.certainty.mid: 0.6
-      # Engagement — validate when engagement drops (confirm what we have)
-      response.semantic.llm.engagement.low: 0.6
-      # Connected nodes = enough structure to validate
-      convgraph.node.has_outgoing.true: 0.7
-      convgraph.node.focus.streak.high: 0.4        # Over-focused = good time to summarize
-      interview.focus.streak.low: 0.3
-      # Saturation triggers — validate when themes are exhausted
-      meta.saturation.conversation: 0.3
-      meta.saturation.canonical: 0.2
-      # Repetition — validate should not repeat
-      interview.strategy.self_count: -0.5
+      interview.phase.late: 0.80       # Primary positive trigger (fires on last turn)
+      interview.phase.early: -3.0      # Suppress in early phase
+      interview.phase.mid: -3.0        # Suppress in mid phase
+      interview.strategy.self_count: -0.50  # Light brake
 
 chain_completion:
   score_threshold: 0.05  # Barely meaningful for CJM — flat ontology has no chain depth to complete
@@ -482,7 +456,7 @@ phases:
       advance_stage: 0.6              # Allow stage transitions
       anchor: 1.0                     # Connect orphan touchpoints
       revitalize: 0.8
-      validate: 0.2                   # Minimal early validation
+      close: 0.2                   # Minimal early closing
     phase_bonuses:
       map_journey: 0.25               # Ensure journey mapping starts immediately
       anchor: 0.1                     # Slight bonus to connect early nodes
@@ -497,15 +471,15 @@ phases:
       map_journey: 0.7                # Can still fill journey gaps
       anchor: 0.8
       revitalize: 1.0
-      validate: 0.5
+      close: 0.5
     phase_bonuses:
       probe_friction: 0.2             # Ensure friction probing fires
       track_emotions: 0.1
 
   late:
-    description: "Synthesize — validate the map, fill gaps, confirm the emotional arc"
+    description: "Synthesize — close the map, fill gaps, confirm the emotional arc"
     signal_weights:
-      validate: 1.5                   # Close with validation
+      close: 1.5                   # Close with closing
       track_emotions: 1.0             # Final emotional curve confirmation
       probe_friction: 0.8             # Late friction discovery still valuable
       advance_stage: 0.6              # Wrap remaining stages
@@ -514,5 +488,5 @@ phases:
       anchor: 0.6
       revitalize: 1.2
     phase_bonuses:
-      validate: 0.25                  # Ensure validation closes the interview
+      close: 0.25                  # Ensure closing closes the interview
       track_emotions: 0.1             # Confirm the emotional arc

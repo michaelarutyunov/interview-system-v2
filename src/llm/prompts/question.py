@@ -174,21 +174,38 @@ def get_question_user_prompt(
         elif focus_node_level == max_level:
             level_info = f" (ontology level L{focus_node_level} — terminal, already at chain end)"
 
-    # Constraint — tells the LLM the focus concept is non-negotiable
-    if focus_node_type:
+    # Constraint — surface_tension uses a softer anchor framing because the goal
+    # is to name the respondent's uncertainty, not follow the concept's content thread.
+    if strategy == "surface_tension":
+        if focus_node_type:
+            prompt_parts.append(
+                f"Concept where hesitation was detected: \"{focus_concept}\" "
+                f"(type: {focus_node_type}){level_info}."
+            )
+        else:
+            prompt_parts.append(
+                f"Concept where hesitation was detected: \"{focus_concept}\"."
+            )
         prompt_parts.append(
-            f"Your question MUST be about this concept: \"{focus_concept}\" "
-            f"(type: {focus_node_type}){level_info}."
+            "The respondent showed uncertainty about this concept. "
+            "Use their last answer to find the specific hedging language — "
+            "your question must name THAT hesitation, not follow the content thread."
         )
     else:
+        if focus_node_type:
+            prompt_parts.append(
+                f"Your question MUST be about this concept: \"{focus_concept}\" "
+                f"(type: {focus_node_type}){level_info}."
+            )
+        else:
+            prompt_parts.append(
+                f"Your question MUST be about this concept: \"{focus_concept}\"."
+            )
         prompt_parts.append(
-            f"Your question MUST be about this concept: \"{focus_concept}\"."
+            "The respondent's answer below provides context — use it to phrase "
+            "the question naturally, but the question's primary subject must be "
+            "the focus concept above."
         )
-    prompt_parts.append(
-        "The respondent's answer below provides context — use it to phrase "
-        "the question naturally, but the question's primary subject must be "
-        "the focus concept above."
-    )
     prompt_parts.append(f"Strategy: {strat_name} — {strat_description}")
     prompt_parts.append("")
 
@@ -243,11 +260,27 @@ def get_question_user_prompt(
         )
         prompt_parts.append("")
 
+    if strategy == "surface_tension":
+        prompt_parts.append(
+            "TENSION PROBE: Look at the respondent's last answer for hedging language "
+            "('I guess', 'I'm not sure', 'maybe', 'or actually', 'does that make sense?', "
+            "contradictions, trailing off, self-corrections). "
+            "Your question must echo that specific uncertainty back — name what is hard to articulate. "
+            "BAD: 'How does that feeling change your day?' "
+            "GOOD: 'You kept saying \"I'm not sure\" — what makes this hard to pin down?'"
+        )
+        prompt_parts.append("")
+
     # ── Final instruction (recency — reinforces focus constraint) ──
 
-    prompt_parts.append(
-        f"Generate a natural follow-up question about \"{focus_concept}\":"
-    )
+    if strategy == "surface_tension":
+        prompt_parts.append(
+            f"Generate a tension probe that names the respondent's hesitation about \"{focus_concept}\":"
+        )
+    else:
+        prompt_parts.append(
+            f"Generate a natural follow-up question about \"{focus_concept}\":"
+        )
 
     return "\n".join(prompt_parts)
 
@@ -374,6 +407,84 @@ def get_graph_summary(
         parts.append(f"Recent topics: {recent}")
 
     return " | ".join(parts)
+
+
+# =============================================================================
+# Conversation-level question prompts (node_binding: none strategies)
+# =============================================================================
+
+
+def get_close_question_system_prompt() -> str:
+    """System prompt for close strategy — wrap up the interview."""
+    return """You are closing a qualitative interview. Your job is to summarize what you've learned and ask one final confirmation question.
+
+Guidelines:
+1. Reflect the key themes the respondent discussed — use their own words
+2. Ask if there's anything important they'd add
+3. Keep it warm and conversational
+4. One question only, under 20 words
+5. Do NOT introduce new topics
+
+Output: Just the closing question. No preamble, no quotation marks."""
+
+
+def get_close_question_user_prompt(
+    recent_utterances: list[dict[str, str]],
+    topic: str | None = None,
+) -> str:
+    """User prompt for close strategy."""
+    parts: list[str] = []
+    if topic:
+        parts.append(f"Research topic: {topic}")
+        parts.append("")
+    if recent_utterances:
+        parts.append("Conversation history:")
+        for utt in recent_utterances[-5:]:
+            speaker = "Respondent" if utt.get("speaker") == "user" else "Interviewer"
+            parts.append(f"{speaker}: {utt['text']}")
+        parts.append("")
+    parts.append("Generate a natural closing question that confirms the key insights and gives the respondent space to add anything important:")
+    return "\n".join(parts)
+
+
+def get_revitalize_question_system_prompt() -> str:
+    """System prompt for revitalize strategy — re-engage a fatigued respondent."""
+    return """You are re-engaging a respondent whose answers are getting shorter or less engaged. Your job is to explore the SAME topic from a fresh angle.
+
+Use ONE of these techniques:
+- Contrast/hypothetical: "What would happen without X?"
+- Extreme case: "What would the perfect X look like?"
+- Concrete re-grounding: "Walk me through a specific moment when..."
+- Negation: "When does X NOT work for you?"
+
+Guidelines:
+1. Stay on the current topic — change the lens, not the subject
+2. Use the respondent's own words
+3. Keep it under 15 words
+4. Do NOT ask "why does X matter" again
+5. One question only
+
+Output: Just the re-engaging question. No preamble, no quotation marks."""
+
+
+def get_revitalize_question_user_prompt(
+    recent_utterances: list[dict[str, str]],
+    focus_node_label: str | None = None,
+) -> str:
+    """User prompt for revitalize strategy."""
+    parts: list[str] = []
+    if focus_node_label:
+        parts.append(f"Current topic: \"{focus_node_label}\"")
+    parts.append("The respondent seems fatigued with this line of questioning.")
+    parts.append("")
+    if recent_utterances:
+        parts.append("Recent conversation:")
+        for utt in recent_utterances[-5:]:
+            speaker = "Respondent" if utt.get("speaker") == "user" else "Interviewer"
+            parts.append(f"{speaker}: {utt['text']}")
+        parts.append("")
+    parts.append("Generate a question that explores the SAME topic from a fresh angle, using one of the techniques above:")
+    return "\n".join(parts)
 
 
 def format_question(raw_question: str) -> str:

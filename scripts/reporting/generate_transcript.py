@@ -131,10 +131,10 @@ def generate_transcript(json_path: Path, output_path: Path | None = None) -> Pat
     lines.append("## Turn Breakdown")
     lines.append("")
     lines.append(
-        "| Turn | Strategy | Focus Node | Concepts Extracted | Response Words |"
+        "| Turn | Phase | Strategy | Focus Node | Concepts Extracted | Response Words |"
     )
     lines.append(
-        "|------|----------|------------|-------------------|----------------|"
+        "|------|-------|----------|------------|-------------------|----------------|"
     )
 
     for turn in turns:
@@ -145,8 +145,10 @@ def generate_transcript(json_path: Path, output_path: Path | None = None) -> Pat
             _, focus_label = _resolve_focus_node_from_decomposition(turn, nodes_by_id)
         concepts_count = len(nodes_from_answer.get(n, []))
         word_count = _word_count(turn.get("response", ""))
+        signals = turn.get("signals") or {}
+        phase = signals.get("interview.phase", "—")
         lines.append(
-            f"| {n} | {strategy} | {focus_label or '—'} | {concepts_count} | {word_count} |"
+            f"| {n} | {phase} | {strategy} | {focus_label or '—'} | {concepts_count} | {word_count} |"
         )
 
     lines.append("")

@@ -23,6 +23,10 @@ from src.llm.prompts.question import (
     get_question_user_prompt,
     get_opening_question_system_prompt,
     get_opening_question_user_prompt,
+    get_close_question_system_prompt,
+    get_close_question_user_prompt,
+    get_revitalize_question_system_prompt,
+    get_revitalize_question_user_prompt,
     get_graph_summary,
     format_question,
 )
@@ -196,6 +200,88 @@ class QuestionService:
             FileNotFoundError: If methodology YAML file not found in config/methodologies/
         """
         return load_methodology(self.methodology)
+
+    async def generate_conversation_level_question(
+        self,
+        strategy: str,
+        recent_utterances: list[dict[str, str]] | None = None,
+        topic: str | None = None,
+        focus_node_label: str | None = None,
+    ) -> str:
+        """Generate a question for a conversation-level strategy (node_binding: none).
+
+        Unlike generate_question(), this does NOT require a focus_concept.
+        The prompt is strategy-specific and operates on the conversation as a whole.
+
+        Args:
+            strategy: Strategy name — "close" or "revitalize"
+            recent_utterances: Recent conversation turns with speaker/text keys
+            topic: Research topic for context anchoring
+            focus_node_label: Current topic label (for revitalize — the node
+                that was being discussed before engagement dropped)
+
+        Returns:
+            Generated question string
+
+        Raises:
+            RuntimeError: If LLM call fails
+            ValueError: If strategy is not a conversation-level strategy
+        """
+        if strategy not in ("close", "revitalize"):
+            raise ValueError(
+                f"Unsupported conversation-level strategy: {strategy}. "
+                "Expected 'close' or 'revitalize'."
+            )
+
+        utterances = recent_utterances or []
+
+        if strategy == "close":
+            system_prompt = get_close_question_system_prompt()
+            user_prompt = get_close_question_user_prompt(
+                recent_utterances=utterances,
+                topic=topic,
+            )
+            temperature = 0.7
+            max_tokens = 100
+        else:  # revitalize
+            system_prompt = get_revitalize_question_system_prompt()
+            user_prompt = get_revitalize_question_user_prompt(
+                recent_utterances=utterances,
+                focus_node_label=focus_node_label,
+            )
+            temperature = 0.8
+            max_tokens = 120
+
+        log.info(
+            "generating_conversation_level_question",
+            strategy=strategy,
+            topic=topic,
+        )
+
+        try:
+            response = await self.llm.complete(
+                prompt=user_prompt,
+                system=system_prompt,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+
+            question = format_question(response.content)
+
+            log.info(
+                "conversation_level_question_generated",
+                strategy=strategy,
+                question_length=len(question),
+                latency_ms=response.latency_ms,
+            )
+
+            return question
+
+        except Exception as e:
+            log.error("conversation_level_question_failed", error=str(e))
+            raise RuntimeError(
+                f"Conversation-level question generation failed for {strategy}: {e}"
+            )
 
     async def generate_opening_question(
         self,

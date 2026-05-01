@@ -225,7 +225,7 @@ Specialist agents are invoked based on which files are being modified. Agents li
 | Modifying | Invoke agent |
 |-----------|-------------|
 | `src/signals/**`, `src/services/*signal_detection*.py`, `src/services/node_state_tracker.py`, `src/services/methodology_strategy_service.py`, `src/methodologies/scoring.py`, `src/methodologies/registry.py`, `src/services/turn_pipeline/stages/strategy_selection_stage.py`, `config/methodologies/*.yaml` (signal weights, strategy config, phases) | `signal-specialist` |
-| `src/services/turn_pipeline/**`, `src/services/session_service.py`, `src/domain/models/pipeline_contracts.py`, `src/services/turn_pipeline/result.py` | `pipeline-specialist` |
+| `src/services/turn_pipeline/**`, `src/services/session_service.py`, `src/services/question_service.py`, `src/domain/models/pipeline_contracts.py`, `src/services/turn_pipeline/result.py` | `pipeline-specialist` |
 | `src/services/extraction_service.py`, `src/llm/prompts/`, `src/services/turn_pipeline/stages/extraction_stage.py`, `src/domain/models/extraction.py`, `src/services/turn_pipeline/stages/srl_preprocessing_stage.py`, `config/methodologies/*.yaml` (ontology, extraction_guidelines, relationship_examples, concept_naming) | `extraction-specialist` |
 | `config/methodologies/*.yaml` (methodology definitions, strategies, signal_weights, phases), `src/methodologies/registry.py`, `src/methodologies/scoring.py`, `src/services/methodology_strategy_service.py` | `methodology-specialist` |
 

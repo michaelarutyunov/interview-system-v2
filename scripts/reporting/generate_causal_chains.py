@@ -95,14 +95,16 @@ def _classify_chain(
 
     max_l = max(levels)
     if max_l >= max_level:
-        # Reaches terminal — check for missing intermediate levels
-        min_l = min(levels)
-        expected = set(range(min_l, max_l + 1))
+        # Reaches terminal — check for missing intermediate levels.
+        # Use the ontology minimum (0) as the floor, not the chain's own min,
+        # so a chain starting at L3 can't be "full" — it must span from low levels.
+        onto_min = min(node_levels.values()) if node_levels else 0
+        expected = set(range(onto_min, max_l + 1))
         present = set(levels)
         missing = expected - present
-        if len(missing) == 0:
+        if len(missing) <= 1:
             return "full"
-        elif len(missing) == 1:
+        elif len(missing) <= 2:
             return "advanced"
         else:
             return "developing"
@@ -382,7 +384,7 @@ def _render_chain(
         lines.append(
             f'- `{src["label"]} → {tgt["label"]}` [{e["edge_type"]}{reversed_mark}] (t={t or "?"}): _"{quote}"_'
         )
-    lines.append("")
+    lines.append("\n")
     return "\n".join(lines)
 
 

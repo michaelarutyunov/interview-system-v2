@@ -39,9 +39,20 @@
 | `slot_discovery_batch_limited` warning | More than 8 nodes extracted in a single turn | Expected for information-dense responses; remaining nodes processed next turn. Raise `MAX_SLOT_DISCOVERY_BATCH_SIZE` if needed |
 | `focus_update_failed_node_not_found` / `append_quality_failed_node_not_found` warnings in NodeStateTracker | `register_node()` stores under surface UUID but lookups resolve via `_resolve_canonical_slot_id()` to canonical slot ID. Stage 4.5 creates mappings AFTER registration. | `remap_to_canonical_slots()` called at end of SlotDiscoveryStage re-keys tracker from UUID → canonical_slot_id. If warnings persist, check `canonical_slot_remap_complete` logs |
 
+## Canonical Chains
+
+Canonical chains (reported in `02_causal_chains.md`) are constructed by aggregating surface edges through canonical slot mappings. Because canonical slots merge semantically similar surface nodes into "big themes," the edge aggregation between slots is inherently lossy — multiple surface edges with different relationship types and directions get collapsed into aggregate counts.
+
+**Canonical chains are expected to be sparse and incomplete.** This is not a bug. Surface chains are the primary analysis target. Canonical chains become useful only in cross-persona or multi-run analysis, where the same canonical slots recur across different interviews and reveal stable patterns.
+
+**When reviewing an interview:**
+- Focus chain quality assessment on **surface chains** — these preserve the respondent's actual language and edge semantics
+- Do NOT flag low canonical chain counts as `over_aggressive_dedup` or a configuration problem
+- Only reference canonical chains when comparing across multiple runs (same slot appearing across different personas/concepts)
+
 ## Known Failure Modes
 
-_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+- **Flagging canonical chain sparsity as a bug**: Reviewers unfamiliar with the dual-graph architecture sometimes treat zero canonical full chains as a dedup failure. This is expected behavior — see "Canonical Chains" above.
 
 
 ## Key Files

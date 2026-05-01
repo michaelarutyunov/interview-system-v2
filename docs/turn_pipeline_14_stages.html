@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Turn Pipeline — 14 Stages</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: #ffffff;
+    color: #1a1a1a;
+    padding: 32px 24px;
+    max-width: 680px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1a1a18; color: #e8e6de; }
+    .pp-stage { background: #2a2a28; border-color: rgba(255,255,255,0.1); }
+    .pp-stage.opt { border-color: rgba(255,255,255,0.12); }
+    .pp-io { background: #2a2a28; border-color: rgba(255,255,255,0.25); }
+    .pp-io.out { background: #222220; }
+    .pp-stage-sub { color: #888780; }
+    .pp-group-label { color: #888780; }
+    .pp-badge.opt { background: #333330; color: #888780; }
+    .pp-badge.pure { background: #2e2810; color: #EF9F27; }
+  }
+
+  .pp { padding: 1rem 0; --line: #1D9E75; }
+  .pp-io {
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 12px; padding: 10px 20px;
+    font-size: 14px; font-weight: 500;
+    background: #f5f4ef; border: 1.5px solid rgba(0,0,0,0.3);
+    max-width: 320px; margin: 0 auto;
+    color: inherit;
+  }
+  .pp-io.out { background: #efede6; }
+  .pp-connector { display: flex; justify-content: center; height: 20px; }
+  .pp-connector-line { width: 2px; background: var(--line); opacity: .35; }
+  .pp-group { display: flex; align-items: flex-start; gap: 0; margin: 4px 0; }
+  .pp-group-label {
+    min-width: 80px; font-size: 10px; font-weight: 500;
+    color: #888780; text-transform: uppercase; letter-spacing: .06em;
+    padding-top: 10px; text-align: right; padding-right: 10px; flex-shrink: 0;
+  }
+  .pp-group-body { flex: 1; display: flex; gap: 0; align-items: stretch; }
+  .pp-line-col {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 0 10px; flex-shrink: 0;
+  }
+  .pp-line-seg { width: 2px; background: var(--line); opacity: .35; flex: 1; }
+  .pp-line-seg.fade { opacity: .1; }
+  .pp-line-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--line); flex-shrink: 0; margin: 3px 0;
+  }
+  .pp-stages { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .pp-stage {
+    display: flex; align-items: center; gap: 10px;
+    border-radius: 8px; background: #f5f4ef;
+    padding: 8px 12px; border: 0.5px solid rgba(0,0,0,0.1);
+  }
+  .pp-stage.opt { border-style: dashed; }
+  .pp-stage-num {
+    font-size: 10px; font-weight: 500; color: #888780;
+    min-width: 20px; text-align: center; flex-shrink: 0;
+  }
+  .pp-stage-name { font-size: 13px; font-weight: 500; color: inherit; flex: 1; }
+  .pp-stage-sub { font-size: 11px; color: #5f5e5a; margin-top: 1px; }
+  .pp-badge {
+    font-size: 10px; font-weight: 500; padding: 2px 7px;
+    border-radius: 999px; flex-shrink: 0; white-space: nowrap;
+  }
+  .pp-badge.llm { background: #EEEDFE; color: #3C3489; }
+  .pp-badge.emb { background: #E1F5EE; color: #0F6E56; }
+  .pp-badge.opt { background: #efede6; color: #888780; }
+  .pp-badge.pure { background: #FAEEDA; color: #633806; }
+  .pp-badge.async { background: #FEF3E7; color: #D97706; }
+
+  .legend {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    margin-top: 20px; padding-top: 14px;
+    border-top: 1px solid rgba(0,0,0,0.08);
+    font-size: 11px; color: #888780;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+</style>
+</head>
+<body>
+<div class="pp">
+
+<div class="pp-io">respondent answer</div>
+<div class="pp-connector"><div class="pp-connector-line"></div></div>
+
+<div class="pp-group">
+  <div class="pp-group-label">intake</div>
+  <div class="pp-group-body">
+    <div class="pp-line-col">
+      <div class="pp-line-dot"></div><div class="pp-line-seg"></div>
+      <div class="pp-line-dot"></div><div class="pp-line-seg"></div>
+      <div class="pp-line-dot"></div><div class="pp-line-seg fade"></div>
+    </div>
+    <div class="pp-stages">
+      <div class="pp-stage">
+        <div class="pp-stage-num">1</div>
+        <div><div class="pp-stage-name">load context</div><div class="pp-stage-sub">session metadata, conversation history, node tracker, strategy history</div></div>
+      </div>
+      <div class="pp-stage">
+        <div class="pp-stage-num">2</div>
+        <div><div class="pp-stage-name">save utterance</div><div class="pp-stage-sub">persist respondent input to database</div></div>
+      </div>
+      <div class="pp-stage opt">
+        <div class="pp-stage-num">2.5</div>
+        <div><div class="pp-stage-name">SRL preprocessing</div><div class="pp-stage-sub">extract discourse relations + predicate-argument frames from raw text</div></div>
+        <span class="pp-badge opt">optional</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pp-connector"><div class="pp-connector-line"></div></div>
+
+<div class="pp-group">
+  <div class="pp-group-label">graph building</div>
+  <div class="pp-group-body">
+    <div class="pp-line-col">
+      <div class="pp-line-dot"></div><div class="pp-line-seg"></div>
+      <div class="pp-line-dot"></div><div class="pp-line-seg"></div>
+      <div class="pp-line-dot"></div><div class="pp-line-seg"></div>
+      <div class="pp-line-dot"></div><div class="pp-line-seg"></div>
+      <div class="pp-line-dot"></div><div class="pp-line-seg fade"></div>
+    </div>
+    <div class="pp-stages">
+      <div class="pp-stage">
+        <div class="pp-stage-num">3</div>
+        <div><div class="pp-stage-name">extract concepts and relationships</div><div class="pp-stage-sub">prompt includes: last 5 turns + highlighted question + SRL hints + existing node labels for cross-turn edges</div></div>
+        <span class="pp-badge llm">LLM · Sonnet</span>
+      </div>
+      <div class="pp-stage">
+        <div class="pp-stage-num">3.1</div>
+        <div><div class="pp-stage-name">LLM prefetch</div><div class="pp-stage-sub">fire async LLM batch signal call (overlaps with graph processing)</div></div>
+        <span class="pp-badge async">⚡ async</span>
+      </div>
+      <div class="pp-stage">
+        <div class="pp-stage-num">4</div>
+        <div><div class="pp-stage-name">update graph + deduplicate</div><div class="pp-stage-sub">add new nodes and edges; embedding similarity (cosine &gt; 0.80) merges near-duplicate surface nodes</div></div>
+        <span class="pp-badge emb">embeddings</span>
+      </div>
+      <div class="pp-stage opt">
+        <div class="pp-stage-num">4.5</div>
+        <div><div class="pp-stage-name">canonical slot discovery</div><div class="pp-stage-sub">group surface nodes into abstract slots (LLM); merge near-duplicates (cosine &gt; 0.60); aggregate surface edges to canonical edges</div></div>
+        <span class="pp-badge llm">LLM · Haiku</span>
+        <span class="pp-badge opt" style="margin-left:4px">optional</span>
+      </div>
+      <div class="pp-stage">
+        <div class="pp-stage-num">4.7</div>
+        <div><div class="pp-stage-name">LLM signal bridge</div><div class="pp-stage-sub">await async task, bridge per-concept ratings to tracker, seal tracker for downstream stages</div></div>
+        <span class="pp-badge async">⚡ await</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pp-connector"><div class="pp-connector-line"></div></div>
+
+<div class="pp-group">
+  <div class="pp-group-label">state</div>
+  <div class="pp-group-body">
+    <div class="pp-line-col">
+      <div class="pp-line-dot"></div><div class="pp-line-seg fade"></div>
+    </div>
+    <div class="pp-stages">
+      <div class="pp-stage">
+        <div class="pp-stage-num">5</div>
+        <div><div class="pp-stage-name">compute graph state</div><div class="pp-stage-sub">refresh node/edge counts, depth, orphans, saturation metrics</div></div>
+        <span class="pp-badge pure">computation</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pp-connector"><div class="pp-connector-line"></div></div>
+
+<div class="pp-group">
+  <div class="pp-group-label">strategy selection</div>
+  <div class="pp-group-body">
+    <div class="pp-line-col">
+      <div class="pp-line-dot"></div><div class="pp-line-seg fade"></div>
+    </div>
+    <div class="pp-stages">
+      <div class="pp-stage">
+        <div class="pp-stage-num">6</div>
+        <div><div class="pp-stage-name">score and select strategy + node</div><div class="pp-stage-sub">LLM assesses response quality signals (depth, engagement, valence, certainty); graph + temporal signals computed deterministically; scores all strategies then nodes; selects winning (strategy, node) pair</div></div>
+        <span class="pp-badge llm" style="margin-right:4px">LLM · Haiku</span>
+        <span class="pp-badge pure">+ computation</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pp-connector"><div class="pp-connector-line"></div></div>
+
+<div class="pp-group">
+  <div class="pp-group-label">generation</div>
+  <div class="pp-group-body">
+    <div class="pp-line-col">
+      <div class="pp-line-dot"></div><div class="pp-line-seg"></div>
+      <div class="pp-line-dot"></div><div class="pp-line-seg fade"></div>
+    </div>
+    <div class="pp-stages">
+      <div class="pp-stage">
+        <div class="pp-stage-num">7</div>
+        <div><div class="pp-stage-name">continuation check</div><div class="pp-stage-sub">decide whether to continue or close the interview based on saturation and turn limit</div></div>
+        <span class="pp-badge pure">computation</span>
+      </div>
+      <div class="pp-stage">
+        <div class="pp-stage-num">8</div>
+        <div><div class="pp-stage-name">generate question</div><div class="pp-stage-sub">prompt grounded in selected strategy + focus node; generates 3 candidates, scores against rubric, returns best</div></div>
+        <span class="pp-badge llm">LLM · Haiku</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pp-connector"><div class="pp-connector-line"></div></div>
+
+<div class="pp-group">
+  <div class="pp-group-label">persist</div>
+  <div class="pp-group-body">
+    <div class="pp-line-col">
+      <div class="pp-line-dot"></div><div class="pp-line-seg"></div>
+      <div class="pp-line-dot"></div><div class="pp-line-seg fade"></div>
+    </div>
+    <div class="pp-stages">
+      <div class="pp-stage">
+        <div class="pp-stage-num">9</div>
+        <div><div class="pp-stage-name">save response</div><div class="pp-stage-sub">persist generated question to database</div></div>
+      </div>
+      <div class="pp-stage">
+        <div class="pp-stage-num">10</div>
+        <div><div class="pp-stage-name">save scoring and session state</div><div class="pp-stage-sub">persist signals, scores, node tracker state, strategy history for next turn</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pp-connector"><div class="pp-connector-line"></div></div>
+<div class="pp-io out">next question</div>
+
+<div class="legend">
+  <div class="legend-item"><span class="pp-badge llm">LLM</span> LLM call (5 total per turn — Sonnet for extraction, Haiku for all others)</div>
+  <div class="legend-item"><span class="pp-badge emb">embeddings</span> embedding similarity</div>
+  <div class="legend-item"><span class="pp-badge pure">computation</span> deterministic, no model</div>
+  <div class="legend-item"><span class="pp-badge async">⚡ async</span> async/await pattern (LLM prefetch overlaps with graph processing)</div>
+  <div class="legend-item"><span class="pp-badge opt">optional</span> feature flag controlled</div>
+</div>
+
+</div>
+</body>
+</html>

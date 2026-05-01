@@ -28,7 +28,7 @@
 #   5. explore_ideal     — Ideal product specification (late phase)
 #   6. anchor            — Connect isolated nodes to grid structure (is_orphan gate)
 #   7. revitalize        — Conversation-level fallback for fatigue
-#   8. validate          — Summary validation, heavy late-phase gate
+#   8. close          — Summary closing, heavy late-phase gate
 
 method:
   name: repertory_grid_v2
@@ -408,7 +408,7 @@ strategies:
       convgraph.node.exhaustion: -0.2
       # Repetition penalty: naturally rare, but avoid re-asking
       interview.strategy.self_count: -0.5
-      # Heavy late-phase boost — T2 + Critique: reduced from 0.5 to 0.3 to allow validate to compete
+      # Heavy late-phase boost — T2 + Critique: reduced from 0.5 to 0.3 to allow close to compete
       interview.phase.late: 0.3
 
   # ===================================================================
@@ -429,6 +429,8 @@ strategies:
       interview.strategy.self_count: -0.15
       # Engagement: anchoring works at moderate engagement
       response.semantic.llm.engagement.mid: 0.1
+      meta.saturation.conversation.high: -0.40
+      meta.saturation.canonical.high: -0.30
 
   # ===================================================================
   # Strategy 7: revitalize
@@ -439,65 +441,33 @@ strategies:
     node_binding: none
     description: "Shift to fresh element comparisons or new angles when respondent shows comparison fatigue."
     signal_weights:
-      # Fatigue detection triggers
-      response.semantic.llm.engagement.trend.fatigued: 1.0
-      response.semantic.llm.engagement.trend.shallowing: 0.8
-      # Engagement & valence triggers
-      response.semantic.llm.engagement.low: 0.8
-      response.semantic.llm.engagement.mid: 0.4
-      response.semantic.llm.engagement.high: -0.4             # Already engaged = not needed
-      # f965: valence.low (0.5) + intellectual_engagement.low × 0.5 (0.1) → charge.negative 0.6
-      convgraph.node.llm.charge.negative: 0.6
-      # f965: specificity.low (-0.2) + intellectual_engagement.low × 0.5 (0.1) → elaboration.low -0.1
-      convgraph.node.llm.elaboration.low: -0.1
-      # Late phase: allow revitalize to compete
-      interview.phase.late: -0.3       # Moderate suppression — still useful for RG fatigue
-      # Phase 4.2: FLIPPED from +0.15 to -0.5 (escape valve to brake, matching JTBD fix)
-      interview.strategy.self_count: -0.5
-      # Node-level signals: seek fresh territory
-      convgraph.node.focus.streak.none: 0.8
-      convgraph.node.focus.streak.medium: -0.4
-      convgraph.node.focus.streak.high: -0.7
-      convgraph.node.exhaustion.low: 0.5
-      convgraph.node.novelty.high: 0.4
-      convgraph.node.focus.count.high: -0.6
-      convgraph.node.focus.count.medium: -0.3
-      convgraph.node.focus.count.none: 0.3
+      # Engagement domain — revitalize owns engagement signals exclusively
+      response.semantic.llm.engagement.low: 0.50
+      response.semantic.llm.engagement.trend.shallowing: 0.30
+      response.semantic.llm.engagement.trend.fatigued: 0.80
+      # Saturation — don't re-engage if conversation is saturated
+      meta.saturation.conversation: -0.40
+      meta.saturation.canonical: -0.40
+      # Brake
+      interview.strategy.self_count: -0.50
 
   # ===================================================================
-  # Strategy 8: validate
+  # Strategy 8: close
   # Summarize the construct grid and confirm understanding.
   # generates_closing_question: true, focus_mode: summary.
   # Heavy late-phase gate via signal weights.
   # T2 calibration: added early/mid phase gates, boosted late bonus to 0.3
   # ===================================================================
-  - name: validate
+  - name: close
     node_binding: none
-    focus_mode: summary
     generates_closing_question: true
-    description: "Summarize the construct grid — key dimensions, element ratings, and ideal — and invite correction or addition."
+    focus_mode: summary
+    description: "Wrap up the interview by summarizing and confirming the key insights captured"
     signal_weights:
-      # Heavy early/mid phase gates — T2 calibration: added to prevent premature validation
-      interview.phase.early: -3.0
-      interview.phase.mid: -3.0
-      # f965: response_depth.deep (0.3) → elaboration.high; .moderate (0.2) → elaboration.mid
-      convgraph.node.llm.elaboration.high: 0.3
-      convgraph.node.llm.elaboration.mid: 0.2
-      # Uncertainty triggers: uncertain = good time to validate
-      response.semantic.llm.certainty.low: 0.6
-      response.semantic.llm.certainty.mid: 0.4
-      # Engagement: low engagement = pivot to summary
-      response.semantic.llm.engagement.low: 0.4
-      # Node-level: well-connected nodes support validation
-      convgraph.node.has_outgoing.true: 0.5
-      convgraph.node.focus.streak.high: 0.3     # Often-discussed = part of grid summary
-      # Repetition penalty
-      interview.strategy.self_count: -0.5
-      # Saturation triggers: high saturation = ready to validate
-      meta.saturation.conversation: 0.3
-      meta.saturation.canonical: 0.2
-      # Late-phase boost — T2 + Critique: increased from 0.8 to 1.0 to outcompete explore_ideal
-      interview.phase.late: 1.0
+      interview.phase.late: 0.80       # Primary positive trigger (fires on last turn)
+      interview.phase.early: -3.0      # Suppress in early phase
+      interview.phase.mid: -3.0        # Suppress in mid phase
+      interview.strategy.self_count: -0.50  # Light brake
 
 # chain_completion is conceptually incoherent for RG — no chains exist
 # in a dimensional/comparative ontology. Set to near-zero threshold.
@@ -515,7 +485,7 @@ phases:
       explore_ideal: 0.1              # Premature without constructs
       anchor: 1.2                     # Connect early nodes to grid
       revitalize: 1.0
-      validate: 0.1                   # Too early to validate
+      close: 0.1                   # Too early to close
     phase_bonuses:
       triadic_elicit: 0.25            # Ensure triadic comparison fires early
       explore_construct: 0.1
@@ -530,16 +500,16 @@ phases:
       explore_ideal: 0.5              # Begin exploring ideals
       anchor: 1.0
       revitalize: 1.0
-      validate: 0.4                   # Occasional check-ins
+      close: 0.4                   # Occasional check-ins
     phase_bonuses:
       ladder_construct: 0.15          # Ensure laddering fires
       rate_elements: 0.1              # Encourage grid-building
 
   late:
-    description: "Explore ideal product, validate the grid, fill remaining gaps"
+    description: "Explore ideal product, close the grid, fill remaining gaps"
     signal_weights:
       explore_ideal: 1.5              # Synthesize ideal specification
-      validate: 1.4                   # Validate the complete grid
+      close: 1.4                   # Close the complete grid
       rate_elements: 0.8              # Fill remaining grid gaps
       ladder_construct: 0.7           # Still valuable in late phase
       triadic_elicit: 0.3             # Mostly done with elicitation
@@ -548,5 +518,5 @@ phases:
       revitalize: 1.1                 # Slightly elevated — late fatigue is common
     phase_bonuses:
       explore_ideal: 0.2
-      validate: 0.25            # T2 + Critique: increased from 0.15 to ensure validate can close
+      close: 0.25            # T2 + Critique: increased from 0.15 to ensure close can close
       triadic_elicit: 0.1       # T2 + Critique: ensure RG core technique fires late
