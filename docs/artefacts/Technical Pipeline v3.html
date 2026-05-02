@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Turn pipeline — technical view (v3 — Stage 4.5B Edge Extraction)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="deck-stage.js"></script>
+<style>
+  :root {
+    --bg:        #F2F1ED;
+    --panel:    #FFFFFF;
+    --ink:      #14171C;
+    --ink-2:    #41474F;
+    --ink-3:    #7A828D;
+    --rule:     #DDDCD4;
+    --rule-strong: #C7C5BB;
+    --line:     #5B6471;
+
+    --c-llm-bg:    #ECECF7;
+    --c-llm-fg:    #2E2A6B;
+    --c-emb-bg:    #E1EFEA;
+    --c-emb-fg:    #16574A;
+    --c-pure-bg:   #F2EAD6;
+    --c-pure-fg:   #5C4612;
+    --c-async-bg:  #F8E8D5;
+    --c-async-fg:  #874A0B;
+    --c-edge-bg:   #E4E0F0;
+    --c-edge-fg:   #3D2E6B;
+
+    --g-intake:   #5B6471;
+    --g-graph:    #4F6E8C;
+    --g-state:    #6B5C8A;
+    --g-strategy: #8A5C5C;
+    --g-gen:      #5C7A5C;
+    --g-persist:  #7A6B4F;
+
+    --row-rule:   rgba(20,23,28,0.08);
+  }
+
+  * , *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #0c0d0e; }
+  body { font-family: "Inter Tight", -apple-system, sans-serif; color: var(--ink); }
+
+  .slide {
+    width: 1920px; height: 1080px;
+    background: var(--bg);
+    padding: 48px 56px 40px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 22px;
+    position: relative;
+    overflow: hidden;
+    color: var(--ink);
+  }
+  .slide::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(20,23,28,0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(20,23,28,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  .slide > * { position: relative; z-index: 1; }
+
+  /* ---- header ---- */
+  .header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    border-bottom: 1px solid var(--rule-strong);
+    padding-bottom: 14px;
+  }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 14px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-3); margin-bottom: 6px;
+  }
+  .title {
+    font-size: 44px; font-weight: 600; letter-spacing: -0.02em;
+    line-height: 1.1; color: var(--ink);
+  }
+  .title em { font-style: normal; color: var(--ink-3); font-weight: 500; }
+  .subtitle {
+    font-size: 18px; color: var(--ink-2); margin-top: 8px;
+    max-width: 1100px; line-height: 1.4;
+  }
+  .header-meta {
+    text-align: right;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; color: var(--ink-3);
+    letter-spacing: 0.04em; line-height: 1.7;
+    flex-shrink: 0; min-width: 220px;
+  }
+  .header-meta b { color: var(--ink); font-weight: 500; }
+
+  /* ---- pipeline body: two rows ---- */
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    position: relative;
+    width: 100%;
+    min-width: 0;
+  }
+  .row {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
+  .row-meta {
+    flex: 0 0 144px;
+    display: flex; flex-direction: column;
+    justify-content: center;
+    padding-right: 18px;
+    border-right: 1px solid var(--row-rule);
+    margin-right: 14px;
+  }
+  .row-num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; letter-spacing: 0.16em;
+    color: var(--ink-3); text-transform: uppercase;
+  }
+  .row-name {
+    font-size: 22px; font-weight: 600;
+    letter-spacing: -0.01em; line-height: 1.15;
+    margin-top: 2px;
+    color: var(--ink);
+  }
+  .row-tag {
+    font-size: 13px; color: var(--ink-2);
+    line-height: 1.35; margin-top: 8px;
+    font-style: italic;
+  }
+
+  .endpoint {
+    flex: 0 0 auto;
+    align-self: center;
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1.5px solid var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    text-align: center;
+    font-size: 13px; font-weight: 600; line-height: 1.15;
+    padding: 6px;
+    color: var(--ink);
+  }
+  .endpoint.out {
+    background: var(--ink); color: var(--bg); border-color: var(--ink);
+  }
+
+  .arrow {
+    flex: 0 0 auto;
+    align-self: center;
+    height: 2px;
+    background: var(--line);
+    position: relative;
+    width: 24px;
+  }
+  .arrow::after {
+    content: ''; position: absolute; right: -1px; top: 50%;
+    transform: translateY(-50%);
+    border-left: 8px solid var(--line);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+  /* row 2: row continuation marker on left side */
+  .arrow.bend::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--line);
+  }
+
+  /* groups */
+  .group {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex; flex-direction: column;
+    padding: 0 8px;
+    position: relative;
+  }
+  .group + .group { border-left: 1px dashed var(--rule-strong); }
+
+  .group-head {
+    display: flex; align-items: baseline; gap: 8px;
+    margin-bottom: 8px;
+    padding: 0 4px;
+  }
+  .group-num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: var(--ink-3);
+    letter-spacing: 0.08em;
+  }
+  .group-name {
+    font-size: 14px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--ink);
+  }
+  .group-stripe {
+    height: 3px; border-radius: 2px;
+    margin-bottom: 10px;
+    background: var(--group-color, var(--ink));
+    opacity: 0.7;
+  }
+
+  .stages {
+    display: flex; gap: 8px;
+    align-items: stretch;
+    flex: 1; min-width: 0;
+  }
+
+  .stage {
+    flex: 1 1 0;
+    min-width: 0;
+    background: var(--panel);
+    border: 1px solid var(--rule-strong);
+    border-radius: 10px;
+    padding: 12px 12px 11px;
+    display: flex; flex-direction: column;
+    gap: 6px;
+    position: relative;
+    box-shadow: 0 1px 0 rgba(20,23,28,0.04);
+  }
+  .stage-num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: var(--ink-3);
+    letter-spacing: 0.08em;
+  }
+  .stage-name {
+    font-size: 16px; font-weight: 600;
+    line-height: 1.2; color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .stage-sub {
+    font-size: 13px; line-height: 1.4;
+    color: var(--ink-2); flex: 1;
+  }
+  .badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+  .badge {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; font-weight: 500;
+    padding: 3px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .badge.llm   { background: var(--c-llm-bg);   color: var(--c-llm-fg);   }
+  .badge.emb   { background: var(--c-emb-bg);   color: var(--c-emb-fg);   }
+  .badge.pure  { background: var(--c-pure-bg);  color: var(--c-pure-fg);  }
+  .badge.async { background: var(--c-async-bg); color: var(--c-async-fg); }
+
+  /* ============ STACKED ASYNC PAIR ============
+     A wrapper holding two stages stacked vertically inside one stage-cell.
+     Used for 3 + 3.1 (top: extract, bottom: prefetch fire) and
+     for 4.5 + 4.7 (top: slot discovery, bottom: signal bridge await).
+  */
+  .stack {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex; flex-direction: column;
+    gap: 8px;
+    position: relative;
+    border: 1.5px dashed var(--c-async-fg);
+    border-radius: 12px;
+    padding: 14px 8px 8px;
+    background: rgba(248,232,213,0.35);
+  }
+  .parallel-row {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+  .parallel-row .stage { flex: 1 1 0; min-width: 0; }
+  .stack-label {
+    position: absolute;
+    top: -10px; left: 12px;
+    background: var(--bg);
+    padding: 0 6px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.08em;
+    color: var(--c-async-fg);
+    font-weight: 500;
+  }
+  .stack .stage {
+    flex: 1 1 0;
+  }
+  /* connector line linking the two stacked stages on the left edge */
+  .stack-link {
+    position: absolute;
+    left: -2px;
+    top: 18%; bottom: 18%;
+    width: 2px;
+    background: var(--c-async-fg);
+    opacity: 0.5;
+    border-radius: 2px;
+  }
+
+  /* ---- async overlap arc: connect 3.1 (row 1) → 4.7 (row 1) inline */
+  .async-overlay {
+    position: absolute;
+    pointer-events: none;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 2;
+  }
+
+  /* ---- legend ---- */
+  .legend {
+    display: flex; gap: 28px; flex-wrap: wrap;
+    align-items: center;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule-strong);
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--ink-2);
+  }
+  .legend-item .badge { font-size: 11px; }
+  .footer-note {
+    margin-left: auto;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; color: var(--ink-3);
+    letter-spacing: 0.04em;
+  }
+
+  /* phase markers on left edge */
+  .phase-tag {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 4px;
+  }
+
+  /* ── 3-stream parallel section ── */
+  .streams-panel {
+    flex: 3.0; min-width: 0;
+    display: flex; flex-direction: column;
+    gap: 6px;
+    border: 1.5px dashed var(--c-async-fg);
+    border-radius: 12px;
+    padding: 18px 10px 8px;
+    background: rgba(248,232,213,0.25);
+    position: relative;
+  }
+  .streams-label {
+    position: absolute; top: -10px; left: 12px;
+    background: var(--bg); padding: 0 6px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.06em;
+    color: var(--c-async-fg); font-weight: 500;
+  }
+  .stream {
+    display: flex; align-items: center; gap: 8px;
+    min-height: 0;
+  }
+  .stream-tag {
+    flex: 0 0 56px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    text-align: right; padding-right: 6px;
+  }
+  .stream-tag.main  { color: var(--ink-2); }
+  .stream-tag.sig   { color: var(--c-async-fg); }
+  .stream-tag.edge  { color: var(--c-edge-fg); }
+
+  .stream-main-stages {
+    flex: 1; display: flex; gap: 6px; min-width: 0;
+  }
+  .stage-sm {
+    flex: 1 1 0; min-width: 0;
+    background: var(--panel);
+    border: 1px solid var(--rule-strong);
+    border-radius: 7px;
+    padding: 7px 8px 6px;
+    display: flex; flex-direction: column;
+    gap: 2px;
+    box-shadow: 0 1px 0 rgba(20,23,28,0.03);
+  }
+  .stage-sm .snum {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px; color: var(--ink-3); letter-spacing: 0.06em;
+  }
+  .stage-sm .sname {
+    font-size: 12px; font-weight: 600; line-height: 1.15; color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .stage-sm .ssub {
+    font-size: 10px; line-height: 1.3; color: var(--ink-2);
+  }
+  .stage-sm .sbadges { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 1px; }
+  .sbadge {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px; font-weight: 500;
+    padding: 2px 5px; border-radius: 3px;
+    letter-spacing: 0.04em; white-space: nowrap;
+  }
+  .sbadge.llm   { background: var(--c-llm-bg);   color: var(--c-llm-fg);   }
+  .sbadge.emb   { background: var(--c-emb-bg);   color: var(--c-emb-fg);   }
+  .sbadge.pure  { background: var(--c-pure-bg);  color: var(--c-pure-fg);  }
+  .sbadge.async { background: var(--c-async-bg); color: var(--c-async-fg); }
+  .sbadge.edge  { background: var(--c-edge-bg);  color: var(--c-edge-fg);  }
+
+  .stream-bar {
+    flex: 1; min-width: 0; height: 28px;
+    border-radius: 5px;
+    display: flex; align-items: center;
+    padding: 0 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.04em; white-space: nowrap;
+  }
+  .stream-bar.signal-bar {
+    background: var(--c-async-bg); color: var(--c-async-fg);
+    border: 1px solid rgba(135,74,11,0.25);
+  }
+  .stream-bar.edge-bar {
+    background: var(--c-edge-bg); color: var(--c-edge-fg);
+    border: 1px solid rgba(61,46,107,0.25);
+  }
+  .bar-spacer { flex: 0 0 auto; }
+
+  /* ── 2-column time-aligned parallel block ── */
+  .parblock {
+    flex: 3.0; min-width: 0;
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    grid-template-rows: auto auto auto;
+    gap: 4px 6px;
+    border: 1.5px dashed var(--c-async-fg);
+    border-radius: 12px;
+    padding: 18px 10px 8px;
+    background: rgba(248,232,213,0.22);
+    position: relative;
+  }
+  .parblock .sidebyside {
+    display: flex; gap: 6px; min-width: 0;
+  }
+  .parblock .sidebyside .stage-sm { flex: 1; min-width: 0; }
+  .parblock-label {
+    position: absolute; top: -10px; left: 12px;
+    background: var(--bg); padding: 0 6px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.06em;
+    color: var(--c-async-fg); font-weight: 500;
+  }
+  .parblock .full { grid-column: 1 / -1; }
+  .parblock .stage-sm { min-height: 0; }
+  .parblock .bar-sm {
+    border-radius: 5px;
+    display: flex; align-items: center;
+    padding: 4px 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px; font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+  .parblock .bar-sm.sig  { background: var(--c-async-bg); color: var(--c-async-fg); border: 1px solid rgba(135,74,11,0.3); }
+  .parblock .bar-sm.edge { background: var(--c-edge-bg);  color: var(--c-edge-fg);  border: 1px solid rgba(61,46,107,0.3); }
+  .bar-tag {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 8px; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    margin-right: 6px; flex-shrink: 0;
+  }
+
+  /* standalone 4.7 — original size, placed to the right of the parallel block */
+  .stage.s47-standalone {
+    flex: 0.6; min-width: 0;
+    align-self: stretch;
+  }
+</style>
+</head>
+<body>
+
+<deck-stage width="1920" height="1080">
+
+<section data-label="01 Pipeline">
+  <div class="slide">
+
+    <header class="header">
+      <div style="min-width: 0; flex: 1;">
+        <div class="eyebrow">Interview engine · turn pipeline</div>
+        <h1 class="title">Inside one turn <em>— listen &amp; gather, then understand &amp; act</em></h1>
+        <div class="subtitle">A respondent answer enters; a grounded next question leaves. Two phases: during phase 1 the engine listens to the answer and grows the conversation map (including dedicated edge extraction at Stage 4.5B); in phase 2 the engine reads the map, picks a move, writes the question, persists state.</div>
+      </div>
+      <div class="header-meta">
+        <div><b>SONNET</b> ×1 &nbsp;<b>HAIKU</b> ×4</div>
+        <div><b>EMBED</b> ×2 &nbsp;<b>PARALLEL</b> ×2</div>
+        <div>v3 · 16 stages · 2 rows</div>
+      </div>
+    </header>
+
+    <main class="pipeline" id="pipeline">
+
+      <!-- =============== ROW 1 — LISTEN & GATHER =============== -->
+      <div class="row" id="row-1">
+
+        <div class="row-meta">
+          <div class="phase-tag">Phase 1</div>
+          <div class="row-num">listen</div>
+          <div class="row-name">Listen &amp; gather</div>
+          <div class="row-tag">Take in the answer; grow the conversation map.</div>
+        </div>
+
+        <div class="endpoint">respondent<br>answer</div>
+        <div class="arrow"></div>
+
+        <!-- INTAKE -->
+        <div class="group" style="--group-color: var(--g-intake); flex: 1.0;">
+          <div class="group-stripe"></div>
+          <div class="group-head"><span class="group-num">01</span><span class="group-name">Intake</span></div>
+          <div class="stages">
+            <div class="stage">
+              <div class="stage-num">STAGE 1</div>
+              <div class="stage-name">Load conversation context</div>
+              <div class="stage-sub">Session metadata, conversation history, node tracker, strategy history.</div>
+            </div>
+            <div class="stage">
+              <div class="stage-num">STAGE 2</div>
+              <div class="stage-name">Persist and index utterance</div>
+              <div class="stage-sub">Persist respondent input to database.</div>
+            </div>
+            <div class="stage">
+              <div class="stage-num">STAGE 2.5</div>
+              <div class="stage-name">Parse roles &amp; claims</div>
+              <div class="stage-sub">Discourse relations + predicate-argument frames extracted from the raw text.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GRAPH BUILDING -->
+        <div class="group" id="g-graph" style="--group-color: var(--g-graph); flex: 2.2;">
+          <div class="group-stripe"></div>
+          <div class="group-head"><span class="group-num">02</span><span class="group-name">Graph building</span></div>
+          <div class="stages" id="graph-stages" style="align-items: stretch;">
+
+            <div class="stage" id="s-3">
+              <div class="stage-num">STAGE 3</div>
+              <div class="stage-name">Extract concepts</div>
+              <div class="stage-sub">Nodes only — edges moved to dedicated Stage 4.5B.</div>
+              <div class="badges"><span class="badge llm">LLM · Sonnet</span></div>
+            </div>
+
+            <!-- 2-COLUMN PARALLEL BLOCK — stages that run concurrently after Stage 4 -->
+            <div class="parblock" id="parblock">
+              <div class="parblock-label">⚡ 3 concurrent streams — 2 Haiku calls overlap with main pipeline</div>
+
+              <!-- Row 1 (full): 3.1 fires signal detection + the Haiku call description -->
+              <div class="stage-sm full">
+                <div class="snum">STAGE 3.1</div>
+                <div class="sname">Fire signal detection</div>
+                <div class="ssub">Fire async Haiku batch call for engagement, certainty, elaboration, charge. Runs in background until awaited at Stage 4.7.</div>
+                <div class="sbadges"><span class="sbadge llm">Haiku</span><span class="sbadge async">⚡ fire</span></div>
+              </div>
+
+              <!-- Row 2-3 (span 2, left): 4 merge graph — 2× height -->
+              <div class="stage-sm" style="grid-row: span 2;">
+                <div class="snum">STAGE 4</div>
+                <div class="sname">Merge &amp; deduplicate graph</div>
+                <div class="ssub">Add nodes; cosine dedup &gt;0.80. After this, two paths fork and run concurrently.</div>
+                <div class="sbadges"><span class="sbadge emb">embed</span></div>
+              </div>
+
+              <!-- Row 2 (right): 4.5 slot discovery — runs concurrently with EDGE Haiku -->
+              <div class="stage-sm">
+                <div class="snum">STAGE 4.5</div>
+                <div class="sname">Slot discovery</div>
+                <div class="ssub">Abstract nodes → themes that persist across turns; cosine &gt;0.60.</div>
+                <div class="sbadges"><span class="sbadge llm">Haiku</span></div>
+              </div>
+
+              <!-- Row 3 (right): 4.5B (narrow) + 4.6 side by side — 4.6 takes only 4.5B output -->
+              <div class="sidebyside">
+                <div class="stage-sm">
+                  <div class="snum">STAGE 4.5B</div>
+                  <div class="sname">Fire edge extraction</div>
+                  <div class="ssub">Build candidate pairs; fire async Haiku call.</div>
+                  <div class="sbadges"><span class="sbadge llm">Haiku</span><span class="sbadge async">⚡ fire</span></div>
+                  <div class="bar-sm edge" style="margin-top:4px;">
+                    <span class="bar-tag">EDGE</span>
+                    Haiku: candidate pair evaluation
+                  </div>
+                </div>
+                <div class="stage-sm">
+                  <div class="snum">STAGE 4.6</div>
+                  <div class="sname">Edge bridge</div>
+                  <div class="ssub">Await edge extr. task; validate permitted_connections; persist edges; update tracker edge counts; record yield.</div>
+                  <div class="sbadges"><span class="sbadge async">⚡ await</span></div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Stage 4.7: standalone, original version — awaits signal + seals tracker -->
+            <div class="stage" id="s-47">
+              <div class="stage-num">STAGE 4.7</div>
+              <div class="stage-name">Await signals<br>&amp; seal tracker</div>
+              <div class="stage-sub">Await 3.1 task. Route per-concept ratings to NodeStateTracker. Seal — stages 5–10 read only the sealed snapshot.</div>
+              <div class="badges"><span class="badge async">⚡ async await</span></div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- async overlap arc within row 1 -->
+        <svg class="async-overlay" id="async-svg" preserveAspectRatio="none"></svg>
+      </div>
+
+      <!-- =============== ROW 2 — UNDERSTAND & ACT =============== -->
+      <div class="row" id="row-2">
+
+        <div class="row-meta">
+          <div class="phase-tag">Phase 2</div>
+          <div class="row-num">act</div>
+          <div class="row-name">Understand &amp; act</div>
+          <div class="row-tag">Read the map, choose a move, write &amp; persist.</div>
+        </div>
+
+        <div class="arrow bend"></div>
+
+        <!-- STATE -->
+        <div class="group" style="--group-color: var(--g-state); flex: 0.8;">
+          <div class="group-stripe"></div>
+          <div class="group-head"><span class="group-num">03</span><span class="group-name">State</span></div>
+          <div class="stages">
+            <div class="stage">
+              <div class="stage-num">STAGE 5</div>
+              <div class="stage-name">Compute graph topology metrics</div>
+              <div class="stage-sub">Refresh node/edge counts, depth, orphans, chain completeness, saturation metrics.</div>
+              <div class="badges"><span class="badge pure">computation</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STRATEGY -->
+        <div class="group" style="--group-color: var(--g-strategy); flex: 0.95;">
+          <div class="group-stripe"></div>
+          <div class="group-head"><span class="group-num">04</span><span class="group-name">Strategy</span></div>
+          <div class="stages">
+            <div class="stage">
+              <div class="stage-num">STAGE 6</div>
+              <div class="stage-name">Joint strategy–node selection</div>
+              <div class="stage-sub">Joint (strategy × node) scoring over LLM signals from 4.7 (engagement, certainty, elaboration, charge) plus deterministic graph + phase signals.</div>
+              <div class="badges"><span class="badge pure">computation</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GENERATION -->
+        <div class="group" style="--group-color: var(--g-gen); flex: 1.4;">
+          <div class="group-stripe"></div>
+          <div class="group-head"><span class="group-num">05</span><span class="group-name">Generation</span></div>
+          <div class="stages">
+            <div class="stage">
+              <div class="stage-num">STAGE 7</div>
+              <div class="stage-name">Continuation gate</div>
+              <div class="stage-sub">Continue or close based on saturation + turn limit.</div>
+              <div class="badges"><span class="badge pure">computation</span></div>
+            </div>
+            <div class="stage">
+              <div class="stage-num">STAGE 8</div>
+              <div class="stage-name">Synthesize grounded question</div>
+              <div class="stage-sub">Grounded in selected strategy + focus node; 3 candidates, scored against rubric, best returned.</div>
+              <div class="badges"><span class="badge llm">LLM · Haiku</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PERSIST -->
+        <div class="group" style="--group-color: var(--g-persist); flex: 1.2;">
+          <div class="group-stripe"></div>
+          <div class="group-head"><span class="group-num">06</span><span class="group-name">Persist</span></div>
+          <div class="stages">
+            <div class="stage">
+              <div class="stage-num">STAGE 9</div>
+              <div class="stage-name">Save question</div>
+              <div class="stage-sub">Persist the generated question to database (system's response to the respondent).</div>
+            </div>
+            <div class="stage">
+              <div class="stage-num">STAGE 10</div>
+              <div class="stage-name">Save scoring &amp; state</div>
+              <div class="stage-sub">Commit turn state. Persist signals, scores, node tracker state, strategy history for next turn.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arrow"></div>
+        <div class="endpoint out">next<br>question</div>
+      </div>
+
+    </main>
+
+    <footer class="legend">
+      <div class="legend-item"><span class="badge llm">LLM</span> 5 calls / turn — 1 Sonnet (extract), 4 Haiku (signals, slot, edge-extr., generate)</div>
+      <div class="legend-item"><span class="badge emb">embeddings</span> cosine similarity merge (×2)</div>
+      <div class="legend-item"><span class="badge pure">computation</span> deterministic, no model</div>
+      <div class="legend-item"><span class="badge async">⚡ async</span> 2 background Haiku calls overlap with main pipeline (signal detection, edge extraction)</div>
+    </footer>
+
+  </div>
+</section>
+
+</deck-stage>
+
+<script>
+  // Async overlap now shown via the 3-stream panel (MAIN / SIGNAL / EDGE lanes).
+  function drawAsyncArc() {
+    const svg = document.getElementById('async-svg');
+    if (svg) svg.innerHTML = '';
+  }
+
+  function rerun() { requestAnimationFrame(drawAsyncArc); }
+  window.addEventListener('load', rerun);
+  window.addEventListener('resize', rerun);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(rerun);
+  setTimeout(rerun, 400);
+</script>
+
+</body>
+</html>

@@ -4,8 +4,8 @@ Creates an asyncio.Task for the edge extraction call and stores it on
 PipelineContext._edge_extraction_task. The task is NOT awaited here —
 EdgeExtractionBridgeStage (Stage 4.6) awaits it after graph state is ready.
 
-This overlaps the edge extraction LLM latency with SlotDiscoveryStage (4.5)
-and the tail of the existing LLM prefetch (3.1), per D3.
+Fires BEFORE SlotDiscoveryStage (4.5) so the edge extraction Haiku call
+overlaps with SlotDiscovery's ~3s Haiku call. Both depend only on Stage 4.
 """
 
 from __future__ import annotations
@@ -130,7 +130,7 @@ class EdgeExtractionPrefetchStage(TurnStage):
         pair_count = candidate_count * max(candidate_count - 1, 0)
 
         # Fire as asyncio.Task — not awaited here.
-        # Overlaps with SlotDiscoveryStage and tail of LLMPrefetchStage.
+        # Runs concurrently with SlotDiscoveryStage (4.5) which runs next.
         async def _run_prefetched():
             structlog.contextvars.bind_contextvars(call_concurrency="prefetch")
             try:

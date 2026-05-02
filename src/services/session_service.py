@@ -271,25 +271,28 @@ class SessionService:
                 graph_service=self.graph,
                 canonical_slot_resolver=CanonicalSlotResolver(canonical_slot_repo),
             ),
-            # Stage 4.5: SlotDiscoveryStage (always wired, skips if service is None)
-            # Maps surface nodes to canonical slots via LLM proposal + embedding similarity
-            # Also aggregates surface edges to canonical edges
-            SlotDiscoveryStage(
-                slot_service=canonical_slot_service, graph_service=self.graph
-            ),
             # Stage 4.5B-prefetch: Fire edge extraction LLM call asynchronously.
-            # Runs AFTER GraphUpdateStage (needs post-dedup node IDs) and overlaps
-            # with the tail of the existing LLM prefetch (Stage 3.1). Per D3.
+            # Runs AFTER GraphUpdateStage (needs post-dedup node IDs). Fires here
+            # BEFORE SlotDiscovery so the edge extraction Haiku call overlaps with
+            # SlotDiscovery's ~3s Haiku call — swapping 4.5B before 4.5 (vs D3)
+            # gives the edge extraction task the full slot discovery window to run
+            # in background. Both stages depend only on Stage 4, not each other.
             EdgeExtractionPrefetchStage(
                 graph_repo=self.graph_repo,
                 utterance_repo=self.utterance_repo,
             ),
+            # Stage 4.5: SlotDiscoveryStage (always wired, skips if service is None)
+            # Maps surface nodes to canonical slots via LLM proposal + embedding similarity
+            # Also aggregates surface edges to canonical edges.
+            # Runs while the edge extraction Haiku (fired at 4.5B) runs in background.
+            SlotDiscoveryStage(
+                slot_service=canonical_slot_service, graph_service=self.graph
+            ),
             # Stage 4.6: Await edge extraction prefetch, persist confirmed edges,
             # update tracker edge counts. MUST run BEFORE Stage 4.7
             # (LLMSignalBridgeStage) because Stage 4.7 seals the tracker.
-            # Per D3 ordering: ... GraphUpdate → SlotDiscovery →
-            # EdgeExtractionPrefetch → EdgeExtractionBridge → LLMSignalBridge →
-            # StateComputation.
+            # Ordering: ... GraphUpdate → EdgeExtractionPrefetch → SlotDiscovery →
+            # EdgeExtractionBridge → LLMSignalBridge → StateComputation.
             EdgeExtractionBridgeStage(
                 graph_service=self.graph,
                 graph_repo=self.graph_repo,

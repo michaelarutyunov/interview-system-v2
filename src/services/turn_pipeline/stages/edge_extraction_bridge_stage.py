@@ -4,7 +4,8 @@ Awaits the asyncio.Task fired by EdgeExtractionPrefetchStage (Stage 4.5B-prefetc
 persists confirmed edges via GraphService._add_edge_from_relationship (B6 overload),
 and updates the evolving NodeStateTracker with edge-count deltas.
 
-Per D3 ordering: runs AFTER SlotDiscoveryStage and BEFORE LLMSignalBridgeStage.
+Runs AFTER SlotDiscoveryStage and BEFORE LLMSignalBridgeStage.
+SlotDiscovery runs while the edge extraction Haiku (fired at 4.5B) is in-flight.
 LLMSignalBridgeStage seals the tracker after this stage completes, so edge-count
 mutations here are visible to all downstream signal detectors (Stages 5+).
 
