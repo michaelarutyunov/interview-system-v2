@@ -49,6 +49,7 @@ from src.services.turn_pipeline.stages import (
     GraphUpdateStage,
     SlotDiscoveryStage,
     EdgeExtractionPrefetchStage,
+    EdgeExtractionBridgeStage,
     LLMSignalBridgeStage,
     StateComputationStage,
     StrategySelectionStage,
@@ -282,6 +283,17 @@ class SessionService:
             EdgeExtractionPrefetchStage(
                 graph_repo=self.graph_repo,
                 utterance_repo=self.utterance_repo,
+            ),
+            # Stage 4.6: Await edge extraction prefetch, persist confirmed edges,
+            # update tracker edge counts. MUST run BEFORE Stage 4.7
+            # (LLMSignalBridgeStage) because Stage 4.7 seals the tracker.
+            # Per D3 ordering: ... GraphUpdate → SlotDiscovery →
+            # EdgeExtractionPrefetch → EdgeExtractionBridge → LLMSignalBridge →
+            # StateComputation.
+            EdgeExtractionBridgeStage(
+                graph_service=self.graph,
+                graph_repo=self.graph_repo,
+                canonical_slot_resolver=CanonicalSlotResolver(canonical_slot_repo),
             ),
             # Stage 4.7: Await LLM prefetch, bridge per-concept ratings to node tracker, seal
             LLMSignalBridgeStage(
