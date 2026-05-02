@@ -86,8 +86,34 @@ class EdgeExtractionBridgeStage(TurnStage):
             context._evolving_node_tracker = tracker
             return context
 
-        # Persist confirmed edges via B6 ConfirmedEdge overload
+        # Per D10: structured logging for rejected and low-confidence edge candidates
         session_id = context.session_id
+        turn_number = context.turn_number
+
+        for candidate in result.rejected_candidates:
+            log.info(
+                "edge_rejected",
+                session_id=session_id,
+                turn=turn_number,
+                source_node_id=candidate.source_node_id,
+                target_node_id=candidate.target_node_id,
+                rejection_reason=candidate.rejection_reason,
+                reasoning_summary=candidate.reasoning_summary,
+            )
+
+        for edge in result.confirmed_edges:
+            if edge.confidence == "low":
+                log.info(
+                    "edge_low_confidence",
+                    session_id=session_id,
+                    turn=turn_number,
+                    source_node_id=edge.source_node_id,
+                    target_node_id=edge.target_node_id,
+                    edge_type=edge.edge_type,
+                    reasoning_summary=edge.reasoning_summary,
+                )
+
+        # Persist confirmed edges via B6 ConfirmedEdge overload
         methodology = context.methodology
         edges_added: list = []
 
@@ -161,10 +187,11 @@ class EdgeExtractionBridgeStage(TurnStage):
         #       except NodeNotTrackedError:
         #           log.warning(...)
 
-        # Audit log: surface counts for observability (full structured logging is B8)
+        # Per D10: summary log with aggregate counts for observability
         log.info(
             "edge_extraction_bridge_complete",
             session_id=session_id,
+            turn=turn_number,
             confirmed_edges=len(result.confirmed_edges),
             edges_persisted=len(edges_added),
             rejected_candidates=len(result.rejected_candidates),
