@@ -74,6 +74,14 @@ deduplication:
   canonical_min_support_nodes: 2
 
 # ============================================================================
+# Feature Flags
+# ============================================================================
+# Feature flags default to false for safe rollout. Enable per-methodology.
+features:
+  # Enable Stage 4.5B edge extraction (separated node/edge pipeline)
+  enable_edge_extraction_stage: false
+
+# ============================================================================
 # LLM Provider Configuration
 # ============================================================================
 # Each pipeline call type can use a different provider/model for A/B testing.
@@ -83,6 +91,11 @@ deduplication:
 llm:
   # Stage 3: concept/relationship extraction from user responses
   extraction:
+    provider: anthropic
+    model: claude-sonnet-4-6
+    effort: low
+  # Stage 4.5B: cross-turn edge extraction (separated from node extraction)
+  edge_extraction:
     provider: anthropic
     model: claude-sonnet-4-6
     effort: low

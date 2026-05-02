@@ -318,11 +318,25 @@ class LLMCallConfig(BaseModel):
     )
 
 
+class FeaturesConfig(BaseModel):
+    """Feature flags for guarding new pipeline stages.
+
+    Flags default to False for safe rollout. Enable per-methodology in
+    interview_config.yaml once validated. See docs/edge-extraction-decisions.md D12.
+    """
+
+    enable_edge_extraction_stage: bool = Field(
+        default=False,
+        description="Enable Stage 4.5B edge extraction (separated node/edge pipeline)",
+    )
+
+
 class LLMConfig(BaseModel):
     """LLM provider and model configuration for each pipeline call type.
 
-    Four independent call types, each configurable for A/B testing:
+    Five independent call types, each configurable for A/B testing:
     - extraction: Stage 3 — concept/relationship extraction
+    - edge_extraction: Stage 4.5B — cross-turn edge extraction
     - slot_scoring: Stage 4.5 — canonical slot discovery
     - signal_scoring: Stage 6 — LLM signal detection (response_depth, engagement, etc.)
     - question_generation: Stage 8 + opening question
@@ -366,6 +380,13 @@ class LLMConfig(BaseModel):
             effort="low",
         )
     )
+    edge_extraction: LLMCallConfig = Field(
+        default_factory=lambda: LLMCallConfig(
+            provider="anthropic",
+            model="claude-sonnet-4-6",
+            effort="low",
+        )
+    )
 
 
 class InterviewConfig(BaseModel):
@@ -380,6 +401,7 @@ class InterviewConfig(BaseModel):
     phases: PhasesConfig = Field(default_factory=PhasesConfig)
     session_service: SessionServiceConfig = Field(default_factory=SessionServiceConfig)
     deduplication: DeduplicationConfig = Field(default_factory=DeduplicationConfig)
+    features: FeaturesConfig = Field(default_factory=FeaturesConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
 
     @model_validator(mode="after")

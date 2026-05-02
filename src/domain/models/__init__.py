@@ -4,6 +4,7 @@ from .session import Session, SessionState
 from .knowledge_graph import KGNode, KGEdge, GraphState
 from .utterance import Utterance, Speaker
 from .extraction import ExtractedConcept, ExtractedRelationship, ExtractionResult
+from .edge_extraction import ConfirmedEdge, RejectedEdgeCandidate, EdgeExtractionOutput
 from .concept import Concept, ConceptContext, ConceptElement
 from .node_state import NodeState
 from .canonical_graph import (
@@ -33,4 +34,8 @@ __all__ = [
     "SlotMapping",
     "CanonicalEdge",
     "CanonicalGraphState",
+    # Edge extraction models (Stage 4.5B)
+    "ConfirmedEdge",
+    "RejectedEdgeCandidate",
+    "EdgeExtractionOutput",
 ]

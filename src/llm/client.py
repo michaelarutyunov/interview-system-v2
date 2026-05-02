@@ -31,7 +31,11 @@ log = structlog.get_logger(__name__)
 
 
 LLMClientType = Literal[
-    "extraction", "slot_scoring", "signal_scoring", "question_generation"
+    "extraction",
+    "edge_extraction",
+    "slot_scoring",
+    "signal_scoring",
+    "question_generation",
 ]
 
 # Context variable for implicitly passing session_id through async call chain
