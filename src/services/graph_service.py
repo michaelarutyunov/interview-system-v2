@@ -12,7 +12,7 @@ Uses GraphRepository for persistence.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING, cast
 
 import structlog
 
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from src.services.embedding_service import EmbeddingService
 
 from src.domain.models.canonical_graph import CanonicalEdge
+from src.domain.models.edge_extraction import ConfirmedEdge
 from src.domain.models.extraction import (
     ExtractedConcept,
     ExtractedRelationship,
@@ -30,6 +31,10 @@ from src.persistence.repositories.canonical_slot_repo import CanonicalSlotReposi
 from src.persistence.repositories.graph_repo import GraphRepository
 
 log = structlog.get_logger(__name__)
+
+# Confidence string-to-float mapping for ConfirmedEdge path.
+# ConfirmedEdge uses Literal["high", "medium", "low"] but the DB stores float.
+_CONFIDENCE_MAP: dict[str, float] = {"high": 0.9, "medium": 0.7, "low": 0.5}
 
 
 class GraphService:
@@ -279,60 +284,97 @@ class GraphService:
     async def _add_edge_from_relationship(
         self,
         session_id: str,
-        relationship: ExtractedRelationship,
-        label_to_node: dict,
-        utterance_id: str,
+        relationship: Union[ExtractedRelationship, ConfirmedEdge],
+        label_to_node: Optional[dict] = None,
+        utterance_id: str = "",
         methodology: Optional[str] = None,
     ) -> Optional[KGEdge]:
         """
-        Create edge from extracted relationship.
+        Create edge from extracted relationship or confirmed edge.
 
         Performs permitted_connections validation after dedup resolution
         to catch cross-turn edges that bypass extraction-time validation.
 
+        Supports two paths:
+        - ExtractedRelationship: resolves nodes via label_to_node lookup (legacy Stage 3)
+        - ConfirmedEdge: uses source_node_id/target_node_id directly (Stage 4.5B)
+
         Args:
             session_id: Session ID
-            relationship: Extracted relationship
-            label_to_node: Map of concept text to node
-            utterance_id: Source utterance ID
+            relationship: Extracted relationship OR confirmed edge
+            label_to_node: Map of concept text to node (required for ExtractedRelationship;
+                          ignored for ConfirmedEdge)
+            utterance_id: Source utterance ID (used for ExtractedRelationship;
+                          for ConfirmedEdge, edge.utterance_id is used instead)
             methodology: Optional methodology schema name for permitted_connections validation
 
         Returns:
             KGEdge or None if nodes not found or validation fails
         """
-        # Find source and target nodes
-        source_node = label_to_node.get(relationship.source_text.lower())
-        target_node = label_to_node.get(relationship.target_text.lower())
+        is_confirmed = isinstance(relationship, ConfirmedEdge)
+
+        if is_confirmed:
+            # ConfirmedEdge path (Stage 4.5B): resolve nodes by ID directly.
+            # No label_to_node lookup needed — ConfirmedEdge carries node IDs.
+            source_node = await self.repo.get_node(relationship.source_node_id)
+            target_node = await self.repo.get_node(relationship.target_node_id)
+            # utterance_id comes from the confirmed edge, not the turn-current utterance.
+            provenance_utterance_id = relationship.utterance_id
+            edge_type = relationship.edge_type
+            confidence = _CONFIDENCE_MAP.get(relationship.confidence, 0.7)
+
+            source_label = relationship.source_node_id
+            target_label = relationship.target_node_id
+        else:
+            # ExtractedRelationship path (legacy Stage 3): lookup via label_to_node.
+            source_node = (
+                label_to_node.get(relationship.source_text.lower())
+                if label_to_node
+                else None
+            )
+            target_node = (
+                label_to_node.get(relationship.target_text.lower())
+                if label_to_node
+                else None
+            )
+            provenance_utterance_id = utterance_id
+            edge_type = relationship.relationship_type
+            confidence = relationship.confidence
+
+            source_label = relationship.source_text
+            target_label = relationship.target_text
 
         # Detect cross-turn resolution: node is cross-turn if current utterance_id
         # is not in its source_utterance_ids (i.e. it was created in a prior turn)
         source_is_cross_turn = (
             source_node is not None
-            and utterance_id not in source_node.source_utterance_ids
+            and provenance_utterance_id not in source_node.source_utterance_ids
         )
         target_is_cross_turn = (
             target_node is not None
-            and utterance_id not in target_node.source_utterance_ids
+            and provenance_utterance_id not in target_node.source_utterance_ids
         )
         is_cross_turn = source_is_cross_turn or target_is_cross_turn
 
         log.debug(
             "edge_resolution",
-            source_label=relationship.source_text,
-            target_label=relationship.target_text,
+            source_label=source_label,
+            target_label=target_label,
             source_found=source_node is not None,
             target_found=target_node is not None,
             is_cross_turn=is_cross_turn,
+            edge_source=("confirmed" if is_confirmed else "extracted"),
             outcome="created" if (source_node and target_node) else "failed",
         )
 
         if not source_node or not target_node:
             log.warning(
                 "edge_skipped_missing_node",
-                source=relationship.source_text,
-                target=relationship.target_text,
+                source=source_label,
+                target=target_label,
                 source_found=source_node is not None,
                 target_found=target_node is not None,
+                edge_source=("confirmed" if is_confirmed else "extracted"),
             )
             return None
 
@@ -344,13 +386,13 @@ class GraphService:
 
             schema = load_methodology(methodology)
             if not schema.is_valid_connection(
-                relationship.relationship_type,
+                edge_type,
                 source_node.node_type,
                 target_node.node_type,
             ):
                 log.warning(
                     "invalid_connection_post_dedup",
-                    edge_type=relationship.relationship_type,
+                    edge_type=edge_type,
                     source_type=source_node.node_type,
                     target_type=target_node.node_type,
                     source_label=source_node.label,
@@ -360,7 +402,7 @@ class GraphService:
                 return None
 
         # Handle revises edges: mark target node as superseded by source
-        if relationship.relationship_type == "revises":
+        if edge_type == "revises":
             await self.repo.supersede_node(target_node.id, source_node.id)
             log.info(
                 "node_superseded_via_revises",
@@ -375,7 +417,7 @@ class GraphService:
             session_id=session_id,
             source_node_id=source_node.id,
             target_node_id=target_node.id,
-            edge_type=relationship.relationship_type,
+            edge_type=edge_type,
         )
 
         if existing:
@@ -385,16 +427,18 @@ class GraphService:
                 target=target_node.label,
             )
             # Add this utterance to provenance
-            return await self.repo.add_edge_source_utterance(existing.id, utterance_id)
+            return await self.repo.add_edge_source_utterance(
+                existing.id, provenance_utterance_id
+            )
 
         # Create new edge
         return await self.repo.create_edge(
             session_id=session_id,
             source_node_id=source_node.id,
             target_node_id=target_node.id,
-            edge_type=relationship.relationship_type,
-            confidence=relationship.confidence,
-            source_utterance_ids=[utterance_id],
+            edge_type=edge_type,
+            confidence=confidence,
+            source_utterance_ids=[provenance_utterance_id],
         )
 
     async def get_session_graph(
