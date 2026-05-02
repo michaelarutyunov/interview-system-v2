@@ -48,6 +48,7 @@ from src.services.turn_pipeline.stages import (
     LLMPrefetchStage,
     GraphUpdateStage,
     SlotDiscoveryStage,
+    EdgeExtractionPrefetchStage,
     LLMSignalBridgeStage,
     StateComputationStage,
     StrategySelectionStage,
@@ -274,6 +275,13 @@ class SessionService:
             # Also aggregates surface edges to canonical edges
             SlotDiscoveryStage(
                 slot_service=canonical_slot_service, graph_service=self.graph
+            ),
+            # Stage 4.5B-prefetch: Fire edge extraction LLM call asynchronously.
+            # Runs AFTER GraphUpdateStage (needs post-dedup node IDs) and overlaps
+            # with the tail of the existing LLM prefetch (Stage 3.1). Per D3.
+            EdgeExtractionPrefetchStage(
+                graph_repo=self.graph_repo,
+                utterance_repo=self.utterance_repo,
             ),
             # Stage 4.7: Await LLM prefetch, bridge per-concept ratings to node tracker, seal
             LLMSignalBridgeStage(

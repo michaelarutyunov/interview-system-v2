@@ -13,6 +13,7 @@ from .extraction_stage import ExtractionStage
 from .llm_prefetch_stage import LLMPrefetchStage
 from .graph_update_stage import GraphUpdateStage
 from .slot_discovery_stage import SlotDiscoveryStage
+from .edge_extraction_prefetch_stage import EdgeExtractionPrefetchStage
 from .llm_signal_bridge_stage import LLMSignalBridgeStage
 from .state_computation_stage import StateComputationStage
 from .strategy_selection_stage import StrategySelectionStage
@@ -29,6 +30,7 @@ __all__ = [
     "LLMPrefetchStage",
     "GraphUpdateStage",
     "SlotDiscoveryStage",
+    "EdgeExtractionPrefetchStage",
     "LLMSignalBridgeStage",
     "StateComputationStage",
     "StrategySelectionStage",

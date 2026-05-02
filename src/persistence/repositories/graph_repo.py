@@ -640,6 +640,62 @@ class GraphRepository:
 
         return max_depth
 
+    # ==================== NEIGHBOUR AND TURN-BASED LOOKUP ====================
+
+    async def get_neighbours(self, node_id: str) -> List[str]:
+        """Get IDs of nodes directly connected to the given node via any edge.
+
+        Args:
+            node_id: Node ID to find neighbours for
+
+        Returns:
+            List of neighbour node IDs (deduplicated)
+        """
+        self.db.row_factory = aiosqlite.Row
+        cursor = await self.db.execute(
+            "SELECT source_node_id, target_node_id FROM kg_edges "
+            "WHERE source_node_id = ? OR target_node_id = ?",
+            (node_id, node_id),
+        )
+        rows = await cursor.fetchall()
+
+        neighbour_ids: List[str] = []
+        for row in rows:
+            if row["source_node_id"] == node_id:
+                neighbour_ids.append(row["target_node_id"])
+            else:
+                neighbour_ids.append(row["source_node_id"])
+        return list(dict.fromkeys(neighbour_ids))  # dedup preserving order
+
+    async def get_nodes_by_turn(
+        self, session_id: str, turn_number: int
+    ) -> List[KGNode]:
+        """Get nodes whose source utterances belong to a specific turn.
+
+        Finds utterance IDs for the given turn, then returns all session nodes
+        that reference any of those utterance IDs in their source_utterance_ids.
+
+        Args:
+            session_id: Session ID
+            turn_number: Turn number to filter by
+
+        Returns:
+            List of KGNode objects associated with the given turn
+        """
+        self.db.row_factory = aiosqlite.Row
+        cursor = await self.db.execute(
+            "SELECT id FROM utterances WHERE session_id = ? AND turn_number = ?",
+            (session_id, turn_number),
+        )
+        rows = await cursor.fetchall()
+        turn_utterance_ids = {row["id"] for row in rows}
+
+        if not turn_utterance_ids:
+            return []
+
+        nodes = await self.get_nodes_by_session(session_id)
+        return [n for n in nodes if set(n.source_utterance_ids) & turn_utterance_ids]
+
     # ==================== DUAL-GRAPH REPORTING METHODS ====================
 
     async def get_nodes_with_canonical_mapping(
