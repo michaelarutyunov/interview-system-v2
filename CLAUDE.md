@@ -61,7 +61,7 @@ Any codebase change should follow these principles:
 
 ```
 src/
-├── services/turn_pipeline/stages/    # 12 pipeline stages
+├── services/turn_pipeline/stages/    # 16 pipeline stages
 ├── services/
 │   ├── graph_service.py              # Surface graph + dedup
 │   ├── canonical_slot_service.py     # Canonical graph
@@ -85,14 +85,20 @@ src/
 
 ## Pipeline Stages
 
+16 stages. Edge extraction (4.5B+4.6) uses the prefetch+bridge async pattern (fire task, overlap with next stage, await later). 4.5B fires before 4.5 so the edge extraction Haiku overlaps with SlotDiscovery.
+
 | Stage | File | Purpose |
 |-------|------|---------|
 | 1 | `context_loading_stage.py` | Load session, conversation history |
 | 2 | `utterance_saving_stage.py` | Save user input |
 | 2.5 | `srl_preprocessing_stage.py` | Linguistic parsing |
-| 3 | `extraction_stage.py` | Extract concepts/relationships |
-| 4 | `graph_update_stage.py` | Update KG with dedup |
+| 3 | `extraction_stage.py` | Extract concepts (nodes only; edges → 4.5B) |
+| 3.1 | `llm_prefetch_stage.py` | Fire async LLM signal detection (Haiku) |
+| 4 | `graph_update_stage.py` | Update KG with dedup, write nodes |
 | 4.5 | `slot_discovery_stage.py` | Canonical slot mapping |
+| 4.5B | `edge_extraction_prefetch_stage.py` | Fire async edge extraction (Haiku) |
+| 4.6 | `edge_extraction_bridge_stage.py` | Await edges, persist, update tracker, record yield |
+| 4.7 | `llm_signal_bridge_stage.py` | Await signal prefetch, route ratings, seal tracker |
 | 5 | `state_computation_stage.py` | Refresh graph metrics |
 | 6 | `strategy_selection_stage.py` | Signal Pools → strategy |
 | 7 | `continuation_stage.py` | Continue or stop |
@@ -113,8 +119,10 @@ canonical_min_support_nodes: int = 2
 # Features
 enable_srl: bool = True
 enable_canonical_slots: bool = True
+enable_edge_extraction_stage: bool = False  # Stage 4.5B — default OFF, per-method rollout
 
 # LLM Providers (config/interview_config.yaml → llm: section)
+# Six call types: extraction, edge_extraction, slot_scoring, signal_scoring, question_generation, n
 # anthropic: Claude models (Sonnet, Haiku) — default for extraction + question generation
 # kimi: Moonshot AI models (K2)
 # deepseek: DeepSeek models
@@ -201,6 +209,7 @@ Run `uv run python scripts/check_doc_drift.py` any time to check for drift. The 
 | `src/services/graph_service.py` | `.claude/context/graph-mutation.md` |
 | `src/services/canonical_slot_service.py` | `.claude/context/canonical-slots.md` |
 | `src/services/extraction_service.py`, `src/llm/prompts/extraction.py` | `.claude/context/extraction.md` |
+| `src/llm/prompts/edge_extraction.py`, `src/services/edge_extraction_service.py`, `src/domain/models/edge_extraction.py` | `.claude/context/extraction.md` |
 | `src/llm/prompts/question.py`, `src/services/question_service.py`, `src/services/turn_pipeline/stages/question_generation_stage.py` | `.claude/context/pipeline-contracts.md` |
 | Any pipeline stage (`stages/*.py`), `context.py`, `pipeline_contracts.py` | `.claude/context/pipeline-contracts.md` |
 | `src/services/node_state_tracker.py`, `src/services/node_signal_detection_service.py` | `.claude/context/node-state-tracker.md` |
@@ -259,6 +268,7 @@ Run `/deep-code-quality` for the full framework when a diagnostic doesn't obviou
 
 - **Stage ordering (Stage 4 < Stage 6):** Any state reset in Stage 4 (GraphUpdateStage) is invisible to Stage 6 signal detectors. Do not reset signal-relevant state in early stages. See `.claude/context/node-state-tracker.md`.
 - **Tracker/slot-key schema drift raises `NodeNotTrackedError`:** When slot discovery (Stage 4.5) emits tracking keys that don't match NodeStateTracker's internal schema, `append_quality`, `update_focus`, and `record_yield` now **raise `NodeNotTrackedError`** rather than warning silently (see `src/services/node_state_tracker.py`). Historically this was a silent warning that let MEC chains stall at `instrumental_value` with `structural_completeness` stuck at zero — that failure mode is now loud-fail. If you see `NodeNotTrackedError` during a run, the canonical slot resolver and tracker registration are out of sync. Original silent-failure regression fixed in commit `d4fd3b8`; raised to exception thereafter. See `.claude/context/node-state-tracker.md` and `.claude/context/canonical-slots.md`.
+- **record_yield is_empty() guard silently skips yield credit after B7:** `record_yield` has a guard `if graph_changes.is_empty(): return self` that skips yield recording when nodes_added=0 AND edges_added=0. After B7 moved record_yield from GraphUpdateStage to EdgeExtractionBridgeStage, the bridge hardcodes `nodes_added=0` and passes `edges_added=len(edges_added)`. When the feature flag is OFF, `edges_added` is always `[]` (task is None), so `is_empty()` returns True every turn. Consequence: `turns_since_last_yield` never resets, all explored nodes reach exhaustion threshold (3) by turn 6, interview stops prematurely with `all_nodes_exhausted`. **Fixed by removing the is_empty() guard** — the focus node was actively used this turn regardless of graph change counts. See `.claude/context/node-state-tracker.md`.
 - **Stale specs:** Agents trust docs absolutely. An outdated doc produces silent failures — correct-looking code based on wrong assumptions. The drift detector warns but does not prevent this. When in doubt, verify the doc against source.
 - **Canonical slot timing:** Canonical slots are only `active` after `support_count >= canonical_min_support_nodes` (default 2). Signals depending on canonical data return empty/zero on first occurrence.
 - **`select_strategy_and_focus()` uses joint scoring:** All eligible (strategy, node) pairs are scored simultaneously via `rank_strategy_node_pairs()`. The old 2-stage (strategy-first, then node) architecture has been removed.
