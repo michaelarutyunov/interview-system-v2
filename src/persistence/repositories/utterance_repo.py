@@ -93,6 +93,41 @@ class UtteranceRepository:
             rows = await cursor.fetchall()
             return [self._row_to_utterance(row) for row in rows]
 
+    async def get_by_ids(self, ids: List[str]) -> List[Utterance]:
+        """Get utterances by their IDs.
+
+        Returns utterances in input order, deduplicated by ID.
+        Missing IDs are dropped silently (no error if an ID doesn't exist).
+
+        Args:
+            ids: List of utterance IDs to retrieve
+
+        Returns:
+            List of Utterance objects in the order of first occurrence in ids
+        """
+        if not ids:
+            return []
+
+        # Deduplicate while preserving order
+        ordered_ids = list(dict.fromkeys(ids))
+
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+
+            # Build parameterized query with the right number of placeholders
+            placeholders = ",".join("?" for _ in ordered_ids)
+            cursor = await db.execute(
+                f"SELECT * FROM utterances WHERE id IN ({placeholders})",
+                ordered_ids,
+            )
+            rows = await cursor.fetchall()
+
+        # Map id -> Utterance for O(1) lookup
+        utterance_map = {row["id"]: self._row_to_utterance(row) for row in rows}
+
+        # Return in input order, dropping missing IDs
+        return [utterance_map[uid] for uid in ordered_ids if uid in utterance_map]
+
     def _row_to_utterance(self, row: aiosqlite.Row) -> Utterance:
         """Convert a database row to an Utterance model.
 
