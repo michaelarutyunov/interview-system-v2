@@ -134,6 +134,11 @@ class PipelineContext:
     # and the tail of the LLM prefetch. Per D3.
     _edge_extraction_task: Any = None
 
+    # Parsed EdgeExtractionOutput from the bridge stage (Stage 4.6).
+    # Set after the prefetch task is awaited and parsed. Used by the
+    # pipeline result builder to include edge diagnostics in TurnResult.
+    _edge_extraction_result: Any = None
+
     # NodeStateTracker in-flight before Stage 4.7 seals it.
     # Written by Stages 4, 4.5, 4.7 only. Read via the node_tracker property
     # (which enforces the seal) by Stages 5+.

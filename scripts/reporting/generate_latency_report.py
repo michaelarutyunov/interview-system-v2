@@ -224,13 +224,25 @@ def _write_summary_md(data: dict, output_dir: Path) -> Path:
     # concurrently with the prefetched LLM call (stages 4–4.5 overlap with the
     # llm_prefetch_stage task).
     wall_clock_total = sum(pipeline_times) if pipeline_times else 0.0
-    concurrency_savings = (
-        total_stage_time - wall_clock_total if wall_clock_total else 0.0
-    )
 
     # Split LLM time into inline (serial) vs prefetch (concurrent with stages).
     inline_llm_time = sum(m.get("inline_duration", 0.0) for m in llm_calls.values())
     prefetch_llm_time = sum(m.get("prefetch_duration", 0.0) for m in llm_calls.values())
+
+    # Real concurrency savings: prefetched LLM time that was fully absorbed by
+    # the pipeline stages running in parallel. The portion that ISN'T absorbed
+    # is the time spent in bridge stages awaiting prefetched tasks.
+    # Bridge stages: LLMSignalBridgeStage (awaits signal detection prefetch)
+    #                EdgeExtractionBridgeStage (awaits edge extraction prefetch)
+    signal_bridge_ms = sum(
+        s[1]["total"] for s in stage_stats if s[0] == "LLMSignalBridgeStage"
+    )
+    edge_bridge_ms = sum(
+        s[1]["total"] for s in stage_stats if s[0] == "EdgeExtractionBridgeStage"
+    )
+    bridge_await_total_ms = signal_bridge_ms + edge_bridge_ms
+    # prefetch_llm_time is also in ms (sum of latency_ms values)
+    concurrency_savings_ms = max(0.0, prefetch_llm_time - bridge_await_total_ms)
 
     lines = [
         "# Pipeline Timing Analysis",
@@ -257,9 +269,18 @@ def _write_summary_md(data: dict, output_dir: Path) -> Path:
             f"(overstates wall-clock when stages overlap)"
         )
         lines.append(
-            f"- **Concurrency savings**: {concurrency_savings / 1000:.2f}s "
-            f"(time hidden by the prefetched LLM call running in parallel with "
-            f"stages 4–4.5)"
+            f"- **Prefetched LLM time**: {prefetch_llm_time / 1000:.2f}s "
+            f"(runs in background during stages 4–4.6)"
+        )
+        lines.append(
+            f"- **Bridge await time**: {bridge_await_total_ms / 1000:.2f}s "
+            f"(un-overlapped portion on critical path: "
+            f"SignalBridge={signal_bridge_ms / 1000:.1f}s, "
+            f"EdgeBridge={edge_bridge_ms / 1000:.1f}s)"
+        )
+        lines.append(
+            f"- **Concurrency savings**: {concurrency_savings_ms / 1000:.2f}s "
+            f"(prefetched LLM time fully absorbed by parallel stage execution)"
         )
     else:
         lines.append(
@@ -324,13 +345,19 @@ def _write_summary_md(data: dict, output_dir: Path) -> Path:
             f"critical path, fully visible in wall-clock"
         )
         lines.append(
-            f"- **Prefetched (concurrent with stages 4–4.5)**: "
-            f"{prefetch_llm_time / 1000:.2f}s — runs in parallel; only the "
-            f"portion exceeding stage 4–4.5 wall-clock contributes to total"
+            f"- **Prefetched (background)**: "
+            f"{prefetch_llm_time / 1000:.2f}s — runs in parallel with pipeline "
+            f"stages; only the un-overlapped bridge await ({bridge_await_total_ms:.2f}s) "
+            f"is on the critical path"
+        )
+        lines.append(
+            f"- **Concurrency savings**: {concurrency_savings_ms / 1000:.2f}s "
+            f"({concurrency_savings_ms / max(prefetch_llm_time, 0.001) * 100:.0f}% "
+            f"of prefetched LLM time absorbed by parallel execution)"
         )
         lines.append(
             f"- **Σ LLM latency**: {total_llm_time / 1000:.2f}s "
-            f"(double-counts the overlap window — do not sum against wall-clock)"
+            f"(sum of all LLM calls; overlaps with itself — do not use as wall-clock)"
         )
 
     lines.extend(["", "## Key Findings", "", "### Top Bottlenecks"])

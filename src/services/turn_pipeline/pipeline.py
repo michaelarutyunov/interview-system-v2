@@ -19,6 +19,36 @@ from .result import TurnResult
 log = structlog.get_logger(__name__)
 
 
+def _serialize_edge_extraction_result(context: PipelineContext) -> dict | None:
+    """Serialize the edge extraction result from the bridge stage for export."""
+    result = getattr(context, "_edge_extraction_result", None)
+    if result is None:
+        return None
+    return {
+        "confirmed_count": len(result.confirmed_edges),
+        "rejected_count": len(result.rejected_candidates),
+        "low_confidence_count": result.low_confidence_count,
+        "confirmed_edges": [
+            {
+                "source_node_id": e.source_node_id,
+                "target_node_id": e.target_node_id,
+                "edge_type": e.edge_type,
+                "confidence": e.confidence,
+                "utterance_id": e.utterance_id,
+            }
+            for e in result.confirmed_edges
+        ],
+        "rejected_candidates": [
+            {
+                "source_node_id": r.source_node_id,
+                "target_node_id": r.target_node_id,
+                "rejection_reason": r.rejection_reason,
+            }
+            for r in result.rejected_candidates
+        ],
+    }
+
+
 class TurnPipeline:
     """
     Orchestrates sequential execution of turn processing stages.
@@ -291,4 +321,5 @@ class TurnPipeline:
             node_signals=context.node_signals,
             score_decomposition=context.score_decomposition,
             stage_timings=dict(context.stage_timings),
+            edge_extraction=_serialize_edge_extraction_result(context),
         )

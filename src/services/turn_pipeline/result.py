@@ -44,6 +44,10 @@ class TurnResult:
     graph_comparison: Optional[Dict[str, Any]] = (
         None  # {node_reduction_pct, edge_aggregation_ratio}
     )
+    # Edge extraction diagnostics (Stage 4.5B) — per-turn audit
+    edge_extraction: Optional[Dict[str, Any]] = (
+        None  # {confirmed, rejected, low_conf, edges}
+    )
     # Per-turn graph changes for simulation observability
     nodes_added: List[Dict[str, Any]] = field(
         default_factory=list

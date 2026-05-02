@@ -102,6 +102,9 @@ class EdgeExtractionBridgeStage(TurnStage):
                             reasoning_summary=edge.reasoning_summary,
                         )
 
+                # Store parsed result on context for downstream export (turn diagnostics)
+                context._edge_extraction_result = result
+
                 # Persist confirmed edges via B6 ConfirmedEdge overload
                 methodology = context.methodology
 

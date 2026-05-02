@@ -77,6 +77,8 @@ class SimulationTurn:
     score_decomposition: Optional[List[Dict[str, Any]]] = None
     # Per-stage timing in milliseconds
     stage_timings: Optional[Dict[str, float]] = None
+    # Edge extraction diagnostics (Stage 4.5B) per turn
+    edge_extraction: Optional[Dict[str, Any]] = None
     # Focus node selected for this turn's question
     focus_node_id: Optional[str] = None
     focus_node_label: Optional[str] = None
@@ -267,6 +269,7 @@ class SimulationService:
                     turn_result_session.score_decomposition
                 ),
                 stage_timings=turn_result_session.stage_timings,
+                edge_extraction=turn_result_session.edge_extraction,
                 focus_node_id=focus_node_id,
                 focus_node_label=focus_node_label,
             )
@@ -343,6 +346,7 @@ class SimulationService:
         node_signals: Optional[Dict[str, Any]] = None,
         score_decomposition: Optional[List[Dict[str, Any]]] = None,
         stage_timings: Optional[Dict[str, float]] = None,
+        edge_extraction: Optional[Dict[str, Any]] = None,
         focus_node_id: Optional[str] = None,
         focus_node_label: Optional[str] = None,
     ) -> SimulationTurn:
@@ -429,6 +433,7 @@ class SimulationService:
             node_signals=node_signals,
             score_decomposition=score_decomposition,
             stage_timings=stage_timings,
+            edge_extraction=edge_extraction,
             focus_node_id=focus_node_id,
             focus_node_label=focus_node_label,
         )
@@ -766,6 +771,8 @@ class SimulationService:
                     # Focus node selected for this turn's question
                     "focus_node_id": t.focus_node_id,
                     "focus_node_label": t.focus_node_label,
+                    # Edge extraction diagnostics (Stage 4.5B) — confirmed/rejected/low-conf
+                    "edge_extraction": t.edge_extraction,
                 }
                 for t in result.turns
             ],
