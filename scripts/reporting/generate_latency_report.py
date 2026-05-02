@@ -115,7 +115,7 @@ def analyze_log(log_file: Path) -> dict:
         r".*?model=(\S+).*?output_tokens=(\d+)"
     )
     pipeline_completed_pattern = re.compile(
-        r"pipeline_completed\s+total_duration_ms=([\d\.]+)"
+        r"pipeline_completed\s+.*?latency_ms=([\d\.]+)"
     )
 
     with open(log_file, "r", encoding="utf-8") as f:
