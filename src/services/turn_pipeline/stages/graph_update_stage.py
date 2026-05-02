@@ -13,9 +13,7 @@ import structlog
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import GraphUpdateOutput
 from src.services.node_state_tracker import (
-    GraphChangeSummary,
     CanonicalSlotResolver,
-    NodeNotTrackedError,
 )
 from src.services.graph_service import GraphService
 
@@ -177,24 +175,9 @@ class GraphUpdateStage(TurnStage):
         if edge_deltas:
             tracker = tracker.update_edge_counts_batch(edge_deltas)
 
-        # Record yield against previous_focus if graph changed
-        if (nodes_added or edges_added) and tracker.previous_focus:
-            graph_changes = GraphChangeSummary(
-                nodes_added=len(nodes_added),
-                edges_added=len(edges_added),
-            )
-            try:
-                tracker = tracker.record_yield(
-                    tracking_key=tracker.previous_focus,
-                    turn_number=context.turn_number,
-                    graph_changes=graph_changes,
-                )
-            except NodeNotTrackedError:
-                log.warning(
-                    "record_yield_failed_previous_focus_not_found",
-                    previous_focus=tracker.previous_focus,
-                    turn_number=context.turn_number,
-                )
+        # record_yield ownership moved to EdgeExtractionBridgeStage (D4/B7)
+        # Yield credit is now emitted unconditionally by Stage 4.6 after both
+        # Stage 4 node writes and Stage 4.5B edge writes are complete.
 
         log.debug(
             "node_state_tracker_updated",
