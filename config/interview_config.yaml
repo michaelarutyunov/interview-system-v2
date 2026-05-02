@@ -80,6 +80,15 @@ deduplication:
 features:
   # Enable Stage 4.5B edge extraction (separated node/edge pipeline)
   enable_edge_extraction_stage: false
+  # Per-methodology overrides (checked first; global flag is fallback)
+  # Rollout sequence per D12: JTBD → MEC strict → MEC flex → CIT → CJM → RG
+  per_methodology_edge_extraction:
+    jobs_to_be_done_v2: true
+  #   means_end_chain_v2_strict: true
+  #   means_end_chain_v2_flex: true
+  #   critical_incident_v2: true
+  #   customer_journey_mapping_v2: true
+  #   repertory_grid_v2: true
 
 # ============================================================================
 # LLM Provider Configuration

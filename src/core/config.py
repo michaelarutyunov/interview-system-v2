@@ -323,11 +323,19 @@ class FeaturesConfig(BaseModel):
 
     Flags default to False for safe rollout. Enable per-methodology in
     interview_config.yaml once validated. See docs/edge-extraction-decisions.md D12.
+
+    The per_methodology_edge_extraction map provides granular control:
+    - If a methodology is in the map, its value overrides the global flag.
+    - If not in the map, the global enable_edge_extraction_stage is used as default.
     """
 
     enable_edge_extraction_stage: bool = Field(
         default=False,
         description="Enable Stage 4.5B edge extraction (separated node/edge pipeline)",
+    )
+    per_methodology_edge_extraction: dict[str, bool] = Field(
+        default_factory=dict,
+        description="Per-methodology overrides for edge extraction (methodology_name → enabled)",
     )
 
 

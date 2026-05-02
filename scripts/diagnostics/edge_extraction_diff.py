@@ -53,11 +53,18 @@ _METHODOLOGY_DISPLAY: dict[str, str] = {
 }
 
 
-def _set_feature_flag(enabled: bool) -> None:
-    """Monkey-patch the edge extraction feature flag in the loaded config."""
+def _set_feature_flag(enabled: bool, methodology: str | None = None) -> None:
+    """Monkey-patch the edge extraction feature flag in the loaded config.
+
+    If methodology is provided, sets the per-methodology map entry for that
+    methodology, which takes precedence over the global flag.
+    """
     from src.core.config import interview_config
 
-    interview_config.features.enable_edge_extraction_stage = enabled
+    if methodology:
+        interview_config.features.per_methodology_edge_extraction[methodology] = enabled
+    else:
+        interview_config.features.enable_edge_extraction_stage = enabled
 
 
 async def _run_one_simulation(
@@ -65,6 +72,7 @@ async def _run_one_simulation(
     persona_id: str,
     max_turns: int,
     flag_enabled: bool,
+    methodology: str | None = None,
 ) -> dict[str, Any]:
     """Run a single simulation and return structured metrics.
 
@@ -86,7 +94,7 @@ async def _run_one_simulation(
 
     configure_logging()
 
-    _set_feature_flag(flag_enabled)
+    _set_feature_flag(flag_enabled, methodology)
 
     db = await aiosqlite.connect(str(settings.database_path))
     try:
@@ -363,14 +371,16 @@ async def _main() -> None:
         print("  Baseline (flag OFF)...", end=" ", flush=True)
         t0 = time.perf_counter()
         baseline = await _run_one_simulation(
-            concept_id, args.persona, args.max_turns, flag_enabled=False
+            concept_id, args.persona, args.max_turns, flag_enabled=False,
+            methodology=methodology,
         )
         print(f"done ({time.perf_counter() - t0:.1f}s)")
 
         print("  New path (flag ON)...", end=" ", flush=True)
         t0 = time.perf_counter()
         new = await _run_one_simulation(
-            concept_id, args.persona, args.max_turns, flag_enabled=True
+            concept_id, args.persona, args.max_turns, flag_enabled=True,
+            methodology=methodology,
         )
         print(f"done ({time.perf_counter() - t0:.1f}s)")
 

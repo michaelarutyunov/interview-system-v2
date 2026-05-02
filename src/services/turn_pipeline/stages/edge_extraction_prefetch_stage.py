@@ -50,9 +50,18 @@ class EdgeExtractionPrefetchStage(TurnStage):
         self._graph_repo = graph_repo
         self._utterance_repo = utterance_repo
 
+    @staticmethod
+    def _is_edge_extraction_enabled(methodology: str) -> bool:
+        """Check per-methodology map first, then fall back to global flag."""
+        features = interview_config.features
+        per_methodology = features.per_methodology_edge_extraction
+        if methodology in per_methodology:
+            return per_methodology[methodology]
+        return features.enable_edge_extraction_stage
+
     async def process(self, context: "PipelineContext") -> "PipelineContext":
-        # Feature flag gate (D12)
-        if not interview_config.features.enable_edge_extraction_stage:
+        # Feature flag gate (D12): per-methodology map first, global flag fallback
+        if not self._is_edge_extraction_enabled(context.methodology):
             log.debug(
                 "edge_extraction_prefetch_disabled",
                 session_id=context.session_id,
