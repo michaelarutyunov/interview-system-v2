@@ -97,8 +97,7 @@ llm:
   # Stage 4.5B: cross-turn edge extraction (separated from node extraction)
   edge_extraction:
     provider: anthropic
-    model: claude-sonnet-4-6
-    effort: low
+    model: claude-haiku-4-5
   # Stage 4.5: canonical slot discovery (structured JSON extraction)
   slot_scoring:
     provider: anthropic
