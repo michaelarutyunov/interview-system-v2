@@ -36,13 +36,17 @@ class GraphChangeSummary:
 
     __slots__ = ("nodes_added", "edges_added", "nodes_modified")
 
-    def __init__(self, nodes_added: int, edges_added: int, nodes_modified: int = 0) -> None:
+    def __init__(
+        self, nodes_added: int, edges_added: int, nodes_modified: int = 0
+    ) -> None:
         self.nodes_added = nodes_added
         self.edges_added = edges_added
         self.nodes_modified = nodes_modified
 
     def is_empty(self) -> bool:
-        return self.nodes_added == 0 and self.edges_added == 0 and self.nodes_modified == 0
+        return (
+            self.nodes_added == 0 and self.edges_added == 0 and self.nodes_modified == 0
+        )
 
 
 class CanonicalSlotResolver:
@@ -53,7 +57,9 @@ class CanonicalSlotResolver:
     NodeStateTracker after Stage 4.5 runs remap_to_canonical_slots().
     """
 
-    def __init__(self, canonical_slot_repo: Optional["CanonicalSlotRepository"] = None) -> None:
+    def __init__(
+        self, canonical_slot_repo: Optional["CanonicalSlotRepository"] = None
+    ) -> None:
         self._repo = canonical_slot_repo
 
     async def resolve(self, surface_node_id: str) -> str:
@@ -113,7 +119,13 @@ class NodeStateTracker(BaseModel):
             is_terminal=node.properties.get("is_terminal", False),
             level=node.properties.get("level", 0),
         )
-        log.info("node_registered", node_id=node.id, label=node.label, turn_number=turn_number, depth=depth)
+        log.info(
+            "node_registered",
+            node_id=node.id,
+            label=node.label,
+            turn_number=turn_number,
+            depth=depth,
+        )
         return self.model_copy(update={"states": {**self.states, node.id: new_state}})
 
     def register_nodes(self, nodes: list[KGNode], turn_number: int) -> NodeStateTracker:
@@ -132,14 +144,22 @@ class NodeStateTracker(BaseModel):
                 is_terminal=node.properties.get("is_terminal", False),
                 level=node.properties.get("level", 0),
             )
-            log.info("node_registered", node_id=node.id, label=node.label, turn_number=turn_number, depth=depth)
+            log.info(
+                "node_registered",
+                node_id=node.id,
+                label=node.label,
+                turn_number=turn_number,
+                depth=depth,
+            )
         return self.model_copy(update={"states": new_states})
 
     # ------------------------------------------------------------------
     # Focus update
     # ------------------------------------------------------------------
 
-    def update_focus(self, *, tracking_key: str, turn_number: int, strategy: str) -> NodeStateTracker:
+    def update_focus(
+        self, *, tracking_key: str, turn_number: int, strategy: str
+    ) -> NodeStateTracker:
         """Return new tracker with focus metrics updated for tracking_key.
 
         Caller is responsible for resolving surface node_id to tracking_key
@@ -159,7 +179,9 @@ class NodeStateTracker(BaseModel):
         for nid, state in self.states.items():
             if nid == tracking_key:
                 new_states[nid] = state.with_focus(
-                    turn_number=turn_number, strategy=strategy, is_same_as_previous=is_same
+                    turn_number=turn_number,
+                    strategy=strategy,
+                    is_same_as_previous=is_same,
                 )
             else:
                 new_states[nid] = state.tick_no_focus()
@@ -171,7 +193,42 @@ class NodeStateTracker(BaseModel):
             strategy=strategy,
             focus_count=new_states[tracking_key].focus_count,
         )
-        return self.model_copy(update={"states": new_states, "previous_focus": tracking_key})
+        return self.model_copy(
+            update={"states": new_states, "previous_focus": tracking_key}
+        )
+
+    def update_focus_shadow(
+        self, *, tracking_key: str, turn_number: int, strategy: str
+    ) -> NodeStateTracker:
+        """Return new tracker with focus metrics updated for a surface UUID shadow entry.
+
+        Like update_focus() but does NOT update previous_focus and does NOT call
+        tick_no_focus() on other nodes (update_focus() already did that this turn).
+        Used to keep surface UUID entries in sync with their canonical slot counterpart
+        so both accumulate exhaustion equally and neither wins scoring by appearing fresh.
+
+        Raises:
+            NodeNotTrackedError: If tracking_key is not registered.
+        """
+        if tracking_key not in self.states:
+            raise NodeNotTrackedError(
+                f"update_focus_shadow: tracking_key={tracking_key!r} not registered "
+                f"(turn={turn_number}, strategy={strategy!r})"
+            )
+
+        new_state = self.states[tracking_key].with_focus(
+            turn_number=turn_number, strategy=strategy, is_same_as_previous=False
+        )
+        log.debug(
+            "node_focus_shadow_updated",
+            tracking_key=tracking_key,
+            turn_number=turn_number,
+            strategy=strategy,
+            focus_count=new_state.focus_count,
+        )
+        return self.model_copy(
+            update={"states": {**self.states, tracking_key: new_state}}
+        )
 
     # ------------------------------------------------------------------
     # Yield recording
@@ -192,9 +249,6 @@ class NodeStateTracker(BaseModel):
                 f"record_yield: tracking_key={tracking_key!r} not registered (turn={turn_number})"
             )
 
-        if graph_changes.is_empty():
-            return self
-
         new_state = self.states[tracking_key].with_yield(turn_number=turn_number)
         log.debug(
             "node_yield_recorded",
@@ -202,13 +256,17 @@ class NodeStateTracker(BaseModel):
             turn_number=turn_number,
             yield_count=new_state.yield_count,
         )
-        return self.model_copy(update={"states": {**self.states, tracking_key: new_state}})
+        return self.model_copy(
+            update={"states": {**self.states, tracking_key: new_state}}
+        )
 
     # ------------------------------------------------------------------
     # Quality appending (LLM bridge)
     # ------------------------------------------------------------------
 
-    def append_quality(self, *, tracking_key: str, elaboration: float, charge: float) -> NodeStateTracker:
+    def append_quality(
+        self, *, tracking_key: str, elaboration: float, charge: float
+    ) -> NodeStateTracker:
         """Return new tracker with LLM quality scores appended for tracking_key.
 
         Raises:
@@ -219,9 +277,18 @@ class NodeStateTracker(BaseModel):
                 f"append_quality: tracking_key={tracking_key!r} not registered"
             )
 
-        new_state = self.states[tracking_key].with_quality(elaboration=elaboration, charge=charge)
-        log.debug("node_quality_appended", tracking_key=tracking_key, elaboration=elaboration, charge=charge)
-        return self.model_copy(update={"states": {**self.states, tracking_key: new_state}})
+        new_state = self.states[tracking_key].with_quality(
+            elaboration=elaboration, charge=charge
+        )
+        log.debug(
+            "node_quality_appended",
+            tracking_key=tracking_key,
+            elaboration=elaboration,
+            charge=charge,
+        )
+        return self.model_copy(
+            update={"states": {**self.states, tracking_key: new_state}}
+        )
 
     # ------------------------------------------------------------------
     # Edge count updates
@@ -252,7 +319,9 @@ class NodeStateTracker(BaseModel):
             total_outgoing=new_state.edge_count_outgoing,
             total_incoming=new_state.edge_count_incoming,
         )
-        return self.model_copy(update={"states": {**self.states, tracking_key: new_state}})
+        return self.model_copy(
+            update={"states": {**self.states, tracking_key: new_state}}
+        )
 
     def update_edge_counts_batch(
         self, deltas: dict[str, tuple[int, int]]
@@ -298,7 +367,9 @@ class NodeStateTracker(BaseModel):
         Returns self unchanged if mappings is empty.
         """
         remap_pairs = [
-            (sid, cid) for sid, cid in mappings.items() if cid != sid and sid in self.states
+            (sid, cid)
+            for sid, cid in mappings.items()
+            if cid != sid and sid in self.states
         ]
         if not remap_pairs:
             return self
@@ -313,26 +384,37 @@ class NodeStateTracker(BaseModel):
                 new_states[canonical_id] = new_states[canonical_id].merged_with(state)
                 merged += 1
             else:
-                new_states[canonical_id] = state.model_copy(update={"node_id": canonical_id})
+                new_states[canonical_id] = state.model_copy(
+                    update={"node_id": canonical_id}
+                )
                 remapped += 1
 
         log.info("canonical_slot_remap_complete", remapped=remapped, merged=merged)
-        return self.model_copy(update={"states": new_states, "previous_focus": new_previous_focus})
+        return self.model_copy(
+            update={"states": new_states, "previous_focus": new_previous_focus}
+        )
 
     # ------------------------------------------------------------------
     # Canonical slot first-seen tracking (set by Stage 4.7, read by signals)
     # ------------------------------------------------------------------
 
-    def record_canonical_slot_first_seen(self, slot_id: str, turn_number: int) -> NodeStateTracker:
+    def record_canonical_slot_first_seen(
+        self, slot_id: str, turn_number: int
+    ) -> NodeStateTracker:
         """Return new tracker with slot_id recorded as first seen at turn_number.
 
         Idempotent: if slot_id already has a first-seen entry, returns self.
         """
         if slot_id in self.canonical_slot_first_seen:
             return self
-        return self.model_copy(update={
-            "canonical_slot_first_seen": {**self.canonical_slot_first_seen, slot_id: turn_number}
-        })
+        return self.model_copy(
+            update={
+                "canonical_slot_first_seen": {
+                    **self.canonical_slot_first_seen,
+                    slot_id: turn_number,
+                }
+            }
+        )
 
     # ------------------------------------------------------------------
     # State accessors
