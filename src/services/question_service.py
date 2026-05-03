@@ -87,6 +87,7 @@ class QuestionService:
         signal_descriptions: Optional[Dict[str, str]] = None,
         focus_node_type: Optional[str] = None,
         focus_node_level: Optional[int] = None,
+        level_guidance: Optional[Dict[str, str]] = None,
     ) -> str:
         """Generate follow-up question based on strategy, context, and graph state.
 
@@ -156,6 +157,7 @@ class QuestionService:
             signal_descriptions=signal_descriptions,
             focus_node_type=focus_node_type,
             focus_node_level=focus_node_level,
+            level_guidance=level_guidance,
         )
 
         # Determine temperature based on self-selection mode
@@ -227,10 +229,10 @@ class QuestionService:
             RuntimeError: If LLM call fails
             ValueError: If strategy is not a conversation-level strategy
         """
-        if strategy not in ("close", "revitalize"):
+        if strategy not in ("close", "revitalize", "elicit_narrative"):
             raise ValueError(
                 f"Unsupported conversation-level strategy: {strategy}. "
-                "Expected 'close' or 'revitalize'."
+                "Expected 'close', 'revitalize', or 'elicit_narrative'."
             )
 
         utterances = recent_utterances or []
@@ -243,7 +245,7 @@ class QuestionService:
             )
             temperature = 0.7
             max_tokens = 100
-        else:  # revitalize
+        else:  # revitalize or elicit_narrative
             system_prompt = get_revitalize_question_system_prompt()
             user_prompt = get_revitalize_question_user_prompt(
                 recent_utterances=utterances,

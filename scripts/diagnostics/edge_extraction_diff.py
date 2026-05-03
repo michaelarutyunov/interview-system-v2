@@ -35,7 +35,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 # Active methodology → concept mapping (one concept per methodology for baseline)
 _METHODOLOGY_CONCEPTS: dict[str, str] = {
     "means_end_chain_v2_strict": "glp1_food_mec_strict",
-    "means_end_chain_v3_flex": "glp1_food_mec_flex",
+    "means_end_chain_v2_flex": "glp1_food_mec_flex",
     "jobs_to_be_done_v2": "coffee_jtbd_v2",
     "critical_incident_v2": "zerofizz_beverage_cit",
     "customer_journey_mapping_v2": "zerofizz_beverage_cjm",

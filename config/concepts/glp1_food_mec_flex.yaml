@@ -1,5 +1,5 @@
 id: glp1_food_mec_flex
 name: "GLP-1 Medication and Food Choices - Means-End Chain (Flex)"
-methodology: means_end_chain_v3_flex
+methodology: means_end_chain_v2_flex
 
 objective: "Explore how GLP-1 medication users navigate food choices, from concrete attributes (texture, portion size, nausea triggers) to the values these choices serve (health, self-control, life goals)"
