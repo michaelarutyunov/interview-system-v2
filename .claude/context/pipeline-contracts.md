@@ -1,5 +1,5 @@
 # Pipeline Contracts
-## Current Version: 1.0
+## Current Version: 1.1 (updated for B11 edge extraction finalization)
 
 ## Core Mechanics
 
@@ -16,11 +16,11 @@ Convenience properties on `PipelineContext` derive computed values from contract
 | 1 | ContextLoadingStage | `ContextLoadingOutput` | `methodology`, `concept_id`, `concept_name`, `turn_number`, `mode`, `max_turns`, `recent_utterances`, `strategy_history`, `recent_node_labels`, velocity state, `focus_history` (each `FocusEntry` includes `node_type` field for strategy-aware level hints) |
 | 2 | UtteranceSavingStage | `UtteranceSavingOutput` | `turn_number`, `user_utterance_id`, `user_utterance` |
 | 2.5 | SRLPreprocessingStage | `SrlPreprocessingOutput` | `discourse_relations`, `srl_frames`, `discourse_count`, `frame_count`, `timestamp` |
-| 3 | ExtractionStage | `ExtractionOutput` | `extraction` (ExtractionResult — concepts only, relationships deprecated), `methodology`, `timestamp`, `concept_count` |
+| 3 | ExtractionStage | `ExtractionOutput` | `extraction` (ExtractionResult — concepts only; relationships removed in B11, handled by Stage 4.5B), `methodology`, `timestamp`, `concept_count` |
 | 3.1 | LLMPrefetchStage | *(no contract — stores asyncio.Task)* | Fires LLM batch signal detection (Haiku) as `asyncio.Task`, stored on `PipelineContext._llm_prefetch_task`. Runs concurrently with Stages 4–4.6. |
 | 4 | GraphUpdateStage | `GraphUpdateOutput` | `nodes_added`, `edges_added`, `concept_to_node_id` (maps `concept.text.lower()` → surface `node.id`), `node_count`, `edge_count`, `timestamp`. Writes nodes only; cross-turn edge validation happens post-dedup. |
 | 4.5 | SlotDiscoveryStage | `SlotDiscoveryOutput` | `slots_created`, `slots_updated`, `mappings_created`, `timestamp`. Runs while edge extraction Haiku (fired at 4.5B) is in-flight. |
-| 4.5B | EdgeExtractionPrefetchStage | *(no contract — stores asyncio.Task)* | Fires edge extraction LLM call (Haiku) as `asyncio.Task` on `context._edge_extraction_task`. Fires BEFORE SlotDiscovery so the Haiku call overlaps with it. |
+| 4.5B | EdgeExtractionPrefetchStage | *(no contract — stores asyncio.Task)* | Fires edge extraction LLM call (Haiku) as `asyncio.Task` on `context._edge_extraction_task`. Fires BEFORE SlotDiscovery so the Haiku call overlaps with it. Mandatory since B11 (feature flag removed). |
 | 4.6 | EdgeExtractionBridgeStage | *(no formal contract)* | Awaits `_edge_extraction_task`, persists confirmed edges via `GraphService._add_edge_from_relationship` (ConfirmedEdge overload), updates tracker edge counts, records yield. Stores `EdgeExtractionOutput` on `context._edge_extraction_result` for export. |
 | 4.7 | LLMSignalBridgeStage | `LLMSignalBridgeOutput` | `global_signals`, `per_concept_ratings`, `bridge_applied` (bool), `bridged_count` (int), `error` (Optional[str]), `timestamp`. Awaits the prefetch task from Stage 3.1, routes per-concept LLM ratings to `NodeStateTracker.append_quality()`, and **seals** the tracker into `sealed_node_tracker`. After this stage, `_evolving_node_tracker` is set to None — all downstream stages (5–10) read the sealed snapshot via `context.node_tracker`. |
 | 5 | StateComputationStage | `StateComputationOutput` | `graph_state`, `recent_nodes`, `computed_at`, `saturation_metrics`, `canonical_graph_state` |

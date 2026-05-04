@@ -1309,7 +1309,7 @@ src/
 │   └── models/            # Pydantic models
 │       ├── concept.py     # Concept, ConceptElement, CoverageState (ADR-008)
 │       ├── knowledge_graph.py  # KGNode, KGEdge, GraphState, SaturationMetrics
-│       ├── extraction.py  # ExtractionResult, ExtractedConcept, ExtractedRelationship
+│       ├── extraction.py  # ExtractionResult, ExtractedConcept (edges → Stage 4.5B)
 │       ├── pipeline_contracts.py  # Stage I/O models (ADR-010)
 │       └── turn.py        # TurnContext, TurnResult, Focus
 ├── llm/                   # LLM integration

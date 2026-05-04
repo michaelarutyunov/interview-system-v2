@@ -4,6 +4,8 @@ Companion to `docs/drafts/edge-extraction-spec.md`. Pins decisions resolved duri
 
 This doc supersedes the spec wherever they conflict. Beads should cite this doc, not the spec, for contract decisions.
 
+**Status: COMPLETE** (May 2026). All beads B1–B11 closed. Stage 4.5B is mandatory for all 6 methodologies. Feature flag deleted. Stage 3 is concept-only. See `reports/edge_extraction_rollout/` for per-methodology validation reports.
+
 ---
 
 ## D1 — Full separation of node and edge extraction

@@ -119,7 +119,7 @@ canonical_min_support_nodes: int = 2
 # Features
 enable_srl: bool = True
 enable_canonical_slots: bool = True
-enable_edge_extraction_stage: bool = False  # Stage 4.5B — default OFF, per-method rollout
+# Stage 4.5B edge extraction is mandatory (flag removed in B11)
 
 # LLM Providers (config/interview_config.yaml → llm: section)
 # Six call types: extraction, edge_extraction, slot_scoring, signal_scoring, question_generation, n
