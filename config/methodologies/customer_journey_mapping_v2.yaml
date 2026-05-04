@@ -150,38 +150,6 @@ ontology:
     - "Follow sequential progression: 'And then what happened?'"
     - "Look for gaps in the journey: missing stages or unexplored transitions"
 
-  relationship_examples:
-    journey_sequence:
-      description: "Sequential progression through stages"
-      example: "First I heard about it from a friend, then I saw it at the store, and eventually started buying it regularly"
-      extraction: |
-        stage('awareness') -> transitions_to -> stage('consideration')
-        stage('consideration') -> transitions_to -> stage('regular purchase')
-        touchpoint('friend recommendation') -> occurs_in -> stage('awareness')
-        touchpoint('saw in store') -> occurs_in -> stage('consideration')
-
-    touchpoint_with_state:
-      description: "Interaction that evokes an emotional response"
-      example: "When I tried it at the cafe I was really surprised — it was way better than I expected"
-      extraction: |
-        touchpoint('tried at cafe') -> evokes -> state('pleasantly surprised')
-        expectation('expected mediocre taste') -> violated_by -> touchpoint('tried at cafe')
-
-    friction_point:
-      description: "Obstacle in the journey"
-      example: "I couldn't figure out which brand to buy — there were like ten options and no clear winner"
-      extraction: |
-        friction('too many options') -> disrupts -> touchpoint('choosing at shelf')
-        friction('too many options') -> evokes -> state('overwhelmed')
-
-    moment_of_truth:
-      description: "Critical turning point"
-      example: "The barista recommended the oat milk latte and that first sip completely changed my mind"
-      extraction: |
-        moment_of_truth('first oat milk latte') -> triggered -> stage('regular use')
-        touchpoint('barista recommendation') -> via_channel -> channel('cafe counter')
-        moment_of_truth('first oat milk latte') -> evokes -> state('converted')
-
   extractability_criteria:
     extractable_contains:
       - "Sequential descriptions of experiences ('first... then... after that...')"

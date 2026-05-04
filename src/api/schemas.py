@@ -66,19 +66,10 @@ class ExtractedConceptSchema(BaseModel):
     confidence: float
 
 
-class ExtractedRelationshipSchema(BaseModel):
-    """Extracted relationship in response."""
-
-    source: str
-    target: str
-    type: str
-
-
 class ExtractionSchema(BaseModel):
-    """Extraction results in turn response."""
+    """Extraction results in turn response (concepts only; edges via Stage 4.5B)."""
 
     concepts: List[ExtractedConceptSchema] = Field(default_factory=list)
-    relationships: List[ExtractedRelationshipSchema] = Field(default_factory=list)
 
 
 class GraphStateSchema(BaseModel):

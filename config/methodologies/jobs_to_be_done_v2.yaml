@@ -171,37 +171,6 @@ ontology:
     - "Actively extract social jobs: look for peer references, social signals, reputation concerns"
     - "When a respondent describes how an emotional state or social concern explains their choice of solution, create a drives edge from the emotional_job/social_job to the solution_approach — even if the causal link is implied rather than stated with 'because' or 'so'. If they say 'I feel X with this drink' and X is a reason they choose it, the edge is emotional_job → drives → solution_approach."
 
-  relationship_examples:
-    trigger_to_need:
-      description: "Context or trigger gives rise to a need"
-      example: "When the afternoon slump hits at work, I feel sluggish and unfocused"
-      extraction: "job_trigger('afternoon slump at work') → triggers → pain_point('feeling sluggish and unfocused')"
-
-    need_implies_job:
-      description: "Pain or gain reveals what the functional job is"
-      example: "I hate the chemical aftertaste of diet drinks, so I want something clean-tasting"
-      extraction: "pain_point('chemical aftertaste') → implies → job_statement('find a clean-tasting refreshment')"
-
-    job_supports_emotional:
-      description: "Functional job co-occurs with emotional motivation"
-      example: "Staying hydrated makes me feel like I'm taking care of myself"
-      extraction: "job_statement('stay hydrated') → supports → emotional_job('feel like I take care of myself')"
-
-    motivation_drives_solution:
-      description: "Emotional or functional need shapes what solution is hired"
-      example: "I pick ZeroFizz because it lets me have a soda without the guilt"
-      extraction: "emotional_job('avoid guilt about drinking soda') → drives → solution_approach('choosing ZeroFizz')"
-
-    solution_addresses_pain:
-      description: "Solution resolves a specific frustration"
-      example: "ZeroFizz doesn't have that artificial taste that Diet Coke has"
-      extraction: "solution_approach('ZeroFizz') → addresses → pain_point('artificial chemical taste')"
-
-    solution_achieves_gain:
-      description: "Solution delivers a desired outcome"
-      example: "ZeroFizz gives me a refreshing break without the caffeine crash"
-      extraction: "solution_approach('ZeroFizz') → achieves → gain_point('refreshing without caffeine crash')"
-
   extractability_criteria:
     extractable_contains:
       - "Goals or objectives the user wants to achieve"
@@ -292,6 +261,7 @@ strategies:
       response.semantic.llm.certainty.mid: 0.20   # Secondary — tentative answers
       # Brakes:
       interview.strategy.self_count: -1.00        # Strong brake — tension probes must not chain
+      meta.saturation.canonical.high: -0.30       # lncl: suppress when graph saturated (>= 0.75 novelty ratio)
 
   # Strategy 2: Ascend — move upward through the chain toward solution
   # Binds to nodes with gap_above (nodes at L0-L3 that haven't been connected
@@ -333,8 +303,8 @@ strategies:
       convgraph.node.llm.charge.positive: 0.1
       # f965: response_depth.surface (0.1) + response_depth.shallow (0.05) → elaboration.low 0.15
       convgraph.node.llm.elaboration.low: 0.15
-      # Mild repetition brake
-      interview.strategy.self_count: -0.15
+      # Repetition brake — y6mb: strengthened from -0.15 to match ground's brake strength
+      interview.strategy.self_count: -0.30
 
   # Strategy 3: Ground — find lower-level antecedents for higher-level nodes
   # Binds to nodes with gap_below (nodes at L1-L4 that lack chain-relevant

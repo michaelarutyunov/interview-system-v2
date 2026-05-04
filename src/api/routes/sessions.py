@@ -24,7 +24,6 @@ from src.api.schemas import (
     GraphStateSchema,
     ScoringSchema,
     ExtractedConceptSchema,
-    ExtractedRelationshipSchema,
     NodeSchema,
     EdgeSchema,
     GraphResponse,
@@ -377,10 +376,6 @@ async def process_turn(
             extracted=ExtractionSchema(
                 concepts=[
                     ExtractedConceptSchema(**c) for c in result.extracted["concepts"]
-                ],
-                relationships=[
-                    ExtractedRelationshipSchema(**r)
-                    for r in result.extracted["relationships"]
                 ],
             ),
             graph_state=GraphStateSchema(

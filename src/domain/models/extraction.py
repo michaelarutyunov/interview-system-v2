@@ -70,42 +70,13 @@ class ExtractedConcept(BaseModel):
     level: int = Field(default=0, description="Hierarchy level in the methodology")
 
 
-class ExtractedRelationship(BaseModel):
-    """Relationship extracted between two concepts from user response.
-
-    Represents a causal, hierarchical, or associative connection identified
-    by LLM extraction. After concept deduplication, becomes a KGEdge.
-
-    Relationship Types (methodology-specific):
-        - leads_to: Causal or consequential relationship
-        - revises: Correction or refinement of earlier concept
-        - is_a: Taxonomic or hierarchical classification
-        - relates_to: General associative connection
-
-    Key Attributes:
-        - reasoning: Explanation of why relationship exists (explicit vs implicit)
-        - source_utterance_id: Traceability to original utterance (ADR-010)
-    """
-
-    source_text: str = Field(description="Source concept text")
-    target_text: str = Field(description="Target concept text")
-    relationship_type: str = Field(description="Methodology-specific edge type")
-    confidence: float = Field(
-        default=0.7, ge=0.0, le=1.0, description="Confidence score 0-1"
-    )
-    reasoning: Optional[str] = Field(
-        default=None,
-        description="Why this edge was created (explicit vs implicit)",
-    )
-    source_utterance_id: str = Field(description="Source utterance ID for traceability")
-
-
 class ExtractionResult(BaseModel):
     """Complete LLM extraction result from a single utterance.
 
-    Container for all concepts and relationships extracted from user input,
-    produced by ExtractionStage (Stage 3) and consumed by
-    GraphUpdateStage (Stage 4).
+    Container for concepts extracted from user input, produced by
+    ExtractionStage (Stage 3) and consumed by GraphUpdateStage (Stage 4).
+    Relationships are now handled by the separated edge extraction pipeline
+    (Stage 4.5B), not by Stage 3.
 
     Freshness Tracking:
         timestamp field enables staleness detection in StrategySelectionStage
@@ -119,7 +90,6 @@ class ExtractionResult(BaseModel):
     """
 
     concepts: List[ExtractedConcept] = Field(default_factory=list)
-    relationships: List[ExtractedRelationship] = Field(default_factory=list)
     is_extractable: bool = True
     extractability_reason: Optional[str] = None
     latency_ms: int = 0

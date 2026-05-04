@@ -140,36 +140,6 @@ ontology:
     - "Pay attention to the language used - personal constructs reveal the person's meaning system"
     - "Constructs can be functional (creamy), emotional (comforting), or value-based (responsible)"
 
-  relationship_examples:
-    triadic_elicitation:
-      description: "Comparing three items to elicit constructs"
-      example: "Interviewer: 'How are oat and almond similar but different from dairy?' Response: 'Oat and almond are plant-based, but dairy comes from animals'"
-      extraction: |
-        element('oat milk') → similar_on → construct_pole('plant-based')
-        element('almond milk') → similar_on → construct_pole('plant-based')
-        element('dairy milk') → differs_on → construct_pole('plant-based')
-        construct_pole('plant-based') → opposite_of → construct_pole('animal-based')
-
-    bipolar_construct:
-      description: "Both poles of a construct"
-      example: "I like things that are creamy, not watery"
-      extraction: "construct_pole('creamy') → opposite_of → construct_pole('watery')"
-
-    laddering:
-      description: "Higher-level construct revealed"
-      example: "Creaminess matters because it feels indulgent, and that's how I practice self-care"
-      extraction: |
-        construct_pole('creamy') → implies → construct_pole('indulgent')
-        construct_pole('indulgent') → implies → construct_pole('self-care')
-
-    ideal_specification:
-      description: "Description of perfect product"
-      example: "Ideally, something that froths like dairy but has the sustainability of oat"
-      extraction: |
-        ideal_element('perfect milk') ← closer_to_ideal ← element('oat milk')
-        construct_pole('froths well') → defines → ideal_element('perfect milk')
-        construct_pole('sustainable') → defines → ideal_element('perfect milk')
-
   extractability_criteria:
     extractable_contains:
       - "Comparisons between products ('better than...', 'not as... as...')"

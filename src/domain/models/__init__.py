@@ -3,7 +3,7 @@
 from .session import Session, SessionState
 from .knowledge_graph import KGNode, KGEdge, GraphState
 from .utterance import Utterance, Speaker
-from .extraction import ExtractedConcept, ExtractedRelationship, ExtractionResult
+from .extraction import ExtractedConcept, ExtractionResult
 from .edge_extraction import ConfirmedEdge, RejectedEdgeCandidate, EdgeExtractionOutput
 from .concept import Concept, ConceptContext, ConceptElement
 from .node_state import NodeState
@@ -23,7 +23,6 @@ __all__ = [
     "Utterance",
     "Speaker",
     "ExtractedConcept",
-    "ExtractedRelationship",
     "ExtractionResult",
     "Concept",
     "ConceptContext",

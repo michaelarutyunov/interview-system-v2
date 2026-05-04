@@ -283,13 +283,11 @@ class StrategySelectionOutput(BaseModel):
 class ExtractionOutput(BaseModel):
     """Contract: ExtractionStage output (Stage 3).
 
-    Stage 3 extracts concepts and relationships from user input using
-    methodology-specific extraction service.
+    Stage 3 extracts concepts from user input using methodology-specific
+    extraction service. Relationships are handled by Stage 4.5B.
     """
 
-    extraction: ExtractionResult = Field(
-        description="Extracted concepts and relationships"
-    )
+    extraction: ExtractionResult = Field(description="Extracted concepts")
     methodology: str = Field(description="Methodology used for extraction")
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
@@ -298,17 +296,12 @@ class ExtractionOutput(BaseModel):
     concept_count: int = Field(
         default=0, ge=0, description="Number of concepts extracted"
     )
-    relationship_count: int = Field(
-        default=0, ge=0, description="Number of relationships extracted"
-    )
 
     @model_validator(mode="after")
     def set_counts_if_missing(self) -> "ExtractionOutput":
         """Set counts from extraction if not provided."""
         if self.concept_count == 0 and self.extraction:
             self.concept_count = len(self.extraction.concepts)
-        if self.relationship_count == 0 and self.extraction:
-            self.relationship_count = len(self.extraction.relationships)
         return self
 
 

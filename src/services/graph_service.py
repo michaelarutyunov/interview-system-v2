@@ -12,7 +12,7 @@ Uses GraphRepository for persistence.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING, cast
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING, cast
 
 import structlog
 
@@ -23,7 +23,6 @@ from src.domain.models.canonical_graph import CanonicalEdge
 from src.domain.models.edge_extraction import ConfirmedEdge
 from src.domain.models.extraction import (
     ExtractedConcept,
-    ExtractedRelationship,
     ExtractionResult,
 )
 from src.domain.models.knowledge_graph import KGNode, KGEdge, GraphState
@@ -106,11 +105,9 @@ class GraphService:
             "adding_extraction_to_graph",
             session_id=session_id,
             concept_count=len(extraction.concepts),
-            relationship_count=len(extraction.relationships),
         )
 
-        # Step 1: Process concepts into nodes
-        label_to_node: dict[str, KGNode] = {}
+        # Process concepts into nodes (edges are handled by Stage 4.5B)
         added_nodes = []
 
         for concept in extraction.concepts:
@@ -120,54 +117,17 @@ class GraphService:
                 utterance_id=utterance_id,
             )
             if node:
-                label_to_node[concept.text.lower()] = node
                 added_nodes.append(node)
-                # Populate concept→node bridge for per-concept LLM signal routing.
-                # Critical: keyed by concept.text (from current turn), not label —
-                # dedup may map a new concept to an existing node whose label differs.
                 if out_concept_to_node_id is not None:
                     out_concept_to_node_id[concept.text.lower()] = node.id
-
-        # Step 1.5: Expand label_to_node with all session nodes for cross-turn edge resolution
-        # Current-turn concepts take precedence (already in dict)
-        all_session_nodes = await self.repo.get_nodes_by_session(session_id)
-        cross_turn_count = 0
-        for node in all_session_nodes:
-            key = node.label.lower()
-            if key not in label_to_node:
-                label_to_node[key] = node
-                cross_turn_count += 1
-
-        if cross_turn_count > 0:
-            log.debug(
-                "cross_turn_nodes_loaded",
-                session_id=session_id,
-                cross_turn_count=cross_turn_count,
-                total_label_map=len(label_to_node),
-            )
-
-        # Step 2: Process relationships into edges
-        added_edges = []
-
-        for relationship in extraction.relationships:
-            edge = await self._add_edge_from_relationship(
-                session_id=session_id,
-                relationship=relationship,
-                label_to_node=label_to_node,
-                utterance_id=utterance_id,
-                methodology=methodology,
-            )
-            if edge:
-                added_edges.append(edge)
 
         log.info(
             "extraction_added_to_graph",
             session_id=session_id,
             nodes_added=len(added_nodes),
-            edges_added=len(added_edges),
         )
 
-        return added_nodes, added_edges
+        return added_nodes, []
 
     async def _add_or_get_node(
         self,
@@ -284,65 +244,30 @@ class GraphService:
     async def _add_edge_from_relationship(
         self,
         session_id: str,
-        relationship: Union[ExtractedRelationship, ConfirmedEdge],
-        label_to_node: Optional[dict] = None,
-        utterance_id: str = "",
+        relationship: ConfirmedEdge,
         methodology: Optional[str] = None,
     ) -> Optional[KGEdge]:
         """
-        Create edge from extracted relationship or confirmed edge.
+        Create edge from confirmed edge (Stage 4.5B).
 
-        Performs permitted_connections validation after dedup resolution
-        to catch cross-turn edges that bypass extraction-time validation.
-
-        Supports two paths:
-        - ExtractedRelationship: resolves nodes via label_to_node lookup (legacy Stage 3)
-        - ConfirmedEdge: uses source_node_id/target_node_id directly (Stage 4.5B)
+        Performs permitted_connections validation after dedup resolution.
 
         Args:
             session_id: Session ID
-            relationship: Extracted relationship OR confirmed edge
-            label_to_node: Map of concept text to node (required for ExtractedRelationship;
-                          ignored for ConfirmedEdge)
-            utterance_id: Source utterance ID (used for ExtractedRelationship;
-                          for ConfirmedEdge, edge.utterance_id is used instead)
+            relationship: ConfirmedEdge from edge extraction pipeline
             methodology: Optional methodology schema name for permitted_connections validation
 
         Returns:
             KGEdge or None if nodes not found or validation fails
         """
-        is_confirmed = isinstance(relationship, ConfirmedEdge)
+        source_node = await self.repo.get_node(relationship.source_node_id)
+        target_node = await self.repo.get_node(relationship.target_node_id)
+        provenance_utterance_id = relationship.utterance_id
+        edge_type = relationship.edge_type
+        confidence = _CONFIDENCE_MAP.get(relationship.confidence, 0.7)
 
-        if is_confirmed:
-            # ConfirmedEdge path (Stage 4.5B): resolve nodes by ID directly.
-            # No label_to_node lookup needed — ConfirmedEdge carries node IDs.
-            source_node = await self.repo.get_node(relationship.source_node_id)
-            target_node = await self.repo.get_node(relationship.target_node_id)
-            # utterance_id comes from the confirmed edge, not the turn-current utterance.
-            provenance_utterance_id = relationship.utterance_id
-            edge_type = relationship.edge_type
-            confidence = _CONFIDENCE_MAP.get(relationship.confidence, 0.7)
-
-            source_label = relationship.source_node_id
-            target_label = relationship.target_node_id
-        else:
-            # ExtractedRelationship path (legacy Stage 3): lookup via label_to_node.
-            source_node = (
-                label_to_node.get(relationship.source_text.lower())
-                if label_to_node
-                else None
-            )
-            target_node = (
-                label_to_node.get(relationship.target_text.lower())
-                if label_to_node
-                else None
-            )
-            provenance_utterance_id = utterance_id
-            edge_type = relationship.relationship_type
-            confidence = relationship.confidence
-
-            source_label = relationship.source_text
-            target_label = relationship.target_text
+        source_label = relationship.source_node_id
+        target_label = relationship.target_node_id
 
         # Detect cross-turn resolution: node is cross-turn if current utterance_id
         # is not in its source_utterance_ids (i.e. it was created in a prior turn)
@@ -363,7 +288,7 @@ class GraphService:
             source_found=source_node is not None,
             target_found=target_node is not None,
             is_cross_turn=is_cross_turn,
-            edge_source=("confirmed" if is_confirmed else "extracted"),
+            edge_source="confirmed",
             outcome="created" if (source_node and target_node) else "failed",
         )
 
@@ -374,7 +299,7 @@ class GraphService:
                 target=target_label,
                 source_found=source_node is not None,
                 target_found=target_node is not None,
-                edge_source=("confirmed" if is_confirmed else "extracted"),
+                edge_source="confirmed",
             )
             return None
 

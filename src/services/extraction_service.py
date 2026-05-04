@@ -21,7 +21,7 @@ Dependencies:
 """
 
 import time
-from typing import Optional, List, Dict
+from typing import Optional, List
 
 import structlog
 
@@ -35,7 +35,6 @@ from src.core.concept_loader import load_concept, get_element_alias_map
 from src.core.exceptions import ExtractionError
 from src.domain.models.extraction import (
     ExtractedConcept,
-    ExtractedRelationship,
     ExtractionResult,
 )
 from src.domain.models.methodology_schema import MethodologySchema
@@ -137,7 +136,7 @@ class ExtractionService:
         Returns:
             ExtractionResult containing:
                 - concepts: List of ExtractedConcept with node types and confidence
-                - relationships: List of ExtractedRelationship with edge types
+                - Relationships are now handled by Stage 4.5B (separated edge extraction)
                 - is_extractable: Whether text contained extractable content
                 - latency_ms: Extraction time in milliseconds
 
@@ -189,28 +188,16 @@ class ExtractionService:
             schema,
         )
 
-        # Build concept_types map for relationship validation
-        concept_types = {c.text.lower(): c.node_type for c in concepts}
-
-        relationships = self._parse_relationships(
-            extraction_data.get("relationships", []),
-            concept_types,
-            source_utterance_id or "unknown",
-            schema,
-        )
-
         latency_ms = int((time.perf_counter() - start_time) * 1000)
 
         log.info(
             "extraction_complete",
             concept_count=len(concepts),
-            relationship_count=len(relationships),
             latency_ms=latency_ms,
         )
 
         return ExtractionResult(
             concepts=concepts,
-            relationships=relationships,
             is_extractable=True,
             latency_ms=latency_ms,
         )
@@ -428,83 +415,3 @@ class ExtractionService:
                 log.warning("concept_parse_error", raw=raw, error=str(e))
 
         return concepts
-
-    def _parse_relationships(
-        self,
-        raw_relationships: List[dict],
-        concept_types: Dict[str, str],
-        source_utterance_id: str,
-        schema: MethodologySchema,
-    ) -> List[ExtractedRelationship]:
-        """Parse and validate raw LLM output into ExtractedRelationship domain models.
-
-        Applies schema validation (edge types, permitted connections) and
-        enriches relationships with source utterance provenance.
-
-        Args:
-            raw_relationships: List of relationship dicts from LLM response
-            concept_types: Map from concept text (lowercase) to node type for validation
-            source_utterance_id: Source utterance ID for provenance tracking
-            schema: Methodology schema for validation
-
-        Returns:
-            List of valid ExtractedRelationship models (invalid relationships skipped)
-
-        Domain concepts:
-            - Edge types: Methodology-defined relationship categories
-            - Permitted connections: Valid source_type -> target_type mappings
-            - Confidence: LLM's certainty in relationship existence (0.0-1.0)
-            - Reasoning: LLM explanation for why relationship exists
-
-        Implementation notes:
-            - Skips relationships with invalid edge types (logs warning)
-            - Skips relationships violating permitted connections (logs warning)
-            - Skips incomplete relationships (missing source or target text)
-            - Case-insensitive concept text matching for validation
-        """
-        relationships = []
-        for raw in raw_relationships:
-            try:
-                rel = ExtractedRelationship(
-                    source_text=raw.get("source_text", ""),
-                    target_text=raw.get("target_text", ""),
-                    relationship_type=raw.get("relationship_type", ""),
-                    confidence=float(raw.get("confidence", 0.7)),
-                    reasoning=raw.get(
-                        "reasoning"
-                    ),  # LLM explanation for why edge exists
-                    source_utterance_id=source_utterance_id,  # Links edge to source utterance
-                )
-
-                # Schema validation: check edge type is valid
-                if not schema.is_valid_edge_type(rel.relationship_type):
-                    log.warning(
-                        "invalid_edge_type",
-                        relationship_type=rel.relationship_type,
-                    )
-                    continue  # Skip invalid edge type
-
-                # Schema validation: check connection is allowed
-                # Strict methodologies define permitted_connections (enforced).
-                # Flex methodologies omit them (all connections allowed, LLM trusted).
-                source_type = concept_types.get(rel.source_text.lower())
-                target_type = concept_types.get(rel.target_text.lower())
-
-                if source_type and target_type:
-                    if not schema.is_valid_connection(
-                        rel.relationship_type, source_type, target_type
-                    ):
-                        log.warning(
-                            "invalid_connection",
-                            edge_type=rel.relationship_type,
-                            source_type=source_type,
-                            target_type=target_type,
-                        )
-                        continue  # Skip invalid connection
-
-                if rel.source_text and rel.target_text:  # Skip incomplete
-                    relationships.append(rel)
-            except Exception as e:
-                log.warning("relationship_parse_error", raw=raw, error=str(e))
-
-        return relationships

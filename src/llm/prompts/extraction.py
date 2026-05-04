@@ -1,10 +1,8 @@
 """
-Prompts for concept and relationship extraction.
+Prompts for concept extraction.
 
 Extracts:
 - Concepts (potential knowledge graph nodes)
-- Relationships (edges between concepts)
-- Discourse markers (linguistic signals)
 
 All prompts produce JSON for structured parsing.
 
@@ -12,6 +10,7 @@ Architecture:
 - Universal principles are hardcoded (apply to all methodologies)
 - Methodology-specific content loaded from schema YAML
 - Prompts are methodology-agnostic and schema-driven
+- Relationships are handled by the separated edge extraction pipeline (Stage 4.5B)
 """
 
 from typing import Dict, Any, Optional
@@ -38,9 +37,6 @@ def get_extraction_system_prompt(
     # Load schema and get descriptions
     schema = load_methodology(methodology)
     node_descriptions = schema.get_node_descriptions()
-    # Strict methodologies define permitted_connections — include type-pair hints
-    # so the LLM sees valid routes. Flex methodologies omit them — plain descriptions.
-    edge_descriptions = schema.get_edge_descriptions_with_connections()
 
     # Load concept elements for element linking (LEGACY - exploratory interviews don't use elements)
     # For exploratory research, elements list is always empty, so this section is not added to prompt
@@ -79,22 +75,9 @@ Important:
     node_types_str = "\n".join(
         f"  - {name}: {desc}" for name, desc in node_descriptions.items()
     )
-    edge_types_str = "\n".join(
-        f"  - {name}: {desc}" for name, desc in edge_descriptions.items()
-    )
-
-    # Determine primary edge type for this methodology's conversational examples
-    # (avoids hardcoding MEC-specific "leads_to" which doesn't exist in JTBD etc.)
-    valid_edge_types = schema.get_valid_edge_types()
-    primary_edge_type = next(
-        (et for et in valid_edge_types if et != "revises"),
-        valid_edge_types[0] if valid_edge_types else "leads_to",
-    )
-    edge_type_list = ", ".join(valid_edge_types)
 
     # Methodology-specific content from schema
     methodology_guidelines = schema.get_extraction_guidelines()
-    methodology_examples = schema.get_relationship_examples()
 
     # Build methodology-specific section
     methodology_section = ""
@@ -105,94 +88,36 @@ Important:
 {guidelines_str}
 """
 
-    if methodology_examples:
-        examples_str = ""
-        for name, example_spec in methodology_examples.items():
-            examples_str += f"""
-**{name.replace("_", " ").title()}:**
-{example_spec.description}
-Example: {example_spec.example}
-Extract: {example_spec.extraction}
-"""
-        methodology_section += f"""
-## Relationship Extraction Examples ({methodology}):
-{examples_str}
-"""
-
     # Build naming convention instruction
     if concept_naming_convention:
         naming_instruction = f"{concept_naming_convention} The source_quote field captures the respondent's verbatim language."
     else:
         naming_instruction = "Name concepts concisely according to their node type. Use the node type descriptions and examples above as naming models. The source_quote field captures the respondent's verbatim language."
 
-    # Build level-aware relationship section for chain methodologies (gated on ≥2 distinct levels)
-    level_aware_section = ""
-    if schema.ontology:
-        distinct_levels = sorted(
-            {nt.level for nt in schema.ontology.nodes if nt.level is not None}
-        )
-        if len(distinct_levels) >= 2:
-            lo, hi = distinct_levels[0], distinct_levels[-1]
-            level_aware_section = f"""
-## Level-Aware Relationship Creation:
-Node types are annotated with [L{lo}]–[L{hi}] indicating their position in the chain hierarchy.
-L{lo} is foundational, L{hi} is the terminal end of the chain.
+    # Level-aware relationship creation guidance was removed with Stage 3 edge
+    # extraction (B11). The separated edge extraction pipeline (Stage 4.5B)
+    # handles relationship guidance via its own methodology-aware prompts.
 
-When creating relationships between concepts:
-- **Prefer adjacent levels** (L_n → L_n+1) — these form the strongest analytical chains
-- **Skip connections are valid but weaker** (e.g., L{lo}→L{lo+2}) — capture real respondent reasoning but skip intermediate steps; use confidence 0.6–0.75
-- **Lateral connections within the same level** are valid for elaboration (e.g., multiple emotional jobs reinforcing each other)
-- **Downward connections** (higher → lower level) should use addresses/achieves edge types and are not chain-forming — use only when the respondent explicitly describes a solution resolving a pain or delivering a gain
-"""
+    return f"""You are an expert qualitative researcher extracting concepts from interview responses.
 
-    return f"""You are an expert qualitative researcher extracting knowledge from interview responses.
-
-Your task is to identify concepts and relationships from the respondent's text that reveal their mental model about the product being discussed.
+Your task is to identify concepts from the respondent's text that reveal their mental model about the product being discussed.
 
 ## Valid Node Types ({methodology.replace("_", " ").title()}):
 {node_types_str}
 
-## Valid Edge Types:
-{edge_types_str}
-
 {elements_section}
 ## Universal Extraction Principles:
-1. Only extract concepts EXPLICITLY mentioned or clearly implied. When multiple concepts co-occur in a response, create relationships between them using the methodology's edge types—even if the connection is implicit—with confidence proportional to your certainty.
+1. Only extract concepts EXPLICITLY mentioned or clearly implied.
 2. {naming_instruction}
 3. Classify each concept into the most appropriate node type
-4. Assign confidence based on how explicit the concept/relationship is
+4. Assign confidence based on how explicit the concept is
 5. Include the verbatim quote that supports each extraction
 
 ## Edge-Case Handling:
 - **Contradictions**: If a respondent contradicts an earlier statement, extract BOTH concepts. Do not overwrite or discard the earlier concept—the graph should capture the evolution of the respondent's thinking.
 - **Reformulations**: If the respondent restates the same idea with different words (e.g., "it's expensive" then "costs too much"), extract ONLY ONE concept using the most precise phrasing. Use the verbatim quote from the clearest formulation as source_quote.
 - **Partial information**: Only extract implied concepts when the implication is strong and unambiguous (confidence 0.6–0.75). If the respondent merely hints at an idea without committing to it, prefer omission over speculative extraction. When in doubt, leave it out.
-
-## Cross-Turn Relationship Bridging (CRITICAL):
-When creating relationships:
-- **Connect new concepts to existing ones**: If the context includes "[Existing graph concepts from previous turns]", reference those exact labels as source_text or target_text
-- **Bridge Q→A pairs**: When the interviewer asks about a topic and the respondent answers, create a relationship from the question topic → answer concept
-- **Do NOT re-extract existing concepts**: If a concept already exists in the graph, use its exact label in relationships but do not add it as a new concept
-- Use the methodology's appropriate relationship type (commonly "{primary_edge_type}")
-- Set confidence 0.7-0.8 for implicit connections, 0.85-1.0 for explicit ones
-
-Good bridge:
-- Existing concept: "morning routine"
-  Respondent: "That routine helps me stay focused at work"
-  → Extract new concept: "stay focused at work"
-  → Extract relationship: "morning routine" {primary_edge_type} "stay focused at work"
-  (References existing concept without re-extracting it)
-
-Missed bridge (do NOT do this):
-- Existing concept: "morning routine"
-  Respondent: "That routine helps me stay focused at work"
-  → WRONG: Re-extracts "morning routine" as a new concept
-  → WRONG: No relationship created between "morning routine" and "stay focused at work"
-  (Missed the explicit connection the respondent made)
-
-Disambiguation rule:
-- If the same word has clearly different meanings across turns (e.g., "routine" as exercise vs. "routine" as coffee ritual), extract as separate concepts with disambiguating labels like "morning routine (exercise)". Only bridge when the semantic connection is unambiguous.
-{methodology_section}{level_aware_section}
+{methodology_section}
 ## Output Format:
 Return valid JSON with this structure:
 {{
@@ -204,21 +129,11 @@ Return valid JSON with this structure:
       "source_quote": "verbatim text that supports this",
       "linked_elements": [1, 2]  // Array of element IDs this concept relates to (empty array if none)
     }}
-  ],
-  "relationships": [
-    {{
-      "source_text": "source concept label",
-      "target_text": "target concept label",
-      "relationship_type": "one of: {edge_type_list}",
-      "confidence": 0.0-1.0,
-      "source_quote": "verbatim text showing relationship",
-      "reasoning": "one sentence explaining why this relationship exists"
-    }}
   ]
 }}
 
 If the text contains no extractable concepts, return:
-{{"concepts": [], "relationships": []}}"""
+{{"concepts": []}}"""
 
 
 def get_extraction_user_prompt(text: str, context: str = "") -> str:
@@ -232,7 +147,7 @@ def get_extraction_user_prompt(text: str, context: str = "") -> str:
     Returns:
         User prompt string
     """
-    prompt = f'Extract concepts and relationships from this response:\n\n"{text}"'
+    prompt = f'Extract concepts from this response:\n\n"{text}"'
 
     if context:
         prompt = f"Previous context:\n{context}\n\n{prompt}"
@@ -297,7 +212,7 @@ def parse_extraction_response(response_text: str) -> Dict[str, Any]:
         response_text: JSON string from LLM (guaranteed valid by structured output)
 
     Returns:
-        Parsed dict with concepts, relationships
+        Parsed dict with concepts
 
     Raises:
         ValueError: If response is not valid JSON or has unexpected structure
@@ -314,7 +229,6 @@ def parse_extraction_response(response_text: str) -> Dict[str, Any]:
 
     return {
         "concepts": data.get("concepts", []),
-        "relationships": data.get("relationships", []),
     }
 
 

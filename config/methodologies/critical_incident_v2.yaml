@@ -153,27 +153,6 @@ ontology:
     - "Look for patterns across multiple incidents"
     - "Distinguish between the factual event and the person's interpretation"
 
-  relationship_examples:
-    complete_incident:
-      description: "Full critical incident narrative"
-      example: "Last week I was late for work and grabbed coffee at the airport. The oat milk latte was perfect - no bitter aftertaste. I felt relieved and actually enjoyed the rush"
-      extraction: |
-        incident('airport coffee') → occurred_in → situation('late for work')
-        incident('airport coffee') → involved → action('ordered oat milk latte')
-        action('ordered oat milk latte') → resulted_in → outcome('no bitter aftertaste')
-        outcome('no bitter aftertaste') → elicited → emotion('relieved, enjoyed')
-        outcome('no bitter aftertaste') → attributed_to → attribution('oat milk neutral taste')
-
-    attribution_chain:
-      description: "Person explains why something happened"
-      example: "It worked because oat milk doesn't curdle like almond milk does"
-      extraction: "outcome('smooth coffee') → attributed_to → attribution('oat milk stability vs almond milk')"
-
-    behavior_change:
-      description: "Incident leads to new behavior"
-      example: "Since that day, I've stopped buying dairy milk entirely"
-      extraction: "incident('positive oat milk experience') → influenced → behavior_change('stopped buying dairy')"
-
   extractability_criteria:
     extractable_contains:
       - "Specific stories or anecdotes ('the time when...', 'last week...')"

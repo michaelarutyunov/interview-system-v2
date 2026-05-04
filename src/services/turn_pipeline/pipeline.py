@@ -159,10 +159,9 @@ class TurnPipeline:
         Raises:
             RuntimeError: If StrategySelectionStage has not run (required)
         """
-        # Build extracted data
+        # Build extracted data (relationships handled by Stage 4.5B)
         extracted = {
             "concepts": [],
-            "relationships": [],
         }
 
         if context.extraction:
@@ -173,14 +172,6 @@ class TurnPipeline:
                     "confidence": c.confidence,
                 }
                 for c in context.extraction.concepts
-            ]
-            extracted["relationships"] = [
-                {
-                    "source": r.source_text,
-                    "target": r.target_text,
-                    "type": r.relationship_type,
-                }
-                for r in context.extraction.relationships
             ]
 
         # Build graph state

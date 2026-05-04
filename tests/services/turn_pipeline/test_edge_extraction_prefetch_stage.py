@@ -1,4 +1,4 @@
-"""Tests for EdgeExtractionPrefetchStage (B4)."""
+"""Tests for EdgeExtractionPrefetchStage (B4/B11 — mandatory since B11)."""
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -11,7 +11,9 @@ from src.services.turn_pipeline.stages.edge_extraction_prefetch_stage import (
 )
 
 
-def make_context(session_id="test-session", turn_number=2, methodology="means_end_chain_v2_strict"):
+def make_context(
+    session_id="test-session", turn_number=2, methodology="means_end_chain_v2_strict"
+):
     """Create a minimal PipelineContext with required fields."""
     ctx = PipelineContext(session_id=session_id, user_input="test input")
     ctx.context_loading_output = MagicMock()
@@ -25,47 +27,8 @@ def make_context(session_id="test-session", turn_number=2, methodology="means_en
     return ctx
 
 
-class TestEdgeExtractionPrefetchFlagOff:
-    """Flag-OFF: stage is a no-op."""
-
-    @pytest.mark.asyncio
-    async def test_flag_off_sets_task_to_none(self):
-        """When feature flag is off, context._edge_extraction_task is set to None."""
-        stage = EdgeExtractionPrefetchStage(
-            graph_repo=MagicMock(), utterance_repo=MagicMock()
-        )
-        ctx = make_context()
-
-        with patch(
-            "src.services.turn_pipeline.stages.edge_extraction_prefetch_stage.interview_config"
-        ) as mock_config:
-            mock_config.features.enable_edge_extraction_stage = False
-            result = await stage.process(ctx)
-
-        assert result._edge_extraction_task is None
-        assert result is ctx  # context returned by identity
-
-    @pytest.mark.asyncio
-    async def test_flag_off_no_llm_call(self):
-        """When feature flag is off, no LLM client is fetched."""
-        stage = EdgeExtractionPrefetchStage(
-            graph_repo=MagicMock(), utterance_repo=MagicMock()
-        )
-        ctx = make_context()
-
-        with patch(
-            "src.services.turn_pipeline.stages.edge_extraction_prefetch_stage.interview_config"
-        ) as mock_config:
-            mock_config.features.enable_edge_extraction_stage = False
-            with patch(
-                "src.services.turn_pipeline.stages.edge_extraction_prefetch_stage.get_llm_client"
-            ) as mock_get_client:
-                await stage.process(ctx)
-                mock_get_client.assert_not_called()
-
-
-class TestEdgeExtractionPrefetchFlagOn:
-    """Flag-ON: candidate assembly and task firing."""
+class TestEdgeExtractionPrefetchStage:
+    """Stage is unconditional since B11 — no feature flag."""
 
     @pytest.mark.asyncio
     async def test_skips_when_no_graph_update_output(self):
@@ -74,14 +37,8 @@ class TestEdgeExtractionPrefetchFlagOn:
             graph_repo=MagicMock(), utterance_repo=MagicMock()
         )
         ctx = make_context()
-        ctx.graph_update_output = None  # Stage 4 not run
-
-        with patch(
-            "src.services.turn_pipeline.stages.edge_extraction_prefetch_stage.interview_config"
-        ) as mock_config:
-            mock_config.features.enable_edge_extraction_stage = True
-            result = await stage.process(ctx)
-
+        ctx.graph_update_output = None
+        result = await stage.process(ctx)
         assert result._edge_extraction_task is None
 
     @pytest.mark.asyncio
@@ -96,16 +53,10 @@ class TestEdgeExtractionPrefetchFlagOn:
         )
         ctx = make_context(turn_number=0)
         ctx.graph_update_output = MagicMock()
-        ctx.graph_update_output.concept_to_node_id = {}  # empty
+        ctx.graph_update_output.concept_to_node_id = {}
         ctx._evolving_node_tracker = MagicMock()
-        ctx._evolving_node_tracker.previous_focus = None  # no focus
-
-        with patch(
-            "src.services.turn_pipeline.stages.edge_extraction_prefetch_stage.interview_config"
-        ) as mock_config:
-            mock_config.features.enable_edge_extraction_stage = True
-            result = await stage.process(ctx)
-
+        ctx._evolving_node_tracker.previous_focus = None
+        result = await stage.process(ctx)
         assert result._edge_extraction_task is None
 
     @pytest.mark.asyncio
@@ -120,13 +71,11 @@ class TestEdgeExtractionPrefetchFlagOn:
             node_type="attribute",
             source_utterance_ids=["utt_user_1"],
         )
-
         graph_repo = AsyncMock()
         graph_repo.get_node = AsyncMock(return_value=node1)
         graph_repo.get_neighbours = AsyncMock(return_value=[])
         graph_repo.get_nodes_by_turn = AsyncMock(return_value=[])
         graph_repo.get_edges_by_session = AsyncMock(return_value=[])
-
         utterance_repo = AsyncMock()
         utterance_repo.get_by_ids = AsyncMock(return_value=[])
         utterance_repo.get_by_turn = AsyncMock(return_value=[])
@@ -140,13 +89,9 @@ class TestEdgeExtractionPrefetchFlagOn:
         ctx._evolving_node_tracker = MagicMock()
         ctx._evolving_node_tracker.previous_focus = None
 
-        # We need to patch get_llm_client and interview_config to prevent
-        # the actual LLM call — just check candidate assembly through
-        # the internal method.
         candidates, focus = await stage._assemble_candidate_nodes(
             ctx, "test-session", 2
         )
-
         assert focus is None
         assert len(candidates) == 1
         assert candidates[0]["tag"] == "CURRENT"
@@ -200,7 +145,6 @@ class TestEdgeExtractionPrefetchFlagOn:
         candidates, focus = await stage._assemble_candidate_nodes(
             ctx, "test-session", 3
         )
-
         assert focus == "n_focus"
         tags = {c["tag"] for c in candidates}
         assert "FOCUS" in tags
@@ -222,9 +166,8 @@ class TestEdgeExtractionPrefetchFlagOn:
             node_type="attribute",
             source_utterance_ids=["utt_prev"],
         )
-
         graph_repo = AsyncMock()
-        graph_repo.get_node = AsyncMock(return_value=None)  # no focus/current nodes
+        graph_repo.get_node = AsyncMock(return_value=None)
         graph_repo.get_neighbours = AsyncMock(return_value=[])
         graph_repo.get_nodes_by_turn = AsyncMock(return_value=[node])
         graph_repo.get_edges_by_session = AsyncMock(return_value=[])
@@ -241,12 +184,11 @@ class TestEdgeExtractionPrefetchFlagOn:
         candidates, focus = await stage._assemble_candidate_nodes(
             ctx, "test-session", 3
         )
-
         assert focus is None
         assert len(candidates) == 1
         assert candidates[0]["tag"] == "RECENT"
         assert candidates[0]["node_id"] == "n_recent"
-        assert candidates[0]["turn"] == 2  # turn_number - 1
+        assert candidates[0]["turn"] == 2
 
     @pytest.mark.asyncio
     async def test_dedup_across_categories(self):
@@ -260,7 +202,6 @@ class TestEdgeExtractionPrefetchFlagOn:
             node_type="attribute",
             source_utterance_ids=["utt_both"],
         )
-
         graph_repo = AsyncMock()
         graph_repo.get_node = AsyncMock(return_value=shared_node)
         graph_repo.get_neighbours = AsyncMock(return_value=[])
@@ -279,8 +220,6 @@ class TestEdgeExtractionPrefetchFlagOn:
         candidates, focus = await stage._assemble_candidate_nodes(
             ctx, "test-session", 3
         )
-
-        # Should appear once, tagged as CURRENT (first category seen)
         assert len(candidates) == 1
         assert candidates[0]["tag"] == "CURRENT"
 
@@ -296,13 +235,11 @@ class TestEdgeExtractionPrefetchFlagOn:
             node_type="attribute",
             source_utterance_ids=["utt_1"],
         )
-
         graph_repo = AsyncMock()
         graph_repo.get_node = AsyncMock(return_value=node)
         graph_repo.get_neighbours = AsyncMock(return_value=[])
         graph_repo.get_nodes_by_turn = AsyncMock(return_value=[])
         graph_repo.get_edges_by_session = AsyncMock(return_value=[])
-
         utterance_repo = AsyncMock()
         utterance_repo.get_by_ids = AsyncMock(return_value=[])
         utterance_repo.get_by_turn = AsyncMock(return_value=[])
@@ -322,14 +259,10 @@ class TestEdgeExtractionPrefetchFlagOn:
         )
 
         with patch(
-            "src.services.turn_pipeline.stages.edge_extraction_prefetch_stage.interview_config"
-        ) as mock_config:
-            mock_config.features.enable_edge_extraction_stage = True
-            with patch(
-                "src.services.turn_pipeline.stages.edge_extraction_prefetch_stage.get_llm_client"
-            ) as mock_get_client:
-                mock_get_client.return_value = mock_llm_client
-                result = await stage.process(ctx)
+            "src.services.turn_pipeline.stages.edge_extraction_prefetch_stage.get_llm_client"
+        ) as mock_get_client:
+            mock_get_client.return_value = mock_llm_client
+            result = await stage.process(ctx)
 
         assert result._edge_extraction_task is not None
         assert isinstance(result._edge_extraction_task, asyncio.Task)

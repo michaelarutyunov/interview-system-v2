@@ -53,32 +53,17 @@ _METHODOLOGY_DISPLAY: dict[str, str] = {
 }
 
 
-def _set_feature_flag(enabled: bool, methodology: str | None = None) -> None:
-    """Monkey-patch the edge extraction feature flag in the loaded config.
-
-    If methodology is provided, sets the per-methodology map entry for that
-    methodology, which takes precedence over the global flag.
-    """
-    from src.core.config import interview_config
-
-    if methodology:
-        interview_config.features.per_methodology_edge_extraction[methodology] = enabled
-    else:
-        interview_config.features.enable_edge_extraction_stage = enabled
+# NOTE: _set_feature_flag removed in B11 — the edge extraction feature flag
+# has been deleted. Stage 4.5B is now mandatory. This script is retained for
+# reference but no longer supports ON/OFF comparison.
 
 
 async def _run_one_simulation(
     concept_id: str,
     persona_id: str,
     max_turns: int,
-    flag_enabled: bool,
-    methodology: str | None = None,
 ) -> dict[str, Any]:
-    """Run a single simulation and return structured metrics.
-
-    Monkey-patches the feature flag before creating the session service,
-    so the pipeline picks up the correct flag state.
-    """
+    """Run a single simulation and return structured metrics."""
     import aiosqlite
 
     from src.core.config import settings
@@ -93,8 +78,6 @@ async def _run_one_simulation(
     from src.services.simulation_service import SimulationService
 
     configure_logging()
-
-    _set_feature_flag(flag_enabled, methodology)
 
     db = await aiosqlite.connect(str(settings.database_path))
     try:
@@ -118,10 +101,10 @@ async def _run_one_simulation(
     finally:
         await db.close()
 
-    return _extract_metrics(result, flag_enabled)
+    return _extract_metrics(result)
 
 
-def _extract_metrics(result: Any, flag_enabled: bool) -> dict[str, Any]:
+def _extract_metrics(result: Any) -> dict[str, Any]:
     """Extract comparison metrics from a SimulationResult."""
     turns = result.turns
 
@@ -183,7 +166,7 @@ def _extract_metrics(result: Any, flag_enabled: bool) -> dict[str, Any]:
     turn_latencies.sort()
 
     return {
-        "flag": "ON" if flag_enabled else "OFF",
+        "flag": "ON",
         "total_turns": result.total_turns,
         "strategy_distribution": dict(strategy_counts),
         "total_nodes": total_nodes,
@@ -368,20 +351,15 @@ async def _main() -> None:
         print(f"  Max turns: {args.max_turns}")
         print(f"{'=' * 60}")
 
-        print("  Baseline (flag OFF)...", end=" ", flush=True)
+        print("  Running simulation...", end=" ", flush=True)
         t0 = time.perf_counter()
         baseline = await _run_one_simulation(
-            concept_id, args.persona, args.max_turns, flag_enabled=False,
-            methodology=methodology,
+            concept_id,
+            args.persona,
+            args.max_turns,
         )
+        new = baseline  # No ON/OFF comparison — flag removed in B11
         print(f"done ({time.perf_counter() - t0:.1f}s)")
-
-        print("  New path (flag ON)...", end=" ", flush=True)
-        t0 = time.perf_counter()
-        new = await _run_one_simulation(
-            concept_id, args.persona, args.max_turns, flag_enabled=True,
-            methodology=methodology,
-        )
         print(f"done ({time.perf_counter() - t0:.1f}s)")
 
         report = _generate_markdown_report(

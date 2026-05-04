@@ -50,12 +50,12 @@ ontology:
     - name: instrumental_value
       level: 4
       terminal: false
-      description: "A guiding principle or preferred way of behaving that the psychosocial outcome supports — a virtue or standard for how one should live. If it sounds like 'being X' or 'acting X', it's instrumental."
+      description: "A personal standard the respondent holds themselves to — the behavioral norm their choices reflect. Often expressed through contrast rather than direct declaration: 'not settling', 'rather than compromising', 'instead of just accepting whatever' all signal a standard as clearly as 'I try to be discerning'. Ask: does this describe a standard of behavior they are protecting, whether stated positively ('being discerning') or by negating its opposite ('not willing to settle for less')? If yes, it is instrumental_value. Consumer contexts: autonomy, quality standards, identity consistency."
 
     - name: terminal_value
       level: 5
       terminal: true
-      description: "A fundamental life goal or desired end-state that gives ultimate meaning to the instrumental value. If it feels like the final reason ('so I can ultimately have/be…'), it's terminal."
+      description: "The end-state of being the respondent is ultimately trying to achieve or protect — an identity, feeling, or way of experiencing life they care about. Ask: if you kept asking 'why does that matter?', does this feel like the final answer? Sounds like: 'feeling like myself', 'being in control of my own choices', 'feeling respected', 'living how I want to'. Only extract when explicitly stated by the respondent OR when a clear instrumental_value (L4) already exists in the chain and this end-state is unambiguously implied by it."
 
   edges:
     - name: leads_to
@@ -83,29 +83,10 @@ ontology:
     - "Implicit: When multiple concepts co-occur in a response, connect them if they form a logical means-end chain"
     - "Contextual: If the interviewer asks 'why does X matter' and the response describes Y, create X→Y relationship"
     - "Chain direction: attribute → functional_consequence → psychosocial_consequence → instrumental_value → terminal_value"
+    - "instrumental_value (L4) — three extraction pathways: (1) Positive declaration: 'being the kind of person who', 'it matters to me to', 'I try to', 'I believe in', 'I value', 'I care about', 'I make a point of'; (2) Negation/contrast: 'I don't want to settle', 'rather than compromising', 'instead of just accepting', 'not willing to make do', 'not someone who just goes with whatever' — these express the same behavioral standard as positive declarations, stated in reverse; (3) Bounded inference from L3: when a psychosocial consequence clearly implies a behavioral standard via MEC laddering logic, extract the implied instrumental_value even if the respondent did not name it explicitly — e.g. 'I feel guilt-free' implies a standard like 'making choices I can stand behind'. Label the standard, not the feeling."
+    - "terminal_value (L5) — strict extraction: only when the respondent explicitly names an end-state of being ('feeling like myself', 'being in control', 'feeling respected', 'just wanting to feel X', 'living on my own terms'), OR when a clear instrumental_value (L4) node already exists in the chain and the terminal state is unambiguously implied by it. Do NOT make two-level leaps directly from L3 to L5."
     - "Target 2-3x more edges than nodes — prefer creating relationships over leaving concepts disconnected"
     - "CRITICAL — attribute vs functional_consequence boundary: Ask 'can this be described without mentioning a person?' If yes → attribute. If it describes what the person experiences, does, or avoids → functional_consequence"
-
-  relationship_examples:
-    explicit_causal:
-      description: "Discourse markers explicitly state the connection"
-      example: "I like froth because it makes coffee less bitter"
-      extraction: "froth → makes coffee taste less bitter"
-
-    implicit_same_response:
-      description: "Multiple concepts in one response form logical consequence chain"
-      example: "Froth makes coffee taste less bitter and gives a nice sensation in the mouth"
-      extraction: "makes coffee taste less bitter → nice sensation in the mouth"
-
-    implicit_conversational:
-      description: "Question establishes antecedent, response provides consequence"
-      example: "Interviewer: 'Why does the nice sensation matter?' Respondent: 'It feels like a good start of the day'"
-      extraction: "nice sensation in the mouth → good start of the day"
-
-    value_progression:
-      description: "Parallel goals forming a chain toward terminal value"
-      example: "I can be my best and set a good example to my kids"
-      extraction: "be my best → set a good example to my kids"
 
   extractability_criteria:
     extractable_contains:
@@ -189,12 +170,14 @@ strategies:
     bridge_direction: forward
     bridge_target: most_abstract
     extraction_mode: extract_new
+    level_guidance:
+      instrumental_value: "You are laddering FROM an instrumental value — a personal standard the respondent holds. Your question must ask what deeper end-state or sense of being this standard ultimately serves: what does living by this value allow the respondent to feel or be? Do NOT return to physical attributes, functional consequences, or psychosocial feelings — those are below the current level. Push upward toward the terminal end-state."
     signal_weights:
       convgraph.node.chain.gap.above.true: 0.25  # R3: reduced from 0.3 (0.2 was too aggressive, ground dominated)
       convgraph.node.chain.fan_in: 0.033
       convgraph.node.recency: 0.15
       convgraph.node.exhaustion: -0.8  # N7: strengthened from -0.4 — prevents circular revisits
-      convgraph.node.focus.count.high: -0.8  # N7: hard brake on over-probed nodes
+      convgraph.node.focus.count.high: -0.4  # halved from -0.8 — exhaustion signal covers the residual
       convgraph.node.focus.count.medium: -0.4
       # f965: response_depth.deep (0.3 — later duplicate key in YAML wins over 0.1)
       #       + intellectual_engagement.high × 0.5 (0.1) → elaboration.high 0.4
@@ -221,7 +204,7 @@ strategies:
       convgraph.node.exhaustion: -0.4
       # f965: response.semantic.llm.response_depth.deep (0.05) → convgraph.node.llm.elaboration.high
       convgraph.node.llm.elaboration.high: 0.05
-      interview.strategy.self_count: -0.15  # R2: mild repetition penalty on structural strategies
+      interview.strategy.self_count: -0.40  # increased from -0.15 — creates room for ascend on gap_below nodes
       convgraph.node.chain.has_attribute_foundation.false: 0.250  # Tier 2 + Critique: reduced from 0.400
       convgraph.node.chain.has_attribute_foundation.true: -0.2   # already grounded, reduce priority
       meta.saturation.conversation.high: -0.40
@@ -254,8 +237,8 @@ strategies:
       convgraph.node.recency: 0.15
       convgraph.node.exhaustion: -0.3
       response.semantic.llm.engagement.high: 0.1
-      interview.strategy.self_count: -0.15  # R2: mild repetition penalty on structural strategies
-      convgraph.node.chain.has_attribute_foundation.true: 0.3   # only branch when grounded
+      interview.strategy.self_count: -0.50  # dbj3: strengthened from -0.15 — 5 uses now costs -2.50, enough to overcome structural advantage
+      convgraph.node.chain.has_attribute_foundation.true: 0.1   # 28ub: reduced from 0.30 — 94% fire rate was a flat bonus on nearly every node
       convgraph.node.chain.has_terminal_apex.true: 0.5          # N7: boosted from 0.4 — fires once chain is complete
 
   # Strategy 6: Anchor — connect isolated node to existing graph structure
@@ -318,7 +301,7 @@ phases:
     # N6: removed ascend phase_bonus 0.15 — was pushing ascend past all competition structurally
     description: "Building depth and connections"
     signal_weights:
-      ascend: 1.3
+      ascend: 1.4  # mpwk: boosted from 1.3 — R1+R2 insufficient, ascend needs more mid-phase mass
       ground: 1.3
       bridge: 1.2
       branch: 1.0
