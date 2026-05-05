@@ -241,13 +241,18 @@ class SimulationService:
 
             turn_number += 1
 
-            # Resolve focus node label for transcript analysis
+            # Resolve focus node label for transcript analysis.
+            # focus_node_id is always a surface UUID after surface-primary inversion.
             focus_node_id = turn_result_session.focus_node_id
             focus_node_label = None
             if focus_node_id:
                 node = await self.session.graph_repo.get_node(focus_node_id)
-                if node:
-                    focus_node_label = node.label
+                if node is None:
+                    raise RuntimeError(
+                        f"focus_node_id={focus_node_id!r} not found in kg_nodes — "
+                        f"surface-primary contract violated"
+                    )
+                focus_node_label = node.label
 
             # Generate synthetic response
             turn_result = await self._simulate_turn(

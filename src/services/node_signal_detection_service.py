@@ -40,6 +40,9 @@ class NodeSignalDetectionService:
         """
         Detect node-level signals for all tracked nodes.
 
+        All detector results must use surface UUID keys (tracker.states.keys()).
+        Keys outside the tracker raise immediately.
+
         Args:
             context: Pipeline context
             graph_state: Current knowledge graph state
@@ -103,19 +106,26 @@ class NodeSignalDetectionService:
                 # weight keys and valid_when gates reference sub-signals directly.
                 detector_count = 0
                 for node_id, signal_value in detected.items():
-                    if node_id in node_signals:
-                        if isinstance(signal_value, dict):
-                            # Flatten: store parent key AND individual sub-keys
-                            node_signals[node_id][detector.signal_name] = signal_value
-                            # Derive namespace prefix from signal_name
-                            # e.g. "convgraph.node.chain.role" → "graph.node."
-                            parts = detector.signal_name.rsplit(".", 1)
-                            prefix = parts[0] + "." if len(parts) == 2 else ""
-                            for sub_key, sub_val in signal_value.items():
-                                node_signals[node_id][f"{prefix}{sub_key}"] = sub_val
-                        else:
-                            node_signals[node_id][detector.signal_name] = signal_value
-                        detector_count += 1
+                    if node_id not in node_signals:
+                        raise ValueError(
+                            f"Signal detector {detector.signal_name!r} emitted key "
+                            f"{node_id!r} not in tracker keyspace. After surface-primary "
+                            f"inversion all signal keys must be surface UUIDs registered in "
+                            f"NodeStateTracker. Tracker keys: "
+                            f"{sorted(list(node_signals.keys()))[:5]}..."
+                        )
+                    if isinstance(signal_value, dict):
+                        # Flatten: store parent key AND individual sub-keys
+                        node_signals[node_id][detector.signal_name] = signal_value
+                        # Derive namespace prefix from signal_name
+                        # e.g. "convgraph.node.chain.role" → "graph.node."
+                        parts = detector.signal_name.rsplit(".", 1)
+                        prefix = parts[0] + "." if len(parts) == 2 else ""
+                        for sub_key, sub_val in signal_value.items():
+                            node_signals[node_id][f"{prefix}{sub_key}"] = sub_val
+                    else:
+                        node_signals[node_id][detector.signal_name] = signal_value
+                    detector_count += 1
 
                 signals_detected_count += detector_count
 

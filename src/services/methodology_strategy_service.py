@@ -112,7 +112,7 @@ class MethodologyStrategyService:
             Tuple of (strategy_name, focus_node_id, alternatives, global_signals,
             node_signals, decomposition):
             - strategy_name: Name of selected strategy
-            - focus_node_id: UUID of selected focus node, or None for conversation strategies
+            - focus_node_id: Surface graph UUID of selected focus node (always retrievable via graph_repo.get_node), or None for conversation strategies
             - alternatives: List of (strategy, node_id_or_None, score) tuples sorted by score
             - global_signals: Dict of detected global signals
             - node_signals: Dict mapping node_id to per-node signal dict

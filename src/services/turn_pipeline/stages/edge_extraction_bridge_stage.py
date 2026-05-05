@@ -14,14 +14,14 @@ Per D4: record_yield ownership moves here from GraphUpdateStage (implemented in 
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from collections import Counter
+from typing import TYPE_CHECKING
 
 import structlog  # type: ignore[import-untyped]
 
 from ..base import TurnStage
 from src.domain.models.edge_extraction import EdgeExtractionOutput
 from src.services.node_state_tracker import (
-    CanonicalSlotResolver,
     NodeStateTracker,
     GraphChangeSummary,
     NodeNotTrackedError,
@@ -44,11 +44,9 @@ class EdgeExtractionBridgeStage(TurnStage):
         self,
         graph_service,
         graph_repo,
-        canonical_slot_resolver: Optional[CanonicalSlotResolver] = None,
     ):
         self._graph = graph_service
         self._graph_repo = graph_repo
-        self._resolver = canonical_slot_resolver or CanonicalSlotResolver()
 
     async def process(self, context: "PipelineContext") -> "PipelineContext":
         # Seed tracker from evolving state; fall back to empty if not seeded
@@ -80,7 +78,7 @@ class EdgeExtractionBridgeStage(TurnStage):
                 turn_number = context.turn_number
 
                 for candidate in result.rejected_candidates:
-                    log.info(
+                    log.debug(
                         "edge_rejected",
                         session_id=session_id,
                         turn=turn_number,
@@ -88,6 +86,25 @@ class EdgeExtractionBridgeStage(TurnStage):
                         target_node_id=candidate.target_node_id,
                         rejection_reason=candidate.rejection_reason,
                         reasoning_summary=candidate.reasoning_summary,
+                    )
+
+                if result.rejected_candidates:
+                    rejection_counts: dict[str, int] = dict(
+                        Counter(c.rejection_reason for c in result.rejected_candidates)
+                    )
+                    log.info(
+                        "edge_rejected_summary",
+                        session_id=session_id,
+                        turn=turn_number,
+                        total_rejected=len(result.rejected_candidates),
+                        by_reason=rejection_counts,
+                    )
+
+                    # Persist rejected candidates for per-turn diagnostics
+                    await self._graph_repo.create_rejected_edges_batch(
+                        session_id=session_id,
+                        turn_number=turn_number,
+                        rejected=result.rejected_candidates,
                     )
 
                 for edge in result.confirmed_edges:
@@ -135,7 +152,7 @@ class EdgeExtractionBridgeStage(TurnStage):
                     target_id = getattr(kg_edge, "target_node_id", None)
 
                     if source_id:
-                        key = await self._resolver.resolve(source_id)
+                        key = source_id
                         if key in tracker.states:
                             out_d, in_d = edge_deltas.get(key, (0, 0))
                             edge_deltas[key] = (out_d + 1, in_d)
@@ -147,7 +164,7 @@ class EdgeExtractionBridgeStage(TurnStage):
                             )
 
                     if target_id:
-                        key = await self._resolver.resolve(target_id)
+                        key = target_id
                         if key in tracker.states:
                             out_d, in_d = edge_deltas.get(key, (0, 0))
                             edge_deltas[key] = (out_d, in_d + 1)

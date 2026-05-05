@@ -39,7 +39,7 @@ from src.services.turn_pipeline import (
     PipelineContext,
     TurnResult as PipelineTurnResult,
 )
-from src.services.node_state_tracker import NodeStateTracker, CanonicalSlotResolver
+from src.services.node_state_tracker import NodeStateTracker
 from src.services.turn_pipeline.stages import (
     ContextLoadingStage,
     UtteranceSavingStage,
@@ -269,7 +269,6 @@ class SessionService:
             LLMPrefetchStage(),
             GraphUpdateStage(
                 graph_service=self.graph,
-                canonical_slot_resolver=CanonicalSlotResolver(canonical_slot_repo),
             ),
             # Stage 4.5B-prefetch: Fire edge extraction LLM call asynchronously.
             # Runs AFTER GraphUpdateStage (needs post-dedup node IDs). Fires here
@@ -296,12 +295,9 @@ class SessionService:
             EdgeExtractionBridgeStage(
                 graph_service=self.graph,
                 graph_repo=self.graph_repo,
-                canonical_slot_resolver=CanonicalSlotResolver(canonical_slot_repo),
             ),
             # Stage 4.7: Await LLM prefetch, bridge per-concept ratings to node tracker, seal
-            LLMSignalBridgeStage(
-                canonical_slot_resolver=CanonicalSlotResolver(canonical_slot_repo),
-            ),
+            LLMSignalBridgeStage(),
         ]
 
         # StateComputationStage: Refresh graph state and compute canonical graph state
@@ -314,9 +310,7 @@ class SessionService:
 
         stages.extend(
             [
-                StrategySelectionStage(
-                    canonical_slot_resolver=CanonicalSlotResolver(canonical_slot_repo),
-                ),
+                StrategySelectionStage(),
                 ContinuationStage(
                     focus_selection_service=self.focus_selection,
                 ),

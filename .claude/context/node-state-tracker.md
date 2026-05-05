@@ -1,5 +1,5 @@
 # NodeStateTracker
-## Current Version: 1.0
+## Current Version: 2.0
 
 ## Core Mechanics
 
@@ -36,12 +36,12 @@ Changes made after Stage 10 are lost; changes made before Stage 1 in the next tu
 
 | Stage | Stage Name | Method | What It Does |
 |-------|-----------|--------|--------------|
-| Stage 4 | `GraphUpdateStage` | `register_node(node, turn_number)` | Creates a new `NodeState` for newly extracted nodes; no-op if already registered. **Registers under surface `node.id` (UUID), not canonical slot ID.** |
+| Stage 4 | `GraphUpdateStage` | `register_node(node, turn_number)` | Creates a new `NodeState` for newly extracted nodes; no-op if already registered. Keyed by surface `node.id` (UUID). |
 | Stage 4 | `GraphUpdateStage` | `update_edge_counts(node_id, outgoing_delta, incoming_delta)` | Adjusts edge counts; floors at 0 |
-| Stage 4.5 | `SlotDiscoveryStage` | `remap_to_canonical_slots()` | **Adds** canonical slot entries alongside surface entries (no longer pops surface UUIDs as of April 2026). Surface nodes remain in `self.states` with their original UUID keys; slot entries are created or merged in addition. Merges states when multiple surface nodes map to the same canonical slot (paraphrase aggregation). Does **NOT** remap `previous_focus` — it stays as the surface UUID. **Must run before Stage 6 lookups.** |
+| Stage 4.5 | `SlotDiscoveryStage` | `register_slot_memberships(mappings)` | Sets `NodeState.slot_id` on each surface entry that has a canonical slot mapping. **Does NOT change the keyspace** — tracker remains keyed by surface UUID. `mappings` is a `dict[SurfaceNodeId, SlotId]` built from the slot repo. Raises `NodeNotTrackedError` if any surface_id is missing from tracker. |
 | Stage 4.6 | `EdgeExtractionBridgeStage` | `record_yield(tracking_key, turn_number, graph_changes)` | Credits `previous_focus` with yield unconditionally (D4/B7, moved from GraphUpdateStage). Resets `turns_since_last_yield` to 0; increments `yield_count`; recalculates `yield_rate`. Does **NOT** gate on `graph_changes.is_empty()` — yield is recorded regardless of edge count (fixed p4t3). |
 | Stage 4.6 | `EdgeExtractionBridgeStage` | `update_edge_counts_batch(edge_deltas)` | Batch-updates edge counts for nodes affected by Stage 4.5B edges (mirrors GraphUpdateStage pattern). |
-| Stage 6 | `StrategySelectionStage` | `update_focus(node_id, turn_number, strategy)` | Increments `focus_count`; sets `last_focus_turn`; resets streak to 1 on focus change, increments streak on same focus; ticks `turns_since_last_yield += 1` for **ALL** nodes; updates `previous_focus` |
+| Stage 6 | `StrategySelectionStage` | `update_focus(tracking_key, turn_number, strategy)` | Takes `tracking_key: SurfaceNodeId` (surface UUID, no `node_id` param). Increments `focus_count`; sets `last_focus_turn`; resets streak to 1 on focus change, increments streak on same focus; ticks `turns_since_last_yield += 1` for **ALL** nodes; updates `previous_focus` (always a surface UUID). Raises `NodeNotTrackedError` if key not registered. |
 | Stage 4.7 | `LLMSignalBridgeStage` | `append_quality(node_id, elaboration, charge)` | Records per-concept LLM ratings: appends normalized `elaboration`/`charge` to `quality_history`, derives and appends a categorical `response_depth` to `all_response_depths`. Called once per concept via the per-concept→node bridge step. **Seals the tracker** — after this stage, `_evolving_node_tracker` is set to None and all downstream access goes through `context.node_tracker` (the sealed snapshot). |
 | Stage 1 | `ContextLoadingStage` | `from_dict(data)` | Deserializes persisted tracker state; raises `ValueError` on schema version mismatch |
 | Stage 10 | `ScoringPersistenceStage` | `to_dict()` | Serializes tracker state to JSON-compatible dict; converts `connected_node_ids` set to list |
@@ -54,7 +54,7 @@ Stage 2:  UtteranceSavingStage
 Stage 2.5: SRLPreprocessingStage
 Stage 3:  ExtractionStage
 Stage 4:  GraphUpdateStage             ← register_node(), update_edge_counts(), record_yield()
-Stage 4.5: SlotDiscoveryStage          ← remap_to_canonical_slots() (after mappings created)
+Stage 4.5: SlotDiscoveryStage          ← register_slot_memberships() (after mappings created)
 Stage 4.7: LLMSignalBridgeStage        ← append_quality() (per-concept → node bridge)
 Stage 5:  StateComputationStage
 Stage 6:  StrategySelectionStage       ← global signals → node signals → update_focus()
@@ -97,27 +97,42 @@ Turn N ends (saved to DB):
 
 ### Model Invariants
 
-`NodeStateTracker` is a **frozen Pydantic `BaseModel`** (`model_config = ConfigDict(frozen=True)`). It has no mutable attributes and no `canonical_slot_repo` field. Canonical slot availability is checked via `context.canonical_graph_state is None` in signal detectors — never via a tracker attribute. Any code that accesses `node_tracker.canonical_slot_repo` will raise `AttributeError` at runtime.
+`NodeStateTracker` is a **frozen Pydantic `BaseModel`** (`model_config = ConfigDict(frozen=True)`). It has no mutable attributes and no `canonical_slot_repo` field. Canonical slot availability is checked via `context.canonical_graph_state is None` in signal detectors — never via a tracker attribute.
+
+### Keyspace: Surface UUID
+
+`states: dict[str, NodeState]` is keyed exclusively by **surface UUID** (`SurfaceNodeId`). There is no slot-keyed entry at any point in the lifecycle. Slot membership is a **property** on each `NodeState`, not a keyspace dimension:
+
+- **`NodeState.slot_id: Optional[SlotId]`** — set by `register_slot_memberships()` (Stage 4.5) when a surface node maps to a canonical slot. `None` for unmapped nodes.
+- **`register_slot_memberships(mappings: Mapping[SurfaceNodeId, SlotId])`** — the only mutation that touches slot identity. Iterates over the provided mappings and sets `state.slot_id` on each matching surface entry. Does NOT add, remove, or re-key entries. Raises `NodeNotTrackedError` if any surface_id is absent.
+- **`surfaces_in_slot(slot_id: SlotId) -> list[SurfaceNodeId]`** — returns all surface UUIDs whose `state.slot_id` matches. Used by slot-aggregating signals (e.g. `canongraph.node.novelty`).
+- **`slot_id_for_surface(surface_id: SurfaceNodeId) -> Optional[SlotId]`** — returns the slot_id property for a surface entry, or `None` if untracked/unmapped.
 
 ### Dual-Graph Support
 
-When `enable_canonical_slots=True`, surface node IDs are resolved to canonical slot IDs via `_resolve_canonical_slot_id()` before use as tracking keys. This aggregates metrics across paraphrase surface nodes into a single canonical slot entry. Falls back to surface node ID if no mapping exists (expected for unmapped nodes, not an error).
+When `enable_canonical_slots=True`, surface nodes may be mapped to canonical slots via `register_slot_memberships()`. The tracker remains keyed by surface UUID; slot membership is stored as `NodeState.slot_id`. Signal detectors that need slot-level aggregation use `surfaces_in_slot()` to collect all surface states belonging to a slot.
+
+### Identity Types
+
+`SurfaceNodeId` and `SlotId` are `NewType(str, ...)` aliases defined in `src/domain/models/identity.py`. They distinguish surface graph UUIDs from canonical slot keys at static-analysis time (pyright) while being runtime no-ops. All `tracking_key` parameters on NodeStateTracker methods use `SurfaceNodeId`; `previous_focus` is also a `SurfaceNodeId`. `SlotId` appears only as `NodeState.slot_id` and in the `register_slot_memberships` mapping.
 
 ### Serialization Schema
 
 ```python
 {
-    "schema_version": 3,          # NODE_TRACKER_SCHEMA_VERSION (v3 adds quality_history; from_dict accepts v1/v2 with empty defaults)
-    "previous_focus": str | None,
+    "schema_version": 6,          # NODE_TRACKER_SCHEMA_VERSION (v6: surface-primary keyspace, slot_id on NodeState)
+    "previous_focus": str | None, # SurfaceNodeId (surface UUID)
     "states": {
-        "<node_id>": {             # canonical_slot_id if dual-graph, else surface node_id
+        "<surface_uuid>": {       # SurfaceNodeId — always surface UUID, never slot ID
             "node_id": str,
+            "slot_id": str | None, # canonical slot membership, set by register_slot_memberships
             "focus_count": int,
             "current_focus_streak": int,
             # ... all NodeState fields
-            "connected_node_ids": list[str]   # serialized from set
+            "connected_node_ids": list[str]   # serialized from frozenset
         }
-    }
+    },
+    "canonical_slot_first_seen": dict[str, int]  # slot_id → first-seen turn number
 }
 ```
 
@@ -133,7 +148,7 @@ When `enable_canonical_slots=True`, surface node IDs are resolved to canonical s
 
 4. **Persistence window**: `to_dict()` must be called in Stage 10 and `from_dict()` in Stage 1. Mutations after Stage 10 within a turn are not persisted. Mutations before Stage 1 are not possible (tracker is not yet loaded).
 
-5. **Dual-graph tracking key consistency**: All methods (`update_focus`, `record_yield`, `append_quality`, `update_edge_counts`, `get_state`) resolve surface node IDs to canonical slot IDs before accessing `self.states`. This ensures all metrics accumulate on the canonical key, not scattered across surface paraphrases.
+5. **Surface-primary keyspace**: `tracker.states` is keyed exclusively by surface UUID. All methods (`update_focus`, `record_yield`, `append_quality`, `update_edge_counts`, `get_state`) use surface UUID as tracking key. Slot identity is a property on `NodeState.slot_id`, set by `register_slot_memberships()` at Stage 4.5. There is no slot-keyed entry in `states`.
 
 6. **New nodes must be registered before focus or yield**: `register_node()` must run (Stage 4) before `update_focus()` or `record_yield()` attempt to access that node. If a node is not in `self.states`, both methods log a warning and return without error.
 
@@ -141,9 +156,9 @@ When `enable_canonical_slots=True`, surface node IDs are resolved to canonical s
 
 8. **`NodeStateTracker` is strategy-agnostic**: The tracker records which strategy was used (`strategy_usage_count`, `last_strategy_used`, `consecutive_same_strategy`) but does not know about chain topology strategies (ascend/ground/bridge/branch/anchor) vs legacy strategies. No changes to this subsystem were needed for Phase 2 chain-aware strategy selection.
 
-9. **Canonical slot re-keying after Stage 4.5**: `register_node()` stores entries under surface `node.id` (UUID) because canonical slot mappings don't exist yet at Stage 4. After Stage 4.5 (`SlotDiscoveryStage`) creates the mappings, `remap_to_canonical_slots()` must run to **add** slot entries alongside surface entries. Without this, all lookups via `_resolve_canonical_slot_id()` fail because they return `canonical_slot_id` (e.g., `slot_<hash>`) but `self.states` is keyed by UUID. The method also handles merging when multiple surface nodes (paraphrases) map to the same canonical slot.
+9. **Slot membership registration at Stage 4.5**: `register_node()` stores entries under surface `node.id` (UUID) because canonical slot mappings don't exist yet at Stage 4. After Stage 4.5 (`SlotDiscoveryStage`) creates the mappings, `register_slot_memberships()` must run to set `NodeState.slot_id` on each mapped surface entry. The tracker keyspace is not altered — no entries are added, removed, or re-keyed. Signal detectors that need slot-level aggregation use `surfaces_in_slot()` to collect surface states by slot.
 
-   **Cross-reference**: The key namespace divergence created by this remap (surface UUIDs vs canonical slot IDs) directly affects signal detection — DB-based detectors return surface UUID keys while `NodeSignalDetectionService` initializes `node_signals` from tracker keys. See `signal-detection-graph.md` "Key Namespace Divergence" section for the full data flow and merge guard mechanics.
+   **Cross-reference**: DB-based signal detectors and the tracker both use surface UUID keys. `NodeSignalDetectionService` merges detector results into `node_signals` keyed by surface UUID — no namespace translation needed. See `signal-detection-graph.md` for the full data flow.
 
 ---
 
@@ -155,9 +170,9 @@ When `enable_canonical_slots=True`, surface node IDs are resolved to canonical s
 | `convgraph.node.exhaustion` not growing for repeatedly focused node | `turns_since_last_yield` only incremented for the focused node; unfocused nodes' counter never grew | Changed `update_focus()` loop to tick `turns_since_last_yield += 1` for **all** nodes, not just focus |
 | Tracker state lost between turns (signals always see initial values) | `to_dict()` not called in `ScoringPersistenceStage`, or `from_dict()` not called in `ContextLoadingStage` | Verify Stage 10 calls `node_state_tracker.to_dict()` and saves result to `sessions.node_tracker_state`; verify Stage 1 loads it via `from_dict()` |
 | Node signals missing / wrong for newly extracted nodes | New node not yet in tracker when `update_focus()` is called | Confirm `register_node()` is called in Stage 4 (before Stage 6); check `register_node()` call path in `graph_update_stage.py:_update_node_state_tracker()` |
-| Canonical slot aggregation not working (metrics split across paraphrase nodes) | `canonical_slot_repo` not injected into `NodeStateTracker` constructor | Confirm `NodeStateTracker(canonical_slot_repo=repo)` is used when `enable_canonical_slots=True` in session config |
+| Canonical slot aggregation not working (slot_id always None) | `register_slot_memberships()` not called after Stage 4.5 | Verify `register_slot_memberships()` is called at end of `SlotDiscoveryStage.process()` after mappings are created. |
 | `ValueError: Incompatible node_tracker_state schema version` | DB has state serialized at an older schema version | Migrate DB rows or reset `node_tracker_state` to `null` for affected sessions; schema is currently version 3 |
-| `focus_update_failed_node_not_found` / `append_quality_failed_node_not_found` warnings on every turn | `register_node()` stores under surface UUID but lookups resolve via `_resolve_canonical_slot_id()` to canonical slot ID. If `remap_to_canonical_slots()` is not called after Stage 4.5, 100% of lookups fail when canonical slots are enabled. | Verify `remap_to_canonical_slots()` is called at end of `SlotDiscoveryStage.process()` after mappings are created. Check `canonical_slot_remap_complete` log for remapped/merged counts. |
+| `focus_update_failed_node_not_found` / `append_quality_failed_node_not_found` warnings on every turn | A node was selected as focus (Stage 6) or mapped from a concept (Stage 4.7) that was not registered in the tracker at Stage 4. This should not happen in normal flow — every extracted concept is registered before it can be focused. | Confirm `register_node()` is called in `GraphUpdateStage` for all extracted nodes before downstream stages. Check extraction → graph_update → focus call ordering. |
 
 ---
 
@@ -181,13 +196,13 @@ When `enable_canonical_slots=True`, surface node IDs are resolved to canonical s
 | `src/services/node_state_tracker.py` | `NodeStateTracker` class and `GraphChangeSummary` dataclass |
 | `src/domain/models/node_state.py` | `NodeState` dataclass (all tracked fields) |
 | `src/services/turn_pipeline/stages/graph_update_stage.py` | Stage 4: calls `register_node()`, `update_edge_counts()` |
-| `src/services/turn_pipeline/stages/slot_discovery_stage.py` | Stage 4.5: calls `remap_to_canonical_slots()` after creating surface-to-slot mappings |
+| `src/services/turn_pipeline/stages/slot_discovery_stage.py` | Stage 4.5: calls `register_slot_memberships()` after creating surface-to-slot mappings |
 | `src/services/turn_pipeline/stages/edge_extraction_bridge_stage.py` | Stage 4.6: calls `record_yield()` (D4/B7), `update_edge_counts_batch()` for Stage 4.5B edges |
 | `src/services/turn_pipeline/stages/llm_signal_bridge_stage.py` | Stage 4.7: per-concept→node bridge (`append_quality()`), seals tracker |
 | `src/services/turn_pipeline/stages/strategy_selection_stage.py` | Stage 6: calls `update_focus()` |
 | `src/services/turn_pipeline/stages/context_loading_stage.py` | Stage 1: loads tracker via `from_dict()` |
 | `src/services/turn_pipeline/stages/scoring_persistence_stage.py` | Stage 10: saves tracker via `to_dict()` |
-| `src/persistence/repositories/canonical_slot_repo.py` | `CanonicalSlotRepository` for surface→canonical slot ID resolution |
+| `src/persistence/repositories/canonical_slot_repo.py` | `CanonicalSlotRepository` for surface-to-slot ID resolution (used by SlotDiscoveryStage to build mappings) |
 | `src/services/session_service.py` | `_build_pipeline()` — pipeline wiring |
 | `.claude/context/signal-detection-graph.md` | Node signal detection flow, key namespace divergence, chain topology signals |
 | `.claude/context/strategy-selection.md` | Joint scoring architecture and strategy selection flow |

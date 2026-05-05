@@ -15,8 +15,8 @@ from src.domain.models.pipeline_contracts import (
     StrategySelectionInput,
     StrategySelectionOutput,
 )
+from src.domain.models.identity import SurfaceNodeId
 from src.services.methodology_strategy_service import MethodologyStrategyService
-from src.services.node_state_tracker import CanonicalSlotResolver
 
 
 if TYPE_CHECKING:
@@ -39,9 +39,8 @@ class StrategySelectionStage(TurnStage):
     - PipelineContext.strategy_alternatives (for observability)
     """
 
-    def __init__(self, canonical_slot_resolver: Optional[CanonicalSlotResolver] = None):
+    def __init__(self):
         self.methodology_strategy = MethodologyStrategyService()
-        self._resolver = canonical_slot_resolver or CanonicalSlotResolver()
 
     async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
@@ -112,7 +111,8 @@ class StrategySelectionStage(TurnStage):
         sealed = context.node_tracker
         next_turn_tracker = sealed
         if focus_node_id:
-            tracking_key = await self._resolver.resolve(focus_node_id)
+            # focus_node_id is a surface UUID — directly usable as the tracker key.
+            tracking_key = SurfaceNodeId(focus_node_id)
             if tracking_key in sealed.states:
                 next_turn_tracker = sealed.update_focus(
                     tracking_key=tracking_key,

@@ -21,6 +21,8 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.domain.models.identity import SlotId
+
 # Per-concept elaboration score → categorical response_depth bins (spec §C.5.1)
 _ELAB_CUT_SURFACE = 0.125
 _ELAB_CUT_SHALLOW = 0.375
@@ -94,6 +96,7 @@ class NodeState(BaseModel):
 
     # Basic info
     node_id: str
+    slot_id: Optional[SlotId] = None
     label: str
     created_at_turn: int
     depth: int

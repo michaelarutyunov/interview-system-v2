@@ -39,7 +39,7 @@ class EdgeExtractionPrefetchStage(TurnStage):
 
     Dependencies (available after Stage 4 / GraphUpdateStage):
     - graph_update_output.concept_to_node_id: CURRENT nodes from this turn
-    - _evolving_node_tracker.previous_focus_node_id: FOCUS surface UUID from previous turn
+    - _evolving_node_tracker.previous_focus: FOCUS surface UUID from previous turn
     - graph_repo.get_neighbours(): NEIGHBOR nodes
     - graph_repo.get_nodes_by_turn(): RECENT nodes
 
@@ -155,6 +155,8 @@ class EdgeExtractionPrefetchStage(TurnStage):
             pair_count=pair_count,
             utterance_count=len(utterances),
             has_focus=focus_node_id is not None,
+            prompt_length=len(user_prompt),
+            system_prompt_length=len(system_prompt),
         )
 
         return context
@@ -175,17 +177,9 @@ class EdgeExtractionPrefetchStage(TurnStage):
 
         # 1. FOCUS: previous turn's selected focus node, looked up by surface UUID.
         focus_node = None
-        if tracker and tracker.previous_focus_node_id:
-            surface_id = tracker.previous_focus_node_id
+        if tracker and tracker.previous_focus:
+            surface_id = tracker.previous_focus
             focus_node = await self._graph_repo.get_node(surface_id)
-            if focus_node is None:
-                log.warning(
-                    "edge_extraction_focus_node_not_found",
-                    session_id=session_id,
-                    turn_number=turn_number,
-                    previous_focus_node_id=surface_id,
-                    previous_focus=tracker.previous_focus,
-                )
             if focus_node:
                 focus_node_id = focus_node.id
                 candidates.append(
@@ -264,10 +258,29 @@ class EdgeExtractionPrefetchStage(TurnStage):
     def _get_previous_question_utterance_id(self, context: "PipelineContext") -> str:
         """Extract the ID of the last system utterance from conversation history."""
         if not context.recent_utterances:
+            log.debug(
+                "edge_extraction_no_previous_question_no_recent_utterances",
+                session_id=context.session_id,
+                turn_number=context.turn_number,
+            )
             return ""
         for utt in reversed(context.recent_utterances):
             if utt.get("speaker") == "system":
-                return utt.get("id", "")
+                qid = utt.get("id", "")
+                if not qid:
+                    log.debug(
+                        "edge_extraction_previous_question_missing_id",
+                        session_id=context.session_id,
+                        turn_number=context.turn_number,
+                        utt_keys=list(utt.keys()),
+                    )
+                return qid
+        log.debug(
+            "edge_extraction_no_previous_question_no_system_utterance",
+            session_id=context.session_id,
+            turn_number=context.turn_number,
+            utterance_count=len(context.recent_utterances),
+        )
         return ""
 
     def _build_utterances_section(self, utterances) -> str:
@@ -332,10 +345,8 @@ class EdgeExtractionPrefetchStage(TurnStage):
                 pairs.append(
                     format_candidate_pair_for_edge_extraction(
                         source_id=src["node_id"],
-                        source_label=src["label"],
                         source_type=src.get("node_type", ""),
                         target_id=tgt["node_id"],
-                        target_label=tgt["label"],
                         target_type=tgt.get("node_type", ""),
                     )
                 )

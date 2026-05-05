@@ -12,14 +12,14 @@ emits contract with bridge_applied=False and error field set. The sealed tracker
 still emitted — it carries whatever state Stages 4 and 4.5 built up this turn.
 """
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import structlog
 
 from ..base import TurnStage
+from src.domain.models.identity import SurfaceNodeId
 from src.domain.models.pipeline_contracts import LLMSignalBridgeOutput
 from src.services.node_state_tracker import (
-    CanonicalSlotResolver,
     NodeNotTrackedError,
     NodeStateTracker,
 )
@@ -33,10 +33,8 @@ log = structlog.get_logger(__name__)
 class LLMSignalBridgeStage(TurnStage):
     """Await LLM prefetch task, bridge per-concept ratings to tracker, then seal."""
 
-    def __init__(
-        self, canonical_slot_resolver: Optional[CanonicalSlotResolver] = None
-    ) -> None:
-        self._resolver = canonical_slot_resolver or CanonicalSlotResolver()
+    def __init__(self) -> None:
+        pass
 
     async def process(self, context: "PipelineContext") -> "PipelineContext":
         # Seed tracker from _evolving_node_tracker; fall back to empty if not seeded
@@ -97,7 +95,7 @@ class LLMSignalBridgeStage(TurnStage):
             if elaboration is None and charge is None:
                 continue
 
-            tracking_key = await self._resolver.resolve(node_id)
+            tracking_key = SurfaceNodeId(node_id)
             try:
                 tracker = tracker.append_quality(
                     tracking_key=tracking_key,

@@ -1,14 +1,18 @@
-"""Test NodeStateTracker schema changes and remap_to_canonical_slots logic."""
+"""Test NodeStateTracker schema changes and surface-primary keyspace."""
 
 import pytest
 from src.services.node_state_tracker import (
+    NodeNotTrackedError,
     NodeStateTracker,
     NODE_TRACKER_SCHEMA_VERSION,
 )
+from src.domain.models.identity import SurfaceNodeId
 from src.domain.models.node_state import NodeState
 
 
-def _make_state(node_id: str, label: str = "test", turn: int = 1, **kwargs) -> NodeState:
+def _make_state(
+    node_id: str, label: str = "test", turn: int = 1, **kwargs
+) -> NodeState:
     return NodeState(
         node_id=node_id,
         label=label,
@@ -24,12 +28,16 @@ def _tracker_with_states(states: dict[str, NodeState]) -> NodeStateTracker:
     return NodeStateTracker(states=states)
 
 
+class TestSchemaVersion:
+    """Test schema version after surface-primary inversion."""
+
+    def test_schema_version_is_6(self):
+        """Schema version v6 after surface-primary inversion."""
+        assert NODE_TRACKER_SCHEMA_VERSION == 6
+
+
 class TestCanonicalSlotFirstSeen:
     """Test canonical_slot_first_seen persistence in NodeStateTracker."""
-
-    def test_schema_version_is_4(self):
-        """Schema version v4 after immutability migration."""
-        assert NODE_TRACKER_SCHEMA_VERSION == 4
 
     def test_canonical_slot_first_seen_initialized_empty(self):
         """canonical_slot_first_seen initialises as empty dict."""
@@ -47,34 +55,6 @@ class TestCanonicalSlotFirstSeen:
         assert "canonical_slot_first_seen" in data
         assert data["canonical_slot_first_seen"] == {"slot-1": 1, "slot-2": 3}
 
-    def test_canonical_slot_first_seen_restores_from_dict_v2(self):
-        """from_dict restores canonical_slot_first_seen from v2 data."""
-        data = {
-            "schema_version": 2,
-            "previous_focus": None,
-            "states": {},
-            "canonical_slot_first_seen": {"slot-a": 5, "slot-b": 10},
-        }
-        tracker = NodeStateTracker.from_dict(data)
-        assert tracker.canonical_slot_first_seen == {"slot-a": 5, "slot-b": 10}
-
-    def test_from_dict_backward_compatible_with_v1(self):
-        """from_dict handles v1 data without canonical_slot_first_seen."""
-        data = {
-            "schema_version": 1,
-            "previous_focus": "node-123",
-            "states": {},
-        }
-        tracker = NodeStateTracker.from_dict(data)
-        assert tracker.canonical_slot_first_seen == {}
-        assert tracker.previous_focus == "node-123"
-
-    def test_from_dict_rejects_incompatible_schema_version(self):
-        """from_dict raises ValueError for unsupported schema versions."""
-        data = {"schema_version": 99, "previous_focus": None, "states": {}}
-        with pytest.raises(ValueError, match="Incompatible node_tracker_state schema version"):
-            NodeStateTracker.from_dict(data)
-
     def test_canonical_slot_first_seen_round_trip(self):
         """canonical_slot_first_seen survives round-trip serialization."""
         tracker = NodeStateTracker()
@@ -89,62 +69,196 @@ class TestCanonicalSlotFirstSeen:
         """record_canonical_slot_first_seen does not overwrite existing entries."""
         tracker = NodeStateTracker()
         tracker = tracker.record_canonical_slot_first_seen("slot-x", 3)
-        tracker = tracker.record_canonical_slot_first_seen("slot-x", 7)  # should not overwrite
+        tracker = tracker.record_canonical_slot_first_seen(
+            "slot-x", 7
+        )  # should not overwrite
         assert tracker.canonical_slot_first_seen["slot-x"] == 3
 
 
-class TestRemapToCanonicalSlots:
-    """Test NodeStateTracker.remap_to_canonical_slots() re-keying logic."""
+class TestSurfacePrimaryKeyspace:
+    """Test surface-primary keyspace contract (B1)."""
 
-    def test_remap_simple_rekey(self):
-        """Surface node kept alongside canonical slot entry after remap."""
-        state = _make_state("uuid-a")
-        tracker = _tracker_with_states({"uuid-a": state})
+    def test_register_node_creates_surface_keyed_entry(self):
+        """register_node creates entry keyed by surface UUID."""
+        from src.domain.models.knowledge_graph import KGNode
 
-        tracker = tracker.remap_to_canonical_slots({"uuid-a": "slot-1"})
+        node = KGNode(id="abc-123", session_id="s1", label="test", node_type="attribute")
+        tracker = NodeStateTracker()
+        tracker = tracker.register_node(node, turn_number=1)
 
-        assert "uuid-a" in tracker.states  # surface entry kept
-        assert "slot-1" in tracker.states
-        assert tracker.states["slot-1"].node_id == "slot-1"
+        assert "abc-123" in tracker.states
+        assert tracker.states["abc-123"].node_id == "abc-123"
 
-    def test_remap_merges_paraphrases(self):
-        """Two surface nodes mapping to same slot — surface entries kept, slot gets merged state."""
-        state_a = _make_state("uuid-a", "taste", focus_count=3, yield_count=2)
-        state_b = _make_state("uuid-b", "flavor", focus_count=1, yield_count=1)
-        tracker = _tracker_with_states({"uuid-a": state_a, "uuid-b": state_b})
+    def test_update_focus_sets_previous_focus(self):
+        """update_focus with surface UUID sets previous_focus to that UUID."""
+        state = _make_state("abc-123")
+        tracker = _tracker_with_states({"abc-123": state})
 
-        tracker = tracker.remap_to_canonical_slots({"uuid-a": "slot-1", "uuid-b": "slot-1"})
+        result = tracker.update_focus(
+            tracking_key=SurfaceNodeId("abc-123"),
+            turn_number=1,
+            strategy="ascend",
+        )
 
-        assert "uuid-a" in tracker.states  # surface entries kept
-        assert "uuid-b" in tracker.states
-        merged = tracker.states["slot-1"]
-        assert merged.focus_count == 4   # 3 + 1
-        assert merged.yield_count == 3   # 2 + 1
+        assert result.previous_focus == "abc-123"
 
-    def test_remap_updates_previous_focus(self):
-        """previous_focus stays as surface UUID — surface entry still exists."""
-        state = _make_state("uuid-a")
-        tracker = NodeStateTracker(states={"uuid-a": state}, previous_focus="uuid-a")
+    def test_update_focus_slot_id_defaults_none(self):
+        """Newly registered nodes have slot_id=None until register_slot_memberships."""
+        state = _make_state("abc-123")
+        tracker = _tracker_with_states({"abc-123": state})
 
-        tracker = tracker.remap_to_canonical_slots({"uuid-a": "slot-1"})
+        assert tracker.states["abc-123"].slot_id is None
 
-        assert tracker.previous_focus == "uuid-a"
+    def test_update_focus_raises_on_untracked_key(self):
+        """update_focus raises NodeNotTrackedError for unknown keys."""
+        tracker = NodeStateTracker()
 
-    def test_remap_noop_with_empty_mappings(self):
-        """remap with empty mappings dict returns self unchanged."""
-        state = _make_state("uuid-a")
-        tracker = _tracker_with_states({"uuid-a": state})
+        with pytest.raises(NodeNotTrackedError, match="not registered"):
+            tracker.update_focus(
+                tracking_key=SurfaceNodeId("nonexistent"),
+                turn_number=1,
+                strategy="ascend",
+            )
 
-        result = tracker.remap_to_canonical_slots({})
+    def test_no_previous_focus_node_id_field(self):
+        """previous_focus_node_id field does not exist on tracker."""
+        tracker = NodeStateTracker()
+        assert not hasattr(tracker, "previous_focus_node_id")
 
+    def test_from_dict_rejects_old_schema(self):
+        """from_dict raises ValueError for schema version != 6."""
+        data = {"schema_version": 5, "previous_focus": None, "states": {}}
+        with pytest.raises(ValueError, match="expected 6, got 5"):
+            NodeStateTracker.from_dict(data)
+
+    def test_round_trip_preserves_surface_keys(self):
+        """Surface UUID keys survive round-trip serialization."""
+        state = _make_state("uuid-alpha")
+        tracker = _tracker_with_states({"uuid-alpha": state})
+        tracker = tracker.update_focus(
+            tracking_key=SurfaceNodeId("uuid-alpha"),
+            turn_number=1,
+            strategy="ground",
+        )
+
+        data = tracker.to_dict()
+        restored = NodeStateTracker.from_dict(data)
+
+        assert "uuid-alpha" in restored.states
+        assert restored.previous_focus == "uuid-alpha"
+        assert restored.states["uuid-alpha"].focus_count == 1
+
+    def test_slot_id_preserved_in_round_trip(self):
+        """slot_id on NodeState survives round-trip."""
+        state = _make_state("uuid-beta", slot_id="slot_X")
+        tracker = _tracker_with_states({"uuid-beta": state})
+
+        data = tracker.to_dict()
+        restored = NodeStateTracker.from_dict(data)
+
+        assert restored.states["uuid-beta"].slot_id == "slot_X"
+
+    def test_register_node_no_surface_node_ids(self):
+        """NodeState no longer has surface_node_ids field."""
+        from src.domain.models.knowledge_graph import KGNode
+
+        node = KGNode(id="n1", session_id="s1", label="test", node_type="attribute")
+        tracker = NodeStateTracker()
+        tracker = tracker.register_node(node, turn_number=1)
+
+        assert not hasattr(tracker.states["n1"], "surface_node_ids")
+
+
+class TestRegisterSlotMemberships:
+    """Test register_slot_memberships (B2)."""
+
+    def test_register_sets_slot_id(self):
+        """register_slot_memberships sets slot_id on surface states."""
+        state_a = _make_state("a")
+        state_b = _make_state("b")
+        tracker = _tracker_with_states({"a": state_a, "b": state_b})
+
+        result = tracker.register_slot_memberships({"a": "slot_X", "b": "slot_X"})
+
+        assert result.states["a"].slot_id == "slot_X"
+        assert result.states["b"].slot_id == "slot_X"
+
+    def test_register_preserves_keyspace(self):
+        """register_slot_memberships does NOT change the tracker keyspace."""
+        state_a = _make_state("a")
+        state_b = _make_state("b")
+        tracker = _tracker_with_states({"a": state_a, "b": state_b})
+
+        result = tracker.register_slot_memberships({"a": "slot_X", "b": "slot_X"})
+
+        assert set(result.states.keys()) == {"a", "b"}
+        assert "slot_X" not in result.states
+
+    def test_register_preserves_previous_focus(self):
+        """register_slot_memberships does not change previous_focus."""
+        state_a = _make_state("a")
+        tracker = _tracker_with_states({"a": state_a})
+        tracker = tracker.update_focus(
+            tracking_key=SurfaceNodeId("a"), turn_number=1, strategy="ascend"
+        )
+
+        result = tracker.register_slot_memberships({"a": "slot_X"})
+
+        assert result.previous_focus == "a"
+
+    def test_register_empty_mappings_is_noop(self):
+        """Empty mappings returns self unchanged."""
+        tracker = NodeStateTracker()
+        result = tracker.register_slot_memberships({})
         assert result is tracker
 
-    def test_remap_noop_when_no_matching_keys(self):
-        """remap is a no-op when mappings refer to nodes not in states."""
-        state = _make_state("uuid-a")
-        tracker = _tracker_with_states({"uuid-a": state})
+    def test_register_untracked_surface_raises(self):
+        """Untracked surface_id raises NodeNotTrackedError."""
+        tracker = NodeStateTracker()
 
-        tracker2 = tracker.remap_to_canonical_slots({"uuid-b": "slot-1"})
+        with pytest.raises(NodeNotTrackedError, match="not in tracker"):
+            tracker.register_slot_memberships({"unknown": "slot_X"})
 
-        # uuid-b not in states so nothing changes; same key still present
-        assert "uuid-a" in tracker2.states
+
+class TestSlotAggregationHelpers:
+    """Test surfaces_in_slot and slot_id_for_surface (B3)."""
+
+    def test_surfaces_in_slot_returns_matching(self):
+        """surfaces_in_slot returns all surfaces with matching slot_id."""
+        state_a = _make_state("a", slot_id="slot_X")
+        state_b = _make_state("b", slot_id="slot_X")
+        state_c = _make_state("c")
+        tracker = _tracker_with_states({"a": state_a, "b": state_b, "c": state_c})
+
+        result = tracker.surfaces_in_slot("slot_X")
+
+        assert set(result) == {"a", "b"}
+
+    def test_surfaces_in_slot_empty_when_none_match(self):
+        """surfaces_in_slot returns empty list when no surfaces have that slot."""
+        state_a = _make_state("a")
+        tracker = _tracker_with_states({"a": state_a})
+
+        result = tracker.surfaces_in_slot("slot_nonexistent")
+
+        assert result == []
+
+    def test_slot_id_for_surface_returns_slot(self):
+        """slot_id_for_surface returns slot_id for slotted surface."""
+        state = _make_state("a", slot_id="slot_X")
+        tracker = _tracker_with_states({"a": state})
+
+        assert tracker.slot_id_for_surface("a") == "slot_X"
+
+    def test_slot_id_for_surface_returns_none_unslotted(self):
+        """slot_id_for_surface returns None for registered surface with no slot."""
+        state = _make_state("a")
+        tracker = _tracker_with_states({"a": state})
+
+        assert tracker.slot_id_for_surface("a") is None
+
+    def test_slot_id_for_surface_returns_none_unknown(self):
+        """slot_id_for_surface returns None for nonexistent surface."""
+        tracker = NodeStateTracker()
+
+        assert tracker.slot_id_for_surface("nonexistent") is None

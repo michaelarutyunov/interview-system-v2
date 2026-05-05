@@ -6,15 +6,12 @@ GraphUpdateOutput contract. Integrates with NodeStateTracker for
 per-node state tracking.
 """
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import structlog
 
 from ..base import TurnStage
 from src.domain.models.pipeline_contracts import GraphUpdateOutput
-from src.services.node_state_tracker import (
-    CanonicalSlotResolver,
-)
 from src.services.graph_service import GraphService
 
 
@@ -33,10 +30,8 @@ class GraphUpdateStage(TurnStage):
     def __init__(
         self,
         graph_service: GraphService,
-        canonical_slot_resolver: Optional[CanonicalSlotResolver] = None,
     ):
         self.graph = graph_service
-        self._resolver = canonical_slot_resolver or CanonicalSlotResolver()
 
     async def process(self, context: "PipelineContext") -> "PipelineContext":
         """
@@ -157,7 +152,7 @@ class GraphUpdateStage(TurnStage):
             )
 
             if source_id:
-                key = await self._resolver.resolve(source_id)
+                key = source_id
                 if key in tracker.states:
                     out_d, in_d = edge_deltas.get(key, (0, 0))
                     edge_deltas[key] = (out_d + 1, in_d)
@@ -165,7 +160,7 @@ class GraphUpdateStage(TurnStage):
                     log.debug("edge_count_skip_untracked", tracking_key=key)
 
             if target_id:
-                key = await self._resolver.resolve(target_id)
+                key = target_id
                 if key in tracker.states:
                     out_d, in_d = edge_deltas.get(key, (0, 0))
                     edge_deltas[key] = (out_d, in_d + 1)

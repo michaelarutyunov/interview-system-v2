@@ -110,3 +110,83 @@ async def test_detect_raises_on_empty_registry(monkeypatch):
             response_text="test",
             node_tracker=mock_node_tracker,
         )
+
+
+class TestKeyspaceGuard:
+    """B4: Signal detector keyspace mismatch raises hard ValueError."""
+
+    @pytest.mark.asyncio
+    async def test_slot_key_from_detector_raises(self, monkeypatch):
+        """Detector emitting a slot key against surface-keyed tracker raises ValueError."""
+        import src.signals  # noqa: F401
+        from src.signals.graph.node_base import NodeSignalDetector
+
+        # Create a detector that returns a slot key not in the tracker
+        class FakeDetector(NodeSignalDetector):
+            signal_name = "test.fake_slot_key"
+            description = "test"
+
+            async def detect(self, context, graph_state, response_text):  # noqa: ARG002
+                return {"slot_unknown_X": 0.5}
+
+        mock_context = MagicMock()
+        mock_graph_state = MagicMock()
+        mock_node_tracker = MagicMock()
+        # Tracker has only surface UUID keys
+        mock_node_tracker.get_all_states.return_value = {
+            "uuid-abc": MagicMock(),
+            "uuid-def": MagicMock(),
+        }
+
+        # Patch get_all_node_signal_classes to return only our fake detector
+        monkeypatch.setattr(
+            NodeSignalDetector,
+            "get_all_node_signal_classes",
+            classmethod(lambda cls: [FakeDetector]),
+        )
+
+        service = NodeSignalDetectionService()
+        with pytest.raises(Exception, match="slot_unknown_X"):
+            await service.detect(
+                context=mock_context,
+                graph_state=mock_graph_state,
+                response_text="test",
+                node_tracker=mock_node_tracker,
+            )
+
+    @pytest.mark.asyncio
+    async def test_surface_key_from_detector_merges(self, monkeypatch):
+        """Detector emitting a surface UUID in tracker keyspace merges successfully."""
+        import src.signals  # noqa: F401
+        from src.signals.graph.node_base import NodeSignalDetector
+
+        class FakeDetector(NodeSignalDetector):
+            signal_name = "test.fake_surface_key"
+            description = "test"
+
+            async def detect(self, context, graph_state, response_text):  # noqa: ARG002
+                return {"uuid-abc": 0.7}
+
+        mock_context = MagicMock()
+        mock_graph_state = MagicMock()
+        mock_node_tracker = MagicMock()
+        mock_node_tracker.get_all_states.return_value = {
+            "uuid-abc": MagicMock(),
+        }
+
+        monkeypatch.setattr(
+            NodeSignalDetector,
+            "get_all_node_signal_classes",
+            classmethod(lambda cls: [FakeDetector]),
+        )
+
+        service = NodeSignalDetectionService()
+        result = await service.detect(
+            context=mock_context,
+            graph_state=mock_graph_state,
+            response_text="test",
+            node_tracker=mock_node_tracker,
+        )
+
+        assert "uuid-abc" in result
+        assert result["uuid-abc"]["test.fake_surface_key"] == 0.7

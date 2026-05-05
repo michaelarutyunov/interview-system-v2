@@ -5,26 +5,25 @@ instance; the original is unchanged. Stages 4→4.5→4.7 thread the evolving
 instance via PipelineContext._evolving_node_tracker; Stage 4.7 seals it into
 LLMSignalBridgeOutput.sealed_node_tracker. Stages 5–10 read the sealed snapshot.
 
-CanonicalSlotResolver handles all async surface_id → canonical_slot_id lookups.
-The tracker itself performs no I/O.
+The tracker is keyed by surface UUID. Slot identity is stored as a property
+on NodeState.slot_id, set by register_slot_memberships (Stage 4.5).
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Mapping, Optional
+from typing import Any, Mapping, Optional
+
+from src.domain.models.identity import SlotId, SurfaceNodeId
 
 import structlog
 
 from src.domain.models.knowledge_graph import KGNode
 from src.domain.models.node_state import NodeState, NodeQualityHistory
 
-if TYPE_CHECKING:
-    from src.persistence.repositories.canonical_slot_repo import CanonicalSlotRepository
-
 log = structlog.get_logger(__name__)
 
 # Increment when serialization structure changes; from_dict accepts prior versions.
-NODE_TRACKER_SCHEMA_VERSION = 4
+NODE_TRACKER_SCHEMA_VERSION = 6
 
 
 class NodeNotTrackedError(KeyError):
@@ -47,29 +46,6 @@ class GraphChangeSummary:
         return (
             self.nodes_added == 0 and self.edges_added == 0 and self.nodes_modified == 0
         )
-
-
-class CanonicalSlotResolver:
-    """Resolves surface node IDs to canonical slot IDs via the slot repository.
-
-    Injected into stages that need to convert surface graph node IDs (UUIDs
-    assigned at extraction time) to the canonical tracking keys used by
-    NodeStateTracker after Stage 4.5 runs remap_to_canonical_slots().
-    """
-
-    def __init__(
-        self, canonical_slot_repo: Optional["CanonicalSlotRepository"] = None
-    ) -> None:
-        self._repo = canonical_slot_repo
-
-    async def resolve(self, surface_node_id: str) -> str:
-        """Return canonical_slot_id for surface_node_id, or surface_node_id if no mapping."""
-        if self._repo is None:
-            return surface_node_id
-        mapping = await self._repo.get_mapping_for_node(surface_node_id)
-        if mapping is None:
-            return surface_node_id
-        return mapping.canonical_slot_id
 
 
 # ---------------------------------------------------------------------------
@@ -95,8 +71,10 @@ class NodeStateTracker(BaseModel):
 
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
+    # Keys are SurfaceNodeId (surface graph UUID). Method signatures enforce
+    # the type; dict[str, ...] avoids NewType invariant issues with pyright.
     states: dict[str, NodeState] = Field(default_factory=dict)
-    previous_focus: Optional[str] = None
+    previous_focus: Optional[SurfaceNodeId] = None
     canonical_slot_first_seen: dict[str, int] = Field(default_factory=dict)
     schema_version: int = NODE_TRACKER_SCHEMA_VERSION
 
@@ -158,12 +136,18 @@ class NodeStateTracker(BaseModel):
     # ------------------------------------------------------------------
 
     def update_focus(
-        self, *, tracking_key: str, turn_number: int, strategy: str
+        self,
+        *,
+        tracking_key: SurfaceNodeId,
+        turn_number: int,
+        strategy: str,
     ) -> NodeStateTracker:
         """Return new tracker with focus metrics updated for tracking_key.
 
-        Caller is responsible for resolving surface node_id to tracking_key
-        via CanonicalSlotResolver before calling this method.
+        Args:
+            tracking_key: Surface UUID of the focused node.
+            turn_number: Current turn number.
+            strategy: Selected strategy name.
 
         Raises:
             NodeNotTrackedError: If tracking_key is not registered.
@@ -193,49 +177,22 @@ class NodeStateTracker(BaseModel):
             strategy=strategy,
             focus_count=new_states[tracking_key].focus_count,
         )
-        return self.model_copy(
-            update={"states": new_states, "previous_focus": tracking_key}
-        )
-
-    def update_focus_shadow(
-        self, *, tracking_key: str, turn_number: int, strategy: str
-    ) -> NodeStateTracker:
-        """Return new tracker with focus metrics updated for a surface UUID shadow entry.
-
-        Like update_focus() but does NOT update previous_focus and does NOT call
-        tick_no_focus() on other nodes (update_focus() already did that this turn).
-        Used to keep surface UUID entries in sync with their canonical slot counterpart
-        so both accumulate exhaustion equally and neither wins scoring by appearing fresh.
-
-        Raises:
-            NodeNotTrackedError: If tracking_key is not registered.
-        """
-        if tracking_key not in self.states:
-            raise NodeNotTrackedError(
-                f"update_focus_shadow: tracking_key={tracking_key!r} not registered "
-                f"(turn={turn_number}, strategy={strategy!r})"
-            )
-
-        new_state = self.states[tracking_key].with_focus(
-            turn_number=turn_number, strategy=strategy, is_same_as_previous=False
-        )
-        log.debug(
-            "node_focus_shadow_updated",
-            tracking_key=tracking_key,
-            turn_number=turn_number,
-            strategy=strategy,
-            focus_count=new_state.focus_count,
-        )
-        return self.model_copy(
-            update={"states": {**self.states, tracking_key: new_state}}
-        )
+        update_dict: dict[str, Any] = {
+            "states": new_states,
+            "previous_focus": tracking_key,
+        }
+        return self.model_copy(update=update_dict)
 
     # ------------------------------------------------------------------
     # Yield recording
     # ------------------------------------------------------------------
 
     def record_yield(
-        self, *, tracking_key: str, turn_number: int, graph_changes: GraphChangeSummary
+        self,
+        *,
+        tracking_key: SurfaceNodeId,
+        turn_number: int,
+        graph_changes: GraphChangeSummary,
     ) -> NodeStateTracker:
         """Return new tracker with yield recorded for tracking_key.
 
@@ -265,7 +222,7 @@ class NodeStateTracker(BaseModel):
     # ------------------------------------------------------------------
 
     def append_quality(
-        self, *, tracking_key: str, elaboration: float, charge: float
+        self, *, tracking_key: SurfaceNodeId, elaboration: float, charge: float
     ) -> NodeStateTracker:
         """Return new tracker with LLM quality scores appended for tracking_key.
 
@@ -295,7 +252,7 @@ class NodeStateTracker(BaseModel):
     # ------------------------------------------------------------------
 
     def update_edge_counts(
-        self, *, tracking_key: str, outgoing_delta: int, incoming_delta: int
+        self, *, tracking_key: SurfaceNodeId, outgoing_delta: int, incoming_delta: int
     ) -> NodeStateTracker:
         """Return new tracker with edge counts updated for tracking_key.
 
@@ -348,51 +305,41 @@ class NodeStateTracker(BaseModel):
         return self.model_copy(update={"states": new_states})
 
     # ------------------------------------------------------------------
-    # Canonical slot remapping (Stage 4.5)
+    # Canonical slot membership (Stage 4.5)
     # ------------------------------------------------------------------
 
-    def remap_to_canonical_slots(self, mappings: Mapping[str, str]) -> NodeStateTracker:
-        """Return new tracker with canonical slot entries added alongside surface entries.
+    def register_slot_memberships(
+        self, mappings: Mapping[SurfaceNodeId, SlotId]
+    ) -> NodeStateTracker:
+        """Return new tracker with slot_id property set on each mapped surface state.
 
-        Surface node entries are kept in the tracker — canonical slot entries
-        are created/merged in addition to (not instead of) surface entries.
-        This ensures DB-based signal detectors (which produce surface UUID keys)
-        and tracker-based detectors (which iterate all keys) both have their
-        results flow through to the scoring loop.
+        Does NOT change the tracker keyspace. The tracker remains keyed by surface
+        UUID; slot membership is stored on NodeState.slot_id for use by
+        slot-aggregating signals (e.g. canongraph.node.novelty).
 
         Args:
-            mappings: surface_node_id → canonical_slot_id pairs to remap.
-                      Only entries where canonical_slot_id != surface_node_id are acted on.
+            mappings: surface_node_id → canonical_slot_id pairs to register.
 
-        Returns self unchanged if mappings is empty.
+        Raises:
+            NodeNotTrackedError: If any surface_id in mappings is not in self.states.
         """
-        remap_pairs = [
-            (sid, cid)
-            for sid, cid in mappings.items()
-            if cid != sid and sid in self.states
-        ]
-        if not remap_pairs:
+        if not mappings:
             return self
 
         new_states = dict(self.states)
-        new_previous_focus = self.previous_focus
-        remapped = merged = 0
-
-        for surface_id, canonical_id in remap_pairs:
-            state = new_states[surface_id]
-            if canonical_id in new_states:
-                new_states[canonical_id] = new_states[canonical_id].merged_with(state)
-                merged += 1
-            else:
-                new_states[canonical_id] = state.model_copy(
-                    update={"node_id": canonical_id}
+        registered = 0
+        for surface_id, slot_id in mappings.items():
+            if surface_id not in new_states:
+                raise NodeNotTrackedError(
+                    f"register_slot_memberships: surface_id={surface_id!r} not in tracker"
                 )
-                remapped += 1
+            state = new_states[surface_id]
+            if state.slot_id != slot_id:
+                new_states[surface_id] = state.model_copy(update={"slot_id": slot_id})
+                registered += 1
 
-        log.info("canonical_slot_remap_complete", remapped=remapped, merged=merged)
-        return self.model_copy(
-            update={"states": new_states, "previous_focus": new_previous_focus}
-        )
+        log.info("slot_memberships_registered", count=registered)
+        return self.model_copy(update={"states": new_states})
 
     # ------------------------------------------------------------------
     # Canonical slot first-seen tracking (set by Stage 4.7, read by signals)
@@ -420,7 +367,7 @@ class NodeStateTracker(BaseModel):
     # State accessors
     # ------------------------------------------------------------------
 
-    def get_state(self, tracking_key: str) -> NodeState:
+    def get_state(self, tracking_key: SurfaceNodeId) -> NodeState:
         """Return NodeState for tracking_key.
 
         Raises:
@@ -432,13 +379,26 @@ class NodeStateTracker(BaseModel):
             )
         return self.states[tracking_key]
 
-    def try_get_state(self, tracking_key: str) -> Optional[NodeState]:
+    def try_get_state(self, tracking_key: SurfaceNodeId) -> Optional[NodeState]:
         """Return NodeState for tracking_key, or None if not registered."""
         return self.states.get(tracking_key)
 
     def get_all_states(self) -> dict[str, NodeState]:
         """Return a copy of all tracked node states keyed by tracking_key."""
         return dict(self.states)
+
+    def surfaces_in_slot(self, slot_id: SlotId) -> list[SurfaceNodeId]:
+        """Return all surface UUIDs whose state.slot_id matches slot_id."""
+        return [
+            SurfaceNodeId(sid)
+            for sid, state in self.states.items()
+            if state.slot_id == slot_id
+        ]
+
+    def slot_id_for_surface(self, surface_id: SurfaceNodeId) -> Optional[SlotId]:
+        """Return the slot_id property of the surface state, or None if untracked or unmapped."""
+        state = self.states.get(surface_id)
+        return state.slot_id if state is not None else None
 
     def is_empty(self) -> bool:
         """True if no nodes are tracked."""
@@ -463,30 +423,29 @@ class NodeStateTracker(BaseModel):
             }
             states_dict[tracking_key] = d
 
-        return {
+        result: dict[str, Any] = {
             "schema_version": NODE_TRACKER_SCHEMA_VERSION,
             "previous_focus": self.previous_focus,
             "states": states_dict,
             "canonical_slot_first_seen": dict(self.canonical_slot_first_seen),
         }
+        return result
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> NodeStateTracker:
         """Reconstruct from a previously persisted dict.
 
-        Accepts schema versions 1–4.
-
         Raises:
-            ValueError: If schema version is unrecognised.
+            ValueError: If schema version doesn't match current version.
         """
         schema_version = data.get("schema_version", 1)
-        if schema_version not in (1, 2, 3, 4):
+        if schema_version != NODE_TRACKER_SCHEMA_VERSION:
             raise ValueError(
                 f"Incompatible node_tracker_state schema version: "
-                f"expected 1–4, got {schema_version}"
+                f"expected {NODE_TRACKER_SCHEMA_VERSION}, got {schema_version}"
             )
 
-        states: dict[str, NodeState] = {}
+        states: dict[SurfaceNodeId, NodeState] = {}
         for tracking_key, state_dict in data.get("states", {}).items():
             state_dict = dict(state_dict)
 
@@ -500,7 +459,7 @@ class NodeStateTracker(BaseModel):
                 state_dict.get("all_response_depths", [])
             )
 
-            # quality_history (v3+); default empty for v1/v2
+            # quality_history
             qh_data = state_dict.pop("quality_history", None)
             if qh_data is None:
                 quality_history = NodeQualityHistory()
@@ -511,7 +470,7 @@ class NodeStateTracker(BaseModel):
                 )
             state_dict["quality_history"] = quality_history
 
-            states[tracking_key] = NodeState(**state_dict)
+            states[SurfaceNodeId(tracking_key)] = NodeState(**state_dict)
 
         return cls(
             states=states,
