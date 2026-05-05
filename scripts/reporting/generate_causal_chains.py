@@ -27,6 +27,7 @@ import yaml
 # Chain rules loading
 # ---------------------------------------------------------------------------
 
+
 def _load_chain_rules(methodology: str) -> dict[str, list[list[str]] | str | None]:
     """Load chain construction rules for a methodology.
 
@@ -37,18 +38,32 @@ def _load_chain_rules(methodology: str) -> dict[str, list[list[str]] | str | Non
       - "upward_or_lateral": src_level <= tgt_level
       - "reverse": flip direction, include if reversed edge is upward
       - [...] (list): old type-pair allowlist (backward compat)
-    Falls back to {leads_to: None} when no chain_rules file exists.
+
+    Fail-fast: raises FileNotFoundError if no chain_rules YAML exists for the
+    methodology, and KeyError if the YAML lacks a `chain_edges` key. Methodologies
+    without chain topology (e.g. flat/dimensional ontologies) should not be passed
+    to this reporting script — add an explicit rules file or skip the script.
     """
     path = Path(f"config/chain_rules/{methodology}.yaml")
     if not path.exists():
-        return {"leads_to": None}
+        raise FileNotFoundError(
+            f"No chain_rules file for methodology '{methodology}' "
+            f"(expected: {path}). Methodologies without chain topology should "
+            f"not run through generate_causal_chains.py — add an explicit rules "
+            f"file or skip this script for this methodology."
+        )
     data = yaml.safe_load(path.read_text())
-    return data.get("chain_edges", {"leads_to": None})
+    if "chain_edges" not in data:
+        raise KeyError(
+            f"chain_rules file '{path}' is missing required 'chain_edges' key."
+        )
+    return data["chain_edges"]
 
 
 # ---------------------------------------------------------------------------
 # Tier derivation from ontology level count
 # ---------------------------------------------------------------------------
+
 
 def _derive_tiers(node_levels: dict[str, int]) -> tuple[list[int], int, int]:
     """Derive tier count and level thresholds from the methodology's ontology.
@@ -129,11 +144,15 @@ def _tier_descriptions(
         return " / ".join(types_by_level.get(level, ["?"]))
 
     descs: dict[str, str] = {}
-    descs["full"] = f"Reaches {_names(sorted_levels_desc[0])} — complete chain, no missing levels"
+    descs["full"] = (
+        f"Reaches {_names(sorted_levels_desc[0])} — complete chain, no missing levels"
+    )
     if num_tiers >= 3:
-        descs["advanced"] = f"Reaches {_names(sorted_levels_desc[0])} (with one gap) or {_names(sorted_levels_desc[1])}"
+        descs["advanced"] = (
+            f"Reaches {_names(sorted_levels_desc[0])} (with one gap) or {_names(sorted_levels_desc[1])}"
+        )
     if num_tiers >= 4:
-        descs["developing"] = f"Mid-level progression, terminal not reached"
+        descs["developing"] = "Mid-level progression, terminal not reached"
     descs["started"] = "Incomplete — fewer than 3 nodes"
     return descs
 
@@ -141,6 +160,7 @@ def _tier_descriptions(
 # ---------------------------------------------------------------------------
 # Graph utilities
 # ---------------------------------------------------------------------------
+
 
 def _build_utterance_turn_map(data: dict) -> dict[str, int]:
     """Map utterance IDs to turn numbers via quote-in-response matching."""
@@ -262,6 +282,7 @@ def _edge_min_turn(edge: dict, utt_to_turn: dict) -> int | None:
 # Chain walking
 # ---------------------------------------------------------------------------
 
+
 def _walk_chains(
     edges: list[dict],
     node_by_id: dict[str, dict],
@@ -280,7 +301,9 @@ def _walk_chains(
     Superseded nodes and revises edges are always excluded.
     Maximal = drop any path that is a strict prefix of another.
     """
-    active_nodes = {nid: n for nid, n in node_by_id.items() if not n.get("superseded_by")}
+    active_nodes = {
+        nid: n for nid, n in node_by_id.items() if not n.get("superseded_by")
+    }
 
     adj: dict[str, list[tuple[str, dict]]] = defaultdict(list)
     for e in edges:
@@ -348,6 +371,7 @@ def _walk_chains(
 # Rendering
 # ---------------------------------------------------------------------------
 
+
 def _render_chain(
     path_nodes: list[str],
     path_edges: list[dict],
@@ -392,6 +416,7 @@ def _render_chain(
 # Main entry point
 # ---------------------------------------------------------------------------
 
+
 def generate_causal_chains(
     json_path: Path,
     output_path: Path | None = None,
@@ -415,7 +440,11 @@ def generate_causal_chains(
 
     # Tier derivation — methodology-agnostic
     sorted_levels_desc, max_level, num_tiers = _derive_tiers(node_levels)
-    tier_descs = _tier_descriptions(node_levels, sorted_levels_desc, num_tiers) if num_tiers else {}
+    tier_descs = (
+        _tier_descriptions(node_levels, sorted_levels_desc, num_tiers)
+        if num_tiers
+        else {}
+    )
 
     # Chain construction rules
     chain_rules = _load_chain_rules(methodology)
@@ -447,7 +476,9 @@ def generate_causal_chains(
         surf_paths = can_paths = []
         no_levels_note = True
     else:
-        surf_paths = _walk_chains(surface_edges, surface_by_id, chain_rules, node_levels)
+        surf_paths = _walk_chains(
+            surface_edges, surface_by_id, chain_rules, node_levels
+        )
         can_paths = _walk_chains(canon_edges, canon_by_id, chain_rules, node_levels)
         no_levels_note = False
 
@@ -456,16 +487,24 @@ def generate_causal_chains(
 
     for path_nodes, path_edges in surf_paths:
         tier = _classify_chain(
-            path_nodes, surface_by_id, node_levels,
-            sorted_levels_desc, num_tiers, max_level,
+            path_nodes,
+            surface_by_id,
+            node_levels,
+            sorted_levels_desc,
+            num_tiers,
+            max_level,
         )
         if tier != "lateral":
             surf_by_tier[tier].append((path_nodes, path_edges))
 
     for path_nodes, path_edges in can_paths:
         tier = _classify_chain(
-            path_nodes, canon_by_id, node_levels,
-            sorted_levels_desc, num_tiers, max_level,
+            path_nodes,
+            canon_by_id,
+            node_levels,
+            sorted_levels_desc,
+            num_tiers,
+            max_level,
         )
         if tier != "lateral":
             can_by_tier[tier].append((path_nodes, path_edges))
@@ -478,7 +517,9 @@ def generate_causal_chains(
     surf_chain_edges = sum(1 for e in surface_edges if e["edge_type"] in chain_rules)
     can_chain_edges = sum(1 for e in canon_edges if e["edge_type"] in chain_rules)
     surf_node_types = sorted(set(n["node_type"] for n in surface_nodes))
-    can_node_types = sorted(set(s["node_type"] for s in data["canonical_graph"]["slots"]))
+    can_node_types = sorted(
+        set(s["node_type"] for s in data["canonical_graph"]["slots"])
+    )
 
     surf_involved = set()
     for e in surface_edges:
@@ -486,7 +527,8 @@ def generate_causal_chains(
             surf_involved.add(e["source_node_id"])
             surf_involved.add(e["target_node_id"])
     surf_orphans = [
-        n for n in surface_nodes
+        n
+        for n in surface_nodes
         if n["id"] not in surf_involved and not n.get("superseded_by")
     ]
 
@@ -546,7 +588,9 @@ def generate_causal_chains(
     if no_levels_note:
         md += "_This methodology has no level structure defined — chain tier classification not applicable._\n\n"
     else:
-        active_tiers = [t for t in ["full", "advanced", "developing", "started"] if t in tier_descs]
+        active_tiers = [
+            t for t in ["full", "advanced", "developing", "started"] if t in tier_descs
+        ]
         md += "## Chain completeness summary\n"
         md += "| Tier | Description | Surface Count | Canonical Count |\n"
         md += "|------|-------------|---------------|------------------|\n"
@@ -624,7 +668,9 @@ def main() -> None:
         description="Extract causal chains from a simulated interview JSON."
     )
     parser.add_argument("json_file", type=Path, help="Path to simulation JSON")
-    parser.add_argument("-o", "--output", type=Path, help="Output markdown path (optional)")
+    parser.add_argument(
+        "-o", "--output", type=Path, help="Output markdown path (optional)"
+    )
     args = parser.parse_args()
 
     if not args.json_file.exists():
