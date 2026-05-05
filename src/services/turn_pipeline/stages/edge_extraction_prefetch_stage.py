@@ -19,6 +19,7 @@ from ..base import TurnStage
 from src.llm.client import get_llm_client
 from src.llm.prompts.edge_extraction import (
     format_candidate_node_for_edge_extraction,
+    format_candidate_pair_for_edge_extraction,
     format_existing_edge_for_prompt,
     format_utterance_for_edge_extraction,
     get_edge_extraction_system_prompt,
@@ -38,7 +39,7 @@ class EdgeExtractionPrefetchStage(TurnStage):
 
     Dependencies (available after Stage 4 / GraphUpdateStage):
     - graph_update_output.concept_to_node_id: CURRENT nodes from this turn
-    - _evolving_node_tracker.previous_focus: FOCUS node from previous turn
+    - _evolving_node_tracker.previous_focus_node_id: FOCUS surface UUID from previous turn
     - graph_repo.get_neighbours(): NEIGHBOR nodes
     - graph_repo.get_nodes_by_turn(): RECENT nodes
 
@@ -92,6 +93,10 @@ class EdgeExtractionPrefetchStage(TurnStage):
         # Build prompt sections
         utterances_text = self._build_utterances_section(utterances)
         candidate_nodes_text = self._build_candidate_section(candidate_nodes)
+        # Generate specific pairs (not all N² combinations) to keep the LLM
+        # output within token limits. Only evaluate FOCUS-related and
+        # CURRENT-internal pairs — the most promising combinations.
+        candidate_pairs_text = self._build_candidate_pairs_section(candidate_nodes)
         existing_edges_text = ""
         if focus_node_id:
             existing_edges_text = await self._build_existing_edges_section(
@@ -102,6 +107,7 @@ class EdgeExtractionPrefetchStage(TurnStage):
         user_prompt = get_edge_extraction_user_prompt(
             utterances_text=utterances_text,
             candidate_nodes_text=candidate_nodes_text,
+            candidate_pairs_text=candidate_pairs_text,
             existing_edges_text=existing_edges_text,
         )
 
@@ -118,7 +124,13 @@ class EdgeExtractionPrefetchStage(TurnStage):
             return context
 
         candidate_count = len(candidate_nodes)
-        pair_count = candidate_count * max(candidate_count - 1, 0)
+        current_count = sum(1 for c in candidate_nodes if c["tag"] == "CURRENT")
+        # Pairs where at least one endpoint is CURRENT:
+        # current × non-current + current × current (upper triangle).
+        non_current_count = candidate_count - current_count
+        pair_count = (
+            current_count * non_current_count + current_count * (current_count - 1) // 2
+        )
 
         # Fire as asyncio.Task — not awaited here.
         # Runs concurrently with SlotDiscoveryStage (4.5) which runs next.
@@ -161,11 +173,19 @@ class EdgeExtractionPrefetchStage(TurnStage):
 
         tracker = context._evolving_node_tracker
 
-        # 1. FOCUS: previous turn's selected focus node
-        focus_key = tracker.previous_focus if tracker else None
+        # 1. FOCUS: previous turn's selected focus node, looked up by surface UUID.
         focus_node = None
-        if focus_key:
-            focus_node = await self._graph_repo.get_node(focus_key)
+        if tracker and tracker.previous_focus_node_id:
+            surface_id = tracker.previous_focus_node_id
+            focus_node = await self._graph_repo.get_node(surface_id)
+            if focus_node is None:
+                log.warning(
+                    "edge_extraction_focus_node_not_found",
+                    session_id=session_id,
+                    turn_number=turn_number,
+                    previous_focus_node_id=surface_id,
+                    previous_focus=tracker.previous_focus,
+                )
             if focus_node:
                 focus_node_id = focus_node.id
                 candidates.append(
@@ -285,6 +305,44 @@ class EdgeExtractionPrefetchStage(TurnStage):
                 )
             )
         return "\n".join(lines)
+
+    @staticmethod
+    def _build_candidate_pairs_section(candidates: list[dict]) -> str:
+        """Format candidate pairs where at least one endpoint is a CURRENT node.
+
+        Edges between two pre-existing nodes (FOCUS, NEIGHBOR, RECENT) would
+        have been extractable in earlier turns; only pairs touching a newly-
+        introduced CURRENT node carry novel information this turn.
+        """
+        if len(candidates) < 2:
+            return ""
+
+        current_ids = {c["node_id"] for c in candidates if c["tag"] == "CURRENT"}
+        if not current_ids:
+            return ""
+
+        pairs: list[str] = []
+        for i, src in enumerate(candidates):
+            for tgt in candidates[i + 1 :]:
+                if (
+                    src["node_id"] not in current_ids
+                    and tgt["node_id"] not in current_ids
+                ):
+                    continue
+                pairs.append(
+                    format_candidate_pair_for_edge_extraction(
+                        source_id=src["node_id"],
+                        source_label=src["label"],
+                        source_type=src.get("node_type", ""),
+                        target_id=tgt["node_id"],
+                        target_label=tgt["label"],
+                        target_type=tgt.get("node_type", ""),
+                    )
+                )
+
+        if not pairs:
+            return ""
+        return "## Candidate Pairs:\n" + "\n".join(pairs)
 
     async def _build_existing_edges_section(
         self, session_id: str, focus_node_id: str

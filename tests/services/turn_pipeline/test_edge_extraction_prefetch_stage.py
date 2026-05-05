@@ -56,6 +56,7 @@ class TestEdgeExtractionPrefetchStage:
         ctx.graph_update_output.concept_to_node_id = {}
         ctx._evolving_node_tracker = MagicMock()
         ctx._evolving_node_tracker.previous_focus = None
+        ctx._evolving_node_tracker.previous_focus_node_id = None
         result = await stage.process(ctx)
         assert result._edge_extraction_task is None
 
@@ -88,6 +89,7 @@ class TestEdgeExtractionPrefetchStage:
         ctx.graph_update_output.concept_to_node_id = {"health awareness": "n1"}
         ctx._evolving_node_tracker = MagicMock()
         ctx._evolving_node_tracker.previous_focus = None
+        ctx._evolving_node_tracker.previous_focus_node_id = None
 
         candidates, focus = await stage._assemble_candidate_nodes(
             ctx, "test-session", 2
@@ -141,6 +143,7 @@ class TestEdgeExtractionPrefetchStage:
         ctx.graph_update_output.concept_to_node_id = {}
         ctx._evolving_node_tracker = MagicMock()
         ctx._evolving_node_tracker.previous_focus = "n_focus"
+        ctx._evolving_node_tracker.previous_focus_node_id = "n_focus"
 
         candidates, focus = await stage._assemble_candidate_nodes(
             ctx, "test-session", 3
@@ -180,6 +183,7 @@ class TestEdgeExtractionPrefetchStage:
         ctx.graph_update_output.concept_to_node_id = {}
         ctx._evolving_node_tracker = MagicMock()
         ctx._evolving_node_tracker.previous_focus = None
+        ctx._evolving_node_tracker.previous_focus_node_id = None
 
         candidates, focus = await stage._assemble_candidate_nodes(
             ctx, "test-session", 3
@@ -216,6 +220,7 @@ class TestEdgeExtractionPrefetchStage:
         ctx.graph_update_output.concept_to_node_id = {"shared concept": "n_shared"}
         ctx._evolving_node_tracker = MagicMock()
         ctx._evolving_node_tracker.previous_focus = None
+        ctx._evolving_node_tracker.previous_focus_node_id = None
 
         candidates, focus = await stage._assemble_candidate_nodes(
             ctx, "test-session", 3
@@ -252,6 +257,7 @@ class TestEdgeExtractionPrefetchStage:
         ctx.graph_update_output.concept_to_node_id = {"health": "n1"}
         ctx._evolving_node_tracker = MagicMock()
         ctx._evolving_node_tracker.previous_focus = None
+        ctx._evolving_node_tracker.previous_focus_node_id = None
 
         mock_llm_client = MagicMock()
         mock_llm_client.complete = AsyncMock(
@@ -266,3 +272,111 @@ class TestEdgeExtractionPrefetchStage:
 
         assert result._edge_extraction_task is not None
         assert isinstance(result._edge_extraction_task, asyncio.Task)
+
+
+class TestCandidatePairRule:
+    """Pair generation rule: include only pairs touching ≥1 CURRENT node.
+
+    Edges between two pre-existing nodes (FOCUS / NEIGHBOR / RECENT) would
+    have been extractable in earlier turns, so they are excluded.
+    """
+
+    @staticmethod
+    def _candidate(tag: str, node_id: str) -> dict:
+        return {
+            "tag": tag,
+            "node_id": node_id,
+            "label": f"label_{node_id}",
+            "node_type": "attribute",
+            "turn": None,
+        }
+
+    def _has_pair(self, section: str, a: str, b: str) -> bool:
+        # Pairs are emitted with both node IDs in the formatted line; check both
+        # IDs co-occur on the same line.
+        for line in section.splitlines():
+            if a in line and b in line:
+                return True
+        return False
+
+    def test_current_x_neighbor_included(self):
+        """A pair with one CURRENT and one NEIGHBOR endpoint must be generated."""
+        candidates = [
+            self._candidate("CURRENT", "c1"),
+            self._candidate("NEIGHBOR", "n1"),
+        ]
+        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(
+            candidates
+        )
+        assert self._has_pair(section, "c1", "n1")
+
+    def test_current_x_recent_included(self):
+        """A pair with one CURRENT and one RECENT endpoint must be generated."""
+        candidates = [
+            self._candidate("CURRENT", "c1"),
+            self._candidate("RECENT", "r1"),
+        ]
+        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(
+            candidates
+        )
+        assert self._has_pair(section, "c1", "r1")
+
+    def test_neighbor_x_recent_excluded(self):
+        """Pairs with no CURRENT endpoint are pre-existing edges and excluded."""
+        candidates = [
+            self._candidate("FOCUS", "f1"),
+            self._candidate("NEIGHBOR", "n1"),
+            self._candidate("RECENT", "r1"),
+        ]
+        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(
+            candidates
+        )
+        # No CURRENT in the set → empty section.
+        assert section == ""
+
+    def test_focus_x_neighbor_excluded_when_no_current(self):
+        """FOCUS × NEIGHBOR alone has no CURRENT endpoint and is excluded."""
+        candidates = [
+            self._candidate("FOCUS", "f1"),
+            self._candidate("NEIGHBOR", "n1"),
+        ]
+        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(
+            candidates
+        )
+        assert section == ""
+
+    def test_current_x_current_included(self):
+        """Two CURRENT nodes still pair (both endpoints CURRENT)."""
+        candidates = [
+            self._candidate("CURRENT", "c1"),
+            self._candidate("CURRENT", "c2"),
+        ]
+        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(
+            candidates
+        )
+        assert self._has_pair(section, "c1", "c2")
+
+    def test_full_mix_pair_set(self):
+        """Full coverage: F+2C+1N+1R produces the exact expected pair set."""
+        candidates = [
+            self._candidate("FOCUS", "f1"),
+            self._candidate("CURRENT", "c1"),
+            self._candidate("CURRENT", "c2"),
+            self._candidate("NEIGHBOR", "n1"),
+            self._candidate("RECENT", "r1"),
+        ]
+        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(
+            candidates
+        )
+        # Included: f1×c1, f1×c2, c1×c2, c1×n1, c1×r1, c2×n1, c2×r1 → 7 pairs
+        assert self._has_pair(section, "f1", "c1")
+        assert self._has_pair(section, "f1", "c2")
+        assert self._has_pair(section, "c1", "c2")
+        assert self._has_pair(section, "c1", "n1")
+        assert self._has_pair(section, "c1", "r1")
+        assert self._has_pair(section, "c2", "n1")
+        assert self._has_pair(section, "c2", "r1")
+        # Excluded: f1×n1, f1×r1, n1×r1 (no CURRENT endpoint)
+        assert not self._has_pair(section, "f1", "n1")
+        assert not self._has_pair(section, "f1", "r1")
+        assert not self._has_pair(section, "n1", "r1")
