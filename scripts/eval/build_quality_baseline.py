@@ -20,9 +20,9 @@ FIXTURES_DIR = Path("tests/fixtures/quality_baseline")
 # Phase 4.1 interviews that passed review criteria, covering 4 methodologies.
 BASELINE_SESSIONS = {
     # MEC Strict — baseline_cooperative (PASS)
-    "20260415_224733_glp1_food_mec_strict_baseline_cooperative.json": "means_end_chain_v2_strict",
+    "20260415_224733_zerofizz_beverage_mec_baseline_cooperative.json": "means_end_chain_v2_strict",
     # JTBD — baseline_cooperative (PASS)
-    "20260415_225117_glp1_food_jtbd_baseline_cooperative.json": "jobs_to_be_done_v2",
+    "20260415_225117_zerofizz_beverage_jtbd_baseline_cooperative.json": "jobs_to_be_done_v2",
     # CIT — baseline_cooperative (PASS)
     "20260415_225511_cold_brew_discovery_cit_baseline_cooperative.json": "critical_incident_v2",
     # RG — baseline_cooperative (PASS)
@@ -30,7 +30,7 @@ BASELINE_SESSIONS = {
     # CIT regression re-test — baseline_cooperative (PASS)
     "20260415_231223_cold_brew_discovery_cit_baseline_cooperative.json": "critical_incident_v2",
     # MEC Strict — baseline_cooperative (later run with latency data)
-    "20260417_140252_glp1_food_mec_strict_baseline_cooperative.json": "means_end_chain_v2_strict",
+    "20260417_140252_zerofizz_beverage_mec_baseline_cooperative.json": "means_end_chain_v2_strict",
 }
 
 # CJM sessions both failed review (advance_stage didn't fire, no validate close)

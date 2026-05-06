@@ -377,20 +377,24 @@ def _render_chain(
     path_edges: list[dict],
     node_by_id: dict[str, dict],
     utt_to_turn: dict,
+    node_levels: dict[str, int],
     prefix: str = "",
 ) -> str:
     def _node_turn(i: int) -> int | None:
         edge = path_edges[i] if i < len(path_edges) else path_edges[-1]
         return _edge_min_turn(edge, utt_to_turn)
 
-    parts = [
-        " → ".join(
-            f"`{node_by_id[nid]['label']}` ({node_by_id[nid]['node_type']}, "
-            f"t={_node_turn(i) or '?'})"
-            for i, nid in enumerate(path_nodes)
+    def _node_level(node_type: str) -> str:
+        lvl = node_levels.get(node_type)
+        return f"L{lvl}" if lvl is not None else "?"
+
+    path_steps = []
+    for i, nid in enumerate(path_nodes):
+        nt = node_by_id[nid]["node_type"]
+        path_steps.append(
+            f"`{node_by_id[nid]['label']}` ({nt}, {_node_level(nt)}, t={_node_turn(i) or '?'})"
         )
-    ]
-    lines = [f"### Chain{prefix}", f"**Path**: {parts[0]}", ""]
+    lines = [f"### Chain{prefix}", "**Path**:", "", "  → " + "  \n  → ".join(path_steps) + "  ", ""]
     lines.append("**Evidence**:")
     for e in path_edges:
         src = node_by_id[e["source_node_id"]]
@@ -515,11 +519,7 @@ def generate_causal_chains(
     rev_count_canon = sum(1 for e in canon_edges if e["edge_type"] == "revises")
     chain_edge_types = list(chain_rules.keys())
     surf_chain_edges = sum(1 for e in surface_edges if e["edge_type"] in chain_rules)
-    can_chain_edges = sum(1 for e in canon_edges if e["edge_type"] in chain_rules)
-    surf_node_types = sorted(set(n["node_type"] for n in surface_nodes))
-    can_node_types = sorted(
-        set(s["node_type"] for s in data["canonical_graph"]["slots"])
-    )
+    # Canonical chain edge counts and node types are computed in the render phase
 
     surf_involved = set()
     for e in surface_edges:
@@ -576,12 +576,10 @@ def generate_causal_chains(
 - **Revises edges excluded from traversal**: {rev_count_surface + rev_count_canon}
 
 ## Graph summary
-| | Surface | Canonical |
-|--|--|--|
-| Nodes | {len(surface_nodes)} | {len(canon_nodes)} |
-| Chain edges traversed | {surf_chain_edges} | {can_chain_edges} |
-| Edges (revises) | {rev_count_surface} | {rev_count_canon} |
-| Node types | {", ".join(surf_node_types)} | {", ".join(can_node_types)} |
+- **Conversation nodes**: {len(surface_nodes)}
+- **Themes (canonical slots)**: {len(canon_nodes)}
+- **Chain edges traversed**: {surf_chain_edges}
+- **Edges (revises)**: {rev_count_surface}
 
 """
 
@@ -589,20 +587,18 @@ def generate_causal_chains(
         md += "_This methodology has no level structure defined — chain tier classification not applicable._\n\n"
     else:
         active_tiers = [
-            t for t in ["full", "advanced", "developing", "started"] if t in tier_descs
+            t for t in ["full", "advanced", "developing"] if t in tier_descs
         ]
         md += "## Chain completeness summary\n"
-        md += "| Tier | Description | Surface Count | Canonical Count |\n"
-        md += "|------|-------------|---------------|------------------|\n"
+        md += "| Tier | Description | Count |\n"
+        md += "|------|-------------|-------|\n"
         for tier in active_tiers:
             md += (
                 f"| {tier.capitalize()} | {tier_descs[tier]} "
-                f"| {len(surf_by_tier.get(tier, []))} "
-                f"| {len(can_by_tier.get(tier, []))} |\n"
+                f"| {len(surf_by_tier.get(tier, []))} |\n"
             )
         lateral_surf = len(surf_paths) - sum(len(v) for v in surf_by_tier.values())
-        lateral_can = len(can_paths) - sum(len(v) for v in can_by_tier.values())
-        md += f"| Lateral (excluded) | Same-type only chains | {lateral_surf} | {lateral_can} |\n"
+        md += f"| Lateral (excluded) | Same-type only chains | {lateral_surf} |\n"
         md += "\n---\n\n"
 
         for tier in active_tiers:
@@ -614,13 +610,13 @@ def generate_causal_chains(
             }[tier]
             md += f"## {heading}\n\n"
             for i, (pn, pe) in enumerate(surf_by_tier.get(tier, []), 1):
-                md += _render_chain(pn, pe, surface_by_id, utt_to_turn).replace(
-                    "### Chain", f"### Chain {i} [surface]"
-                )
+                md += _render_chain(
+                    pn, pe, surface_by_id, utt_to_turn, node_levels
+                ).replace("### Chain", f"### Chain {i}")
             for i, (pn, pe) in enumerate(can_by_tier.get(tier, []), 1):
-                md += _render_chain(pn, pe, canon_by_id, utt_to_turn).replace(
-                    "### Chain", f"### Chain {i} [canonical]"
-                )
+                md += _render_chain(
+                    pn, pe, canon_by_id, utt_to_turn, node_levels
+                ).replace("### Chain", f"### Chain {i}")
             if not surf_by_tier.get(tier) and not can_by_tier.get(tier):
                 md += f"_No {tier} chains found._\n\n"
 
@@ -639,7 +635,18 @@ def generate_causal_chains(
     if surf_orphans:
         for n in surf_orphans:
             q = (n.get("source_quotes") or ["(no quote)"])[0]
-            md += f'- `{n["label"]}` ({n["node_type"]}) — _"{q}"_\n'
+            nt = n["node_type"]
+            lvl = node_levels.get(nt)
+            lvl_str = f"L{lvl}" if lvl is not None else "?"
+            # Derive turn from source utterance IDs
+            utt_ids = n.get("source_utterance_ids", []) or []
+            t = None
+            for uid in utt_ids:
+                if uid in utt_to_turn:
+                    t = utt_to_turn[uid]
+                    break
+            t_str = f", t={t}" if t is not None else ""
+            md += f'- `{n["label"]}` ({nt}, {lvl_str}{t_str}) — _"{q}"_\n'
     else:
         md += "_No orphan nodes found._\n\n"
 

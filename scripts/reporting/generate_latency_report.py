@@ -114,6 +114,9 @@ def analyze_log(log_file: Path) -> dict:
         r".*?input_tokens=(\d+).*?latency_ms=([\d\.]+)"
         r".*?model=(\S+).*?output_tokens=(\d+)"
     )
+    cache_pattern = re.compile(
+        r"cache_(creation_input_tokens|read_input_tokens)=(\d+)"
+    )
     pipeline_completed_pattern = re.compile(
         r"pipeline_completed\s+.*?latency_ms=([\d\.]+)"
     )
@@ -156,6 +159,8 @@ def analyze_log(log_file: Path) -> dict:
                 "concurrency": set(),
                 "prefetch_duration": 0.0,
                 "inline_duration": 0.0,
+                "cache_created_tokens": 0,
+                "cache_read_tokens": 0,
             }
         llm_calls[module]["durations"].append(duration)
         llm_calls[module]["tokens_in"].append(tokens_in)
@@ -168,6 +173,13 @@ def analyze_log(log_file: Path) -> dict:
             llm_calls[module]["prefetch_duration"] += duration
         else:
             llm_calls[module]["inline_duration"] += duration
+
+        # Track prompt cache hits
+        for cache_match in cache_pattern.finditer(line):
+            if cache_match.group(1) == "creation_input_tokens":
+                llm_calls[module]["cache_created_tokens"] += int(cache_match.group(2))
+            elif cache_match.group(1) == "read_input_tokens":
+                llm_calls[module]["cache_read_tokens"] += int(cache_match.group(2))
 
     # Pipeline completion
     for match in pipeline_completed_pattern.finditer(clean_content):
@@ -207,8 +219,11 @@ def _write_summary_md(data: dict, output_dir: Path) -> Path:
         tokens_out_stats = _calc_stats(module_data["tokens_out"])
         cost_stats = _calc_stats(module_data["costs"])
         models = module_data["models"]
+        cache_created = module_data.get("cache_created_tokens", 0)
+        cache_read = module_data.get("cache_read_tokens", 0)
         llm_stats.append(
-            (module, stats, tokens_in_stats, tokens_out_stats, models, cost_stats)
+            (module, stats, tokens_in_stats, tokens_out_stats, models, cost_stats,
+             cache_created, cache_read)
         )
     llm_stats.sort(key=lambda x: x[1]["total"], reverse=True)
 
@@ -323,7 +338,7 @@ def _write_summary_md(data: dict, output_dir: Path) -> Path:
         f"|{'-' * 22}|{'-' * 18}|{'-' * 7}|{'-' * 10}|{'-' * 10}|{'-' * 9}|{'-' * 9}|"
     )
 
-    for module, stats, tok_in, tok_out, models, cost_stats in llm_stats:
+    for module, stats, tok_in, tok_out, models, cost_stats, _, _ in llm_stats:
         model_str = ", ".join(sorted(models)) if models else "unknown"
         if len(model_str) > 15:
             model_str = model_str[:12] + ".."
@@ -360,6 +375,27 @@ def _write_summary_md(data: dict, output_dir: Path) -> Path:
             f"(sum of all LLM calls; overlaps with itself — do not use as wall-clock)"
         )
 
+    # Prompt caching section
+    total_cache_created = sum(s[6] for s in llm_stats)
+    total_cache_read = sum(s[7] for s in llm_stats)
+    if total_cache_created or total_cache_read:
+        lines.extend(["", "### Prompt Caching", ""])
+        lines.append(
+            f"| {'Module':<20} | {'Cache Created':>13} | {'Cache Read':>11} | {'Cache Hit %':>11} |"
+        )
+        lines.append(f"|{'-' * 22}|{'-' * 15}|{'-' * 13}|{'-' * 13}|")
+        for module, stats, tok_in, _, _, _, cache_created, cache_read in llm_stats:
+            total_in = tok_in["total"]
+            hit_pct = (cache_read / total_in * 100) if total_in > 0 else 0
+            lines.append(
+                f"| {module:<20} | {cache_created:>13,} | {cache_read:>11,} | {hit_pct:>10.1f}% |"
+            )
+        lines.append("")
+        lines.append(
+            "**Cache write cost**: 1.25× base input price per token written. "
+            "**Cache read savings**: 0.10× base input price — 90% discount on cached prefix."
+        )
+
     lines.extend(["", "## Key Findings", "", "### Top Bottlenecks"])
     for i, (stage, stats) in enumerate(stage_stats[:3], 1):
         pct = stats["total"] / pct_denom * 100 if pct_denom else 0
@@ -368,7 +404,7 @@ def _write_summary_md(data: dict, output_dir: Path) -> Path:
         )
 
     lines.extend(["", "### LLM Cost Breakdown"])
-    for module, stats, _, _, models, cost_stats in llm_stats:
+    for module, stats, _, _, models, cost_stats, _, _ in llm_stats:
         pct = stats["total"] / total_llm_time * 100 if total_llm_time else 0
         model_info = f" `[{', '.join(sorted(models))}]`" if models else ""
         lines.append(

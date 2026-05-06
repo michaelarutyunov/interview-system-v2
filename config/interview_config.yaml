@@ -92,10 +92,13 @@ llm:
     provider: anthropic
     model: claude-sonnet-4-6
     effort: low
-  # Stage 4.5B: cross-turn edge extraction (separated from node extraction)
+  # Stage 4.5B: cross-turn edge extraction (separated from node extraction).
+  # 8192 max_tokens accommodates the broader CURRENT-touching pair set
+  # (~27 pairs avg × ~120 tokens/pair + envelope + reasoning).
   edge_extraction:
     provider: anthropic
     model: claude-haiku-4-5
+    max_tokens: 8192
   # Stage 4.5: canonical slot discovery (structured JSON extraction)
   slot_scoring:
     provider: anthropic

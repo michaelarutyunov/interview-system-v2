@@ -2,10 +2,10 @@
 """Run a synthetic interview simulation.
 
 Usage:
-    uv run python scripts/run_simulation.py --concept glp1_food_mec --persona baseline_cooperative --max-turns 10
+    uv run python scripts/run_simulation.py --concept zerofizz_beverage_mec --persona baseline_cooperative --max-turns 10
 
 Legacy positional form (no longer supported):
-    python scripts/run_simulation.py glp1_food_mec baseline_cooperative 10
+    python scripts/run_simulation.py zerofizz_beverage_mec baseline_cooperative 10
     -> Use --concept, --persona, --max-turns flags instead.
 """
 
@@ -94,7 +94,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--concept",
         required=True,
-        help="Concept ID (e.g. glp1_food_mec, zerofizz_beverage_mec)",
+        help="Concept ID (e.g. zerofizz_beverage_mec, zerofizz_beverage_jtbd)",
     )
     parser.add_argument(
         "--persona",
@@ -156,8 +156,10 @@ async def main():
     print(f"  Concept: {concept_id}")
     print(f"  Persona: {persona_id}")
     if phase_turns:
-        print(f"  Phase turns: {phase_turns[0]}-{phase_turns[1]}-{phase_turns[2]} "
-              f"(early/mid/late)")
+        print(
+            f"  Phase turns: {phase_turns[0]}-{phase_turns[1]}-{phase_turns[2]} "
+            f"(early/mid/late)"
+        )
     print(f"  Max turns: {max_turns}")
     print()
 

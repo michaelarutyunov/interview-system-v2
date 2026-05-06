@@ -14,6 +14,8 @@ import re
 import sys
 from pathlib import Path
 
+import yaml
+
 OUTPUT_DIR = Path("reports/transcripts")
 
 
@@ -24,6 +26,24 @@ def _word_count(text: str) -> int:
 def _node_type_label(node_type: str) -> str:
     """Convert snake_case node type to a readable label."""
     return node_type.replace("_", " ").title()
+
+
+def _load_node_levels(methodology: str) -> dict[str, int]:
+    """Load node_type → ontology level mapping from methodology YAML."""
+    meth_path = Path(f"config/methodologies/{methodology}.yaml")
+    if not meth_path.exists():
+        return {}
+    meth = yaml.safe_load(meth_path.read_text())
+    ontology = meth.get("ontology", {})
+    return {n["name"]: n.get("level", 0) for n in ontology.get("nodes", [])}
+
+
+def _level_str(node_type: str, node_levels: dict[str, int]) -> str:
+    """Format level suffix for a node type, e.g. 'L0' or empty if unknown."""
+    level = node_levels.get(node_type)
+    if level is None:
+        return ""
+    return f", L{level}"
 
 
 def _resolve_focus_node_from_decomposition(
@@ -85,9 +105,13 @@ def generate_transcript(json_path: Path, output_path: Path | None = None) -> Pat
     data = json.loads(json_path.read_text())
     meta = data["metadata"]
     turns = data["turns"]
+    methodology = meta.get("methodology", "")
 
     # Build node lookup: id → full node dict (includes source_quotes)
     nodes_by_id: dict = {n["id"]: n for n in data["graph"]["nodes"]}
+
+    # Load node_type → ontology level mapping
+    node_levels = _load_node_levels(methodology)
 
     # Concepts extracted from turn N's response live in turn N+1's nodes_added
     # (process_turn(response_N) returns nodes that are stored in turn N+1).
@@ -131,24 +155,34 @@ def generate_transcript(json_path: Path, output_path: Path | None = None) -> Pat
     lines.append("## Turn Breakdown")
     lines.append("")
     lines.append(
-        "| Turn | Phase | Strategy | Focus Node | Concepts Extracted | Response Words |"
+        "| Turn | Phase | Strategy | Focus Node | Focus Node Level | Concepts Extracted | Response Words |"
     )
     lines.append(
-        "|------|-------|----------|------------|-------------------|----------------|"
+        "|------|-------|----------|------------|-----------------|-------------------|----------------|"
     )
 
     for turn in turns:
         n = turn["turn_number"]
         strategy = turn.get("strategy_selected") or "—"
         focus_label = turn.get("focus_node_label")
-        if not focus_label:
-            _, focus_label = _resolve_focus_node_from_decomposition(turn, nodes_by_id)
+        focus_node_id = turn.get("focus_node_id")
+        if not focus_node_id:
+            focus_node_id, focus_label = _resolve_focus_node_from_decomposition(
+                turn, nodes_by_id
+            )
+        # Derive focus node level from graph node type
+        focus_level = "—"
+        if focus_node_id and focus_node_id in nodes_by_id:
+            focus_nt = nodes_by_id[focus_node_id].get("node_type", "")
+            lvl = node_levels.get(focus_nt)
+            if lvl is not None:
+                focus_level = f"L{lvl}"
         concepts_count = len(nodes_from_answer.get(n, []))
         word_count = _word_count(turn.get("response", ""))
         signals = turn.get("signals") or {}
         phase = signals.get("interview.phase", "—")
         lines.append(
-            f"| {n} | {phase} | {strategy} | {focus_label or '—'} | {concepts_count} | {word_count} |"
+            f"| {n} | {phase} | {strategy} | {focus_label or '—'} | {focus_level} | {concepts_count} | {word_count} |"
         )
 
     lines.append("")
@@ -194,7 +228,8 @@ def generate_transcript(json_path: Path, output_path: Path | None = None) -> Pat
                     full_node = nodes_by_id.get(node_id, {})
                     quotes = full_node.get("source_quotes") or []
                     type_str = _node_type_label(node_type)
-                    lines.append(f"- **{label}** *({type_str})*")
+                    lvl = _level_str(node_type, node_levels)
+                    lines.append(f"- **{label}** *({type_str}{lvl})*")
                     for q in quotes:
                         lines.append(f'  - *"{q}"*')
                 lines.append("")
@@ -214,23 +249,32 @@ def generate_transcript(json_path: Path, output_path: Path | None = None) -> Pat
         lines.append("")
 
         # Focus node block (turns 1+)
-        if focus_node_label and focus_node_id:
+        if focus_node_id:
             node_data = nodes_by_id.get(focus_node_id, {})
             node_type = node_data.get("node_type", "unknown")
-            explainer = _find_focus_node_in_question(question, focus_node_label)
+            lvl = _level_str(node_type, node_levels)
+            label = focus_node_label or node_data.get("label")
             lines.append("**Focus node:**")
             lines.append("")
-            lines.append(
-                f"- **Label:** {focus_node_label} *(type: {_node_type_label(node_type)})*"
-            )
-            lines.append(f"- **In question:** {explainer}")
-            # Show the first source quote for context
-            source_quotes = node_data.get("source_quotes") or []
-            if source_quotes:
-                first_quote = source_quotes[0]
-                lines.append(f'- **First introduced:** "{first_quote}"')
+            if label:
+                explainer = _find_focus_node_in_question(question, label)
+                lines.append(
+                    f"- **Label:** {label} *({_node_type_label(node_type)}{lvl})*"
+                )
+                lines.append(f"- **In question:** {explainer}")
+                source_quotes = node_data.get("source_quotes") or []
+                if source_quotes:
+                    first_quote = source_quotes[0]
+                    lines.append(f'- **First introduced:** "{first_quote}"')
+            else:
+                # Slot ID without resolved surface label
+                slot_id = focus_node_id
+                if slot_id.startswith("slot_"):
+                    lines.append(f"- **Canonical slot:** `{slot_id}`")
+                else:
+                    lines.append(f"- **Node ID:** `{slot_id}`")
         else:
-            lines.append("**Focus node:** *not recorded (pre-fix run)*")
+            lines.append("**Focus node:** *not recorded*")
         lines.append("")
 
         # Answer block
@@ -251,7 +295,8 @@ def generate_transcript(json_path: Path, output_path: Path | None = None) -> Pat
                 full_node = nodes_by_id.get(node_id, {})
                 quotes = full_node.get("source_quotes") or []
                 type_str = _node_type_label(node_type)
-                lines.append(f"- **{label}** *({type_str})*")
+                lvl = _level_str(node_type, node_levels)
+                lines.append(f"- **{label}** *({type_str}{lvl})*")
                 for q in quotes:
                     lines.append(f'  - *"{q}"*')
             lines.append("")

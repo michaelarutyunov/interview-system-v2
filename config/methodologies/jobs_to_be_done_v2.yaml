@@ -203,6 +203,7 @@ signals:
     - convgraph.state.node.count
     - convgraph.state.max_depth
     - convgraph.state.node.orphan_count
+    - convgraph.state.node.orphan_ratio
     - convgraph.chain.completion
     # Canonical graph signals (experimental)
     - canongraph.state.node.count
@@ -322,6 +323,8 @@ strategies:
       # Structural signal — gap_below is the primary trigger
       # Boosted from 0.3 to compete with probe_pain's structural mass
       convgraph.node.chain.gap.below.true: 0.5
+      # Systemic orphan accumulation — many unconnected nodes benefit from grounding
+      convgraph.state.node.orphan_ratio.mid: 0.25
       # Recency — prefer recently-mentioned terminal nodes
       convgraph.node.recency: 0.3
       # Generic baseline — level playing field with anchor/probe_pain
@@ -357,6 +360,11 @@ strategies:
     signal_weights:
       # Structural signal — orphan node is the trigger (boosted from 0.35, was probe_pain's stronger weight)
       convgraph.node.is_orphan.true: 0.50
+      # Systemic orphan accumulation — amplify anchor when many nodes are stranded
+      # .high (>=75% orphans): opening-phase orphan crisis
+      # .mid (25-75% orphans): mid-interview drift, chain neglect
+      convgraph.state.node.orphan_ratio.high: 0.40
+      convgraph.state.node.orphan_ratio.mid: 0.25
       # Recency — prefer recent orphans
       convgraph.node.recency: 0.2
       # Exhaustion — avoid exhausted orphans
@@ -439,6 +447,8 @@ phases:
       ascend: 1.0             # Available but not dominant
       revitalize: 1.0
       close: 0.2           # Strongly suppressed — too early to wrap up
+    phase_bonuses:
+      anchor: 0.25            # Opening-phase prior: treat breadth as obligation before climbing
 
   mid:
     description: "Building depth and connections"
