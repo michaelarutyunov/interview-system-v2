@@ -102,6 +102,7 @@ Strategy: {strat_description}{methodology_section}
 Before outputting your final question:
 1. Generate 3 distinct candidate questions that follow the strategy
 2. Score each silently: clarity (1-5), strategy_fit (1-5), naturalness (1-5)×2, topic_anchor (1-5), focus_fit (1-5)×3
+   focus_fit rubric: 5 = question directly names or clearly implies the focus concept; 3 = question could apply to the focus concept but is generic; 1 = question is about a recently-discussed topic or any concept other than the designated focus concept
 3. Select the highest-scoring candidate
 4. Output ONLY the selected question — no candidates, no scores, no explanation"""
 
@@ -119,6 +120,7 @@ def get_question_user_prompt(
     signal_descriptions: Optional[Dict[str, str]] = None,
     focus_node_type: Optional[str] = None,
     focus_node_level: Optional[int] = None,
+    level_guidance: Optional[Dict[str, str]] = None,
 ) -> str:
     """
     Get user prompt for question generation.
@@ -179,12 +181,12 @@ def get_question_user_prompt(
     if strategy == "surface_tension":
         if focus_node_type:
             prompt_parts.append(
-                f"Concept where hesitation was detected: \"{focus_concept}\" "
+                f'Concept where hesitation was detected: "{focus_concept}" '
                 f"(type: {focus_node_type}){level_info}."
             )
         else:
             prompt_parts.append(
-                f"Concept where hesitation was detected: \"{focus_concept}\"."
+                f'Concept where hesitation was detected: "{focus_concept}".'
             )
         prompt_parts.append(
             "The respondent showed uncertainty about this concept. "
@@ -194,17 +196,25 @@ def get_question_user_prompt(
     else:
         if focus_node_type:
             prompt_parts.append(
-                f"Your question MUST be about this concept: \"{focus_concept}\" "
+                f'Your question MUST be about this concept: "{focus_concept}" '
                 f"(type: {focus_node_type}){level_info}."
             )
         else:
             prompt_parts.append(
-                f"Your question MUST be about this concept: \"{focus_concept}\"."
+                f'Your question MUST be about this concept: "{focus_concept}".'
             )
+        # Inject node-type-specific level guidance (from YAML strategy config)
+        if level_guidance and focus_node_type:
+            node_specific = level_guidance.get(focus_node_type)
+            if node_specific:
+                prompt_parts.append(node_specific)
         prompt_parts.append(
-            "The respondent's answer below provides context — use it to phrase "
-            "the question naturally, but the question's primary subject must be "
-            "the focus concept above."
+            f"The respondent's answer below provides context — use it to phrase "
+            f"the question naturally, but the question's primary subject must be "
+            f'the focus concept above ("{focus_concept}"). '
+            "Even if other topics were discussed recently, stay focused on this concept. "
+            "Do NOT drift to the most recently discussed topic — the focus concept takes "
+            "absolute precedence over recency."
         )
     prompt_parts.append(f"Strategy: {strat_name} — {strat_description}")
     prompt_parts.append("")
@@ -222,7 +232,10 @@ def get_question_user_prompt(
             speaker = "Respondent" if utt.get("speaker") == "user" else "Interviewer"
             context_lines.append(f"{speaker}: {utt['text']}")
 
-        prompt_parts.append("Recent conversation (use as context, not as the question subject):")
+        prompt_parts.append(
+            f"Recent conversation (use for phrasing context ONLY — "
+            f'the question subject must be "{focus_concept}", not the last topic discussed):'
+        )
         prompt_parts.append("\n".join(context_lines))
         prompt_parts.append("")
 
@@ -275,11 +288,11 @@ def get_question_user_prompt(
 
     if strategy == "surface_tension":
         prompt_parts.append(
-            f"Generate a tension probe that names the respondent's hesitation about \"{focus_concept}\":"
+            f'Generate a tension probe that names the respondent\'s hesitation about "{focus_concept}":'
         )
     else:
         prompt_parts.append(
-            f"Generate a natural follow-up question about \"{focus_concept}\":"
+            f'Generate a natural follow-up question about "{focus_concept}":'
         )
 
     return "\n".join(prompt_parts)
@@ -443,7 +456,9 @@ def get_close_question_user_prompt(
             speaker = "Respondent" if utt.get("speaker") == "user" else "Interviewer"
             parts.append(f"{speaker}: {utt['text']}")
         parts.append("")
-    parts.append("Generate a natural closing question that confirms the key insights and gives the respondent space to add anything important:")
+    parts.append(
+        "Generate a natural closing question that confirms the key insights and gives the respondent space to add anything important:"
+    )
     return "\n".join(parts)
 
 
@@ -474,7 +489,7 @@ def get_revitalize_question_user_prompt(
     """User prompt for revitalize strategy."""
     parts: list[str] = []
     if focus_node_label:
-        parts.append(f"Current topic: \"{focus_node_label}\"")
+        parts.append(f'Current topic: "{focus_node_label}"')
     parts.append("The respondent seems fatigued with this line of questioning.")
     parts.append("")
     if recent_utterances:
@@ -483,7 +498,9 @@ def get_revitalize_question_user_prompt(
             speaker = "Respondent" if utt.get("speaker") == "user" else "Interviewer"
             parts.append(f"{speaker}: {utt['text']}")
         parts.append("")
-    parts.append("Generate a question that explores the SAME topic from a fresh angle, using one of the techniques above:")
+    parts.append(
+        "Generate a question that explores the SAME topic from a fresh angle, using one of the techniques above:"
+    )
     return "\n".join(parts)
 
 

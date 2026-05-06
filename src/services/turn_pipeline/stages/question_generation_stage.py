@@ -92,6 +92,7 @@ class QuestionGenerationStage(TurnStage):
             is_conversation_level = False
             try:
                 from src.methodologies import get_registry
+
                 registry = get_registry()
                 config = registry.get_methodology(context.methodology)
                 strategy_config = next(
@@ -111,11 +112,13 @@ class QuestionGenerationStage(TurnStage):
                 elif isinstance(focus_raw, str) and focus_raw:
                     focus_concept = focus_raw
 
-                next_question = await self.question.generate_conversation_level_question(
-                    strategy=strategy,
-                    recent_utterances=updated_utterances,
-                    topic=context.concept_name,
-                    focus_node_label=focus_concept or None,
+                next_question = (
+                    await self.question.generate_conversation_level_question(
+                        strategy=strategy,
+                        recent_utterances=updated_utterances,
+                        topic=context.concept_name,
+                        focus_node_label=focus_concept or None,
+                    )
                 )
             else:
                 # Node-bound strategies use the existing focus-concept-driven path.
@@ -132,10 +135,28 @@ class QuestionGenerationStage(TurnStage):
                 if focus_node_type:
                     try:
                         from src.core.schema_loader import load_methodology
+
                         schema = load_methodology(context.methodology)
-                        focus_node_level = schema.get_level_for_node_type(focus_node_type)
+                        focus_node_level = schema.get_level_for_node_type(
+                            focus_node_type
+                        )
                     except Exception:
                         pass
+
+                # Extract level_guidance from strategy config for node-type-specific prompts
+                level_guidance: dict[str, str] = {}
+                try:
+                    from src.methodologies import get_registry
+
+                    registry = get_registry()
+                    config = registry.get_methodology(context.methodology)
+                    strategy_obj = next(
+                        (s for s in config.strategies if s.name == strategy), None
+                    )
+                    if strategy_obj:
+                        level_guidance = strategy_obj.level_guidance
+                except Exception:
+                    pass
 
                 # Build signal descriptions from active signals
                 signal_descriptions = None
@@ -160,6 +181,7 @@ class QuestionGenerationStage(TurnStage):
                     focus_node_level=focus_node_level,
                     signals=context.signals,
                     signal_descriptions=signal_descriptions or None,
+                    level_guidance=level_guidance,
                 )
         else:
             next_question = "Thank you for sharing your thoughts with me today. This has been very helpful."

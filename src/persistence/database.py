@@ -101,6 +101,36 @@ async def _apply_schema(db: aiosqlite.Connection) -> None:
             error=str(e),
         )
 
+    # Add kg_rejected_edges table (May 2026 — Stage 4.5B diagnostics)
+    try:
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS kg_rejected_edges (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                turn_number INTEGER NOT NULL,
+                source_node_id TEXT NOT NULL,
+                target_node_id TEXT NOT NULL,
+                rejection_reason TEXT NOT NULL,
+                reasoning_summary TEXT NOT NULL DEFAULT '',
+                recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+            """
+        )
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_kg_rejected_edges_session ON kg_rejected_edges(session_id)"
+        )
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_kg_rejected_edges_turn ON kg_rejected_edges(session_id, turn_number)"
+        )
+        log.info("migration_applied", migration="add_kg_rejected_edges")
+    except Exception as e:
+        log.warning(
+            "migration_skipped",
+            migration="add_kg_rejected_edges",
+            error=str(e),
+        )
+
     await db.commit()
 
 

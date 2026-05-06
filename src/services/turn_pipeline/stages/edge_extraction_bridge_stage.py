@@ -129,8 +129,9 @@ class EdgeExtractionBridgeStage(TurnStage):
                     try:
                         kg_edge = await self._graph._add_edge_from_relationship(
                             session_id=session_id,
-                            relationship=edge,  # ConfirmedEdge overload (D5/B6)
+                            relationship=edge,
                             methodology=methodology,
+                            turn_number=turn_number,
                         )
                         if kg_edge is not None:
                             edges_added.append(kg_edge)

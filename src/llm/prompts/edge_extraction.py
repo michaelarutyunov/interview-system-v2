@@ -37,8 +37,6 @@ from src.domain.models.edge_extraction import (
 _XML_OUTPUT_SCHEMA = """<edge_analysis>
   <candidate pair="source_id,target_id">
     <evidence>Verbatim text from the utterance that supports or refutes the relationship</evidence>
-    <reasoning>Your chain-of-thought: what the evidence shows, whether direction is clear, whether
-the interviewer's question supplied the causal frame rather than the respondent</reasoning>
     <verdict>confirmed</verdict>
     <edge_type>methodology_edge_type</edge_type>
     <source>source_id</source>
@@ -46,11 +44,11 @@ the interviewer's question supplied the causal frame rather than the respondent<
     <confidence>high</confidence>
     <supporting_span>[start_char, end_char]</supporting_span>
     <utterance_id>utt_xxx</utterance_id>
+    <reasoning assertion="explicit" direction="clear" frame="respondent"/>
   </candidate>
 
   <candidate pair="source_id,target_id">
     <evidence>Verbatim text from the utterance</evidence>
-    <reasoning>Why the relationship is not supported: no evidence, frame contamination, etc.</reasoning>
     <verdict>rejected</verdict>
     <rejection_reason>insufficient_evidence</rejection_reason>
   </candidate>
@@ -129,18 +127,27 @@ relationship exists. You must:
 
 1. **Examine the evidence** -- find the specific transcript span that supports or refutes
    the relationship.
-2. **Reason step by step** -- is the relationship explicit or implied? Is the direction
-   clear? Did the respondent assert it, or did the interviewer's question supply the frame?
-3. **Reach a verdict** -- confirm the edge with type and confidence, or reject it with a
-   standardised reason code.
-4. **Assign confidence** -- calibrate based on evidence quality:
-   - **high**: Relationship explicitly stated by respondent; direction unambiguous;
-     no frame contamination
-   - **medium**: Relationship implied or inferred; direction clear; minor frame
-     influence possible
-   - **low**: Relationship inferred across turns; direction uncertain; or frame
-     contamination detected but edge retained
+2. **Reach a verdict** -- confirm the edge with type, confidence, and structured reasoning,
+   or reject it with a standardised reason code (no reasoning needed for rejections).
+3. **For confirmed edges, classify the reasoning** along three axes:
+   - **assertion**: How the respondent asserted the relationship
+     - `explicit` — directly stated by respondent
+     - `implicit` — strongly implied or inferred from respondent's language
+     - `inferred` — deduced across turns, or from weak signals
+   - **direction**: Whether the causal direction is unambiguous
+     - `clear` — source→target is the only plausible direction
+     - `uncertain` — relationship could flow either way
+   - **frame**: Whether the interviewer's question supplied the causal frame
+     - `respondent` — respondent asserted the relationship independently
+     - `minor_influence` — slight interviewer framing present, but respondent confirmed
+     - `contaminated` — interviewer supplied the causal frame (use confidence=low or reject)
+4. **Assign confidence** -- derived from the three axes above:
+   - **high**: assertion=explicit, direction=clear, frame=respondent
+   - **medium**: assertion=implicit or direction=uncertain or frame=minor_influence
+   - **low**: assertion=inferred or direction=uncertain or frame=contaminated
 
+**For rejected candidates**, only the rejection_reason code is required — no reasoning
+element is needed. The 5-code taxonomy captures the rationale:
 {_REJECTION_TAXONOMY_TEXT}
 
 ## Universal Principles:
@@ -168,16 +175,21 @@ Return valid XML with this exact structure:
 {_XML_OUTPUT_SCHEMA}
 
 Rules:
-- Every candidate pair in the input MUST appear as a <candidate> element
+- Each candidate pair listed in the input MUST appear as a <candidate> element
 - For **confirmed** edges: include <edge_type>, <source>, <target>, <confidence>,
-  <supporting_span>, and <utterance_id>
+  <supporting_span>, <utterance_id>, and <reasoning> with the three axis attributes
 - For **rejected** candidates: include <rejection_reason> with one of the 5
-  standardised codes
-- <evidence> must be verbatim text from the utterances
-- <reasoning> must be 2-5 sentences explaining your analysis
+  standardised codes. Do NOT include a <reasoning> element — the code suffices.
+- <evidence> for confirmed edges: a short key phrase (3-8 words) from the utterance
+  that best captures the relationship. For rejected edges: brief note or "none".
+  Do NOT copy long verbatim passages — the span reference is sufficient.
 - <confidence> must be one of: high, medium, low
 - <supporting_span> is a character offset range like [0, 104]
 - <utterance_id> must match an utterance ID from the input
+- <reasoning> attributes: assertion ∈ {{explicit, implicit, inferred}}, direction ∈ {{clear, uncertain}}, frame ∈ {{respondent, minor_influence, contaminated}}
+- **Critical**: If no utterance text is provided in the input, reject ALL candidate pairs
+  with `insufficient_evidence`. Produce only valid XML — do NOT write explanatory prose
+  outside the XML tags. The output must start with `<edge_analysis>`.
 
 If no candidate pairs are provided in the input, return:
 ```xml
@@ -190,13 +202,15 @@ If no candidate pairs are provided in the input, return:
 def get_edge_extraction_user_prompt(
     utterances_text: str = "",
     candidate_nodes_text: str = "",
+    candidate_pairs_text: str = "",
     existing_edges_text: str = "",
 ) -> str:
     """Get user prompt for edge extraction with turn-specific input.
 
     Args:
         utterances_text: Formatted utterances section
-        candidate_nodes_text: Candidate node list with tags
+        candidate_nodes_text: Candidate node list with tags (for node reference)
+        candidate_pairs_text: Specific candidate pairs to evaluate
         existing_edges_text: Existing edges on the focus node
 
     Returns:
@@ -210,6 +224,9 @@ def get_edge_extraction_user_prompt(
     if candidate_nodes_text:
         parts.append(candidate_nodes_text)
 
+    if candidate_pairs_text:
+        parts.append(candidate_pairs_text)
+
     if existing_edges_text:
         parts.append(existing_edges_text)
 
@@ -217,10 +234,17 @@ def get_edge_extraction_user_prompt(
         return "No candidate pairs to evaluate."
 
     prompt = "\n\n".join(parts)
-    prompt += (
-        "\n\nEvaluate each candidate node pair and return your analysis "
-        "in the XML format specified."
-    )
+    if candidate_pairs_text:
+        prompt += (
+            "\n\nEvaluate each candidate pair listed above and return your analysis "
+            "in the XML format specified. Only evaluate the pairs listed — do not "
+            "invent additional pairs."
+        )
+    else:
+        prompt += (
+            "\n\nEvaluate each candidate node pair and return your analysis "
+            "in the XML format specified."
+        )
 
     return prompt
 
@@ -274,6 +298,24 @@ def format_candidate_node_for_edge_extraction(
     elif turn is not None:
         parts.append(f"(t={turn})")
     return " ".join(parts)
+
+
+def format_candidate_pair_for_edge_extraction(
+    source_id: str,
+    source_type: str,
+    target_id: str,
+    target_type: str,
+) -> str:
+    """Format a candidate node pair for the edge extraction prompt.
+
+    Node labels are intentionally omitted — they are already present in the
+    Candidate Nodes section above, and repeating them per-pair causes O(n*m)
+    prompt bloat when nodes appear in multiple pairs.
+    """
+    return (
+        f"  - pair=\"{source_id},{target_id}\""
+        f"  ({source_type} -> {target_type})"
+    )
 
 
 def format_existing_edge_for_prompt(
@@ -409,7 +451,40 @@ def _parse_confirmed_candidate(
     confidence_raw = _required_text("confidence")
     supporting_span_raw = _required_text("supporting_span")
     utterance_id = _required_text("utterance_id")
-    reasoning_summary = _required_text("reasoning")
+
+    # Parse structured reasoning: <reasoning assertion="..." direction="..." frame="..."/>
+    # Backward compat: if reasoning has text content (old format), use it as-is.
+    reasoning_el = candidate.find("reasoning")
+    assertion: Optional[str] = None
+    direction: Optional[str] = None
+    frame: Optional[str] = None
+    reasoning_summary = ""
+
+    if reasoning_el is not None:
+        # New format: structured attributes
+        raw_assertion = reasoning_el.get("assertion")
+        raw_direction = reasoning_el.get("direction")
+        raw_frame = reasoning_el.get("frame")
+
+        if raw_assertion and raw_direction and raw_frame:
+            assertion = raw_assertion.strip()
+            direction = raw_direction.strip()
+            frame = raw_frame.strip()
+            reasoning_summary = (
+                f"assertion={assertion}, direction={direction}, frame={frame}"
+            )
+        elif reasoning_el.text and reasoning_el.text.strip():
+            # Old format: free-text reasoning
+            reasoning_summary = reasoning_el.text.strip()
+        else:
+            raise ValueError(
+                f"<reasoning> in confirmed candidate pair='{pair_attr}' "
+                f"must have assertion/direction/frame attributes or text content"
+            )
+    else:
+        raise ValueError(
+            f"Missing required <reasoning> in confirmed candidate pair='{pair_attr}'"
+        )
 
     # Validate confidence
     valid_confidence: set[str] = {"high", "medium", "low"}
@@ -446,6 +521,9 @@ def _parse_confirmed_candidate(
         supporting_span=supporting_span,
         utterance_id=utterance_id,
         reasoning_summary=reasoning_summary,
+        assertion=assertion,
+        direction=direction,
+        frame=frame,
     )
 
 

@@ -386,9 +386,9 @@ class TestListConcepts:
     def test_parses_concept_list(self):
         data = [
             ConceptListItem(
-                id="glp1_food_mec",
-                name="GLP-1 Food Choices",
-                methodology="means_end_chain",
+                id="zerofizz_beverage_mec",
+                name="ZeroFizz Sugar-Free Carbonated Beverage - Means-End Chain",
+                methodology="means_end_chain_v2_strict",
                 element_count=12,
             ).model_dump(mode="json")
         ]
@@ -402,9 +402,12 @@ class TestListConcepts:
             result = _client().list_concepts()
 
         assert len(result) == 1
-        assert result[0]["id"] == "glp1_food_mec"
-        assert result[0]["name"] == "GLP-1 Food Choices"
-        assert result[0]["methodology"] == "means_end_chain"
+        assert result[0]["id"] == "zerofizz_beverage_mec"
+        assert (
+            result[0]["name"]
+            == "ZeroFizz Sugar-Free Carbonated Beverage - Means-End Chain"
+        )
+        assert result[0]["methodology"] == "means_end_chain_v2_strict"
         assert result[0]["element_count"] == 12
 
 

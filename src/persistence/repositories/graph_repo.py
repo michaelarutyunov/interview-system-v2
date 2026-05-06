@@ -401,6 +401,55 @@ class GraphRepository:
 
         return [self._row_to_edge(row) for row in rows]
 
+    async def create_rejected_edges_batch(
+        self,
+        session_id: str,
+        turn_number: int,
+        rejected: list,  # RejectedEdgeCandidate
+    ) -> None:
+        """Persist rejected edge candidates for per-turn diagnostics."""
+        if not rejected:
+            return
+        from uuid import uuid4
+        from datetime import datetime
+
+        now = datetime.now().isoformat()
+        rows = [
+            (
+                str(uuid4()),
+                session_id,
+                turn_number,
+                c.source_node_id,
+                c.target_node_id,
+                c.rejection_reason,
+                c.reasoning_summary,
+                now,
+            )
+            for c in rejected
+        ]
+        await self.db.executemany(
+            """INSERT INTO kg_rejected_edges (
+                id, session_id, turn_number, source_node_id, target_node_id,
+                rejection_reason, reasoning_summary, recorded_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            rows,
+        )
+        await self.db.commit()
+
+    async def get_rejected_edges_by_session(
+        self, session_id: str
+    ) -> list[dict]:
+        """Get all rejected edge candidates for a session, ordered by turn."""
+        self.db.row_factory = aiosqlite.Row
+        cursor = await self.db.execute(
+            """SELECT * FROM kg_rejected_edges
+               WHERE session_id = ?
+               ORDER BY turn_number, recorded_at""",
+            (session_id,),
+        )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
     async def find_edge(
         self,
         session_id: str,

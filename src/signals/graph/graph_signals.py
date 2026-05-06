@@ -75,6 +75,38 @@ class OrphanCountSignal(SignalDetector):
         return {self.signal_name: graph_state.orphan_count}
 
 
+class OrphanRatioSignal(SignalDetector):
+    """Ratio of orphaned nodes to total nodes in the graph.
+
+    Namespaced signal: convgraph.state.node.orphan_ratio
+
+    Returns a float in [0.0, 1.0] where 1.0 means all nodes are orphans
+    (typical in opening turns) and 0.0 means no orphans. Threshold-binned
+    via the standard mechanism:
+      - .high (>= 0.75): acute orphan crisis — opening turns or severe drift
+      - .mid  (0.25–0.75): moderate orphan accumulation — mid-interview drift
+      - .low  (<= 0.25): healthy connectivity — few isolated nodes
+
+    Safe for use in signal_weights because the return value is normalized.
+    Unlike ``orphan_count`` (unbounded int), this ratio can be threshold-binned
+    via .high/.mid/.low and multiplied by weights without dominating scoring.
+    """
+
+    signal_name = "convgraph.state.node.orphan_ratio"
+    description = (
+        "Fraction of graph nodes that are orphans (no edges). "
+        "0.0 = fully connected, 1.0 = all isolated. "
+        "Normalized from orphan_count / node_count for safe weight multiplication."
+    )
+    dependencies = []
+
+    async def detect(self, context, graph_state, response_text):
+        """Return orphan ratio as float [0,1]."""
+        total = max(graph_state.node_count, 1)
+        ratio = graph_state.orphan_count / total
+        return {self.signal_name: ratio}
+
+
 # =============================================================================
 # Depth Signals (from depth.py)
 # =============================================================================
@@ -425,6 +457,7 @@ __all__ = [
     "GraphNodeCountSignal",
     "GraphEdgeCountSignal",
     "OrphanCountSignal",
+    "OrphanRatioSignal",
     # Depth
     "GraphMaxDepthSignal",
     # Chain completion

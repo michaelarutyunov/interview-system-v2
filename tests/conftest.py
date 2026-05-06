@@ -109,7 +109,6 @@ def mock_extraction_result():
                 confidence=0.9,
             )
         ],
-        relationships=[],
         discourse_markers=[],
         is_extractable=True,
     )

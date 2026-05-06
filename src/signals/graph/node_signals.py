@@ -611,10 +611,11 @@ class NodeCanonicalNoveltySignal(NodeSignalDetector):
         current_turn = context.turn_number
         results: dict[str, str] = {}
 
-        for node_id in self._get_all_node_states():
-            if node_id not in slot_first_seen:
+        for node_id, state in self._get_all_node_states().items():
+            slot_id = state.slot_id
+            if slot_id is None or slot_id not in slot_first_seen:
                 results[node_id] = "orphan"
-            elif slot_first_seen[node_id] == current_turn:
+            elif slot_first_seen[slot_id] == current_turn:
                 results[node_id] = "new"
             else:
                 results[node_id] = "confirming"

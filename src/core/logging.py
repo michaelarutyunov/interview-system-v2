@@ -113,6 +113,11 @@ def configure_logging(log_sessions_to_keep: int = 20) -> None:
     min_level = logging.DEBUG if settings.debug else logging.INFO
     root_logger.setLevel(min_level)
 
+    # Suppress noisy third-party debug logging
+    logging.getLogger("aiosqlite").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+
     structlog.configure(
         processors=processors,
         wrapper_class=structlog.make_filtering_bound_logger(min_level),

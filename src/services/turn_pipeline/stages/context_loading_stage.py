@@ -146,7 +146,7 @@ class ContextLoadingStage(TurnStage):
             limit: Max utterances to return
 
         Returns:
-            List of {"speaker": str, "text": str, "sentiment": float|None} dicts
+            List of {"speaker": str, "text": str, "turn_number": int, "id": str, "sentiment": float|None} dicts
         """
         from src.persistence.database import get_db_connection
 
@@ -154,7 +154,7 @@ class ContextLoadingStage(TurnStage):
         try:
             cursor = await db.execute(
                 """
-                SELECT speaker, text, turn_number FROM utterances
+                SELECT speaker, text, turn_number, id FROM utterances
                 WHERE session_id = ?
                 ORDER BY turn_number DESC, created_at DESC
                 LIMIT ?
@@ -174,6 +174,7 @@ class ContextLoadingStage(TurnStage):
                         "speaker": row[0],
                         "text": row[1],
                         "turn_number": row[2],
+                        "id": row[3],
                         "sentiment": None,
                     }
                     for row in rows

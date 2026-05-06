@@ -246,6 +246,7 @@ class GraphService:
         session_id: str,
         relationship: ConfirmedEdge,
         methodology: Optional[str] = None,
+        turn_number: Optional[int] = None,
     ) -> Optional[KGEdge]:
         """
         Create edge from confirmed edge (Stage 4.5B).
@@ -356,6 +357,17 @@ class GraphService:
                 existing.id, provenance_utterance_id
             )
 
+        # Build edge properties from structured reasoning attributes (May 2026)
+        edge_properties: dict[str, object] = {}
+        if turn_number is not None:
+            edge_properties["turn_number"] = turn_number
+        if relationship.assertion:
+            edge_properties["assertion"] = relationship.assertion
+        if relationship.direction:
+            edge_properties["direction"] = relationship.direction
+        if relationship.frame:
+            edge_properties["frame"] = relationship.frame
+
         # Create new edge
         return await self.repo.create_edge(
             session_id=session_id,
@@ -363,6 +375,7 @@ class GraphService:
             target_node_id=target_node.id,
             edge_type=edge_type,
             confidence=confidence,
+            properties=edge_properties or None,
             source_utterance_ids=[provenance_utterance_id],
         )
 

@@ -57,15 +57,15 @@ async def test_pipeline_critical_path_minimal(session_repo, graph_repo, utteranc
     now = datetime.now(timezone.utc)
     session = Session(
         id=session_id,
-        methodology="means_end_chain",
-        concept_id="glp1_food_mec",
-        concept_name="GLP1 Food",
+        methodology="means_end_chain_v2_strict",
+        concept_id="zerofizz_beverage_mec",
+        concept_name="ZeroFizz Sugar-Free Carbonated Beverage - Means-End Chain",
         created_at=now,
         updated_at=now,
         state=SessionState(
-            methodology="means_end_chain",
-            concept_id="glp1_food_mec",
-            concept_name="GLP1 Food",
+            methodology="means_end_chain_v2_strict",
+            concept_id="zerofizz_beverage_mec",
+            concept_name="ZeroFizz Sugar-Free Carbonated Beverage - Means-End Chain",
             turn_count=0,
             mode=InterviewMode.EXPLORATORY,
         ),
@@ -108,7 +108,6 @@ async def test_pipeline_critical_path_minimal(session_repo, graph_repo, utteranc
 
         mock_extract.return_value = ExtractionResult(
             concepts=[],
-            relationships=[],
             discourse_markers=[],
             is_extractable=True,
         )
@@ -120,14 +119,14 @@ async def test_pipeline_critical_path_minimal(session_repo, graph_repo, utteranc
 
     # Verify context was populated
     assert context.session_id == session_id
-    assert context.methodology == "means_end_chain"
-    assert context.concept_id == "glp1_food_mec"
+    assert context.methodology == "means_end_chain_v2_strict"
+    assert context.concept_id == "zerofizz_beverage_mec"
     assert context.turn_number == 1
 
     # Verify extraction was called with methodology
     mock_extract.assert_called_once()
     call_args = mock_extract.call_args
-    assert call_args[1]["methodology"] == "means_end_chain"
+    assert call_args[1]["methodology"] == "means_end_chain_v2_strict"
 
 
 @pytest.mark.asyncio

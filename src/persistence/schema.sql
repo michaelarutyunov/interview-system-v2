@@ -164,6 +164,30 @@ CREATE INDEX IF NOT EXISTS idx_kg_edges_source ON kg_edges(source_node_id);
 CREATE INDEX IF NOT EXISTS idx_kg_edges_target ON kg_edges(target_node_id);
 
 -- =============================================================================
+-- Rejected Edge Candidates (Stage 4.5B diagnostics)
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS kg_rejected_edges (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    turn_number INTEGER NOT NULL,
+
+    -- Candidate pair (no FK — nodes may not exist for invalid pairs)
+    source_node_id TEXT NOT NULL,
+    target_node_id TEXT NOT NULL,
+
+    -- Rejection metadata
+    rejection_reason TEXT NOT NULL,
+    reasoning_summary TEXT NOT NULL DEFAULT '',
+
+    -- Temporal
+    recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_kg_rejected_edges_session ON kg_rejected_edges(session_id);
+CREATE INDEX IF NOT EXISTS idx_kg_rejected_edges_turn ON kg_rejected_edges(session_id, turn_number);
+
+-- =============================================================================
 -- Canonical Slots (Dual-Graph Architecture - Phase 2)
 -- =============================================================================
 

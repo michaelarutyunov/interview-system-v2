@@ -52,6 +52,10 @@ class ConfirmedEdge(BaseModel):
 
     Represents a single directed relationship between two graph nodes,
     grounded in transcript evidence via supporting_span.
+
+    Reasoning is captured as structured axes (assertion, direction, frame)
+    rather than free-form prose, reducing output token consumption by ~75%.
+    Confidence is derivable from these three axes per the prompt specification.
     """
 
     source_node_id: str = Field(description="Source graph node ID (post-dedup)")
@@ -69,7 +73,20 @@ class ConfirmedEdge(BaseModel):
         description="ID of the utterance containing the supporting evidence"
     )
     reasoning_summary: str = Field(
-        description="Condensed reasoning from the LLM's chain-of-thought analysis"
+        default="",
+        description="Human-readable summary derived from structured reasoning axes",
+    )
+    assertion: Literal["explicit", "implicit", "inferred"] | None = Field(
+        default=None,
+        description="How the respondent asserted the relationship: explicit (directly stated), implicit (strongly implied), inferred (across turns or weakly)"
+    )
+    direction: Literal["clear", "uncertain"] | None = Field(
+        default=None,
+        description="Whether the causal direction is unambiguous"
+    )
+    frame: Literal["respondent", "minor_influence", "contaminated"] | None = Field(
+        default=None,
+        description="Frame contamination: respondent (self-asserted), minor_influence (slight interviewer framing), contaminated (interviewer supplied the causal frame)"
     )
 
 
@@ -78,6 +95,10 @@ class RejectedEdgeCandidate(BaseModel):
 
     Retained for audit logging and observability. Rejected candidates are not
     written to the knowledge graph but are surfaced via structured logging.
+
+    Reasoning is omitted for rejected candidates — the rejection_reason taxonomy
+    code (one of 5 standard codes) captures the rationale. This reduces output
+    tokens by ~50% since ~80% of candidate pairs are typically rejected.
     """
 
     source_node_id: str = Field(description="Source graph node ID (post-dedup)")
@@ -90,7 +111,8 @@ class RejectedEdgeCandidate(BaseModel):
         )
     )
     reasoning_summary: str = Field(
-        description="Condensed reasoning from the LLM explaining why the edge was rejected"
+        default="",
+        description="Optional reasoning from the LLM (empty for structured-format responses)",
     )
 
 

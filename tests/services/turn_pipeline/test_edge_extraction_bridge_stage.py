@@ -1,7 +1,7 @@
 """Tests for EdgeExtractionBridgeStage (B5)."""
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -16,7 +16,9 @@ from src.services.turn_pipeline.stages.edge_extraction_bridge_stage import (
 )
 
 
-def make_context(session_id="test-session", turn_number=2, methodology="means_end_chain_v2_strict"):
+def make_context(
+    session_id="test-session", turn_number=2, methodology="means_end_chain_v2_strict"
+):
     """Create a minimal PipelineContext with required fields."""
     ctx = PipelineContext(session_id=session_id, user_input="test input")
     ctx.context_loading_output = MagicMock()
