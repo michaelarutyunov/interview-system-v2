@@ -6,7 +6,7 @@
 `NodeStateTracker` maintains per-node state **in memory** across a single turn, persisted to DB as JSON in `sessions.node_tracker_state` at the end of each turn.
 
 - **Loaded**: Stage 1 (`ContextLoadingStage`) via `from_dict()`
-- **Updated**: Stages 5 and 8 (see method table below)
+- **Updated**: Stages 4, 4.5, 4.6, 4.7, 6 (see method table below)
 - **Saved**: Stage 10 (`ScoringPersistenceStage`) via `to_dict()`
 
 Changes made after Stage 10 are lost; changes made before Stage 1 in the next turn are not visible.
@@ -64,7 +64,7 @@ Stage 9:  ResponseSavingStage
 Stage 10: ScoringPersistenceStage      ← to_dict() saves tracker
 ```
 
-**Critical ordering fact**: Stage 4 (`record_yield`) runs BEFORE Stage 6 (signal detection + `update_focus`). Any mutation in Stage 4 is visible to signals in Stage 6 within the same turn.
+**Critical ordering fact**: Stage 4.6 (`record_yield`) runs BEFORE Stage 6 (signal detection + `update_focus`). Any mutation in Stage 4.6 is visible to signals in Stage 6 within the same turn.
 
 ### Per-Turn State Flow (Example: Same Focus node_A)
 
@@ -74,17 +74,17 @@ Turn N begins (state from Stage 10 of Turn N-1):
   turns_since_last_yield = 3
   previous_focus = "node_A"
 
-  STAGE 5 — record_yield("node_A"):
+  STAGE 4.6 — record_yield("node_A"):
     turns_since_last_yield = 0      ← reset by yield
     yield_count += 1
     yield_rate recalculated
     current_focus_streak = 2        ← UNCHANGED (not reset here)
 
-  STAGE 8 — signal detection reads:
+  STAGE 6 — signal detection reads:
     current_focus_streak = 2        ← correct accumulated value
     turns_since_last_yield = 0      ← fresh yield this turn
 
-  STAGE 8 — update_focus("node_A"):
+  STAGE 6 — update_focus("node_A"):
     focus_count += 1
     current_focus_streak = 3        ← incremented (same focus)
     turns_since_last_yield += 1     ← ticked for ALL nodes → = 1
@@ -152,9 +152,7 @@ When `enable_canonical_slots=True`, surface nodes may be mapped to canonical slo
 
 6. **New nodes must be registered before focus or yield**: `register_node()` must run (Stage 4) before `update_focus()` or `record_yield()` attempt to access that node. If a node is not in `self.states`, both methods log a warning and return without error.
 
-7. **`record_yield` is conditional**: No yield is recorded if `graph_changes.nodes_added == 0 and edges_added == 0 and nodes_modified == 0`. This prevents spurious yield credit on turns with no graph mutations.
-
-8. **`NodeStateTracker` is strategy-agnostic**: The tracker records which strategy was used (`strategy_usage_count`, `last_strategy_used`, `consecutive_same_strategy`) but does not know about chain topology strategies (ascend/ground/bridge/branch/anchor) vs legacy strategies. No changes to this subsystem were needed for Phase 2 chain-aware strategy selection.
+7. **`NodeStateTracker` is strategy-agnostic**: The tracker records which strategy was used (`strategy_usage_count`, `last_strategy_used`, `consecutive_same_strategy`) but does not know about chain topology strategies (ascend/ground/bridge/branch/anchor) vs legacy strategies. No changes to this subsystem were needed for Phase 2 chain-aware strategy selection.
 
 9. **Slot membership registration at Stage 4.5**: `register_node()` stores entries under surface `node.id` (UUID) because canonical slot mappings don't exist yet at Stage 4. After Stage 4.5 (`SlotDiscoveryStage`) creates the mappings, `register_slot_memberships()` must run to set `NodeState.slot_id` on each mapped surface entry. The tracker keyspace is not altered — no entries are added, removed, or re-keyed. Signal detectors that need slot-level aggregation use `surfaces_in_slot()` to collect surface states by slot.
 

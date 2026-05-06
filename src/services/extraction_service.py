@@ -1,13 +1,14 @@
 """
-Extraction service for concept and relationship extraction from user responses.
+Extraction service for concept extraction from user responses.
 
 This service implements the knowledge extraction pipeline using LLM-based analysis
 with methodology-specific schema validation. Extracted concepts are linked to
-canonical elements when concept_id is provided.
+canonical elements when concept_id is provided. Relationships are handled
+separately by EdgeExtractionPrefetchStage (Stage 4.5B).
 
 Pipeline:
 1. Fast extractability check (word count, yes/no detection, single word)
-2. LLM-based concept and relationship extraction
+2. LLM-based concept extraction
 3. Parse and validate results against methodology schema
 4. Return ExtractionResult with metadata and traceability
 
@@ -45,18 +46,18 @@ log = structlog.get_logger(__name__)
 
 class ExtractionService:
     """
-    Extract concepts and relationships from user responses using LLM and methodology schemas.
+    Extract concepts from user responses using LLM and methodology schemas.
 
     This service provides methodology-aware extraction with:
     - Fast extractability pre-filtering (heuristics for short responses)
-    - LLM-based concept and relationship extraction
+    - LLM-based concept extraction
     - Schema validation against methodology ontology
     - Element linking to canonical concepts when concept_id is provided
     - Traceability via source utterance IDs
 
     Domain concepts:
         - Concepts: Knowledge graph nodes with types, confidence, stance
-        - Relationships: Directed edges between concepts with reasoning
+        - Relationships: Handled by EdgeExtractionPrefetchStage (Stage 4.5B)
         - Extractability: Whether text contains sufficient information
         - Element linking: Mapping concepts to methodology-defined elements
     """
@@ -117,7 +118,7 @@ class ExtractionService:
         context: str = "",
         source_utterance_id: Optional[str] = None,
     ) -> ExtractionResult:
-        """Extract concepts and relationships from user response text.
+        """Extract concepts from user response text.
 
         Full pipeline:
         1. Fast heuristic check (word count, yes/no detection)

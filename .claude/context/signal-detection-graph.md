@@ -3,7 +3,7 @@
 
 ## Core Mechanics
 
-Graph and node signals are computed from in-memory state — no LLM calls, no DB queries (except `ChainCompletionSignal`, `ChainTopologySignalDetector`, and `GlobalChainTopologySignal` which each load nodes/edges once per detection pass). They run after Stage 7 (StateComputation) so graph_state and NodeStateTracker are fresh when signal detection occurs in Stage 8.
+Graph and node signals are computed from in-memory state — no LLM calls, no DB queries (except `ChainCompletionSignal`, `ChainTopologySignalDetector`, and `GlobalChainTopologySignal` which each load nodes/edges once per detection pass). They run after Stage 5 (StateComputation) so graph_state and NodeStateTracker are fresh when signal detection occurs in Stage 6.
 
 **Global graph signals** (`graph.*`) return a single value keyed by the signal name and are derived from `GraphState` metrics: node count, edge count, max depth, chain completion, canonical concept count, etc. A float value like `convgraph.state.max_depth = 0.6` is matched against YAML weight keys via threshold binning (`.low`, `.mid`, `.high`). A boolean like `convgraph.chain.completion.has_complete` is matched via `.true` / `.false`.
 

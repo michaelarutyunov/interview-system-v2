@@ -13,7 +13,7 @@ Invoke when work touches any of:
 
 ## Domain Knowledge
 
-### 1. The 14 Stages and Their Output Contracts
+### 1. The 16 Stages and Their Output Contracts
 
 `PipelineContext` (`src/services/turn_pipeline/context.py`) is a dataclass accumulator. Each stage writes a single Pydantic `BaseModel` from `src/domain/models/pipeline_contracts.py` to a dedicated field. Convenience properties on the context derive from those contracts; they raise `RuntimeError` when accessed before their producer has run.
 
@@ -36,7 +36,7 @@ Invoke when work touches any of:
 | 9 | `ResponseSavingStage` | `response_saving_output` | `ResponseSavingOutput` | `turn_number`, `system_utterance_id`, `system_utterance`, `question_text`, `timestamp` |
 | 10 | `ScoringPersistenceStage` | `scoring_persistence_output` | `ScoringPersistenceOutput` | `turn_number`, `strategy`, `depth_score`, `saturation_score`, `has_methodology_signals`, `timestamp`. Also: assembles `TurnResult`, writes `session.state.turn_count = turn_number`, persists `NodeStateTracker.to_dict()`, writes `FocusEntry`. |
 
-Note: Some doc tables (e.g. `node-state-tracker.md`) renumber the stages without the `.5`/`.7` substages so SlotDiscovery becomes 6 and ScoringPersistence becomes 12. The stage *ordering* is identical; the canonical numbering used here matches `pipeline_contracts.py` and includes the latency-optimized prefetch (3.1) and bridge (4.7) stages.
+The canonical half-numbered scheme used here matches `pipeline_contracts.py` and `session_service._build_pipeline()`.
 
 ### 2. PipelineContext Accumulator Pattern
 
@@ -83,8 +83,7 @@ Phase detection (`InterviewPhaseSignal` → `meta.interview.phase`) maps `turn_n
 | 4.6 | `record_yield(tracking_key, turn_number, graph_changes)` | Credit `previous_focus` with yield **unconditionally** (D4/B7, moved from Stage 4). Resets `turns_since_last_yield = 0`. Does NOT gate on `is_empty()` (fixed p4t3). |
 | 4.6 | `update_edge_counts_batch(edge_deltas)` | Batch-update edge counts for Stage 4.5B edges |
 | 6 | (signal detection reads tracker state) | `graph.node.focus_streak`, `graph.node.exhaustion_score`, etc. |
-| 6 | `update_focus(node_id, turn_number, strategy)` | Increment `focus_count`; set streak; tick `turns_since_last_yield += 1` for **ALL** nodes |
-| 6 | `append_response_signal(focus_node_id, response_depth)` | Append depth label to previous focus node |
+| 6 | `update_focus(tracking_key, turn_number, strategy)` | Increment `focus_count`; set streak; tick `turns_since_last_yield += 1` for **ALL** nodes |
 | 10 | `to_dict()` → save to `sessions.node_tracker_state` | Persist tracker. **Mutations after Stage 10 are lost.** |
 
 ### 7. TurnResult Assembly

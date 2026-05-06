@@ -364,9 +364,9 @@ class SlotDiscoveryOutput(BaseModel):
 
 
 class QuestionGenerationOutput(BaseModel):
-    """Contract: QuestionGenerationStage output (Stage 7).
+    """Contract: QuestionGenerationStage output (Stage 8).
 
-    Stage 7 generates the next interview question based on selected
+    Stage 8 generates the next interview question based on selected
     strategy and focus, using template-based generation with LLM fallback.
     """
 
@@ -385,9 +385,9 @@ class QuestionGenerationOutput(BaseModel):
 
 
 class ResponseSavingOutput(BaseModel):
-    """Contract: ResponseSavingStage output (Stage 8).
+    """Contract: ResponseSavingStage output (Stage 9).
 
-    Stage 8 persists the generated question as a system utterance to
+    Stage 9 persists the generated question as a system utterance to
     the database.
     """
 
@@ -402,9 +402,9 @@ class ResponseSavingOutput(BaseModel):
 
 
 class ContinuationOutput(BaseModel):
-    """Contract: ContinuationStage output (Stage 9).
+    """Contract: ContinuationStage output (Stage 7).
 
-    Stage 9 determines whether the interview should continue based on
+    Stage 7 determines whether the interview should continue based on
     turn count, saturation, and other signals.
     """
 

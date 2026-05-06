@@ -7,9 +7,10 @@ How the knowledge graph evolves through sequential stages each turn, including n
 
 ```mermaid
 graph LR
-    A[ExtractionStage] -->|concepts + relationships| B[GraphUpdateStage]
+    A[ExtractionStage] -->|concepts| B[GraphUpdateStage]
     B -->|nodes/edges written to DB| C[(SQLite: nodes + edges tables)]
-    B -->|register_node, record_yield| D[NodeStateTracker]
+    B -->|register_node| D[NodeStateTracker]
+    F -->|record_yield (Stage 4.6)| D
     C -->|DB read| E[StateComputationStage]
     E -->|fresh graph_state| F[context.graph_state]
     F -->|read| G[StrategySelectionStage]
@@ -18,7 +19,7 @@ graph LR
 
 ### Stage 3: ExtractionStage
 
-LLM extracts `concepts` (nodes) and `relationships` (edges) from the user utterance. Each extracted item carries `source_utterance_id` linking it back to the utterance that produced it (traceability chain).
+LLM extracts `concepts` (nodes) from the user utterance. Each extracted concept carries `source_utterance_id` linking it back to the utterance that produced it (traceability chain). Relationships are handled by EdgeExtractionPrefetchStage (Stage 4.5B).
 
 ### Stage 4: GraphUpdateStage
 
@@ -46,16 +47,18 @@ When `_add_edge_from_relationship()` encounters `relationship_type == "revises"`
 
 After both source and target nodes are resolved, `_add_edge_from_relationship()` validates the edge against the methodology's `permitted_connections` schema when `methodology` parameter is provided. This validation uses the **post-dedup node types** (actual KGNode types after semantic merge), not the LLM-assigned types from extraction. This catches cross-turn edges that bypass extraction-time validation (which only checks current-turn concepts). Invalid edges are rejected with `invalid_connection_post_dedup` log. The `revises` edge type is always permitted (wildcard `["*", "*"]` in schema). Validation is skipped when `methodology=None` for backward compatibility.
 
-**ConfirmedEdge overload (B6, May 2026):** `_add_edge_from_relationship()` accepts `Union[ExtractedRelationship, ConfirmedEdge]`. The `ConfirmedEdge` path skips the `label_to_node` lookup (node IDs are already resolved by Stage 4.5B) and fetches nodes from the repo by ID. The `utterance_id` comes from `ConfirmedEdge.utterance_id` (the evidence-grounding utterance), not the turn-current utterance. Both paths hit the same post-dedup `is_valid_connection` check — this remains the single enforcement point for `permitted_connections`.
+**ConfirmedEdge (B11, May 2026):** `_add_edge_from_relationship()` accepts `ConfirmedEdge` from Stage 4.5B edge extraction. The `ConfirmedEdge` path skips the `label_to_node` lookup (node IDs are already resolved by Stage 4.5B) and fetches nodes from the repo by ID. The `utterance_id` comes from `ConfirmedEdge.utterance_id` (the evidence-grounding utterance), not the turn-current utterance. Post-dedup `is_valid_connection` check remains the single enforcement point for `permitted_connections`.
 
 #### NodeStateTracker updates
 
 After DB writes, updates `NodeStateTracker`:
 - `register_node()` — initializes `NodeState` for newly added nodes
 - `update_edge_counts()` — updates relationship metrics on affected nodes
-- `record_yield()` — credits `previous_focus` node with graph changes this turn
 
-Sets `context.nodes_added` and `context.edges_added` for downstream stages.
+`record_yield()` runs in Stage 4.6 (EdgeExtractionBridgeStage), not here — it credits
+`previous_focus` with yield unconditionally after Stage 4.5B edges are persisted.
+
+Sets `context.nodes_added` for downstream stages.
 
 ### Stage 5: StateComputationStage
 
@@ -86,7 +89,7 @@ Any state written by Stage 4 is visible to signal detectors in Stage 6/8 within 
 1. **StateComputationStage must run after GraphUpdateStage** — `graph_state` is stale if this ordering is violated.
 2. **No in-memory shortcut between GraphUpdate and StateComputation** — GraphUpdate writes to SQLite; StateComputation reads from SQLite. Bypassing the DB write/read cycle breaks the freshness guarantee.
 3. **Empty extraction must still trigger StateComputation** — even if no concepts were extracted, `graph_state` must be recomputed.
-4. **NodeStateTracker updates happen in Stage 4, not Stage 6/8** — `register_node()` and `record_yield()` run in GraphUpdateStage. Signal detectors read the state mutated by Stage 4.
+4. **NodeStateTracker updates happen in Stage 4 and 4.6, not Stage 6/8** — `register_node()` runs in GraphUpdateStage (Stage 4). `record_yield()` runs in EdgeExtractionBridgeStage (Stage 4.6). Signal detectors read the state mutated by both stages.
 5. **Surface deduplication merges nodes with same `node_type` only** — merging nodes of different types (e.g., an `attribute` node into a `value` node) corrupts the ontology.
 6. **Embedding required for semantic dedup** — if `embedding_service` is `None`, only exact-match dedup runs. Nodes without embeddings silently skip Step 2 and always create new nodes.
 7. **`surface_similarity_threshold = 0.80` is intentionally high** — the surface graph preserves language variation. A lower threshold would collapse distinct phrasings into one node prematurely.

@@ -1,7 +1,7 @@
 # Extraction Specialist
 
 ## Role
-Owns LLM-based concept and relationship extraction from user utterances — including prompt architecture, methodology-specific extraction guidelines, SRL preprocessing integration, and the ExtractionResult → GraphUpdateStage contract.
+Owns LLM-based concept extraction from user utterances — including prompt architecture, methodology-specific extraction guidelines, SRL preprocessing integration, and the ExtractionResult → GraphUpdateStage contract.
 
 ## Trigger Conditions
 Invoked when work touches any of:
@@ -9,7 +9,7 @@ Invoked when work touches any of:
 - `src/llm/prompts/extraction.py` — Stage 3 system/user prompt builders, response parser
 - `src/llm/prompts/edge_extraction.py` — Stage 4.5B edge extraction prompt (universal + methodology-specific)
 - `src/services/turn_pipeline/stages/extraction_stage.py` — Stage 3 wiring
-- `src/domain/models/extraction.py` — `ExtractedConcept`, `ExtractedRelationship` (legacy), `ExtractionResult`
+- `src/domain/models/extraction.py` — `ExtractedConcept`, `ExtractionResult`
 - `src/domain/models/edge_extraction.py` — `ConfirmedEdge`, `RejectedEdgeCandidate`, `EdgeExtractionOutput`
 - `src/services/turn_pipeline/stages/srl_preprocessing_stage.py` — Stage 2.5 SRL enrichment
 - `config/methodologies/*.yaml` — ontology (nodes, edges), extraction_guidelines, relationship_examples, concept_naming_convention
@@ -23,7 +23,6 @@ Invoked when work touches any of:
 
 **Key fields:**
 - `concepts: List[ExtractedConcept]` — extracted concepts with node types, confidence, source quotes, linked elements
-- `relationships: List[ExtractedRelationship]` — relationships with source/target texts, edge types, reasoning
 - `is_extractable: bool` — whether text contained sufficient content (false for short/yes/no responses)
 - `extractability_reason: Optional[str]` — explanation when `is_extractable=False`
 - `latency_ms: int` — extraction time for performance monitoring
@@ -32,10 +31,10 @@ Invoked when work touches any of:
 **Lifecycle:**
 1. User utterance → Stage 2 (UtteranceSavingStage) creates `user_utterance_id`
 2. Stage 2.5 (SRLPreprocessingStage, optional) enriches with discourse relations and SRL frames
-3. Stage 3 (ExtractionStage) produces `ExtractionResult` with `source_utterance_id` on all concepts/relationships
-4. Stage 4 (GraphUpdateStage) consumes `ExtractionResult`, performs deduplication, creates `KGNode` (nodes only — edges moved to Stage 4.5B).
+3. Stage 3 (ExtractionStage) produces `ExtractionResult` with `source_utterance_id` on all concepts
+4. Stage 4 (GraphUpdateStage) consumes `ExtractionResult`, performs deduplication, creates `KGNode` (nodes only — edges come from Stage 4.5B).
 
-**Stage 3 vs Stage 4.5B separation (April 2026):** Stage 3 produces nodes only. All edges (both within-turn and cross-turn) come from Stage 4.5B edge extraction, which uses a separate Haiku prompt (`src/llm/prompts/edge_extraction.py`). The edge extraction prompt: (a) receives post-dedup node IDs from GraphUpdateOutput, (b) assembles candidate pairs from FOCUS/CURRENT/NEIGHBOR/RECENT categories, (c) uses methodology-specific edge type definitions via `MethodologySchema` accessors, (d) produces XML output with confirmed/rejected candidates and a 5-code rejection taxonomy. The `ExtractionResult.relationships` field still exists for backward compat (flag OFF) but is removed in B11.
+**Stage 3 vs Stage 4.5B separation (B11, May 2026):** Stage 3 produces concepts (nodes) only. All edges come from Stage 4.5B edge extraction, which uses a separate Haiku prompt (`src/llm/prompts/edge_extraction.py`). The edge extraction prompt: (a) receives post-dedup node IDs from GraphUpdateOutput, (b) assembles candidate pairs from FOCUS/CURRENT/NEIGHBOR/RECENT categories, (c) uses methodology-specific edge type definitions via `MethodologySchema` accessors, (d) produces XML output with confirmed/rejected candidates and a 5-code rejection taxonomy.
 
 ### 2. ExtractedConcept Schema
 
@@ -57,21 +56,18 @@ Invoked when work touches any of:
 - Empty concepts (`text == ""`) are skipped.
 - `is_terminal` and `level` are enriched from `MethodologySchema` after node type validation.
 
-### 3. ExtractedRelationship Schema
+### 3. Edge Extraction (Stage 4.5B)
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `source_text` | str | Yes | Source concept label (resolved to node ID in GraphUpdateStage) |
-| `target_text` | str | Yes | Target concept label (resolved to node ID in GraphUpdateStage) |
-| `relationship_type` | str | Yes | Methodology-specific edge type (e.g., `leads_to`, `revises`). Validated against `MethodologySchema.is_valid_edge_type()`. |
-| `confidence` | float | Default 0.7 | LLM certainty in relationship (0.0-1.0) |
-| `reasoning` | Optional[str] | Default None | LLM explanation for why edge exists (explicit vs implicit) |
-| `source_utterance_id` | str | Yes | Traceability: links to `utterances.id` from Stage 2 |
+Edges are **not** extracted by Stage 3. All edge creation happens in Stage 4.5B
+(`EdgeExtractionPrefetchStage`) via a separate Haiku prompt:
 
-**Validation in `_parse_relationships`:**
-- Relationships with invalid `relationship_type` are **skipped with a warning log** (`invalid_edge_type`).
-- Incomplete relationships (missing `source_text` or `target_text`) are skipped.
-- **`permitted_connections` validation is DISABLED** (commented out in `_parse_relationships`) — the LLM is methodology-aware from the system prompt and unrestricted edge extraction is intentional for experimentation.
+- **Input**: post-dedup node IDs from GraphUpdateOutput
+- **Candidate assembly**: FOCUS × CURRENT/NEIGHBOR/RECENT pairs
+- **Output**: `ConfirmedEdge` and `RejectedEdgeCandidate` models
+- **Persistence**: Confirmed edges are written via `GraphService._add_edge_from_relationship()`
+
+See `src/llm/prompts/edge_extraction.py` and `src/domain/models/edge_extraction.py`
+for the full prompt architecture and data models.
 
 ### 4. Extraction Pipeline (ExtractionService.extract())
 
@@ -104,10 +100,10 @@ Invoked when work touches any of:
   1. LLM-provided `linked_elements` field (preferred)
   2. Alias-matching fallback if LLM doesn't provide links
 
-**Step 4: Relationship parsing** (`_parse_relationships`)
-- Validates `relationship_type` against methodology schema
-- **Note:** `permitted_connections` validation is disabled (LLM is methodology-aware)
-- Skips incomplete relationships (missing source or target)
+**Step 4: Edge extraction prefetch** (Stage 4.5B)
+- Fires asynchronously after GraphUpdateStage completes
+- Haiku prompt evaluates candidate pairs and returns confirmed/rejected edges
+- See `src/llm/prompts/edge_extraction.py` for prompt architecture
 
 **Step 5: Return ExtractionResult**
 - Contains validated concepts, relationships, latency_ms, timestamp
@@ -256,12 +252,12 @@ Each entry below records a real failure observed in this codebase or a design co
 
 - **Extracting without SRL context when it's available.** Stage 2.5 produces discourse relations and SRL frames that could hint at implicit relationships. Currently not passed to extraction LLM, but the data exists for future enhancement.
 - **Ignoring concept_naming_convention from YAML.** Concepts phrased inconsistently (e.g., some as noun phrases, some as full sentences) fail semantic deduplication and fragment the graph. Always check the methodology YAML for naming instructions.
-- **Creating relationships without permitted_connections check.** While the validation is intentionally disabled in `_parse_relationships`, the LLM prompt includes permitted_connections in edge descriptions. If the LLM produces invalid connections, fix the prompt, not the validation.
+- **Expecting Stage 3 to produce relationships — Stage 3 is concepts-only since B11. All edges come from Stage 4.5B.**
 - **Treating empty extraction as an error.** `ExtractionResult(is_extractable=False)` is normal for short responses ("sure", "okay", "I don't know"). Raising an error breaks the pipeline on valid input.
 - **Forgetting to set source_utterance_id.** The traceability chain breaks without this field. Concepts without provenance cannot be audited or debugged. The fallback `"unknown"` masks the real problem.
 - **Using the wrong methodology parameter.** ExtractionService.extract() requires the methodology name (e.g., `"means_end_chain"`). Passing the wrong methodology loads the wrong ontology and causes schema validation failures.
 - **Modifying extraction output after timestamp is set.** The timestamp anchors freshness detection in Stage 6. Post-hoc modification (e.g., adding concepts after the fact) produces stale data that fails staleness checks.
-- **Assuming permitted_connections is enforced.** The validation is commented out in `_parse_relationships`. The LLM is expected to produce valid connections from the methodology prompt alone. If invalid connections appear, fix the prompt, not the code.
+- **Assuming permitted_connections is enforced in extraction.** Stage 3 does not create edges. Enforcement happens at `graph_service._add_edge_from_relationship()` post-dedup (Stage 4 and 4.6). If invalid connections appear, fix the edge extraction prompt or the methodology YAML, not the extraction stage.
 - **Skipping the extractability check in production.** The fast heuristic filter prevents wasted LLM calls. Only skip via `skip_extractability_check=True` for testing.
 - **Hardcoding temperature in the extraction `llm.complete()` call.** Temperature is configured centrally via `LLMCallConfig.temperature` (default 0.3). Adding it to the extraction call overrides the config silently. Always tune temperature in `config/interview_config.yaml`, not in code.
 - **Accessing the concept label via `.name` instead of `.text`.** `ExtractedConcept` stores the normalized concept label in the `text` field. `.name` does not exist on the model — it raises `AttributeError` at runtime or silently produces the wrong value if some fallback handles it. Any code that reads concept labels (e.g. `LLMBatchDetector._concept_fields`, bridge lookups in `MethodologyStrategyService`) must use `concept.text`, not `concept.name`. This is a Phase C failure mode: batch_detector was initially coded to `.name` and produced empty per-concept records for every concept.
@@ -279,7 +275,7 @@ Consult these Tier 3 docs for full specifications and edge cases:
 - `.claude/context/chain-rules.md` — chain_rules are reporting-only; engine uses `chain_relevant` flag from methodology YAML
 - `src/services/extraction_service.py` — ExtractionService implementation with all pipeline stages
 - `src/llm/prompts/extraction.py` — system/user prompt builders, response parser, prompt architecture
-- `src/domain/models/extraction.py` — ExtractedConcept, ExtractedRelationship, ExtractionResult schemas
+- `src/domain/models/extraction.py` — ExtractedConcept, ExtractionResult schemas
 - `src/domain/models/methodology_schema.py` — MethodologySchema, ontology loading, validation methods
 - `src/services/turn_pipeline/stages/extraction_stage.py` — Stage 3 wiring
 - `src/services/turn_pipeline/stages/srl_preprocessing_stage.py` — Stage 2.5 SRL enrichment

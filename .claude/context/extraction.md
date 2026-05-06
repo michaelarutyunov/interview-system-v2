@@ -9,10 +9,9 @@
 1. **Fast extractability check** — heuristics filter out responses that are too short (< `min_word_count`, default 3), single words, or pure yes/no affirmatives. Returns `is_extractable=False` without calling LLM.
 2. **LLM extraction** — calls `_extract_via_llm()` with a methodology-aware system prompt (node types, naming convention from `MethodologySchema`). Temperature 0.2, max tokens 4000, `response_format={"type": "json_object"}`. System prompt is passed with `cache_control` for Anthropic prompt caching.
 3. **Concept parsing** (`_parse_concepts`) — validates each concept's `node_type` against the methodology schema. Enriches valid concepts with `is_terminal` and `level`. Sets `source_utterance_id` for traceability.
-4. **Relationship parsing** (`_parse_relationships`) — DEPRECATED. Retained for backward compat when `enable_edge_extraction_stage=false`. Will be removed in B11. When the flag is ON, all edges come from Stage 4.5B.
-5. **Element linking** — if `concept_id` is configured, concepts are linked to methodology elements via LLM-provided `linked_elements` field.
+4. **Element linking** — if `concept_id` is configured, concepts are linked to methodology elements via LLM-provided `linked_elements` field.
 
-Returns `ExtractionResult` with `concepts`, `relationships` (deprecated), `is_extractable`, and `latency_ms`.
+Returns `ExtractionResult` with `concepts`, `is_extractable`, and `latency_ms`.
 
 ### Stage 4.5B Edge Extraction
 
@@ -230,10 +229,6 @@ These fields replaced the hardcoded `_LEVEL_HINTS` dict in April 2026 (beads 4hv
 
 The key indirection: bridge parameters are read from the **previous** turn's strategy, not the current turn's. When strategy A is selected on turn N, its bridge parameters affect the extraction prompt on turn N+1 (the respondent's answer to the question that strategy A generated).
 
-### Reasoning Field on Relationships
-
-The extraction prompt requests a `reasoning` field on each relationship: `"reasoning": "one sentence explaining why this relationship exists"`. This is parsed by `_parse_relationships()` and stored on `ExtractedRelationship.reasoning` for audit/debugging purposes. The field is not used in graph construction but provides traceability for why an edge was created.
-
 ### Bridge Target Selection
 
 The bridge target is no longer hardcoded to "most concrete." It is now driven by the previous turn's `bridge_target` strategy config field (see Strategy-Driven Bridge Parameters above). Each strategy specifies whether to bridge to the most concrete, most abstract, or either new concept. This prevents both the "always bridges to abstract" bias (which would skip intermediate levels) and the reverse "always bridges to concrete" bias (which would prevent ascend from laddering upward).
@@ -264,6 +259,6 @@ _No entries yet. Add failure patterns as they are discovered in this subsystem �
 - `src/services/turn_pipeline/stages/extraction_stage.py` — Stage 3 wiring
 - `src/llm/prompts/extraction.py` — prompt builders and response parser
 - `src/llm/client.py` — LLM client with prompt caching infrastructure (block-list system prompts)
-- `src/domain/models/extraction.py` — `ExtractedConcept`, `ExtractedRelationship`, `ExtractionResult`
+- `src/domain/models/extraction.py` — `ExtractedConcept`, `ExtractionResult`
 - `src/domain/models/methodology_schema.py` — `MethodologySchema` (ontology validation)
 - `config/methodologies/*.yaml` — node types, edge types, naming conventions

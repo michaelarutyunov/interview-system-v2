@@ -196,7 +196,11 @@ class NodeStateTracker(BaseModel):
     ) -> NodeStateTracker:
         """Return new tracker with yield recorded for tracking_key.
 
-        Returns self unchanged if graph_changes is empty (no new information).
+        Records yield unconditionally — the focus node was actively used this
+        turn regardless of graph change counts (p4t3 fix). The is_empty() guard
+        was removed because after the B7 move to EdgeExtractionBridgeStage,
+        nodes_added=0 and edges_added=[] (when feature flag OFF) caused every
+        yield to be silently skipped, triggering premature all_nodes_exhausted.
 
         Raises:
             NodeNotTrackedError: If tracking_key is not registered.

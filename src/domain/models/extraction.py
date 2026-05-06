@@ -1,11 +1,10 @@
-"""Extraction domain models for concepts and relationships from user input.
+"""Extraction domain models for concepts from user input.
 
 This module defines models for LLM-based extraction results that represent
 structured knowledge discovered from participant responses.
 
 Core Models:
     - ExtractedConcept: Potential knowledge graph node before deduplication
-    - ExtractedRelationship: Causal or associative link between concepts
     - ExtractionResult: Complete extraction with metadata for freshness tracking
 
 Key Concepts:

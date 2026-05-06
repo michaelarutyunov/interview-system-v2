@@ -73,7 +73,7 @@ A weight key without a recognized suffix on a binned signal **silently never mat
 Stage 1   ContextLoading           ← NodeStateTracker.from_dict()
 Stage 4   GraphUpdate              ← register_node, update_edge_counts
 Stage 4.6 EdgeExtractionBridge     ← record_yield (D4/B7 — moved from GraphUpdate)
-Stage 6   StrategySelection        ← signal detection, then update_focus, then append_response_signal
+Stage 6   StrategySelection        ← signal detection, then update_focus
 Stage 10  ScoringPersistence       ← NodeStateTracker.to_dict()
 ```
 
@@ -162,7 +162,7 @@ A signal class existing on disk is **not enough** for it to fire. The gating che
 
 ### 12. NodeState Persistence Window
 
-`NodeStateTracker` is loaded once in Stage 1 (`from_dict`) and saved once in Stage 12 (`to_dict`). Mutations after Stage 12 are lost. Mutations before Stage 1 are impossible. Schema version is `1` — bumping requires migration of `sessions.node_tracker_state`.
+`NodeStateTracker` is loaded once in Stage 1 (`from_dict`) and saved once in Stage 10 (`to_dict`). Mutations after Stage 10 are lost. Mutations before Stage 1 are impossible. Schema version is `6` — bumping requires migration of `sessions.node_tracker_state`.
 
 ## Key Constraints
 
@@ -190,7 +190,7 @@ Each entry below records a real failure observed in this codebase or a design co
 - **Confusing phase multiplier with signal weight.** Multiplier is multiplicative, strategy-level, lives in `phases.<phase>.signal_weights`, keyed by strategy name. A signal weight is additive (via summed contribution), signal-level, lives in `strategies.<strategy>.signal_weights`, keyed by signal name. They are not interchangeable.
 - **Putting a strategy's `phase_bonus` in the wrong phase block, or under a misspelled strategy name.** The registry validates strategy names at load time and raises `ValueError` — do not paper over by renaming the strategy without updating both `strategies:` and `phases:` together.
 - **Using `.yes` / `.no` for boolean weight keys.** The engine looks for `.true` / `.false`. Silently never matches.
-- **Calling `append_response_signal()` after `update_focus()`.** Attributes the response depth to the *new* focus instead of the node that was actually being asked about. Order is: `append_response_signal()` first, then `update_focus()`.
+- **Calling `append_quality()` after `update_focus()` in the same signal-detection pass.** The LLM signal bridge (Stage 4.7) appends quality BEFORE strategy selection (Stage 6) runs, so per-concept ratings are always available. If custom code calls `append_quality()` after `update_focus()`, the quality data is still persisted but signals in Stage 6 won't see it until the next turn.
 - **Iterating only newly-extracted nodes in a `NodeSignalDetector`.** Drop missing nodes silently default to score 0. Always iterate `self._get_all_node_states()`.
 - **Treating `enable_canonical_slots=False` returning `{}` as a bug.** It is by-design empty — downstream code must handle empty node-signal dicts.
 - **Assuming canonical-scoped signals (`canongraph.node.*`) are populated from turn 1.** Canonical slots only activate after `support_count >= canonical_min_support_nodes` (default 2). On the first occurrence of any concept mapping to a given slot, the slot exists but is not yet active — signals like `canongraph.node.novelty` return empty/zero. This is by design to prevent premature canonical promotion from a single surface mention. When debugging unexpectedly empty canonical signals, check `slot_discovery_output.slots_updated` for `support_count`. If `< canonical_min_support_nodes`, the gap is expected, not a bug.
