@@ -20,11 +20,11 @@
 
 ## Overview
 
-A knowledge-graph-based conversational research system that conducts semi-structured interviews through adaptive questioning. Each turn flows through a **12-stage pipeline** that transforms user input into follow-up questions while building a knowledge graph.
+A knowledge-graph-based conversational research system that conducts semi-structured interviews through adaptive questioning. Each turn flows through a **16-stage pipeline** that transforms user input into follow-up questions while building a knowledge graph.
 
 ### Key Design Principles
 
-1. **Pipeline Pattern**: 12 stages with Pydantic contracts between stages
+1. **Pipeline Pattern**: 16 stages with Pydantic contracts between stages
 2. **Dual-Graph Architecture**: Surface graph (fidelity) + canonical graph (stable, deduplicated signals)
 3. **Signal Pools**: Namespaced signals from graph, LLM, temporal, and meta sources drive strategy selection
 4. **Methodology-Centric**: All interview behavior driven by pluggable YAML configs
@@ -39,9 +39,13 @@ A knowledge-graph-based conversational research system that conducts semi-struct
 | 1 | ContextLoadingStage | Session metadata, turn number, conversation history |
 | 2 | UtteranceSavingStage | Persist user utterance to DB |
 | 2.5 | SRLPreprocessingStage | Linguistic parsing (optional: `enable_srl`) |
-| 3 | ExtractionStage | Extract concepts/relationships via LLM |
-| 4 | GraphUpdateStage | Update surface graph with deduplication |
+| 3 | ExtractionStage | Extract concepts (nodes only; edges → 4.5B) |
+| 3.1 | LLMPrefetchStage | Fire async LLM signal detection (Haiku) |
+| 4 | GraphUpdateStage | Update surface graph with deduplication, register nodes |
 | 4.5 | SlotDiscoveryStage | Map surface nodes to canonical slots (optional: `enable_canonical_slots`) |
+| 4.5B | EdgeExtractionPrefetchStage | Fire async edge extraction (Haiku) |
+| 4.6 | EdgeExtractionBridgeStage | Await edges, persist, update tracker, record yield |
+| 4.7 | LLMSignalBridgeStage | Await signal prefetch, route ratings, seal tracker |
 | 5 | StateComputationStage | Refresh graph metrics and saturation indicators |
 | 6 | StrategySelectionStage | Signal Pools → joint strategy-node scoring |
 | 7 | ContinuationStage | Decide if interview continues |
@@ -89,8 +93,12 @@ Canonical slot lifecycle: `candidate` → `active` (requires `support_count >= c
 | 2 | `UtteranceSavingOutput` — user_utterance_id, utterance |
 | 2.5 | `SrlPreprocessingOutput` — discourse_relations, srl_frames |
 | 3 | `ExtractionOutput` — concepts, relationships |
+| 3.1 | `LLMPrefetchOutput` — signal detection task (async) |
 | 4 | `GraphUpdateOutput` — nodes_added, edges_added, counts |
 | 4.5 | `SlotDiscoveryOutput` — slots_created, slots_updated, mappings_created |
+| 4.5B | `EdgeExtractionPrefetchOutput` — edge extraction task (async) |
+| 4.6 | `EdgeExtractionBridgeOutput` — edges_added, sealed_node_tracker |
+| 4.7 | `LLMSignalBridgeOutput` — global_signals, node_signals, sealed_node_tracker |
 | 5 | `StateComputationOutput` — graph_state, canonical_graph_state, saturation_metrics |
 | 6 | `StrategySelectionOutput` — strategy, focus, signals, node_signals, score_decomposition |
 | 7 | `ContinuationOutput` — should_continue, reason, turns_remaining |
@@ -140,22 +148,19 @@ config/
 │       ├── customer_journey_mapping.yaml
 │       └── repertory_grid.yaml
 ├── personas/              # Synthetic respondent profiles
-│   ├── baseline_cooperative.yaml
-│   ├── brief_responder.yaml
-│   ├── emotionally_reactive.yaml
-│   ├── fatiguing_responder.yaml
-│   ├── glp1_user.yaml
-│   ├── health_conscious.yaml
-│   ├── minimalist.yaml
-│   ├── price_sensitive.yaml
-│   ├── quality_focused.yaml
-│   ├── retrospective_rationalizer.yaml
-│   ├── single_topic_fixator.yaml
-│   ├── skeptical_analyst.yaml
-│   ├── social_conscious.yaml
-│   ├── sustainability_minded.yaml
-│   ├── uncertain_hedger.yaml
-│   └── verbose_tangential.yaml
+│   ├── domains/           # Topic-specific personas
+│   │   ├── baseline_cooperative.yaml
+│   │   └── glp1_user.yaml
+│   └── edge_cases/        # Behavioral stress-test personas
+│       ├── brief_responder.yaml
+│       ├── disengaged_responder.yaml
+│       ├── emotionally_reactive.yaml
+│       ├── fatiguing_responder.yaml
+│       ├── retrospective_rationalizer.yaml
+│       ├── single_topic_fixator.yaml
+│       ├── skeptical_analyst.yaml
+│       ├── uncertain_hedger.yaml
+│       └── verbose_tangential.yaml
 └── interview_config.yaml  # Phases, dedup thresholds, LLM config
 ```
 
@@ -265,7 +270,7 @@ Returns `ScoredCandidate` objects with full `signal_contributions` breakdown for
 
 ### Chain-Aware Strategies (MEC)
 
-MEC uses 7 strategies that exploit graph topology to drive interview flow. Each chain-aware strategy has a `valid_when` gate — a hard filter that excludes `(strategy, node)` pairs where the gate signal is `False`.
+MEC uses 6 strategies that exploit graph topology to drive interview flow. Each chain-aware strategy has a `valid_when` gate — a hard filter that excludes `(strategy, node)` pairs where the gate signal is `False`.
 
 | Strategy | `valid_when` | Purpose |
 |----------|-------------|---------|
@@ -275,13 +280,12 @@ MEC uses 7 strategies that exploit graph topology to drive interview flow. Each 
 | `branch` | `convgraph.node.chain.branching_deficit` | Expand breadth where expected siblings missing |
 | `anchor` | `convgraph.node.is_orphan` | Connect isolated nodes to graph |
 | `revitalize` | *(none)* | Conversation-level fallback for fatigue/disengagement |
-| `validate` | *(none)* | Late-phase closing strategy — generates closing question |
 
-Legacy strategies (`deepen`, `explore`, `clarify`, `reflect`) have been removed from MEC.
+Legacy strategies (`deepen`, `explore`, `clarify`, `reflect`, `validate`) have been removed from MEC. `validate` is now a per-methodology closing strategy defined in each methodology YAML.
 
 **Score threshold fallback**: When best score < `chain_completion.score_threshold` (default 0.15) AND fatigue/low-engagement is detected, the system falls back to `revitalize` regardless of topology signals.
 
-Non-MEC methodologies (JTBD, CIT, CJM, Repertory Grid) define their own strategy names. JTBD and CIT use a subset of chain-aware strategies (ascend, ground, anchor); CJM and RG are flat ontologies and do NOT use chain topology signals or most `valid_when` gates.
+Non-MEC methodologies (JTBD, CIT, CJM, Repertory Grid) define their own strategy names and `valid_when` gates. JTBD uses 7 strategies (elaborate, ascend, ground, probe_pain, anchor, revitalize, validate); CIT uses 7 (elicit_narrative, ascend, ground, bridge, anchor, revitalize, validate); CJM uses 8 flat-ontology strategies; RG uses 8 dimensional strategies. All methodologies include a `validate` closing strategy with `generates_closing_question: true`. CJM and RG are flat ontologies and do NOT use chain topology signals.
 
 ---
 
@@ -451,7 +455,11 @@ class GraphState(BaseModel):
 
 `NodeStateTracker` tracks per-node state in memory, persisted to `sessions.node_tracker_state` (JSON) each turn.
 
-**NodeState** fields: `focus_count`, `last_focus_turn`, `current_focus_streak`, `turns_since_last_yield`, `yield_count`, `yield_rate`, `all_response_depths`, `quality_history` (`NodeQualityHistory` with `elaboration_scores` and `charge_scores`), `connected_node_ids`, `edge_count_outgoing`, `edge_count_incoming`, `strategy_usage_count`.
+**NodeState** fields: `focus_count`, `last_focus_turn`, `current_focus_streak`, `turns_since_last_yield`, `yield_count`, `yield_rate`, `all_response_depths`, `quality_history` (`NodeQualityHistory` with `elaboration_scores` and `charge_scores`), `connected_node_ids`, `edge_count_outgoing`, `edge_count_incoming`, `strategy_usage_count`, `surface_node_ids` (list of surface UUIDs aggregated by canonical slot), `strategy_usage_count`, `consecutive_same_strategy`, `last_strategy_used`.
+
+**Identity types**: `SurfaceNodeId` and `SlotId` are `NewType(str, ...)` aliases distinguishing surface graph UUIDs from canonical slot keys at static-analysis time. `previous_focus` uses `SlotId`; `previous_focus_node_id` uses `SurfaceNodeId`.
+
+**Sealed-tracker pattern**: Stages 4→4.5→4.7 thread an evolving tracker via `PipelineContext._evolving_node_tracker`. Stage 4.7 (`LLMSignalBridgeStage`) seals it into a frozen snapshot. Stages 5–10 read the sealed snapshot. No mutations after seal.
 
 **Exhaustion score**:
 ```python
@@ -463,7 +471,7 @@ exhaustion_score = (
 # 0.0–0.3 = fresh; 0.3–0.6 = moderate; 0.6–1.0 = exhausted
 ```
 
-**Dual-graph support**: When `canonical_slot_repo` is provided, surface node IDs resolve to canonical slot IDs — aggregating paraphrases into a single tracking unit.
+**Dual-graph support**: After Stage 4.5 (`remap_to_canonical_slots`), the tracker contains exactly ONE entry per concept — the canonical slot key. Surface UUIDs are aggregated into `surface_node_ids`. Canonical slot availability is checked via `context.canonical_graph_state`, not tracker attributes.
 
 **Persistence flow**: Stage 1 loads via `NodeStateTracker.from_dict()` → stages update in-memory → Stage 10 saves via `to_dict()`.
 
@@ -504,8 +512,9 @@ Configured in `config/interview_config.yaml` under `llm:`:
 | Client Type | Stage | Default Model | Purpose |
 |-------------|-------|---------------|---------|
 | `extraction` | 3 | claude-sonnet-4-6 | Extract concepts/relationships |
+| `edge_extraction` | 4.5B | claude-haiku-4-5 | Extract edges between concepts |
 | `slot_scoring` | 4.5 | claude-haiku-4-5 | Canonical slot discovery |
-| `signal_scoring` | 6 | claude-haiku-4-5 | LLM signal detection (batched) |
+| `signal_scoring` | 3.1 | claude-haiku-4-5 | LLM signal detection (batched) |
 | `question_generation` | 8 + opening | claude-haiku-4-5 | Generate questions |
 
 Factory: `get_llm_client(client_type: LLMClientType)` reads provider/model/temperature/max_tokens/timeout/effort from config.
@@ -518,6 +527,7 @@ Factory: `get_llm_client(client_type: LLMClientType)` reads provider/model/tempe
 | `kimi` | OpenAI-compatible | `KIMI_API_KEY` |
 | `deepseek` | OpenAI-compatible | `DEEPSEEK_API_KEY` |
 | `grok` | OpenAI-compatible | `GROK_API_KEY` |
+| `zhipu` | OpenAI-compatible | `ZHIPU_API_KEY` |
 
 **Structured output**: Anthropic uses tool_use with JSON schema; OpenAI-compatible providers use `response_format={"type": "json_object"}`. Eliminates post-hoc JSON repair.
 
@@ -539,6 +549,7 @@ All calls record input/output tokens via `TokenUsageService.record_llm_call()`. 
 - Claude Haiku 4.5: $0.80 in / $4.00 out
 - DeepSeek Chat: $0.14 in / $0.28 out
 - Kimi K2: $0.60 in / $2.50 out
+- GLM-5.1: $0.84 in / $3.36 out
 
 ---
 
@@ -568,6 +579,8 @@ Single container runs FastAPI (port 8000, internal) + Streamlit (port 8501, expo
 | `ANTHROPIC_API_KEY` | Claude API | Yes |
 | `KIMI_API_KEY` | Kimi API | Yes |
 | `DEEPSEEK_API_KEY` | DeepSeek API | Yes |
+| `GROK_API_KEY` | Grok API | Yes |
+| `ZHIPU_API_KEY` | Zhipu AI API (GLM models) | Yes |
 | `GCS_BUCKET` | Export storage (optional) | Yes |
 
 ---

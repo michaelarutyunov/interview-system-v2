@@ -517,7 +517,7 @@
         <div class="arrow"></div>
 
         <!-- INTAKE -->
-        <div class="group" style="--group-color: var(--g-intake); flex: 1.0;">
+        <div class="group" style="--group-color: var(--g-intake); flex: 3;">
           <div class="group-stripe"></div>
           <div class="group-head"><span class="group-num">01</span><span class="group-name">Intake</span></div>
           <div class="stages">
@@ -540,7 +540,7 @@
         </div>
 
         <!-- GRAPH BUILDING -->
-        <div class="group" id="g-graph" style="--group-color: var(--g-graph); flex: 2.2;">
+        <div class="group" id="g-graph" style="--group-color: var(--g-graph); flex: 5;">
           <div class="group-stripe"></div>
           <div class="group-head"><span class="group-num">02</span><span class="group-name">Graph building</span></div>
           <div class="stages" id="graph-stages" style="align-items: stretch;">
@@ -587,10 +587,6 @@
                   <div class="sname">Fire edge extraction</div>
                   <div class="ssub">Build candidate pairs; fire async Haiku call.</div>
                   <div class="sbadges"><span class="sbadge llm">Haiku</span><span class="sbadge async">⚡ fire</span></div>
-                  <div class="bar-sm edge" style="margin-top:4px;">
-                    <span class="bar-tag">EDGE</span>
-                    Haiku: candidate pair evaluation
-                  </div>
                 </div>
                 <div class="stage-sm">
                   <div class="snum">STAGE 4.6</div>
@@ -628,9 +624,10 @@
         </div>
 
         <div class="arrow bend"></div>
+        <div class="endpoint" style="visibility: hidden;"></div>
 
         <!-- STATE -->
-        <div class="group" style="--group-color: var(--g-state); flex: 0.8;">
+        <div class="group" style="--group-color: var(--g-state); flex: 1;">
           <div class="group-stripe"></div>
           <div class="group-head"><span class="group-num">03</span><span class="group-name">State</span></div>
           <div class="stages">
@@ -644,7 +641,7 @@
         </div>
 
         <!-- STRATEGY -->
-        <div class="group" style="--group-color: var(--g-strategy); flex: 0.95;">
+        <div class="group" style="--group-color: var(--g-strategy); flex: 1;">
           <div class="group-stripe"></div>
           <div class="group-head"><span class="group-num">04</span><span class="group-name">Strategy</span></div>
           <div class="stages">
@@ -658,7 +655,7 @@
         </div>
 
         <!-- GENERATION -->
-        <div class="group" style="--group-color: var(--g-gen); flex: 1.4;">
+        <div class="group" style="--group-color: var(--g-gen); flex: 2;">
           <div class="group-stripe"></div>
           <div class="group-head"><span class="group-num">05</span><span class="group-name">Generation</span></div>
           <div class="stages">
@@ -678,7 +675,7 @@
         </div>
 
         <!-- PERSIST -->
-        <div class="group" style="--group-color: var(--g-persist); flex: 1.2;">
+        <div class="group" style="--group-color: var(--g-persist); flex: 2;">
           <div class="group-stripe"></div>
           <div class="group-head"><span class="group-num">06</span><span class="group-name">Persist</span></div>
           <div class="stages">
@@ -694,6 +691,8 @@
             </div>
           </div>
         </div>
+
+        <div class="group" style="flex: 2; visibility: hidden;"></div>
 
         <div class="arrow"></div>
         <div class="endpoint out">next<br>question</div>

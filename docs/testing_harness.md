@@ -28,6 +28,8 @@ This is measurement infrastructure only. It does not tune configs automatically.
 | `scripts/eval/run_matrix.py` | Matrix runner — config hashing, parallel execution, temperature control |
 | `scripts/eval/show_scoreboard.py` | Aggregation, CI computation, pretty-print, delta-vs-baseline |
 | `scripts/eval/smoke_test.py` | Minimal validation (2 personas × 2 replicates) |
+| `scripts/eval/latency_audit.py` | Per-stage timing, LLM call metrics, cold-vs-warm split |
+| `scripts/eval/build_quality_baseline.py` | Snapshot per-turn outputs as regression fixtures |
 | `scripts/eval/README.md` | CLI quick reference |
 
 ### DB Tables (in `data/interview.db`)

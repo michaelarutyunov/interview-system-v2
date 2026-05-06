@@ -93,7 +93,7 @@ curl -X POST "http://localhost:8000/simulation/interview" \
 ```
 
 **Parameters:**
-- `concept_id`: Concept to use from `config/concepts/` (e.g., `glp1_food_mec`, `coffee_jtbd_v2`)
+- `concept_id`: Concept to use from `config/concepts/` (e.g., `glp1_food_mec`, `coffee_jtbd_v2`, `zerofizz_beverage_jtbd`)
 - `persona_id`: Persona from available personas (e.g., `baseline_cooperative`)
 - `max_turns`: Maximum turns before forcing stop (default: from concept config)
 - `export_format`: Export format - `json`, `markdown`, or `csv` (default: `json`)
@@ -257,7 +257,7 @@ Per-persona deflection patterns are defined in persona YAML under `deflection_pa
 
 ## Creating Custom Personas
 
-Add new personas by creating YAML files in `config/personas/domains/` or `config/personas/edge_cases/`:
+Add new personas by creating YAML files in `config/personas/domains/` (topic-specific) or `config/personas/edge_cases/` (behavioral stress-test):
 
 ```yaml
 id: my_custom_persona
@@ -396,10 +396,20 @@ For running multiple simulations efficiently, use the provided script:
 # Run single simulation
 uv run python scripts/run_simulation.py --concept glp1_food_mec --persona baseline_cooperative --max-turns 10
 
+# Run with explicit phase control (4 early, 4 mid, 2 late = 10 total)
+uv run python scripts/run_simulation.py --concept glp1_food_mec --persona baseline_cooperative --phase-turns 4-4-2
+
 # Output files:
 # - synthetic_interviews/TIMESTAMP_glp1_food_mec_baseline_cooperative.json
 # - synthetic_interviews/TIMESTAMP_glp1_food_mec_baseline_cooperative_scoring.csv
 ```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `--concept` | yes | Concept ID from `config/concepts/` |
+| `--persona` | yes | Persona ID from `config/personas/` |
+| `--max-turns` | no | Max turns (default: 10, or derived from `--phase-turns`) |
+| `--phase-turns` | no | Phase allocation as `N-N-N` (e.g. `4-4-2`). Overrides `--max-turns` (sum). Overrides `interview_config.yaml` phase proportions. |
 
 The CSV export contains live `score_decomposition` data from the simulation JSON, providing per-turn scoring breakdown with signal contributions, phase multipliers, and strategy rankings.
 
@@ -412,7 +422,7 @@ After generating simulation JSONs, several scripts produce derived outputs:
 | Script | Location | Output |
 |--------|----------|--------|
 | `generate_transcript.py` | `scripts/reporting/` | Human-readable markdown transcript |
-| `generate_causal_chains.py` | `scripts/reporting/` | Causal chain extraction (surface + canonical, tier-classified) |
+| `generate_causal_chains.py` | `scripts/reporting/` | Causal chain extraction (surface + canonical, tier-classified, methodology-agnostic with `chain_rules` config) |
 | `generate_mermaid_graph.py` | `scripts/reporting/` | Visual graph diagram (.mmd + .png) |
 | `generate_scoring_csv.py` | `scripts/reporting/` | Flat CSV from `score_decomposition` |
 | `generate_scoring_summary.md` | `scripts/reporting/` | Aggregated markdown tables (firing rates, dead signals, budget decomposition) |
@@ -420,6 +430,7 @@ After generating simulation JSONs, several scripts produce derived outputs:
 | `generate_reviews.py` | `scripts/reporting/` | Markdown review with strategy distribution, graph health, signal diagnostics |
 | `extract_simulation_data.py` | `scripts/diagnostics/` | Parquet tables (turns, scoring, interviews) for analytical queries |
 | `analyze_signal_redundancy.py` | `scripts/diagnostics/` | Signal activity/decisiveness audit |
+| `edge_extraction_diff.py` | `scripts/diagnostics/` | Per-turn edge extraction diagnostics (confirmed vs rejected, confidence distribution) |
 
 ### Unified Export (Recommended)
 
@@ -460,7 +471,7 @@ All scripts use the current signal taxonomy (`convgraph.*`, `response.semantic.l
 **Error: Concept not found**
 - Check `config/concepts/` for available concept IDs
 - Verify concept YAML is valid and includes `objective` field
-- Common concepts: `glp1_food_mec`, `glp1_food_mec_strict`, `coffee_jtbd_v2`
+- Common concepts: `glp1_food_mec`, `glp1_food_mec_strict`, `coffee_jtbd_v2`, `zerofizz_beverage_jtbd`, `zerofizz_beverage_mec`
 
 **Simulation stops early**
 - Check `max_turns` parameter in request

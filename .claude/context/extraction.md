@@ -18,10 +18,36 @@ Returns `ExtractionResult` with `concepts`, `relationships` (deprecated), `is_ex
 
 A separate Haiku prompt (`src/llm/prompts/edge_extraction.py`) handles all edge identification. Key differences from Stage 3:
 - **Input**: post-dedup node IDs (from GraphUpdateStage), not raw concept texts
-- **Candidate assembly**: FOCUS × CURRENT/NEIGHBOR/RECENT node pairs, no pre-filter
+- **Candidate assembly**: FOCUS × CURRENT/NEIGHBOR/RECENT node pairs, filtered to pairs where at least one endpoint is CURRENT (novel-this-turn)
+- **Candidate pair format**: compact single-line (`pair="id1,id2" (type1 -> type2)`); node labels omitted since they're listed in the Candidate Nodes section above
 - **Methodology content**: rendered via `MethodologySchema` accessors (`get_edge_descriptions_with_connections()`, `get_chain_relevant_edge_types()`)
-- **Output**: XML with mandatory chain-of-thought, confirmed edges with confidence (high/medium/low) + supporting spans, rejected candidates with 5-code taxonomy
+- **Output**: XML with structured reasoning (see below), confirmed edges with confidence (high/medium/low) + supporting spans, rejected candidates with 5-code taxonomy (no reasoning)
 - **Model**: Haiku (was Sonnet; switched May 2026 after diff harness showed equivalent edge quality at 5x lower latency)
+
+**Structured reasoning format (May 2026):** Reasoning was changed from free-form prose (2-5 sentences, ~75 tokens/pair) to structured XML attributes (~18 tokens/pair) to reduce output token consumption and eliminate Haiku timeouts on high-pair-count turns. For rejected candidates, reasoning is omitted entirely — the 5-code taxonomy captures the rationale.
+
+Confirmed edges use `<reasoning assertion="explicit|implicit|inferred" direction="clear|uncertain" frame="respondent|minor_influence|contaminated"/>`. The three axes map to confidence:
+- **high**: assertion=explicit, direction=clear, frame=respondent
+- **medium**: any axis at the middle tier
+- **low**: assertion=inferred, direction=uncertain, or frame=contaminated
+
+The parser (`_parse_confirmed_candidate`) is backward-compatible: if reasoning has text content (old format), it's used as-is. The `ConfirmedEdge` model stores both the derived `reasoning_summary` string and the raw axis values (`assertion`, `direction`, `frame`).
+
+**Output token budget (per candidate pair, after optimization):**
+| Component | Rejected | Confirmed |
+|-----------|----------|-----------|
+| XML structural tags | ~60 chars | ~80 chars |
+| `<evidence>` (verbatim) | ~80 chars | ~100 chars |
+| `<reasoning>` | — | ~70 chars (structured) |
+| Verdict + reason/type/confidence | ~40 chars | ~80 chars |
+| Node IDs | ~70 chars | ~70 chars |
+| **Total** | **~250 chars** | **~400 chars** |
+
+Average ~75 tokens/pair, down from ~243 before optimization (69% reduction). 35 pairs → ~2,600 output tokens (was ~8,500).
+
+**Rejected edge persistence (May 2026):** Rejected candidates are now persisted to `kg_rejected_edges` table (session_id, turn_number, source_node_id, target_node_id, rejection_reason, reasoning_summary). This enables per-turn diagnostic reports via `scripts/reporting/generate_turn_diagnostics.py` → `05_turn_diagnostics.md`.
+
+**Turn diagnostics report:** `scripts/reporting/generate_turn_diagnostics.py` queries kg_nodes, kg_edges, kg_rejected_edges, scoring_history, and utterances to produce a per-turn markdown report with node extraction tables, confirmed edge tables (including structured reasoning attributes), rejected candidate summaries with reason counts, and expandable per-pair detail sections.
 
 **Fail-fast:** `ExtractionError` is raised immediately on LLM failure — no silent degradation.
 

@@ -87,7 +87,7 @@ Together these signals enable a 2×2 chain-lifecycle matrix for scoring:
 | False | True | Terminal reached but no attribute below |
 | True | True | Complete chain — add breadth from new attributes |
 
-The `current_focus_streak` on a node resets only when focus changes — in `update_focus()` during Stage 8. It is NOT reset in `record_yield()` (Stage 5). This ordering is fundamental: Stage 5 runs before Stage 8, so any reset in `record_yield()` would make the streak appear as 0 to all signal detectors.
+The `current_focus_streak` on a node resets only when focus changes — in `update_focus()` during Stage 6. It is NOT reset in `record_yield()` (Stage 4.6). This ordering is fundamental: Stage 4.6 runs before Stage 6, so any reset in `record_yield()` would make the streak appear as 0 to all signal detectors.
 
 ---
 
@@ -155,7 +155,7 @@ Global signals (`frontier_count`, `ungrounded_count`) provide threshold guards -
    - `shallow_response_ratio` (30% weight, 0.0–1.0 from recent 3 responses)
    Nodes never focused (`focus_count == 0`) always return 0.0.
 
-3. **`convgraph.node.focus.streak` resets only in `update_focus()`, never in `record_yield()`.** `record_yield()` is called in Stage 5 (GraphUpdateStage). `update_focus()` is called in Stage 8 (StrategySelectionStage). Stage 5 runs before Stage 8, so resetting streak in `record_yield()` causes the streak to read as 0 at signal detection time — even though it was correctly non-zero before the turn. Fix: remove any `current_focus_streak = 0` from `record_yield()`.
+3. **`convgraph.node.focus.streak` resets only in `update_focus()`, never in `record_yield()`.** `record_yield()` is called in Stage 4.6 (EdgeExtractionBridgeStage). `update_focus()` is called in Stage 6 (StrategySelectionStage). Stage 4.6 runs before Stage 6, so resetting streak in `record_yield()` causes the streak to read as 0 at signal detection time — even though it was correctly non-zero before the turn. Fix: remove any `current_focus_streak = 0` from `record_yield()`.
 
 4. **`turns_since_last_yield` increments for ALL nodes every turn**, not just the focused node. This tick happens inside `update_focus()` — the loop that sets the new focus also increments `turns_since_last_yield` for nodes that were not yielded this turn. Without this global tick, the counter stalls and `exhaustion_score` never grows.
 
@@ -175,7 +175,7 @@ Global signals (`frontier_count`, `ungrounded_count`) provide threshold guards -
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `convgraph.node.focus.streak` always reads as `none` or `low` despite persistent focus | `current_focus_streak` was reset inside `record_yield()` (Stage 5), before signal detection (Stage 8) | Remove `current_focus_streak = 0` from `record_yield()`; streak resets only on focus change in `update_focus()` |
+| `convgraph.node.focus.streak` always reads as `none` or `low` despite persistent focus | `current_focus_streak` was reset inside `record_yield()` (Stage 4.6), before signal detection (Stage 6) | Remove `current_focus_streak = 0` from `record_yield()`; streak resets only on focus change in `update_focus()` |
 | Node signals missing for some nodes; they score 0 by default | Detector iterated only a subset of nodes (e.g., only newly extracted ones) instead of all tracked nodes | Use `self._get_all_node_states()` to iterate the full NodeStateTracker |
 | `convgraph.node.exhaustion` stays near 0.0 despite repeated focus | `turns_since_last_yield` never increments because the tick in `update_focus()` is missing for non-focused nodes | Ensure `update_focus()` ticks `turns_since_last_yield += 1` for ALL nodes in the loop, not only the new focus |
 | Signal weight key never matches; strategy score ignores the signal | Wrong bin name in YAML — used `.medium` instead of `.mid`, or `.yes`/`.no` instead of `.true`/`.false` | Valid bins for floats: `.low`, `.mid`, `.high`; for booleans: `.true`, `.false`; for categories: match the exact string (e.g., `.none`, `.low`, `.medium`, `.high`) |
@@ -187,19 +187,20 @@ Global signals (`frontier_count`, `ungrounded_count`) provide threshold guards -
 | `canongraph.state.exhaustion` not in signal output despite canonical slots being active | `context.canonical_graph_state is None` — canonical graph state not yet computed (e.g. StateComputationStage hasn't run or canonical slots are disabled) | Verify `enable_canonical_slots=True` and that StateComputationStage produced a `canonical_graph_state`; see Requirement #8 |
 | `convgraph.node.is_current_focus` returns `True` for last turn's focus, not this turn's chosen node | By design — `update_focus()` hasn't run yet at detection time | Expected behavior; see Requirement #9. Do not attempt to read post-update focus during signal detection. |
 | `valid_when` chain topology checks fail for all nodes | Detector emitted a key not in the tracker keyspace (e.g. slot ID instead of surface UUID). After surface-primary inversion, the merge guard raises `ValueError` immediately rather than silently dropping. | Ensure all signal detectors emit surface UUID keys matching `tracker.states`. The merge loop in `NodeSignalDetectionService.detect_all()` will raise with a diagnostic message listing the offending key and the first 5 tracker keys. |
+| Anchor strategy never selected despite many orphan nodes (e.g., 10+ orphans visible in graph) | `convgraph.state.node.orphan_count` is an unbounded int blocked from `signal_weights` by registry validation. No normalized variant existed, so systemic orphan accumulation was invisible to strategy scoring. The anchor strategy could only target individual orphans via `convgraph.node.is_orphan.true` (+0.50) with no awareness of scale. | Add `convgraph.state.node.orphan_ratio` weight to anchor (e.g., `.high: 0.40` when ≥75% orphans, `.mid: 0.25` when 25–75%). The signal already exists in `graph_signals.py` — just declare it in the methodology YAML `signals.graph` and add weight keys. |
 
 ---
 
 ## Known Failure Modes
 
-_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+- **Orphan accumulation is invisible to strategy scoring.** `convgraph.state.node.orphan_count` returns a raw integer that the registry blocks from `signal_weights` (unbounded int safety check at `registry.py:341-344`). Without a normalized variant, anchor/ground strategies cannot detect systemic orphan accumulation — they can only see individual orphan nodes via `convgraph.node.is_orphan`. The normalized variant `convgraph.state.node.orphan_ratio` (float [0,1]) fills this gap and can be threshold-binned via `.high`/`.mid`/`.low` for use in strategy weights. See Symptom → Cause → Fix table entry "Anchor never selected despite high orphan count."
 
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `src/signals/graph/graph_signals.py` | Global graph signals: `convgraph.state.node.count`, `convgraph.state.max_depth`, `convgraph.chain.completion.*`, `graph.canonical_*` |
+| `src/signals/graph/graph_signals.py` | Global graph signals: `convgraph.state.node.count`, `convgraph.state.node.orphan_count`, `convgraph.state.node.orphan_ratio`, `convgraph.state.max_depth`, `convgraph.chain.completion.*`, `graph.canonical_*` |
 | `src/signals/graph/global_chain_signals.py` | Global chain topology aggregates: `convgraph.chain.structure.frontier_count`, `convgraph.chain.structure.ungrounded_count` |
 | `src/signals/graph/graph_traversal.py` | Shared BFS and adjacency utilities used by chain topology, chain completion, and global chain signal detectors |
 | `src/signals/graph/node_signals.py` | Node-level detectors: exhaustion, focus streak, recency, novelty, edge count, canonical novelty |
@@ -221,7 +222,8 @@ Per-signal intent vs computation mapping. Extracted from the 2026-04-17 signal s
 |--------|--------|-------------|----------|
 | `convgraph.state.node.count` | Count of active surface nodes | `graph_state.node_count` (unbounded int) | plausible-impact — raw int multiplied by weight; normalize before weighting |
 | `convgraph.state.edge.count` | Count of directed edges | `graph_state.edge_count` (unbounded int) | plausible-impact — same unbounded-int issue |
-| `convgraph.state.node.orphan_count` | Nodes with zero incoming AND zero outgoing edges | `graph_state.orphan_count` (unbounded int) | plausible-impact — normalize or use `orphan_ratio` |
+| `convgraph.state.node.orphan_count` | Nodes with zero incoming AND zero outgoing edges | `graph_state.orphan_count` (unbounded int) | plausible-impact — unbounded int blocked from signal_weights; use `orphan_ratio` instead |
+| `convgraph.state.node.orphan_ratio` | Fraction of nodes that are orphans | `orphan_count / max(node_count, 1)` (float [0,1]) | none — normalized, safe for weight multiplication; threshold-binnable via `.high` (≥0.75), `.mid` (0.25–0.75), `.low` (≤0.25) |
 | `convgraph.state.max_depth` | Length of longest chain, normalized by ontology level count | BFS from root nodes / ontology level count; clamped [0,1]; fallback=5.0 | likely-trivial — fallback constant MEC-calibrated |
 | `convgraph.chain.completion.ratio` | Fraction of level-1 nodes with complete BFS path to terminal | `complete_chain_count / max(level_1_count, 1)` | likely-trivial — brittle with N=1 |
 | `convgraph.chain.completion.has_complete` | Boolean: at least one complete chain exists | `complete_chain_count > 0` | none |
