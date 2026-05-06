@@ -39,8 +39,13 @@ build/
 .ruff_cache/**/*
 .streamlit/*
 
-# .claude
-.claude/**/**/*
+# .claude — local/transient files only (docs, agents, and mapping are tracked)
+.claude/bug_patterns.jsonl
+.claude/settings*.json
+.claude/scheduled_tasks.lock
+.claude/hooks/
+.claude/skills/
+.claude/worktrees/
 
 # working docs
 synthetic_interviews/

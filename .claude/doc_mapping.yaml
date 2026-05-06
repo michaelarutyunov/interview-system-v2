@@ -1,0 +1,112 @@
+# .claude/doc_mapping.yaml
+# Source-of-truth for file→doc relationships.
+# Used by: scripts/check_doc_drift.py, pre-commit hook, CLAUDE.md trigger tables.
+#
+# Each entry maps one or more source glob patterns to a single doc owner.
+# Drift is detected when a source file changes >1 time since the doc was last touched.
+
+mappings:
+  - sources:
+      - "src/methodologies/scoring.py"
+      - "src/methodologies/registry.py"
+      - "config/methodologies/*.yaml"
+    doc: ".claude/context/strategy-scoring.md"
+
+  - sources:
+      - "src/methodologies/scoring.py"
+      - "src/methodologies/registry.py"
+      - "config/methodologies/*.yaml"
+    doc: ".claude/context/methodology-parameter-flow.md"
+
+  - sources:
+      - "src/services/turn_pipeline/stages/strategy_selection_stage.py"
+      - "src/services/methodology_strategy_service.py"
+    doc: ".claude/context/strategy-scoring.md"
+
+  - sources:
+      - "src/signals/graph/*.py"
+      - "src/services/node_signal_detection_service.py"
+      - "src/services/global_signal_detection_service.py"
+    doc: ".claude/context/signal-detection-graph.md"
+
+  - sources:
+      - "src/signals/llm/*.py"
+      - "src/signals/llm/llm_signal_baseprompt.md"
+      - "src/signals/llm/signals/*.py"
+      - "src/signals/session/*.py"
+    doc: ".claude/context/signal-detection-llm.md"
+
+  - sources:
+      - "src/signals/meta/*.py"
+    doc: ".claude/context/phase-detection.md"
+
+  - sources:
+      - "src/services/graph_service.py"
+    doc: ".claude/context/graph-mutation.md"
+
+  - sources:
+      - "src/services/canonical_slot_service.py"
+      - "src/services/turn_pipeline/stages/slot_discovery_stage.py"
+    doc: ".claude/context/canonical-slots.md"
+
+  - sources:
+      - "src/services/extraction_service.py"
+      - "src/services/turn_pipeline/stages/extraction_stage.py"
+      - "src/llm/prompts/extraction.py"
+      - "src/llm/client.py"
+    doc: ".claude/context/extraction.md"
+
+  - sources:
+      - "src/services/turn_pipeline/stages/*.py"
+      - "src/services/turn_pipeline/context.py"
+      - "src/services/question_service.py"
+      - "src/llm/prompts/question.py"
+      - "src/domain/models/pipeline_contracts.py"
+    doc: ".claude/context/pipeline-contracts.md"
+
+  - sources:
+      - "src/services/node_signal_detection_service.py"
+      - "src/services/node_state_tracker.py"
+      - "src/domain/models/node_state.py"
+    doc: ".claude/context/node-state-tracker.md"
+
+  - sources:
+      - "src/services/methodology_strategy_service.py"
+    doc: "docs/SYSTEM_DESIGN.md"
+
+  - sources:
+      - "src/signals/__init__.py"
+      - "src/signals/signal_registry.py"
+    doc: ".claude/context/signal-detection-llm.md"
+
+  - sources:
+      - "src/main.py"
+      - "src/routers/*.py"
+    doc: "docs/API.md"
+
+  - sources:
+      - "src/services/synthetic_service.py"
+      - "src/llm/prompts/synthetic.py"
+      - "scripts/run_simulation.py"
+      - "config/personas/*.yaml"
+    doc: "docs/interview_ai_simulation.md"
+
+  - sources:
+      - "src/core/concept_loader.py"
+      - "config/concepts/*.yaml"
+      - "config/interview_config.yaml"
+    doc: "docs/SYSTEM_DESIGN.md"
+
+  - sources:
+      - "scripts/eval/metrics.py"
+      - "scripts/eval/run_matrix.py"
+      - "scripts/eval/show_scoreboard.py"
+      - "scripts/eval/smoke_test.py"
+      - "scripts/eval/test_paired_labels.py"
+      - "scripts/eval/latency_audit.py"
+      - "scripts/eval/build_quality_baseline.py"
+    doc: "docs/testing_harness.md"
+
+  - sources:
+      - "scripts/reporting/*.py"
+    doc: "docs/interview_ai_simulation.md"
