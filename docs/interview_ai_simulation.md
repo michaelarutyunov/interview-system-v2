@@ -455,6 +455,7 @@ reports/interviews/<timestamp>/
 │   ├── summary.md
 │   ├── llm_calls.csv
 │   └── stages.csv
+├── 05_turn_diagnostics.md    # Per-turn edge extraction: nodes, confirmed edges (with frame/confidence), rejected candidates by reason
 ├── 06_insights.md            # Placeholder for qualitative review
 └── 99_session.log            # Copied session log
 ```

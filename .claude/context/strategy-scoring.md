@@ -398,6 +398,11 @@ When a strategy's typical base score exceeds its repetition brake magnitude by >
 | CJM `deepen_stage` | 2.3 | -0.6 | 3.8× | Won 8/10 turns despite "brake" |
 | RG `explore_construct` | 1.4 | -0.4 | 3.5× | Won 3/10; runner-up never competitive |
 | MEC `ascend` (pre-fix) | ~0.8 | -1.5 | 0.5× | Never fired — over-braked |
+| JTBD `ascend` (pre-fix) | ~1.8 eff. | -0.30 | 6× | Won 6 consecutive turns (Turns 9–13) |
+
+**JTBD ascend monoculture (May 2026)**: `gap.above.true: 0.5` × 3–4 nodes with gap_above per turn = ~1.5–2.0 effective positive mass. The -0.30 self_count brake accumulated to -0.90 after 3 consecutive uses — insufficient against 1.5–2.0. Fix: self_count brake -0.30 → -0.50 (accumulated -1.50 after 3 uses). Companion change: ground mid-phase multiplier 1.3 → 1.5 to compensate for structural mass asymmetry — equal multipliers produced a 3:1 ascend:ground ratio in mid-phase because ascend's total positive mass exceeds ground's despite nominally symmetric phase weights.
+
+**Asymmetry diagnostic**: if `gap.above.true` fires more frequently than `gap.below.true` (check signal firing rates in scoring summary), ascend will structurally dominate ground even with equal multipliers. The frequency asymmetry happens because ascend creates nodes at higher levels without filling in antecedents — the graph accumulates gap_above faster than gap_below. Compensate with a higher ground multiplier rather than a lower ascend multiplier to preserve laddering momentum.
 
 **Rule of thumb**: repetition brake magnitude should be ≥50% of the strategy's typical base score when that strategy is intended to fire 2–3× per interview. For dominant structural strategies (base >1.5), either:
 - Reduce structural positive mass (audit which signals contribute >0.5)

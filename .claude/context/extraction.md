@@ -137,9 +137,19 @@ Pairs are emitted in priority order within a hard cap of 40:
 1. **CURRENT × FOCUS** — highest priority: focus node was actively discussed this turn
 2. **CURRENT × NEIGHBOR** — direct graph neighbours of FOCUS
 3. **CURRENT × CURRENT** — share the same current turn's utterances
-4. **CURRENT × RECENT** — lowest priority: previous-turn nodes
+4. **CURRENT × RECENT** — lower priority: previous-turn nodes
+5. **CURRENT × OPENING** — lowest priority: Turn 0 nodes, re-included for turns 2–5 only
 
 With full conversation history passed as utterance context, the priority ordering affects which pairs get evaluated when the cap is hit, not which utterances are visible to Haiku — Haiku can now see the full conversation for all pairs.
+
+**Turn 0 orphan architecture**: The opening turn (Turn 0) extracts 5–9 rich L1/L2 concepts (job contexts, pain points, gain points, job statements) that become permanent orphans without the OPENING bucket because: (1) they appear as RECENT in Turn 1 but get cut by the 40-pair cap when higher-priority pairs fill it, and (2) from Turn 2 onward they are absent from the candidate set entirely. The OPENING tag gives them a second evaluation window during early turns before the conversation diverges. After Turn 5 the concepts are typically too contextually distant to form valid edges.
+
+**Rejection code diagnostic**: When analyzing edge extraction failure, check the rejection code distribution in `edge_rejected_summary` logs:
+- `insufficient_evidence` > 50% of rejections → the utterance context is the bottleneck, not Haiku's calibration. Haiku cannot find the cross-turn connective tissue because the assembled context doesn't contain it. Root cause: fragmented per-node utterance assembly. Fix: full conversation history.
+- `type_constraint_violation` + `semantic_irrelevance` dominant → correct behavior. Haiku is rejecting genuinely invalid pairs.
+- `question_frame_contamination` dominant in mid-phase for laddering methodologies → over-rejection due to inherent laddering framing. Fix: `edge_extraction_notes` in YAML.
+
+**Negation check**: The prompt includes an explicit "Negation Check" principle: if the supporting span describes the *absence* or *opposite* of the proposed relationship (e.g. "I don't think about health when at home" cited for `at_home → triggers → health_mindset`), reject with `insufficient_evidence`. Co-occurrence is not evidence; negation is anti-evidence. This catches directional inversion: edges where the quote contradicts rather than supports the claimed direction, which previously passed as `medium` confidence.
 
 **Why the cap matters**: At 30s timeout (edge_extraction client config), Haiku evaluates roughly 35-40 pairs reliably. Turns with many CURRENT nodes (e.g., 8 nodes × 6 existing = 76 uncapped pairs) previously caused silent timeouts — the bridge stage received no result and logged nothing because the asyncio task stored the `LLMTimeoutError` which the bridge caught but at a log level filtered in simulation exports. The 40-pair cap prevents this. The `pair_count` field in `edge_extraction_prefetch_fired` logs now reflects the actual capped count, not the theoretical maximum.
 

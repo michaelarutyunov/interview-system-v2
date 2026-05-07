@@ -197,6 +197,8 @@ level_guidance:
 
 **Constraint**: Only fires when the focus node type is resolved (i.e., `focus_node_type` is not `None`). Generic/fallback focus concepts without a node type skip level_guidance injection.
 
+**Critical prompt position**: `level_guidance` must be injected **after** the strategy description line, not before it. When injected before, the strategy description (e.g. "Ladder toward emotional/social driver") reads last and overrides the level_guidance, causing the LLM to treat the strategy's generic goal as the instruction. Injected after the strategy line with an explicit "⚠ Level-specific instruction (overrides strategy description above):" prefix, it correctly takes precedence. Confirmed failure: JTBD `ascend` at L3 emotional_job nodes produced confirmation probes instead of solution-closure questions when level_guidance appeared before the strategy line.
+
 ### probe_guidance: strategy-level question generation instruction
 
 `probe_guidance` is a flat string (multiline YAML supported) injected verbatim into the question generation user prompt for every turn where this strategy is selected, regardless of node type. It replaces the former pattern of hardcoded `if strategy == "surface_tension":` blocks in `question.py`.
