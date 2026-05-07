@@ -17,7 +17,7 @@ Returns `ExtractionResult` with `concepts`, `is_extractable`, and `latency_ms`.
 
 A separate Haiku prompt (`src/llm/prompts/edge_extraction.py`) handles all edge identification. Key differences from Stage 3:
 - **Input**: post-dedup node IDs (from GraphUpdateStage), not raw concept texts
-- **Candidate assembly**: FOCUS × CURRENT/NEIGHBOR/RECENT node pairs, filtered to pairs where at least one endpoint is CURRENT (novel-this-turn)
+- **Candidate assembly**: FOCUS × CURRENT/NEIGHBOR/RECENT node pairs, filtered to pairs where at least one endpoint is CURRENT (novel-this-turn). Utterance context: full conversation history (up to 30 utterances, covering a complete 15-turn interview) so Haiku can find cross-turn causal links (e.g. L0 trigger established in Turn 1 linked to L1 pain point introduced in Turn 3)
 - **Candidate pair format**: compact single-line (`pair="id1,id2" (type1 -> type2)`); node labels omitted since they're listed in the Candidate Nodes section above
 - **Methodology content**: rendered via `MethodologySchema` accessors (`get_edge_descriptions_with_connections()`, `get_chain_relevant_edge_types()`)
 - **Output**: XML with structured reasoning (see below), confirmed edges with confidence (high/medium/low) + supporting spans, rejected candidates with 5-code taxonomy (no reasoning)
@@ -134,10 +134,12 @@ The edge extraction system prompt accepts a `## Methodology-Specific Edge Extrac
 Candidate pairs are built by `_build_candidate_pairs_section()` in `edge_extraction_prefetch_stage.py`. Only pairs where at least one endpoint is CURRENT (extracted this turn) are evaluated — pre-existing node pairs (FOCUS×NEIGHBOR, FOCUS×RECENT) were evaluable in earlier turns and are excluded to avoid O(N²) growth.
 
 Pairs are emitted in priority order within a hard cap of 40:
-1. **CURRENT × FOCUS** — highest evidence: focus node's source utterances are in the assembled context
+1. **CURRENT × FOCUS** — highest priority: focus node was actively discussed this turn
 2. **CURRENT × NEIGHBOR** — direct graph neighbours of FOCUS
-3. **CURRENT × CURRENT** — share the same current utterance by definition
-4. **CURRENT × RECENT** — weakest evidence, different-turn utterance context
+3. **CURRENT × CURRENT** — share the same current turn's utterances
+4. **CURRENT × RECENT** — lowest priority: previous-turn nodes
+
+With full conversation history passed as utterance context, the priority ordering affects which pairs get evaluated when the cap is hit, not which utterances are visible to Haiku — Haiku can now see the full conversation for all pairs.
 
 **Why the cap matters**: At 30s timeout (edge_extraction client config), Haiku evaluates roughly 35-40 pairs reliably. Turns with many CURRENT nodes (e.g., 8 nodes × 6 existing = 76 uncapped pairs) previously caused silent timeouts — the bridge stage received no result and logged nothing because the asyncio task stored the `LLMTimeoutError` which the bridge caught but at a log level filtered in simulation exports. The 40-pair cap prevents this. The `pair_count` field in `edge_extraction_prefetch_fired` logs now reflects the actual capped count, not the theoretical maximum.
 

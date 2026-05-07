@@ -26,7 +26,6 @@ from src.llm.prompts.edge_extraction import (
     get_edge_extraction_user_prompt,
     parse_edge_extraction_response,
 )
-from src.services.edge_extraction_service import assemble_focus_derived_utterances
 
 if TYPE_CHECKING:
     from ..context import PipelineContext
@@ -77,18 +76,11 @@ class EdgeExtractionPrefetchStage(TurnStage):
             context._edge_extraction_task = None
             return context
 
-        # Assemble utterance set via B3 helper (D6)
-        previous_question_id = self._get_previous_question_utterance_id(context)
-        if focus_node_id:
-            utterances = await assemble_focus_derived_utterances(
-                graph_repo=self._graph_repo,
-                utterance_repo=self._utterance_repo,
-                focus_node_id=focus_node_id,
-                current_turn=turn_number,
-                previous_question_utterance_id=previous_question_id,
-            )
-        else:
-            utterances = []
+        # Full conversation history — gives Haiku the connective tissue it needs
+        # to find cross-turn causal relationships (e.g. L0 trigger → L1 pain point
+        # stated across two consecutive turns). Limit 30 covers a full 15-turn
+        # interview (2 utterances/turn) without approaching token limits.
+        utterances = await self._utterance_repo.get_recent(session_id, limit=30)
 
         # Build prompt sections
         utterances_text = self._build_utterances_section(utterances)
@@ -248,34 +240,6 @@ class EdgeExtractionPrefetchStage(TurnStage):
                 seen_ids.add(node.id)
 
         return candidates, focus_node_id
-
-    def _get_previous_question_utterance_id(self, context: "PipelineContext") -> str:
-        """Extract the ID of the last system utterance from conversation history."""
-        if not context.recent_utterances:
-            log.debug(
-                "edge_extraction_no_previous_question_no_recent_utterances",
-                session_id=context.session_id,
-                turn_number=context.turn_number,
-            )
-            return ""
-        for utt in reversed(context.recent_utterances):
-            if utt.get("speaker") == "system":
-                qid = utt.get("id", "")
-                if not qid:
-                    log.debug(
-                        "edge_extraction_previous_question_missing_id",
-                        session_id=context.session_id,
-                        turn_number=context.turn_number,
-                        utt_keys=list(utt.keys()),
-                    )
-                return qid
-        log.debug(
-            "edge_extraction_no_previous_question_no_system_utterance",
-            session_id=context.session_id,
-            turn_number=context.turn_number,
-            utterance_count=len(context.recent_utterances),
-        )
-        return ""
 
     def _build_utterances_section(self, utterances) -> str:
         """Format utterances with their node spans for the prompt."""
