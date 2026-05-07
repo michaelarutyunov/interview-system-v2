@@ -308,6 +308,8 @@ strategies:
     extraction_mode: extract_new
     description: "Ladder from a functional job toward its emotional or social driver by asking why the job matters to the respondent"
     level_guidance:
+      job_context: "You are at a job context (L0) — this describes the situation or circumstance where the need arises. Ask what the respondent actually does, feels, or reaches for in this situation. Probe ACTUAL BEHAVIOR or ACTUAL EXPERIENCE ('what do you do when...', 'what do you reach for in that moment'). Do NOT invent product capabilities or ask 'what would it mean if [product] helped you X' — only introduce a hypothetical if the respondent's own answer already used conditional language ('I wish', 'if only', 'it would help if')."
+      job_trigger: "You are at a job trigger (L0) — this describes what sets off the need. Ask what the respondent does next, or what they are looking for when this trigger fires. Probe actual behavior, not hypothetical product scenarios."
       emotional_job: "You are at an emotional job (L3) — the respondent has articulated what they want to feel. Your question must close the chain by asking what solution, behavior, or product they currently use to fulfill this emotional need. Ask 'what do you hire?' or 'what do you reach for?' — do NOT ask 'why does that matter?' again, that would ladder backwards."
       social_job: "You are at a social job (L3) — the respondent has articulated how they want to be seen. Your question must close the chain by asking what solution or behavior they use to manage this social impression. Ask what they actually do or reach for to achieve this — do NOT re-ladder the emotional driver."
     signal_weights:
