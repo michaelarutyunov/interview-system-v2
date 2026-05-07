@@ -239,6 +239,29 @@ class EdgeExtractionPrefetchStage(TurnStage):
                 )
                 seen_ids.add(node.id)
 
+        # 5. OPENING: Turn 0 nodes re-included for early turns (2–5).
+        # Turn 0 extraction produces rich L1/L2 concepts (triggers, pain points,
+        # gain points, job statements) that become permanent orphans because:
+        # - They appear as RECENT in Turn 1 but are cut by the 40-pair cap
+        # - From Turn 2 onward they are absent from the candidate set entirely
+        # Including them as OPENING gives them a second evaluation window before
+        # the conversation diverges too far from the opening context.
+        if 2 <= turn_number <= 5:
+            opening_nodes = await self._graph_repo.get_nodes_by_turn(session_id, 0)
+            for node in opening_nodes:
+                if node.id in seen_ids:
+                    continue
+                candidates.append(
+                    {
+                        "tag": "OPENING",
+                        "node_id": node.id,
+                        "label": node.label,
+                        "node_type": node.node_type,
+                        "turn": 0,
+                    }
+                )
+                seen_ids.add(node.id)
+
         return candidates, focus_node_id
 
     def _build_utterances_section(self, utterances) -> str:
@@ -308,6 +331,7 @@ class EdgeExtractionPrefetchStage(TurnStage):
         focus_nodes = by_tag.get("FOCUS", [])
         neighbor_nodes = by_tag.get("NEIGHBOR", [])
         recent_nodes = by_tag.get("RECENT", [])
+        opening_nodes = by_tag.get("OPENING", [])
 
         def _make_pair(src: dict, tgt: dict) -> str:
             return format_candidate_pair_for_edge_extraction(
@@ -319,7 +343,7 @@ class EdgeExtractionPrefetchStage(TurnStage):
 
         # Build priority buckets
         seen: set[frozenset] = set()
-        buckets: list[list[str]] = [[], [], [], []]  # focus, neighbor, current, recent
+        buckets: list[list[str]] = [[], [], [], [], []]  # focus, neighbor, current, recent, opening
 
         def _add(bucket_idx: int, a: dict, b: dict) -> None:
             key = frozenset([a["node_id"], b["node_id"]])
@@ -334,6 +358,8 @@ class EdgeExtractionPrefetchStage(TurnStage):
                 _add(1, curr, nbr)
             for recent in recent_nodes:
                 _add(3, curr, recent)
+            for opening in opening_nodes:
+                _add(4, curr, opening)
 
         # intra-CURRENT pairs
         for i, a in enumerate(current_nodes):

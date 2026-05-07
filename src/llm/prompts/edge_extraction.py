@@ -62,8 +62,11 @@ When rejecting a candidate pair, use one of these standardised codes:
 - **type_constraint_violation**: The edge type you considered is not permitted for this
   source/target node-type pair. Check the edge type definitions for valid connections.
 - **insufficient_evidence**: No transcript span provides clear support for this relationship.
-  Includes cases of circular evidence (span already used for source node) and purely
-  associative connections lacking directionality.
+  Includes cases of circular evidence (span already used for source node), purely
+  associative connections lacking directionality, and — critically — utterances that
+  *negate* or *deny* the proposed relationship. If the respondent says "I don't think
+  about it when X" or "it doesn't really affect Y", that utterance contradicts X→Y and
+  must be rejected with `insufficient_evidence`, not confirmed at low confidence.
 - **duplicate_edge**: A relationship of the same type already exists between these two
   nodes. Do not create redundant edges.
 - **semantic_irrelevance**: The source and target nodes refer to unrelated topics or
@@ -159,7 +162,13 @@ element is needed. The 5-code taxonomy captures the rationale:
 
 ## Universal Principles:
 - **Evidence first**: Every confirmed edge must cite a specific utterance span. If no span
-  supports the relationship, reject with `insufficient_evidence`.
+  supports the relationship, reject with `insufficient_evidence`. Before confirming, ask:
+  does the cited span *assert* the relationship, or does it merely mention both concepts?
+  Co-occurrence is not evidence. Negation is anti-evidence — reject it.
+- **Negation check**: If the span describes the *absence* or *opposite* of the proposed
+  relationship (e.g. "I don't think about health when I'm at home" cited for
+  `at_home → triggers → health_mindset`), reject with `insufficient_evidence`. A quote
+  that negates the edge cannot confirm it at any confidence level.
 - **Direction awareness**: The source node must be the cause/trigger/antecedent, and the
   target node must be the effect/outcome/consequent. If the direction is unclear, use
   `confidence=low` or reject.

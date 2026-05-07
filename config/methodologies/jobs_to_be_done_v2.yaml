@@ -336,8 +336,10 @@ strategies:
       convgraph.node.llm.charge.positive: 0.1
       # f965: response_depth.surface (0.1) + response_depth.shallow (0.05) → elaboration.low 0.15
       convgraph.node.llm.elaboration.low: 0.15
-      # Repetition brake — y6mb: strengthened from -0.15 to match ground's brake strength
-      interview.strategy.self_count: -0.30
+      # Repetition brake — strengthened from -0.30 to -0.50 to counter 6-turn
+      # monoculture: positive mass from gap.above (~1.5-2.0 effective) overwhelmed
+      # the -0.30 brake. At -0.50, accumulated brake after 3 uses ≈ -1.50.
+      interview.strategy.self_count: -0.50
 
   # Strategy 3: Ground — find lower-level antecedents for higher-level nodes
   # Binds to nodes with gap_below (nodes at L1-L4 that lack chain-relevant
@@ -508,7 +510,9 @@ phases:
     # Anchor available for orphans and pain points. Elaborate reduced to favor depth-building.
     signal_weights:
       ascend: 1.3             # Ladder toward emotional/social drivers
-      ground: 1.3             # Find functional antecedents for terminal nodes
+      ground: 1.5             # Raised from 1.3 to create asymmetric mid-phase advantage
+                              # — structural signal mass favors ascend, so equal multipliers
+                              # produced 3:1 ascend:ground ratio; 1.5 compensates
       anchor: 1.0
       revitalize: 1.0
       close: 0.5           # Becoming available but still suppressed

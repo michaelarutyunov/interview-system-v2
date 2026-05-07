@@ -21,6 +21,7 @@ Export all artifacts from a single simulated interview into a unified folder.
 | `04_scoring.csv` | Raw per-signal-per-candidate scoring decomposition |
 | `04_scoring_summary.md` | Aggregated tables (firing rates, dead signals, budget, gates) |
 | `05_latency/` | Latency audit summary + per-stage CSV + LLM call CSV |
+| `05_turn_diagnostics.md` | Per-turn edge extraction diagnostics (nodes, confirmed edges, rejected candidates) |
 | `06_insights.md` | Placeholder — populated by `/interview-review` |
 | `99_session.log` | Copied session log (for latency analysis and debugging) |
 

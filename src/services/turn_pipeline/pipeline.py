@@ -35,6 +35,9 @@ def _serialize_edge_extraction_result(context: PipelineContext) -> dict | None:
                 "edge_type": e.edge_type,
                 "confidence": e.confidence,
                 "utterance_id": e.utterance_id,
+                "assertion": e.assertion,
+                "direction": e.direction,
+                "frame": e.frame,
             }
             for e in result.confirmed_edges
         ],

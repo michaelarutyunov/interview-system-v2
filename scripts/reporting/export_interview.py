@@ -14,6 +14,7 @@ Orchestrates the individual generators to produce a complete interview export:
 │   ├── summary.md
 │   ├── llm_calls.csv
 │   └── stages.csv
+    ├── 05_turn_diagnostics.md
     ├── 06_insights.md          (placeholder — filled by reviewer skill)
     └── 99_session.log          (copied from logs/)
 
@@ -160,6 +161,127 @@ def _generate_latency_audit(log_path: Path | None, latency_dir: Path) -> None:
     write_report(data, latency_dir)
 
 
+def _truncate(text: str, max_len: int = 80) -> str:
+    if len(text) <= max_len:
+        return text
+    return text[:max_len] + "…"
+
+
+def _generate_turn_diagnostics(json_path: Path, output_path: Path) -> None:
+    """Generate per-turn diagnostics showing nodes, confirmed edges, and rejected candidates."""
+    data = json.loads(json_path.read_text())
+    meta = data.get("metadata", {})
+    turns = data.get("turns", [])
+
+    # Build node_id -> (label, turn_number) map across all turns
+    node_map: dict[str, tuple[str, int]] = {}
+    for t in turns:
+        for n in (t.get("nodes_added") or []):
+            node_map[n["id"]] = (n["label"], t["turn_number"])
+
+    def node_label(node_id: str) -> str:
+        entry = node_map.get(node_id)
+        return _truncate(entry[0], 80) if entry else node_id[:12]
+
+    def node_turn(node_id: str) -> str:
+        entry = node_map.get(node_id)
+        return f"t={entry[1]}" if entry else "?"
+
+    lines: list[str] = [
+        f"# Turn Diagnostics — {_extract_timestamp(json_path)}",
+        "",
+        f"- **Session**: `{meta.get('session_id', 'N/A')}`",
+        f"- **Methodology**: `{meta.get('methodology', '')}`",
+        f"- **Concept**: {meta.get('concept_name', '')}",
+        f"- **Total turns**: {meta.get('total_turns', 0)}",
+    ]
+
+    for t in turns:
+        tn = t.get("turn_number", "?")
+        strategy = t.get("strategy_selected") or "—"
+        question = t.get("question", "")
+        response = t.get("response", "")
+
+        lines.append("")
+        lines.append(f"## Turn {tn} — {strategy}")
+        lines.append("")
+        lines.append(f"> **system**: {_truncate(question)}")
+        lines.append(f"> **user**: {_truncate(response)}")
+
+        nodes = t.get("nodes_added") or []
+        ee = t.get("edge_extraction")
+
+        # Nodes extracted
+        if nodes:
+            lines.append("")
+            lines.append(f"### Nodes extracted ({len(nodes)})")
+            lines.append("")
+            lines.append("| ID | Label | Type |")
+            lines.append("|----|-------|------|")
+            for n in nodes:
+                nid = n["id"][:8]
+                label = _truncate(n["label"], 60)
+                ntype = n["node_type"]
+                lines.append(f"| `{nid}` | {label} | `{ntype}` |")
+
+        if not ee:
+            continue
+
+        # Edges confirmed
+        confirmed = ee.get("confirmed_edges") or []
+        if confirmed:
+            lines.append("")
+            lines.append(f"### Edges confirmed ({len(confirmed)})")
+            lines.append("")
+            lines.append("| Source | T | → | Target | T | Type | Conf | Assertion | Direction | Frame |")
+            lines.append("|--------|---|---|--------|---|------|------|-----------|-----------|-------|")
+            for e in confirmed:
+                src = node_label(e["source_node_id"])
+                src_t = node_turn(e["source_node_id"])
+                tgt = node_label(e["target_node_id"])
+                tgt_t = node_turn(e["target_node_id"])
+                etype = e["edge_type"]
+                conf = e.get("confidence", "—")
+                assertion = e.get("assertion") or "—"
+                direction = e.get("direction") or "—"
+                frame = e.get("frame") or "—"
+                lines.append(f"| {src} | {src_t} | → | {tgt} | {tgt_t} | `{etype}` | {conf} | {assertion} | {direction} | {frame} |")
+
+        # Rejected candidates
+        rejected = ee.get("rejected_candidates") or []
+        if rejected:
+            # Summary table by reason
+            reason_counts: dict[str, int] = {}
+            for r in rejected:
+                reason = r.get("rejection_reason", "unknown")
+                reason_counts[reason] = reason_counts.get(reason, 0) + 1
+
+            lines.append("")
+            lines.append(f"### Rejected candidates ({len(rejected)})")
+            lines.append("")
+            lines.append("| Reason | Count |")
+            lines.append("|--------|-------|")
+            for reason, count in sorted(reason_counts.items(), key=lambda x: -x[1]):
+                lines.append(f"| `{reason}` | {count} |")
+
+            # Per-pair details in collapsible section
+            lines.append("")
+            lines.append("<details>")
+            lines.append("<summary>Per-pair details</summary>")
+            lines.append("")
+            lines.append("| Source | → | Target | Reason |")
+            lines.append("|--------|---|--------|--------|")
+            for r in rejected:
+                src = node_label(r["source_node_id"])
+                tgt = node_label(r["target_node_id"])
+                reason = r.get("rejection_reason", "unknown")
+                lines.append(f"| {src} | → | {tgt} | `{reason}` |")
+            lines.append("")
+            lines.append("</details>")
+
+    output_path.write_text("\n".join(lines) + "\n")
+
+
 def export_interview(json_path: Path, output_dir: Path | None = None) -> Path:
     """Export all interview artifacts into a single folder.
 
@@ -225,6 +347,11 @@ def export_interview(json_path: Path, output_dir: Path | None = None) -> Path:
     latency_dir = export_dir / "05_latency"
     _generate_latency_audit(log_path, latency_dir)
     print("  ✓ 05_latency/ (summary.md, llm_calls.csv, stages.csv)")
+
+    # 05_turn_diagnostics.md
+    diagnostics_path = export_dir / "05_turn_diagnostics.md"
+    _generate_turn_diagnostics(json_path, diagnostics_path)
+    print("  ✓ 05_turn_diagnostics.md")
 
     # 06_insights.md — placeholder for reviewer skill
     insights_path = export_dir / "06_insights.md"
