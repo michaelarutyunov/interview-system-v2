@@ -27,16 +27,19 @@ def mock_nodes():
     node1.id = "node-123"
     node1.label = "oat milk"
     node1.node_type = "attribute"
+    node1.source_quotes = ["it just tastes better to me"]
 
     node2 = MagicMock(spec=KGNode)
     node2.id = "node-456"
     node2.label = "almond milk"
     node2.node_type = "functional_consequence"
+    node2.source_quotes = []
 
     node3 = MagicMock(spec=KGNode)
     node3.id = "node-789"
     node3.label = "dairy alternatives"
     node3.node_type = "psychosocial_consequence"
+    node3.source_quotes = []
 
     return [node1, node2, node3]
 
@@ -57,7 +60,7 @@ class TestFocusResolutionOrder:
             strategy="any_strategy",
         )
 
-        assert result == {"label": "oat milk", "node_type": "attribute"}
+        assert result == {"label": "oat milk", "node_type": "attribute", "source_quote": "it just tastes better to me"}
 
     def test_resolves_from_description_when_node_id_not_found(
         self, focus_service, mock_nodes
@@ -209,4 +212,4 @@ class TestEdgeCases:
             strategy="any_strategy",
         )
 
-        assert result == {"label": "almond milk", "node_type": "functional_consequence"}
+        assert result == {"label": "almond milk", "node_type": "functional_consequence", "source_quote": ""}

@@ -87,6 +87,7 @@ class QuestionService:
         signal_descriptions: Optional[Dict[str, str]] = None,
         focus_node_type: Optional[str] = None,
         focus_node_level: Optional[int] = None,
+        focus_source_quote: Optional[str] = None,
         level_guidance: Optional[Dict[str, str]] = None,
     ) -> str:
         """Generate follow-up question based on strategy, context, and graph state.
@@ -142,6 +143,18 @@ class QuestionService:
         methodology_schema = self.load_methodology_schema()
 
         # Get prompts - include topic anchoring and methodology
+        # Load probe_guidance from strategy config
+        probe_guidance: str = ""
+        try:
+            from src.methodologies import get_registry as _get_registry
+
+            _config = _get_registry().get_methodology(self.methodology)
+            _strat = next((s for s in _config.strategies if s.name == strategy), None)
+            if _strat:
+                probe_guidance = _strat.probe_guidance
+        except Exception:
+            pass
+
         system_prompt = get_question_system_prompt(
             methodology_schema, strategy=strategy, topic=topic
         )
@@ -157,6 +170,8 @@ class QuestionService:
             signal_descriptions=signal_descriptions,
             focus_node_type=focus_node_type,
             focus_node_level=focus_node_level,
+            focus_source_quote=focus_source_quote,
+            probe_guidance=probe_guidance,
             level_guidance=level_guidance,
         )
 

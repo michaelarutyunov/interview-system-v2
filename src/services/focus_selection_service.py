@@ -65,14 +65,14 @@ class FocusSelectionService:
             node_id = focus_dict["focus_node_id"]
             resolved = self._resolve_node_id_to_label_and_type(node_id, recent_nodes)
             if resolved:
-                label, node_type = resolved
+                label, node_type, source_quote = resolved
                 log.debug(
                     "focus_resolved_from_node_id",
                     node_id=node_id,
                     label=label,
                     node_type=node_type,
                 )
-                return {"label": label, "node_type": node_type}
+                return {"label": label, "node_type": node_type, "source_quote": source_quote}
 
         # Try to use focus_description
         if focus_dict and "focus_description" in focus_dict:
@@ -95,19 +95,21 @@ class FocusSelectionService:
         self,
         node_id: str,
         nodes: List[KGNode],
-    ) -> Optional[tuple[str, str]]:
-        """Find node label and type by ID.
+    ) -> Optional[tuple[str, str, str]]:
+        """Find node label, type, and first source quote by ID.
 
         Args:
             node_id: Node ID to look up
             nodes: List of nodes to search
 
         Returns:
-            Tuple of (label, node_type) if found, None otherwise
+            Tuple of (label, node_type, source_quote) if found, None otherwise.
+            source_quote is empty string when no quotes are recorded.
         """
         for node in nodes:
             if str(node.id) == str(node_id):
-                return (node.label, node.node_type)
+                quote = node.source_quotes[0] if node.source_quotes else ""
+                return (node.label, node.node_type, quote)
         return None
 
     def _select_by_focus_mode(

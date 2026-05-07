@@ -102,7 +102,7 @@ Strategy: {strat_description}{methodology_section}
 Before outputting your final question:
 1. Generate 3 distinct candidate questions that follow the strategy
 2. Score each silently: clarity (1-5), strategy_fit (1-5), naturalness (1-5)×2, topic_anchor (1-5), focus_fit (1-5)×3
-   focus_fit rubric: 5 = question directly names or clearly implies the focus concept; 3 = question could apply to the focus concept but is generic; 1 = question is about a recently-discussed topic or any concept other than the designated focus concept
+   focus_fit rubric: 5 = question asks about the meaning or motivation behind the focus concept, in the respondent's own words; 3 = question addresses the focus concept but is generic; 1 = question attends to a single word from the concept label while missing its meaning, asks about operational/logistical details, asks the respondent to confirm what they already said, or is about a different topic
 3. Select the highest-scoring candidate
 4. Output ONLY the selected question — no candidates, no scores, no explanation"""
 
@@ -120,6 +120,8 @@ def get_question_user_prompt(
     signal_descriptions: Optional[Dict[str, str]] = None,
     focus_node_type: Optional[str] = None,
     focus_node_level: Optional[int] = None,
+    focus_source_quote: Optional[str] = None,
+    probe_guidance: Optional[str] = None,
     level_guidance: Optional[Dict[str, str]] = None,
 ) -> str:
     """
@@ -139,6 +141,10 @@ def get_question_user_prompt(
             'functional_consequence') — helps the LLM tailor question phrasing
         focus_node_level: Ontology level of the focus node type (e.g., 0-4) —
             helps the LLM understand what level to target next
+        focus_source_quote: The respondent's verbatim quote that produced this focus node —
+            grounds the question in what was actually said rather than the abstracted label
+        probe_guidance: Strategy-specific question generation instruction from methodology YAML —
+            replaces hardcoded strategy-specific blocks
 
     Returns:
         User prompt string
@@ -196,12 +202,21 @@ def get_question_user_prompt(
     else:
         if focus_node_type:
             prompt_parts.append(
-                f'Your question MUST be about this concept: "{focus_concept}" '
+                f'Your question MUST explore this concept: "{focus_concept}" '
                 f"(type: {focus_node_type}){level_info}."
             )
         else:
             prompt_parts.append(
-                f'Your question MUST be about this concept: "{focus_concept}".'
+                f'Your question MUST explore this concept: "{focus_concept}".'
+            )
+        # Ground the question in the respondent's actual words, not the abstracted label
+        if focus_source_quote:
+            prompt_parts.append(
+                f'The respondent expressed this as: "{focus_source_quote}"\n'
+                "Ask about the MEANING behind what they said — not about any single word "
+                "in the concept label. Do not attend to operational or logistical details "
+                "(who, how much, who stocks, where it's bought) — stay with the respondent's "
+                "experience and motivation."
             )
         # Inject node-type-specific level guidance (from YAML strategy config)
         if level_guidance and focus_node_type:
@@ -211,10 +226,11 @@ def get_question_user_prompt(
         prompt_parts.append(
             f"The respondent's answer below provides context — use it to phrase "
             f"the question naturally, but the question's primary subject must be "
-            f'the focus concept above ("{focus_concept}"). '
+            f'the concept above ("{focus_concept}"). '
             "Even if other topics were discussed recently, stay focused on this concept. "
             "Do NOT drift to the most recently discussed topic — the focus concept takes "
-            "absolute precedence over recency."
+            "absolute precedence over recency. "
+            "Do not ask the respondent to confirm what they already expressed — extend the thread."
         )
     prompt_parts.append(f"Strategy: {strat_name} — {strat_description}")
     prompt_parts.append("")
@@ -265,23 +281,9 @@ def get_question_user_prompt(
         )
         prompt_parts.append("")
 
-    if strategy == "revitalize":
-        prompt_parts.append(
-            "Note: The conversation history above includes the opening question. "
-            "Your revitalize question must explore a DIFFERENT aspect or domain "
-            "that has not yet been discussed — do not repeat or rephrase questions already asked."
-        )
-        prompt_parts.append("")
-
-    if strategy == "surface_tension":
-        prompt_parts.append(
-            "TENSION PROBE: Look at the respondent's last answer for hedging language "
-            "('I guess', 'I'm not sure', 'maybe', 'or actually', 'does that make sense?', "
-            "contradictions, trailing off, self-corrections). "
-            "Your question must echo that specific uncertainty back — name what is hard to articulate. "
-            "BAD: 'How does that feeling change your day?' "
-            "GOOD: 'You kept saying \"I'm not sure\" — what makes this hard to pin down?'"
-        )
+    # Inject strategy-specific probe guidance from methodology YAML
+    if probe_guidance:
+        prompt_parts.append(probe_guidance)
         prompt_parts.append("")
 
     # ── Final instruction (recency — reinforces focus constraint) ──

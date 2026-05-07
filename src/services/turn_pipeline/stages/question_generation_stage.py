@@ -126,9 +126,11 @@ class QuestionGenerationStage(TurnStage):
                 if isinstance(focus_raw, dict):
                     focus_concept = focus_raw.get("label", "")
                     focus_node_type = focus_raw.get("node_type")
+                    focus_source_quote = focus_raw.get("source_quote", "")
                 else:
                     focus_concept = focus_raw or ""
                     focus_node_type = None
+                    focus_source_quote = ""
 
                 # Look up ontology level for the focus node type
                 focus_node_level = None
@@ -179,6 +181,7 @@ class QuestionGenerationStage(TurnStage):
                     topic=context.concept_name,
                     focus_node_type=focus_node_type,
                     focus_node_level=focus_node_level,
+                    focus_source_quote=focus_source_quote,
                     signals=context.signals,
                     signal_descriptions=signal_descriptions or None,
                     level_guidance=level_guidance,

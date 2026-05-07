@@ -116,6 +116,7 @@ class StrategyConfig:
     bridge_target: str = "most_concrete"  # most_concrete, most_abstract, either
     extraction_mode: str = "extract_new"  # extract_new, prefer_existing
     level_guidance: dict[str, str] = field(default_factory=dict)
+    probe_guidance: str = ""  # Strategy-specific question generation instruction
 
 
 class MethodologyRegistry:
@@ -203,6 +204,7 @@ class MethodologyRegistry:
                     bridge_target=s.get("bridge_target", "most_concrete"),
                     extraction_mode=s.get("extraction_mode", "extract_new"),
                     level_guidance=s.get("level_guidance", {}),
+                    probe_guidance=s.get("probe_guidance", ""),
                 )
                 for s in data.get("strategies", [])
             ],
