@@ -28,21 +28,28 @@ import yaml
 # ---------------------------------------------------------------------------
 
 
-def _load_chain_rules(methodology: str) -> dict[str, list[list[str]] | str | None]:
+_CONFIDENCE_RANK = {"high": 2, "medium": 1, "low": 0}
+
+
+def _load_chain_rules(
+    methodology: str,
+) -> tuple[dict[str, list[list[str]] | str | None], dict]:
     """Load chain construction rules for a methodology.
 
-    Returns mapping of edge_type -> rule.
-    Rule formats:
-      - None / "unconstrained": all edges of this type pass
-      - "upward": src_level < tgt_level
-      - "upward_or_lateral": src_level <= tgt_level
-      - "reverse": flip direction, include if reversed edge is upward
-      - [...] (list): old type-pair allowlist (backward compat)
+    Returns (chain_edges, filters) where:
+      chain_edges: mapping of edge_type -> traversal rule
+        Rule formats:
+          - None / "unconstrained": all edges of this type pass
+          - "upward": src_level < tgt_level
+          - "upward_or_lateral": src_level <= tgt_level
+          - "reverse": flip direction, include if reversed edge is upward
+          - [...] (list): old type-pair allowlist (backward compat)
+      filters: optional chain_edge_filters dict from the YAML, e.g.:
+          exclude_frame: [contaminated]
+          min_confidence: medium
 
     Fail-fast: raises FileNotFoundError if no chain_rules YAML exists for the
-    methodology, and KeyError if the YAML lacks a `chain_edges` key. Methodologies
-    without chain topology (e.g. flat/dimensional ontologies) should not be passed
-    to this reporting script — add an explicit rules file or skip the script.
+    methodology, and KeyError if the YAML lacks a `chain_edges` key.
     """
     path = Path(f"config/chain_rules/{methodology}.yaml")
     if not path.exists():
@@ -57,7 +64,7 @@ def _load_chain_rules(methodology: str) -> dict[str, list[list[str]] | str | Non
         raise KeyError(
             f"chain_rules file '{path}' is missing required 'chain_edges' key."
         )
-    return data["chain_edges"]
+    return data["chain_edges"], data.get("chain_edge_filters", {})
 
 
 # ---------------------------------------------------------------------------
@@ -288,6 +295,7 @@ def _walk_chains(
     node_by_id: dict[str, dict],
     chain_rules: dict[str, list[list[str]] | str | None],
     node_levels: dict[str, int],
+    filters: dict | None = None,
 ) -> list[tuple[list[str], list[dict]]]:
     """Return maximal paths of length >= 2 using edge types defined in chain_rules.
 
@@ -298,12 +306,20 @@ def _walk_chains(
       - "reverse"             → flip src↔tgt, include if new src_level < new tgt_level
       - [...] (list)          → old type-pair allowlist (backward compat)
 
+    filters (from chain_edge_filters in chain_rules YAML):
+      exclude_frame: list of frame values to exclude (e.g. ["contaminated"])
+      min_confidence: minimum confidence level ("high", "medium", or "low")
+
     Superseded nodes and revises edges are always excluded.
     Maximal = drop any path that is a strict prefix of another.
     """
     active_nodes = {
         nid: n for nid, n in node_by_id.items() if not n.get("superseded_by")
     }
+
+    exclude_frames: set[str] = set((filters or {}).get("exclude_frame", []))
+    min_conf_str: str = (filters or {}).get("min_confidence", "low")
+    min_conf_rank: int = _CONFIDENCE_RANK.get(min_conf_str, 0)
 
     adj: dict[str, list[tuple[str, dict]]] = defaultdict(list)
     for e in edges:
@@ -313,6 +329,13 @@ def _walk_chains(
         s, t = e["source_node_id"], e["target_node_id"]
         if s not in active_nodes or t not in active_nodes:
             continue
+        # Apply chain_edge_filters: exclude contaminated frames and low-confidence edges
+        if exclude_frames and e.get("frame") in exclude_frames:
+            continue
+        if min_conf_rank > 0:
+            edge_conf = _CONFIDENCE_RANK.get(e.get("confidence", "low"), 0)
+            if edge_conf < min_conf_rank:
+                continue
         rule = chain_rules[edge_type]
         passes, use_reversed = _edge_passes(s, t, rule, active_nodes, node_levels)
         if not passes:
@@ -451,7 +474,7 @@ def generate_causal_chains(
     )
 
     # Chain construction rules
-    chain_rules = _load_chain_rules(methodology)
+    chain_rules, chain_filters = _load_chain_rules(methodology)
     chain_rules_source = (
         f"config/chain_rules/{methodology}.yaml"
         if Path(f"config/chain_rules/{methodology}.yaml").exists()
@@ -481,9 +504,11 @@ def generate_causal_chains(
         no_levels_note = True
     else:
         surf_paths = _walk_chains(
-            surface_edges, surface_by_id, chain_rules, node_levels
+            surface_edges, surface_by_id, chain_rules, node_levels, chain_filters
         )
-        can_paths = _walk_chains(canon_edges, canon_by_id, chain_rules, node_levels)
+        can_paths = _walk_chains(
+            canon_edges, canon_by_id, chain_rules, node_levels, chain_filters
+        )
         no_levels_note = False
 
     surf_by_tier: dict[str, list] = defaultdict(list)

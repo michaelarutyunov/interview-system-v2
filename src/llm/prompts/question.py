@@ -218,11 +218,6 @@ def get_question_user_prompt(
                 "(who, how much, who stocks, where it's bought) — stay with the respondent's "
                 "experience and motivation."
             )
-        # Inject node-type-specific level guidance (from YAML strategy config)
-        if level_guidance and focus_node_type:
-            node_specific = level_guidance.get(focus_node_type)
-            if node_specific:
-                prompt_parts.append(node_specific)
         prompt_parts.append(
             f"The respondent's answer below provides context — use it to phrase "
             f"the question naturally, but the question's primary subject must be "
@@ -233,6 +228,15 @@ def get_question_user_prompt(
             "Do not ask the respondent to confirm what they already expressed — extend the thread."
         )
     prompt_parts.append(f"Strategy: {strat_name} — {strat_description}")
+    # Inject node-type-specific level guidance AFTER the strategy line so it
+    # acts as an explicit override. When focus_node_type is emotional_job or
+    # social_job, the strategy description ("ladder toward emotional/social driver")
+    # contradicts what to do — level_guidance corrects this by naming the actual
+    # next step for this specific level.
+    if level_guidance and focus_node_type:
+        node_specific = level_guidance.get(focus_node_type)
+        if node_specific:
+            prompt_parts.append(f"⚠ Level-specific instruction (overrides strategy description above): {node_specific}")
     prompt_parts.append("")
 
     # ── Section 2: Recent conversation (reference, not primary signal) ──

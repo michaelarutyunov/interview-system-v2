@@ -25,3 +25,7 @@ chain_edges:
   drives: upward
   addresses: reverse
   achieves: reverse
+
+chain_edge_filters:
+  exclude_frame: [contaminated]
+  min_confidence: medium
