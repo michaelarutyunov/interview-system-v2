@@ -356,11 +356,20 @@ strategies:
     extraction_mode: extract_new
     description: "Ground an emotional or social job by exploring what functional circumstances, triggers, or job statements lead to it"
     probe_guidance: |
-      GROUNDING PROBE: Find what produces or makes possible the focus concept.
+      GROUNDING PROBE: Find what produces, triggers, or enables the focus concept.
+      Ask "when does this happen?", "what leads to it?", or "what has to be true for X to occur?"
+      Do NOT ask "why does X matter?" — that ladders upward, not downward.
+      Do NOT invent hypothetical product capabilities ("what would ZeroFizz need to do?", "what would it be worth if X helped you Y?") — ask about actual experience and behavior.
       If the respondent elaborated on the concept — ask what led to it or what causes it.
       If the respondent denied or qualified it — ask what would need to be true for it to apply.
       Do not convert attitudinal statements ("I'd probably feel X") into biographical event probes ("Has there been a time when...").
-      Ask about the respondent's experience and motivation, not operational or logistical details.
+    level_guidance:
+      solution_approach: "You are at a solution (L4) — the respondent named what they reach for or hire. Ask what emotional or social job (L3) this solution serves. Use their words: 'when you reach for X, what are you trying to feel, or trying to avoid?'"
+      emotional_job: "You are at an emotional job (L3). Ask what job statement (L2) drives this emotional need — 'what are you trying to accomplish when you want to feel X?' Do NOT re-ladder upward with 'why does that matter?'"
+      social_job: "You are at a social job (L3). Ask what the respondent is trying to accomplish (L2 job statement) when they want to be seen that way. Do NOT re-ladder upward."
+      job_statement: "You are at a job statement (L2). Ask what specific pain or gain (L1) this job addresses — 'what goes wrong when you can't do X?' or 'what does doing X give you?'"
+      pain_point: "You are at a pain point (L1). Ask what context or trigger (L0) puts the respondent in this situation — 'when does this happen?' or 'what situation leads to this?'"
+      gain_point: "You are at a gain point (L1). Ask what context or trigger (L0) makes this gain matter — 'when do you actually need X?' or 'what situation makes this worth it to you?'"
     signal_weights:
       # Structural signal — gap_below is the primary trigger
       # Boosted from 0.3 to compete with probe_pain's structural mass

@@ -11,7 +11,6 @@ Generates follow-up questions based on:
 Strategy definitions are loaded from methodology YAML configs.
 """
 
-import re
 from typing import Optional, List, Dict, Any
 import structlog
 
@@ -19,32 +18,6 @@ from src.domain.models.methodology_schema import MethodologySchema
 from src.methodologies import get_registry
 
 log = structlog.get_logger(__name__)
-
-_RESISTANCE_PATTERNS = [
-    r"not\s+(?:sure\s+)?that'?s\s+the\s+right\s+framing",
-    r"not\s+how\s+i'?(?:d|ve)?\s+(?:put|frame|think\s+about|describe)\s+it",
-    r"wouldn'?t\s+(?:really\s+)?say\s+that",
-    r"that'?s\s+not\s+(?:really\s+)?how\s+i",
-    r"i'?d\s+push\s+back\s+on",
-    r"not\s+(?:quite|really)\s+(?:right|accurate|how)",
-    r"i\s+don'?t\s+(?:really\s+)?(?:think|see)\s+it\s+(?:that|as)",
-]
-_RESISTANCE_RE = re.compile("|".join(_RESISTANCE_PATTERNS), re.IGNORECASE)
-
-
-def _detect_resistance(
-    recent_utterances: Optional[List[Dict[str, str]]],
-) -> Optional[str]:
-    """Return the last respondent answer if it contains explicit frame rejection, else None."""
-    if not recent_utterances:
-        return None
-    for utt in reversed(recent_utterances):
-        if utt.get("speaker") == "user":
-            text = utt.get("text", "")
-            if _RESISTANCE_RE.search(text):
-                return text
-            return None  # last respondent answer found but no resistance
-    return None
 
 
 def get_question_system_prompt(
@@ -118,7 +91,6 @@ Strategy: {strat_description}{methodology_section}
 6. Be warm, curious, and non-judgmental
 7. Avoid leading questions - stay open-ended
 8. Do not presuppose the level of abstraction — never add "as a person", "to your identity", or "in your life" unless the respondent used those words first
-9. Do NOT invent hypothetical product capabilities ("what if [product] helped you X", "what would it be worth to have something that Y") unless the respondent's own preceding answer already used conditional or hypothetical language ("I wish", "if only", "it would help if", "I'd want"). When probing, ask about actual experience and actual behavior, not invented scenarios.
 
 ## Examples:
 - BAD: "Beyond what you mentioned about X, what else might Y be in terms of Z?"
@@ -237,13 +209,6 @@ def get_question_user_prompt(
             prompt_parts.append(
                 f'Your question MUST explore this concept: "{focus_concept}".'
             )
-        prompt_parts.append(
-            "Use the COMPLETE concept label — including any qualifying or negating clauses "
-            "(e.g. 'regardless of what you drink', 'even when X'). Do not drop qualifiers. "
-            "A negating qualifier (e.g. 'regardless of what you drink') means the respondent "
-            "already scoped the product out — acknowledge this in your framing rather than "
-            "forcing the product back in."
-        )
         # Ground the question in the respondent's actual words, not the abstracted label
         if focus_source_quote:
             prompt_parts.append(
@@ -275,20 +240,6 @@ def get_question_user_prompt(
                 f"⚠ Level-specific instruction (overrides strategy description above): {node_specific}"
             )
     prompt_parts.append("")
-
-    # ── Resistance check (before recent utterances) ──
-    # If the respondent's last answer explicitly rejected the previous framing,
-    # override the focus concept anchor and require the LLM to adopt the
-    # respondent's own language instead of continuing the rejected frame.
-    resistance_answer = _detect_resistance(recent_utterances)
-    if resistance_answer:
-        prompt_parts.append(
-            "⚠ Resistance detected: The respondent's last answer explicitly rejected "
-            "the previous question's framing. Do NOT continue the previous line of questioning. "
-            "Read their answer below and identify the language THEY used to reframe the topic — "
-            "use that language as the anchor for your question, not the focus concept label above."
-        )
-        prompt_parts.append("")
 
     # ── Section 2: Recent conversation (reference, not primary signal) ──
 
