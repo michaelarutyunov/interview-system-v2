@@ -93,9 +93,8 @@ class EdgeExtractionPrefetchStage(TurnStage):
         # Build prompt sections
         utterances_text = self._build_utterances_section(utterances)
         candidate_nodes_text = self._build_candidate_section(candidate_nodes)
-        # Generate specific pairs (not all N² combinations) to keep the LLM
-        # output within token limits. Only evaluate FOCUS-related and
-        # CURRENT-internal pairs — the most promising combinations.
+        # Generate pairs in priority order (FOCUS > NEIGHBOR > CURRENT > RECENT),
+        # capped at 40 to keep LLM call within the 30s timeout budget.
         candidate_pairs_text = self._build_candidate_pairs_section(candidate_nodes)
         existing_edges_text = ""
         if focus_node_id:
@@ -124,13 +123,8 @@ class EdgeExtractionPrefetchStage(TurnStage):
             return context
 
         candidate_count = len(candidate_nodes)
-        current_count = sum(1 for c in candidate_nodes if c["tag"] == "CURRENT")
-        # Pairs where at least one endpoint is CURRENT:
-        # current × non-current + current × current (upper triangle).
-        non_current_count = candidate_count - current_count
-        pair_count = (
-            current_count * non_current_count + current_count * (current_count - 1) // 2
-        )
+        # Actual pair count after priority ordering and cap — matches what the LLM sees.
+        pair_count = candidate_pairs_text.count("pair=") if candidate_pairs_text else 0
 
         # Fire as asyncio.Task — not awaited here.
         # Runs concurrently with SlotDiscoveryStage (4.5) which runs next.
@@ -320,36 +314,76 @@ class EdgeExtractionPrefetchStage(TurnStage):
         return "\n".join(lines)
 
     @staticmethod
-    def _build_candidate_pairs_section(candidates: list[dict]) -> str:
+    def _build_candidate_pairs_section(
+        candidates: list[dict], max_pairs: int = 40
+    ) -> str:
         """Format candidate pairs where at least one endpoint is a CURRENT node.
 
         Edges between two pre-existing nodes (FOCUS, NEIGHBOR, RECENT) would
         have been extractable in earlier turns; only pairs touching a newly-
         introduced CURRENT node carry novel information this turn.
+
+        Pairs are emitted in priority order to ensure the cap preserves the
+        highest-evidence candidates when total pairs exceed max_pairs:
+          1. CURRENT × FOCUS   — focus node's utterances are in the assembled context
+          2. CURRENT × NEIGHBOR — direct graph neighbours of FOCUS
+          3. CURRENT × CURRENT  — share the same current utterance by definition
+          4. CURRENT × RECENT   — weakest evidence, different-turn utterance context
         """
         if len(candidates) < 2:
             return ""
 
-        current_ids = {c["node_id"] for c in candidates if c["tag"] == "CURRENT"}
-        if not current_ids:
+        by_tag: dict[str, list[dict]] = {}
+        for c in candidates:
+            by_tag.setdefault(c["tag"], []).append(c)
+
+        current_nodes = by_tag.get("CURRENT", [])
+        if not current_nodes:
             return ""
 
+        focus_nodes = by_tag.get("FOCUS", [])
+        neighbor_nodes = by_tag.get("NEIGHBOR", [])
+        recent_nodes = by_tag.get("RECENT", [])
+
+        def _make_pair(src: dict, tgt: dict) -> str:
+            return format_candidate_pair_for_edge_extraction(
+                source_id=src["node_id"],
+                source_type=src.get("node_type", ""),
+                target_id=tgt["node_id"],
+                target_type=tgt.get("node_type", ""),
+            )
+
+        # Build priority buckets
+        seen: set[frozenset] = set()
+        buckets: list[list[str]] = [[], [], [], []]  # focus, neighbor, current, recent
+
+        def _add(bucket_idx: int, a: dict, b: dict) -> None:
+            key = frozenset([a["node_id"], b["node_id"]])
+            if key not in seen:
+                seen.add(key)
+                buckets[bucket_idx].append(_make_pair(a, b))
+
+        for curr in current_nodes:
+            for focus in focus_nodes:
+                _add(0, curr, focus)
+            for nbr in neighbor_nodes:
+                _add(1, curr, nbr)
+            for recent in recent_nodes:
+                _add(3, curr, recent)
+
+        # intra-CURRENT pairs
+        for i, a in enumerate(current_nodes):
+            for b in current_nodes[i + 1 :]:
+                _add(2, a, b)
+
         pairs: list[str] = []
-        for i, src in enumerate(candidates):
-            for tgt in candidates[i + 1 :]:
-                if (
-                    src["node_id"] not in current_ids
-                    and tgt["node_id"] not in current_ids
-                ):
-                    continue
-                pairs.append(
-                    format_candidate_pair_for_edge_extraction(
-                        source_id=src["node_id"],
-                        source_type=src.get("node_type", ""),
-                        target_id=tgt["node_id"],
-                        target_type=tgt.get("node_type", ""),
-                    )
-                )
+        for bucket in buckets:
+            for pair in bucket:
+                if len(pairs) >= max_pairs:
+                    break
+                pairs.append(pair)
+            if len(pairs) >= max_pairs:
+                break
 
         if not pairs:
             return ""

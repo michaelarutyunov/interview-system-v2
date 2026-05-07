@@ -57,10 +57,22 @@ class EdgeExtractionBridgeStage(TurnStage):
 
         if task is None:
             # No prefetch task fired (flag OFF, no candidates, or setup failure).
-            log.debug(
-                "edge_extraction_bridge_skipped_no_task",
-                session_id=context.session_id,
-            )
+            nodes_added_count = len(context.nodes_added) if context.graph_update_output else 0
+            if nodes_added_count > 0:
+                # Nodes were extracted this turn but no edge extraction task exists.
+                # This indicates the prefetch fired but the task reference was lost
+                # between Stage 4.5B and Stage 4.6 — a silent pipeline gap.
+                log.warning(
+                    "edge_extraction_bridge_task_missing_despite_nodes",
+                    session_id=context.session_id,
+                    turn=context.turn_number,
+                    nodes_added=nodes_added_count,
+                )
+            else:
+                log.debug(
+                    "edge_extraction_bridge_skipped_no_task",
+                    session_id=context.session_id,
+                )
         else:
             # Await the edge extraction task
             try:

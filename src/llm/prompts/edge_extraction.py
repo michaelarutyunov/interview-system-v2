@@ -89,6 +89,13 @@ def get_edge_extraction_system_prompt(methodology: str = "means_end_chain") -> s
     # Methodology name for display
     method_name = methodology.replace("_", " ").title()
 
+    # Optional methodology-specific edge extraction guidance from YAML method.edge_extraction_notes
+    edge_extraction_notes = ""
+    if schema.method:
+        raw_notes = schema.method.get("edge_extraction_notes", "")
+        if raw_notes:
+            edge_extraction_notes = f"\n## Methodology-Specific Edge Extraction Notes:\n{raw_notes}\n"
+
     # Edge types section
     edge_types_lines = []
     for name, desc in edge_descriptions.items():
@@ -168,7 +175,7 @@ element is needed. The 5-code taxonomy captures the rationale:
 ## Methodology: {method_name}
 ### Valid Edge Types:
 {edge_types_str}
-{chain_emphasis}
+{chain_emphasis}{edge_extraction_notes}
 ## Output Format:
 Return valid XML with this exact structure:
 
