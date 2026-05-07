@@ -53,6 +53,7 @@ interviews_real/
 reports/legacy/
 reports/explorations/
 reports/interviews/**
+reports/interviews_archive/**
 
 docs/archive/
 docs/artefacts/

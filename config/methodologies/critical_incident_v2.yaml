@@ -293,6 +293,12 @@ strategies:
     bridge_target: most_concrete
     extraction_mode: extract_new
     description: "Get more specific about the incident — probe who, what, when, what led to it, what happened before"
+    probe_guidance: |
+      GROUNDING PROBE: Get more specific about what led to or caused the focus incident element.
+      If the respondent elaborated — ask what happened immediately before or what triggered it.
+      If the respondent denied or qualified the focus element — ask what would need to be different
+      for it to apply (when IS this true?). Do not convert attitudinal statements into
+      biographical event probes about a specific occasion.
     signal_weights:
       convgraph.node.chain.gap.below.true: 0.3           # Structural gap below = room to ground
       convgraph.node.recency: 0.25            # Prefer recently discussed nodes
@@ -330,6 +336,11 @@ strategies:
     bridge_target: either
     extraction_mode: prefer_existing
     description: "Connect an isolated narrative element to the main story arc — explore how it relates to known incidents, actions, or outcomes"
+    probe_guidance: |
+      ANCHOR PROBE: Connect this isolated narrative element to the respondent's incident story.
+      Ask how this element relates to what happened, what they felt, or what they decided.
+      Do not ask operational or logistical questions — stay with the respondent's experience
+      and perspective within the incident.
     signal_weights:
       convgraph.node.is_orphan.true: 0.50          # Orphan node = needs anchoring
       convgraph.node.recency: 0.2
@@ -345,6 +356,12 @@ strategies:
   - name: revitalize
     node_binding: none
     description: "Shift to a fresh incident or new angle when the current narrative is exhausted or respondent shows fatigue"
+    probe_guidance: |
+      REVITALIZE: The conversation history above includes the opening question.
+      Shift to a fresh incident or new angle not yet covered.
+      Do not repeat or rephrase questions already asked.
+      Use contrast ("What would a different outcome have looked like?") or
+      concrete re-grounding ("Tell me about another time when this happened").
     signal_weights:
       # Engagement domain — revitalize owns engagement signals exclusively
       response.semantic.llm.engagement.low: 0.50

@@ -20,6 +20,8 @@ continuation, question generation, and extraction.
 | `bridge_direction` | `"forward" \| "backward"` | `"forward"` | YAML `strategies[].bridge_direction` | Stage 3 next-turn (R) |
 | `bridge_target` | `"most_concrete" \| "most_abstract" \| "either"` | `"most_concrete"` | YAML `strategies[].bridge_target` | Stage 3 next-turn (R) |
 | `extraction_mode` | `"extract_new" \| "prefer_existing"` | `"extract_new"` | YAML `strategies[].extraction_mode` | Stage 3 next-turn (R) |
+| `level_guidance` | `dict[str, str]` | `{}` | YAML `strategies[].level_guidance` | Stage 8 (question generation prompt) |
+| `probe_guidance` | `str` | `""` | YAML `strategies[].probe_guidance` | Stage 8 (question generation prompt) |
 
 ### Parameter-to-Stage Matrix
 
@@ -167,6 +169,74 @@ YAML strategy.generates_closing_question
           → If true: returns False ("Closing strategy selected")
           → Interview ends after this turn
 ```
+
+### level_guidance: node-type-specific question generation instruction
+
+`level_guidance` is a dict keyed by methodology node type name. When Stage 8 (QuestionGenerationStage) resolves the focus node's type and the current strategy has an entry for that type, the entry is injected into `get_question_user_prompt()` as a node-type-specific instruction.
+
+```
+YAML strategy.level_guidance.{node_type}
+  → registry.py → StrategyConfig.level_guidance
+    → Stage 8 (QuestionGenerationStage)
+      → question_generation_stage.py: unpacks level_guidance from strategy_obj
+        → get_question_user_prompt(level_guidance=..., focus_node_type=...)
+          → Injected when focus_node_type matches a key in level_guidance
+```
+
+**Use case**: Tell the ascend strategy what to do specifically when it's laddering FROM an `emotional_job` (L3) node — push toward `solution_approach` (L4) rather than continuing to ask "why does that matter?" which would re-ladder at the same level. Each entry in `level_guidance` is a short instruction in imperative form, max 2-3 sentences.
+
+**Example** (JTBD `ascend` strategy):
+```yaml
+level_guidance:
+  emotional_job: "You are at an emotional job (L3). Ask what solution the respondent
+    uses to fulfill this need — 'what do you hire?' Do NOT ask 'why does that matter?'
+    again."
+  social_job: "You are at a social job (L3). Ask what behavior or solution they use
+    to manage this social impression."
+```
+
+**Constraint**: Only fires when the focus node type is resolved (i.e., `focus_node_type` is not `None`). Generic/fallback focus concepts without a node type skip level_guidance injection.
+
+### probe_guidance: strategy-level question generation instruction
+
+`probe_guidance` is a flat string (multiline YAML supported) injected verbatim into the question generation user prompt for every turn where this strategy is selected, regardless of node type. It replaces the former pattern of hardcoded `if strategy == "surface_tension":` blocks in `question.py`.
+
+```
+YAML strategy.probe_guidance
+  → registry.py → StrategyConfig.probe_guidance
+    → Stage 8 (QuestionGenerationStage)
+      → question_service.py: loads probe_guidance from strategy config
+        → get_question_user_prompt(probe_guidance=...)
+          → Appended in Section 5 (strategy-specific notes) if non-empty
+```
+
+**Use case**: Any behavioral guidance that applies every time a strategy fires, regardless of which node is focused. Examples:
+- `anchor` — "do not ask operational/logistical details; stay with the respondent's experience"
+- `ground` — "if the respondent denied the concept, probe the boundary rather than inventing a biographical event probe"
+- `surface_tension` — hedging language probe instruction
+- `revitalize` — "explore a DIFFERENT domain not yet discussed"
+
+**Design principle**: `probe_guidance` is methodology-specific because each methodology's strategies have different behavioral expectations. Do NOT put universal question quality rules in `probe_guidance` — those belong in the system prompt's `## Question Style Guidelines` section.
+
+**Priority**: `level_guidance` (node-type-specific) is injected *before* `probe_guidance` (strategy-wide) in the prompt. Both can be present simultaneously.
+
+### method.edge_extraction_notes: methodology-specific edge extraction calibration
+
+`edge_extraction_notes` lives on the `method:` dict (not on individual strategies) and is injected into the **edge extraction** system prompt (Stage 4.5B) as a `## Methodology-Specific Edge Extraction Notes:` section. This is the correct mechanism for tuning Haiku's edge extraction behavior per methodology without hardcoding methodology names in Python.
+
+```
+YAML method.edge_extraction_notes
+  → schema.method.get("edge_extraction_notes", "")
+    → get_edge_extraction_system_prompt(methodology)
+      → Injected as "## Methodology-Specific Edge Extraction Notes:" section
+        → Consumed by Stage 4.5B Haiku when evaluating candidate pairs
+```
+
+**Use cases in production**:
+1. **Frame contamination calibration** — JTBD/MEC laddering questions inherently frame upward movement ("Why does X matter?"). Without `edge_extraction_notes`, Haiku systematically rejects these as `question_frame_contamination` even when the respondent's language is consistent with the relationship. The note clarifies: treat inherent laddering framing as `minor_influence`, not `contaminated`; use `assertion=implicit` with `confidence=medium` rather than rejecting.
+2. **Level-adjacency constraint** — Instructs Haiku to prefer edges between adjacent ontology levels (L0→L1, not L0→L3). Without this, edge extraction connects semantically related concepts across multiple levels, producing "advanced" chains (with level gaps) rather than "full" chains (level-adjacent throughout).
+
+**Important**: `edge_extraction_notes` affects Stage 4.5B (edge extraction) only. Stage 3 (concept extraction) uses `extraction_guidelines` on the ontology, not `edge_extraction_notes`. These are separate prompts with separate calibration paths.
 
 ## Known Failure Modes
 

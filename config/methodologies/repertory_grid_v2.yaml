@@ -391,6 +391,11 @@ strategies:
     node_binding: required
     valid_when: convgraph.node.is_orphan
     description: "Connect an isolated element or construct to the grid structure by exploring how it relates to known constructs and elements."
+    probe_guidance: |
+      ANCHOR PROBE: Connect this isolated construct or element to the respondent's grid.
+      Ask what makes this element similar to or different from others they mentioned.
+      Do not ask operational or factual questions — stay with the respondent's personal
+      constructs and how they perceive similarity and difference.
     signal_weights:
       convgraph.node.is_orphan.true: 0.5        # Orphan growth threshold — needs strengthening
       convgraph.node.recency: 0.2
@@ -410,6 +415,11 @@ strategies:
   - name: revitalize
     node_binding: none
     description: "Shift to fresh element comparisons or new angles when respondent shows comparison fatigue."
+    probe_guidance: |
+      REVITALIZE: The conversation history above includes the opening question.
+      Introduce a fresh element comparison or a new construct dimension not yet explored.
+      Do not repeat or rephrase comparisons already made.
+      Use a new triad, a hypothetical element, or ask about an extreme case.
     signal_weights:
       # Engagement domain — revitalize owns engagement signals exclusively
       response.semantic.llm.engagement.low: 0.50

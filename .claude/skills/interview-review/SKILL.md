@@ -74,23 +74,68 @@ Read `04_scoring_summary.md` for quantitative backing.
 
 ### Step 2 — Transcript Quality (Section 1)
 
-For each turn, assess:
+Evaluate moderation quality through four diagnostic tiers. Tiers 1–3 apply per-turn; Tier 4 is an end-of-interview structural audit.
 
-**Openness**: Is the question open-ended? Flag yes/no or assumed-answer questions.
+---
 
-**Followership**: Does the interviewer follow the respondent's thread?
+#### Tier 1 — Structural Integrity (Non-Negotiable)
 
-**Naturalness**: Are transitions smooth? Conversation vs. survey feel. **Critical check**: Does the question contain meta-language about the system state ("concept field", "focus node", "cannot generate")? If yes → `system_state_leak` — the LLM received bad input and improvised a meta-response.
+**Openness**: Is the question open-ended? Flag yes/no or assumed-answer questions → `closed_question`.
 
-**Leading**: Does phrasing suggest the expected answer?
+**Single-question discipline**: Does each turn ask only one thing? Double-barreled questions split the respondent's attention and contaminate both answers → `double_barreled`.
 
-**Strategy-intent fit**: Does the question match the selected strategy's purpose? Use the strategy `description` from the methodology YAML (discovered in Step 1) as the ground truth for what each strategy is supposed to do. Do NOT use hardcoded MEC strategy definitions — each methodology defines its own strategy purposes.
+**Strategy-intent fit**: Does the question match the selected strategy's purpose? Use the strategy `description` from the methodology YAML (discovered in Step 1) as ground truth — each methodology defines its own strategy purposes. A question that executes the *wrong* strategy's intent → `strategy_mismatch`.
 
-**Contradiction handling**: When the respondent contradicts themselves across turns, does the next question acknowledge it? If not → flag `missed_contradiction`.
+**Exhaustion vs. abandonment**: When the interviewer moves on from a node, did the respondent finish their thought (exhaustion) or was the topic still open (abandonment)? Abandonment is the more damaging pattern — it leaves signal on the table. Flag as `premature_abandonment` when the respondent's last answer on a topic was substantive and still expanding.
+
+---
+
+#### Tier 2 — Depth Mechanisms
+
+**Followership**: Does the question build from the respondent's own language? Paraphrasing or echoing key phrases is good. Generic questions that ignore the respondent's specific wording → `followership_failure`.
+
+**Concrete anchoring**: When the respondent gives an abstract answer ("it's convenient", "I just feel better"), does the next question pull them toward a specific incident or behavior? Abstract answers left unanchored flatten the chain. Flag turns where the moderator accepts an abstraction and moves on → `anchoring_missed`.
+
+**Affect acknowledgment**: Emotional signal (hedging, intensity, dismissiveness, self-correction) in the respondent's answer is often more informative than propositional content. When the respondent shows affect ("I guess... I don't know, having a choice?", "I'd probably resent it"), the next question should probe it, not skip to the next topic. Flag missed probes → `affect_missed`.
+
+**Why-chain completion**: For ascend/laddering strategies, does the question push toward root causes (values, identity, fears) or stop at instrumental explanations? Stopping one level short of the terminal node type consistently is a depth failure. Flag per-turn → `shallow_ladder`.
+
+---
+
+#### Tier 3 — Relationship Management
+
+**Naturalness**: Are transitions smooth? Conversation vs. survey feel. **Critical check**: Does the question contain meta-language about the system state ("concept field", "focus node", "cannot generate")? → `system_state_leak` — the LLM received bad input and improvised a meta-response.
+
+**Tone/rapport**: Is the framing interrogative ("Why did you...?") or collaborative ("Help me understand...")?  Interrogative phrasing on sensitive topics increases defensiveness. Flag turns where the question tone seems likely to produce shorter, more guarded answers → `interrogative_tone`.
+
+**Pacing sensitivity**: High-engagement respondent answers (long, elaborative, self-correcting) warrant depth probes. Short, low-engagement answers warrant breadth shifts. When the interviewer applies depth probing to a low-engagement answer or moves on from a high-engagement one → `pacing_mismatch`.
+
+**Leading — three subtypes** (distinguish carefully):
+- `leading_direction` — phrasing suggests the expected answer ("Don't you think...?", "Wouldn't you say...?")
+- `confirmation_probe` — asking the respondent to confirm what they just said rather than extending the thread (e.g., asking "Does it matter which one you pick?" after the respondent already said they grab whatever's available)
+- `projective_overreach` — converting a hypothetical or attitudinal statement from the respondent into a biographical event probe (e.g., respondent says "I'd probably resent it if someone told me what to drink" → interviewer asks "Has there been a time when someone suggested a drink and you wanted it less?" — this mistakes a stated attitude for a lived experience and probes for an event that may never have occurred)
+
+**Contradiction handling**: When the respondent contradicts themselves across turns (or contradicts an earlier turn's concept extraction), does the next question acknowledge the tension? If not → `missed_contradiction`. When the interviewer pivots away from a contradiction to a safer topic → `contradiction_avoided`.
 
 **Tangent management**: When the respondent goes off-topic, does the interviewer redirect? 3+ consecutive tangents without redirecting → `tangent_captured`.
 
 **Resistance adaptation**: When the respondent explicitly redirects ("that's not the main thing"), does the interviewer adapt? 2+ ignored redirects → `resistance_ignored`.
+
+---
+
+#### Tier 4 — Coverage Audit (End-of-Interview Structural Check)
+
+After reviewing all turns, assess:
+
+**Funnel discipline**: Did the interview move through the expected arc — broad exploration → specific probing → validation/closing? Or did it jump to specifics before context was established, or stay stuck in exploration when closure was needed? This is a session-level check, not per-turn.
+
+**Blind spot detection**: Given the concept and methodology ontology, were there obvious adjacent areas that were never touched? For example, a beverage interview that never touches social consumption, health identity, or routine disruption has likely left undiscovered territory. Map the node type distribution against the ontology's expected coverage.
+
+**Over-indexing**: Did one salient concept or node cluster consume a disproportionate share of turns (>40%) at the expense of undiscovered territory? This is structurally different from streaks (which are a strategy-scoring issue) — over-indexing is a breadth failure.
+
+**Social/identity blind spots**: Did the respondent ever signal social, identity, or self-concept dimensions that the interviewer didn't pursue? Flag unprobed social/identity signals → `social_signal_missed`.
+
+---
 
 Output format:
 ```
@@ -98,16 +143,24 @@ Output format:
 
 Overall: [1-2 sentence summary]
 
-Flags:
-- Turn N [strategy]: [issue] — [category]
+### Flags
+- Turn N [strategy]: [issue] — [Tier N: category] [subtype if applicable]
 
-Behavioral Pattern Summary:
+### Behavioral Pattern Summary
 - Tangents: [N] detected → [redirected/ignored/captured]
-- Contradictions: [N] detected → [resolved/unresolved]
+- Contradictions: [N] detected → [resolved/unresolved/avoided]
 - Resistance: [N] explicit redirects → [adapted/ignored]
+- Affect signals: [N] detected → [probed/missed]
+- Abstract answers left unanchored: [N]
 
-Strengths:
-- [What worked]
+### Tier 4 — Coverage Audit
+- Funnel discipline: [maintained / jumped early / stuck in exploration]
+- Blind spots: [ontology areas never covered]
+- Over-indexing: [concept or node cluster that dominated, % of turns]
+- Social/identity signals missed: [yes/no + what]
+
+### Strengths
+- [What worked, by tier]
 ```
 
 ### Step 3 — Focus Node Fidelity (Section 2)
@@ -315,3 +368,6 @@ Consolidate all findings into prioritized fixes. When pointing to a fix location
 5. **Be specific with fix pointers.** "Check config" is not enough — name the file and the key. Use the methodology YAML for config changes, the relevant `.claude/context/` doc for subsystem context.
 6. **Flag structural failures loudly.** A methodology that never reaches its terminal node types is a structural failure, not a minor tuning issue.
 7. **`node_binding: none` strategies are different.** They don't target specific nodes. Empty/generic focus concepts are expected. Don't flag missing focus nodes for these strategies — flag whether the question fulfills the strategy's described purpose.
+8. **Use the leading subtype taxonomy.** Never label a question simply "leading" — distinguish `leading_direction`, `confirmation_probe`, and `projective_overreach`. These have different root causes and different prompt fixes.
+9. **Tier 1 failures outrank Tier 2–4.** In the recommendations section, closed questions, double-barreled questions, and strategy mismatches are High Priority. Tier 2 depth failures (missed affect, unanchored abstractions) are Medium Priority. Tier 4 coverage issues are Medium-Low unless a critical blind spot exists.
+10. **Exhaustion vs. abandonment requires the respondent's last answer on a topic.** Don't flag abandonment unless the respondent's final answer on that node was still substantive (>15 words, introduced a new concept, or ended with a trailing thought). Short disengaged answers indicate exhaustion, not abandonment.

@@ -44,6 +44,26 @@ method:
   goal: "Understand what jobs users are trying to accomplish and what motivates them"
   opening_bias: "Ask about a specific recent time they made a decision or change related to the topic."
   description: "Framework for understanding customer motivation and needs through job statements"
+  edge_extraction_notes: |
+    In JTBD interviews, the interviewer's questions will routinely frame upward movement
+    ("Why does X matter?", "What does X do for you?"). This framing is inherent to the
+    laddering method — it does not contaminate the respondent's assertion of the relationship.
+    Apply question_frame_contamination only when the respondent's answer confirms a topic
+    without independently asserting the causal direction. When the respondent's language
+    is consistent with the proposed relationship — even if they did not use an explicit
+    "because" or "so that" — classify as assertion=implicit with confidence=medium rather
+    than rejecting. Reserve insufficient_evidence for cases where no utterance span
+    supports the relationship at all.
+
+    Level-adjacency: This methodology has a 5-level ontology:
+      L0 (job_context, job_trigger) → L1 (pain_point, gain_point) → L2 (job_statement)
+      → L3 (emotional_job, social_job) → L4 (solution_approach)
+    Strongly prefer edges between adjacent levels (L0→L1, L1→L2, L2→L3, L3→L4).
+    An edge that skips two or more levels (e.g. job_trigger → emotional_job, or
+    pain_point → solution_approach) should only be confirmed when the respondent's
+    language explicitly and directly connects those concepts with no intermediate step.
+    If an intermediate level is implied but not stated, confirm the level-adjacent edge
+    instead and leave the further connection for a later turn.
 
 ontology:
   nodes:
@@ -252,11 +272,20 @@ strategies:
     bridge_target: most_concrete
     extraction_mode: extract_new
     description: "Surface the tension behind a vague or uncertain answer by probing the specific concept the respondent hesitated on"
+    probe_guidance: |
+      TENSION PROBE: Look at the respondent's last answer for hedging language
+      ('I guess', 'I'm not sure', 'maybe', 'or actually', 'does that make sense?',
+      contradictions, trailing off, self-corrections).
+      Your question must echo that specific uncertainty back — name what is hard to articulate.
+      BAD: 'How does that feeling change your day?'
+      GOOD: 'You kept saying "I'm not sure" — what makes this hard to pin down?'
     signal_weights:
       # Node-scoped (Stage 2 — picks WHICH node has tension):
       convgraph.node.yield_stagnation.true: 0.25  # Node tried repeatedly, not resolving
       convgraph.node.focus.count.medium: 0.10     # Revisited concept still uncertain
       convgraph.node.llm.charge.negative: 0.25    # Negative affect on node = tension
+      convgraph.node.novelty.high: 0.25           # Fresh nodes worth probing for uncertainty
+      convgraph.node.recency: 0.15                # Prefer recently-discussed uncertain nodes
       # Global-scoped (Stage 1 — is respondent hedging right now?):
       response.semantic.llm.certainty.low: 0.40   # Primary gate — genuine hedging
       response.semantic.llm.certainty.mid: 0.20   # Secondary — tentative answers
@@ -278,6 +307,9 @@ strategies:
     bridge_target: most_abstract
     extraction_mode: extract_new
     description: "Ladder from a functional job toward its emotional or social driver by asking why the job matters to the respondent"
+    level_guidance:
+      emotional_job: "You are at an emotional job (L3) — the respondent has articulated what they want to feel. Your question must close the chain by asking what solution, behavior, or product they currently use to fulfill this emotional need. Ask 'what do you hire?' or 'what do you reach for?' — do NOT ask 'why does that matter?' again, that would ladder backwards."
+      social_job: "You are at a social job (L3) — the respondent has articulated how they want to be seen. Your question must close the chain by asking what solution or behavior they use to manage this social impression. Ask what they actually do or reach for to achieve this — do NOT re-ladder the emotional driver."
     signal_weights:
       # Structural signal — gap_above is the primary trigger
       # Boosted from 0.25 to compete with probe_pain's structural mass
@@ -319,6 +351,12 @@ strategies:
     bridge_target: most_concrete
     extraction_mode: extract_new
     description: "Ground an emotional or social job by exploring what functional circumstances, triggers, or job statements lead to it"
+    probe_guidance: |
+      GROUNDING PROBE: Find what produces or makes possible the focus concept.
+      If the respondent elaborated on the concept — ask what led to it or what causes it.
+      If the respondent denied or qualified it — ask what would need to be true for it to apply.
+      Do not convert attitudinal statements ("I'd probably feel X") into biographical event probes ("Has there been a time when...").
+      Ask about the respondent's experience and motivation, not operational or logistical details.
     signal_weights:
       # Structural signal — gap_below is the primary trigger
       # Boosted from 0.3 to compete with probe_pain's structural mass
@@ -357,6 +395,11 @@ strategies:
     bridge_target: either
     extraction_mode: prefer_existing
     description: "Connect an isolated or pain-laden concept to the existing graph by exploring how it relates to other known jobs, contexts, or outcomes"
+    probe_guidance: |
+      ANCHOR PROBE: Connect this isolated concept to the respondent's job story.
+      Ask about the respondent's experience and emotional state around this concept.
+      Do not ask about operational or administrative details (who stocks, who orders,
+      how much it costs, where it's from) — stay with what the respondent felt or needed.
     signal_weights:
       # Structural signal — orphan node is the trigger (boosted from 0.35, was probe_pain's stronger weight)
       convgraph.node.is_orphan.true: 0.50
@@ -395,6 +438,13 @@ strategies:
   - name: revitalize
     node_binding: none
     description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
+    probe_guidance: |
+      REVITALIZE: The conversation history above includes the opening question.
+      Explore a DIFFERENT aspect or domain that has not yet been discussed.
+      Do not repeat or rephrase questions already asked.
+      Use a fresh angle: contrast ("What would happen without X?"), extreme case
+      ("What would the perfect version look like?"), or concrete re-grounding
+      ("Walk me through a specific moment when...").
     signal_weights:
       # Engagement domain — revitalize owns engagement signals exclusively
       response.semantic.llm.engagement.low: 0.60
@@ -403,6 +453,8 @@ strategies:
       # Saturation — only canonical saturation suppresses (conversation saturation
       # is a reason TO revitalize, not a reason to suppress it)
       meta.saturation.canonical: -0.30
+      # Orphan accumulation — many stranded nodes = current thread is exhausted
+      convgraph.state.node.orphan_ratio.mid: 0.15
       # Brake
       interview.strategy.self_count: -0.50
 

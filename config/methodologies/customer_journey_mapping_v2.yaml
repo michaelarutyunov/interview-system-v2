@@ -364,6 +364,11 @@ strategies:
     node_binding: required
     valid_when: convgraph.node.is_orphan
     description: "Connect an isolated touchpoint or emotion to the existing journey structure — explore how it relates to known stages and touchpoints."
+    probe_guidance: |
+      ANCHOR PROBE: Connect this isolated touchpoint or emotion to the respondent's journey.
+      Ask about what the respondent experienced, felt, or expected at this moment.
+      Do not ask about operational or logistical details — stay with the respondent's
+      subjective experience and what mattered to them.
     signal_weights:
       # is_orphan is the gate — high weight when it fires
       convgraph.node.is_orphan.true: 0.5           # Strong anchor signal
@@ -385,6 +390,12 @@ strategies:
   - name: revitalize
     node_binding: none
     description: "Shift to an unexplored part of the journey or a fresh angle when the current section is exhausted or respondent shows fatigue."
+    probe_guidance: |
+      REVITALIZE: The conversation history above includes the opening question.
+      Shift to an unexplored stage or touchpoint of the journey not yet covered.
+      Do not repeat or rephrase questions already asked.
+      Use contrast ("What would a smoother experience have looked like?") or
+      a different journey stage entirely.
     signal_weights:
       # Engagement domain — revitalize owns engagement signals exclusively
       response.semantic.llm.engagement.low: 0.50

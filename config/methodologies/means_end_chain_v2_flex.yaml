@@ -38,6 +38,26 @@ method:
   goal: "Explore causal chains from concrete attributes to abstract values"
   opening_bias: "Elicit concrete, experience-based responses. Ask for specific examples and situations."
   description: "Laddering: attributes → consequences → values (flex: LLM-determined connections)"
+  edge_extraction_notes: |
+    In MEC interviews, the interviewer's questions will routinely frame upward movement
+    ("Why does X matter?", "What does X lead to?"). This framing is inherent to the
+    laddering method — it does not contaminate the respondent's assertion of the relationship.
+    Apply question_frame_contamination only when the respondent's answer confirms a topic
+    without independently asserting the causal direction. When the respondent's language
+    is consistent with the proposed relationship — even if they did not use an explicit
+    "because" or "so that" — classify as assertion=implicit with confidence=medium rather
+    than rejecting. Reserve insufficient_evidence for cases where no utterance span
+    supports the relationship at all.
+
+    Level-adjacency: This methodology has a 5-level ontology:
+      L1 (attribute) → L2 (functional_consequence) → L3 (psychosocial_consequence)
+      → L4 (instrumental_value) → L5 (terminal_value)
+    Strongly prefer edges between adjacent levels (L1→L2, L2→L3, L3→L4, L4→L5).
+    An edge that skips two or more levels (e.g. attribute → psychosocial_consequence,
+    or functional_consequence → terminal_value) should only be confirmed when the
+    respondent's language explicitly and directly connects those concepts with no
+    intermediate step. If an intermediate level is implied but not stated, confirm the
+    level-adjacent edge instead and leave the further connection for a later turn.
 
 ontology:
   nodes:
@@ -157,6 +177,13 @@ strategies:
   - name: revitalize
     node_binding: none
     description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
+    probe_guidance: |
+      REVITALIZE: The conversation history above includes the opening question.
+      Explore a DIFFERENT aspect or domain that has not yet been discussed.
+      Do not repeat or rephrase questions already asked.
+      Use a fresh angle: contrast ("What would happen without X?"), extreme case
+      ("What would the perfect version look like?"), or concrete re-grounding
+      ("Walk me through a specific moment when...").
     signal_weights:
       # Engagement domain — revitalize owns engagement signals exclusively
       response.semantic.llm.engagement.low: 0.50
@@ -197,6 +224,12 @@ strategies:
   # Strategy 3: Ground — establish causal antecedents for ungrounded high-level node
   - name: ground
     description: "Ground an ungrounded node by asking what attributes or lower-level concepts directly cause or enable it — probe causal antecedents, not retrospective comparisons or general context"
+    probe_guidance: |
+      GROUNDING PROBE: Find what produces or makes possible the focus concept.
+      If the respondent elaborated on the concept — ask what attributes or lower-level causes lead to it.
+      If the respondent denied or qualified it — ask what would need to be true for it to apply.
+      Do not convert attitudinal statements ("I'd probably feel X") into biographical event probes ("Has there been a time when...").
+      Ask about the respondent's experience and motivation, not operational or logistical details.
     node_binding: required
     valid_when: convgraph.node.chain.gap.below
     bridge_direction: backward
@@ -251,6 +284,11 @@ strategies:
   # Strategy 6: Anchor — connect isolated node to existing graph structure
   - name: anchor
     description: "Connect an isolated concept to the existing graph by exploring how it relates to other known concepts"
+    probe_guidance: |
+      ANCHOR PROBE: Connect this isolated concept to the respondent's value chain.
+      Ask about the respondent's experience and emotional state around this concept.
+      Do not ask about operational or administrative details (who, where it's bought,
+      how much it costs) — stay with what the respondent felt, valued, or needed.
     node_binding: required
     valid_when: convgraph.node.is_orphan
     bridge_direction: forward

@@ -117,6 +117,32 @@ The extraction system prompt (`src/llm/prompts/extraction.py:get_extraction_syst
 
 **Contamination rule:** Methodology-specific content (node types, edge types, guidelines, examples) lives in YAML files. The hardcoded sections must remain methodology-agnostic. A worked example hardcoding MEC types was removed April 2026 — it contaminated non-MEC extraction prompts. The YAML `relationship_examples` already provide methodology-specific examples.
 
+### Stage 4.5B — Methodology-Specific Calibration via `edge_extraction_notes`
+
+The edge extraction system prompt accepts a `## Methodology-Specific Edge Extraction Notes:` section populated from `schema.method.get("edge_extraction_notes", "")` in `get_edge_extraction_system_prompt()`. This is the correct path for tuning Haiku's edge extraction behavior per methodology without hardcoding methodology names in Python.
+
+**Two calibration problems addressed by `edge_extraction_notes`:**
+
+1. **Frame contamination over-rejection in laddering methodologies (JTBD, MEC)**: The rejection taxonomy includes `question_frame_contamination` for when the interviewer's question supplies the causal frame and the respondent merely confirms a topic. In JTBD/MEC mid-phase, *every* ascend/ground question inherently frames upward movement ("Why does X matter?", "What leads to X?") — this is the methodology's mechanism, not contamination. Without calibration, Haiku systematically rejects these as `question_frame_contamination`, producing near-zero edge yield on emotional/abstract turns (confirmed across 3 simulation runs: 11/14 turns with 0 edges). The `edge_extraction_notes` instructs: treat inherent laddering framing as `frame=minor_influence` with `confidence=medium`; reserve `contaminated`/rejection for cases where the respondent's answer confirms a topic without asserting the causal direction at all.
+
+2. **Level-skipping produces zero full chains**: Edge extraction naturally connects semantically related concepts regardless of ontology level adjacency (e.g., `job_trigger [L0]` → `emotional_job [L3]`, skipping L1 and L2). The chain builder correctly classifies these level-skipping edges as "advanced" chains rather than "full" chains. This was confirmed as a systematic failure across 3 independent runs (0-2 full chains per 15-turn interview). The `edge_extraction_notes` instructs: strongly prefer level-adjacent edges (L_n → L_n+1); only confirm level-skipping edges when the respondent's language explicitly connects the concepts with no intermediate step.
+
+**Note on distinction with Stage 3**: Stage 3 (concept extraction) uses `extraction_guidelines` on the ontology spec — a list of strings guiding *what to extract*. Stage 4.5B uses `edge_extraction_notes` on the `method:` dict — calibrating *how to evaluate candidate pairs*. These are separate prompts, separate LLM calls (Sonnet vs. Haiku), and separate calibration paths. Do not conflate them.
+
+### Stage 4.5B — Candidate Pair Selection and Timeout Budget
+
+Candidate pairs are built by `_build_candidate_pairs_section()` in `edge_extraction_prefetch_stage.py`. Only pairs where at least one endpoint is CURRENT (extracted this turn) are evaluated — pre-existing node pairs (FOCUS×NEIGHBOR, FOCUS×RECENT) were evaluable in earlier turns and are excluded to avoid O(N²) growth.
+
+Pairs are emitted in priority order within a hard cap of 40:
+1. **CURRENT × FOCUS** — highest evidence: focus node's source utterances are in the assembled context
+2. **CURRENT × NEIGHBOR** — direct graph neighbours of FOCUS
+3. **CURRENT × CURRENT** — share the same current utterance by definition
+4. **CURRENT × RECENT** — weakest evidence, different-turn utterance context
+
+**Why the cap matters**: At 30s timeout (edge_extraction client config), Haiku evaluates roughly 35-40 pairs reliably. Turns with many CURRENT nodes (e.g., 8 nodes × 6 existing = 76 uncapped pairs) previously caused silent timeouts — the bridge stage received no result and logged nothing because the asyncio task stored the `LLMTimeoutError` which the bridge caught but at a log level filtered in simulation exports. The 40-pair cap prevents this. The `pair_count` field in `edge_extraction_prefetch_fired` logs now reflects the actual capped count, not the theoretical maximum.
+
+**Silent timeout detection**: Stage 4.6 (EdgeExtractionBridgeStage) now emits `edge_extraction_bridge_task_missing_despite_nodes` at WARNING level when `_edge_extraction_task` is None but nodes were added this turn. This surfaces the failure pattern in logs without requiring manual cross-referencing of prefetch and bridge events.
+
 ## Level-Aware Extraction
 
 Node type descriptions now include ontology level prefixes rendered by `methodology_schema.py:get_node_descriptions()`:
