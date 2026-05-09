@@ -7,29 +7,29 @@ column. Nodes are color-coded by turn and cross-column edges show relationships.
 Both a .mmd source file and a rendered .png are saved next to the input JSON.
 
 Usage:
-    uv run python scripts/reporting/generate_mermaid_graph.py <json_file> [options]
+    uv run python scripts/chains/generate_mermaid_graph.py <json_file> [options]
 
 Examples:
-    # Full graph, auto-saved as <json_file>.mmd + <json_file>.png
-    uv run python scripts/reporting/generate_mermaid_graph.py synthetic_interviews/foo.json
+    # Full graph printed to stdout
+    uv run python scripts/chains/generate_mermaid_graph.py synthetic_interviews/foo.json
 
-    # Simplified graph (top connected nodes only), saved as foo_simple.mmd + .png
-    uv run python scripts/reporting/generate_mermaid_graph.py synthetic_interviews/foo.json -s
+    # Full graph saved to file with PNG render
+    uv run python scripts/chains/generate_mermaid_graph.py synthetic_interviews/foo.json -o /tmp/out.mmd
+
+    # Simplified graph (top connected nodes only)
+    uv run python scripts/chains/generate_mermaid_graph.py synthetic_interviews/foo.json -s
 
     # Simplified with custom node limit
-    uv run python scripts/reporting/generate_mermaid_graph.py synthetic_interviews/foo.json -s --max-nodes 20
-
-    # Custom output path (PNG saved alongside it)
-    uv run python scripts/reporting/generate_mermaid_graph.py synthetic_interviews/foo.json -o /tmp/out.mmd
+    uv run python scripts/chains/generate_mermaid_graph.py synthetic_interviews/foo.json -s --max-nodes 20
 
     # High resolution output (2x scale for 4800x2800)
-    uv run python scripts/reporting/generate_mermaid_graph.py synthetic_interviews/foo.json --scale 2
+    uv run python scripts/chains/generate_mermaid_graph.py synthetic_interviews/foo.json --scale 2 -o /tmp/out.mmd
 
 Flags:
     json_file           Path to simulation JSON file (required)
     -s, --simplified    Simplified version: top connected nodes per turn only
     --max-nodes N       Max nodes in simplified mode (default: 30)
-    -o, --output PATH   Override output .mmd path (default: same folder as JSON)
+    -o, --output PATH   Output .mmd path (PNG saved alongside). If omitted, prints to stdout.
     --scale N           Output scale factor for PNG (default: 1, try 2 or 3 for higher resolution)
 """
 
@@ -343,43 +343,38 @@ def main():
     # Output
     if args.output:
         output_path = Path(args.output)
-    else:
-        suffix = "_simple" if args.simplified else ""
-        output_path = Path(args.json_file).with_suffix("").parent / (
-            Path(args.json_file).stem + suffix + ".mmd"
+        output_path.write_text(mermaid)
+        print(f"Mermaid diagram written to: {output_path}", file=sys.stderr)
+
+        # Render PNG via mmdc
+        png_path = output_path.with_suffix(".png")
+        scale = args.scale
+        # Higher base height for taller boxes, width auto-scales
+        result = subprocess.run(
+            [
+                "npx",
+                "@mermaid-js/mermaid-cli",
+                "-i",
+                str(output_path),
+                "-o",
+                str(png_path),
+                "-w",
+                "3200",
+                "-H",
+                "2400",
+                "-s",
+                str(scale),
+                "-q",
+            ],
+            capture_output=True,
+            text=True,
         )
-
-    with open(output_path, "w") as f:
-        f.write(mermaid)
-    print(f"Mermaid diagram written to: {output_path}", file=sys.stderr)
-
-    # Render PNG via mmdc
-    png_path = output_path.with_suffix(".png")
-    scale = args.scale
-    # Higher base height for taller boxes, width auto-scales
-    result = subprocess.run(
-        [
-            "npx",
-            "@mermaid-js/mermaid-cli",
-            "-i",
-            str(output_path),
-            "-o",
-            str(png_path),
-            "-w",
-            "3200",
-            "-H",
-            "2400",
-            "-s",
-            str(scale),
-            "-q",
-        ],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0:
-        print(f"PNG rendered to: {png_path}", file=sys.stderr)
+        if result.returncode == 0:
+            print(f"PNG rendered to: {png_path}", file=sys.stderr)
+        else:
+            print(f"PNG rendering failed: {result.stderr}", file=sys.stderr)
     else:
-        print(f"PNG rendering failed: {result.stderr}", file=sys.stderr)
+        sys.stdout.write(mermaid)
 
 
 if __name__ == "__main__":

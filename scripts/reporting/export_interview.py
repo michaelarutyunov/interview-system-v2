@@ -4,6 +4,7 @@
 Orchestrates the individual generators to produce a complete interview export:
     reports/interviews/<timestamp>/
     ├── 00_meta.yaml
+    ├── 00_methodology.yaml    (copy of config/methodologies/<name>.yaml)
     ├── 01_transcript.md
     ├── 02_causal_chains.md
     ├── 03_graph.mmd
@@ -42,7 +43,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from scripts.reporting.generate_latency_report import analyze_log, write_report
-from scripts.reporting.generate_causal_chains import generate_causal_chains
+from scripts.chains.generate_causal_chains import generate_causal_chains
+from scripts.chains.generate_chain_groups import generate_chain_groups
 from scripts.reporting.generate_transcript import generate_transcript
 from scripts.reporting.generate_scoring_csv import generate_scoring_csv
 from scripts.reporting.generate_scoring_summary import generate_summary
@@ -50,6 +52,7 @@ from scripts.reporting.generate_scoring_summary import generate_summary
 REPORTS_DIR = Path("reports/interviews")
 LOGS_DIR = Path("logs")
 SYNTHETIC_DIR = Path("synthetic_interviews")
+METHODOLOGY_DIR = Path("config/methodologies")
 
 
 def _find_most_recent_json() -> Path:
@@ -100,9 +103,43 @@ def _write_meta_yaml(json_path: Path, export_dir: Path) -> None:
     meta_path.write_text("\n".join(yaml_lines) + "\n")
 
 
+def _copy_methodology_yaml(json_path: Path, export_dir: Path) -> Path | None:
+    """Copy the methodology YAML used for this simulation into the export folder.
+
+    Reads the methodology name from the simulation JSON metadata, locates the
+    corresponding YAML in config/methodologies/, and copies it as
+    00_methodology.yaml alongside 00_meta.yaml. This preserves the exact
+    configuration that produced the results — essential for retrospective
+    calibration analysis.
+    """
+    data = json.loads(json_path.read_text())
+    methodology_name = data.get("metadata", {}).get("methodology", "")
+    if not methodology_name:
+        print("  ⚠ No methodology name in metadata — skipping YAML copy")
+        return None
+
+    yaml_path = METHODOLOGY_DIR / f"{methodology_name}.yaml"
+    if not yaml_path.exists():
+        print(f"  ⚠ Methodology YAML not found: {yaml_path} — skipping")
+        return None
+
+    dest = export_dir / "00_methodology.yaml"
+    shutil.copy2(yaml_path, dest)
+    return dest
+
+
 def _generate_causal_chains(json_path: Path, output_path: Path) -> None:
-    """Run causal chain extraction and write to output path."""
-    generate_causal_chains(json_path, output_path)
+    """Run causal chain extraction (flat + grouped) and write to output path."""
+    md_flat = generate_causal_chains(json_path)
+    output_path.write_text(md_flat)
+    # Append grouped view
+    try:
+        md_groups = generate_chain_groups(json_path, include_mermaid=True)
+        with open(output_path, "a") as f:
+            f.write("\n---\n\n")
+            f.write(md_groups)
+    except Exception as e:
+        print(f"  ⚠ Chain groups skipped: {e}", file=sys.stderr)
 
 
 def _generate_mermaid(json_path: Path, mmd_path: Path, png_path: Path) -> None:
@@ -111,7 +148,7 @@ def _generate_mermaid(json_path: Path, mmd_path: Path, png_path: Path) -> None:
         [
             sys.executable,
             "-m",
-            "scripts.reporting.generate_mermaid_graph",
+            "scripts.chains.generate_mermaid_graph",
             str(json_path),
             "-o",
             str(mmd_path),
@@ -176,7 +213,7 @@ def _generate_turn_diagnostics(json_path: Path, output_path: Path) -> None:
     # Build node_id -> (label, turn_number) map across all turns
     node_map: dict[str, tuple[str, int]] = {}
     for t in turns:
-        for n in (t.get("nodes_added") or []):
+        for n in t.get("nodes_added") or []:
             node_map[n["id"]] = (n["label"], t["turn_number"])
 
     def node_label(node_id: str) -> str:
@@ -233,8 +270,12 @@ def _generate_turn_diagnostics(json_path: Path, output_path: Path) -> None:
             lines.append("")
             lines.append(f"### Edges confirmed ({len(confirmed)})")
             lines.append("")
-            lines.append("| Source | T | → | Target | T | Type | Conf | Assertion | Direction | Frame |")
-            lines.append("|--------|---|---|--------|---|------|------|-----------|-----------|-------|")
+            lines.append(
+                "| Source | T | → | Target | T | Type | Conf | Assertion | Direction | Frame |"
+            )
+            lines.append(
+                "|--------|---|---|--------|---|------|------|-----------|-----------|-------|"
+            )
             for e in confirmed:
                 src = node_label(e["source_node_id"])
                 src_t = node_turn(e["source_node_id"])
@@ -245,7 +286,9 @@ def _generate_turn_diagnostics(json_path: Path, output_path: Path) -> None:
                 assertion = e.get("assertion") or "—"
                 direction = e.get("direction") or "—"
                 frame = e.get("frame") or "—"
-                lines.append(f"| {src} | {src_t} | → | {tgt} | {tgt_t} | `{etype}` | {conf} | {assertion} | {direction} | {frame} |")
+                lines.append(
+                    f"| {src} | {src_t} | → | {tgt} | {tgt_t} | `{etype}` | {conf} | {assertion} | {direction} | {frame} |"
+                )
 
         # Rejected candidates
         rejected = ee.get("rejected_candidates") or []
@@ -307,6 +350,11 @@ def export_interview(json_path: Path, output_dir: Path | None = None) -> Path:
     # 00_meta.yaml
     _write_meta_yaml(json_path, export_dir)
     print("  ✓ 00_meta.yaml")
+
+    # 00_methodology.yaml — copy the YAML that produced this simulation
+    yaml_dest = _copy_methodology_yaml(json_path, export_dir)
+    if yaml_dest:
+        print(f"  ✓ 00_methodology.yaml ({yaml_dest.name})")
 
     # 01_transcript.md
     transcript_path = export_dir / "01_transcript.md"

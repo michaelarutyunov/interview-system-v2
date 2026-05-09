@@ -25,6 +25,12 @@ def percentile(values: list[float], pct: float) -> float:
     return sorted_v[idx]
 
 
+def _truncate(text: str, max_len: int = 50) -> str:
+    if len(text) <= max_len:
+        return text
+    return text[:max_len] + "…"
+
+
 def generate_summary(csv_path: Path) -> str:
     """Generate markdown summary from scoring CSV."""
     df_raw = pd.read_csv(csv_path)
@@ -45,6 +51,17 @@ def generate_summary(csv_path: Path) -> str:
     L()
     L(f"Source: `{csv_path.name}`")
     L(f"Total rows: {len(df_raw):,} (gated: {len(gated):,})")
+    L()
+    L(
+        "> ⚠ **Scope**: This summary detects systemic issues — dead signals, "
+        "always-firing signals, gate blockages, phase multiplier effects. "
+        "It does **not** support weight tuning decisions. Weight changes "
+        "require per-turn conversational evidence: identify the specific turn "
+        "where a different strategy should have been selected, quote the "
+        "respondent's words, and verify the needed strategy's signals actually "
+        "fired. See `.claude/context/methodology-parameter-flow.md` "
+        "§Calibration Principles."
+    )
     L()
 
     # --- Signal Firing Rates ---
@@ -188,25 +205,109 @@ def generate_summary(csv_path: Path) -> str:
         L("Insufficient data (need both winner and runner-up per turn).")
     L()
 
-    # --- Signal Budget Decomposition ---
-    L("## Signal Budget Decomposition")
+    # --- Per-Turn Score Separation ---
+    L("## Per-Turn Score Separation")
     L()
-    budget = (
-        df.groupby(["strategy", df["weighted_contribution"] > 0])
-        .agg(total_contribution=("weighted_contribution", "sum"))
-        .unstack(fill_value=0)
+    L(
+        "Shows the winner and runner-up (strategy, node) pair for each turn "
+        "with their score gap and top signal contributions. Use this to identify "
+        "specific turns where selection was close and which signals drove the outcome."
     )
-    budget.columns = ["negative_mass", "positive_mass"]
-    budget["net"] = budget["positive_mass"] + budget["negative_mass"]
-    budget = budget.sort_values("net", ascending=False)
+    L()
+    L(
+        "| Turn | Phase | Winner | Runner-up | Gap | Winner Top Signals | Runner-up Top Signals |"
+    )
+    L(
+        "|------|-------|--------|-----------|-----|--------------------|-----------------------|"
+    )
 
-    L("| Strategy | Positive Mass | Negative Mass | Net |")
-    L("|----------|--------------|--------------|-----|")
-    for strategy, row in budget.iterrows():
-        L(
-            f"| {strategy} | {row['positive_mass']:.3f} | {row['negative_mass']:.3f} "
-            f"| {row['net']:.3f} |"
-        )
+    # Build winner/runner-up per turn with top signal contributions
+    winner_rows = (
+        df[df["selected"] & (df["rank"] == 1)][
+            [
+                "turn_number",
+                "phase",
+                "strategy",
+                "node_label",
+                "base_score",
+                "final_score",
+            ]
+        ]
+        .drop_duplicates(subset=["turn_number"])
+        .copy()
+    )
+    runner_up_rows = (
+        df[df["rank"] == 2][
+            [
+                "turn_number",
+                "strategy",
+                "node_label",
+                "base_score",
+                "final_score",
+            ]
+        ]
+        .drop_duplicates(subset=["turn_number"])
+        .copy()
+    )
+
+    if not winner_rows.empty:
+        for _, w_row in winner_rows.iterrows():
+            tn = int(w_row["turn_number"])
+            r_row = runner_up_rows[runner_up_rows["turn_number"] == tn]
+            if r_row.empty:
+                L(
+                    f"| {tn} | {w_row['phase']} | {w_row['strategy']} / "
+                    f"{_truncate(str(w_row['node_label']), 30)} | — | "
+                    f"{w_row['final_score']:.2f} | — | — |"
+                )
+                continue
+
+            r_row = r_row.iloc[0]
+            gap = w_row["final_score"] - r_row["final_score"]
+
+            # Top 3 signal contributions for winner on this turn
+            w_signals = (
+                df[
+                    df["selected"]
+                    & (df["rank"] == 1)
+                    & (df["turn_number"] == tn)
+                ]
+                .groupby("signal_name")["weighted_contribution"]
+                .sum()
+                .abs()
+                .sort_values(ascending=False)
+                .head(3)
+            )
+            w_top = ", ".join(
+                f"{sig.split('.')[-1]}: {val:+.2f}"
+                for sig, val in w_signals.items()
+            )
+
+            # Top 3 signal contributions for runner-up on this turn
+            r_signals = (
+                df[
+                    (df["rank"] == 2)
+                    & (df["turn_number"] == tn)
+                ]
+                .groupby("signal_name")["weighted_contribution"]
+                .sum()
+                .abs()
+                .sort_values(ascending=False)
+                .head(3)
+            )
+            r_top = ", ".join(
+                f"{sig.split('.')[-1]}: {val:+.2f}"
+                for sig, val in r_signals.items()
+            )
+
+            L(
+                f"| {tn} | {w_row['phase']} | {w_row['strategy']} / "
+                f"{_truncate(str(w_row['node_label']), 25)} | "
+                f"{r_row['strategy']} / {_truncate(str(r_row['node_label']), 25)} | "
+                f"{gap:+.2f} | {w_top} | {r_top} |"
+            )
+    else:
+        L("Insufficient data.")
     L()
 
     # --- Node Selection Frequency ---
