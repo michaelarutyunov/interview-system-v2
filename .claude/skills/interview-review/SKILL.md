@@ -23,6 +23,7 @@ An export folder: `reports/interviews/<timestamp>/`
 - `.claude/context/chain-rules.md` — chain tier definitions and methodology-specific rules
 - `.claude/context/strategy-scoring.md` — signal weight routing, node_binding behavior
 - `.claude/context/pipeline-contracts.md` — stage contracts, focus_concept flow
+- `.claude/context/methodology-parameter-flow.md` — calibration principles (read §Calibration Principles before making any weight tuning recommendation)
 
 **Optional files (enrich analysis if present):**
 - `03_graph.mmd` — graph visualization
@@ -191,43 +192,74 @@ High-Fidelity Turns:
 
 ### Step 4 — Strategy Assessment (Section 3)
 
-From `04_scoring_summary.md` and the methodology YAML (discovered in Step 1):
+From `04_scoring_summary.md` and the methodology YAML (discovered in Step 1).
 
-**Distribution**: Use the actual strategy names from the methodology YAML. Any strategy > 50% of turns = monotony risk. Note strategies that never fired — cross-reference with their signal weights to check for dead signals.
+**Primary: Missed Strategy Opportunities**
 
-**Streaks**: Same strategy 4+ consecutive turns without penalty = stale.
+This is the evidence-based assessment. For each turn where the transcript quality
+assessment (Step 2) flagged `resistance_ignored`, `affect_missed`, `anchoring_missed`,
+or `contradiction_avoided`, check: given what the respondent actually said, which
+strategy SHOULD have been selected?
 
-**Phase alignment**: Check the methodology YAML's `phases` section for per-phase strategy multipliers. The transcript's turn-by-turn strategy list shows which strategies fired in each phase. Compare against the phase descriptions — e.g., early phase should prioritize breadth/grounding strategies, mid phase should prioritize depth/laddering strategies, late phase should prioritize validation/closing strategies. The specific strategy names and their phase-appropriate roles are defined in the methodology YAML.
+For each candidate missed opportunity, provide:
+1. The specific turn number
+2. The respondent's own words (quote them)
+3. Which strategy should have been selected instead
+4. Why the selected strategy was wrong for this response
 
-**`node_binding` awareness**: Strategies with `node_binding: none` (check YAML) are conversation-level — they compete on global signals only. Their node-scoped weights are stripped before scoring. If a `node_binding: none` strategy has `convgraph.node.*` weights, those weights are dead. Flag as `node_binding_mismatch`.
+If no transcript quality flags correlate with strategy failures, state this explicitly —
+the strategy distribution may be appropriate for this interview.
 
-**Score separation**: Top-2 scores within 0.30 consistently = near-random selection.
+**Secondary: Pattern Checks**
 
-**Methodology fidelity audit**: Use the ontology from the methodology YAML to determine what constitutes structural success:
+These are observations, not calibration findings. They warrant investigation but do
+NOT directly justify weight changes without the evidence standard above.
+
+- **Dominance**: Any strategy >50% of turns → cross-reference with missed opportunities
+  above. If no missed opportunities were found, dominance may be appropriate.
+- **Streaks**: Same strategy 4+ consecutive turns → check whether any of those turns
+  showed resistance, fatigue, or hedging that should have triggered a pivot. If the
+  respondent stayed on-topic and engaged, the streak may be appropriate.
+- **Missing strategies**: Note strategies that never fired. Check `04_scoring_summary.md`
+  Dead Signals table — if the strategy's key signal is dead, the fix is signal detection,
+  not weight tuning.
+- **Phase alignment**: Check the methodology YAML's `phases` section for per-phase
+  strategy multipliers. Compare against phase descriptions.
+- **`node_binding` awareness**: Strategies with `node_binding: none` are conversation-level.
+  If a `node_binding: none` strategy has `convgraph.node.*` weights, flag as
+  `node_binding_mismatch` — those weights are dead.
+- **Score separation**: Top-2 scores within 0.30 consistently → selection is near-random.
+  Use `04_scoring_summary.md` Per-Turn Score Separation table to identify turns where
+  the gap was narrow and which signals drove the outcome.
+
+**Methodology fidelity audit**: Use the ontology from the methodology YAML:
 - Check the terminal node type(s) from the ontology (nodes with `terminal: true`)
 - After 8+ turns, at least one chain should reach a terminal node type
-- If the methodology has chain-aware strategies (check `valid_when` gates in YAML), verify those strategies fired at least once
-- If the methodology has flat ontology (no chain topology), laddering strategies are not expected — breadth strategies should dominate
+- If the methodology has chain-aware strategies (check `valid_when` gates in YAML),
+  verify those strategies fired at least once
+- If the methodology has flat ontology, laddering strategies are not expected
 
 Output format:
 ```
 ## 3. Strategy Assessment
 
-Distribution: [aligned / issues]
-| Strategy | Count | % | Assessment |
-|----------|-------|---|------------|
+### Missed Strategy Opportunities
+- Turn N: respondent said "[quote]" → [needed strategy] should have been selected
+  instead of [selected strategy] because [reason]
+- (If none found, state: "No missed strategy opportunities identified — strategy
+  selection was consistent with respondent's answers.")
+
+### Distribution
+| Strategy | Count | % | Notes |
+|----------|-------|---|-------|
 ... (use actual strategy names from methodology YAML)
 
 Phase Alignment: [aligned / misaligned]
-- [specific issues, referencing phase weights from YAML]
-
 Score Separation: [healthy / unstable]
-
 Structural Fidelity: [pass / failure]
-- [methodology-specific finding, referencing ontology from YAML]
 
-Anomalies:
-- [finding] → [module or config to investigate]
+Pattern Observations (verify, do not act without evidence):
+- [observation] → investigate with interview-simulation-reviewer Part 4
 ```
 
 ### Step 5 — Causal Chain Quality (Section 4)
@@ -342,21 +374,44 @@ Output format:
 
 ### Step 7 — Recommendations (Section 6)
 
-Consolidate all findings into prioritized fixes. When pointing to a fix location, use the methodology YAML for config changes and reference relevant `.claude/context/` docs for subsystem context.
+Consolidate all findings into prioritized fixes, separated by whether they require
+quantitative verification before implementation.
+
+**Weight tuning candidates** require evidence from Step 4's missed strategy opportunities.
+Each MUST cite a specific turn, respondent quote, and explanation of why the selected
+strategy was wrong. Before implementation, cross-reference with
+`interview-simulation-reviewer` Part 4 to verify that the needed strategy's signals
+actually fired on that turn.
+
+**Prompt/behavior fixes** are transcript quality issues — the strategy was correct but
+the question was poorly executed. These don't need verification.
 
 ```
 ## 6. Actionable Recommendations
 
-### High Priority
-1. [Issue] → Fix in [file path]
-   - Evidence: [specific turn or metric]
-   - Expected impact: [what changes if fixed]
+### Weight Tuning Candidates ⚠ (require quantitative verification)
+Each recommendation below identifies a potential strategy selection failure.
+BEFORE implementing, verify with interview-simulation-reviewer Part 4 that the
+needed strategy's key signals fired on the cited turn. If they didn't fire, the
+fix is in signal detection, not weights.
 
-### Medium Priority
-...
+1. **[Needed strategy] should have been selected on Turn N instead of [selected]**
+   - Respondent said: "[exact quote]"
+   - Why [selected] was wrong: [explanation]
+   - Key signals to verify: [signal names]
+   - If signals didn't fire → investigate [signal detector file]
 
-### Low Priority / Verify
-...
+### Prompt / Behavior Fixes (no verification needed)
+These are question quality issues — the strategy was correct, execution was flawed.
+
+1. Turn N: [leading / contradiction_avoided / projective_overreach / etc.]
+   → Fix in [prompt file or methodology YAML section]
+   - Evidence: "[respondent quote or question excerpt]"
+
+### Systemic Issues (no verification needed)
+Dead signals, always-firing signals, gate blockages from 04_scoring_summary.md.
+
+1. [Dead signal] → investigate [signal detector file]
 ```
 
 ## Rules
@@ -371,3 +426,4 @@ Consolidate all findings into prioritized fixes. When pointing to a fix location
 8. **Use the leading subtype taxonomy.** Never label a question simply "leading" — distinguish `leading_direction`, `confirmation_probe`, and `projective_overreach`. These have different root causes and different prompt fixes.
 9. **Tier 1 failures outrank Tier 2–4.** In the recommendations section, closed questions, double-barreled questions, and strategy mismatches are High Priority. Tier 2 depth failures (missed affect, unanchored abstractions) are Medium Priority. Tier 4 coverage issues are Medium-Low unless a critical blind spot exists.
 10. **Exhaustion vs. abandonment requires the respondent's last answer on a topic.** Don't flag abandonment unless the respondent's final answer on that node was still substantive (>15 words, introduced a new concept, or ended with a trailing thought). Short disengaged answers indicate exhaustion, not abandonment.
+11. **Weight tuning recommendations require turn-level evidence.** Before recommending any weight change, identify: (a) the specific turn where a different strategy should have been selected, (b) the respondent's own words that demonstrate the need, and (c) why the selected strategy was wrong for that response. If you can't provide all three, the issue is a pattern observation, not a calibration finding — label it "Verify" priority, not "High." Weight changes proposed without this evidence must include a cross-reference to `interview-simulation-reviewer` Part 4 to verify that the needed strategy's signals actually fired on that turn. See `.claude/context/methodology-parameter-flow.md` §Calibration Principles for the full evidence standard.

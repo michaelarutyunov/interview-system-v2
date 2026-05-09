@@ -14,12 +14,13 @@ Export all artifacts from a single simulated interview into a unified folder.
 | File | Description |
 |------|-------------|
 | `00_meta.yaml` | Interview metadata (concept, methodology, persona, turns) |
+| `00_methodology.yaml` | Copy of the methodology YAML that produced this simulation (enables retrospective calibration) |
 | `01_transcript.md` | Structured Q&A with focus nodes and extracted concepts |
 | `02_causal_chains.md` | Methodology-conforming causal chain analysis |
 | `03_graph.mmd` | Mermaid graph source (left-to-right turn columns) |
 | `03_graph.png` | Rendered graph diagram |
 | `04_scoring.csv` | Raw per-signal-per-candidate scoring decomposition |
-| `04_scoring_summary.md` | Aggregated tables (firing rates, dead signals, budget, gates) |
+| `04_scoring_summary.md` | Systemic diagnostics (firing rates, dead signals, per-turn score separation, phase effects, gates). ⚠ Does NOT support weight tuning — see caveat in file. |
 | `05_latency/` | Latency audit summary + per-stage CSV + LLM call CSV |
 | `05_turn_diagnostics.md` | Per-turn edge extraction diagnostics (nodes, confirmed edges, rejected candidates) |
 | `06_insights.md` | Placeholder — populated by `/interview-review` |
@@ -69,5 +70,5 @@ uv run python scripts/reporting/export_interview.py <json> --output-dir /tmp/my_
 
 - **PNG rendering** requires Chrome/Chromium. If not available (e.g. WSL without Chrome), the `.mmd` file is still generated and can be rendered manually with `npx @mermaid-js/mermaid-cli -i file.mmd -o file.png`.
 - **Log copying** requires the JSON to have `metadata.log_file` set. Simulations saved after the logging fix include this. Older simulations will have an empty `log_file` in `00_meta.yaml`.
-- **Causal chains** (`02_causal_chains.md`) is generated directly by the export pipeline via `scripts/reporting/generate_causal_chains.py`.
+- **Causal chains** (`02_causal_chains.md`) is generated directly by the export pipeline via `scripts/chains/generate_causal_chains.py`.
 - The export is **idempotent** — re-running overwrites files in the same folder.

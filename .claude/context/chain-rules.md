@@ -1,7 +1,7 @@
 # Chain Rules Specification
 ## Current Version: 1.0
 
-Chain construction rules for the post-hoc analytical chain extractor (`scripts/reporting/generate_causal_chains.py`). These rules are **reporting-only** — they do not affect the live interview engine.
+Chain construction rules for the post-hoc analytical chain extractor (`scripts/chains/generate_causal_chains.py`). These rules are **reporting-only** — they do not affect the live interview engine.
 
 ## Engine vs Reporting Distinction
 
@@ -63,7 +63,7 @@ This split was discovered April 2026 when JTBD interviews produced 0 full chains
 
 ### Edge Filtering: `_edge_passes()`
 
-Located in `scripts/reporting/generate_causal_chains.py`. Evaluates each edge against its direction rule:
+Located in `scripts/chains/generate_causal_chains.py`. Evaluates each edge against its direction rule:
 
 1. **Old type-pair list** (backward compat): checks `[src_type, tgt_type] in permitted`
 2. **`unconstrained` / None**: always passes
@@ -103,7 +103,7 @@ Applied after chain walking. Tiers are derived from the methodology's ontology l
 
 ## Source Files
 
-- `scripts/reporting/generate_causal_chains.py` — chain walking, classification, rendering
+- `scripts/chains/generate_causal_chains.py` — chain walking, classification, rendering
 - `config/chain_rules/*.yaml` — direction rules per methodology
 - `src/signals/graph/chain_topology_signals.py` — engine-side chain topology (uses `chain_relevant`, not chain_rules)
 - `src/domain/models/methodology_schema.py` — `get_chain_relevant_edge_types()`, `get_edge_descriptions_with_connections()`

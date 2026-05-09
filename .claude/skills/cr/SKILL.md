@@ -99,6 +99,11 @@ Run each check and record findings. Zero warnings from `check_doc_drift.py` mean
 
 For each changed file, evaluate:
 
+**Failure mode routing (ALWAYS evaluate first):**
+- Did this session surface a new failure mode (bug fix, regression, design constraint discovered the hard way)?
+- → Route it to the appropriate Tier 3 doc's "Known Failure Modes" section, or a Tier 2 agent's "Anti-patterns" section if it's operational ("don't do X").
+- → **NEVER add diagnostic prose to CLAUDE.md directly.** CLAUDE.md's "Known Failure Mode Index" is a routing table — it maps symptom keywords to authoritative sources. If a genuinely new failure mode category emerges (new symptom→source mapping not covered by any table row), add one row to the table. The diagnostic content (root cause, reproduction steps, fix, commit hashes) lives in Tier 2/3.
+
 **Tier 2 (Agent) triggers:**
 - Did Claude make the same type of mistake more than once this session?
 - Was domain knowledge needed that general prompting got wrong?
@@ -112,9 +117,10 @@ For each changed file, evaluate:
 - → If yes: recommend creating/updating a context doc
 
 **Tier 1 (CLAUDE.md) triggers:**
-- Was a convention violated that wasn't written down?
+- Was a convention violated that wasn't written down? (Convention = universal rule, not subsystem-specific insight)
 - Is there a new subsystem ALL agents need to know about?
-- → If yes: recommend adding a convention (but only if universal)
+- Does the failure mode routing table need a new row for a genuinely novel symptom→source mapping?
+- → If yes: recommend adding a convention or routing table row (but only if universal)
 
 ### Step 4 — Output report
 
@@ -327,7 +333,7 @@ Session added `src/signals/graph/new_signal.py` but `.claude/context/signal-dete
 
 ### "Bug fix revealed undocumented behavior"
 Fixed a bug where Stage 4 reset state invisible to Stage 6.
-→ Action: Add to Known Failure Modes in relevant Tier 3 doc. Consider Tier 2 anti-pattern.
+→ Action: Add to Known Failure Modes in relevant Tier 3 doc. Consider Tier 2 anti-pattern. **Do NOT add the diagnostic prose to CLAUDE.md** — if the symptom→source mapping is novel, add one row to the "Known Failure Mode Index" routing table. The full diagnostic (root cause, fix, commit hash) belongs in the Tier 3 doc.
 
 ### "CLAUDE.md grew past 800 lines"
 Convention creep from multiple sessions.
@@ -366,4 +372,5 @@ A docstring describes behavior that was changed but the docstring wasn't updated
 - **Don't duplicate** — if knowledge exists in Tier 3, reference it from Tier 2, don't copy it
 - **Don't skip the drift check** — structural issues compound silently
 - **Don't run deep mode on every session** — it's expensive. Use it for quarterly audits or when you suspect semantic drift
+- **Don't add failure modes to CLAUDE.md** — the "Known Failure Mode Index" is a routing table, not a diagnostic repository. New failure modes go to Tier 3 doc "Known Failure Modes" sections or Tier 2 agent "Anti-patterns." Only add a row to the CLAUDE.md table if the symptom→source mapping is genuinely novel (no existing row covers it).
 - **Don't fix ghost symbols by adding them to code** — docs should describe what exists, not invent what doesn't

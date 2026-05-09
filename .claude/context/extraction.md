@@ -288,7 +288,15 @@ Bridge relationships have an inherent `source_quote` problem: the source node wa
 
 ## Known Failure Modes
 
-_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+1. **Level skipping produces zero full chains** — Edge extraction (Stage 4.5B, Haiku) connects semantically related concepts regardless of ontology level adjacency, producing edges that jump L0→L3 or L1→L4. The chain builder classifies these as "advanced" (with gaps) rather than "full" chains. Confirmed across 3 independent simulation runs (0-2 full chains per 15-turn interview). Fix: `edge_extraction_notes` in `method:` YAML block instructs Haiku to prefer level-adjacent edges. Stage 3 concept extraction uses a separate Level-Aware Relationship Creation section (hardcoded, gated on ≥2 ontology levels).
+
+2. **Pair-count timeout causes silent bridge blackout** — When candidate pairs exceed ~40, the 30s Haiku timeout fires, `LLMTimeoutError` is stored, and Stage 4.6 receives no result. Symptom: 60s log gap between `canonical_skip` and next `graph_updated`, with no `bridge_complete` or failure entry. Fix: `_build_candidate_pairs_section()` caps at 40 pairs with priority ordering (FOCUS → NEIGHBOR → CURRENT → RECENT → OPENING). Stage 4.6 emits `edge_extraction_bridge_task_missing_despite_nodes` WARNING.
+
+3. **`insufficient_evidence` dominating rejections (≥50%) signals missing utterance context, not over-rejection** — Root cause: Haiku cannot see the cross-turn utterance where the causal relationship was stated. Pre-fix, 86% of rejections were `insufficient_evidence` because utterance assembly was limited to 3–4 fragments from focus-node source utterances. Fix: pass full conversation history (`utterance_repo.get_recent(session_id, limit=30)`). After fix, dominant rejection codes shifted to `type_constraint_violation` and `semantic_irrelevance`.
+
+4. **Directionally inverted edges confirmed at medium confidence due to negation-blind co-occurrence** — Haiku treats co-occurrence of two concept labels as sufficient evidence even when the utterance *negates* the relationship (e.g., "I don't think about health when at home" cited for `at_home → triggers → health_mindset`). The Negation Check principle in the prompt explicitly defines negation as `insufficient_evidence`. When reviewing confirmed edges, flag evidence quotes containing "don't", "not", "never" — these are inversion candidates.
+
+5. **Turn 0 concepts become permanent orphans without the OPENING tag** — The opening turn extracts 5–9 rich concepts. They appear as RECENT in Turn 1 but get cut by the 40-pair cap. From Turn 2 onward they're absent from the candidate set. The OPENING tag re-includes them as a lowest-priority bucket for turns 2–5. Without it, chain reports show "stranded context" — semantically central concepts never connect.
 
 
 ## Key Files

@@ -113,7 +113,7 @@ The LLM returns a JSON object with two top-level sections. **`global` comes firs
 
 ## Known Failure Modes
 
-_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+1. **LLM drops global signal keys when `global` section follows `concepts` in JSON output** — Haiku systematically omitted `engagement` and `certainty` from the `global` section because the variable-length `concepts` section consumed its output attention before reaching the trailing `global` keys. Consequence: corresponding suppressors disappear, unblocking strategies that should have been suppressed. Symptom: `engagement.mid` and `certainty.mid` fire at 100% across all turns. Check logs for "LLM output missing global" warnings. Fix: reorder JSON template to put `global` before `concepts` (commit `c1e5a7b`). Fallback: `batch_detector.py` applies neutral score=3 (normalises to 0.5) for missing keys. If issue recurs with larger concept sets, consider switching to Sonnet for signal scoring.
 
 
 ## Key Files

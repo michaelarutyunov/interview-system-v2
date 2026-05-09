@@ -55,7 +55,7 @@ These signals require graph traversal (O(N×D) for N nodes and D depth) and are 
 
 Methodologies with no `chain_relevant: true` edges, or with fewer than 2 distinct ontology levels, get empty chain topology signals (`{}`). The flag is parsed by `EdgeTypeSpec.chain_relevant` and accessed via `MethodologySchema.get_chain_relevant_edge_types()`.
 
-**Engine vs reporting distinction:** This filtering uses only the `chain_relevant: true` flag from methodology YAML — it does NOT apply `config/chain_rules/*.yaml` type-pair constraints. The chain_rules files are reporting-only (used by `scripts/reporting/generate_causal_chains.py`). The engine sees ALL edges whose type is marked `chain_relevant: true`, regardless of their source/target node types. See `.claude/context/chain-rules.md`.
+**Engine vs reporting distinction:** This filtering uses only the `chain_relevant: true` flag from methodology YAML — it does NOT apply `config/chain_rules/*.yaml` type-pair constraints. The chain_rules files are reporting-only (used by `scripts/chains/generate_causal_chains.py`). The engine sees ALL edges whose type is marked `chain_relevant: true`, regardless of their source/target node types. See `.claude/context/chain-rules.md`.
 
 ### Per-Concept LLM Quality Node Signals (Phase C)
 

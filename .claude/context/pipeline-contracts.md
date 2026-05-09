@@ -114,7 +114,7 @@ Both candidate pools are merged and sorted by score. The highest-scoring pair de
 
 ## Known Failure Modes
 
-_No entries yet. Add failure patterns as they are discovered in this subsystem — each entry should describe the incorrect behavior, its consequence, and the correct approach._
+1. **Stage 4 state reset invisible to Stage 6 signal detectors** — Any state reset in GraphUpdateStage (Stage 4) is invisible to signal detectors running in Stage 6 because they read the tracker snapshot sealed at Stage 4.7. Do not reset signal-relevant state (focus streaks, yield counters) in early stages — reset only in `update_focus()` (Stage 6) on focus change. See `pipeline-specialist` agent for full anti-pattern list including `current_focus_streak=0` in `record_yield()` regression (bead 119q).
 
 
 ## Key Files

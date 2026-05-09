@@ -75,7 +75,7 @@ Some config affects the live interview engine. Other config is **reporting-only*
 | `ontology.edges[].chain_relevant: true` | Engine | `ChainTopologySignalDetector` — filters edges for `gap.above`/`gap.below` signals during interview |
 | `ontology.edges[].permitted_connections` | Extraction | LLM sees type-pair hints in system prompt (MEC strict only) |
 | `ontology.nodes[].level` | Both | Used by engine (chain topology) and reporting (chain classification tiers) |
-| `config/chain_rules/*.yaml` | Reporting | `scripts/reporting/generate_causal_chains.py` — post-hoc chain extraction |
+| `config/chain_rules/*.yaml` | Reporting | `scripts/chains/generate_causal_chains.py` — post-hoc chain extraction |
 | `phases.{phase}.signal_weights` | Engine | Strategy scorer applies per-phase multipliers |
 | `interview_config.phases.*.n_turns` | Engine | Phase boundary calculation (when `--phase-turns` not used) |
 
@@ -270,6 +270,16 @@ YAML method.edge_extraction_notes
    `_get_bridge_config()` method returns `{}` on any exception — catch this by
    inspecting extraction prompts in simulation output for missing "prefer existing" wording.
 
+6. **`level_guidance` injected before strategy description line is overridden by it** —
+   `get_question_user_prompt()` historically injected `level_guidance` before the strategy
+   description line. The LLM reads the strategy description last and uses it as the
+   operative instruction — `level_guidance` becomes a hint the LLM ignores. Symptom:
+   JTBD `ascend` at L3 `emotional_job` nodes produced confirmation probes ("Does that
+   feeling make you reach for ZeroFizz?") instead of solution-closure questions
+   ("What do you hire to fulfill that need?"). Fix: inject `level_guidance` AFTER the
+   strategy line with "⚠ Level-specific instruction (overrides strategy description above):"
+   prefix. See §level_guidance parameter docs above for the correct prompt position.
+
 ## Source Files
 
 | File | Role |
@@ -285,3 +295,70 @@ YAML method.edge_extraction_notes
 | `src/services/turn_pipeline/stages/context_loading_stage.py` | Stage 1: loads focus_history into context |
 | `src/services/focus_selection_service.py` | Resolves focus_mode → concrete focus label |
 | `config/methodologies/*.yaml` | Parameter definitions (6 methodologies) |
+
+---
+
+## Calibration Principles
+
+Signal weights determine strategy selection. Calibrating them requires a disciplined
+approach to avoid drift toward "balance optimization" — tuning weights to produce a
+pleasing distribution of strategies rather than to surface the right strategy for the
+respondent's actual state.
+
+### Core Principle
+
+**Calibrate against missed opportunities, not distribution targets.**
+
+A weight change is justified when conversational evidence shows the system *failed to
+select a strategy that the respondent's answer called for*. It is NOT justified by
+"strategy X should appear more often" or "the distribution looks uneven."
+
+### Evidence Standard
+
+Before changing a weight:
+
+1. **Identify the specific turn** where a strategy should have been selected but wasn't.
+2. **Quote the respondent's words** that demonstrate the need for that strategy.
+3. **Explain why the selected strategy was wrong** for that response — what did it miss
+   or mischaracterize?
+4. **Verify the missing strategy's signals actually fired** on that turn. If the
+   signals didn't fire, the problem is in signal detection, not weights.
+5. **Check whether the signal is returning the right type** for the weight key.
+   A float returned where a bool is expected by `.true`/`.false` will silently
+   contribute 0.0. A float returned where the YAML uses `.high`/`.mid`/`.low`
+   will be discretized at the global 0.25/0.75 thresholds, which may be wrong
+   for that signal's semantics.
+
+### Anti-Patterns
+
+| Anti-Pattern | Why It's Wrong |
+|-------------|---------------|
+| "Strategy X never fires, boost its weights" | Maybe nothing in the interview called for X. Check the evidence first. |
+| "The distribution is 60/30/10, it should be 40/40/20" | Distribution targets assume all interviews need the same mix. They don't. |
+| Boosting weights without checking signal firing rates | A 0.40→0.80 boost on a signal that fires 6% of the time adds 0.024 expected mass. The problem may be signal sensitivity, not weight magnitude. |
+| Calibrating on a single persona | The `baseline_cooperative` persona hedges as social style. `baseline_resistant` hedges as genuine uncertainty. Weights calibrated on one persona will misfire on the other. |
+| Changing weights without exporting the methodology YAML | Without `00_methodology.yaml` in the export folder, retrospective analysis can't determine what configuration produced a given result. |
+
+### Threshold Mismatches
+
+The global discretization in `_get_signal_value` (scoring.py:258-263) defines:
+- `.high`: value >= 0.75
+- `.mid`: 0.25 < value < 0.75
+- `.low`: value <= 0.25
+
+These are calibrated for 1-5 rubric signals (elaboration, certainty, engagement)
+where "high" means top-quartile. They are **not** appropriate for all signals.
+When a signal's natural semantics don't match these thresholds, the signal should
+return a categorical string (`"high"`/`"mid"`/`"low"`) with its own thresholds,
+which `_get_signal_value` handles via direct string comparison (line 266).
+
+### Workflow
+
+```
+1. Run simulation → export with /interview-export
+2. Review transcript for missed strategy opportunities
+3. For each candidate turn: check if the needed strategy's signals fired
+4. If signals fired but strategy lost: weight gap is the fix
+5. If signals didn't fire: signal detection is the fix
+6. Adjust → re-run same simulation → compare exports
+```

@@ -210,6 +210,8 @@ Run on every session start or as a pre-commit hook:
 3. If a new subsystem directory has no trigger match → flag as coverage gap
 4. Log all drift findings at session start so the agent can self-correct before proceeding
 
+**Stale specs warning**: Agents trust docs absolutely. An outdated spec produces silent failures — correct-looking code based on wrong assumptions. The drift detector catches structural drift (missing files, broken references) but cannot detect semantic staleness (an up-to-date-looking doc whose content no longer matches the code). When in doubt, verify the doc against source.
+
 ---
 
 ## Growth Benchmarks
