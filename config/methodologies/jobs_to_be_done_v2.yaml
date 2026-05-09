@@ -240,6 +240,7 @@ signals:
   llm:
     - response.semantic.llm.certainty
     - response.semantic.llm.engagement
+    - response.semantic.llm.frame_resistance
     - response.semantic.llm.elaboration
     - response.semantic.llm.charge
     # Note: response.semantic.llm.engagement.trend is session-scoped and managed separately
@@ -325,23 +326,28 @@ strategies:
       convgraph.node.focus.count.none: 0.2
       # Exhaustion — avoid nodes already thoroughly explored
       convgraph.node.exhaustion: -0.6
-      convgraph.node.focus.count.high: -0.4
-      convgraph.node.focus.count.medium: -0.2
+      convgraph.node.focus.count.high: -0.9
+      convgraph.node.focus.count.medium: -0.5
       # Chain foundation — boosted from 0.2 to 0.35 to equalize with ground's
       # has_attribute_foundation asymmetry (was 2:1 favoring ground, now symmetric)
       convgraph.node.chain.has_attribute_foundation.true: 0.35
       convgraph.node.chain.has_attribute_foundation.false: -0.5
       # Engagement — engaged respondent = safe to probe deeper
       response.semantic.llm.engagement.low: -0.3
+      # Frame resistance — suppress ascend when respondent rejects framing
+      response.semantic.llm.frame_resistance.true: -1.2
       # f965: intellectual_engagement.high (0.2) → 0.5× elaboration.high + 0.5× charge.positive
       convgraph.node.llm.elaboration.high: 0.1
       convgraph.node.llm.charge.positive: 0.1
       # f965: response_depth.surface (0.1) + response_depth.shallow (0.05) → elaboration.low 0.15
       convgraph.node.llm.elaboration.low: 0.15
-      # Repetition brake — strengthened from -0.30 to -0.50 to counter 6-turn
-      # monoculture: positive mass from gap.above (~1.5-2.0 effective) overwhelmed
-      # the -0.30 brake. At -0.50, accumulated brake after 3 uses ≈ -1.50.
-      interview.strategy.self_count: -0.50
+      # Repetition brake — -0.75: after 3 consecutive ascend turns, accumulated
+      # brake (-2.25) overcomes ideal per-node structural mass (~2.10).
+      # Evidence: simulation 20260507_135739 turns 10-12 — ascend continued through
+      # two consecutive frame rejection signals (T10 "that seems like a stretch",
+      # T11 "not the right framing for me"). The prior -0.50 allowed net 0.78 after
+      # 3 turns with mid-phase multiplier.
+      interview.strategy.self_count: -0.75
 
   # Strategy 3: Ground — find lower-level antecedents for higher-level nodes
   # Binds to nodes with gap_below (nodes at L1-L4 that lack chain-relevant
@@ -383,6 +389,8 @@ strategies:
       convgraph.node.novelty.high: 0.25
       convgraph.node.focus.streak.none: 0.3
       convgraph.node.focus.count.none: 0.2
+      convgraph.node.focus.count.high: -0.9
+      convgraph.node.focus.count.medium: -0.5
       # Exhaustion — avoid over-probed nodes
       convgraph.node.exhaustion: -0.4
       # Chain foundation — reduced from 0.4 to 0.2 to remove structural
@@ -391,6 +399,8 @@ strategies:
       convgraph.node.chain.has_attribute_foundation.true: -0.2
       # f965: response.semantic.llm.response_depth.deep (0.05) → convgraph.node.llm.elaboration.high
       convgraph.node.llm.elaboration.high: 0.05
+      # Frame resistance — suppress ground when respondent rejects framing
+      response.semantic.llm.frame_resistance.true: -0.8
       # Repetition brake — doubled from -0.15 to -0.30 to prevent ground monoculture
       # (was plateauing at -0.15 which is dwarfed by 1.50+ positive mass)
       interview.strategy.self_count: -0.30
@@ -463,6 +473,8 @@ strategies:
       response.semantic.llm.engagement.low: 0.60
       response.semantic.llm.engagement.trend.shallowing: 0.40
       response.semantic.llm.engagement.trend.fatigued: 0.90
+      # Frame resistance — strong boost when respondent rejects framing
+      response.semantic.llm.frame_resistance.true: 1.5
       # Saturation — only canonical saturation suppresses (conversation saturation
       # is a reason TO revitalize, not a reason to suppress it)
       meta.saturation.canonical: -0.30

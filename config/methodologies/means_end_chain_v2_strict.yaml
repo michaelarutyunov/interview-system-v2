@@ -150,6 +150,7 @@ signals:
   llm:
     - response.semantic.llm.certainty
     - response.semantic.llm.engagement
+    - response.semantic.llm.frame_resistance
     - response.semantic.llm.elaboration
     - response.semantic.llm.charge
     # Note: response.semantic.llm.engagement.trend is session-scoped and managed separately
@@ -183,6 +184,8 @@ strategies:
       response.semantic.llm.engagement.low: 0.50
       response.semantic.llm.engagement.trend.shallowing: 0.30
       response.semantic.llm.engagement.trend.fatigued: 0.80
+      # Frame resistance — strong boost when respondent rejects framing
+      response.semantic.llm.frame_resistance.true: 1.5
       # Saturation — don't re-engage if conversation is saturated
       meta.saturation.conversation: -0.40
       meta.saturation.canonical: -0.40
@@ -212,6 +215,7 @@ strategies:
       # f965: intellectual_engagement.high × 0.5 (0.1) → charge.positive 0.1
       convgraph.node.llm.charge.positive: 0.1
       response.semantic.llm.engagement.low: -0.3       # R3: soft brake when respondent is fading
+      response.semantic.llm.frame_resistance.true: -1.2
       interview.strategy.self_count: -1.5  # Tier 2 + Critique: strengthened from -0.5
       interview.strategy.self_count.high: -1.0  # T2 calibration: high streak penalty
       convgraph.node.chain.has_attribute_foundation.true: 0.200   # Tier 2 + Critique: reduced from 0.400
@@ -237,6 +241,7 @@ strategies:
       convgraph.node.exhaustion: -0.4
       # f965: response.semantic.llm.response_depth.deep (0.05) → convgraph.node.llm.elaboration.high
       convgraph.node.llm.elaboration.high: 0.05
+      response.semantic.llm.frame_resistance.true: -0.8
       interview.strategy.self_count: -0.40  # increased from -0.15 — creates room for ascend on gap_below nodes
       convgraph.node.chain.has_attribute_foundation.false: 0.250  # Tier 2 + Critique: reduced from 0.400
       convgraph.node.chain.has_attribute_foundation.true: -0.2   # already grounded, reduce priority

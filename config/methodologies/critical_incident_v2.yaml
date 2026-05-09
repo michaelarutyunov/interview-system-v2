@@ -200,6 +200,7 @@ signals:
   llm:
     - response.semantic.llm.certainty
     - response.semantic.llm.engagement
+    - response.semantic.llm.frame_resistance
     - response.semantic.llm.elaboration
     - response.semantic.llm.charge
     # Note: response.semantic.llm.engagement.trend is session-scoped and managed separately
@@ -277,6 +278,8 @@ strategies:
       convgraph.node.focus.count.medium: -0.2
       # Engagement gates — ascending needs willing participation
       response.semantic.llm.engagement.low: -0.3
+      # Frame resistance — suppress ascend when respondent rejects framing
+      response.semantic.llm.frame_resistance.true: -1.2
       # f965: intellectual_engagement.high (0.2) → 0.5× elaboration.high + 0.5× charge.positive
       convgraph.node.llm.elaboration.high: 0.1
       convgraph.node.llm.charge.positive: 0.1
@@ -305,6 +308,8 @@ strategies:
       convgraph.node.exhaustion: -0.6         # T2 calibration: strengthened from -0.4 to enforce node rotation
       # f965: response_depth.shallow (0.05) → convgraph.node.llm.elaboration.low
       convgraph.node.llm.elaboration.low: 0.05
+      # Frame resistance — suppress ground when respondent rejects framing
+      response.semantic.llm.frame_resistance.true: -0.8
       # Mild repetition penalty
       interview.strategy.self_count: -0.15
       meta.saturation.conversation.high: -0.40
@@ -367,6 +372,8 @@ strategies:
       response.semantic.llm.engagement.low: 0.50
       response.semantic.llm.engagement.trend.shallowing: 0.30
       response.semantic.llm.engagement.trend.fatigued: 0.80
+      # Frame resistance — strong boost when respondent rejects framing
+      response.semantic.llm.frame_resistance.true: 1.5
       # Saturation — don't re-engage if conversation is saturated
       meta.saturation.conversation: -0.40
       meta.saturation.canonical: -0.40

@@ -31,7 +31,7 @@ _BASE_PROMPT_FILENAME = "llm_signal_baseprompt.md"
 _OUTPUT_FORMAT = """\
 Output a JSON object with two top-level sections: `global` and `concepts`.
 
-IMPORTANT: Output `global` FIRST, then `concepts`. The `global` section MUST contain BOTH `engagement` AND `certainty`.
+IMPORTANT: Output `global` FIRST, then `concepts`. The `global` section MUST contain ALL global signals listed in the rubrics above.
 
 {
   "global": {
@@ -48,7 +48,7 @@ IMPORTANT: Output `global` FIRST, then `concepts`. The `global` section MUST con
 
 Rules:
 - Output `global` FIRST in the JSON object, then `concepts`.
-- BOTH `engagement` AND `certainty` MUST appear in `global`. Omitting either is an error.
+- ALL global signals listed in the rubrics MUST appear in `global`. Omitting any is an error.
 - Use the EXACT concept name from the provided list as the key.
 - Every concept from the list MUST appear in `concepts`.
 - Every score MUST be an integer 1-5. Use the full range. Do not default to 3.
@@ -270,7 +270,11 @@ class LLMBatchDetector:
                 score = 3
             else:
                 score = self._clamp_score(raw_global[short])
-            global_out[cls.signal_name] = self._normalize(score)  # type: ignore[attr-defined]
+            norm_score = self._normalize(score)
+            if getattr(cls, "boolean_output", False):
+                global_out[cls.signal_name] = norm_score >= 0.75  # type: ignore[attr-defined]
+            else:
+                global_out[cls.signal_name] = norm_score  # type: ignore[attr-defined]
 
         # -- derived llm.response_depth -------------------------------------
         if elaboration_raw_scores:

@@ -80,31 +80,40 @@ class OrphanRatioSignal(SignalDetector):
 
     Namespaced signal: convgraph.state.node.orphan_ratio
 
-    Returns a float in [0.0, 1.0] where 1.0 means all nodes are orphans
-    (typical in opening turns) and 0.0 means no orphans. Threshold-binned
-    via the standard mechanism:
-      - .high (>= 0.75): acute orphan crisis — opening turns or severe drift
-      - .mid  (0.25–0.75): moderate orphan accumulation — mid-interview drift
-      - .low  (<= 0.25): healthy connectivity — few isolated nodes
+    Returns a categorical string ("high"/"mid"/"low") using orphan-specific
+    thresholds rather than the global 0.25/0.75 discretization (which is
+    calibrated for elaboration/certainty semantics where "high" means
+    top-quartile). Orphan thresholds are lower because even 15% orphans
+    indicates meaningful graph fragmentation:
 
-    Safe for use in signal_weights because the return value is normalized.
-    Unlike ``orphan_count`` (unbounded int), this ratio can be threshold-binned
-    via .high/.mid/.low and multiplied by weights without dominating scoring.
+      - "high" (>= 0.15): significant fragmentation — boost anchor/bridge
+      - "mid"  (0.05–0.15): moderate orphan accumulation
+      - "low"  (< 0.05): healthy connectivity
+
+    Returns a string so that compound-key resolution in _get_signal_value
+    (scoring.py:266) matches ``orphan_ratio.high`` via ``actual_value == "high"``.
     """
 
     signal_name = "convgraph.state.node.orphan_ratio"
     description = (
-        "Fraction of graph nodes that are orphans (no edges). "
-        "0.0 = fully connected, 1.0 = all isolated. "
-        "Normalized from orphan_count / node_count for safe weight multiplication."
+        "Fraction of graph nodes that are orphans (no edges), returned as "
+        "categorical string: high (>=15%), mid (5-15%), low (<5%). "
+        "Thresholds are lower than the global discretization because even "
+        "modest orphan rates indicate graph fragmentation."
     )
     dependencies = []
 
     async def detect(self, context, graph_state, response_text):
-        """Return orphan ratio as float [0,1]."""
+        """Return orphan level as categorical string."""
         total = max(graph_state.node_count, 1)
         ratio = graph_state.orphan_count / total
-        return {self.signal_name: ratio}
+        if ratio >= 0.15:
+            level = "high"
+        elif ratio >= 0.05:
+            level = "mid"
+        else:
+            level = "low"
+        return {self.signal_name: level}
 
 
 # =============================================================================

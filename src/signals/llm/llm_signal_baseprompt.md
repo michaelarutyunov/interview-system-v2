@@ -17,7 +17,7 @@ Your task:
 4. For per-concept ratings, score the text about THAT concept specifically — not the overall response.
 5. **Evidence independence:** If two concepts share supporting text, score each based on what the text contributes *uniquely* to that concept. Do not inherit scores from shared evidence.
 6. **Missing concepts:** If an extracted concept has no supporting text in the response, score `elaboration=1`, `charge=3`, rationale = "concept not found in text".
-7. **MANDATORY global keys:** The `global` section MUST contain BOTH `engagement` AND `certainty`. Do NOT omit either key. If uncertain, score based on the best available evidence rather than leaving a key out.
+7. **MANDATORY global keys:** The `global` section MUST contain ALL global signals listed in the rubrics above ({global_signal_names}). Do NOT omit any key. If uncertain, score based on the best available evidence rather than leaving a key out.
 8. **Output order:** Output `global` FIRST in the JSON, then `concepts`. This ensures global ratings are not omitted.
 9. Output valid JSON only. No preamble, no commentary.
 
