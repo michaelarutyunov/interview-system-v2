@@ -54,24 +54,20 @@ class QuestionService:
     def __init__(
         self,
         llm_client: LLMClient,
-        default_strategy: str = "ascend",
         methodology: str = "means_end_chain",
     ):
         """Initialize question service with LLM client and methodology configuration.
 
         Args:
             llm_client: LLM client instance for question generation (required)
-            default_strategy: Default strategy name when not specified (e.g., "ascend")
             methodology: Methodology name for opening question generation
                 (loaded from config/methodologies/*.yaml)
         """
         self.llm = llm_client
-        self.default_strategy = default_strategy
         self.methodology = methodology
 
         log.info(
             "question_service_initialized",
-            default_strategy=default_strategy,
             methodology=methodology,
         )
 
@@ -103,7 +99,7 @@ class QuestionService:
             recent_utterances: Recent conversation turns with speaker/text keys
             graph_state: Current graph state for depth and coverage context
             recent_nodes: Recently added nodes (up to 3 shown in summary)
-            strategy: Strategy name from methodology config (defaults to default_strategy)
+            strategy: Strategy name from methodology config (e.g., "ascend", "ground", "anchor")
             topic: Research topic to anchor questions to (prevents drift to abstract philosophy)
             signals: Active signal values (signal_name -> value)
             signal_descriptions: Signal descriptions (signal_name -> description)
@@ -118,7 +114,10 @@ class QuestionService:
         Raises:
             RuntimeError: If LLM call fails or returns invalid response
         """
-        strategy = strategy or self.default_strategy
+        if strategy is None:
+            raise ValueError(
+                "strategy is required for generate_question; no default is provided"
+            )
 
         log.info(
             "generating_question",
