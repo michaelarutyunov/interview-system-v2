@@ -72,8 +72,8 @@ def test_all_node_signals_auto_registered():
         "convgraph.node.chain.branching_deficit",
         "convgraph.node.chain.fan_in",
         "convgraph.node.chain.level.gap_size",
-        "convgraph.node.chain.has_attribute_foundation",
-        "convgraph.node.chain.has_terminal_apex",
+        "convgraph.node.chain.has_origin_level_ancestor",
+        "convgraph.node.chain.has_max_level_ancestor",
         # Per-concept LLM quality (Phase C)
         "convgraph.node.llm.elaboration",
         "convgraph.node.llm.charge",

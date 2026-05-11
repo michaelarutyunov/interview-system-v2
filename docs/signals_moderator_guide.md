@@ -168,9 +168,9 @@ These signals describe per-node chain position, computed for each node and aggre
 
 | Signal | Moderator Meaning | How It's Computed | What to Look For |
 |--------|------------------|-------------------|------------------|
-| **convgraph.node.chain.role** | Compound per-node chain topology signal | Single traversal computes all 8 chain metrics per node (gap.above, gap.below, level.skip, branching_deficit, fan_in, level.gap_size, has_attribute_foundation, has_terminal_apex). Returned as a dict keyed by node_id. Individual extractor signals (e.g., `convgraph.node.chain.gap.above`) pull single values from this compound result | Used by strategy selection for valid_when gates and scoring |
-| **convgraph.node.chain.has_attribute_foundation** | Does this node's chain have a concrete starting point? | Boolean: true if following reverse `leads_to` edges from this node reaches any attribute-level (origin) node via BFS | True = chain is grounded in concrete attributes; False = chain is floating without foundation. Used as a scoring modifier for ascend (boost if grounded, suppress if floating) and ground (prioritize floating chains) |
-| **convgraph.node.chain.has_terminal_apex** | Does this node's chain reach a core value? | Boolean: true if following forward `leads_to` edges from this node reaches any terminal-value node via BFS | True = this chain already reaches a terminal value; used as a scoring modifier for branch (boost when chain is complete, indicating a productive branching point) |
+| **convgraph.node.chain.role** | Compound per-node chain topology signal | Single traversal computes all 8 chain metrics per node (gap.above, gap.below, level.skip, branching_deficit, fan_in, level.gap_size, has_origin_level_ancestor, has_max_level_ancestor). Returned as a dict keyed by node_id. Individual extractor signals (e.g., `convgraph.node.chain.gap.above`) pull single values from this compound result | Used by strategy selection for valid_when gates and scoring |
+| **convgraph.node.chain.has_origin_level_ancestor** | Does this node's chain have a concrete starting point? | Boolean: true if following reverse `leads_to` edges from this node reaches any attribute-level (origin) node via BFS | True = chain is grounded in concrete attributes; False = chain is floating without foundation. Used as a scoring modifier for ascend (boost if grounded, suppress if floating) and ground (prioritize floating chains) |
+| **convgraph.node.chain.has_max_level_ancestor** | Does this node's chain reach a core value? | Boolean: true if following forward `leads_to` edges from this node reaches any terminal-value node via BFS | True = this chain already reaches a terminal value; used as a scoring modifier for branch (boost when chain is complete, indicating a productive branching point) |
 
 **Strategy Gate Reference:**
 
@@ -190,7 +190,7 @@ These signals serve as `valid_when` gates for MEC's chain-aware strategies. A st
 - **High ungrounded_count** → Many concepts lack attributes — prioritize grounding
 - **level.skip on a node** → Ask about the intermediate step that was skipped
 - **Low branching_deficit** → Sufficient variety at this level; can move on
-- **convgraph.node.chain.has_attribute_foundation = false** → This concept needs grounding before extending further
+- **convgraph.node.chain.has_origin_level_ancestor = false** → This concept needs grounding before extending further
 
 ---
 
@@ -293,7 +293,7 @@ Signals are most powerful when interpreted together. Here are common patterns:
 
 ### Pattern: "The Floating Chain" (MEC)
 - **High convgraph.chain.structure.frontier_count** + **High convgraph.chain.structure.ungrounded_count**
-- **convgraph.node.chain.has_attribute_foundation = false** on multiple nodes
+- **convgraph.node.chain.has_origin_level_ancestor = false** on multiple nodes
 - Meaning: Chains are neither grounded nor reaching terminal values — the graph is wide but shallow
 - Action: Prioritize grounding (build attribute foundations) before ascending to values
 
@@ -377,7 +377,7 @@ Signal names follow a consistent hierarchy:
 | convgraph.node.chain.gap.below (true) | Ungrounded concept — needs foundation | Concept has incoming edges from lower level |
 | convgraph.node.chain.level.skip (true) | Missing intermediate link in chain | Adjacent ontology levels connected |
 | convgraph.node.chain.branching_deficit (1.0) | Only child — no sibling concepts | Sufficient variety at this level |
-| convgraph.node.chain.has_attribute_foundation (true) | This node's chain is grounded in attributes | Node's chain floats without foundation |
-| convgraph.node.chain.has_terminal_apex (true) | This node's chain reaches a core value | Node's chain doesn't reach terminal |
+| convgraph.node.chain.has_origin_level_ancestor (true) | This node's chain is grounded in attributes | Node's chain floats without foundation |
+| convgraph.node.chain.has_max_level_ancestor (true) | This node's chain reaches a core value | Node's chain doesn't reach terminal |
 | convgraph.node.chain.fan_in (high) | Many attribute-level concepts feed into this node | Few or no attributes reach this node |
 | convgraph.node.chain.level.gap_size (high) | Large chain gap to fill (ascend/ground harder) | Small or no chain gap |

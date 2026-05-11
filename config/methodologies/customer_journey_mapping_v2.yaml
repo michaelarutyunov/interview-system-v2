@@ -190,7 +190,7 @@ signals:
     # Note: Node-level signals (graph.node.*) are auto-discovered
     # from strategy signal_weights and do not need to be listed here.
     # Note: Chain topology signals (gap_above, gap_below, level_skip,
-    # branching_deficit, fan_in, has_attribute_foundation, has_terminal_apex)
+    # branching_deficit, fan_in, has_origin_level_ancestor, has_max_level_ancestor)
     # are intentionally excluded — they are meaningless for CJM's flat ontology.
     # f965 — per-concept-derived node signals:
     - convgraph.node.llm.elaboration

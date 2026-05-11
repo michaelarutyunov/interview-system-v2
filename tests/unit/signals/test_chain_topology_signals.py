@@ -466,12 +466,12 @@ class TestIncompleteChain:
             assert "branching_deficit" in topology[node_id]
             assert "fan_in" in topology[node_id]
             assert "level.gap_size" in topology[node_id]
-            assert "has_attribute_foundation" in topology[node_id]
-            assert "has_terminal_apex" in topology[node_id]
+            assert "has_origin_level_ancestor" in topology[node_id]
+            assert "has_max_level_ancestor" in topology[node_id]
 
 
 class TestChainLifecycleSignals:
-    """Tests for has_attribute_foundation and has_terminal_apex."""
+    """Tests for has_origin_level_ancestor and has_max_level_ancestor."""
 
     @pytest.mark.asyncio
     async def test_complete_chain_lifecycle(self):
@@ -518,8 +518,8 @@ class TestChainLifecycleSignals:
         # all nodes in a complete chain can reach both an attribute (downward)
         # and a terminal (upward), including the attribute and terminal themselves
         for node_id in ["a", "b", "c", "d", "e"]:
-            assert topology[node_id]["has_attribute_foundation"] is True
-            assert topology[node_id]["has_terminal_apex"] is True
+            assert topology[node_id]["has_origin_level_ancestor"] is True
+            assert topology[node_id]["has_max_level_ancestor"] is True
 
     @pytest.mark.asyncio
     async def test_floating_consequence_no_foundation(self):
@@ -557,10 +557,10 @@ class TestChainLifecycleSignals:
 
         topology = result
 
-        assert topology["b"]["has_attribute_foundation"] is False
-        assert topology["b"]["has_terminal_apex"] is False
-        assert topology["c"]["has_attribute_foundation"] is False
-        assert topology["c"]["has_terminal_apex"] is False
+        assert topology["b"]["has_origin_level_ancestor"] is False
+        assert topology["b"]["has_max_level_ancestor"] is False
+        assert topology["c"]["has_origin_level_ancestor"] is False
+        assert topology["c"]["has_max_level_ancestor"] is False
 
     @pytest.mark.asyncio
     async def test_grounded_but_no_terminal(self):
@@ -598,10 +598,10 @@ class TestChainLifecycleSignals:
 
         topology = result
 
-        assert topology["a"]["has_attribute_foundation"] is True
-        assert topology["a"]["has_terminal_apex"] is False
-        assert topology["b"]["has_attribute_foundation"] is True
-        assert topology["b"]["has_terminal_apex"] is False
+        assert topology["a"]["has_origin_level_ancestor"] is True
+        assert topology["a"]["has_max_level_ancestor"] is False
+        assert topology["b"]["has_origin_level_ancestor"] is True
+        assert topology["b"]["has_max_level_ancestor"] is False
 
     @pytest.mark.asyncio
     async def test_terminal_without_attribute(self):
@@ -639,10 +639,10 @@ class TestChainLifecycleSignals:
 
         topology = result
 
-        assert topology["c"]["has_attribute_foundation"] is False
-        assert topology["c"]["has_terminal_apex"] is True
-        assert topology["e"]["has_attribute_foundation"] is False
-        assert topology["e"]["has_terminal_apex"] is True
+        assert topology["c"]["has_origin_level_ancestor"] is False
+        assert topology["c"]["has_max_level_ancestor"] is True
+        assert topology["e"]["has_origin_level_ancestor"] is False
+        assert topology["e"]["has_max_level_ancestor"] is True
 
     @pytest.mark.asyncio
     async def test_branched_chains_keep_lifecycle(self):
@@ -687,5 +687,5 @@ class TestChainLifecycleSignals:
         topology = result
 
         for node_id in ["a1", "a2", "b", "c", "e"]:
-            assert topology[node_id]["has_attribute_foundation"] is True
-            assert topology[node_id]["has_terminal_apex"] is True
+            assert topology[node_id]["has_origin_level_ancestor"] is True
+            assert topology[node_id]["has_max_level_ancestor"] is True

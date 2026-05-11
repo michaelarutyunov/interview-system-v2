@@ -45,8 +45,8 @@ class ChainTopologySignalDetector(NodeSignalDetector):
                 "branching_deficit": float,
                 "fan_in": int,
                 "level.gap_size": int,
-                "has_attribute_foundation": bool,
-                "has_terminal_apex": bool,
+                "has_origin_level_ancestor": bool,
+                "has_max_level_ancestor": bool,
             }
             for node in nodes
         }
@@ -152,10 +152,10 @@ class ChainTopologySignalDetector(NodeSignalDetector):
             level_gap_size = self._compute_level_gap_size(
                 gap_above, gap_below, node_level, max_level, min_level
             )
-            has_attribute_foundation = self._compute_has_attribute_foundation(
+            has_origin_level_ancestor = self._compute_has_origin_level_ancestor(
                 node_id, reverse_adj_list, node_type_map, level_map, min_level
             )
-            has_terminal_apex = self._compute_has_terminal_apex(
+            has_max_level_ancestor = self._compute_has_max_level_ancestor(
                 node_id, adj_list, node_type_map, terminal_types
             )
 
@@ -166,8 +166,8 @@ class ChainTopologySignalDetector(NodeSignalDetector):
                 "branching_deficit": branching_deficit,
                 "fan_in": fan_in,
                 "level.gap_size": level_gap_size,
-                "has_attribute_foundation": has_attribute_foundation,
-                "has_terminal_apex": has_terminal_apex,
+                "has_origin_level_ancestor": has_origin_level_ancestor,
+                "has_max_level_ancestor": has_max_level_ancestor,
             }
 
         # Return in node signal format: {node_id: signal_value}
@@ -337,7 +337,7 @@ class ChainTopologySignalDetector(NodeSignalDetector):
         else:
             return 0
 
-    def _compute_has_attribute_foundation(
+    def _compute_has_origin_level_ancestor(
         self,
         node_id: str,
         reverse_adj_list: dict[str, list[str]],
@@ -345,10 +345,10 @@ class ChainTopologySignalDetector(NodeSignalDetector):
         level_map: dict[str, int],
         min_level: int,
     ) -> bool:
-        """Check if there exists a downward path (reverse edges) to an attribute node.
+        """Check if there exists a downward path (reverse edges) to an origin-level node.
 
         True if this node, or any node reachable by following reverse chain-relevant edges,
-        has an ontology level equal to min_level (the origin/attribute level).
+        has an ontology level equal to min_level (the origin/lowest level).
         """
         reachable = bfs_reachable(node_id, reverse_adj_list)
         for reachable_id in reachable:
@@ -358,17 +358,17 @@ class ChainTopologySignalDetector(NodeSignalDetector):
                 return True
         return False
 
-    def _compute_has_terminal_apex(
+    def _compute_has_max_level_ancestor(
         self,
         node_id: str,
         adj_list: dict[str, list[str]],
         node_type_map: dict[str, str],
         terminal_types: set,
     ) -> bool:
-        """Check if there exists an upward path (forward edges) to a terminal node.
+        """Check if there exists an upward path (forward edges) to a max-level (terminal) node.
 
         True if this node, or any node reachable by following forward chain-relevant edges,
-        has a node_type in terminal_types.
+        has a node_type in terminal_types (the highest ontology level).
         """
         reachable = bfs_reachable(node_id, adj_list)
         for reachable_id in reachable:
@@ -516,18 +516,16 @@ class _LevelGapSizeSentinel(_ChainTopoFlatSentinel):
     dependencies = []
 
 
-class _HasAttributeFoundationSentinel(_ChainTopoFlatSentinel):
-    signal_name = "convgraph.node.chain.has_attribute_foundation"
-    description = (
-        "True if a downward path (reverse edges) reaches an attribute-level node."
-    )
+class _HasOriginLevelAncestorSentinel(_ChainTopoFlatSentinel):
+    signal_name = "convgraph.node.chain.has_origin_level_ancestor"
+    description = "True if a downward path (reverse edges) reaches an origin-level (min-level) node."
     dependencies = []
 
 
-class _HasTerminalApexSentinel(_ChainTopoFlatSentinel):
-    signal_name = "convgraph.node.chain.has_terminal_apex"
+class _HasMaxLevelAncestorSentinel(_ChainTopoFlatSentinel):
+    signal_name = "convgraph.node.chain.has_max_level_ancestor"
     description = (
-        "True if an upward path (forward edges) reaches a terminal-value node."
+        "True if an upward path (forward edges) reaches a max-level (terminal) node."
     )
     dependencies = []
 
@@ -540,6 +538,6 @@ __all__ = [
     "_BranchingDeficitSentinel",
     "_FanInSentinel",
     "_LevelGapSizeSentinel",
-    "_HasAttributeFoundationSentinel",
-    "_HasTerminalApexSentinel",
+    "_HasOriginLevelAncestorSentinel",
+    "_HasMaxLevelAncestorSentinel",
 ]

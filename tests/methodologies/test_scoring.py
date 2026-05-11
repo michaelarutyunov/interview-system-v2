@@ -846,24 +846,24 @@ class TestChainLifecycleSignalWeights:
                 name="ascend",
                 description="A",
                 signal_weights={
-                    "convgraph.node.chain.has_attribute_foundation.true": 0.4,
-                    "convgraph.node.chain.has_attribute_foundation.false": -0.5,
+                    "convgraph.node.chain.has_origin_level_ancestor.true": 0.4,
+                    "convgraph.node.chain.has_origin_level_ancestor.false": -0.5,
                 },
             ),
             StrategyConfig(
                 name="ground",
                 description="G",
                 signal_weights={
-                    "convgraph.node.chain.has_attribute_foundation.false": 0.6,
-                    "convgraph.node.chain.has_attribute_foundation.true": -0.2,
+                    "convgraph.node.chain.has_origin_level_ancestor.false": 0.6,
+                    "convgraph.node.chain.has_origin_level_ancestor.true": -0.2,
                 },
             ),
         ]
         # Node with no foundation
         node_signals = {
             "node-ff": {
-                "convgraph.node.chain.has_attribute_foundation": False,
-                "convgraph.node.chain.has_terminal_apex": False,
+                "convgraph.node.chain.has_origin_level_ancestor": False,
+                "convgraph.node.chain.has_max_level_ancestor": False,
             }
         }
 
@@ -886,23 +886,23 @@ class TestChainLifecycleSignalWeights:
                 name="ascend",
                 description="A",
                 signal_weights={
-                    "convgraph.node.chain.has_attribute_foundation.true": 0.4,
-                    "convgraph.node.chain.has_attribute_foundation.false": -0.5,
+                    "convgraph.node.chain.has_origin_level_ancestor.true": 0.4,
+                    "convgraph.node.chain.has_origin_level_ancestor.false": -0.5,
                 },
             ),
             StrategyConfig(
                 name="ground",
                 description="G",
                 signal_weights={
-                    "convgraph.node.chain.has_attribute_foundation.false": 0.6,
-                    "convgraph.node.chain.has_attribute_foundation.true": -0.2,
+                    "convgraph.node.chain.has_origin_level_ancestor.false": 0.6,
+                    "convgraph.node.chain.has_origin_level_ancestor.true": -0.2,
                 },
             ),
         ]
         node_signals = {
             "node-tf": {
-                "convgraph.node.chain.has_attribute_foundation": True,
-                "convgraph.node.chain.has_terminal_apex": False,
+                "convgraph.node.chain.has_origin_level_ancestor": True,
+                "convgraph.node.chain.has_max_level_ancestor": False,
             }
         }
 
@@ -925,23 +925,23 @@ class TestChainLifecycleSignalWeights:
                 name="ascend",
                 description="A",
                 signal_weights={
-                    "convgraph.node.chain.has_attribute_foundation.true": 0.4,
-                    "convgraph.node.chain.has_attribute_foundation.false": -0.5,
+                    "convgraph.node.chain.has_origin_level_ancestor.true": 0.4,
+                    "convgraph.node.chain.has_origin_level_ancestor.false": -0.5,
                 },
             ),
             StrategyConfig(
                 name="branch",
                 description="B",
                 signal_weights={
-                    "convgraph.node.chain.has_attribute_foundation.true": 0.3,
-                    "convgraph.node.chain.has_terminal_apex.true": 0.4,
+                    "convgraph.node.chain.has_origin_level_ancestor.true": 0.3,
+                    "convgraph.node.chain.has_max_level_ancestor.true": 0.4,
                 },
             ),
         ]
         node_signals = {
             "node-tt": {
-                "convgraph.node.chain.has_attribute_foundation": True,
-                "convgraph.node.chain.has_terminal_apex": True,
+                "convgraph.node.chain.has_origin_level_ancestor": True,
+                "convgraph.node.chain.has_max_level_ancestor": True,
             }
         }
 
@@ -964,23 +964,23 @@ class TestChainLifecycleSignalWeights:
                 name="ascend",
                 description="A",
                 signal_weights={
-                    "convgraph.node.chain.has_attribute_foundation.true": 0.4,
-                    "convgraph.node.chain.has_attribute_foundation.false": -0.5,
+                    "convgraph.node.chain.has_origin_level_ancestor.true": 0.4,
+                    "convgraph.node.chain.has_origin_level_ancestor.false": -0.5,
                 },
             ),
             StrategyConfig(
                 name="ground",
                 description="G",
                 signal_weights={
-                    "convgraph.node.chain.has_attribute_foundation.false": 0.6,
-                    "convgraph.node.chain.has_attribute_foundation.true": -0.2,
+                    "convgraph.node.chain.has_origin_level_ancestor.false": 0.6,
+                    "convgraph.node.chain.has_origin_level_ancestor.true": -0.2,
                 },
             ),
         ]
         node_signals = {
             "node-ft": {
-                "convgraph.node.chain.has_attribute_foundation": False,
-                "convgraph.node.chain.has_terminal_apex": True,
+                "convgraph.node.chain.has_origin_level_ancestor": False,
+                "convgraph.node.chain.has_max_level_ancestor": True,
             }
         }
 
