@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: validate-methodologies
+        name: Validate methodology YAML configs
+        language: system
+        entry: uv run python scripts/validate_methodologies.py
+        files: ^(config/methodologies/.*\.yaml|src/methodologies/registry\.py|src/domain/models/methodology_schema\.py)$
+        pass_filenames: false

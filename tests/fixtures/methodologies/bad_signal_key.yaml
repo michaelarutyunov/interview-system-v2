@@ -1,0 +1,14 @@
+# Fixture: deliberately invalid methodology YAML (unknown signal key)
+method:
+  name: bad_signal_key
+  description: "Test fixture with an unknown signal key in strategy weights"
+
+signals:
+  graph: []
+  llm: []
+
+strategies:
+  - name: explore
+    description: "Exploration strategy"
+    signal_weights:
+      nonexistent.signal.key.that.does.not.exist: 1.0
