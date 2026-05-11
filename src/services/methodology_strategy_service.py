@@ -124,9 +124,9 @@ class MethodologyStrategyService:
             ScoringError: If no valid (strategy, node) pairs can be scored
         """
         # Get methodology config from YAML
-        methodology_name = (
-            context.methodology if context.methodology else "means_end_chain"
-        )
+        if not context.methodology:
+            raise ConfigurationError("methodology required on PipelineContext")
+        methodology_name = context.methodology
         config = self.methodology_registry.get_methodology(methodology_name)
 
         if not config:

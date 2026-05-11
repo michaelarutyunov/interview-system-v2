@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.core.exceptions import ScoringError
+from src.core.exceptions import ConfigurationError, ScoringError
 from src.methodologies.registry import (
     StrategyConfig,
     MethodologyConfig,
@@ -472,3 +472,12 @@ class TestJointScoringOverride:
 
         assert strategy_name == "revitalize"
         assert focus_node_id is None
+
+
+@pytest.mark.asyncio
+async def test_select_strategy_raises_when_methodology_is_none():
+    """ConfigurationError must be raised when context.methodology is None (fail-fast)."""
+    service = MethodologyStrategyService()
+    ctx = _make_context(methodology=None)
+    with pytest.raises(ConfigurationError, match="methodology required"):
+        await service.select_strategy_and_focus(ctx, _make_graph_state(), "test")
