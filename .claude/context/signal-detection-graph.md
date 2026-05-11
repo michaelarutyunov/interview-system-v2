@@ -23,8 +23,8 @@ Graph and node signals are computed from in-memory state — no LLM calls, no DB
 | `convgraph.node.chain.branching_deficit` | float [0,1] | `1 - (actual_siblings / expected_siblings)` at this node's level |
 | `convgraph.node.chain.fan_in` | int | Distinct origin-level nodes with paths to this node |
 | `convgraph.node.chain.level.gap_size` | int | Ontology levels between this node and terminal/origin |
-| `convgraph.node.chain.has_attribute_foundation` | bool | Transitive downward path (reverse chain edges) reaches an attribute-level node |
-| `convgraph.node.chain.has_terminal_apex` | bool | Transitive upward path (forward chain edges) reaches a terminal-value node |
+| `convgraph.node.chain.has_origin_level_ancestor` | bool | Transitive downward path (reverse chain edges) reaches an attribute-level node |
+| `convgraph.node.chain.has_max_level_ancestor` | bool | Transitive upward path (forward chain edges) reaches a terminal-value node |
 
 The parent key `convgraph.node.chain.role` also remains available (holds the raw dict). The 8 flat keys are registered via sentinel classes in `chain_topology_signals.py` so the YAML registry validator accepts them in `valid_when` and `signal_weights`.
 
@@ -73,10 +73,10 @@ Surface per-concept LLM ratings (stored in `NodeState.quality_history` by the St
 
 Two chain topology signals use transitive reachability to distinguish a node's position in the full chain lifecycle:
 
-- **`convgraph.node.chain.has_attribute_foundation`** — BFS over **reverse** chain edges (following edges backward from target to source). Returns `True` if any reachable node has `level == min_level` (the attribute/origin level). This means the node's chain is rooted in a concrete product attribute, not floating.
-- **`convgraph.node.chain.has_terminal_apex`** — BFS over **forward** chain edges (source to target). Returns `True` if any reachable node has a `node_type` in `terminal_types`. This means the chain has already reached a terminal value above this node.
+- **`convgraph.node.chain.has_origin_level_ancestor`** — BFS over **reverse** chain edges (following edges backward from target to source). Returns `True` if any reachable node has `level == min_level` (the attribute/origin level). This means the node's chain is rooted in a concrete product attribute, not floating.
+- **`convgraph.node.chain.has_max_level_ancestor`** — BFS over **forward** chain edges (source to target). Returns `True` if any reachable node has a `node_type` in `terminal_types`. This means the chain has already reached a terminal value above this node.
 
-Both traversals reuse `bfs_reachable()` from `src/signals/graph/graph_traversal.py`. The start node is included in the reachable set (distance 0), so an attribute node naturally has `has_attribute_foundation=True`, and a terminal node naturally has `has_terminal_apex=True`. Graph sizes in practice are 30–100 nodes; BFS cost is well under 1 ms. Computed inside `ChainTopologySignalDetector.detect()` alongside the other chain topology signals, not as a separate detector.
+Both traversals reuse `bfs_reachable()` from `src/signals/graph/graph_traversal.py`. The start node is included in the reachable set (distance 0), so an attribute node naturally has `has_origin_level_ancestor=True`, and a terminal node naturally has `has_max_level_ancestor=True`. Graph sizes in practice are 30–100 nodes; BFS cost is well under 1 ms. Computed inside `ChainTopologySignalDetector.detect()` alongside the other chain topology signals, not as a separate detector.
 
 Together these signals enable a 2×2 chain-lifecycle matrix for scoring:
 
@@ -165,7 +165,7 @@ Global signals (`frontier_count`, `ungrounded_count`) provide threshold guards -
 
 8. **`canongraph.state.exhaustion` returns `{}` (absent) when canonical slots are disabled.** When `enable_canonical_slots=False`, the signal skips computation entirely rather than silently falling back to surface-node exhaustion — which would contradict its name/semantics. The check is `context.canonical_graph_state is None` (not `node_tracker.canonical_slot_repo` — `NodeStateTracker` has no such field). Location: `src/signals/graph/graph_signals.py`, `CanonicalExhaustionScoreSignal.detect()`.
 
-9. **Chain topology flat signals require sentinel registration.** The 8 flat keys (`convgraph.node.chain.gap.above`, `convgraph.node.chain.gap.below`, `convgraph.node.chain.level.skip`, `convgraph.node.chain.branching_deficit`, `convgraph.node.chain.fan_in`, `convgraph.node.chain.level.gap_size`, `convgraph.node.chain.has_attribute_foundation`, `convgraph.node.chain.has_terminal_apex`) are not backed by real detector logic — their values are injected by `NodeSignalDetectionService` flattening. Eight sentinel classes in `chain_topology_signals.py` (e.g. `_GapAboveSentinel`) register the names in `SignalDetector._registry` so the YAML validator and `ComposedSignalDetector.get_known_signal_names()` accept them. If a new chain topology sub-signal is added to `ChainTopologySignalDetector.detect()`, a matching sentinel class must also be added; otherwise the registry validator will reject any YAML referencing the new key.
+9. **Chain topology flat signals require sentinel registration.** The 8 flat keys (`convgraph.node.chain.gap.above`, `convgraph.node.chain.gap.below`, `convgraph.node.chain.level.skip`, `convgraph.node.chain.branching_deficit`, `convgraph.node.chain.fan_in`, `convgraph.node.chain.level.gap_size`, `convgraph.node.chain.has_origin_level_ancestor`, `convgraph.node.chain.has_max_level_ancestor`) are not backed by real detector logic — their values are injected by `NodeSignalDetectionService` flattening. Eight sentinel classes in `chain_topology_signals.py` (e.g. `_GapAboveSentinel`) register the names in `SignalDetector._registry` so the YAML validator and `ComposedSignalDetector.get_known_signal_names()` accept them. If a new chain topology sub-signal is added to `ChainTopologySignalDetector.detect()`, a matching sentinel class must also be added; otherwise the registry validator will reject any YAML referencing the new key.
 
 10. **`convgraph.node.is_current_focus` reflects the PREVIOUS turn's focus node at signal-detection time.** `update_focus()` has not yet been called when node signals are detected (it runs later in Stage 6 strategy selection). The signal reads `node_tracker.previous_focus`, so the node that was focused last turn returns `True`. This is by design — strategies reference the incumbent focus — but the name is slightly misleading. Do not rename; add this timing context to any documentation or agent instructions referencing this signal.
 

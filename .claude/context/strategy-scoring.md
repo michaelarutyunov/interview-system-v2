@@ -40,8 +40,8 @@ determines both the selected strategy and the target node for question generatio
 | `convgraph.node.chain.branching_deficit` | Float in [0,1]: 1 - (actual_siblings / expected_siblings) |
 | `convgraph.node.chain.fan_in` | Int: count of distinct origin-level nodes with paths to this node |
 | `convgraph.node.chain.level.gap_size` | Int: ontology levels between this node and terminal/origin |
-| `convgraph.node.chain.has_attribute_foundation.true` | `True` if a downward path reaches an attribute-level node |
-| `convgraph.node.chain.has_terminal_apex.true` | `True` if an upward path reaches a terminal-value node |
+| `convgraph.node.chain.has_origin_level_ancestor.true` | `True` if a downward path reaches an attribute-level node |
+| `convgraph.node.chain.has_max_level_ancestor.true` | `True` if an upward path reaches a terminal-value node |
 | `convgraph.node.is_orphan.true` | `True` if node has no edges at all (isolated) |
 | `convgraph.node.recency` | Float in [0,1]: how recently the node was last discussed |
 | `convgraph.node.llm.elaboration.low` / `.mid` / `.high` | `True` if per-concept elaboration score falls in bin |
@@ -279,8 +279,8 @@ no LLM calls.
 | `convgraph.node.chain.branching_deficit` | float [0,1] | 1 - (actual_siblings / expected_siblings); 1.0 = full deficit |
 | `convgraph.node.chain.fan_in` | int | Count of distinct origin-level nodes with paths to this node |
 | `convgraph.node.chain.level.gap_size` | int | Ontology levels between this node and terminal/origin |
-| `convgraph.node.chain.has_attribute_foundation` | bool | Downward path (reverse edges) reaches an attribute-level node |
-| `convgraph.node.chain.has_terminal_apex` | bool | Upward path (forward edges) reaches a terminal-value node |
+| `convgraph.node.chain.has_origin_level_ancestor` | bool | Downward path (reverse edges) reaches an attribute-level node |
+| `convgraph.node.chain.has_max_level_ancestor` | bool | Upward path (forward edges) reaches a terminal-value node |
 
 ### JTBD valid_when Removal (April 2026)
 
@@ -316,7 +316,7 @@ detection works instead of defaulting to `"unknown"`.
 
 ### Chain Lifecycle Matrix
 
-The `has_attribute_foundation` and `has_terminal_apex` signals encode where a node sits in its chain's lifecycle. MEC scoring uses them to steer strategy selection:
+The `has_origin_level_ancestor` and `has_max_level_ancestor` signals encode where a node sits in its chain's lifecycle. MEC scoring uses them to steer strategy selection:
 
 | foundation | apex | Best strategy | Why |
 |---|---|---|---|
@@ -326,9 +326,9 @@ The `has_attribute_foundation` and `has_terminal_apex` signals encode where a no
 | True | True | `branch` | Chain is complete — add breadth from new attributes |
 
 **Weight design in `means_end_chain_v2_strict.yaml`** (N7 + Tier 2 calibration):
-- `ascend`: `has_attribute_foundation.true +0.200`, `has_attribute_foundation.false -0.5`; `convgraph.node.exhaustion: -0.8`, `convgraph.node.focus.count.high: -0.8`, `convgraph.node.focus.count.medium: -0.4`, `interview.strategy.self_count: -1.5`
-- `ground`: `has_attribute_foundation.false +0.250`, `has_attribute_foundation.true -0.2`
-- `branch`: `has_attribute_foundation.true +0.3`, `has_terminal_apex.true +0.5`
+- `ascend`: `has_origin_level_ancestor.true +0.200`, `has_origin_level_ancestor.false -0.5`; `convgraph.node.exhaustion: -0.8`, `convgraph.node.focus.count.high: -0.8`, `convgraph.node.focus.count.medium: -0.4`, `interview.strategy.self_count: -1.5`
+- `ground`: `has_origin_level_ancestor.false +0.250`, `has_origin_level_ancestor.true -0.2`
+- `branch`: `has_origin_level_ancestor.true +0.3`, `has_max_level_ancestor.true +0.5`
 - `anchor`: `is_orphan.true: +0.50`
 - `validate`: heavy early/mid phase gates (`interview.phase.early: -3.0`, `mid: -3.0`), closing question generator
 
@@ -345,15 +345,15 @@ The old `convgraph.chain.completion.has_complete: -0.2` suppressor on `ascend` w
 - Ascend `focus_count.high` strengthened: -0.4 → -0.8; `focus_count.medium: -0.4`
 - Ascend `repetition_count` strengthened: -0.5 → -1.5
 - Ascend added `elaboration.high: +0.4` (triggers laddering on deep content)
-- Ground `has_attribute_foundation.false` reduced: 0.400 → 0.250
+- Ground `has_origin_level_ancestor.false` reduced: 0.400 → 0.250
 - Validate added `elaboration.high: +0.3`, `elaboration.mid: +0.2`
 - Anchor `is_orphan.true` boosted: +0.35 → +0.50 (orphan rate grew to 12.8%, above 10% threshold)
-- Branch `has_terminal_apex.true` boosted: +0.4 → +0.5 (better compete once chain is complete)
+- Branch `has_max_level_ancestor.true` boosted: +0.4 → +0.5 (better compete once chain is complete)
 - Late phase `branch` multiplier: 0.8 → 1.1 + phase_bonus 0.30
 - Late phase `validate` added as primary strategy (1.5x + 0.2 bonus)
 
 **N6 calibration changes** (from N5 baseline):
-- Ground `has_attribute_foundation.false` reduced from +0.6 → +0.4 (was causing 10-turn ground streaks; ground now competes rather than dominates in F+F state)
+- Ground `has_origin_level_ancestor.false` reduced from +0.6 → +0.4 (was causing 10-turn ground streaks; ground now competes rather than dominates in F+F state)
 - Revitalize `interview.strategy.self_count` restored to +0.15 (was removed in N5; phase-gated via multipliers to prevent early bursts)
 - Early phase: `ground` multiplier boosted to 1.4 (was 1.1) to establish attribute foundation before ascending
 - Mid phase: `ascend` reduced 1.4→1.3, `ground` increased 1.2→1.3 — equalized to let node signals decide
@@ -509,7 +509,7 @@ Phase 4 demonstrated that weight tuning must follow a strict order:
    nested dict per node. `NodeSignalDetectionService` flattens it into individual signal keys:
    - `convgraph.node.chain.gap.above`, `convgraph.node.chain.gap.below`, `convgraph.node.chain.level.skip`
    - `convgraph.node.chain.branching_deficit`, `convgraph.node.chain.fan_in`, `convgraph.node.chain.level.gap_size`
-   - `convgraph.node.chain.has_attribute_foundation`, `convgraph.node.chain.has_terminal_apex`
+   - `convgraph.node.chain.has_origin_level_ancestor`, `convgraph.node.chain.has_max_level_ancestor`
    Use these flat keys in `signal_weights` and `valid_when`. The parent key
    `convgraph.node.chain.role` also remains available but holds the full dict.
 
@@ -586,7 +586,7 @@ Two structured `log.warning` events were added to surface known scoring failure 
 | `src/services/turn_pipeline/stages/strategy_selection_stage.py` | Pipeline stage that calls `MethodologyStrategyService` |
 | `src/services/turn_pipeline/stages/llm_signal_bridge_stage.py` | Stage 4.7: awaits LLM prefetch task, routes per-concept ratings to `NodeStateTracker.append_quality()`, emits `LLMSignalBridgeOutput` contract |
 | `src/services/global_signal_detection_service.py` | Detects non-LLM global signals; merges pre-fetched LLM global signals from Stage 4.7 contract via `llm_global_signals` parameter |
-| `src/signals/graph/chain_topology_signals.py` | `ChainTopologySignalDetector` — computes per-node chain topology signals (gap_above, gap_below, level_skip, branching_deficit, fan_in, level_gap_size, chain.has_attribute_foundation, chain.has_terminal_apex); flat sentinel classes for registry |
+| `src/signals/graph/chain_topology_signals.py` | `ChainTopologySignalDetector` — computes per-node chain topology signals (gap_above, gap_below, level_skip, branching_deficit, fan_in, level_gap_size, chain.has_origin_level_ancestor, chain.has_max_level_ancestor); flat sentinel classes for registry |
 | `src/signals/graph/graph_traversal.py` | Shared graph traversal utilities — `build_adjacency_list`, `build_reverse_adjacency_list`, `get_node_type_map`, `bfs_reachable`, `bfs_to_target` |
 | `config/methodologies/means_end_chain_v2_strict.yaml` | Reference MEC methodology YAML with 5 chain-aware + 2 conversation-level strategies, valid_when gates, signal_weights, score_threshold, and phases |
 | `config/methodologies/jobs_to_be_done_v2.yaml` | JTBD methodology — 5-level chain hierarchy (context→solution), valid_when gates removed April 2026, signal weights provide soft guidance, chain_threshold 0.05 |
