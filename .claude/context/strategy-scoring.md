@@ -203,6 +203,23 @@ for a distinct reason:
 - `surface_tension` → uncertainty signals only (certainty.*, elaboration.*)
 - Structural strategies (ascend, ground, anchor) → chain topology signals only
 
+**Strategy-specific prompt overrides (`prompt_overrides`)**: Strategies may define
+per-strategy text that replaces specific sections of the question-generation prompt.
+This is the YAML-driven escape hatch for strategies whose framing diverges from the
+generic node-exploration template (e.g., `surface_tension` reframes the focus as
+"concept where hesitation was detected" instead of "concept to explore").
+
+Schema (`StrategyConfig.prompt_overrides: dict[str, str]`):
+- Allow-listed keys: `focus_framing`, `final_instruction`. Unknown keys fail validation.
+- Allow-listed substitution variables: `{focus_concept}`, `{focus_node_type}`,
+  `{level_info}`, `{focus_source_quote}`, `{topic}`. Unknown variables fail validation.
+- Semantics: override fully *replaces* the default text for that key — does not append.
+  When `focus_framing` is overridden, the entire default if/else block (including
+  the `focus_source_quote` injection) is skipped.
+
+Used by `jobs_to_be_done_v2.surface_tension`. Validator enforces both rules in
+`MethodologyRegistry._validate_config`.
+
 **Question generation routing**: `QuestionGenerationStage` checks
 `strategy_config.node_binding`. Strategies with `node_binding: none` route to
 `QuestionService.generate_conversation_level_question()` with strategy-specific
