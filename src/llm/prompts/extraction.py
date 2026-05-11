@@ -20,7 +20,7 @@ from src.core.concept_loader import load_concept
 
 
 def get_extraction_system_prompt(
-    methodology: str = "means_end_chain",
+    methodology: str,
     concept_id: Optional[str] = None,
     concept_naming_convention: Optional[str] = None,
 ) -> str:
@@ -155,7 +155,7 @@ def get_extraction_user_prompt(text: str, context: str = "") -> str:
     return prompt
 
 
-def get_extractability_system_prompt(methodology: str = "means_end_chain") -> str:
+def get_extractability_system_prompt(methodology: str) -> str:
     """
     Get system prompt for assessing extractability.
 
