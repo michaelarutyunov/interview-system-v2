@@ -182,22 +182,23 @@ def get_question_user_prompt(
         elif focus_node_level == max_level:
             level_info = f" (ontology level L{focus_node_level} — terminal, already at chain end)"
 
-    # Constraint — surface_tension uses a softer anchor framing because the goal
-    # is to name the respondent's uncertainty, not follow the concept's content thread.
-    if strategy == "surface_tension":
-        if focus_node_type:
-            prompt_parts.append(
-                f'Concept where hesitation was detected: "{focus_concept}" '
-                f"(type: {focus_node_type}){level_info}."
-            )
-        else:
-            prompt_parts.append(
-                f'Concept where hesitation was detected: "{focus_concept}".'
-            )
+    # Constraint: focus framing — strategy may override via prompt_overrides["focus_framing"].
+    # When overridden, the entire if/else block is replaced by the rendered override string.
+    # When not overridden, the default framing is used with optional focus_source_quote injection.
+    _focus_framing_override = (
+        strategy_config.prompt_overrides.get("focus_framing")
+        if strategy_config
+        else None
+    )
+    if _focus_framing_override is not None:
         prompt_parts.append(
-            "The respondent showed uncertainty about this concept. "
-            "Use their last answer to find the specific hedging language — "
-            "your question must name THAT hesitation, not follow the content thread."
+            _focus_framing_override.rstrip("\n").format(
+                focus_concept=focus_concept,
+                focus_node_type=focus_node_type,
+                level_info=level_info,
+                focus_source_quote=focus_source_quote or "",
+                topic=topic or "",
+            )
         )
     else:
         if focus_node_type:
@@ -293,10 +294,22 @@ def get_question_user_prompt(
         prompt_parts.append("")
 
     # ── Final instruction (recency — reinforces focus constraint) ──
+    # Strategy may override via prompt_overrides["final_instruction"].
 
-    if strategy == "surface_tension":
+    _final_instruction_override = (
+        strategy_config.prompt_overrides.get("final_instruction")
+        if strategy_config
+        else None
+    )
+    if _final_instruction_override is not None:
         prompt_parts.append(
-            f'Generate a tension probe that names the respondent\'s hesitation about "{focus_concept}":'
+            _final_instruction_override.rstrip("\n").format(
+                focus_concept=focus_concept,
+                focus_node_type=focus_node_type,
+                level_info=level_info,
+                focus_source_quote=focus_source_quote or "",
+                topic=topic or "",
+            )
         )
     else:
         prompt_parts.append(

@@ -4,6 +4,7 @@ Loads methodology definitions from YAML configs and creates
 composed signal detectors with signal pools.
 """
 
+import re
 import yaml
 from pathlib import Path
 from dataclasses import dataclass, field
@@ -120,6 +121,7 @@ class StrategyConfig:
     history_includes_last_system_utterance: bool = (
         False  # Prepend last system utterance to history window
     )
+    prompt_overrides: dict[str, str] = field(default_factory=dict)
 
 
 class MethodologyRegistry:
@@ -211,6 +213,7 @@ class MethodologyRegistry:
                     history_includes_last_system_utterance=s.get(
                         "history_includes_last_system_utterance", False
                     ),
+                    prompt_overrides=s.get("prompt_overrides", {}),
                 )
                 for s in data.get("strategies", [])
             ],
@@ -366,6 +369,35 @@ class MethodologyRegistry:
                         f"Raw integer counts can't be safely multiplied by weights. "
                         f"Use normalized signals or remove this weight key."
                     )
+
+        # Validate prompt_overrides
+        _VALID_OVERRIDE_KEYS = frozenset({"focus_framing", "final_instruction"})
+        _VALID_OVERRIDE_VARS = frozenset(
+            {
+                "focus_concept",
+                "focus_node_type",
+                "level_info",
+                "focus_source_quote",
+                "topic",
+            }
+        )
+        for i, strategy in enumerate(config.strategies):
+            for key, value in strategy.prompt_overrides.items():
+                if key not in _VALID_OVERRIDE_KEYS:
+                    errors.append(
+                        f"strategies[{i}] '{strategy.name}': "
+                        f"prompt_overrides has unknown key '{key}' "
+                        f"(valid keys: {sorted(_VALID_OVERRIDE_KEYS)})"
+                    )
+                var_names = re.findall(r"\{([a-zA-Z_]+)\}", value)
+                for var in var_names:
+                    if var not in _VALID_OVERRIDE_VARS:
+                        errors.append(
+                            f"strategies[{i}] '{strategy.name}': "
+                            f"prompt_overrides['{key}'] references unknown substitution "
+                            f"variable '{{{var}}}' "
+                            f"(valid variables: {sorted(_VALID_OVERRIDE_VARS)})"
+                        )
 
         # 3. Validate phases reference defined strategies
         if config.phases:

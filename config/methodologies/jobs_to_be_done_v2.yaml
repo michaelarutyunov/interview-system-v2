@@ -280,6 +280,12 @@ strategies:
       Your question must echo that specific uncertainty back — name what is hard to articulate.
       BAD: 'How does that feeling change your day?'
       GOOD: 'You kept saying "I'm not sure" — what makes this hard to pin down?'
+    prompt_overrides:
+      focus_framing: |-
+        Concept where hesitation was detected: "{focus_concept}" (type: {focus_node_type}){level_info}.
+        The respondent showed uncertainty about this concept. Use their last answer to find the specific hedging language — your question must name THAT hesitation, not follow the content thread.
+      final_instruction: |-
+        Generate a tension probe that names the respondent's hesitation about "{focus_concept}":
     signal_weights:
       # Node-scoped (Stage 2 — picks WHICH node has tension):
       convgraph.node.yield_stagnation.true: 0.25  # Node tried repeatedly, not resolving
