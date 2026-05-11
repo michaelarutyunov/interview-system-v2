@@ -72,9 +72,28 @@ class QuestionGenerationStage(TurnStage):
                 {"speaker": "user", "text": context.user_input}
             ]
 
-            # For revitalize: prepend the opening interviewer question so the
-            # generator knows what was already asked and avoids repeating it.
-            if strategy == "revitalize":
+            # Resolve strategy config for flag-driven behavior
+            strategy_config = None
+            is_conversation_level = False
+            try:
+                from src.methodologies import get_registry
+
+                registry = get_registry()
+                meth_config = registry.get_methodology(context.methodology)
+                strategy_config = next(
+                    (s for s in meth_config.strategies if s.name == strategy), None
+                )
+                if strategy_config and strategy_config.node_binding == "none":
+                    is_conversation_level = True
+            except Exception:
+                pass
+
+            # If the strategy requests last system utterance prepend, do so before
+            # applying the window. This replaces the old hardcoded revitalize check.
+            if (
+                strategy_config
+                and strategy_config.history_includes_last_system_utterance
+            ):
                 opening = next(
                     (
                         u
@@ -87,21 +106,6 @@ class QuestionGenerationStage(TurnStage):
                     updated_utterances = [opening] + updated_utterances
             # Keep within the last-5 window after any prepending
             updated_utterances = updated_utterances[-5:]
-
-            # Check if this is a conversation-level strategy (node_binding: none)
-            is_conversation_level = False
-            try:
-                from src.methodologies import get_registry
-
-                registry = get_registry()
-                config = registry.get_methodology(context.methodology)
-                strategy_config = next(
-                    (s for s in config.strategies if s.name == strategy), None
-                )
-                if strategy_config and strategy_config.node_binding == "none":
-                    is_conversation_level = True
-            except Exception:
-                pass
 
             if is_conversation_level:
                 # Conversation-level strategies don't need a focus node.

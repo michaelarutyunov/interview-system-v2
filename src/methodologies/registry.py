@@ -117,6 +117,9 @@ class StrategyConfig:
     extraction_mode: str = "extract_new"  # extract_new, prefer_existing
     level_guidance: dict[str, str] = field(default_factory=dict)
     probe_guidance: str = ""  # Strategy-specific question generation instruction
+    history_includes_last_system_utterance: bool = (
+        False  # Prepend last system utterance to history window
+    )
 
 
 class MethodologyRegistry:
@@ -205,6 +208,9 @@ class MethodologyRegistry:
                     extraction_mode=s.get("extraction_mode", "extract_new"),
                     level_guidance=s.get("level_guidance", {}),
                     probe_guidance=s.get("probe_guidance", ""),
+                    history_includes_last_system_utterance=s.get(
+                        "history_includes_last_system_utterance", False
+                    ),
                 )
                 for s in data.get("strategies", [])
             ],

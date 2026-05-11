@@ -22,7 +22,7 @@
 #   - Removed legacy strategies (deepen, clarify, explore, reflect)
 #   - Retained 6 chain-aware strategies: ascend, ground, bridge, branch, anchor, revitalize
 #   - Added convgraph.node.novelty, focus_count, canonical_novelty signals
-#   - Added chain foundation signals (has_attribute_foundation, has_terminal_apex)
+#   - Added chain foundation signals (has_origin_level_ancestor, has_max_level_ancestor)
 #   - Added intellectual_engagement signal
 #   - Strengthened repetition penalties on structural strategies
 #   - Added engagement soft-brake on ascend
@@ -177,6 +177,7 @@ strategies:
   # Strategy 1: Revitalize — conversation-level fallback for fatigue/disengagement
   - name: revitalize
     node_binding: none
+    history_includes_last_system_utterance: true
     description: "Shift to fresh topics when response trend shows fatigue or repeated shallow answers"
     probe_guidance: |
       REVITALIZE: The conversation history above includes the opening question.
@@ -222,8 +223,8 @@ strategies:
       response.semantic.llm.engagement.low: -0.3
       response.semantic.llm.frame_resistance.true: -1.2
       interview.strategy.self_count: -0.15
-      convgraph.node.chain.has_attribute_foundation.true: 0.4
-      convgraph.node.chain.has_attribute_foundation.false: -0.5
+      convgraph.node.chain.has_origin_level_ancestor.true: 0.4
+      convgraph.node.chain.has_origin_level_ancestor.false: -0.5
 
   # Strategy 3: Ground — establish causal antecedents for ungrounded high-level node
   - name: ground
@@ -247,8 +248,8 @@ strategies:
       convgraph.node.llm.elaboration.high: 0.05
       response.semantic.llm.frame_resistance.true: -0.8
       interview.strategy.self_count: -0.40
-      convgraph.node.chain.has_attribute_foundation.false: 0.4
-      convgraph.node.chain.has_attribute_foundation.true: -0.2
+      convgraph.node.chain.has_origin_level_ancestor.false: 0.4
+      convgraph.node.chain.has_origin_level_ancestor.true: -0.2
       meta.saturation.conversation.high: -0.40
       meta.saturation.canonical.high: -0.30
 
@@ -283,8 +284,8 @@ strategies:
       convgraph.node.exhaustion: -0.3
       response.semantic.llm.engagement.high: 0.1
       interview.strategy.self_count: -0.50  # dbj3: strengthened from -0.15
-      convgraph.node.chain.has_attribute_foundation.true: 0.1   # 28ub: reduced from 0.30
-      convgraph.node.chain.has_terminal_apex.true: 0.5
+      convgraph.node.chain.has_origin_level_ancestor.true: 0.1   # 28ub: reduced from 0.30
+      convgraph.node.chain.has_max_level_ancestor.true: 0.5
 
   # Strategy 6: Anchor — connect isolated node to existing graph structure
   - name: anchor

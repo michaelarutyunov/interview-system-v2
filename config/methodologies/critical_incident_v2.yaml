@@ -360,6 +360,7 @@ strategies:
   # Same pattern as MEC strict revitalize.
   - name: revitalize
     node_binding: none
+    history_includes_last_system_utterance: true
     description: "Shift to a fresh incident or new angle when the current narrative is exhausted or respondent shows fatigue"
     probe_guidance: |
       REVITALIZE: The conversation history above includes the opening question.
