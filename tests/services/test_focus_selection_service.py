@@ -60,7 +60,11 @@ class TestFocusResolutionOrder:
             strategy="any_strategy",
         )
 
-        assert result == {"label": "oat milk", "node_type": "attribute", "source_quote": "it just tastes better to me"}
+        assert result == {
+            "label": "oat milk",
+            "node_type": "attribute",
+            "source_quote": "it just tastes better to me",
+        }
 
     def test_resolves_from_description_when_node_id_not_found(
         self, focus_service, mock_nodes
@@ -212,4 +216,8 @@ class TestEdgeCases:
             strategy="any_strategy",
         )
 
-        assert result == {"label": "almond milk", "node_type": "functional_consequence", "source_quote": ""}
+        assert result == {
+            "label": "almond milk",
+            "node_type": "functional_consequence",
+            "source_quote": "",
+        }

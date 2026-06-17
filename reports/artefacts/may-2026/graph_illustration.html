@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Conversation Graph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+  :root {
+    --bg:           #F2F1ED;
+    --panel:        #FFFFFF;
+    --ink:          #14171C;
+    --ink-2:        #41474F;
+    --ink-3:        #7A828D;
+    --rule:         #DDDCD4;
+    --rule-strong:  #C7C5BB;
+    --line:         #5B6471;
+    --grid-line:    rgba(20,23,28,0.025);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: "Inter Tight", -apple-system, sans-serif;
+    color: var(--ink);
+  }
+  .frame {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .frame::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  #chart {
+    position: relative;
+    z-index: 1;
+    width: 100vw;
+    height: 100vh;
+  }
+</style>
+</head>
+<body>
+<div class="frame">
+<div id="chart"></div>
+</div>
+<script>
+const chart = echarts.init(document.getElementById('chart'));
+
+/* ═══════════════════════════════════════════════
+   Reference slide colour palette — exact match
+   ═══════════════════════════════════════════════ */
+const REL_COLORS = {
+  triggers:       '#874A0B',
+  drives:         '#5C7A5C',
+  supports:       '#16574A',
+  implies:        '#4F6E8C',
+  achieves:       '#6B5C8A',
+  addresses:      '#8A6B5C',
+  conflicts_with: '#8A5C5C',
+  occurs_in:      '#5B6471',
+};
+
+const FOCUSED_IDS = new Set([
+  'n_17fcc220',
+  'n_396566ac',
+  'n_3d4604a2',
+  'n_85add58d',
+  'n_987434ee',
+  'n_b2492ebc',
+  'n_e0265775',
+  'n_e477553d',
+  'n_e5740b2f',
+  'n_f43f4d23',
+  'n_f77e40bb'
+]);
+
+/* ─── Node data ─── */
+const nodes = [
+  { id: 'n_987434ee', label: "being at work during the day F1", turn: 1 },
+  { id: 'n_98f2698c', label: "needing a drink but wanting to avoid ...", turn: 1 },
+  { id: 'n_1d56c67e', label: "avoid energy crash after drinking", turn: 1 },
+  { id: 'n_5c473e77', label: "sugar crash disrupting energy levels", turn: 1 },
+  { id: 'n_f09ca186', label: "already having too much caffeine that...", turn: 1 },
+  { id: 'n_49d88ed0', label: "over-reliance on coffee leading to ex...", turn: 1 },
+  { id: 'n_0f1caf18', label: "grabbing whatever sugar-free drink is...", turn: 1 },
+  { id: 'n_b2492ebc', label: "staying energised and functional thro... F3", turn: 1 },
+  { id: 'n_3d4604a2', label: "experiencing an energy dip around 3pm F2 F4", turn: 2 },
+  { id: 'n_f926c539', label: "sugar causing a wired-then-crash roll...", turn: 2 },
+  { id: 'n_74ffda85', label: "maintain focus on work without being ...", turn: 2 },
+  { id: 'n_e5740b2f', label: "steady, uninterrupted focus during th... F5", turn: 2 },
+  { id: 'n_85cad798', label: "feeling in control of energy without ...", turn: 2 },
+  { id: 'n_c484a5ee', label: "drinking ZeroFizz sugar-free beverage...", turn: 2 },
+  { id: 'n_6ab9cd75', label: "getting through afternoon meetings wi...", turn: 3 },
+  { id: 'n_0e723ccf', label: "feeling like needing a nap during aft...", turn: 3 },
+  { id: 'n_06c55347', label: "sitting passively through slide-based...", turn: 4 },
+  { id: 'n_926f95b7', label: "back-to-back meetings running since m...", turn: 8 },
+  { id: 'n_fc25e2db', label: "mental fatigue causing brain to check...", turn: 4 },
+  { id: 'n_e477553d', label: "feeling foggy and unable to focus on ... F6", turn: 5 },
+  { id: 'n_fa0e1739', label: "getting an energy kick without a cras...", turn: 5 },
+  { id: 'n_9a58cc59', label: "being mentally present in meetings in...", turn: 5 },
+  { id: 'n_e0265775', label: "passively waiting for meetings to end... F7", turn: 5 },
+  { id: 'n_17fcc220', label: "missing meeting decisions and needing... F8", turn: 6 },
+  { id: 'n_b00ec24f', label: "having direct, firsthand knowledge of...", turn: 6 },
+  { id: 'n_44ca0a76', label: "staying informed and in the loop at work", turn: 6 },
+  { id: 'n_0b015931', label: "feel competent and on top of things a...", turn: 6 },
+  { id: 'n_fab22859', label: "getting immediate answers without del...", turn: 7 },
+  { id: 'n_512d6bd8', label: "having clarity on what was actually s...", turn: 7 },
+  { id: 'n_3718c97f', label: "chasing answers through phone tag and...", turn: 7 },
+  { id: 'n_395ef7dd', label: "being heads-down focused on a project", turn: 8 },
+  { id: 'n_85add58d', label: "deep focus making it hard to step away F9", turn: 8 },
+  { id: 'n_f77e40bb', label: "no break between meetings preventing ... F10", turn: 8 },
+  { id: 'n_8e044a15', label: "three or four consecutive meetings be...", turn: 9 },
+  { id: 'n_610f9e72', label: "physical dryness signalling dehydrati...", turn: 9 },
+  { id: 'n_f43f4d23', label: "not proactively hydrating before meet... F11", turn: 9 },
+  { id: 'n_79107614', label: "feeling annoyed at missing the opport...", turn: 9 },
+  { id: 'n_39524e2e', label: "grabbing a drink before meetings star...", turn: 9 },
+  { id: 'n_e9b36f7d', label: "feeling prepared and ready for meetings", turn: 10 },
+  { id: 'n_07a1fcee', label: "thirst distracting from focus during ...", turn: 10 },
+  { id: 'n_c0c62d78', label: "high-stakes meetings requiring focuse...", turn: 11 },
+  { id: 'n_f10ecf15', label: "losing train of thought mid-meeting d...", turn: 11 },
+  { id: 'n_a3613f91', label: "feeling annoyed at yourself for not p...", turn: 11 },
+  { id: 'n_aabc16c5', label: "feel attentive and self-disciplined d...", turn: 11 },
+  { id: 'n_45fdaf4a', label: "low-stakes standups or non-critical m...", turn: 11 },
+  { id: 'n_f29c6bc0', label: "grabbing whatever water or drink is n...", turn: 12 },
+  { id: 'n_e90df4da', label: "drink availability near the meeting r...", turn: 12 },
+  { id: 'n_396566ac', label: "break room being the fallback source ... F13", turn: 13 },
+  { id: 'n_2f7fb607', label: "not making a dedicated trip just to g...", turn: 13 },
+  { id: 'n_acbd145e', label: "grabbing whatever drink is convenient...", turn: 13 },
+  { id: 'n_5c3f3c6a', label: "walking past the break room making a ...", turn: 14 },
+  { id: 'n_273f9943', label: "avoiding the effort of backtracking t...", turn: 14 },
+  { id: 'n_a56ea63c', label: "avoid feeling like taking a solitary ...", turn: 14 },
+  { id: 'n_693248e2', label: "other people being in the break room ...", turn: 14 }
+];
+
+const links = [
+  { source: 'n_987434ee', target: 'n_98f2698c', rel: 'occurs_in' },
+  { source: 'n_987434ee', target: 'n_f09ca186', rel: 'occurs_in' },
+  { source: 'n_98f2698c', target: 'n_1d56c67e', rel: 'implies' },
+  { source: 'n_98f2698c', target: 'n_5c473e77', rel: 'implies' },
+  { source: 'n_98f2698c', target: 'n_0f1caf18', rel: 'drives' },
+  { source: 'n_1d56c67e', target: 'n_0f1caf18', rel: 'drives' },
+  { source: 'n_1d56c67e', target: 'n_b2492ebc', rel: 'achieves' },
+  { source: 'n_5c473e77', target: 'n_0f1caf18', rel: 'addresses' },
+  { source: 'n_5c473e77', target: 'n_b2492ebc', rel: 'achieves' },
+  { source: 'n_f09ca186', target: 'n_49d88ed0', rel: 'implies' },
+  { source: 'n_f09ca186', target: 'n_0f1caf18', rel: 'drives' },
+  { source: 'n_49d88ed0', target: 'n_0f1caf18', rel: 'addresses' },
+  { source: 'n_49d88ed0', target: 'n_b2492ebc', rel: 'achieves' },
+  { source: 'n_0f1caf18', target: 'n_b2492ebc', rel: 'achieves' },
+  { source: 'n_6ab9cd75', target: 'n_0e723ccf', rel: 'implies' },
+  { source: 'n_6ab9cd75', target: 'n_f926c539', rel: 'implies' },
+  { source: 'n_6ab9cd75', target: 'n_e5740b2f', rel: 'achieves' },
+  { source: 'n_6ab9cd75', target: 'n_85cad798', rel: 'achieves' },
+  { source: 'n_6ab9cd75', target: 'n_c484a5ee', rel: 'drives' },
+  { source: 'n_0e723ccf', target: 'n_74ffda85', rel: 'implies' },
+  { source: 'n_0e723ccf', target: 'n_e5740b2f', rel: 'implies' },
+  { source: 'n_0e723ccf', target: 'n_85cad798', rel: 'implies' },
+  { source: 'n_0e723ccf', target: 'n_c484a5ee', rel: 'drives' },
+  { source: 'n_06c55347', target: 'n_b2492ebc', rel: 'triggers' },
+  { source: 'n_926f95b7', target: 'n_b2492ebc', rel: 'triggers' },
+  { source: 'n_fc25e2db', target: 'n_b2492ebc', rel: 'implies' },
+  { source: 'n_06c55347', target: 'n_1d56c67e', rel: 'triggers' },
+  { source: 'n_926f95b7', target: 'n_1d56c67e', rel: 'triggers' },
+  { source: 'n_fc25e2db', target: 'n_1d56c67e', rel: 'implies' },
+  { source: 'n_06c55347', target: 'n_fc25e2db', rel: 'triggers' },
+  { source: 'n_926f95b7', target: 'n_fc25e2db', rel: 'triggers' },
+  { source: 'n_06c55347', target: 'n_6ab9cd75', rel: 'triggers' },
+  { source: 'n_06c55347', target: 'n_0e723ccf', rel: 'triggers' },
+  { source: 'n_926f95b7', target: 'n_6ab9cd75', rel: 'triggers' },
+  { source: 'n_926f95b7', target: 'n_0e723ccf', rel: 'triggers' },
+  { source: 'n_fc25e2db', target: 'n_6ab9cd75', rel: 'implies' },
+  { source: 'n_e477553d', target: 'n_fa0e1739', rel: 'implies' },
+  { source: 'n_e477553d', target: 'n_9a58cc59', rel: 'implies' },
+  { source: 'n_fa0e1739', target: 'n_9a58cc59', rel: 'supports' },
+  { source: 'n_e477553d', target: 'n_06c55347', rel: 'occurs_in' },
+  { source: 'n_e477553d', target: 'n_926f95b7', rel: 'occurs_in' },
+  { source: 'n_e477553d', target: 'n_fc25e2db', rel: 'implies' },
+  { source: 'n_e0265775', target: 'n_06c55347', rel: 'occurs_in' },
+  { source: 'n_e0265775', target: 'n_926f95b7', rel: 'occurs_in' },
+  { source: 'n_0b015931', target: 'n_6ab9cd75', rel: 'supports' },
+  { source: 'n_17fcc220', target: 'n_b00ec24f', rel: 'implies' },
+  { source: 'n_17fcc220', target: 'n_44ca0a76', rel: 'implies' },
+  { source: 'n_17fcc220', target: 'n_0b015931', rel: 'implies' },
+  { source: 'n_b00ec24f', target: 'n_44ca0a76', rel: 'supports' },
+  { source: 'n_b00ec24f', target: 'n_0b015931', rel: 'supports' },
+  { source: 'n_44ca0a76', target: 'n_0b015931', rel: 'supports' },
+  { source: 'n_17fcc220', target: 'n_9a58cc59', rel: 'implies' },
+  { source: 'n_b00ec24f', target: 'n_9a58cc59', rel: 'supports' },
+  { source: 'n_44ca0a76', target: 'n_9a58cc59', rel: 'supports' },
+  { source: 'n_0b015931', target: 'n_9a58cc59', rel: 'supports' },
+  { source: 'n_395ef7dd', target: 'n_85add58d', rel: 'triggers' },
+  { source: 'n_926f95b7', target: 'n_f77e40bb', rel: 'triggers' },
+  { source: 'n_39524e2e', target: 'n_0b015931', rel: 'achieves' },
+  { source: 'n_39524e2e', target: 'n_44ca0a76', rel: 'achieves' },
+  { source: 'n_39524e2e', target: 'n_9a58cc59', rel: 'achieves' },
+  { source: 'n_39524e2e', target: 'n_b00ec24f', rel: 'achieves' },
+  { source: 'n_8e044a15', target: 'n_610f9e72', rel: 'triggers' },
+  { source: 'n_8e044a15', target: 'n_79107614', rel: 'triggers' },
+  { source: 'n_8e044a15', target: 'n_39524e2e', rel: 'triggers' },
+  { source: 'n_610f9e72', target: 'n_79107614', rel: 'triggers' },
+  { source: 'n_610f9e72', target: 'n_39524e2e', rel: 'triggers' },
+  { source: 'n_f43f4d23', target: 'n_79107614', rel: 'triggers' },
+  { source: 'n_f43f4d23', target: 'n_39524e2e', rel: 'drives' },
+  { source: 'n_79107614', target: 'n_39524e2e', rel: 'drives' },
+  { source: 'n_8e044a15', target: 'n_926f95b7', rel: 'occurs_in' },
+  { source: 'n_8e044a15', target: 'n_f77e40bb', rel: 'triggers' },
+  { source: 'n_610f9e72', target: 'n_926f95b7', rel: 'occurs_in' },
+  { source: 'n_e9b36f7d', target: 'n_07a1fcee', rel: 'supports' },
+  { source: 'n_e9b36f7d', target: 'n_39524e2e', rel: 'drives' },
+  { source: 'n_07a1fcee', target: 'n_610f9e72', rel: 'triggers' },
+  { source: 'n_07a1fcee', target: 'n_79107614', rel: 'implies' },
+  { source: 'n_07a1fcee', target: 'n_39524e2e', rel: 'drives' },
+  { source: 'n_c0c62d78', target: 'n_f10ecf15', rel: 'triggers' },
+  { source: 'n_c0c62d78', target: 'n_a3613f91', rel: 'triggers' },
+  { source: 'n_c0c62d78', target: 'n_aabc16c5', rel: 'triggers' },
+  { source: 'n_c0c62d78', target: 'n_f29c6bc0', rel: 'triggers' },
+  { source: 'n_f10ecf15', target: 'n_a3613f91', rel: 'triggers' },
+  { source: 'n_f10ecf15', target: 'n_aabc16c5', rel: 'implies' },
+  { source: 'n_f10ecf15', target: 'n_f29c6bc0', rel: 'drives' },
+  { source: 'n_a3613f91', target: 'n_aabc16c5', rel: 'implies' },
+  { source: 'n_a3613f91', target: 'n_f29c6bc0', rel: 'drives' },
+  { source: 'n_aabc16c5', target: 'n_f29c6bc0', rel: 'drives' },
+  { source: 'n_45fdaf4a', target: 'n_f29c6bc0', rel: 'triggers' },
+  { source: 'n_c0c62d78', target: 'n_e9b36f7d', rel: 'triggers' },
+  { source: 'n_c0c62d78', target: 'n_07a1fcee', rel: 'triggers' },
+  { source: 'n_f10ecf15', target: 'n_e9b36f7d', rel: 'implies' },
+  { source: 'n_a3613f91', target: 'n_e9b36f7d', rel: 'implies' },
+  { source: 'n_e90df4da', target: 'n_39524e2e', rel: 'triggers' },
+  { source: 'n_e90df4da', target: 'n_79107614', rel: 'triggers' },
+  { source: 'n_e90df4da', target: 'n_f29c6bc0', rel: 'triggers' },
+  { source: 'n_e90df4da', target: 'n_aabc16c5', rel: 'triggers' },
+  { source: 'n_f29c6bc0', target: 'n_aabc16c5', rel: 'achieves' },
+  { source: 'n_f29c6bc0', target: 'n_45fdaf4a', rel: 'occurs_in' },
+  { source: 'n_2f7fb607', target: 'n_39524e2e', rel: 'drives' },
+  { source: 'n_2f7fb607', target: 'n_79107614', rel: 'triggers' },
+  { source: 'n_2f7fb607', target: 'n_acbd145e', rel: 'drives' },
+  { source: 'n_2f7fb607', target: 'n_f29c6bc0', rel: 'drives' },
+  { source: 'n_2f7fb607', target: 'n_e90df4da', rel: 'triggers' },
+  { source: 'n_5c3f3c6a', target: 'n_396566ac', rel: 'triggers' },
+  { source: 'n_273f9943', target: 'n_396566ac', rel: 'drives' },
+  { source: 'n_a56ea63c', target: 'n_396566ac', rel: 'drives' },
+  { source: 'n_693248e2', target: 'n_396566ac', rel: 'supports' },
+  { source: 'n_5c3f3c6a', target: 'n_273f9943', rel: 'triggers' },
+  { source: 'n_5c3f3c6a', target: 'n_a56ea63c', rel: 'triggers' },
+  { source: 'n_5c3f3c6a', target: 'n_693248e2', rel: 'triggers' },
+  { source: 'n_273f9943', target: 'n_a56ea63c', rel: 'implies' },
+  { source: 'n_273f9943', target: 'n_693248e2', rel: 'supports' },
+  { source: 'n_a56ea63c', target: 'n_693248e2', rel: 'supports' },
+  { source: 'n_5c3f3c6a', target: 'n_2f7fb607', rel: 'triggers' },
+  { source: 'n_5c3f3c6a', target: 'n_acbd145e', rel: 'triggers' },
+  { source: 'n_273f9943', target: 'n_acbd145e', rel: 'drives' },
+  { source: 'n_a56ea63c', target: 'n_2f7fb607', rel: 'implies' },
+  { source: 'n_a56ea63c', target: 'n_acbd145e', rel: 'drives' },
+  { source: 'n_693248e2', target: 'n_2f7fb607', rel: 'implies' },
+  { source: 'n_693248e2', target: 'n_acbd145e', rel: 'supports' }
+];
+
+/* ═══════════════════════════════════════════════
+   Build nodes & edges
+   ═══════════════════════════════════════════════ */
+const FONT  = '"Inter Tight", -apple-system, sans-serif';
+const MONO  = '"JetBrains Mono", monospace';
+
+const echartsNodes = nodes.map(n => {
+  const f = FOCUSED_IDS.has(n.id);
+  return {
+    id: n.id,
+    name: n.label,
+    category: f ? 0 : 1,
+    symbolSize: f ? 48 : 32,
+    value: n.turn,
+    itemStyle: {
+      color: f ? '#F2EAD6' : '#FFFFFF',
+      borderColor: f ? '#5C4612' : '#C7C5BB',
+      borderWidth: f ? 0.8 : 0.8,
+      shadowColor: 'rgba(20,23,28,0.05)',
+      shadowBlur: f ? 6 : 2,
+      borderRadius: 6,
+    },
+    label: {
+      show: true,
+      formatter: function(p) {
+        const nd = nodes.find(x => x.id === p.data.id);
+        const t = nd ? `(${nd.turn}) ` : '';
+        return `{m|${t}}{l|${p.name}}`;
+      },
+      rich: {
+        m: {
+          fontSize: 12,
+          fontFamily: MONO,
+          fontWeight: 400,
+          color: f ? '#5C4612' : '#7A828D',
+          letterSpacing: '0.04em',
+          padding: [0, 2, 0, 0],
+        },
+        l: {
+          fontSize: 10,
+          fontFamily: MONO,
+          fontWeight: 400,
+          color: '#14171C',
+          lineHeight: 15,
+        },
+      },
+    },
+  };
+});
+
+const echartsLinks = links.map(l => ({
+  source: l.source,
+  target: l.target,
+  label: {
+    show: true,
+    formatter: l.rel.replace(/_/g, ' '),
+    fontSize: 9,
+    fontFamily: MONO,
+    fontWeight: 500,
+    color: REL_COLORS[l.rel],
+    letterSpacing: '0.02em',
+  },
+  lineStyle: {
+    color: REL_COLORS[l.rel],
+    width: 1.4,
+    curveness: 0.15,
+    opacity: 0.5,
+  },
+  emphasis: {
+    lineStyle: { width: 2.5, opacity: 0.85 },
+    label: { fontSize: 11 },
+  },
+}));
+
+const categories = [
+  { name: 'Concepts targeted by the interview engine',    itemStyle: { color: '#F2EAD6' } },
+  { name: 'Other discovered concepts', itemStyle: { color: '#FFFFFF' } },
+  { name: '( # ) - turn at which the concept was discovered', itemStyle: { color: '#00000' } },
+];
+
+const relTypes = [...new Set(links.map(l => l.rel))].sort();
+const relLegendData = relTypes.map(r => ({
+  name: r.replace(/_/g, ' '),
+  itemStyle: { color: REL_COLORS[r] },
+  icon: 'roundRect',
+}));
+
+/* ═══════════════════════════════════════════════
+   ECharts option — responsive, fills viewport
+   ═══════════════════════════════════════════════ */
+const option = {
+  backgroundColor: '#F2F1ED',
+  title: [
+    {
+      text: 'Conversation Graph',
+      left: '3%',
+      top: '3%',
+      textStyle: {
+        fontSize: 24,
+        fontWeight: 600,
+        fontFamily: FONT,
+        color: '#14171C',
+        letterSpacing: '-0.02em',
+      },
+    },
+    {
+      text: 'Concept \u00B7 ZeroFizz Sugar-Free Carbonated Beverage',
+      left: '3%',
+      top: '8%',
+      textStyle: {
+        fontSize: 12,
+        fontWeight: 400,
+        fontFamily: MONO,
+        color: '#7A828D',
+        letterSpacing: '-0.02em',
+      },
+    },
+    {
+      text: 'Method  \u00B7 Jobs-to-be-Done',
+      left: '3%',
+      top: '11%',
+      textStyle: {
+        fontSize: 12,
+        fontWeight: 400,
+        fontFamily: MONO,
+        color: '#7A828D',
+        letterSpacing: '-0.02em',
+      },
+    },
+    {
+      text: 'Persona \u00B7 Baseline Cooperative Respondent',
+      left: '3%',
+      top: '14%',
+      textStyle: {
+        fontSize: 12,
+        fontWeight: 400,
+        fontFamily: MONO,
+        color: '#7A828D',
+        letterSpacing: '-0.02em',
+      },
+    },
+    {
+      text: '54 elements  \u00B7  120 relationships  \u00B7  14 turns',
+      right: '3%',
+      top: '4%',
+      textStyle: {
+        fontSize: 12,
+        fontFamily: MONO,
+        fontWeight: 400,
+        color: '#7A828D',
+        letterSpacing: '0.04em',
+        textAlign: 'right',
+      },
+    },
+  ],
+  tooltip: {
+    trigger: 'item',
+    backgroundColor: '#14171C',
+    borderColor: '#41474F',
+    borderWidth: 1,
+    padding: [8, 12],
+    textStyle: { color: '#F2F1ED', fontSize: 11, fontFamily: FONT },
+    formatter: function(p) {
+      if (p.dataType === 'node') {
+        const f = FOCUSED_IDS.has(p.data.id);
+        const nd = nodes.find(x => x.id === p.data.id);
+        const t = nd ? nd.turn : p.data.value;
+        return '<b>' + p.name.replace(/\n/g, ' ') + '</b>'
+          + '<br/><span style="font-family:JetBrains Mono;font-size:10px;color:#7A828D">turn ' + String(t).padStart(2,'0') + '</span>'
+          + '<br/><span style="font-family:JetBrains Mono;font-size:10px;color:' + (f ? '#5C4612' : '#7A828D') + '">' + (f ? 'focus' : 'other') + '</span>';
+      }
+      if (p.dataType === 'edge') {
+        return '<span style="font-family:JetBrains Mono;font-size:11px;font-weight:500">' + p.data.label.formatter + '</span>';
+      }
+      return '';
+    },
+  },
+  legend: [
+    {
+      data: categories.map(c => c.name),
+      bottom: '4%',
+      left: '3%',
+      textStyle: { fontSize: 11, fontFamily: FONT, color: '#41474F' },
+      icon: 'roundRect', itemWidth: 16, itemHeight: 8, itemGap: 16,
+    },
+    {
+      data: relLegendData,
+      bottom: '4%',
+      right: '3%',
+      textStyle: { fontSize: 10, fontFamily: MONO, color: '#41474F', letterSpacing: '0.04em' },
+      icon: 'roundRect', itemWidth: 12, itemHeight: 6, itemGap: 10,
+    },
+  ],
+  animationDuration: 1000,
+  animationEasingUpdate: 'quinticInOut',
+  series: [{
+    type: 'graph',
+    layout: 'force',
+    roam: true,
+    draggable: true,
+    zoom: 1.15,
+    center: ['50%', '52%'],
+    data: echartsNodes,
+    links: echartsLinks,
+    categories: categories,
+    force: {
+      repulsion: 380,
+      gravity: 0.14,
+      edgeLength: [90, 180],
+      layoutAnimation: true,
+      friction: 0.65,
+    },
+    edgeSymbol: ['none', 'arrow'],
+    edgeSymbolSize: [0, 6],
+    emphasis: {
+      focus: 'adjacency',
+      itemStyle: {
+        shadowBlur: 14,
+        shadowColor: 'rgba(20,23,28,0.1)',
+      },
+      lineStyle: { width: 2.5 },
+    },
+    lineStyle: { curveness: 0.15 },
+  }],
+};
+
+chart.setOption(option);
+window.addEventListener('resize', () => chart.resize());
+</script>
+</body>
+</html>

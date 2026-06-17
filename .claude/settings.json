@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bd show *)",
+      "Bash(bd comments *)",
+      "Bash(bd list *)",
+      "Bash(bd dep *)",
+      "Bash(bd ready)",
+      "Bash(bd update *)",
+      "Bash(bd create *)",
+      "Bash(bd close *)",
+      "Bash(uv run ruff check *)",
+      "mcp__codegrapher__codegraph_query"
+    ]
+  }
+}

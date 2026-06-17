@@ -436,9 +436,7 @@ class GraphRepository:
         )
         await self.db.commit()
 
-    async def get_rejected_edges_by_session(
-        self, session_id: str
-    ) -> list[dict]:
+    async def get_rejected_edges_by_session(self, session_id: str) -> list[dict]:
         """Get all rejected edge candidates for a session, ordered by turn."""
         self.db.row_factory = aiosqlite.Row
         cursor = await self.db.execute(

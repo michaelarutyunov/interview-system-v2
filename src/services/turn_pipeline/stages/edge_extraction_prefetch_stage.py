@@ -343,7 +343,13 @@ class EdgeExtractionPrefetchStage(TurnStage):
 
         # Build priority buckets
         seen: set[frozenset] = set()
-        buckets: list[list[str]] = [[], [], [], [], []]  # focus, neighbor, current, recent, opening
+        buckets: list[list[str]] = [
+            [],
+            [],
+            [],
+            [],
+            [],
+        ]  # focus, neighbor, current, recent, opening
 
         def _add(bucket_idx: int, a: dict, b: dict) -> None:
             key = frozenset([a["node_id"], b["node_id"]])

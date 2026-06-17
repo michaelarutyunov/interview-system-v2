@@ -40,33 +40,37 @@ build/
 .streamlit/*
 
 # .claude — local/transient files only (docs, agents, skills, and mapping are tracked)
-.claude/bug_patterns.jsonl
-.claude/settings*.json
-.claude/scheduled_tasks.lock
-.claude/hooks/
-.claude/worktrees/
+# .claude/bug_patterns.jsonl
+# .claude/settings*.json
+# .claude/scheduled_tasks.lock
+# .claude/hooks/
+# .claude/worktrees/
 
 # working docs
 synthetic_interviews/
 interviews_real/
 
+# reports
 reports/legacy/
 reports/explorations/
 reports/interviews/**
 reports/interviews_archive/**
 
-docs/archive/
-docs/artefacts/
-docs/articles/
-docs/concepts/
-docs/drafts/
-docs/plans/
-docs/screenshots/
-docs/specs/
-docs/superpowers/
+# npm cache
+.npm-cache/
+
+# docs/archive/
+# docs/artefacts/
+# docs/articles/
+# docs/concepts/
+# docs/drafts/
+# docs/plans/
+# docs/screenshots/
+# docs/specs/
+# docs/superpowers/
 data/*
-arch_queries.md
-commands.md
+# arch_queries.md
+# commands.md
 logs/
 
 # Beads / Dolt files (added by bd init)

@@ -305,9 +305,7 @@ class TestCandidatePairRule:
             self._candidate("CURRENT", "c1"),
             self._candidate("NEIGHBOR", "n1"),
         ]
-        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(
-            candidates
-        )
+        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(candidates)
         assert self._has_pair(section, "c1", "n1")
 
     def test_current_x_recent_included(self):
@@ -316,9 +314,7 @@ class TestCandidatePairRule:
             self._candidate("CURRENT", "c1"),
             self._candidate("RECENT", "r1"),
         ]
-        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(
-            candidates
-        )
+        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(candidates)
         assert self._has_pair(section, "c1", "r1")
 
     def test_neighbor_x_recent_excluded(self):
@@ -328,9 +324,7 @@ class TestCandidatePairRule:
             self._candidate("NEIGHBOR", "n1"),
             self._candidate("RECENT", "r1"),
         ]
-        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(
-            candidates
-        )
+        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(candidates)
         # No CURRENT in the set → empty section.
         assert section == ""
 
@@ -340,9 +334,7 @@ class TestCandidatePairRule:
             self._candidate("FOCUS", "f1"),
             self._candidate("NEIGHBOR", "n1"),
         ]
-        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(
-            candidates
-        )
+        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(candidates)
         assert section == ""
 
     def test_current_x_current_included(self):
@@ -351,9 +343,7 @@ class TestCandidatePairRule:
             self._candidate("CURRENT", "c1"),
             self._candidate("CURRENT", "c2"),
         ]
-        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(
-            candidates
-        )
+        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(candidates)
         assert self._has_pair(section, "c1", "c2")
 
     def test_full_mix_pair_set(self):
@@ -365,9 +355,7 @@ class TestCandidatePairRule:
             self._candidate("NEIGHBOR", "n1"),
             self._candidate("RECENT", "r1"),
         ]
-        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(
-            candidates
-        )
+        section = EdgeExtractionPrefetchStage._build_candidate_pairs_section(candidates)
         # Included: f1×c1, f1×c2, c1×c2, c1×n1, c1×r1, c2×n1, c2×r1 → 7 pairs
         assert self._has_pair(section, "f1", "c1")
         assert self._has_pair(section, "f1", "c2")

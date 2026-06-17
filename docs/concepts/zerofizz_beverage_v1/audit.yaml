@@ -1,0 +1,150 @@
+# ZeroFizz Bundle v1 — Cross-Concept Richness Audit (machine-readable)
+# Consumed by the methodology-evaluation harness.
+# See audit.md for the human-readable companion.
+
+bundle: zerofizz_beverage_v1
+immutable: true
+source_of_truth: docs/concepts/zerofizz_beverage_v1/domain_brief.md
+
+dimensions:
+  A: { label: "Functional attributes",   examples: ["sweetener", "caffeine", "calories", "carbonation", "price", "availability"] }
+  B: { label: "Sensory / experiential",  examples: ["aftertaste", "fizz intensity", "mouthfeel"] }
+  C: { label: "Occasions & contexts",    examples: ["2pm slump", "post-workout", "rooftop bar", "meal", "gaming"] }
+  D: { label: "Emotional / identity",    examples: ["kind of person who", "modern", "clean energy", "guilt-free indulgence"] }
+  E: { label: "Social meaning",          examples: ["peer alignment", "visible choice", "non-drinker confidence"] }
+  F: { label: "Contrast set",            examples: ["Coke Zero", "LaCroix", "Celsius", "Olipop", "water"] }
+  G: { label: "Tensions / contradictions", examples: ["sweetener distrust", "marketing skepticism", "health-vs-enjoyment"] }
+  H: { label: "Experience arc",          examples: ["discovery", "trial", "switching", "abandonment", "re-adoption"] }
+  I: { label: "Values",                  examples: ["autonomy", "self-control", "vitality", "belonging", "authenticity", "pragmatism"] }
+
+# Coverage per (concept, dimension).
+# status ∈ { covered, partial, implicit, structural_na }
+concepts:
+
+  zerofizz_beverage_mec:
+    methodology: means_end_chain_v2_strict
+    objective_word_count: 129
+    coverage:
+      A: { status: covered,       note: "attribute layer: sweetener, caffeine, carbonation, design, price, availability" }
+      B: { status: partial,       note: "carbonation intensity only; aftertaste not named" }
+      C: { status: covered,       note: "rooftop bar, 2pm crash" }
+      D: { status: covered,       note: "psychosocial layer: in control, modern wellness identity" }
+      E: { status: covered,       note: "belonging, signaling, peers cutting back on alcohol" }
+      F: { status: covered,       note: "Coke Zero, LaCroix, Celsius" }
+      G: { status: covered,       note: "'not preaching' → lifestyle marketing distrust" }
+      H: { status: structural_na, note: "MEC is vertical ladder; no temporal slot" }
+      I: { status: covered,       note: "values layer: autonomy, vitality, authenticity, belonging, pragmatism" }
+    rubric:
+      word_count_in_range: true
+      methodology_native: true
+      specificity_concrete_details: 3
+      contrast_set_named: 3
+      closed_vocabulary_bias: false
+
+  zerofizz_beverage_jtbd:
+    methodology: jobs_to_be_done_v2
+    objective_word_count: 138
+    coverage:
+      A: { status: covered,       note: "desired outcomes + switching pains name ingredients, price, availability, flavor" }
+      B: { status: partial,       note: "aftertaste fatigue as switching pain; fizz/mouthfeel absent" }
+      C: { status: covered,       note: "2pm desk slump, rooftop bar, Dry January" }
+      D: { status: covered,       note: "emotional jobs: indulgent without guilt, kind of person who reads labels" }
+      E: { status: covered,       note: "social jobs: peer alignment, signal wellness" }
+      F: { status: covered,       note: "Coke Zero, Celsius, LaCroix, Olipop" }
+      G: { status: covered,       note: "TikTok creator call-out, indulgence vs guilt" }
+      H: { status: partial,       note: "switching pains touch the arc but no discovery/adoption framing" }
+      I: { status: implicit,      note: "no dedicated slot in JTBD; surfaces via 'kind of person who'" }
+    rubric:
+      word_count_in_range: true
+      methodology_native: true
+      specificity_concrete_details: 4
+      contrast_set_named: 4
+      closed_vocabulary_bias: false
+
+  zerofizz_beverage_cit:
+    methodology: critical_incident_v2
+    objective_word_count: 140
+    coverage:
+      A: { status: partial,       note: "brand, 12-pack, aftertaste implicit in incident examples" }
+      B: { status: covered,       note: "moment reconstruction: what they noticed, tasted, heard" }
+      C: { status: covered,       note: "barbecue, rooftop bar, office meeting" }
+      D: { status: covered,       note: "full emotion palette: surprise, relief, regret, validation, suspicion" }
+      E: { status: covered,       note: "with whom, told others, identity statement" }
+      F: { status: covered,       note: "Coke Zero, Celsius, LaCroix" }
+      G: { status: covered,       note: "TikTok drop, identity statement vs default" }
+      H: { status: covered,       note: "canonical CIT arc: circumstances → moment → response → aftermath" }
+      I: { status: implicit,      note: "no dedicated CIT slot; surfaces via 'quiet identity statement'" }
+    rubric:
+      word_count_in_range: true
+      methodology_native: true
+      specificity_concrete_details: 5
+      contrast_set_named: 3
+      closed_vocabulary_bias: false
+
+  zerofizz_beverage_cjm:
+    methodology: customer_journey_mapping_v2
+    objective_word_count: 132
+    coverage:
+      A: { status: covered,       note: "research stage: ingredient-label scrutiny, sweetener comparison, price, availability" }
+      B: { status: covered,       note: "first-taste reaction and aftertaste verdict stage" }
+      C: { status: covered,       note: "2pm desk slump, post-workout, rooftop-bar substitute" }
+      D: { status: partial,       note: "delight moments present; identity framing lighter than other concepts" }
+      E: { status: covered,       note: "peer settings, Dry-January social win" }
+      F: { status: covered,       note: "Celsius, Olipop (Trader Joe's as retailer, not alternative)" }
+      G: { status: covered,       note: "sweetener distrust, lifestyle-marketing skepticism, ingredient controversy" }
+      H: { status: covered,       note: "canonical CJM spine: awareness → research → trial → adoption → switching/abandonment" }
+      I: { status: implicit,      note: "no dedicated CJM slot" }
+    rubric:
+      word_count_in_range: true
+      methodology_native: true
+      specificity_concrete_details: 5
+      contrast_set_named: 2
+      closed_vocabulary_bias: false
+
+  zerofizz_beverage_rg:
+    methodology: repertory_grid_v2
+    objective_word_count: 126
+    coverage:
+      A: { status: covered,       note: "ingredients, energy, latent functional dimension" }
+      B: { status: partial,       note: "jittery vs clean energy; other sensory axes absent" }
+      C: { status: covered,       note: "rooftop bar vs gas station, earning vs defaulting" }
+      D: { status: covered,       note: "grown-up vs teenage, show vs hide" }
+      E: { status: covered,       note: "label I'd show a friend vs hide" }
+      F: { status: covered,       note: "7 alternatives: ZeroFizz, Coke Zero, Pepsi Zero, Celsius, LaCroix, Olipop, sparkling water" }
+      G: { status: covered,       note: "explicit four-way tension: indulgence, health, sociability, authenticity" }
+      H: { status: structural_na, note: "RG is cross-sectional; no temporal slot" }
+      I: { status: covered,       note: "values-aligned as a named latent dimension" }
+    rubric:
+      word_count_in_range: true
+      methodology_native: true
+      specificity_concrete_details: 4
+      contrast_set_named: 7
+      closed_vocabulary_bias: false
+
+# Structural asymmetries — eval harness must factor these into cross-methodology interpretation.
+# These are not richness defects; they are consequences of methodology choice.
+structural_asymmetries:
+  - dimension: H
+    affected: [zerofizz_beverage_mec, zerofizz_beverage_rg]
+    reason: "MEC is a vertical ladder; RG is cross-sectional contrast. Neither models temporal sequence."
+    interpretation_warning: "Do not penalize MEC/RG for missing experience-arc content."
+  - dimension: I
+    affected: [zerofizz_beverage_jtbd, zerofizz_beverage_cit, zerofizz_beverage_cjm]
+    reason: "JTBD/CIT/CJM ontologies have no dedicated values node; values surface implicitly via emotional/identity cues."
+    interpretation_warning: "Do not penalize these concepts for missing explicit values statements."
+  - dimension: F
+    affected: [zerofizz_beverage_rg]
+    reason: "RG requires an element set for triadic elicitation; contrast-set density is nominally higher by construction."
+    interpretation_warning: "Do not interpret RG's 7 named alternatives as superior richness."
+
+bundle_manifest:
+  concepts:
+    - config/concepts/zerofizz_beverage_mec.yaml
+    - config/concepts/zerofizz_beverage_jtbd.yaml
+    - config/concepts/zerofizz_beverage_cit.yaml
+    - config/concepts/zerofizz_beverage_cjm.yaml
+    - config/concepts/zerofizz_beverage_rg.yaml
+  docs:
+    - docs/concepts/zerofizz_beverage_v1/domain_brief.md
+    - docs/concepts/zerofizz_beverage_v1/audit.md
+    - docs/concepts/zerofizz_beverage_v1/audit.yaml

@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interview Transcript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:           #F2F1ED;
+    --panel:        #FFFFFF;
+    --ink:          #14171C;
+    --ink-2:        #41474F;
+    --ink-3:        #7A828D;
+    --rule:         #DDDCD4;
+    --rule-strong:  #C7C5BB;
+    --q-accent:     #4F6E8C;
+    --a-accent:     #5C7A5C;
+    --focus-bg:     #F5F0E0;
+    --focus-text:   #8A6B3D;
+    --font-body: "Inter Tight", -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    background: var(--bg);
+    font-family: var(--font-body);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 20px 32px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(20,23,28,0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(20,23,28,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 100%;
+    margin: 0 auto;
+  }
+
+  /* ── Header ── */
+  .header {
+    border-bottom: 1px solid var(--rule-strong);
+    padding-bottom: 20px;
+    margin-bottom: 40px;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 19px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 8px;
+  }
+
+  .title {
+    font-size: 56px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    font-size: 24px;
+    color: var(--ink-2);
+    line-height: 1.5;
+    max-width: 800px;
+  }
+
+  .meta-row {
+    display: flex;
+    gap: 24px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .meta-item {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+  }
+
+  .meta-item b {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* ── Turn row ── */
+  .turn {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 32px;
+    position: relative;
+  }
+
+  .turn::before {
+    content: attr(data-turn);
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--ink-3);
+    background: var(--bg);
+    padding: 0 12px;
+    z-index: 2;
+    letter-spacing: 0.06em;
+  }
+
+  .turn::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 14px;
+    transform: translateX(-50%);
+    width: 1px;
+    height: calc(100% - 28px);
+    background: var(--rule-strong);
+    z-index: 1;
+  }
+
+  .q-card, .a-card {
+    background: var(--panel);
+    border: 1px solid var(--rule-strong);
+    border-radius: 10px;
+    padding: 24px;
+    box-shadow: 0 1px 0 rgba(20,23,28,0.04);
+    position: relative;
+  }
+
+  .q-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20px;
+    right: 20px;
+    height: 3px;
+    border-radius: 0 0 2px 2px;
+    background: var(--q-accent);
+    opacity: 0.7;
+  }
+
+  .a-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20px;
+    right: 20px;
+    height: 3px;
+    border-radius: 0 0 2px 2px;
+    background: var(--a-accent);
+    opacity: 0.7;
+  }
+
+  .q-label, .a-label {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .q-label { color: var(--q-accent); }
+  .a-label { color: var(--a-accent); }
+
+  .q-text, .a-text {
+    font-size: 24px;
+    line-height: 1.5;
+  }
+
+  .q-text { font-weight: 500; color: var(--ink); }
+  .a-text { color: var(--ink-2); }
+
+  /* ── Focus note ── */
+  .focus-note {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-top: -8px;
+    padding: 0 12px;
+  }
+
+  .focus-label {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--focus-text);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .focus-text {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    color: var(--focus-text);
+    letter-spacing: 0.02em;
+    font-style: italic;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 1100px) {
+    .turn {
+      grid-template-columns: 1fr;
+    }
+
+    .turn::before {
+      left: 24px;
+      top: -12px;
+      transform: none;
+    }
+
+    .turn::after {
+      display: none;
+    }
+
+    .focus-note {
+      margin-top: 4px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="eyebrow">Interview Transcript</div>
+    <h1 class="title">ZeroFizz Sugar-Free Carbonated Beverage</h1>
+    <p class="subtitle">
+      jobs_to_be_done_v2 interview with a Baseline Cooperative Respondent.
+    </p>
+    <div class="meta-row">
+      <span class="meta-item"><b>Methodology</b> jobs_to_be_done_v2</span>
+      <span class="meta-item"><b>Persona</b> Baseline Cooperative Respondent</span>
+      <span class="meta-item"><b>Turns</b> 15</span>
+      <span class="meta-item"><b>Status</b> Closing strategy selected</span>
+    </div>
+  </header>
+
+  <!-- Opening -->
+  <div class="turn" data-turn="Opening">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">Think back to the last time you grabbed a sugar-free or zero-sugar drink — maybe in the last week or two — can you walk me through what was going on that day and what made you reach for that particular drink in that moment?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">Honestly I think it was like... I was at work and just needed something to drink that wouldn't make me crash later. I usually go for coffee but that day I'd already had a couple and didn't want more caffeine, so I grabbed whatever was in the fridge. Pretty much just came down to not wanting the sugar crash, that's the main thing for me.</div>
+    </div>
+
+  </div>
+
+  <!-- Turn 1 -->
+  <div class="turn" data-turn="Turn 1">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">Why does staying steady like that through your workday matter to you?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">I guess it's just nice not to crash, you know? Like I'll have an energy dip around 3pm and if I'm drinking something with actual sugar I'm wired for a bit then just... done. With this stuff I don't get that rollercoaster feeling so I can actually focus on what I'm doing instead of thinking about when I'm gonna need another coffee.</div>
+    </div>
+  <div class="focus-note">
+    <span class="focus-label">Focus →</span>
+    <span class="focus-text">being at work during the day *(Job Context, L0)*</span>
+  </div>
+  </div>
+
+  <!-- Turn 2 -->
+  <div class="turn" data-turn="Turn 2">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">When you're drinking ZeroFizz instead and staying steady, what does that actually let you do that you couldn't do during a crash?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">I guess I'm more focused at work without that energy dip. Like, I can actually get through afternoon meetings without feeling like I need a nap or another caffeine hit to survive them.</div>
+    </div>
+  <div class="focus-note">
+    <span class="focus-label">Focus →</span>
+    <span class="focus-text">experiencing an energy dip around 3pm *(Job Trigger, L0)*</span>
+  </div>
+  </div>
+
+  <!-- Turn 3 -->
+  <div class="turn" data-turn="Turn 3">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">What's usually happening right before you hit that 3pm energy dip in meetings?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">Usually I'm just sitting there listening to someone talk through slides or whatever. Like, my brain's kind of checked out by that point, especially if it's been back-to-back meetings since morning.</div>
+    </div>
+  <div class="focus-note">
+    <span class="focus-label">Focus →</span>
+    <span class="focus-text">staying energised and functional through the workday without a crash *(Gain Point, L1)*</span>
+  </div>
+  </div>
+
+  <!-- Turn 4 -->
+  <div class="turn" data-turn="Turn 4">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">How does drinking ZeroFizz through those afternoon meetings compare to how you felt before when your brain was checking out?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">honestly it's pretty different. like before i'd hit that 3pm wall and just feel kind of foggy, couldn't really focus on what people were saying. with zerofizz i get that little kick without the crash after, so i'm actually present instead of just zoning out and waiting for it to end.</div>
+    </div>
+  <div class="focus-note">
+    <span class="focus-label">Focus →</span>
+    <span class="focus-text">experiencing an energy dip around 3pm *(Job Trigger, L0)*</span>
+  </div>
+  </div>
+
+  <!-- Turn 5 -->
+  <div class="turn" data-turn="Turn 5">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">Why does actually being present in those meetings matter to you?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">Honestly, I think it's just easier to actually know what's going on instead of getting a secondhand version later. Like, if I'm not there I'm always asking someone "wait, what did they decide on that?" and it's kind of annoying.</div>
+    </div>
+  <div class="focus-note">
+    <span class="focus-label">Focus →</span>
+    <span class="focus-text">steady, uninterrupted focus during the workday *(Gain Point, L1)*</span>
+  </div>
+  </div>
+
+  <!-- Turn 6 -->
+  <div class="turn" data-turn="Turn 6">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">When you're actually present and catching things directly in a meeting instead of asking someone later, what specifically happens that makes you feel on top of things?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">Honestly, I think it's just the immediate clarity. Like, I ask the question right then and get the answer without playing phone tag or waiting for an email back. There's no lag, no confusion about what was actually said.</div>
+    </div>
+  <div class="focus-note">
+    <span class="focus-label">Focus →</span>
+    <span class="focus-text">feeling foggy and unable to focus on what people are saying *(Pain Point, L1)*</span>
+  </div>
+  </div>
+
+  <!-- Turn 7 -->
+  <div class="turn" data-turn="Turn 7">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">What situations actually cause you to miss those meeting moments in the first place?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">I guess when I'm just really focused on work stuff, like heads-down on a project. Hard to step away when you're in the zone, you know? And then sometimes meetings just get scheduled back-to-back so there's no actual break time to grab anything.</div>
+    </div>
+  <div class="focus-note">
+    <span class="focus-label">Focus →</span>
+    <span class="focus-text">passively waiting for meetings to end due to disengagement *(Pain Point, L1)*</span>
+  </div>
+  </div>
+
+  <!-- Turn 8 -->
+  <div class="turn" data-turn="Turn 8">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">When you've got those back-to-back meetings, what does that look like for you—like, how many meetings in a row before you realize you haven't grabbed anything to drink?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">Probably like three or four before I notice. Usually it's more that I realize my mouth is dry than actually thinking "oh I should hydrate" or whatever. By then I'm already annoyed I didn't grab something at the start.</div>
+    </div>
+  <div class="focus-note">
+    <span class="focus-label">Focus →</span>
+    <span class="focus-text">missing meeting decisions and needing to catch up secondhand *(Pain Point, L1)*</span>
+  </div>
+  </div>
+
+  <!-- Turn 9 -->
+  <div class="turn" data-turn="Turn 9">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">Why does grabbing something before those meetings actually matter to you?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">Honestly, I just feel more prepared when I'm not sitting there with nothing. Like, if I've got a drink it's easier to focus instead of being distracted by being thirsty or whatever.</div>
+    </div>
+  <div class="focus-note">
+    <span class="focus-label">Focus →</span>
+    <span class="focus-text">deep focus making it hard to step away *(Pain Point, L1)*</span>
+  </div>
+  </div>
+
+  <!-- Turn 10 -->
+  <div class="turn" data-turn="Turn 10">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">When you're in a meeting and thirst starts pulling your attention away, what does that actually cost you in that moment?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">I guess it depends on the meeting, but like... if it's something I actually need to focus on, it's pretty distracting. You lose your train of thought, miss what someone's saying. And then you're annoyed at yourself for not paying attention when it matters. If it's just a standup or something less critical, honestly I don't think about it that much. You just grab water or whatever's around.</div>
+    </div>
+  <div class="focus-note">
+    <span class="focus-label">Focus →</span>
+    <span class="focus-text">no break between meetings preventing grabbing a drink *(Pain Point, L1)*</span>
+  </div>
+  </div>
+
+  <!-- Turn 11 -->
+  <div class="turn" data-turn="Turn 11">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">When you walk into one of those low-stakes standups, what makes you decide whether to grab a drink first or just head straight in?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">I usually just grab whatever's there if I'm thirsty, honestly. If there's a cooler by the door I'll snag something, but it's not like I'm planning it out or anything.</div>
+    </div>
+  <div class="focus-note">
+    <span class="focus-label">Focus →</span>
+    <span class="focus-text">not proactively hydrating before meetings begin *(Pain Point, L1)*</span>
+  </div>
+  </div>
+
+  <!-- Turn 12 -->
+  <div class="turn" data-turn="Turn 12">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">What happens in those standups when the cooler isn't by the door?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">Honestly, people just grab stuff from the break room instead. It's not like anyone's making a trip somewhere else specifically for it, they just kind of... grab whatever's there when they need a drink.</div>
+    </div>
+  <div class="focus-note">
+    <span class="focus-label">Focus →</span>
+    <span class="focus-text">not recorded</span>
+  </div>
+  </div>
+
+  <!-- Turn 13 -->
+  <div class="turn" data-turn="Turn 13">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">When a drink isn't right there by the meeting, what makes the break room the place you end up going instead of just skipping the drink altogether?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">Honestly it's just convenience. If I'm already walking past it, might as well grab something instead of going back to my desk thirsty. Plus there's usually other people in there so it doesn't feel like I'm taking a break alone.</div>
+    </div>
+  <div class="focus-note">
+    <span class="focus-label">Focus →</span>
+    <span class="focus-text">break room being the fallback source when drinks aren't near the meeting room *(Solution Approach, L4)*</span>
+  </div>
+  </div>
+
+  <!-- Turn 14 (Closing) -->
+  <div class="turn" data-turn="Turn 14 (Closing)">
+    <div class="q-card">
+      <div class="q-label">Question</div>
+      <div class="q-text">So it sounds like convenience and being around others matter more than the drink itself—does that capture it, or is there something else I'm missing?</div>
+    </div>
+    <div class="a-card">
+      <div class="a-label">Answer</div>
+      <div class="a-text">I mean yeah, that's pretty much it. Though I guess the drink itself matters when I'm actually drinking it—like if it tastes bad I'm not gonna keep buying it. But that's not really why I pick it up in the first place, you know?  *No new concepts extracted this turn.*</div>
+    </div>
+  <div class="focus-note">
+    <span class="focus-label">Focus →</span>
+    <span class="focus-text">not recorded</span>
+  </div>
+  </div>
+
+</div>
+
+</body>
+</html>

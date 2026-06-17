@@ -78,15 +78,14 @@ class ConfirmedEdge(BaseModel):
     )
     assertion: Literal["explicit", "implicit", "inferred"] | None = Field(
         default=None,
-        description="How the respondent asserted the relationship: explicit (directly stated), implicit (strongly implied), inferred (across turns or weakly)"
+        description="How the respondent asserted the relationship: explicit (directly stated), implicit (strongly implied), inferred (across turns or weakly)",
     )
     direction: Literal["clear", "uncertain"] | None = Field(
-        default=None,
-        description="Whether the causal direction is unambiguous"
+        default=None, description="Whether the causal direction is unambiguous"
     )
     frame: Literal["respondent", "minor_influence", "contaminated"] | None = Field(
         default=None,
-        description="Frame contamination: respondent (self-asserted), minor_influence (slight interviewer framing), contaminated (interviewer supplied the causal frame)"
+        description="Frame contamination: respondent (self-asserted), minor_influence (slight interviewer framing), contaminated (interviewer supplied the causal frame)",
     )
 
 

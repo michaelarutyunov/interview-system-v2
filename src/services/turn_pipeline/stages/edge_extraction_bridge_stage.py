@@ -57,7 +57,9 @@ class EdgeExtractionBridgeStage(TurnStage):
 
         if task is None:
             # No prefetch task fired (flag OFF, no candidates, or setup failure).
-            nodes_added_count = len(context.nodes_added) if context.graph_update_output else 0
+            nodes_added_count = (
+                len(context.nodes_added) if context.graph_update_output else 0
+            )
             if nodes_added_count > 0:
                 # Nodes were extracted this turn but no edge extraction task exists.
                 # This indicates the prefetch fired but the task reference was lost

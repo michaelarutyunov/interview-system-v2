@@ -82,7 +82,9 @@ class TestSurfacePrimaryKeyspace:
         """register_node creates entry keyed by surface UUID."""
         from src.domain.models.knowledge_graph import KGNode
 
-        node = KGNode(id="abc-123", session_id="s1", label="test", node_type="attribute")
+        node = KGNode(
+            id="abc-123", session_id="s1", label="test", node_type="attribute"
+        )
         tracker = NodeStateTracker()
         tracker = tracker.register_node(node, turn_number=1)
 

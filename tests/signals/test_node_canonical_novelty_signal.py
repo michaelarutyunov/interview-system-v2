@@ -133,8 +133,8 @@ async def test_multiple_nodes_correct_categories():
             "orphan-surface": None,
         },
         first_seen={
-            "slot_new": 5,          # first seen this turn → new
-            "slot_confirming": 1,   # first seen on turn 1 → confirming
+            "slot_new": 5,  # first seen this turn → new
+            "slot_confirming": 1,  # first seen on turn 1 → confirming
         },
     )
     signal = NodeCanonicalNoveltySignal(tracker)

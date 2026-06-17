@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Conversation Graph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+  :root {
+    --bg:           #F2F1ED;
+    --panel:        #FFFFFF;
+    --ink:          #14171C;
+    --ink-2:        #41474F;
+    --ink-3:        #7A828D;
+    --rule:         #DDDCD4;
+    --rule-strong:  #C7C5BB;
+    --line:         #5B6471;
+    --grid-line:    rgba(20,23,28,0.025);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: "Inter Tight", -apple-system, sans-serif;
+    color: var(--ink);
+  }
+  .frame {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .frame::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  #chart {
+    position: relative;
+    z-index: 1;
+    width: 100vw;
+    height: 100vh;
+  }
+</style>
+</head>
+<body>
+<div class="frame">
+<div id="chart"></div>
+</div>
+<script>
+const chart = echarts.init(document.getElementById('chart'));
+
+/* ═══════════════════════════════════════════════
+   Reference slide colour palette — exact match
+   ═══════════════════════════════════════════════ */
+const REL_COLORS = {
+  triggers:       '#874A0B',
+  drives:         '#5C7A5C',
+  supports:       '#16574A',
+  implies:        '#4F6E8C',
+  achieves:       '#6B5C8A',
+  conflicts_with: '#8A5C5C',
+  occurs_in:      '#5B6471',
+};
+
+const FOCUSED_IDS = new Set([
+  'n_3d7ee457','n_bd481bcf','n_c12f5a9d',
+  'n_17df1309','n_1803a953','n_6ceaeb23'
+]);
+
+/* ─── Node data ─── */
+const nodes = [
+  { id: 'n_77ed539b', label: 'Afternoon slump\nat work ~3pm', turn: 1 },
+  { id: 'n_3d7ee457', label: 'At work during\nthe afternoon', turn: 1 },
+  { id: 'n_d19e1681', label: 'Avoid having\ncoffee again', turn: 1 },
+  { id: 'n_873396f9', label: 'Grabbing whatever\nis available\u2026', turn: 1 },
+  { id: 'n_55b03e99', label: 'Coffee fatigue from\nmultiple cups', turn: 2 },
+  { id: 'n_a1382c49', label: 'Feel refreshed\nand awake\u2026', turn: 2 },
+  { id: 'n_a7dca702', label: 'Choosing carbonated\ndrink for after\u2026', turn: 2 },
+  { id: 'n_009775d8', label: 'Drinking same thing\nrepeatedly fe\u2026', turn: 3 },
+  { id: 'n_7fe01e56', label: 'Need something\nto sip on', turn: 4 },
+  { id: 'n_bd481bcf', label: 'Caffeine provides\nreal functional\u2026', turn: 4 },
+  { id: 'n_83212628', label: 'Avoid overdoing\ncaffeine intake', turn: 4 },
+  { id: 'n_c12f5a9d', label: 'Choosing zero sugar\nsoda as easy\u2026', turn: 4 },
+  { id: 'n_17df1309', label: 'Fizz provides\nrefreshment\u2026', turn: 5 },
+  { id: 'n_43d93c30', label: 'Zero sugar soda\nw/o fizz is\u2026', turn: 5 },
+  { id: 'n_9d996ea0', label: 'Switching to juice\nor another drink\u2026', turn: 5 },
+  { id: 'n_1803a953', label: 'Excessive sweetness\nof juice feels\u2026', turn: 6 },
+  { id: 'n_1227e302', label: 'Get actual flavor\nw/o sugar crash\u2026', turn: 6 },
+  { id: 'n_eea5cbcf', label: 'Avoid putting\nunnecessary\u2026', turn: 7 },
+  { id: 'n_b0ec30a7', label: 'Excess sugar intake\nfeels like pollut\u2026', turn: 7 },
+  { id: 'n_cf1748ef', label: 'Avoiding wired-then-\ntired cycle\u2026', turn: 8 },
+  { id: 'n_8dad9727', label: 'Wired-then-tired\nfeeling an hour\u2026', turn: 8 },
+  { id: 'n_6ceaeb23', label: 'Choosing ZeroFizz\nover regular soda', turn: 8 },
+  { id: 'n_3c99491a', label: 'Cutting back on\nsugar while\u2026', turn: 9 },
+  { id: 'n_604821fe', label: 'Already consumed\nmultiple regular\u2026', turn: 9 },
+  { id: 'n_975f2018', label: 'Being mindful\nabout sugar', turn: 9 },
+  { id: 'n_a093075e', label: 'Feeling like garbage\nafter sugary drinks', turn: 10 },
+  { id: 'n_1f366c8c', label: 'Physical discomfort\nfrom sugar crash\u2026', turn: 10 },
+  { id: 'n_26d0e9b1', label: 'Getting older and\nanticipating future\u2026', turn: 10 },
+  { id: 'n_b2de7695', label: 'Protect long-term\nhealth before probl\u2026', turn: 10 },
+  { id: 'n_29373a3a', label: "Taking care of\nmy futur\u2026", turn: 10 },
+  { id: 'n_b714676a', label: "Making a slightly\nbetter choice\u2026", turn: 11 },
+  { id: 'n_1ac62e22', label: "Avoid feeling like\nI'm sabotaging", turn: 11 },
+  { id: 'n_39c65311', label: 'Avoid post-drink\nguilt', turn: 11 },
+];
+
+const links = [
+  { source: 'n_77ed539b', target: 'n_3d7ee457', rel: 'occurs_in' },
+  { source: 'n_77ed539b', target: 'n_873396f9', rel: 'triggers' },
+  { source: 'n_d19e1681', target: 'n_873396f9', rel: 'drives' },
+  { source: 'n_55b03e99', target: 'n_d19e1681', rel: 'implies' },
+  { source: 'n_55b03e99', target: 'n_a1382c49', rel: 'implies' },
+  { source: 'n_a1382c49', target: 'n_a7dca702', rel: 'drives' },
+  { source: 'n_3d7ee457', target: 'n_55b03e99', rel: 'triggers' },
+  { source: 'n_55b03e99', target: 'n_009775d8', rel: 'triggers' },
+  { source: 'n_009775d8', target: 'n_a7dca702', rel: 'drives' },
+  { source: 'n_d19e1681', target: 'n_009775d8', rel: 'implies' },
+  { source: 'n_bd481bcf', target: 'n_7fe01e56', rel: 'implies' },
+  { source: 'n_83212628', target: 'n_c12f5a9d', rel: 'drives' },
+  { source: 'n_55b03e99', target: 'n_c12f5a9d', rel: 'drives' },
+  { source: 'n_7fe01e56', target: 'n_c12f5a9d', rel: 'drives' },
+  { source: 'n_43d93c30', target: 'n_9d996ea0', rel: 'triggers' },
+  { source: 'n_17df1309', target: 'n_c12f5a9d', rel: 'drives' },
+  { source: 'n_1803a953', target: 'n_9d996ea0', rel: 'conflicts_with' },
+  { source: 'n_1803a953', target: 'n_1227e302', rel: 'implies' },
+  { source: 'n_1227e302', target: 'n_bd481bcf', rel: 'supports' },
+  { source: 'n_b0ec30a7', target: 'n_eea5cbcf', rel: 'implies' },
+  { source: 'n_eea5cbcf', target: 'n_c12f5a9d', rel: 'drives' },
+  { source: 'n_c12f5a9d', target: 'n_eea5cbcf', rel: 'achieves' },
+  { source: 'n_8dad9727', target: 'n_eea5cbcf', rel: 'implies' },
+  { source: 'n_6ceaeb23', target: 'n_cf1748ef', rel: 'achieves' },
+  { source: 'n_cf1748ef', target: 'n_17df1309', rel: 'supports' },
+  { source: 'n_604821fe', target: 'n_3c99491a', rel: 'triggers' },
+  { source: 'n_975f2018', target: 'n_3c99491a', rel: 'drives' },
+  { source: 'n_3c99491a', target: 'n_6ceaeb23', rel: 'drives' },
+  { source: 'n_975f2018', target: 'n_eea5cbcf', rel: 'supports' },
+  { source: 'n_604821fe', target: 'n_83212628', rel: 'triggers' },
+  { source: 'n_1f366c8c', target: 'n_a093075e', rel: 'implies' },
+  { source: 'n_a093075e', target: 'n_b2de7695', rel: 'implies' },
+  { source: 'n_26d0e9b1', target: 'n_b2de7695', rel: 'triggers' },
+  { source: 'n_b2de7695', target: 'n_29373a3a', rel: 'supports' },
+  { source: 'n_29373a3a', target: 'n_975f2018', rel: 'drives' },
+  { source: 'n_1f366c8c', target: 'n_eea5cbcf', rel: 'implies' },
+  { source: 'n_6ceaeb23', target: 'n_29373a3a', rel: 'drives' },
+  { source: 'n_39c65311', target: 'n_1ac62e22', rel: 'implies' },
+  { source: 'n_1ac62e22', target: 'n_b714676a', rel: 'supports' },
+  { source: 'n_6ceaeb23', target: 'n_b714676a', rel: 'drives' },
+  { source: 'n_29373a3a', target: 'n_1ac62e22', rel: 'supports' },
+  { source: 'n_6ceaeb23', target: 'n_39c65311', rel: 'achieves' },
+];
+
+/* ═══════════════════════════════════════════════
+   Build nodes & edges
+   ═══════════════════════════════════════════════ */
+const FONT  = '"Inter Tight", -apple-system, sans-serif';
+const MONO  = '"JetBrains Mono", monospace';
+
+const echartsNodes = nodes.map(n => {
+  const f = FOCUSED_IDS.has(n.id);
+  return {
+    id: n.id,
+    name: n.label,
+    category: f ? 0 : 1,
+    symbolSize: f ? 48 : 32,
+    value: n.turn,
+    itemStyle: {
+      color: f ? '#F2EAD6' : '#FFFFFF',
+      borderColor: f ? '#5C4612' : '#C7C5BB',
+      borderWidth: f ? 0.8 : 0.8,
+      shadowColor: 'rgba(20,23,28,0.05)',
+      shadowBlur: f ? 6 : 2,
+      borderRadius: 6,
+    },
+    label: {
+      show: true,
+      formatter: function(p) {
+        const nd = nodes.find(x => x.id === p.data.id);
+        const t = nd ? `(${nd.turn}) ` : '';
+        return `{m|${t}}{l|${p.name}}`;
+      },
+      rich: {
+        m: {
+          fontSize: 12,
+          fontFamily: MONO,
+          fontWeight: 400,
+          color: f ? '#5C4612' : '#7A828D',
+          letterSpacing: '0.04em',
+          padding: [0, 2, 0, 0],
+        },
+        l: {
+          fontSize: 10,
+          fontFamily: MONO,
+          fontWeight: 400,
+          color: '#14171C',
+          lineHeight: 15,
+        },
+      },
+    },
+  };
+});
+
+const echartsLinks = links.map(l => ({
+  source: l.source,
+  target: l.target,
+  label: {
+    show: true,
+    formatter: l.rel.replace(/_/g, ' '),
+    fontSize: 9,
+    fontFamily: MONO,
+    fontWeight: 500,
+    color: REL_COLORS[l.rel],
+    letterSpacing: '0.02em',
+  },
+  lineStyle: {
+    color: REL_COLORS[l.rel],
+    width: 1.4,
+    curveness: 0.15,
+    opacity: 0.5,
+  },
+  emphasis: {
+    lineStyle: { width: 2.5, opacity: 0.85 },
+    label: { fontSize: 11 },
+  },
+}));
+
+const categories = [
+  { name: 'Concepts targeted by the interview engine',    itemStyle: { color: '#F2EAD6' } },
+  { name: 'Other discovered concepts', itemStyle: { color: '#FFFFFF' } },
+  { name: '( # ) - turn at which the concept was discovered', itemStyle: { color: '#00000' } },
+];
+
+const relTypes = [...new Set(links.map(l => l.rel))].sort();
+const relLegendData = relTypes.map(r => ({
+  name: r.replace(/_/g, ' '),
+  itemStyle: { color: REL_COLORS[r] },
+  icon: 'roundRect',
+}));
+
+/* ═══════════════════════════════════════════════
+   ECharts option — responsive, fills viewport
+   ═══════════════════════════════════════════════ */
+const option = {
+  backgroundColor: '#F2F1ED',
+  title: [
+    {
+      text: 'Conversation Graph — New Pipeline (Stage 4.5B Edge Extraction)',
+      left: '3%',
+      top: '3%',
+      textStyle: {
+        fontSize: 24,
+        fontWeight: 600,
+        fontFamily: FONT,
+        color: '#14171C',
+        letterSpacing: '-0.02em',
+      },
+    },
+    {
+      text: 'Concept \u00B7 ZeroFizz Sugar-Free Carbonated Beverage',
+      left: '3%',
+      top: '8%',
+      textStyle: {
+        fontSize: 12,
+        fontWeight: 400,
+        fontFamily: MONO,
+        color: '#7A828D',
+        letterSpacing: '-0.02em',
+      },
+    },
+    {
+      text: 'Method  \u00B7 Jobs-to-be-Done  \u00B7  Pipeline: Stage 4.5B Edge Extraction (Haiku)  \u00B7  enable_edge_extraction_stage: true',
+      left: '3%',
+      top: '11%',
+      textStyle: {
+        fontSize: 12,
+        fontWeight: 400,
+        fontFamily: MONO,
+        color: '#7A828D',
+        letterSpacing: '-0.02em',
+      },
+    },
+    {
+      text: 'Persona \u00B7 Baseline Cooperative Respondent',
+      left: '3%',
+      top: '14%',
+      textStyle: {
+        fontSize: 12,
+        fontWeight: 400,
+        fontFamily: MONO,
+        color: '#7A828D',
+        letterSpacing: '-0.02em',
+      },
+    },
+    {
+      text: '32 elements  \u00B7  42 relationships  \u00B7  11 turns  \u00B7  Pipeline: 4.5B Edge Extraction (Haiku)  \u00B7  2026-05-02',
+      right: '3%',
+      top: '4%',
+      textStyle: {
+        fontSize: 12,
+        fontFamily: MONO,
+        fontWeight: 400,
+        color: '#7A828D',
+        letterSpacing: '0.04em',
+        textAlign: 'right',
+      },
+    },
+  ],
+  tooltip: {
+    trigger: 'item',
+    backgroundColor: '#14171C',
+    borderColor: '#41474F',
+    borderWidth: 1,
+    padding: [8, 12],
+    textStyle: { color: '#F2F1ED', fontSize: 11, fontFamily: FONT },
+    formatter: function(p) {
+      if (p.dataType === 'node') {
+        const f = FOCUSED_IDS.has(p.data.id);
+        const nd = nodes.find(x => x.id === p.data.id);
+        const t = nd ? nd.turn : p.data.value;
+        return '<b>' + p.name.replace(/\n/g, ' ') + '</b>'
+          + '<br/><span style="font-family:JetBrains Mono;font-size:10px;color:#7A828D">turn ' + String(t).padStart(2,'0') + '</span>'
+          + '<br/><span style="font-family:JetBrains Mono;font-size:10px;color:' + (f ? '#5C4612' : '#7A828D') + '">' + (f ? 'focus' : 'other') + '</span>';
+      }
+      if (p.dataType === 'edge') {
+        return '<span style="font-family:JetBrains Mono;font-size:11px;font-weight:500">' + p.data.label.formatter + '</span>';
+      }
+      return '';
+    },
+  },
+  legend: [
+    {
+      data: categories.map(c => c.name),
+      bottom: '4%',
+      left: '3%',
+      textStyle: { fontSize: 11, fontFamily: FONT, color: '#41474F' },
+      icon: 'roundRect', itemWidth: 16, itemHeight: 8, itemGap: 16,
+    },
+    {
+      data: relLegendData,
+      bottom: '4%',
+      right: '3%',
+      textStyle: { fontSize: 10, fontFamily: MONO, color: '#41474F', letterSpacing: '0.04em' },
+      icon: 'roundRect', itemWidth: 12, itemHeight: 6, itemGap: 10,
+    },
+  ],
+  animationDuration: 1000,
+  animationEasingUpdate: 'quinticInOut',
+  series: [{
+    type: 'graph',
+    layout: 'force',
+    roam: true,
+    draggable: true,
+    zoom: 1.15,
+    center: ['50%', '52%'],
+    data: echartsNodes,
+    links: echartsLinks,
+    categories: categories,
+    force: {
+      repulsion: 380,
+      gravity: 0.14,
+      edgeLength: [90, 180],
+      layoutAnimation: true,
+      friction: 0.65,
+    },
+    edgeSymbol: ['none', 'arrow'],
+    edgeSymbolSize: [0, 6],
+    emphasis: {
+      focus: 'adjacency',
+      itemStyle: {
+        shadowBlur: 14,
+        shadowColor: 'rgba(20,23,28,0.1)',
+      },
+      lineStyle: { width: 2.5 },
+    },
+    lineStyle: { curveness: 0.15 },
+  }],
+};
+
+chart.setOption(option);
+window.addEventListener('resize', () => chart.resize());
+</script>
+</body>
+</html>

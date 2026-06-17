@@ -1,0 +1,4 @@
+[ZoneTransfer]
+ZoneId=3
+ReferrerUrl=https://claude.ai/chat/0438b354-588c-465d-a95a-2a3a07be2e49
+HostUrl=https://claude.ai/api/organizations/7e5dd448-1901-424b-a2ec-7649b5d21c2a/conversations/0438b354-588c-465d-a95a-2a3a07be2e49/wiggle/download-file?path=%2Fmnt%2Fuser-data%2Foutputs%2Fedge-extraction-spec.md

@@ -97,7 +97,9 @@ def get_edge_extraction_system_prompt(methodology: str = "means_end_chain") -> s
     if schema.method:
         raw_notes = schema.method.get("edge_extraction_notes", "")
         if raw_notes:
-            edge_extraction_notes = f"\n## Methodology-Specific Edge Extraction Notes:\n{raw_notes}\n"
+            edge_extraction_notes = (
+                f"\n## Methodology-Specific Edge Extraction Notes:\n{raw_notes}\n"
+            )
 
     # Edge types section
     edge_types_lines = []
@@ -328,10 +330,7 @@ def format_candidate_pair_for_edge_extraction(
     Candidate Nodes section above, and repeating them per-pair causes O(n*m)
     prompt bloat when nodes appear in multiple pairs.
     """
-    return (
-        f"  - pair=\"{source_id},{target_id}\""
-        f"  ({source_type} -> {target_type})"
-    )
+    return f'  - pair="{source_id},{target_id}"  ({source_type} -> {target_type})'
 
 
 def format_existing_edge_for_prompt(

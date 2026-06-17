@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Turn pipeline — technical view (v4 — Grid Layout)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="deck-stage.js"></script>
+<style>
+  :root {
+    --bg:        #F2F1ED;
+    --panel:    #FFFFFF;
+    --ink:      #14171C;
+    --ink-2:    #41474F;
+    --ink-3:    #7A828D;
+    --rule:     #DDDCD4;
+    --rule-strong: #C7C5BB;
+    --line:     #5B6471;
+
+    --c-llm-bg:    #ECECF7;   --c-llm-fg:    #2E2A6B;
+    --c-emb-bg:    #E1EFEA;   --c-emb-fg:    #16574A;
+    --c-pure-bg:   #F2EAD6;   --c-pure-fg:   #5C4612;
+    --c-async-bg:  #F8E8D5;   --c-async-fg:  #874A0B;
+    --c-edge-bg:   #E4E0F0;   --c-edge-fg:   #3D2E6B;
+
+    --g-intake:   #5B6471;
+    --g-graph:    #4F6E8C;
+    --g-state:    #6B5C8A;
+    --g-strategy: #8A5C5C;
+    --g-gen:      #5C7A5C;
+    --g-persist:  #7A6B4F;
+
+    --font-body: "Inter Tight", -apple-system, sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #0c0d0e; }
+  body { font-family: var(--font-body); color: var(--ink); }
+
+  .slide {
+    width: 1920px; min-height: 1080px; height: auto;
+    background: var(--bg);
+    padding: 5px 28px 28px;
+    display: grid;
+    grid-template-rows: auto auto auto;
+    gap: 16px;
+    position: relative;
+    overflow: visible;
+    color: var(--ink);
+  }
+  .slide::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(20,23,28,0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(20,23,28,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  .slide > * { position: relative; z-index: 1; }
+
+  /* ---- header ---- */
+  .header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    border-bottom: 1px solid var(--rule-strong);
+    padding-bottom: 14px;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 14px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-3); margin-bottom: 6px;
+  }
+  .title {
+    font-size: 44px; font-weight: 600; letter-spacing: -0.02em;
+    line-height: 1.1; color: var(--ink);
+  }
+  .title em { font-style: normal; color: var(--ink-3); font-weight: 500; }
+  .subtitle {
+    font-size: 18px; color: var(--ink-2); margin-top: 8px;
+    max-width: 1100px; line-height: 1.4;
+  }
+  .header-meta {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 12px; color: var(--ink-3);
+    letter-spacing: 0.04em; line-height: 1.7;
+    flex-shrink: 0; min-width: 220px;
+  }
+  .header-meta b { color: var(--ink); font-weight: 500; }
+
+  /* ---- pipeline ---- */
+  .pipeline {
+    display: grid;
+    grid-template-columns: 158px 84px 24px repeat(7, 1fr) 24px 84px;
+    grid-template-rows: 400px 400px;
+    row-gap: 8px;
+    position: relative;
+    width: 100%;
+    min-width: 0;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-items: stretch;
+    gap: 0;
+    position: relative;
+  }
+
+  /* ---- row meta ---- */
+  .row-meta {
+    display: flex; flex-direction: column;
+    justify-content: center;
+    padding-right: 18px;
+    border-right: 1px solid rgba(20,23,28,0.08);
+    margin-right: 14px;
+  }
+  .phase-tag {
+    font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3); margin-bottom: 4px;
+  }
+  .row-name {
+    font-size: 22px; font-weight: 600;
+    letter-spacing: -0.01em; line-height: 1.15;
+    margin-top: 2px; color: var(--ink);
+  }
+  .row-tag {
+    font-size: 13px; color: var(--ink-2);
+    line-height: 1.35; margin-top: 8px;
+    font-style: italic;
+  }
+
+  /* ---- endpoints ---- */
+  .endpoint {
+    align-self: center;
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1.5px solid var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    text-align: center;
+    font-size: 13px; font-weight: 600; line-height: 1.15;
+    padding: 6px; color: var(--ink);
+  }
+  .endpoint.out {
+    background: var(--ink); color: var(--bg); border-color: var(--ink);
+  }
+
+  /* ---- arrows ---- */
+  .arrow {
+    align-self: center;
+    height: 2px; background: var(--line);
+    position: relative; width: 24px;
+  }
+  .arrow::after {
+    content: ''; position: absolute; right: -1px; top: 50%;
+    transform: translateY(-50%);
+    border-left: 8px solid var(--line);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+  .arrow.bend::before {
+    content: ''; position: absolute; left: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 8px; height: 8px;
+    border-radius: 50%; background: var(--line);
+  }
+
+  /* ---- groups ---- */
+  .group {
+    min-width: 0;
+    display: flex; flex-direction: column;
+    padding: 0 8px;
+    position: relative;
+  }
+  .group + .group { border-left: 1px dashed var(--rule-strong); }
+  .group-head {
+    display: flex; align-items: baseline; gap: 8px;
+    margin-bottom: 4px; padding: 0 4px;
+  }
+  .group-num {
+    font-family: var(--font-mono);
+    font-size: 11px; color: var(--ink-3);
+    letter-spacing: 0.08em;
+  }
+  .group-name {
+    font-size: 14px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--ink);
+  }
+  .group-stripe {
+    height: 3px; border-radius: 2px;
+    margin-bottom: 6px;
+    background: var(--group-color, var(--ink));
+    opacity: 0.7;
+  }
+
+  /* ---- stages ---- */
+  .stages {
+    display: flex; gap: 8px;
+    align-items: stretch;
+    flex: 1; min-width: 0;
+    width: 100%;
+  }
+  .stage {
+    flex: 1 1 0; min-width: 0;
+    background: var(--panel);
+    border: 1px solid var(--rule-strong);
+    border-radius: 10px;
+    padding: 10px 10px 9px;
+    display: flex; flex-direction: column;
+    gap: 4px;
+    position: relative;
+    box-shadow: 0 1px 0 rgba(20,23,28,0.04);
+  }
+  .stage-num {
+    font-family: var(--font-mono);
+    font-size: 11px; color: var(--ink-3);
+    letter-spacing: 0.08em;
+  }
+  .stage-name {
+    font-size: 16px; font-weight: 600;
+    line-height: 1.2; color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .stage-sub {
+    font-size: 13px; line-height: 1.4;
+    color: var(--ink-2); flex: 1;
+  }
+
+  /* ---- badges (unified) ---- */
+  .badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+  .badge {
+    font-family: var(--font-mono);
+    font-size: 11px; font-weight: 500;
+    padding: 3px 7px; border-radius: 4px;
+    letter-spacing: 0.04em; white-space: nowrap;
+  }
+  .badge.llm   { background: var(--c-llm-bg);   color: var(--c-llm-fg);   }
+  .badge.emb   { background: var(--c-emb-bg);   color: var(--c-emb-fg);   }
+  .badge.pure  { background: var(--c-pure-bg);  color: var(--c-pure-fg);  }
+  .badge.async { background: var(--c-async-bg); color: var(--c-async-fg); }
+  .badge.edge  { background: var(--c-edge-bg);  color: var(--c-edge-fg);  }
+
+  /* ---- small stage variant ---- */
+  .stage--sm {
+    flex: 1 1 0; min-width: 0;
+    background: var(--panel);
+    border: 1px solid var(--rule-strong);
+    border-radius: 7px;
+    padding: 6px 7px 5px;
+    display: flex; flex-direction: column;
+    gap: 2px;
+    box-shadow: 0 1px 0 rgba(20,23,28,0.03);
+  }
+  .stage--sm .stage-num {
+    font-size: 11px; letter-spacing: 0.06em;
+  }
+  .stage--sm .stage-name {
+    font-size: 16px; line-height: 1.2;
+  }
+  .stage--sm .stage-sub {
+    font-size: 13px; line-height: 1.4;
+  }
+  .stage--sm .badges { gap: 4px; margin-top: 2px; }
+  .stage--sm .badge { font-size: 11px; padding: 3px 7px; border-radius: 4px; }
+
+  /* ---- parallel block ---- */
+  .parblock {
+    flex: 3; min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 1fr 1fr 1fr;
+    gap: 4px 6px;
+    border: 1.5px dashed var(--c-async-fg);
+    border-radius: 12px;
+    padding: 14px 10px 6px;
+    background: rgba(248,232,213,0.22);
+    position: relative;
+  }
+  .parblock-label {
+    position: absolute; top: -10px; left: 12px;
+    background: var(--bg); padding: 0 6px;
+    font-family: var(--font-mono);
+    font-size: 11px; letter-spacing: 0.06em;
+    color: var(--c-async-fg); font-weight: 500;
+  }
+  .parblock .full { grid-column: 1 / -1; }
+  .parblock .sidebyside {
+    display: flex; gap: 6px; min-width: 0;
+  }
+  .parblock .sidebyside .stage--sm { flex: 1; min-width: 0; }
+
+  /* ---- legend ---- */
+  .legend {
+    display: flex; gap: 28px; flex-wrap: wrap;
+    align-items: center;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule-strong);
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--ink-2);
+  }
+  .footer-note {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 12px; color: var(--ink-3);
+    letter-spacing: 0.04em;
+  }
+
+  /* ---- group modifiers ---- */
+  .group--intake   { --group-color: var(--g-intake); }
+  .group--graph    { --group-color: var(--g-graph); }
+  .group--state    { --group-color: var(--g-state); }
+  .group--strategy { --group-color: var(--g-strategy); }
+  .group--gen      { --group-color: var(--g-gen); }
+  .group--persist  { --group-color: var(--g-persist); }
+</style>
+</head>
+<body>
+
+<deck-stage width="1920" height="1080">
+
+<section data-label="01 Pipeline">
+  <div class="slide">
+
+    <header class="header">
+      <div style="min-width: 0; flex: 1;">
+        <div class="eyebrow">Interview engine · turn pipeline</div>
+        <h1 class="title">Inside one turn <em>— listen &amp; gather, then understand &amp; act</em></h1>
+        <div class="subtitle">A respondent answer enters; a grounded next question leaves. Two phases: during phase 1 the engine listens to the answer and grows the conversation map; in phase 2 the engine reads the map, picks a move, writes the question, persists state.</div>
+      </div>
+    </header>
+
+    <main class="pipeline" id="pipeline">
+
+      <!-- =============== ROW 1 — LISTEN & GATHER =============== -->
+      <div class="row" id="row-1" style="grid-row: 1;">
+
+        <div class="row-meta" style="grid-column: 1;">
+          <div class="phase-tag">Phase 1</div>
+          <div class="row-name">Listen &amp; gather</div>
+          <div class="row-tag">Take in the answer; grow the conversation map.</div>
+        </div>
+
+        <div class="endpoint" style="grid-column: 2;">respondent<br>answer</div>
+        <div class="arrow" style="grid-column: 3;"></div>
+
+        <!-- INTAKE -->
+        <div class="group group--intake" style="grid-column: 4 / span 3;">
+          <div class="group-stripe"></div>
+          <div class="group-head"><span class="group-name">Intake</span></div>
+          <div class="stages">
+            <div class="stage">
+              <div class="stage-num">STAGE 1</div>
+              <div class="stage-name">Load conversation context</div>
+              <div class="stage-sub">Session metadata, conversation history, node tracker, strategy history.</div>
+            </div>
+            <div class="stage">
+              <div class="stage-num">STAGE 2</div>
+              <div class="stage-name">Persist and index utterance</div>
+              <div class="stage-sub">Persist respondent input to database.</div>
+            </div>
+            <div class="stage">
+              <div class="stage-num">STAGE 2.5</div>
+              <div class="stage-name">Parse roles &amp; claims</div>
+              <div class="stage-sub">Discourse relations + predicate-argument frames extracted from the raw text.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GRAPH BUILDING -->
+        <div class="group group--graph" id="g-graph" style="grid-column: 7 / span 4;">
+          <div class="group-stripe"></div>
+          <div class="group-head"><span class="group-name">Graph building</span></div>
+          <div class="stages" id="graph-stages">
+
+            <div class="stage" id="s-3">
+              <div class="stage-num">STAGE 3</div>
+              <div class="stage-name">Extract concepts</div>
+              <div class="stage-sub">Extracting concepts from utterances; assining labels.</div>
+              <div class="badges"><span class="badge llm">LLM · Sonnet</span></div>
+            </div>
+
+            <!-- 2-COLUMN PARALLEL BLOCK -->
+            <div class="parblock" id="parblock">
+              <div class="parblock-label">⚡ 3 concurrent streams</div>
+
+              <div class="stage--sm full">
+                <div class="stage-num">STAGE 3.1</div>
+                <div class="stage-name">Fire signal detection</div>
+                <div class="stage-sub">Fire async Haiku batch call for engagement, certainty, elaboration, charge. Runs in background until awaited at Stage 4.7.</div>
+                <div class="badges"><span class="badge llm">LLM · Haiku</span><span class="badge async">⚡ fire</span></div>
+              </div>
+
+              <div class="stage--sm" style="grid-column: 1; grid-row: 2 / 4;">
+                <div class="stage-num">STAGE 4</div>
+                <div class="stage-name">Merge &amp; deduplicate graph</div>
+                <div class="stage-sub">Add nodes; cosine dedup &gt;0.80. After this, two paths fork and run concurrently.</div>
+                <div class="badges"><span class="badge emb">embed</span></div>
+              </div>
+
+              <div class="stage--sm" style="grid-column: 2 / -1; grid-row: 2;">
+                <div class="stage-num">STAGE 4.5</div>
+                <div class="stage-name">Slot discovery</div>
+                <div class="stage-sub">Abstract nodes → themes that persist across turns; cosine &gt;0.60.</div>
+                <div class="badges"><span class="badge llm">LLM · Haiku</span></div>
+              </div>
+
+              <div class="stage--sm" style="grid-column: 2; grid-row: 3;">
+                <div class="stage-num">STAGE 4.5B</div>
+                <div class="stage-name">Fire edge extraction</div>
+                <div class="stage-sub">Build candidate pairs; fire async Haiku call.</div>
+                <div class="badges"><span class="badge llm">LLM · Haiku</span><span class="badge async">⚡ fire</span></div>
+              </div>
+
+              <div class="stage--sm" style="grid-column: 3; grid-row: 3;">
+                <div class="stage-num">STAGE 4.6</div>
+                <div class="stage-name">Edge bridge</div>
+                <div class="stage-sub">Validate connections; persist edges</div>
+                <div class="badges"><span class="badge async">⚡ await</span></div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- =============== ROW 2 — UNDERSTAND & ACT =============== -->
+      <div class="row" id="row-2" style="grid-row: 2;">
+
+        <div class="row-meta" style="grid-column: 1;">
+          <div class="phase-tag">Phase 2</div>
+          <div class="row-name">Understand &amp; act</div>
+          <div class="row-tag">Read the map, choose a move, write &amp; persist.</div>
+        </div>
+
+        <div class="arrow bend" style="grid-column: 3;"></div>
+
+        <!-- STATE -->
+        <div class="group group--state" style="grid-column: 4 / span 2;">
+          <div class="group-stripe"></div>
+          <div class="group-head"><span class="group-name">State</span></div>
+          <div class="stages">
+            <div class="stage" id="s-47">
+              <div class="stage-num">STAGE 4.7</div>
+              <div class="stage-name">Await signals<br>&amp; seal tracker</div>
+              <div class="stage-sub">Await 3.1 task. Route per-concept ratings to NodeStateTracker. Seal — stages 5–10 read only the sealed snapshot.</div>
+              <div class="badges"><span class="badge async">⚡ async await</span></div>
+            </div>
+            <div class="stage">
+              <div class="stage-num">STAGE 5</div>
+              <div class="stage-name">Compute graph topology metrics</div>
+              <div class="stage-sub">Refresh node/edge counts, depth, orphans, chain completeness, saturation metrics.</div>
+              <div class="badges"><span class="badge pure">computation</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STRATEGY -->
+        <div class="group group--strategy" style="grid-column: 6 / span 1;">
+          <div class="group-stripe"></div>
+          <div class="group-head"><span class="group-name">Strategy</span></div>
+          <div class="stages">
+            <div class="stage">
+              <div class="stage-num">STAGE 6</div>
+              <div class="stage-name">Joint strategy–node selection</div>
+              <div class="stage-sub">Joint (strategy × node) scoring over LLM signals from 4.7 (engagement, certainty, elaboration, charge) plus deterministic graph + phase signals.</div>
+              <div class="badges"><span class="badge pure">computation</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GENERATION -->
+        <div class="group group--gen" style="grid-column: 7 / span 2;">
+          <div class="group-stripe"></div>
+          <div class="group-head"><span class="group-name">Generation</span></div>
+          <div class="stages">
+            <div class="stage">
+              <div class="stage-num">STAGE 7</div>
+              <div class="stage-name">Continuation gate</div>
+              <div class="stage-sub">Continue or close based on saturation + turn limit.</div>
+              <div class="badges"><span class="badge pure">computation</span></div>
+            </div>
+            <div class="stage">
+              <div class="stage-num">STAGE 8</div>
+              <div class="stage-name">Synthesize grounded question</div>
+              <div class="stage-sub">Grounded in selected strategy + focus node; 3 candidates, scored against rubric, best returned.</div>
+              <div class="badges"><span class="badge llm">LLM · Haiku</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PERSIST -->
+        <div class="group group--persist" style="grid-column: 9 / span 2;">
+          <div class="group-stripe"></div>
+          <div class="group-head"><span class="group-name">Persist</span></div>
+          <div class="stages">
+            <div class="stage">
+              <div class="stage-num">STAGE 9</div>
+              <div class="stage-name">Save question</div>
+              <div class="stage-sub">Persist the generated question to database (system's response to the respondent).</div>
+            </div>
+            <div class="stage">
+              <div class="stage-num">STAGE 10</div>
+              <div class="stage-name">Save scoring &amp; state</div>
+              <div class="stage-sub">Commit turn state. Persist signals, scores, node tracker state, strategy history for next turn.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arrow" style="grid-column: 11;"></div>
+        <div class="endpoint out" style="grid-column: 12;">next<br>question</div>
+      </div>
+
+    </main>
+
+    <footer class="legend">
+      <div class="legend-item"><span class="badge llm">LLM</span> 5 calls / turn — 1 Sonnet (extract), 4 Haiku (signals, slot, edge-extr., generate)</div>
+      <div class="legend-item"><span class="badge emb">embeddings</span> cosine similarity merge (×2)</div>
+      <div class="legend-item"><span class="badge pure">computation</span> deterministic, no model</div>
+      <div class="legend-item"><span class="badge async">⚡ async</span> 2 background Haiku calls overlap with main pipeline (signal detection, edge extraction)</div>
+    </footer>
+
+  </div>
+</section>
+
+</deck-stage>
+
+</body>
+</html>

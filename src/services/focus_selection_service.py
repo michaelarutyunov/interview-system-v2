@@ -72,7 +72,11 @@ class FocusSelectionService:
                     label=label,
                     node_type=node_type,
                 )
-                return {"label": label, "node_type": node_type, "source_quote": source_quote}
+                return {
+                    "label": label,
+                    "node_type": node_type,
+                    "source_quote": source_quote,
+                }
 
         # Try to use focus_description
         if focus_dict and "focus_description" in focus_dict:

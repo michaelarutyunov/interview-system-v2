@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Decision Trace — Turns 3→4→5</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #F2F1ED;
+      --panel: #FFFFFF;
+      --ink: #14171C;
+      --ink-2: #41474F;
+      --ink-3: #7A828D;
+      --rule: #DDDCD4;
+      --rule-strong: #C7C5BB;
+      --line: #5B6471;
+
+      --group-graph: #4F6E8C;
+      --group-strategy: #8A5C5C;
+      --group-generation: #5C7A5C;
+
+      --badge-llm-bg: #ECECF7;
+      --badge-llm-fg: #2E2A6B;
+      --badge-pure-bg: #F2EAD6;
+      --badge-pure-fg: #5C4612;
+      --badge-async-bg: #F8E8D5;
+      --badge-async-fg: #874A0B;
+
+      --rel-triggers: #874A0B;
+      --rel-drives: #5C7A5C;
+      --rel-supports: #16574A;
+      --rel-implies: #4F6E8C;
+      --rel-achieves: #6B5C8A;
+      --rel-occurs-in: #5B6471;
+
+      --focus-bg: #F2EAD6;
+      --focus-fg: #5C4612;
+      --focus-border: #5C4612;
+
+      --font-body: 'Inter Tight', -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.4;
+      padding: 40px 32px;
+    }
+
+    .slide {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 36px;
+      border-bottom: 1.5px solid var(--rule-strong);
+      padding-bottom: 20px;
+    }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 36px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      color: var(--ink);
+    }
+
+    .subtitle {
+      font-size: 17px;
+      color: var(--ink-2);
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+
+    .trace-flow {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin: 24px 0 32px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--ink-3);
+    }
+
+    .trace-flow .step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .trace-flow .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--group-graph);
+    }
+
+    .trace-flow .dot.signal { background: var(--group-strategy); }
+    .trace-flow .dot.strategy { background: var(--group-generation); }
+    .trace-flow .arrow {
+      color: var(--rule-strong);
+      font-size: 16px;
+    }
+
+    .turns-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .turn-panel {
+      background: var(--panel);
+      border: 1px solid var(--rule-strong);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 0 rgba(20,23,28,0.04);
+    }
+
+    .turn-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-bottom: 1.5px solid var(--rule);
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+    }
+
+    .turn-number {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: var(--ink-3);
+      text-transform: uppercase;
+    }
+
+    .turn-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .turn-narrative {
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--ink-2);
+      padding: 14px 0 16px;
+      border-bottom: 1px solid var(--rule);
+      margin-bottom: 18px;
+    }
+
+    .panel-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .panel-grid .section:first-child {
+      grid-column: 1 / -1;
+    }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+    }
+
+    .graph-snippet {
+      background: #FAFAF8;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .graph-snippet .node {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 5px;
+      border: 1px solid var(--rule-strong);
+      background: var(--panel);
+      margin: 2px 0;
+    }
+
+    .graph-snippet .node.focus {
+      background: var(--focus-bg);
+      border-color: var(--focus-border);
+      color: var(--focus-fg);
+      font-weight: 500;
+    }
+
+    .graph-snippet .node.l0 {
+      border-left: 3px solid var(--rel-triggers);
+    }
+
+    .graph-snippet .node.l1 {
+      border-left: 3px solid var(--group-graph);
+    }
+
+    .graph-snippet .node.l2 {
+      border-left: 3px solid var(--rel-achieves);
+    }
+
+    .graph-snippet .gap {
+      color: var(--group-strategy);
+      font-weight: 600;
+    }
+
+    .graph-snippet .orphan {
+      border-style: dashed;
+      border-color: var(--group-strategy);
+    }
+
+    .signal-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--badge-pure-bg);
+      color: var(--badge-pure-fg);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      padding: 5px 10px;
+      border-radius: 5px;
+      width: fit-content;
+    }
+
+    .signal-badge .weight {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+
+    .strategy-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(to right, rgba(138,92,92,0.06), transparent);
+      border-left: 3px solid var(--group-strategy);
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .strategy-name {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--group-strategy);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .strategy-meaning {
+      font-size: 14px;
+      color: var(--ink-2);
+      line-height: 1.4;
+    }
+
+    .question-box {
+      background: var(--badge-llm-bg);
+      border-left: 3px solid var(--badge-llm-fg);
+      padding: 14px 16px;
+      border-radius: 0 8px 8px 0;
+      font-size: 15px;
+      font-style: italic;
+      color: var(--ink);
+      line-height: 1.45;
+    }
+
+    .response-box {
+      background: #FAFAF8;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 14px;
+      color: var(--ink-2);
+      line-height: 1.5;
+    }
+
+    .update-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .update-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 13px;
+      font-family: var(--font-mono);
+    }
+
+    .update-item .marker {
+      color: var(--group-generation);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .update-item .node-type {
+      font-size: 11px;
+      color: var(--ink-3);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+
+    .update-item .node-label {
+      color: var(--ink-2);
+    }
+
+    .causal-note {
+      text-align: center;
+      font-size: 13px;
+      color: var(--ink-3);
+      font-style: italic;
+      padding: 12px 0 0;
+      margin-top: 14px;
+      border-top: 1px solid var(--rule);
+    }
+
+    .inter-turn-arrow {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 4px 0;
+      color: var(--ink-3);
+    }
+
+    .inter-turn-arrow svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .legend {
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1.5px solid var(--rule-strong);
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+      font-size: 14px;
+      color: var(--ink-2);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend-item .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid var(--rule-strong);
+    }
+
+    .legend-item .swatch.l0 { border-left: 3px solid var(--rel-triggers); background: var(--panel); }
+    .legend-item .swatch.l1 { border-left: 3px solid var(--group-graph); background: var(--panel); }
+    .legend-item .swatch.l2 { border-left: 3px solid var(--rel-achieves); background: var(--panel); }
+    .legend-item .swatch.focus { background: var(--focus-bg); border-color: var(--focus-border); }
+    .legend-item .swatch.orphan { border-style: dashed; border-color: var(--group-strategy); background: var(--panel); }
+
+    @media (max-width: 700px) {
+      .panel-grid { grid-template-columns: 1fr; }
+      h1 { font-size: 28px; }
+      .turn-panel { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="slide">
+    <header>
+      <div class="eyebrow">Interview Engine — Decision Trace</div>
+      <h1>How the graph drives the conversation forward</h1>
+      <p class="subtitle">
+        A 3-turn causal chain showing how structural graph properties — gaps and orphans —
+        directly determine which strategy fires and what question gets asked next.
+      </p>
+    </header>
+
+    <div class="trace-flow">
+      <div class="step"><span class="dot graph"></span> Graph structure</div>
+      <span class="arrow">→</span>
+      <div class="step"><span class="dot signal"></span> Signal detection</div>
+      <span class="arrow">→</span>
+      <div class="step"><span class="dot strategy"></span> Strategy selection</div>
+      <span class="arrow">→</span>
+      <div class="step">Question generation</div>
+    </div>
+
+    <div class="turns-stack">
+
+      <!-- TURN 3 -->
+      <div class="turn-panel">
+        <div class="turn-header">
+          <span class="turn-number">Turn 3</span>
+          <span class="turn-title">Ground</span>
+        </div>
+
+        <div class="turn-narrative">
+          The previous anchor question surfaced two new nodes, but the scoring engine now identifies a different structural priority. The node <em>"staying energised and functional through the workday without a crash"</em> is an <strong>L1 gain point</strong> — a functional outcome the respondent wants, sitting one level above concrete experience in the JTBD ontology. The graph shows <strong>gap.below</strong>: no L0 context nodes sit underneath it. The system cannot build a complete causal chain without knowing what concrete situations trigger or precede this desired outcome. The <code>gap.below</code> signal fires, and the <strong>ground</strong> strategy wins — probe downward for the missing context.
+        </div>
+
+        <div class="panel-grid">
+          <div class="section">
+            <div class="section-label">Graph state before question</div>
+            <div class="graph-snippet">
+              <div class="node l1 focus">staying energised and functional<br>through the workday without a crash</div>
+              <div style="margin: 4px 0; color: var(--ink-3);">├─ ?</div>
+              <div style="margin: 4px 0; color: var(--ink-3);">└─ ?</div>
+              <div style="margin-top: 8px;" class="gap">▸ gap.below — no L0 context under this L1 node</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-label">Signal that won</div>
+            <div class="signal-badge">
+              convgraph.node.chain.gap.below
+              <span class="weight">w=0.50</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-label">Strategy decision</div>
+            <div class="strategy-box">
+              <div>
+                <div class="strategy-name">Ground</div>
+                <div class="strategy-meaning">Probe downward for concrete context. Ask what happens <em>before</em> the situation.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-label">Question produced</div>
+            <div class="question-box">
+              "What's usually happening right before you hit that 3pm energy dip in meetings?"
+            </div>
+          </div>
+
+          <div class="section" style="grid-column: 1 / -1;">
+            <div class="section-label">Response + graph update</div>
+            <div class="response-box">
+              "Usually I'm just sitting there listening to someone talk through slides or whatever. Like, my brain's kind of checked out by that point, especially if it's been back-to-back meetings since morning."
+            </div>
+            <div class="update-list" style="margin-top: 10px;">
+              <div class="update-item">
+                <span class="marker">+</span>
+                <span class="node-type">job_context</span>
+                <span class="node-label">sitting passively through slide-based presentations</span>
+              </div>
+              <div class="update-item">
+                <span class="marker">+</span>
+                <span class="node-type">job_context</span>
+                <span class="node-label">back-to-back meetings running since morning</span>
+              </div>
+              <div class="update-item">
+                <span class="marker">+</span>
+                <span class="node-type">pain_point</span>
+                <span class="node-label">mental fatigue causing brain to check out by afternoon</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="causal-note">
+          The gap below the gain point is now partially filled with concrete context — but the energy dip node from Turn 2 is still floating, unconnected to anything else.
+        </div>
+      </div>
+
+      <div class="inter-turn-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5v14M19 12l-7 7-7-7"/>
+        </svg>
+      </div>
+
+      <!-- TURN 4 -->
+      <div class="turn-panel">
+        <div class="turn-header">
+          <span class="turn-number">Turn 4</span>
+          <span class="turn-title">Anchor</span>
+        </div>
+
+        <div class="turn-narrative">
+          The ground probe worked — the response added concrete L0 context (slides, back-to-back meetings, mental fatigue). But the scoring engine now flags a different structural problem. The node <em>"experiencing an energy dip around 3pm"</em> is an <strong>L0 job trigger</strong> — the most concrete level in the ontology, a specific event that initiates the need. It was introduced at Turn 2 but remains an <strong>orphan</strong>: it has no edges connecting it to any other node. It's a floating fact. Without connections, it cannot participate in any causal chain. The <code>is_orphan</code> signal fires, and the <strong>anchor</strong> strategy wins — connect this orphan to the rest of the respondent's story.
+        </div>
+
+        <div class="panel-grid">
+          <div class="section">
+            <div class="section-label">Graph state before question</div>
+            <div class="graph-snippet">
+              <div class="node l0 orphan focus">experiencing an energy dip<br>around 3pm</div>
+              <div style="margin-top: 8px; color: var(--ink-3);">(added Turn 2, still unconnected)</div>
+              <div style="margin-top: 8px;" class="gap">▸ is_orphan — floating fact, no edges</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-label">Signal that won</div>
+            <div class="signal-badge">
+              convgraph.node.is_orphan
+              <span class="weight">w=0.50</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-label">Strategy decision</div>
+            <div class="strategy-box">
+              <div>
+                <div class="strategy-name">Anchor</div>
+                <div class="strategy-meaning">Connect this orphan to the rest of the story. Ask for comparison or consequence.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-label">Question produced</div>
+            <div class="question-box">
+              "How does drinking ZeroFizz through those afternoon meetings compare to how you felt before when your brain was checking out?"
+            </div>
+          </div>
+
+          <div class="section" style="grid-column: 1 / -1;">
+            <div class="section-label">Response + graph update</div>
+            <div class="response-box">
+              "honestly it's pretty different. like before i'd hit that 3pm wall and just feel kind of foggy, couldn't really focus on what people were saying. with zerofizz i get that little kick without the crash after, so i'm actually present instead of just zoning out and waiting for it to end."
+            </div>
+            <div class="update-list" style="margin-top: 10px;">
+              <div class="update-item">
+                <span class="marker">+</span>
+                <span class="node-type">pain_point</span>
+                <span class="node-label">feeling foggy and unable to focus on what people are saying</span>
+              </div>
+              <div class="update-item">
+                <span class="marker">+</span>
+                <span class="node-type">gain_point</span>
+                <span class="node-label">getting an energy kick without a crash after</span>
+              </div>
+              <div class="update-item">
+                <span class="marker">+</span>
+                <span class="node-type">gain_point</span>
+                <span class="node-label">being mentally present in meetings instead of zoning out</span>
+              </div>
+              <div class="update-item">
+                <span class="marker">+</span>
+                <span class="node-type">pain_point</span>
+                <span class="node-label">passively waiting for meetings to end due to disengagement</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="causal-note">
+          The orphan is now connected — and a new high-level node has a gap above it…
+        </div>
+      </div>
+
+      <div class="inter-turn-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5v14M19 12l-7 7-7-7"/>
+        </svg>
+      </div>
+
+      <!-- TURN 5 -->
+      <div class="turn-panel">
+        <div class="turn-header">
+          <span class="turn-number">Turn 5</span>
+          <span class="turn-title">Ascend</span>
+        </div>
+
+        <div class="turn-narrative">
+          The anchor probe connected the orphan to new gain and pain points (energy kick without crash, mentally present, zoning out). Edge extraction then linked several of these nodes below <em>"steady, uninterrupted focus during the workday"</em> — an <strong>L1 gain point</strong> introduced at Turn 1. The graph fragment now has L0 context below it, but <strong>gap.above</strong> is detected: nothing sits above it at L2 or L3. The chain tells us <em>what</em> the respondent wants and <em>what triggers</em> it, but not <em>why it matters</em>. The <code>gap.above</code> signal fires, and the <strong>ascend</strong> strategy wins — probe upward for the higher-level meaning.
+        </div>
+
+        <div class="panel-grid">
+          <div class="section">
+            <div class="section-label">Graph state before question</div>
+            <div class="graph-snippet">
+              <div style="margin: 2px 0; color: var(--ink-3);">? ─┐</div>
+              <div class="node l1 focus">steady, uninterrupted focus<br>during the workday</div>
+              <div style="margin: 4px 0; color: var(--ink-3);">├─ energy dip around 3pm</div>
+              <div style="margin: 4px 0; color: var(--ink-3);">├─ mentally present in meetings</div>
+              <div style="margin: 4px 0; color: var(--ink-3);">└─ energy kick without crash</div>
+              <div style="margin-top: 8px;" class="gap">▸ gap.above — no L2/L3 meaning above this L1 node</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-label">Signal that won</div>
+            <div class="signal-badge">
+              convgraph.node.chain.gap.above
+              <span class="weight">w=0.50</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-label">Strategy decision</div>
+            <div class="strategy-box">
+              <div>
+                <div class="strategy-name">Ascend</div>
+                <div class="strategy-meaning">Probe upward for meaning. Ask <em>why</em> this outcome matters.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-label">Question produced</div>
+            <div class="question-box">
+              "Why does actually being present in those meetings matter to you?"
+            </div>
+          </div>
+
+          <div class="section" style="grid-column: 1 / -1;">
+            <div class="section-label">Response + graph update</div>
+            <div class="response-box">
+              "Honestly, I think it's just easier to actually know what's going on instead of getting a secondhand version later. Like, if I'm not there I'm always asking someone 'wait, what did they decide on that?' and it's kind of annoying."
+            </div>
+            <div class="update-list" style="margin-top: 10px;">
+              <div class="update-item">
+                <span class="marker">+</span>
+                <span class="node-type">pain_point</span>
+                <span class="node-label">missing meeting decisions and needing to catch up secondhand</span>
+              </div>
+              <div class="update-item">
+                <span class="marker">+</span>
+                <span class="node-type">gain_point</span>
+                <span class="node-label">having direct, firsthand knowledge of what's happening in meetings</span>
+              </div>
+              <div class="update-item">
+                <span class="marker">+</span>
+                <span class="node-type">job_statement</span>
+                <span class="node-label">staying informed and in the loop at work</span>
+              </div>
+              <div class="update-item">
+                <span class="marker">+</span>
+                <span class="node-type">emotional_job</span>
+                <span class="node-label">feel competent and on top of things at work</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="causal-note">
+          The gap above is filled: L2 (staying informed) and L3 (feel competent) now sit above the focus node — the ascend probe surfaced the higher-level meaning.
+        </div>
+      </div>
+
+    </div>
+
+    <div class="legend">
+      <div class="legend-item">
+        <div class="swatch l0"></div>
+        <span>L0 — Concrete situation</span>
+      </div>
+      <div class="legend-item">
+        <div class="swatch l1"></div>
+        <span>L1 — Functional outcome</span>
+      </div>
+      <div class="legend-item">
+        <div class="swatch l2"></div>
+        <span>L2 — Emotional / social job</span>
+      </div>
+      <div class="legend-item">
+        <div class="swatch focus"></div>
+        <span>Focus node (signal target)</span>
+      </div>
+      <div class="legend-item">
+        <div class="swatch orphan"></div>
+        <span>Orphan (unconnected)</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

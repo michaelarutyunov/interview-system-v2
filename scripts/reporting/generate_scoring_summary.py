@@ -267,11 +267,7 @@ def generate_summary(csv_path: Path) -> str:
 
             # Top 3 signal contributions for winner on this turn
             w_signals = (
-                df[
-                    df["selected"]
-                    & (df["rank"] == 1)
-                    & (df["turn_number"] == tn)
-                ]
+                df[df["selected"] & (df["rank"] == 1) & (df["turn_number"] == tn)]
                 .groupby("signal_name")["weighted_contribution"]
                 .sum()
                 .abs()
@@ -279,16 +275,12 @@ def generate_summary(csv_path: Path) -> str:
                 .head(3)
             )
             w_top = ", ".join(
-                f"{sig.split('.')[-1]}: {val:+.2f}"
-                for sig, val in w_signals.items()
+                f"{sig.split('.')[-1]}: {val:+.2f}" for sig, val in w_signals.items()
             )
 
             # Top 3 signal contributions for runner-up on this turn
             r_signals = (
-                df[
-                    (df["rank"] == 2)
-                    & (df["turn_number"] == tn)
-                ]
+                df[(df["rank"] == 2) & (df["turn_number"] == tn)]
                 .groupby("signal_name")["weighted_contribution"]
                 .sum()
                 .abs()
@@ -296,8 +288,7 @@ def generate_summary(csv_path: Path) -> str:
                 .head(3)
             )
             r_top = ", ".join(
-                f"{sig.split('.')[-1]}: {val:+.2f}"
-                for sig, val in r_signals.items()
+                f"{sig.split('.')[-1]}: {val:+.2f}" for sig, val in r_signals.items()
             )
 
             L(

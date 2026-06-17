@@ -20,7 +20,9 @@ import aiosqlite
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Generate per-turn diagnostics report")
-    p.add_argument("--session-id", required=True, help="Session ID to generate report for")
+    p.add_argument(
+        "--session-id", required=True, help="Session ID to generate report for"
+    )
     p.add_argument(
         "--output-dir",
         default=None,
@@ -67,11 +69,13 @@ async def main() -> None:
             )
             utt_row = await cursor2.fetchone()
             turn = utt_row["turn_number"] if utt_row else 0
-            nodes_by_turn[turn].append({
-                "id": row["id"],
-                "label": row["label"],
-                "node_type": row["node_type"],
-            })
+            nodes_by_turn[turn].append(
+                {
+                    "id": row["id"],
+                    "label": row["label"],
+                    "node_type": row["node_type"],
+                }
+            )
 
         # --- Edges by confirmation turn (stored in properties.turn_number) ---
         cursor = await db.execute(
@@ -85,16 +89,18 @@ async def main() -> None:
         for row in edges:
             props = json.loads(row["properties"]) if row["properties"] else {}
             turn = props.get("turn_number", 0)
-            edges_by_turn[turn].append({
-                "id": row["id"],
-                "source_node_id": row["source_node_id"],
-                "target_node_id": row["target_node_id"],
-                "edge_type": row["edge_type"],
-                "confidence": row["confidence"],
-                "assertion": props.get("assertion", ""),
-                "direction": props.get("direction", ""),
-                "frame": props.get("frame", ""),
-            })
+            edges_by_turn[turn].append(
+                {
+                    "id": row["id"],
+                    "source_node_id": row["source_node_id"],
+                    "target_node_id": row["target_node_id"],
+                    "edge_type": row["edge_type"],
+                    "confidence": row["confidence"],
+                    "assertion": props.get("assertion", ""),
+                    "direction": props.get("direction", ""),
+                    "frame": props.get("frame", ""),
+                }
+            )
 
         # --- Node label + turn lookup ---
         node_labels: dict[str, str] = {}
@@ -120,12 +126,14 @@ async def main() -> None:
             rejected_rows = []
         rejected_by_turn: dict[int, list[dict]] = defaultdict(list)
         for row in rejected_rows:
-            rejected_by_turn[row["turn_number"]].append({
-                "source_node_id": row["source_node_id"],
-                "target_node_id": row["target_node_id"],
-                "rejection_reason": row["rejection_reason"],
-                "reasoning_summary": row["reasoning_summary"],
-            })
+            rejected_by_turn[row["turn_number"]].append(
+                {
+                    "source_node_id": row["source_node_id"],
+                    "target_node_id": row["target_node_id"],
+                    "rejection_reason": row["rejection_reason"],
+                    "reasoning_summary": row["reasoning_summary"],
+                }
+            )
 
         # --- Strategy per turn ---
         cursor = await db.execute(
@@ -182,7 +190,11 @@ async def main() -> None:
             lines.append(f"> **{u['speaker']}**: {text_preview}...")
         # Show user response: either at this turn (turns 1+) or at turn+1 (turn 0)
         if turn == 0:
-            next_utts = [u for u in utterances if u["turn_number"] == 1 and u["speaker"] == "user"]
+            next_utts = [
+                u
+                for u in utterances
+                if u["turn_number"] == 1 and u["speaker"] == "user"
+            ]
             for u in next_utts:
                 text_preview = u["text"][:200].replace("\n", " ")
                 lines.append(f"> **{u['speaker']}**: {text_preview}...")
@@ -208,8 +220,12 @@ async def main() -> None:
         if turn_edges:
             lines.append(f"### Edges confirmed ({len(turn_edges)})")
             lines.append("")
-            lines.append("| Source | T | → | Target | T | Type | Conf | Assertion | Direction | Frame |")
-            lines.append("|--------|---|----|--------|---|------|------|-----------|-----------|-------|")
+            lines.append(
+                "| Source | T | → | Target | T | Type | Conf | Assertion | Direction | Frame |"
+            )
+            lines.append(
+                "|--------|---|----|--------|---|------|------|-----------|-----------|-------|"
+            )
             for e in turn_edges:
                 src = node_labels.get(e["source_node_id"], e["source_node_id"][:12])
                 tgt = node_labels.get(e["target_node_id"], e["target_node_id"][:12])
@@ -246,7 +262,9 @@ async def main() -> None:
             for r in turn_rejected:
                 src = node_labels.get(r["source_node_id"], r["source_node_id"][:12])
                 tgt = node_labels.get(r["target_node_id"], r["target_node_id"][:12])
-                reasoning = r["reasoning_summary"][:120] if r["reasoning_summary"] else "—"
+                reasoning = (
+                    r["reasoning_summary"][:120] if r["reasoning_summary"] else "—"
+                )
                 lines.append(
                     f"| {src[:40]} | → | {tgt[:40]} | `{r['rejection_reason']}` | {reasoning} |"
                 )

@@ -114,9 +114,7 @@ def analyze_log(log_file: Path) -> dict:
         r".*?input_tokens=(\d+).*?latency_ms=([\d\.]+)"
         r".*?model=(\S+).*?output_tokens=(\d+)"
     )
-    cache_pattern = re.compile(
-        r"cache_(creation_input_tokens|read_input_tokens)=(\d+)"
-    )
+    cache_pattern = re.compile(r"cache_(creation_input_tokens|read_input_tokens)=(\d+)")
     pipeline_completed_pattern = re.compile(
         r"pipeline_completed\s+.*?latency_ms=([\d\.]+)"
     )
@@ -222,8 +220,16 @@ def _write_summary_md(data: dict, output_dir: Path) -> Path:
         cache_created = module_data.get("cache_created_tokens", 0)
         cache_read = module_data.get("cache_read_tokens", 0)
         llm_stats.append(
-            (module, stats, tokens_in_stats, tokens_out_stats, models, cost_stats,
-             cache_created, cache_read)
+            (
+                module,
+                stats,
+                tokens_in_stats,
+                tokens_out_stats,
+                models,
+                cost_stats,
+                cache_created,
+                cache_read,
+            )
         )
     llm_stats.sort(key=lambda x: x[1]["total"], reverse=True)
 
