@@ -1,0 +1,145 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+    t11(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10 ~~~ t11
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_77ed539b
+    t1 ~~~ n_3d7ee457
+    t1 ~~~ n_d19e1681
+    t1 ~~~ n_873396f9
+    t2 ~~~ n_55b03e99
+    t2 ~~~ n_a1382c49
+    t2 ~~~ n_a7dca702
+    t3 ~~~ n_009775d8
+    t4 ~~~ n_7fe01e56
+    t4 ~~~ n_bd481bcf
+    t4 ~~~ n_83212628
+    t4 ~~~ n_c12f5a9d
+    t5 ~~~ n_17df1309
+    t5 ~~~ n_43d93c30
+    t5 ~~~ n_9d996ea0
+    t6 ~~~ n_1803a953
+    t6 ~~~ n_1227e302
+    t7 ~~~ n_eea5cbcf
+    t7 ~~~ n_b0ec30a7
+    t8 ~~~ n_cf1748ef
+    t8 ~~~ n_8dad9727
+    t8 ~~~ n_6ceaeb23
+    t9 ~~~ n_3c99491a
+    t9 ~~~ n_604821fe
+    t9 ~~~ n_975f2018
+    t10 ~~~ n_a093075e
+    t10 ~~~ n_1f366c8c
+    t10 ~~~ n_26d0e9b1
+    t10 ~~~ n_b2de7695
+    t10 ~~~ n_29373a3a
+    t11 ~~~ n_b714676a
+    t11 ~~~ n_1ac62e22
+    t11 ~~~ n_39c65311
+
+    %% Node definitions
+    n_77ed539b["(1) afternoon slump at work around 3pm"]
+    n_3d7ee457["(1) at work during the afternoon F1"]
+    n_d19e1681["(1) avoid having coffee again"]
+    n_873396f9["(1) grabbing whatever is available in the..."]
+    n_55b03e99["(2) coffee fatigue from multiple cups"]
+    n_a1382c49["(2) feel refreshed and awake in the after..."]
+    n_a7dca702["(2) choosing a carbonated drink for after..."]
+    n_009775d8["(3) drinking the same thing repeatedly fe..."]
+    n_7fe01e56["(4) need something to sip on beyond water"]
+    n_bd481bcf["(4) caffeine provides the real functional... F5"]
+    n_83212628["(4) avoid overdoing caffeine intake"]
+    n_c12f5a9d["(4) choosing zero sugar soda as easy, low... F6"]
+    n_17df1309["(5) fizz provides refreshment and a littl... F7"]
+    n_43d93c30["(5) zero sugar soda without fizz is just ..."]
+    n_9d996ea0["(5) switching to juice or another drink i..."]
+    n_1803a953["(6) excessive sweetness of juice feels li... F8"]
+    n_1227e302["(6) get actual flavor without sugar crash..."]
+    n_eea5cbcf["(7) avoid putting unnecessary substances ..."]
+    n_b0ec30a7["(7) excess sugar intake feels like pollut..."]
+    n_cf1748ef["(8) avoiding wired-then-tired cycle from ..."]
+    n_8dad9727["(8) wired-then-tired feeling an hour afte..."]
+    n_6ceaeb23["(8) choosing ZeroFizz over regular soda F9 F10"]
+    n_3c99491a["(9) cutting back on sugar while still wan..."]
+    n_604821fe["(9) having already consumed multiple regu..."]
+    n_975f2018["(9) being mindful about sugar intake"]
+    n_a093075e["(10) feeling like garbage after sugary drinks"]
+    n_1f366c8c["(10) physical discomfort from sugar [crash..."]
+    n_26d0e9b1["(10) getting older and anticipating future..."]
+    n_b2de7695["(10) protect long-term health before probl..."]
+    n_29373a3a["(10) feel like I'm taking care of my futur..."]
+    n_b714676a["(11) feel like I'm making a slightly bette..."]
+    n_1ac62e22["(11) avoid feeling like I'm sabotaging myself"]
+    n_39c65311["(11) avoid post-drink guilt"]
+
+    %% Real edges
+    n_77ed539b -->|occurs_in| n_3d7ee457
+    n_77ed539b -->|triggers| n_873396f9
+    n_d19e1681 -->|drives| n_873396f9
+    n_55b03e99 -->|implies| n_d19e1681
+    n_55b03e99 -->|implies| n_a1382c49
+    n_a1382c49 -->|drives| n_a7dca702
+    n_3d7ee457 -->|triggers| n_55b03e99
+    n_55b03e99 -->|triggers| n_009775d8
+    n_009775d8 -->|drives| n_a7dca702
+    n_d19e1681 -->|implies| n_009775d8
+    n_bd481bcf -->|implies| n_7fe01e56
+    n_83212628 -->|drives| n_c12f5a9d
+    n_55b03e99 -->|drives| n_c12f5a9d
+    n_7fe01e56 -->|drives| n_c12f5a9d
+    n_43d93c30 -->|triggers| n_9d996ea0
+    n_17df1309 -->|drives| n_c12f5a9d
+    n_1803a953 -->|conflicts_with| n_9d996ea0
+    n_1803a953 -->|implies| n_1227e302
+    n_1227e302 -->|supports| n_bd481bcf
+    n_b0ec30a7 -->|implies| n_eea5cbcf
+    n_eea5cbcf -->|drives| n_c12f5a9d
+    n_c12f5a9d -->|achieves| n_eea5cbcf
+    n_8dad9727 -->|implies| n_eea5cbcf
+    n_6ceaeb23 -->|achieves| n_cf1748ef
+    n_cf1748ef -->|supports| n_17df1309
+    n_604821fe -->|triggers| n_3c99491a
+    n_975f2018 -->|drives| n_3c99491a
+    n_3c99491a -->|drives| n_6ceaeb23
+    n_975f2018 -->|supports| n_eea5cbcf
+    n_604821fe -->|triggers| n_83212628
+    n_1f366c8c -->|implies| n_a093075e
+    n_a093075e -->|implies| n_b2de7695
+    n_26d0e9b1 -->|triggers| n_b2de7695
+    n_b2de7695 -->|supports| n_29373a3a
+    n_29373a3a -->|drives| n_975f2018
+    n_1f366c8c -->|implies| n_eea5cbcf
+    n_6ceaeb23 -->|drives| n_29373a3a
+    n_39c65311 -->|implies| n_1ac62e22
+    n_1ac62e22 -->|supports| n_b714676a
+    n_6ceaeb23 -->|drives| n_b714676a
+    n_29373a3a -->|supports| n_1ac62e22
+    n_6ceaeb23 -->|achieves| n_39c65311
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_3d7ee457,n_bd481bcf,n_c12f5a9d,n_17df1309,n_1803a953,n_6ceaeb23 focused
+    class n_77ed539b,n_d19e1681,n_873396f9,n_55b03e99,n_a1382c49,n_a7dca702,n_009775d8,n_7fe01e56,n_83212628,n_43d93c30,n_9d996ea0,n_1227e302,n_eea5cbcf,n_b0ec30a7,n_cf1748ef,n_8dad9727,n_3c99491a,n_604821fe,n_975f2018,n_a093075e,n_1f366c8c,n_26d0e9b1,n_b2de7695,n_29373a3a,n_b714676a,n_1ac62e22,n_39c65311 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11 anchor

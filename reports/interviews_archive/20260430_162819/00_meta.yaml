@@ -1,0 +1,17 @@
+# Interview Export Metadata
+timestamp: "20260430_162819"
+session_id: "bfb9ef4f-f765-40c4-94c8-41991b114246"
+concept:
+  id: "zerofizz_beverage_jtbd"
+  name: "ZeroFizz Sugar-Free Carbonated Beverage - Jobs to be Done"
+methodology: "jobs_to_be_done_v2"
+persona:
+  id: "uncertain_hedger"
+  name: "Uncertain Hedger"
+interview:
+  total_turns: 13
+  status: "Maximum turns reached"
+  saved_at: "2026-04-30T16:28:19.359397+00:00"
+source:
+  json_file: "synthetic_interviews/20260430_162819_zerofizz_beverage_jtbd_uncertain_hedger.json"
+  log_file: "interview_20260430_172335.log"

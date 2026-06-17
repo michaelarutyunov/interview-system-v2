@@ -1,0 +1,225 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+    t11(( ))
+    t12(( ))
+    t13(( ))
+    t14(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10 ~~~ t11 ~~~ t12 ~~~ t13 ~~~ t14
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_f19fcca9
+    t1 ~~~ n_38977441
+    t1 ~~~ n_cf857ef6
+    t1 ~~~ n_e2afdaf8
+    t1 ~~~ n_f24e0c9f
+    t1 ~~~ n_875f6459
+    t2 ~~~ n_00faeaf7
+    t2 ~~~ n_d064bed4
+    t2 ~~~ n_3979425c
+    t2 ~~~ n_44ab7c01
+    t2 ~~~ n_a9ca6c3f
+    t2 ~~~ n_283fac64
+    t3 ~~~ n_6cbe446e
+    t3 ~~~ n_e78b0744
+    t3 ~~~ n_996d3a83
+    t4 ~~~ n_ea5946e0
+    t4 ~~~ n_1a9d8dcc
+    t4 ~~~ n_4b04fd49
+    t5 ~~~ n_5130b107
+    t5 ~~~ n_5c2e7631
+    t5 ~~~ n_448cc82b
+    t6 ~~~ n_737a9d32
+    t6 ~~~ n_66200058
+    t6 ~~~ n_c31c6a69
+    t7 ~~~ n_a81ce797
+    t7 ~~~ n_7fee8d7d
+    t7 ~~~ n_022996e5
+    t7 ~~~ n_f98b25e8
+    t8 ~~~ n_837c6223
+    t8 ~~~ n_99cee9f7
+    t8 ~~~ n_85018b60
+    t8 ~~~ n_0a49dc98
+    t8 ~~~ n_6756759f
+    t8 ~~~ n_c3d2feb5
+    t9 ~~~ n_c1b1e268
+    t9 ~~~ n_e7d4d395
+    t9 ~~~ n_96fc861d
+    t10 ~~~ n_acd6d197
+    t10 ~~~ n_c7d6c6e7
+    t10 ~~~ n_a723124a
+    t11 ~~~ n_ec0bd2a4
+    t11 ~~~ n_e3487904
+    t11 ~~~ n_0890585e
+    t12 ~~~ n_f8f60d20
+    t12 ~~~ n_fe4f1b80
+    t12 ~~~ n_066b1bb6
+    t12 ~~~ n_f456d524
+    t12 ~~~ n_b0ed3b3f
+    t12 ~~~ n_e10eb696
+    t13 ~~~ n_d2cabe91
+    t13 ~~~ n_d9f2ab46
+    t13 ~~~ n_678bbb5b
+    t14 ~~~ n_b445193e
+    t14 ~~~ n_31b3ae96
+
+    %% Node definitions
+    n_f19fcca9["(1) mid-afternoon energy slump at work F1"]
+    n_38977441["(1) at work during the afternoon"]
+    n_cf857ef6["(1) get something cold to push through th..."]
+    n_e2afdaf8["(1) drink feels unremarkable and unsatisf... F2"]
+    n_f24e0c9f["(1) grabbing a diet coke from the vending..."]
+    n_875f6459["(1) defaulting to familiar option due to ..."]
+    n_00faeaf7["(2) taste noticeably better than current ..."]
+    n_d064bed4["(2) feeling jittery from current drinks F3"]
+    n_3979425c["(2) experiencing an energy crash after dr... F4"]
+    n_44ab7c01["(2) get a tangible, felt benefit from a d..."]
+    n_a9ca6c3f["(2) sustained energy without jitters or c..."]
+    n_283fac64["(2) grabbing whatever is immediately avai..."]
+    n_6cbe446e["(3) feeling thirsty and needing refreshment F5"]
+    n_e78b0744["(3) satisfy thirst with something cold an..."]
+    n_996d3a83["(3) habitual pull toward carbonated drink..."]
+    n_ea5946e0["(4) reaching for a regular soda as a fall..."]
+    n_1a9d8dcc["(4) low attachment to carbonation as a sp..."]
+    n_4b04fd49["(4) craving drives drink choice more than... F6"]
+    n_5130b107["(5) carbonation sensation as the primary ..."]
+    n_5c2e7631["(5) seeking a quick pick-me-up boost"]
+    n_448cc82b["(5) craving a feeling over a specific bra..."]
+    n_737a9d32["(6) feeling refreshed and cooled down in ... F7"]
+    n_66200058["(6) carbonation feels more satisfying tha..."]
+    n_c31c6a69["(6) hot weather or thirst intensifying th..."]
+    n_a81ce797["(7) physical dehydration triggering an ur..."]
+    n_7fee8d7d["(7) drink feeling like a necessity rather..."]
+    n_022996e5["(7) low urgency when only casually thirst..."]
+    n_f98b25e8["(7) degree of dehydration determining str..."]
+    n_837c6223["(8) post-workout or intense physical acti..."]
+    n_99cee9f7["(8) drink feeling substantial enough to s..."]
+    n_85018b60["(8) ZeroFizz as the go-to drink after a w..."]
+    n_0a49dc98["(8) carbonation bridging the gap between ... F8 F10"]
+    n_6756759f["(8) regular soda feeling too heavy when s..."]
+    n_c3d2feb5["(8) casual thirst reducing drink selectiv... F9"]
+    n_c1b1e268["(9) drink feeling too light leaving thirs... F11"]
+    n_e7d4d395["(9) drink becoming unpleasantly sweet or ..."]
+    n_96fc861d["(9) drink delivering a perceptible, felt ..."]
+    n_acd6d197["(10) being thirsty between meetings at work"]
+    n_c7d6c6e7["(10) low decision effort when stakes feel ..."]
+    n_a723124a["(10) grabbing the nearest cold drink and m..."]
+    n_ec0bd2a4["(11) staying alert and focused without a p... F13"]
+    n_e3487904["(11) feel mentally sharp and ready for the..."]
+    n_0890585e["(11) choosing ZeroFizz over regular soda t..."]
+    n_f8f60d20["(12) actively trying to reduce sugar intake"]
+    n_fe4f1b80["(12) having already consumed too much suga... F12"]
+    n_066b1bb6["(12) regular soda tasting better than suga..."]
+    n_f456d524["(12) guilt from drinking sugary drinks wea..."]
+    n_b0ed3b3f["(12) feel free from guilt about sugar cons..."]
+    n_e10eb696["(12) choosing ZeroFizz as a lower-sugar su..."]
+    n_d2cabe91["(13) feeling sluggish and crashing harder ..."]
+    n_d9f2ab46["(13) avoid feeling like garbage after drin..."]
+    n_678bbb5b["(13) cumulative sugar intake across the da..."]
+    n_b445193e["(14) low personal sensitivity to cumulativ..."]
+    n_31b3ae96["(14) limited self-awareness of energy and ..."]
+
+    %% Real edges
+    n_a81ce797 -->|triggers| n_4b04fd49
+    n_7fee8d7d -->|implies| n_4b04fd49
+    n_f98b25e8 -->|drives| n_4b04fd49
+    n_a81ce797 -->|triggers| n_7fee8d7d
+    n_a81ce797 -->|occurs_in| n_022996e5
+    n_a81ce797 -->|occurs_in| n_f98b25e8
+    n_7fee8d7d -->|supports| n_022996e5
+    n_7fee8d7d -->|supports| n_f98b25e8
+    n_022996e5 -->|conflicts_with| n_f98b25e8
+    n_a81ce797 -->|triggers| n_737a9d32
+    n_a81ce797 -->|supports| n_c31c6a69
+    n_7fee8d7d -->|drives| n_737a9d32
+    n_7fee8d7d -->|supports| n_c31c6a69
+    n_022996e5 -->|conflicts_with| n_c31c6a69
+    n_f98b25e8 -->|drives| n_737a9d32
+    n_f98b25e8 -->|supports| n_c31c6a69
+    n_99cee9f7 -->|achieves| n_737a9d32
+    n_85018b60 -->|achieves| n_737a9d32
+    n_0a49dc98 -->|achieves| n_737a9d32
+    n_85018b60 -->|addresses| n_7fee8d7d
+    n_6756759f -->|conflicts_with| n_7fee8d7d
+    n_c3d2feb5 -->|conflicts_with| n_7fee8d7d
+    n_837c6223 -->|triggers| n_99cee9f7
+    n_837c6223 -->|triggers| n_85018b60
+    n_837c6223 -->|triggers| n_0a49dc98
+    n_837c6223 -->|triggers| n_6756759f
+    n_99cee9f7 -->|drives| n_85018b60
+    n_99cee9f7 -->|implies| n_0a49dc98
+    n_99cee9f7 -->|conflicts_with| n_6756759f
+    n_85018b60 -->|achieves| n_0a49dc98
+    n_85018b60 -->|addresses| n_6756759f
+    n_0a49dc98 -->|conflicts_with| n_6756759f
+    n_837c6223 -->|conflicts_with| n_022996e5
+    n_c1b1e268 -->|addresses| n_0a49dc98
+    n_e7d4d395 -->|addresses| n_0a49dc98
+    n_96fc861d -->|supports| n_0a49dc98
+    n_c1b1e268 -->|supports| n_6756759f
+    n_c1b1e268 -->|addresses| n_737a9d32
+    n_c1b1e268 -->|occurs_in| n_837c6223
+    n_c1b1e268 -->|addresses| n_99cee9f7
+    n_c1b1e268 -->|addresses| n_85018b60
+    n_e7d4d395 -->|supports| n_6756759f
+    n_e7d4d395 -->|addresses| n_737a9d32
+    n_e7d4d395 -->|occurs_in| n_837c6223
+    n_e7d4d395 -->|addresses| n_99cee9f7
+    n_e7d4d395 -->|addresses| n_85018b60
+    n_96fc861d -->|conflicts_with| n_6756759f
+    n_96fc861d -->|achieves| n_737a9d32
+    n_96fc861d -->|occurs_in| n_837c6223
+    n_96fc861d -->|supports| n_99cee9f7
+    n_96fc861d -->|achieves| n_85018b60
+    n_c1b1e268 -->|supports| n_e7d4d395
+    n_c1b1e268 -->|addresses| n_96fc861d
+    n_e7d4d395 -->|addresses| n_96fc861d
+    n_c1b1e268 -->|conflicts_with| n_c3d2feb5
+    n_e7d4d395 -->|conflicts_with| n_c3d2feb5
+    n_96fc861d -->|conflicts_with| n_c3d2feb5
+    n_acd6d197 -->|triggers| n_c3d2feb5
+    n_c7d6c6e7 -->|drives| n_c3d2feb5
+    n_acd6d197 -->|implies| n_c7d6c6e7
+    n_acd6d197 -->|triggers| n_a723124a
+    n_c7d6c6e7 -->|drives| n_a723124a
+    n_ec0bd2a4 -->|drives| n_85018b60
+    n_e3487904 -->|drives| n_85018b60
+    n_0890585e -->|addresses| n_6756759f
+    n_0890585e -->|achieves| n_737a9d32
+    n_0890585e -->|achieves| n_99cee9f7
+    n_0890585e -->|addresses| n_c1b1e268
+    n_0890585e -->|addresses| n_e7d4d395
+    n_0890585e -->|achieves| n_96fc861d
+    n_ec0bd2a4 -->|implies| n_e3487904
+    n_ec0bd2a4 -->|drives| n_0890585e
+    n_e3487904 -->|drives| n_0890585e
+    n_ec0bd2a4 -->|occurs_in| n_acd6d197
+    n_e3487904 -->|occurs_in| n_acd6d197
+    n_0890585e -->|occurs_in| n_acd6d197
+    n_0890585e -->|achieves| n_c7d6c6e7
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_f19fcca9,n_e2afdaf8,n_d064bed4,n_3979425c,n_6cbe446e,n_4b04fd49,n_737a9d32,n_0a49dc98,n_c3d2feb5,n_c1b1e268,n_ec0bd2a4,n_fe4f1b80 focused
+    class n_38977441,n_cf857ef6,n_f24e0c9f,n_875f6459,n_00faeaf7,n_44ab7c01,n_a9ca6c3f,n_283fac64,n_e78b0744,n_996d3a83,n_ea5946e0,n_1a9d8dcc,n_5130b107,n_5c2e7631,n_448cc82b,n_66200058,n_c31c6a69,n_a81ce797,n_7fee8d7d,n_022996e5,n_f98b25e8,n_837c6223,n_99cee9f7,n_85018b60,n_6756759f,n_e7d4d395,n_96fc861d,n_acd6d197,n_c7d6c6e7,n_a723124a,n_e3487904,n_0890585e,n_f8f60d20,n_066b1bb6,n_f456d524,n_b0ed3b3f,n_e10eb696,n_d2cabe91,n_d9f2ab46,n_678bbb5b,n_b445193e,n_31b3ae96 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14 anchor

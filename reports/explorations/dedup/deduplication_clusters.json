@@ -1,0 +1,104 @@
+{
+  "session_id": "5d2e7092-af8b-4655-916a-9935aba6cad7",
+  "config": {
+    "model": "all-MiniLM-L6-v2",
+    "threshold": 0.85,
+    "same_type_only": true,
+    "embedding_dim": 384
+  },
+  "summary": {
+    "total_nodes": 68,
+    "clusters_found": 3,
+    "nodes_eliminated": 3,
+    "nodes_remaining": 65,
+    "reduction_percent": 4.411764705882353
+  },
+  "threshold_sweep": {
+    "0.75": {
+      "clusters": 8,
+      "nodes_eliminated": 9,
+      "nodes_remaining": 59,
+      "reduction_percent": 13.23529411764706
+    },
+    "0.8": {
+      "clusters": 4,
+      "nodes_eliminated": 4,
+      "nodes_remaining": 64,
+      "reduction_percent": 5.88235294117647
+    },
+    "0.85": {
+      "clusters": 3,
+      "nodes_eliminated": 3,
+      "nodes_remaining": 65,
+      "reduction_percent": 4.411764705882353
+    },
+    "0.9": {
+      "clusters": 2,
+      "nodes_eliminated": 2,
+      "nodes_remaining": 66,
+      "reduction_percent": 2.941176470588235
+    },
+    "0.95": {
+      "clusters": 2,
+      "nodes_eliminated": 2,
+      "nodes_remaining": 66,
+      "reduction_percent": 2.941176470588235
+    }
+  },
+  "clusters": [
+    {
+      "cluster_id": 1,
+      "size": 2,
+      "node_savings": 1,
+      "representative": {
+        "id": "285e4b9c-6b8f-4caf-927b-0e4e29411184",
+        "label": "being intentional with what I put into my body",
+        "node_type": "instrumental_value"
+      },
+      "duplicates": [
+        {
+          "id": "ebe38f53-7db6-4928-827d-2dd5597a8e83",
+          "label": "being intentional about what I'm putting into my body",
+          "node_type": "instrumental_value",
+          "similarity": 0.9634560346603394
+        }
+      ]
+    },
+    {
+      "cluster_id": 2,
+      "size": 2,
+      "node_savings": 1,
+      "representative": {
+        "id": "6f44d2b8-6d75-4cc4-983f-c1e919040666",
+        "label": "feeling sluggish",
+        "node_type": "functional_consequence"
+      },
+      "duplicates": [
+        {
+          "id": "84fe26b0-e01d-42f4-b32d-78f608ac6583",
+          "label": "not feeling sluggish",
+          "node_type": "functional_consequence",
+          "similarity": 0.9566372632980347
+        }
+      ]
+    },
+    {
+      "cluster_id": 3,
+      "size": 2,
+      "node_savings": 1,
+      "representative": {
+        "id": "6ddda529-94c8-4e22-acba-edcd13735611",
+        "label": "can actually focus at work",
+        "node_type": "functional_consequence"
+      },
+      "duplicates": [
+        {
+          "id": "e7e353fe-8df2-4112-9e54-9eb9b692b304",
+          "label": "better focus at work",
+          "node_type": "functional_consequence",
+          "similarity": 0.8981075286865234
+        }
+      ]
+    }
+  ]
+}

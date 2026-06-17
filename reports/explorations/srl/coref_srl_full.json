@@ -1,0 +1,112 @@
+{
+  "turn_1": {
+    "turn_id": "turn_1",
+    "question": "What else matters to you when you're choosing which oat milk to buy?",
+    "original_text": "I always check the ingredient list - I want to make sure there's no added oils or gums if possible. And the sugar content is huge for me, like I try to stick to ones with under 5 grams per serving. Oh, and whether it's fortified with calcium and vitamin D, since I'm not getting those from regular dairy.",
+    "rewritten_text": "I always check the ingredient list - I want to make sure there's no added oils or gums if possible. And the sugar content is huge for me, like I try to stick to ones with under 5 grams per serving. Oh, and whether grams's fortified with calcium and vitamin D, since I'm not getting those from regular dairy.",
+    "replacements": {
+      "it": "grams"
+    },
+    "discourse_count": 7,
+    "srl_count": 5
+  },
+  "turn_2": {
+    "turn_id": "turn_2",
+    "question": "Why does getting those nutrients matter to you?",
+    "original_text": "I mean, I'm just trying to take care of my body, you know? I work out regularly and I want to make sure I'm actually fueling myself properly, not just drinking empty calories. Plus, I've noticed I have more energy throughout the day when I'm getting the right nutrients, so it's kind of become a priority for me.",
+    "rewritten_text": "I mean, I'm just trying to take care of my body, you know? I work out regularly and I want to make sure I'm actually fueling myself properly, not just drinking empty calories. Plus, I've noticed I have more energy throughout the day when I'm getting the right nutrients, so nutrients's kind of become a priority for me.",
+    "replacements": {
+      "it": "nutrients"
+    },
+    "discourse_count": 1,
+    "srl_count": 12
+  },
+  "turn_3": {
+    "turn_id": "turn_3",
+    "question": "So taking care of your body through oat milk is about having energy and working out well - is that right?",
+    "original_text": "Yeah, exactly. I mean, the energy part is huge for me - I noticed when I switched from regular milk, I didn't get that sluggish feeling after my morning coffee. And the fact that it's plant-based just feels cleaner for my system, you know? Less inflammation, easier to digest.",
+    "rewritten_text": "Yeah, exactly. I mean, the energy part is huge for me - I noticed when I switched from regular milk, I didn't get fact sluggish feeling after my morning coffee. And the fact fact fact's plant-based just feels cleaner for my system, you know? Less inflammation, easier to digest.",
+    "replacements": {
+      "that": "fact",
+      "it": "fact"
+    },
+    "discourse_count": 1,
+    "srl_count": 6
+  },
+  "turn_4": {
+    "turn_id": "turn_4",
+    "question": "So oat milk helps you feel less sluggish and cleaner - what does feeling that way give you?",
+    "original_text": "I'd say it just helps me stay more consistent with my routine, you know? Like when I'm not dealing with that afternoon crash or feeling bloated, I can actually stick to my workout schedule and stay productive at work. It's really about maintaining that baseline energy throughout the day so I'm not constantly fighting against my body.",
+    "rewritten_text": "I'd say it just helps me stay more consistent with my routine, you know? Like when I'm not dealing with work afternoon crash or feeling bloated, I can actually stick to my workout schedule and stay productive at work. work's really about maintaining work baseline energy throughout the day so I'm not constantly fighting against my body.",
+    "replacements": {
+      "that": "work",
+      "It": "work"
+    },
+    "discourse_count": 1,
+    "srl_count": 9
+  },
+  "turn_5": {
+    "turn_id": "turn_5",
+    "question": "What does not fighting against your body mean for you?",
+    "original_text": "I think it means choosing foods that work with my system rather than against it. Like, I've noticed dairy can make me feel sluggish and bloated, so switching to oat milk just feels... easier on my digestion, you know? My body doesn't have to work as hard to process it. It's about listening to what makes me feel good and energized instead of pushing through discomfort just because that's what I'm used to.",
+    "rewritten_text": "I think body means choosing foods discomfort work with my system rather than against body. Like, I've noticed dairy can make me feel sluggish and bloated, so switching to oat milk just feels... easier on my digestion, you know? My body doesn't have to work as hard to process body. body's about listening to what makes me feel good and energized instead of pushing through discomfort just because discomfort's what I'm used to.",
+    "replacements": {
+      "that": "discomfort",
+      "it": "body",
+      "It": "body"
+    },
+    "discourse_count": 3,
+    "srl_count": 13
+  },
+  "turn_6": {
+    "turn_id": "turn_6",
+    "question": "So choosing oat milk is part of listening to your body - why is that listening important to you?",
+    "original_text": "I mean, I think it's just about respecting what my body's telling me, you know? Like, I used to ignore those signals - feeling bloated after dairy, or that afternoon crash - but now I actually pay attention. And when I listen and make changes, like switching to oat milk, I genuinely feel better. More energy, better digestion. It's kind of empowering to understand what works for me instead of just eating whatever.",
+    "rewritten_text": "I mean, I think it's just about respecting what my body's telling me, you know? Like, I used to ignore those signals - feeling bloated after dairy, or dairy afternoon crash - but now I actually pay attention. And when I listen and make changes, like switching to oat milk, I genuinely feel better. More energy, better digestion. digestion's kind of empowering to understand what works for me instead of just eating whatever.",
+    "replacements": {
+      "that": "dairy",
+      "It": "digestion"
+    },
+    "discourse_count": 1,
+    "srl_count": 13
+  },
+  "turn_7": {
+    "turn_id": "turn_7",
+    "question": "So understanding what works for you through choices like oat milk - what does that give you in your life?",
+    "original_text": "You know, it gives me peace of mind, honestly. Like, I can go through my day knowing I'm fueling my body with something clean and not dealing with the inflammation or digestive issues I used to get from dairy. It's one less thing to worry about - I can just grab it for my smoothie or coffee and know I'm making a choice that supports my wellness goals instead of working against them.",
+    "rewritten_text": "You know, it gives me peace of mind, honestly. Like, I can go through my day knowing I'm fueling my body with something clean and not dealing with the inflammation or digestive issues I used to get from dairy. dairy's one less thing to worry about - I can just grab it for my smoothie or coffee and know I'm making a choice choice supports my wellness goals instead of working against goals.",
+    "replacements": {
+      "It": "dairy",
+      "it": "thing",
+      "that": "choice",
+      "them": "goals"
+    },
+    "discourse_count": 1,
+    "srl_count": 11
+  },
+  "turn_8": {
+    "turn_id": "turn_8",
+    "question": "So oat milk helps support your wellness goals - what do those goals mean for how you want to live?",
+    "original_text": "I want to feel good in my body, you know? Like, having sustained energy throughout the day without crashes, and just knowing I'm putting clean fuel into my system. It's about being able to keep up with my active lifestyle - whether that's morning workouts or just having the mental clarity to be productive at work. And honestly, it's also about longevity. I want to make choices now that help me stay healthy as I get older.",
+    "rewritten_text": "I want to feel good in my body, you know? Like, having sustained energy throughout the day without crashes, and just knowing I'm putting clean fuel into my system. system's about being able to keep up with my active lifestyle - whether choices's morning workouts or just having the mental clarity to be productive at work. And honestly, work's also about longevity. I want to make choices now choices help me stay healthy as I get older.",
+    "replacements": {
+      "It": "system",
+      "that": "choices",
+      "it": "work"
+    },
+    "discourse_count": 2,
+    "srl_count": 11
+  },
+  "turn_9": {
+    "turn_id": "turn_9",
+    "question": "Thank you for sharing your thoughts with me today. This has been very helpful.",
+    "original_text": "You're welcome! I'm glad I could share my perspective on oat milk. It's definitely become a staple in my routine, so I'm always happy to talk about products that align with my health goals.",
+    "rewritten_text": "You're welcome! I'm glad I could share my perspective on oat milk. milk's definitely become a staple in my routine, so I'm always happy to talk about products products align with my health goals.",
+    "replacements": {
+      "It": "milk",
+      "that": "products"
+    },
+    "discourse_count": 0,
+    "srl_count": 3
+  }
+}

@@ -1,0 +1,121 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_d2d94131
+    t1 ~~~ n_4f3201a1
+    t1 ~~~ n_a6f048c2
+    t2 ~~~ n_65f72a48
+    t2 ~~~ n_ad6086de
+    t2 ~~~ n_9547ae6c
+    t2 ~~~ n_8b9705a8
+    t2 ~~~ n_fc0fd35b
+    t3 ~~~ n_d05e80b9
+    t3 ~~~ n_6b12a355
+    t3 ~~~ n_dd043faa
+    t4 ~~~ n_2947e8da
+    t4 ~~~ n_97d68d24
+    t4 ~~~ n_3d976039
+    t5 ~~~ n_f5cb15b0
+    t5 ~~~ n_f68b9a18
+    t5 ~~~ n_8d0797bd
+    t6 ~~~ n_1452b9e1
+    t6 ~~~ n_bcf409bf
+    t7 ~~~ n_c99899e2
+    t7 ~~~ n_1b2940ae
+    t7 ~~~ n_f9989eb7
+    t8 ~~~ n_ef645f52
+    t8 ~~~ n_c3db5324
+    t9 ~~~ n_1a2bf319
+    t9 ~~~ n_b59ca4c9
+    t9 ~~~ n_ad2dd553
+
+    %% Node definitions
+    n_d2d94131["(1) infrequent carbonated drink consumption"]
+    n_4f3201a1["(1) diet coke available in workplace brea..."]
+    n_65f72a48["(2) grabbing available diet coke instead ..."]
+    n_a6f048c2["(1) difficulty recalling specific sugar-f... F1"]
+    n_ad6086de["(2) avoid caffeine crash in the afternoon"]
+    n_9547ae6c["(2) coffee causes intense wired-then-cras... F2 F3"]
+    n_8b9705a8["(2) needing sustained energy for afternoo..."]
+    n_fc0fd35b["(2) maintain steady energy through the af... F4"]
+    n_d05e80b9["(3) focus on work without anticipating en..."]
+    n_6b12a355["(3) mentally checked out by 3pm"]
+    n_dd043faa["(3) push through productive work until 5 ..."]
+    n_2947e8da["(4) drinking water as fallback without fi..."]
+    n_97d68d24["(4) feeling sluggish in the 3pm slump wit..."]
+    n_3d976039["(4) ability to work around lacking a fizz..."]
+    n_f5cb15b0["(5) avoid feeling like the day was a tota..."]
+    n_f68b9a18["(5) having something to show for the day"]
+    n_8d0797bd["(5) feel present and purposeful at work F5 F6"]
+    n_1452b9e1["(6) participate in break-time ritual with..."]
+    n_bcf409bf["(6) choosing ZeroFizz as break-time ritua..."]
+    n_c99899e2["(7) having something physical to do with ... F7 F8"]
+    n_1b2940ae["(7) feel grounded and mentally present in..."]
+    n_f9989eb7["(7) distracted scrolling or half-listenin..."]
+    n_ef645f52["(8) slow down and be intentional for a mo..."]
+    n_c3db5324["(8) avoid mindless multitasking during br..."]
+    n_1a2bf319["(9) actually enjoy time with people durin..."]
+    n_b59ca4c9["(9) everyone scrolling makes being there ..."]
+    n_ad2dd553["(9) feel genuinely connected to the peopl..."]
+
+    %% Real edges
+    n_d2d94131 -->|triggers| n_a6f048c2
+    n_4f3201a1 -->|triggers| n_65f72a48
+    n_65f72a48 -->|achieves| n_ad6086de
+    n_9547ae6c -->|implies| n_ad6086de
+    n_8b9705a8 -->|triggers| n_fc0fd35b
+    n_9547ae6c -->|implies| n_fc0fd35b
+    n_65f72a48 -->|achieves| n_fc0fd35b
+    n_a6f048c2 -->|triggers| n_65f72a48
+    n_9547ae6c -->|triggers| n_6b12a355
+    n_6b12a355 -->|conflicts_with| n_dd043faa
+    n_fc0fd35b -->|achieves| n_d05e80b9
+    n_fc0fd35b -->|achieves| n_dd043faa
+    n_9547ae6c -->|triggers| n_2947e8da
+    n_9547ae6c -->|triggers| n_97d68d24
+    n_97d68d24 -->|conflicts_with| n_3d976039
+    n_6b12a355 -->|triggers| n_97d68d24
+    n_fc0fd35b -->|supports| n_f5cb15b0
+    n_f5cb15b0 -->|implies| n_f68b9a18
+    n_f68b9a18 -->|supports| n_8d0797bd
+    n_dd043faa -->|achieves| n_f68b9a18
+    n_1452b9e1 -->|drives| n_bcf409bf
+    n_8d0797bd -->|triggers| n_c99899e2
+    n_c99899e2 -->|achieves| n_1b2940ae
+    n_f9989eb7 -->|conflicts_with| n_1b2940ae
+    n_bcf409bf -->|achieves| n_c99899e2
+    n_1b2940ae -->|supports| n_8d0797bd
+    n_c99899e2 -->|achieves| n_ef645f52
+    n_ef645f52 -->|implies| n_c3db5324
+    n_c99899e2 -->|triggers| n_1a2bf319
+    n_b59ca4c9 -->|implies| n_1a2bf319
+    n_f9989eb7 -->|triggers| n_b59ca4c9
+    n_1a2bf319 -->|supports| n_ad2dd553
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_a6f048c2,n_9547ae6c,n_fc0fd35b,n_8d0797bd,n_c99899e2 focused
+    class n_d2d94131,n_4f3201a1,n_65f72a48,n_ad6086de,n_8b9705a8,n_d05e80b9,n_6b12a355,n_dd043faa,n_2947e8da,n_97d68d24,n_3d976039,n_f5cb15b0,n_f68b9a18,n_1452b9e1,n_bcf409bf,n_1b2940ae,n_f9989eb7,n_ef645f52,n_c3db5324,n_1a2bf319,n_b59ca4c9,n_ad2dd553 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9 anchor

@@ -1,0 +1,17 @@
+stage_name,call_count,total_ms,mean_ms,min_ms,max_ms
+ContextLoadingStage,14,61.86,4.42,3.7,5.42
+UtteranceSavingStage,14,67.62,4.83,3.33,7.49
+SRLPreprocessingStage,14,148.23,10.59,6.84,21.55
+ExtractionStage,14,97760.11,6982.86,3263.66,35408.56
+LLMPrefetchStage,14,29.36,2.1,0.33,19.13
+GraphUpdateStage,14,1543.84,110.27,47.45,644.73
+EdgeExtractionPrefetchStage,14,166.43,11.89,3.92,77.29
+SlotDiscoveryStage,14,40670.31,2905.02,2208.34,4689.5
+EdgeExtractionBridgeStage,14,178103.68,12721.69,2485.37,22589.17
+LLMSignalBridgeStage,14,6.72,0.48,0.32,0.8
+StateComputationStage,14,78.19,5.58,3.18,8.63
+StrategySelectionStage,14,479.11,34.22,25.5,48.07
+ContinuationStage,14,4.9,0.35,0.23,0.76
+QuestionGenerationStage,14,15990.37,1142.17,920.71,1342.2
+ResponseSavingStage,14,76.27,5.45,3.39,10.51
+ScoringPersistenceStage,14,208.48,14.89,10.51,25.52

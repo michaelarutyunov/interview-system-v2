@@ -1,0 +1,198 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_fc96b245
+    t1 ~~~ n_e125f1ed
+    t1 ~~~ n_8c461176
+    t1 ~~~ n_fe9255ea
+    t1 ~~~ n_c23de930
+    t1 ~~~ n_50e6f4d4
+    t1 ~~~ n_94e70f72
+    t1 ~~~ n_0834998e
+    t1 ~~~ n_abc65595
+    t1 ~~~ n_5498bed4
+    t1 ~~~ n_a00368a7
+    t2 ~~~ n_79b509bd
+    t2 ~~~ n_81e4b7b0
+    t2 ~~~ n_ba9bfda8
+    t2 ~~~ n_7bbfd984
+    t2 ~~~ n_ea68609f
+    t2 ~~~ n_7f04fba9
+    t3 ~~~ n_58d1f14d
+    t3 ~~~ n_4dabe51c
+    t3 ~~~ n_447686d7
+    t3 ~~~ n_377deb51
+    t3 ~~~ n_64c7c3fb
+    t4 ~~~ n_25525c5b
+    t4 ~~~ n_ca7238d8
+    t4 ~~~ n_95fe8730
+    t5 ~~~ n_97f613d5
+    t5 ~~~ n_4264abd7
+    t5 ~~~ n_f7b445b2
+    t5 ~~~ n_83c355d8
+    t5 ~~~ n_ebdb28d7
+    t6 ~~~ n_3c6b9af0
+    t6 ~~~ n_d04dda5b
+    t6 ~~~ n_777e92cb
+    t6 ~~~ n_776c6898
+    t7 ~~~ n_0f2235e2
+    t7 ~~~ n_036623d4
+    t7 ~~~ n_aa4b1d44
+    t8 ~~~ n_eb1f31ea
+    t8 ~~~ n_d0d4ed76
+    t8 ~~~ n_37c42c69
+    t8 ~~~ n_e63e71e1
+    t9 ~~~ n_28584e2d
+    t9 ~~~ n_ed6b402f
+    t9 ~~~ n_65796b0b
+    t9 ~~~ n_4eac78ae
+    t9 ~~~ n_9e2ae96b
+    t10 ~~~ n_27c11278
+    t10 ~~~ n_a8448aaf
+    t10 ~~~ n_caf4399d
+
+    %% Node definitions
+    n_fc96b245["(1) afternoon slump at work"]
+    n_e125f1ed["(1) working at the office in the afternoon F1"]
+    n_8c461176["(1) feeling totally drained and needing e..."]
+    n_fe9255ea["(1) get an energy boost to push through t..."]
+    n_c23de930["(1) preferred drink option unavailable"]
+    n_50e6f4d4["(1) grabbing a Coke from the vending machine"]
+    n_94e70f72["(1) cold fizzy drink hits different when ..."]
+    n_0834998e["(1) carbonation feels more refreshing tha..."]
+    n_abc65595["(1) sitting through a tedious meeting"]
+    n_5498bed4["(1) get a mental break from a tedious mee..."]
+    n_a00368a7["(1) habitual/automatic drink selection un..."]
+    n_79b509bd["(2) need for immediate sensory stimulatio..."]
+    n_81e4b7b0["(2) feel jolted awake and reset F2"]
+    n_ba9bfda8["(2) ritual of cracking open a can as a me..."]
+    n_7bbfd984["(2) zero cognitive effort required when m..."]
+    n_ea68609f["(2) faster and more convenient than coffee"]
+    n_7f04fba9["(2) feel mentally restored without effort"]
+    n_58d1f14d["(3) waking up groggy and needing to clear... F5"]
+    n_4dabe51c["(3) coffee takes too long to kick in"]
+    n_447686d7["(3) energy drinks feel too heavy"]
+    n_377deb51["(3) immediate physical sensation from car..."]
+    n_64c7c3fb["(3) feel alive and present instead of zom... F3"]
+    n_25525c5b["(4) short-lived refresh that fades after ... F6"]
+    n_ca7238d8["(4) get a momentary refresh, not an all-d..."]
+    n_95fe8730["(4) low expectations — just needs to work..."]
+    n_97f613d5["(5) flat carbonation upon opening"]
+    n_4264abd7["(5) chemical or off-putting taste"]
+    n_f7b445b2["(5) feeling gross or unwell after drinking"]
+    n_83c355d8["(5) stop purchasing ZeroFizz if core expe..."]
+    n_ebdb28d7["(5) deliver decent taste, fizz, and no ba..."]
+    n_3c6b9af0["(6) fizz sensation dominates morning drin... F8"]
+    n_d04dda5b["(6) taste only needs to clear a 'not gros..."]
+    n_777e92cb["(6) any carbonated drink would work when ..."]
+    n_776c6898["(6) taste matters more later in the day w..."]
+    n_0f2235e2["(7) mouth dry and unpleasant from sleep i..."]
+    n_036623d4["(7) sweetness and flavor come through cle..."]
+    n_aa4b1d44["(7) ZeroFizz taste clears a 'not garbage'..."]
+    n_eb1f31ea["(8) diet soda chemical taste as negative ..."]
+    n_d0d4ed76["(8) drink feels like a treat, not a chore"]
+    n_37c42c69["(8) aftertaste emerges after a few sips"]
+    n_e63e71e1["(8) ZeroFizz delivers treat-like taste be..."]
+    n_28584e2d["(9) heightened sweetness perception when ..."]
+    n_ed6b402f["(9) feel indulgent without actual sugar"]
+    n_65796b0b["(9) cracking open something cold and fizz..."]
+    n_4eac78ae["(9) everything around feels flat and dull..."]
+    n_9e2ae96b["(9) make the afternoon feel less blah F9"]
+    n_27c11278["(10) energy dip around 3 or 4pm"]
+    n_a8448aaf["(10) dragging through the afternoon"]
+    n_caf4399d["(10) snap out of the afternoon slump momen..."]
+
+    %% Real edges
+    n_fc96b245 -->|triggers| n_8c461176
+    n_fc96b245 -->|occurs_in| n_e125f1ed
+    n_8c461176 -->|implies| n_fe9255ea
+    n_c23de930 -->|triggers| n_50e6f4d4
+    n_fe9255ea -->|drives| n_50e6f4d4
+    n_50e6f4d4 -->|achieves| n_94e70f72
+    n_50e6f4d4 -->|achieves| n_0834998e
+    n_abc65595 -->|triggers| n_5498bed4
+    n_5498bed4 -->|drives| n_50e6f4d4
+    n_a00368a7 -->|drives| n_50e6f4d4
+    n_8c461176 -->|triggers| n_79b509bd
+    n_79b509bd -->|implies| n_81e4b7b0
+    n_0834998e -->|achieves| n_81e4b7b0
+    n_ba9bfda8 -->|achieves| n_81e4b7b0
+    n_a00368a7 -->|achieves| n_7bbfd984
+    n_7bbfd984 -->|supports| n_7f04fba9
+    n_ea68609f -->|supports| n_7f04fba9
+    n_7f04fba9 -->|drives| n_50e6f4d4
+    n_e125f1ed -->|triggers| n_7f04fba9
+    n_58d1f14d -->|triggers| n_4dabe51c
+    n_58d1f14d -->|triggers| n_447686d7
+    n_4dabe51c -->|conflicts_with| n_377deb51
+    n_447686d7 -->|conflicts_with| n_377deb51
+    n_377deb51 -->|achieves| n_64c7c3fb
+    n_81e4b7b0 -->|supports| n_64c7c3fb
+    n_25525c5b -->|implies| n_ca7238d8
+    n_ca7238d8 -->|supports| n_95fe8730
+    n_64c7c3fb -->|supports| n_95fe8730
+    n_97f613d5 -->|conflicts_with| n_377deb51
+    n_4264abd7 -->|conflicts_with| n_ebdb28d7
+    n_f7b445b2 -->|conflicts_with| n_ebdb28d7
+    n_97f613d5 -->|triggers| n_83c355d8
+    n_4264abd7 -->|triggers| n_83c355d8
+    n_95fe8730 -->|implies| n_ebdb28d7
+    n_ebdb28d7 -->|supports| n_ca7238d8
+    n_3c6b9af0 -->|triggers| n_58d1f14d
+    n_3c6b9af0 -->|supports| n_377deb51
+    n_d04dda5b -->|conflicts_with| n_4264abd7
+    n_777e92cb -->|supports| n_a00368a7
+    n_776c6898 -->|occurs_in| n_fc96b245
+    n_776c6898 -->|conflicts_with| n_3c6b9af0
+    n_0f2235e2 -->|supports| n_d04dda5b
+    n_0f2235e2 -->|conflicts_with| n_036623d4
+    n_776c6898 -->|triggers| n_aa4b1d44
+    n_aa4b1d44 -->|supports| n_25525c5b
+    n_036623d4 -->|achieves| n_25525c5b
+    n_fc96b245 -->|triggers| n_d0d4ed76
+    n_eb1f31ea -->|implies| n_d0d4ed76
+    n_d0d4ed76 -->|drives| n_e63e71e1
+    n_e63e71e1 -->|conflicts_with| n_37c42c69
+    n_37c42c69 -->|triggers| n_4264abd7
+    n_036623d4 -->|implies| n_d0d4ed76
+    n_fc96b245 -->|triggers| n_28584e2d
+    n_28584e2d -->|supports| n_ed6b402f
+    n_4eac78ae -->|triggers| n_65796b0b
+    n_65796b0b -->|achieves| n_9e2ae96b
+    n_ed6b402f -->|supports| n_9e2ae96b
+    n_ba9bfda8 -->|supports| n_65796b0b
+    n_d0d4ed76 -->|supports| n_ed6b402f
+    n_65796b0b -->|supports| n_3c6b9af0
+    n_27c11278 -->|triggers| n_a8448aaf
+    n_a8448aaf -->|implies| n_caf4399d
+    n_caf4399d -->|drives| n_65796b0b
+    n_9e2ae96b -->|implies| n_caf4399d
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_e125f1ed,n_81e4b7b0,n_58d1f14d,n_64c7c3fb,n_25525c5b,n_3c6b9af0,n_9e2ae96b focused
+    class n_fc96b245,n_8c461176,n_fe9255ea,n_c23de930,n_50e6f4d4,n_94e70f72,n_0834998e,n_abc65595,n_5498bed4,n_a00368a7,n_79b509bd,n_ba9bfda8,n_7bbfd984,n_ea68609f,n_7f04fba9,n_4dabe51c,n_447686d7,n_377deb51,n_ca7238d8,n_95fe8730,n_97f613d5,n_4264abd7,n_f7b445b2,n_83c355d8,n_ebdb28d7,n_d04dda5b,n_777e92cb,n_776c6898,n_0f2235e2,n_036623d4,n_aa4b1d44,n_eb1f31ea,n_d0d4ed76,n_37c42c69,n_e63e71e1,n_28584e2d,n_ed6b402f,n_65796b0b,n_4eac78ae,n_27c11278,n_a8448aaf,n_caf4399d default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10 anchor

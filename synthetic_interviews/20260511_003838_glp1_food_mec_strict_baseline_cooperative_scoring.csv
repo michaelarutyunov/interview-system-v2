@@ -1,0 +1,422 @@
+turn_number,phase,strategy,node_id,node_label,signal_name,signal_value,signal_weight,weighted_contribution,phase_multiplier,phase_bonus,base_score,final_score,rank,selected,gated,gate_signal
+1,early,ascend,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.above
+1,early,ascend,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.above
+1,early,ascend,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.above
+1,early,ascend,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.above
+1,early,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.gap.above.true,True,0.25,0.25,1.0,0.0,-0.25,-0.25,3,False,False,
+1,early,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.fan_in,0,0.033,0.0,1.0,0.0,-0.25,-0.25,3,False,False,
+1,early,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.recency,0.0,0.15,0.0,1.0,0.0,-0.25,-0.25,3,False,False,
+1,early,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.exhaustion,0.0,-0.8,-0.0,1.0,0.0,-0.25,-0.25,3,False,False,
+1,early,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.focus.count.high,False,-0.4,0.0,1.0,0.0,-0.25,-0.25,3,False,False,
+1,early,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.focus.count.medium,False,-0.4,0.0,1.0,0.0,-0.25,-0.25,3,False,False,
+1,early,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.llm.elaboration.high,False,0.4,0.0,1.0,0.0,-0.25,-0.25,3,False,False,
+1,early,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.llm.charge.positive,False,0.1,0.0,1.0,0.0,-0.25,-0.25,3,False,False,
+1,early,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,response.semantic.llm.engagement.low,False,-0.3,0.0,1.0,0.0,-0.25,-0.25,3,False,False,
+1,early,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,response.semantic.llm.frame_resistance.true,False,-1.2,0.0,1.0,0.0,-0.25,-0.25,3,False,False,
+1,early,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,interview.strategy.self_count,0.0,-1.5,-0.0,1.0,0.0,-0.25,-0.25,3,False,False,
+1,early,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,interview.strategy.self_count.high,False,-1.0,0.0,1.0,0.0,-0.25,-0.25,3,False,False,
+1,early,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.has_origin_level_ancestor.true,False,0.2,0.0,1.0,0.0,-0.25,-0.25,3,False,False,
+1,early,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.has_origin_level_ancestor.false,True,-0.5,-0.5,1.0,0.0,-0.25,-0.25,3,False,False,
+1,early,ground,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,convgraph.node.chain.gap.below.true,True,0.3,0.3,1.4,0.0,0.55,0.77,1,True,False,
+1,early,ground,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,convgraph.node.recency,0.0,0.25,0.0,1.4,0.0,0.55,0.77,1,True,False,
+1,early,ground,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,convgraph.node.exhaustion,0.0,-0.4,-0.0,1.4,0.0,0.55,0.77,1,True,False,
+1,early,ground,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,convgraph.node.llm.elaboration.high,False,0.05,0.0,1.4,0.0,0.55,0.77,1,True,False,
+1,early,ground,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,response.semantic.llm.frame_resistance.true,False,-0.8,0.0,1.4,0.0,0.55,0.77,1,True,False,
+1,early,ground,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,interview.strategy.self_count,0.0,-0.4,-0.0,1.4,0.0,0.55,0.77,1,True,False,
+1,early,ground,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,convgraph.node.chain.has_origin_level_ancestor.false,True,0.25,0.25,1.4,0.0,0.55,0.77,1,True,False,
+1,early,ground,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,convgraph.node.chain.has_origin_level_ancestor.true,False,-0.2,0.0,1.4,0.0,0.55,0.77,1,True,False,
+1,early,ground,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,meta.saturation.conversation.high,False,-0.4,0.0,1.4,0.0,0.55,0.77,1,True,False,
+1,early,ground,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,meta.saturation.canonical.high,False,-0.3,0.0,1.4,0.0,0.55,0.77,1,True,False,
+1,early,ground,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.below
+1,early,ground,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.below
+1,early,ground,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.below
+1,early,ground,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.below
+1,early,bridge,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.level.skip
+1,early,bridge,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.level.skip
+1,early,bridge,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.level.skip
+1,early,bridge,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.level.skip
+1,early,bridge,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.level.skip
+1,early,branch,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.branching_deficit
+1,early,branch,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.branching_deficit
+1,early,branch,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.branching_deficit
+1,early,branch,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.branching_deficit
+1,early,branch,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.branching_deficit
+1,early,anchor,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.is_orphan
+1,early,anchor,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.is_orphan
+1,early,anchor,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.is_orphan
+1,early,anchor,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.is_orphan
+1,early,anchor,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.is_orphan
+1,early,revitalize,,,response.semantic.llm.engagement.low,False,0.5,0.0,1.0,0.0,-0.24,-0.24,2,False,False,
+1,early,revitalize,,,response.semantic.llm.engagement.trend.shallowing,False,0.3,0.0,1.0,0.0,-0.24,-0.24,2,False,False,
+1,early,revitalize,,,response.semantic.llm.engagement.trend.fatigued,False,0.8,0.0,1.0,0.0,-0.24,-0.24,2,False,False,
+1,early,revitalize,,,response.semantic.llm.frame_resistance.true,False,1.5,0.0,1.0,0.0,-0.24,-0.24,2,False,False,
+1,early,revitalize,,,meta.saturation.conversation,0.0,-0.4,-0.0,1.0,0.0,-0.24,-0.24,2,False,False,
+1,early,revitalize,,,meta.saturation.canonical,0.6,-0.4,-0.24,1.0,0.0,-0.24,-0.24,2,False,False,
+1,early,revitalize,,,interview.strategy.self_count,0.0,-0.5,-0.0,1.0,0.0,-0.24,-0.24,2,False,False,
+1,early,close,,,interview.phase.late,False,0.8,0.0,0.2,0.0,-3.0,-0.6,4,False,False,
+1,early,close,,,interview.phase.early,True,-3.0,-3.0,0.2,0.0,-3.0,-0.6,4,False,False,
+1,early,close,,,interview.phase.mid,False,-3.0,0.0,0.2,0.0,-3.0,-0.6,4,False,False,
+1,early,close,,,interview.strategy.self_count,0.0,-0.5,-0.0,0.2,0.0,-3.0,-0.6,4,False,False,
+2,mid,ascend,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.above
+2,mid,ascend,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.above
+2,mid,ascend,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.above
+2,mid,ascend,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.above
+2,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.gap.above.true,True,0.25,0.25,1.4,0.0,0.516,0.7224,1,True,False,
+2,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.fan_in,2,0.033,0.066,1.4,0.0,0.516,0.7224,1,True,False,
+2,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.recency,0.0,0.15,0.0,1.4,0.0,0.516,0.7224,1,True,False,
+2,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.exhaustion,0.0,-0.8,-0.0,1.4,0.0,0.516,0.7224,1,True,False,
+2,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.focus.count.high,False,-0.4,0.0,1.4,0.0,0.516,0.7224,1,True,False,
+2,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.focus.count.medium,False,-0.4,0.0,1.4,0.0,0.516,0.7224,1,True,False,
+2,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.llm.elaboration.high,False,0.4,0.0,1.4,0.0,0.516,0.7224,1,True,False,
+2,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.llm.charge.positive,False,0.1,0.0,1.4,0.0,0.516,0.7224,1,True,False,
+2,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,response.semantic.llm.engagement.low,False,-0.3,0.0,1.4,0.0,0.516,0.7224,1,True,False,
+2,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,response.semantic.llm.frame_resistance.true,False,-1.2,0.0,1.4,0.0,0.516,0.7224,1,True,False,
+2,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,interview.strategy.self_count,0.0,-1.5,-0.0,1.4,0.0,0.516,0.7224,1,True,False,
+2,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,interview.strategy.self_count.high,False,-1.0,0.0,1.4,0.0,0.516,0.7224,1,True,False,
+2,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.has_origin_level_ancestor.true,True,0.2,0.2,1.4,0.0,0.516,0.7224,1,True,False,
+2,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.has_origin_level_ancestor.false,False,-0.5,0.0,1.4,0.0,0.516,0.7224,1,True,False,
+2,mid,ascend,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.above
+2,mid,ascend,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.above
+2,mid,ascend,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.above
+2,mid,ground,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.below
+2,mid,ground,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.below
+2,mid,ground,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.below
+2,mid,ground,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.below
+2,mid,ground,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.below
+2,mid,ground,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.below
+2,mid,ground,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.below
+2,mid,ground,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.gap.below
+2,mid,bridge,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.level.skip
+2,mid,bridge,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.level.skip
+2,mid,bridge,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.level.skip
+2,mid,bridge,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.level.skip
+2,mid,bridge,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.level.skip
+2,mid,bridge,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.level.skip
+2,mid,bridge,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.level.skip
+2,mid,bridge,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.level.skip
+2,mid,branch,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.branching_deficit
+2,mid,branch,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.branching_deficit
+2,mid,branch,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.branching_deficit
+2,mid,branch,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.branching_deficit
+2,mid,branch,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.branching_deficit
+2,mid,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.chain.branching_deficit,0.33333333333333337,0.25,0.08333333333333334,1.0,0.0,0.283333,0.283333,2,False,False,
+2,mid,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.recency,0.0,0.15,0.0,1.0,0.0,0.283333,0.283333,2,False,False,
+2,mid,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.exhaustion,0.0,-0.3,-0.0,1.0,0.0,0.283333,0.283333,2,False,False,
+2,mid,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,response.semantic.llm.engagement.high,True,0.1,0.1,1.0,0.0,0.283333,0.283333,2,False,False,
+2,mid,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,interview.strategy.self_count,0.0,-0.5,-0.0,1.0,0.0,0.283333,0.283333,2,False,False,
+2,mid,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.chain.has_origin_level_ancestor.true,True,0.1,0.1,1.0,0.0,0.283333,0.283333,2,False,False,
+2,mid,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.chain.has_max_level_ancestor.true,False,0.5,0.0,1.0,0.0,0.283333,0.283333,2,False,False,
+2,mid,branch,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.branching_deficit
+2,mid,branch,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.chain.branching_deficit
+2,mid,anchor,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.is_orphan
+2,mid,anchor,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.is_orphan
+2,mid,anchor,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.is_orphan
+2,mid,anchor,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.is_orphan
+2,mid,anchor,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.is_orphan
+2,mid,anchor,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.is_orphan
+2,mid,anchor,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.is_orphan
+2,mid,anchor,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,5,False,True,convgraph.node.is_orphan
+2,mid,revitalize,,,response.semantic.llm.engagement.low,False,0.5,0.0,1.0,0.0,-0.42668,-0.42668,3,False,False,
+2,mid,revitalize,,,response.semantic.llm.engagement.trend.shallowing,False,0.3,0.0,1.0,0.0,-0.42668,-0.42668,3,False,False,
+2,mid,revitalize,,,response.semantic.llm.engagement.trend.fatigued,False,0.8,0.0,1.0,0.0,-0.42668,-0.42668,3,False,False,
+2,mid,revitalize,,,response.semantic.llm.frame_resistance.true,False,1.5,0.0,1.0,0.0,-0.42668,-0.42668,3,False,False,
+2,mid,revitalize,,,meta.saturation.conversation,0.4,-0.4,-0.16000000000000003,1.0,0.0,-0.42668,-0.42668,3,False,False,
+2,mid,revitalize,,,meta.saturation.canonical,0.6667,-0.4,-0.26668,1.0,0.0,-0.42668,-0.42668,3,False,False,
+2,mid,revitalize,,,interview.strategy.self_count,0.0,-0.5,-0.0,1.0,0.0,-0.42668,-0.42668,3,False,False,
+2,mid,close,,,interview.phase.late,False,0.8,0.0,0.5,0.0,-3.0,-1.5,4,False,False,
+2,mid,close,,,interview.phase.early,False,-3.0,0.0,0.5,0.0,-3.0,-1.5,4,False,False,
+2,mid,close,,,interview.phase.mid,True,-3.0,-3.0,0.5,0.0,-3.0,-1.5,4,False,False,
+2,mid,close,,,interview.strategy.self_count,0.0,-0.5,-0.0,0.5,0.0,-3.0,-1.5,4,False,False,
+3,mid,ascend,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+3,mid,ascend,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+3,mid,ascend,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+3,mid,ascend,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+3,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.gap.above.true,True,0.25,0.25,1.4,0.0,0.078,0.1092,7,False,False,
+3,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.fan_in,2,0.033,0.066,1.4,0.0,0.078,0.1092,7,False,False,
+3,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.recency,1.0,0.15,0.15,1.4,0.0,0.078,0.1092,7,False,False,
+3,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.exhaustion,0.36,-0.8,-0.288,1.4,0.0,0.078,0.1092,7,False,False,
+3,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.focus.count.high,False,-0.4,0.0,1.4,0.0,0.078,0.1092,7,False,False,
+3,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.focus.count.medium,False,-0.4,0.0,1.4,0.0,0.078,0.1092,7,False,False,
+3,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.llm.elaboration.high,False,0.4,0.0,1.4,0.0,0.078,0.1092,7,False,False,
+3,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.llm.charge.positive,False,0.1,0.0,1.4,0.0,0.078,0.1092,7,False,False,
+3,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,response.semantic.llm.engagement.low,False,-0.3,0.0,1.4,0.0,0.078,0.1092,7,False,False,
+3,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,response.semantic.llm.frame_resistance.true,False,-1.2,0.0,1.4,0.0,0.078,0.1092,7,False,False,
+3,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,interview.strategy.self_count,0.2,-1.5,-0.30000000000000004,1.4,0.0,0.078,0.1092,7,False,False,
+3,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,interview.strategy.self_count.high,False,-1.0,0.0,1.4,0.0,0.078,0.1092,7,False,False,
+3,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.has_origin_level_ancestor.true,True,0.2,0.2,1.4,0.0,0.078,0.1092,7,False,False,
+3,mid,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.has_origin_level_ancestor.false,False,-0.5,0.0,1.4,0.0,0.078,0.1092,7,False,False,
+3,mid,ascend,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+3,mid,ascend,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+3,mid,ascend,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+3,mid,ascend,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+3,mid,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.chain.gap.above.true,True,0.25,0.25,1.4,0.0,0.15,0.21,5,False,False,
+3,mid,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.chain.fan_in,0,0.033,0.0,1.4,0.0,0.15,0.21,5,False,False,
+3,mid,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.recency,0.0,0.15,0.0,1.4,0.0,0.15,0.21,5,False,False,
+3,mid,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.exhaustion,0.0,-0.8,-0.0,1.4,0.0,0.15,0.21,5,False,False,
+3,mid,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.focus.count.high,False,-0.4,0.0,1.4,0.0,0.15,0.21,5,False,False,
+3,mid,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.focus.count.medium,False,-0.4,0.0,1.4,0.0,0.15,0.21,5,False,False,
+3,mid,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.llm.elaboration.high,False,0.4,0.0,1.4,0.0,0.15,0.21,5,False,False,
+3,mid,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.llm.charge.positive,False,0.1,0.0,1.4,0.0,0.15,0.21,5,False,False,
+3,mid,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,response.semantic.llm.engagement.low,False,-0.3,0.0,1.4,0.0,0.15,0.21,5,False,False,
+3,mid,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,response.semantic.llm.frame_resistance.true,False,-1.2,0.0,1.4,0.0,0.15,0.21,5,False,False,
+3,mid,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,interview.strategy.self_count,0.2,-1.5,-0.30000000000000004,1.4,0.0,0.15,0.21,5,False,False,
+3,mid,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,interview.strategy.self_count.high,False,-1.0,0.0,1.4,0.0,0.15,0.21,5,False,False,
+3,mid,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.chain.has_origin_level_ancestor.true,True,0.2,0.2,1.4,0.0,0.15,0.21,5,False,False,
+3,mid,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.chain.has_origin_level_ancestor.false,False,-0.5,0.0,1.4,0.0,0.15,0.21,5,False,False,
+3,mid,ascend,e72ccee1-abe0-432d-a8b7-87ce985f3e74,food as a source of emotional comfort,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+3,mid,ascend,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+3,mid,ascend,9e3a61a2-93da-40a0-a031-3b0bf3ae5bda,loss of emotional meaning of eating,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+3,mid,ground,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+3,mid,ground,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+3,mid,ground,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+3,mid,ground,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+3,mid,ground,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+3,mid,ground,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+3,mid,ground,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+3,mid,ground,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+3,mid,ground,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,convgraph.node.chain.gap.below.true,True,0.3,0.3,1.3,0.0,0.17,0.221,3,False,False,
+3,mid,ground,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,convgraph.node.recency,0.0,0.25,0.0,1.3,0.0,0.17,0.221,3,False,False,
+3,mid,ground,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,convgraph.node.exhaustion,0.0,-0.4,-0.0,1.3,0.0,0.17,0.221,3,False,False,
+3,mid,ground,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,convgraph.node.llm.elaboration.high,False,0.05,0.0,1.3,0.0,0.17,0.221,3,False,False,
+3,mid,ground,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,response.semantic.llm.frame_resistance.true,False,-0.8,0.0,1.3,0.0,0.17,0.221,3,False,False,
+3,mid,ground,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,interview.strategy.self_count,0.2,-0.4,-0.08000000000000002,1.3,0.0,0.17,0.221,3,False,False,
+3,mid,ground,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,convgraph.node.chain.has_origin_level_ancestor.false,True,0.25,0.25,1.3,0.0,0.17,0.221,3,False,False,
+3,mid,ground,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,convgraph.node.chain.has_origin_level_ancestor.true,False,-0.2,0.0,1.3,0.0,0.17,0.221,3,False,False,
+3,mid,ground,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,meta.saturation.conversation.high,False,-0.4,0.0,1.3,0.0,0.17,0.221,3,False,False,
+3,mid,ground,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,meta.saturation.canonical.high,True,-0.3,-0.3,1.3,0.0,0.17,0.221,3,False,False,
+3,mid,ground,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+3,mid,ground,e72ccee1-abe0-432d-a8b7-87ce985f3e74,food as a source of emotional comfort,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+3,mid,ground,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,convgraph.node.chain.gap.below.true,True,0.3,0.3,1.3,0.0,0.17,0.221,4,False,False,
+3,mid,ground,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,convgraph.node.recency,0.0,0.25,0.0,1.3,0.0,0.17,0.221,4,False,False,
+3,mid,ground,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,convgraph.node.exhaustion,0.0,-0.4,-0.0,1.3,0.0,0.17,0.221,4,False,False,
+3,mid,ground,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,convgraph.node.llm.elaboration.high,False,0.05,0.0,1.3,0.0,0.17,0.221,4,False,False,
+3,mid,ground,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,response.semantic.llm.frame_resistance.true,False,-0.8,0.0,1.3,0.0,0.17,0.221,4,False,False,
+3,mid,ground,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,interview.strategy.self_count,0.2,-0.4,-0.08000000000000002,1.3,0.0,0.17,0.221,4,False,False,
+3,mid,ground,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,convgraph.node.chain.has_origin_level_ancestor.false,True,0.25,0.25,1.3,0.0,0.17,0.221,4,False,False,
+3,mid,ground,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,convgraph.node.chain.has_origin_level_ancestor.true,False,-0.2,0.0,1.3,0.0,0.17,0.221,4,False,False,
+3,mid,ground,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,meta.saturation.conversation.high,False,-0.4,0.0,1.3,0.0,0.17,0.221,4,False,False,
+3,mid,ground,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,meta.saturation.canonical.high,True,-0.3,-0.3,1.3,0.0,0.17,0.221,4,False,False,
+3,mid,ground,9e3a61a2-93da-40a0-a031-3b0bf3ae5bda,loss of emotional meaning of eating,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+3,mid,bridge,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+3,mid,bridge,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+3,mid,bridge,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+3,mid,bridge,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+3,mid,bridge,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+3,mid,bridge,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+3,mid,bridge,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+3,mid,bridge,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+3,mid,bridge,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+3,mid,bridge,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+3,mid,bridge,e72ccee1-abe0-432d-a8b7-87ce985f3e74,food as a source of emotional comfort,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+3,mid,bridge,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+3,mid,bridge,9e3a61a2-93da-40a0-a031-3b0bf3ae5bda,loss of emotional meaning of eating,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+3,mid,branch,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+3,mid,branch,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+3,mid,branch,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+3,mid,branch,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+3,mid,branch,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+3,mid,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.chain.branching_deficit,0.33333333333333337,0.25,0.08333333333333334,1.0,0.0,0.283333,0.283333,2,False,False,
+3,mid,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.recency,0.0,0.15,0.0,1.0,0.0,0.283333,0.283333,2,False,False,
+3,mid,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.exhaustion,0.0,-0.3,-0.0,1.0,0.0,0.283333,0.283333,2,False,False,
+3,mid,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,response.semantic.llm.engagement.high,True,0.1,0.1,1.0,0.0,0.283333,0.283333,2,False,False,
+3,mid,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,interview.strategy.self_count,0.0,-0.5,-0.0,1.0,0.0,0.283333,0.283333,2,False,False,
+3,mid,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.chain.has_origin_level_ancestor.true,True,0.1,0.1,1.0,0.0,0.283333,0.283333,2,False,False,
+3,mid,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.chain.has_max_level_ancestor.true,False,0.5,0.0,1.0,0.0,0.283333,0.283333,2,False,False,
+3,mid,branch,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+3,mid,branch,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+3,mid,branch,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+3,mid,branch,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.chain.branching_deficit,1.0,0.25,0.25,1.0,0.0,0.45,0.45,1,True,False,
+3,mid,branch,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.recency,0.0,0.15,0.0,1.0,0.0,0.45,0.45,1,True,False,
+3,mid,branch,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.exhaustion,0.0,-0.3,-0.0,1.0,0.0,0.45,0.45,1,True,False,
+3,mid,branch,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,response.semantic.llm.engagement.high,True,0.1,0.1,1.0,0.0,0.45,0.45,1,True,False,
+3,mid,branch,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,interview.strategy.self_count,0.0,-0.5,-0.0,1.0,0.0,0.45,0.45,1,True,False,
+3,mid,branch,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.chain.has_origin_level_ancestor.true,True,0.1,0.1,1.0,0.0,0.45,0.45,1,True,False,
+3,mid,branch,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.chain.has_max_level_ancestor.true,False,0.5,0.0,1.0,0.0,0.45,0.45,1,True,False,
+3,mid,branch,e72ccee1-abe0-432d-a8b7-87ce985f3e74,food as a source of emotional comfort,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+3,mid,branch,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+3,mid,branch,9e3a61a2-93da-40a0-a031-3b0bf3ae5bda,loss of emotional meaning of eating,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+3,mid,anchor,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+3,mid,anchor,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+3,mid,anchor,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+3,mid,anchor,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+3,mid,anchor,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+3,mid,anchor,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+3,mid,anchor,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+3,mid,anchor,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+3,mid,anchor,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+3,mid,anchor,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.is_orphan.true,True,0.5,0.5,1.0,0.0,0.2,0.2,6,False,False,
+3,mid,anchor,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.recency,0.0,0.2,0.0,1.0,0.0,0.2,0.2,6,False,False,
+3,mid,anchor,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.exhaustion,0.0,-0.2,-0.0,1.0,0.0,0.2,0.2,6,False,False,
+3,mid,anchor,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,interview.strategy.self_count,0.0,-0.15,-0.0,1.0,0.0,0.2,0.2,6,False,False,
+3,mid,anchor,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,meta.saturation.conversation.high,False,-0.4,0.0,1.0,0.0,0.2,0.2,6,False,False,
+3,mid,anchor,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,meta.saturation.canonical.high,True,-0.3,-0.3,1.0,0.0,0.2,0.2,6,False,False,
+3,mid,anchor,e72ccee1-abe0-432d-a8b7-87ce985f3e74,food as a source of emotional comfort,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+3,mid,anchor,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+3,mid,anchor,9e3a61a2-93da-40a0-a031-3b0bf3ae5bda,loss of emotional meaning of eating,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+3,mid,revitalize,,,response.semantic.llm.engagement.low,False,0.5,0.0,1.0,0.0,-0.4,-0.4,8,False,False,
+3,mid,revitalize,,,response.semantic.llm.engagement.trend.shallowing,False,0.3,0.0,1.0,0.0,-0.4,-0.4,8,False,False,
+3,mid,revitalize,,,response.semantic.llm.engagement.trend.fatigued,False,0.8,0.0,1.0,0.0,-0.4,-0.4,8,False,False,
+3,mid,revitalize,,,response.semantic.llm.frame_resistance.true,False,1.5,0.0,1.0,0.0,-0.4,-0.4,8,False,False,
+3,mid,revitalize,,,meta.saturation.conversation,0.0,-0.4,-0.0,1.0,0.0,-0.4,-0.4,8,False,False,
+3,mid,revitalize,,,meta.saturation.canonical,1.0,-0.4,-0.4,1.0,0.0,-0.4,-0.4,8,False,False,
+3,mid,revitalize,,,interview.strategy.self_count,0.0,-0.5,-0.0,1.0,0.0,-0.4,-0.4,8,False,False,
+3,mid,close,,,interview.phase.late,False,0.8,0.0,0.5,0.0,-3.0,-1.5,9,False,False,
+3,mid,close,,,interview.phase.early,False,-3.0,0.0,0.5,0.0,-3.0,-1.5,9,False,False,
+3,mid,close,,,interview.phase.mid,True,-3.0,-3.0,0.5,0.0,-3.0,-1.5,9,False,False,
+3,mid,close,,,interview.strategy.self_count,0.0,-0.5,-0.0,0.5,0.0,-3.0,-1.5,9,False,False,
+4,late,ascend,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+4,late,ascend,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+4,late,ascend,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+4,late,ascend,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+4,late,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.gap.above.true,True,0.25,0.25,1.2,0.1,0.0865,0.2038,6,False,False,
+4,late,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.fan_in,2,0.033,0.066,1.2,0.1,0.0865,0.2038,6,False,False,
+4,late,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.recency,0.95,0.15,0.1425,1.2,0.1,0.0865,0.2038,6,False,False,
+4,late,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.exhaustion,0.33999999999999997,-0.8,-0.27199999999999996,1.2,0.1,0.0865,0.2038,6,False,False,
+4,late,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.focus.count.high,False,-0.4,0.0,1.2,0.1,0.0865,0.2038,6,False,False,
+4,late,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.focus.count.medium,False,-0.4,0.0,1.2,0.1,0.0865,0.2038,6,False,False,
+4,late,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.llm.elaboration.high,False,0.4,0.0,1.2,0.1,0.0865,0.2038,6,False,False,
+4,late,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.llm.charge.positive,False,0.1,0.0,1.2,0.1,0.0865,0.2038,6,False,False,
+4,late,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,response.semantic.llm.engagement.low,False,-0.3,0.0,1.2,0.1,0.0865,0.2038,6,False,False,
+4,late,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,response.semantic.llm.frame_resistance.true,False,-1.2,0.0,1.2,0.1,0.0865,0.2038,6,False,False,
+4,late,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,interview.strategy.self_count,0.2,-1.5,-0.30000000000000004,1.2,0.1,0.0865,0.2038,6,False,False,
+4,late,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,interview.strategy.self_count.high,False,-1.0,0.0,1.2,0.1,0.0865,0.2038,6,False,False,
+4,late,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.has_origin_level_ancestor.true,True,0.2,0.2,1.2,0.1,0.0865,0.2038,6,False,False,
+4,late,ascend,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,convgraph.node.chain.has_origin_level_ancestor.false,False,-0.5,0.0,1.2,0.1,0.0865,0.2038,6,False,False,
+4,late,ascend,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+4,late,ascend,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+4,late,ascend,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+4,late,ascend,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+4,late,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.chain.gap.above.true,True,0.25,0.25,1.2,0.1,0.012,0.1144,7,False,False,
+4,late,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.chain.fan_in,0,0.033,0.0,1.2,0.1,0.012,0.1144,7,False,False,
+4,late,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.recency,1.0,0.15,0.15,1.2,0.1,0.012,0.1144,7,False,False,
+4,late,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.exhaustion,0.36,-0.8,-0.288,1.2,0.1,0.012,0.1144,7,False,False,
+4,late,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.focus.count.high,False,-0.4,0.0,1.2,0.1,0.012,0.1144,7,False,False,
+4,late,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.focus.count.medium,False,-0.4,0.0,1.2,0.1,0.012,0.1144,7,False,False,
+4,late,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.llm.elaboration.high,False,0.4,0.0,1.2,0.1,0.012,0.1144,7,False,False,
+4,late,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.llm.charge.positive,False,0.1,0.0,1.2,0.1,0.012,0.1144,7,False,False,
+4,late,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,response.semantic.llm.engagement.low,False,-0.3,0.0,1.2,0.1,0.012,0.1144,7,False,False,
+4,late,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,response.semantic.llm.frame_resistance.true,False,-1.2,0.0,1.2,0.1,0.012,0.1144,7,False,False,
+4,late,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,interview.strategy.self_count,0.2,-1.5,-0.30000000000000004,1.2,0.1,0.012,0.1144,7,False,False,
+4,late,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,interview.strategy.self_count.high,False,-1.0,0.0,1.2,0.1,0.012,0.1144,7,False,False,
+4,late,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.chain.has_origin_level_ancestor.true,True,0.2,0.2,1.2,0.1,0.012,0.1144,7,False,False,
+4,late,ascend,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.chain.has_origin_level_ancestor.false,False,-0.5,0.0,1.2,0.1,0.012,0.1144,7,False,False,
+4,late,ascend,e72ccee1-abe0-432d-a8b7-87ce985f3e74,food as a source of emotional comfort,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+4,late,ascend,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+4,late,ascend,9e3a61a2-93da-40a0-a031-3b0bf3ae5bda,loss of emotional meaning of eating,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+4,late,ascend,f52be72b-66f5-4527-8598-e862fbbc88b3,reduced mental noise about food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+4,late,ascend,0a23e665-99a6-4b75-99ae-cb8fddc92bbc,increased mental space for non-food activities,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.above
+4,late,ascend,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,convgraph.node.chain.gap.above.true,True,0.25,0.25,1.2,0.1,-0.55,-0.56,9,False,False,
+4,late,ascend,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,convgraph.node.chain.fan_in,0,0.033,0.0,1.2,0.1,-0.55,-0.56,9,False,False,
+4,late,ascend,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,convgraph.node.recency,0.0,0.15,0.0,1.2,0.1,-0.55,-0.56,9,False,False,
+4,late,ascend,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,convgraph.node.exhaustion,0.0,-0.8,-0.0,1.2,0.1,-0.55,-0.56,9,False,False,
+4,late,ascend,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,convgraph.node.focus.count.high,False,-0.4,0.0,1.2,0.1,-0.55,-0.56,9,False,False,
+4,late,ascend,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,convgraph.node.focus.count.medium,False,-0.4,0.0,1.2,0.1,-0.55,-0.56,9,False,False,
+4,late,ascend,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,convgraph.node.llm.elaboration.high,False,0.4,0.0,1.2,0.1,-0.55,-0.56,9,False,False,
+4,late,ascend,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,convgraph.node.llm.charge.positive,False,0.1,0.0,1.2,0.1,-0.55,-0.56,9,False,False,
+4,late,ascend,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,response.semantic.llm.engagement.low,False,-0.3,0.0,1.2,0.1,-0.55,-0.56,9,False,False,
+4,late,ascend,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,response.semantic.llm.frame_resistance.true,False,-1.2,0.0,1.2,0.1,-0.55,-0.56,9,False,False,
+4,late,ascend,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,interview.strategy.self_count,0.2,-1.5,-0.30000000000000004,1.2,0.1,-0.55,-0.56,9,False,False,
+4,late,ascend,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,interview.strategy.self_count.high,False,-1.0,0.0,1.2,0.1,-0.55,-0.56,9,False,False,
+4,late,ascend,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,convgraph.node.chain.has_origin_level_ancestor.true,False,0.2,0.0,1.2,0.1,-0.55,-0.56,9,False,False,
+4,late,ascend,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,convgraph.node.chain.has_origin_level_ancestor.false,True,-0.5,-0.5,1.2,0.1,-0.55,-0.56,9,False,False,
+4,late,ground,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,ground,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,ground,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,ground,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,ground,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,ground,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,ground,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,ground,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,ground,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,ground,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,ground,e72ccee1-abe0-432d-a8b7-87ce985f3e74,food as a source of emotional comfort,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,ground,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,ground,9e3a61a2-93da-40a0-a031-3b0bf3ae5bda,loss of emotional meaning of eating,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,ground,f52be72b-66f5-4527-8598-e862fbbc88b3,reduced mental noise about food,convgraph.node.chain.gap.below.true,True,0.3,0.3,0.9,0.0,0.47,0.423,5,False,False,
+4,late,ground,f52be72b-66f5-4527-8598-e862fbbc88b3,reduced mental noise about food,convgraph.node.recency,0.0,0.25,0.0,0.9,0.0,0.47,0.423,5,False,False,
+4,late,ground,f52be72b-66f5-4527-8598-e862fbbc88b3,reduced mental noise about food,convgraph.node.exhaustion,0.0,-0.4,-0.0,0.9,0.0,0.47,0.423,5,False,False,
+4,late,ground,f52be72b-66f5-4527-8598-e862fbbc88b3,reduced mental noise about food,convgraph.node.llm.elaboration.high,False,0.05,0.0,0.9,0.0,0.47,0.423,5,False,False,
+4,late,ground,f52be72b-66f5-4527-8598-e862fbbc88b3,reduced mental noise about food,response.semantic.llm.frame_resistance.true,False,-0.8,0.0,0.9,0.0,0.47,0.423,5,False,False,
+4,late,ground,f52be72b-66f5-4527-8598-e862fbbc88b3,reduced mental noise about food,interview.strategy.self_count,0.2,-0.4,-0.08000000000000002,0.9,0.0,0.47,0.423,5,False,False,
+4,late,ground,f52be72b-66f5-4527-8598-e862fbbc88b3,reduced mental noise about food,convgraph.node.chain.has_origin_level_ancestor.false,True,0.25,0.25,0.9,0.0,0.47,0.423,5,False,False,
+4,late,ground,f52be72b-66f5-4527-8598-e862fbbc88b3,reduced mental noise about food,convgraph.node.chain.has_origin_level_ancestor.true,False,-0.2,0.0,0.9,0.0,0.47,0.423,5,False,False,
+4,late,ground,f52be72b-66f5-4527-8598-e862fbbc88b3,reduced mental noise about food,meta.saturation.conversation.high,False,-0.4,0.0,0.9,0.0,0.47,0.423,5,False,False,
+4,late,ground,f52be72b-66f5-4527-8598-e862fbbc88b3,reduced mental noise about food,meta.saturation.canonical.high,False,-0.3,0.0,0.9,0.0,0.47,0.423,5,False,False,
+4,late,ground,0a23e665-99a6-4b75-99ae-cb8fddc92bbc,increased mental space for non-food activities,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,ground,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.gap.below
+4,late,bridge,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,e72ccee1-abe0-432d-a8b7-87ce985f3e74,food as a source of emotional comfort,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,9e3a61a2-93da-40a0-a031-3b0bf3ae5bda,loss of emotional meaning of eating,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,f52be72b-66f5-4527-8598-e862fbbc88b3,reduced mental noise about food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,0a23e665-99a6-4b75-99ae-cb8fddc92bbc,increased mental space for non-food activities,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,bridge,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.level.skip
+4,late,branch,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+4,late,branch,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+4,late,branch,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+4,late,branch,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+4,late,branch,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+4,late,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.chain.branching_deficit,0.33333333333333337,0.25,0.08333333333333334,1.1,0.3,0.183333,0.501667,3,False,False,
+4,late,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.recency,0.0,0.15,0.0,1.1,0.3,0.183333,0.501667,3,False,False,
+4,late,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.exhaustion,0.0,-0.3,-0.0,1.1,0.3,0.183333,0.501667,3,False,False,
+4,late,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,response.semantic.llm.engagement.high,True,0.1,0.1,1.1,0.3,0.183333,0.501667,3,False,False,
+4,late,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,interview.strategy.self_count,0.2,-0.5,-0.1,1.1,0.3,0.183333,0.501667,3,False,False,
+4,late,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.chain.has_origin_level_ancestor.true,True,0.1,0.1,1.1,0.3,0.183333,0.501667,3,False,False,
+4,late,branch,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,convgraph.node.chain.has_max_level_ancestor.true,False,0.5,0.0,1.1,0.3,0.183333,0.501667,3,False,False,
+4,late,branch,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+4,late,branch,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+4,late,branch,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+4,late,branch,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.chain.branching_deficit,1.0,0.25,0.25,1.1,0.3,0.392,0.7312,2,False,False,
+4,late,branch,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.recency,1.0,0.15,0.15,1.1,0.3,0.392,0.7312,2,False,False,
+4,late,branch,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.exhaustion,0.36,-0.3,-0.108,1.1,0.3,0.392,0.7312,2,False,False,
+4,late,branch,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,response.semantic.llm.engagement.high,True,0.1,0.1,1.1,0.3,0.392,0.7312,2,False,False,
+4,late,branch,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,interview.strategy.self_count,0.2,-0.5,-0.1,1.1,0.3,0.392,0.7312,2,False,False,
+4,late,branch,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.chain.has_origin_level_ancestor.true,True,0.1,0.1,1.1,0.3,0.392,0.7312,2,False,False,
+4,late,branch,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.chain.has_max_level_ancestor.true,False,0.5,0.0,1.1,0.3,0.392,0.7312,2,False,False,
+4,late,branch,e72ccee1-abe0-432d-a8b7-87ce985f3e74,food as a source of emotional comfort,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+4,late,branch,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+4,late,branch,9e3a61a2-93da-40a0-a031-3b0bf3ae5bda,loss of emotional meaning of eating,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+4,late,branch,f52be72b-66f5-4527-8598-e862fbbc88b3,reduced mental noise about food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+4,late,branch,0a23e665-99a6-4b75-99ae-cb8fddc92bbc,increased mental space for non-food activities,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+4,late,branch,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.chain.branching_deficit
+4,late,anchor,99e96d8d-a5c2-454b-a469-873ef173dd3c,faster satiety onset,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,anchor,6818e268-fa66-4657-b83a-885db393c928,reduced food intake,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,anchor,54e8fa39-3631-4435-ac9b-0b4fe0b2a008,reduced cravings for previously desired foods,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,anchor,731192ba-36f1-484a-8150-7e45408c97fd,feeling freed from food urges,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,anchor,05ebad0b-c56e-46a4-9ae5-b95f88ef613f,disorientation from changed relationship with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,anchor,49c4058e-52ba-4432-94aa-067ffeee76fe,accelerated fullness signal from stomach or brain,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,anchor,3b5acb14-b358-452d-8adb-ccfe9f772c14,uncertainty about mechanism of satiety change (stomach vs. brain),(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,anchor,c438d1c2-bbde-4c91-8bde-bad530263ab4,reaching satisfaction at uncomfortably early point,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,anchor,e1d34711-b9b7-40dc-9b97-36288719f15c,reduced mental preoccupation with food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,anchor,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.is_orphan.true,True,0.5,0.5,0.7,0.0,0.628,0.4396,4,False,False,
+4,late,anchor,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.recency,1.0,0.2,0.2,0.7,0.0,0.628,0.4396,4,False,False,
+4,late,anchor,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,convgraph.node.exhaustion,0.36,-0.2,-0.072,0.7,0.0,0.628,0.4396,4,False,False,
+4,late,anchor,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,interview.strategy.self_count,0.0,-0.15,-0.0,0.7,0.0,0.628,0.4396,4,False,False,
+4,late,anchor,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,meta.saturation.conversation.high,False,-0.4,0.0,0.7,0.0,0.628,0.4396,4,False,False,
+4,late,anchor,545f2a6e-88eb-44df-8ab6-238870e0947e,constant meal planning and snacking between activities,meta.saturation.canonical.high,False,-0.3,0.0,0.7,0.0,0.628,0.4396,4,False,False,
+4,late,anchor,e72ccee1-abe0-432d-a8b7-87ce985f3e74,food as a source of emotional comfort,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,anchor,e0b7a3fd-7a7f-4acc-b3d8-c6788bb54bb1,food reduced to purely functional fuel,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,anchor,9e3a61a2-93da-40a0-a031-3b0bf3ae5bda,loss of emotional meaning of eating,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,anchor,f52be72b-66f5-4527-8598-e862fbbc88b3,reduced mental noise about food,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,anchor,0a23e665-99a6-4b75-99ae-cb8fddc92bbc,increased mental space for non-food activities,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,anchor,ebd9b582-4bbb-49c7-ab36-052a5b43b1f3,improved ability to focus on work and tasks,(gated),,,0,1.0,0.0,0.0,0.0,10,False,True,convgraph.node.is_orphan
+4,late,revitalize,,,response.semantic.llm.engagement.low,False,0.5,0.0,1.2,0.2,-0.42668,-0.312016,8,False,False,
+4,late,revitalize,,,response.semantic.llm.engagement.trend.shallowing,False,0.3,0.0,1.2,0.2,-0.42668,-0.312016,8,False,False,
+4,late,revitalize,,,response.semantic.llm.engagement.trend.fatigued,False,0.8,0.0,1.2,0.2,-0.42668,-0.312016,8,False,False,
+4,late,revitalize,,,response.semantic.llm.frame_resistance.true,False,1.5,0.0,1.2,0.2,-0.42668,-0.312016,8,False,False,
+4,late,revitalize,,,meta.saturation.conversation,0.4,-0.4,-0.16000000000000003,1.2,0.2,-0.42668,-0.312016,8,False,False,
+4,late,revitalize,,,meta.saturation.canonical,0.6667,-0.4,-0.26668,1.2,0.2,-0.42668,-0.312016,8,False,False,
+4,late,revitalize,,,interview.strategy.self_count,0.0,-0.5,-0.0,1.2,0.2,-0.42668,-0.312016,8,False,False,
+4,late,close,,,interview.phase.late,True,0.8,0.8,1.5,0.2,0.8,1.4,1,True,False,
+4,late,close,,,interview.phase.early,False,-3.0,0.0,1.5,0.2,0.8,1.4,1,True,False,
+4,late,close,,,interview.phase.mid,False,-3.0,0.0,1.5,0.2,0.8,1.4,1,True,False,
+4,late,close,,,interview.strategy.self_count,0.0,-0.5,-0.0,1.5,0.2,0.8,1.4,1,True,False,

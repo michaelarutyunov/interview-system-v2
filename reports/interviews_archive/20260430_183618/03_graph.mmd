@@ -1,0 +1,90 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_4967b8e6
+    t1 ~~~ n_2be98cac
+    t1 ~~~ n_8d628c40
+    t1 ~~~ n_8086cf2b
+    t2 ~~~ n_a0753df2
+    t3 ~~~ n_78ecb4c5
+    t3 ~~~ n_b3447420
+    t3 ~~~ n_d0a2aa2c
+    t5 ~~~ n_9a79bdac
+    t5 ~~~ n_0e7d1c06
+    t6 ~~~ n_c34a2b74
+    t7 ~~~ n_b4c494d3
+    t7 ~~~ n_54cf136e
+    t8 ~~~ n_0e572ef2
+    t9 ~~~ n_6f27fbc7
+    t10 ~~~ n_5753405b
+
+    %% Node definitions
+    n_4967b8e6["(1) grocery shopping trip F1"]
+    n_2be98cac["(1) trying to cut back on sugar"]
+    n_8d628c40["(1) reduce sugar intake"]
+    n_8086cf2b["(1) choosing ZeroFizz over regular Coke"]
+    n_a0753df2["(2) avoid loading cart with unhealthy items F2"]
+    n_78ecb4c5["(3) avoid feeling like I'm sabotaging my ... F3"]
+    n_b3447420["(3) enjoy a desired drink without guilt"]
+    n_d0a2aa2c["(3) feel in control of my health choices F4"]
+    n_9a79bdac["(5) know what's going into my body F5"]
+    n_0e7d1c06["(5) uncertainty about drink ingredients F7"]
+    n_c34a2b74["(6) avoid artificial ingredients I can't ... F6"]
+    n_b4c494d3["(7) unreadable ingredients signal somethi..."]
+    n_54cf136e["(7) trust that a drink is safe to consume"]
+    n_0e572ef2["(8) small label makes ingredients hard to..."]
+    n_6f27fbc7["(9) ingredient content determines purchas... F9"]
+    n_5753405b["(10) feel informed about what I consume"]
+
+    %% Real edges
+    n_2be98cac -->|triggers| n_8d628c40
+    n_2be98cac -->|triggers| n_8086cf2b
+    n_4967b8e6 -->|occurs_in| n_2be98cac
+    n_8d628c40 -->|drives| n_8086cf2b
+    n_2be98cac -->|supports| n_a0753df2
+    n_8086cf2b -->|achieves| n_a0753df2
+    n_4967b8e6 -->|triggers| n_a0753df2
+    n_a0753df2 -->|supports| n_d0a2aa2c
+    n_78ecb4c5 -->|implies| n_d0a2aa2c
+    n_b3447420 -->|supports| n_d0a2aa2c
+    n_8086cf2b -->|achieves| n_b3447420
+    n_8086cf2b -->|addresses| n_78ecb4c5
+    n_0e7d1c06 -->|implies| n_9a79bdac
+    n_d0a2aa2c -->|supports| n_9a79bdac
+    n_9a79bdac -->|implies| n_c34a2b74
+    n_c34a2b74 -->|implies| n_b4c494d3
+    n_b4c494d3 -->|implies| n_54cf136e
+    n_54cf136e -->|supports| n_9a79bdac
+    n_0e572ef2 -->|triggers| n_0e7d1c06
+    n_0e572ef2 -->|conflicts_with| n_c34a2b74
+    n_9a79bdac -->|implies| n_6f27fbc7
+    n_9a79bdac -->|supports| n_5753405b
+    n_6f27fbc7 -->|drives| n_5753405b
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_4967b8e6,n_a0753df2,n_78ecb4c5,n_d0a2aa2c,n_9a79bdac,n_0e7d1c06,n_c34a2b74,n_6f27fbc7 focused
+    class n_2be98cac,n_8d628c40,n_8086cf2b,n_b3447420,n_b4c494d3,n_54cf136e,n_0e572ef2,n_5753405b default
+    class t1,t2,t3,t5,t6,t7,t8,t9,t10 anchor

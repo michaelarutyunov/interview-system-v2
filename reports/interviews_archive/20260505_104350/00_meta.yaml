@@ -1,0 +1,17 @@
+# Interview Export Metadata
+timestamp: "20260505_104350"
+session_id: "2685e5a5-7fdb-428b-b2fe-268a6dd9f250"
+concept:
+  id: "zerofizz_beverage_jtbd"
+  name: "ZeroFizz Sugar-Free Carbonated Beverage - Jobs to be Done"
+methodology: "jobs_to_be_done_v2"
+persona:
+  id: "baseline_cooperative"
+  name: "Baseline Cooperative Respondent"
+interview:
+  total_turns: 15
+  status: "Closing strategy selected"
+  saved_at: "2026-05-05T10:43:50.267728+00:00"
+source:
+  json_file: "synthetic_interviews/20260505_104350_zerofizz_beverage_jtbd_baseline_cooperative.json"
+  log_file: "interview_20260505_113725.log"

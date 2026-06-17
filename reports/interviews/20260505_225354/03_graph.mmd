@@ -1,0 +1,152 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_ec38dd00
+    t1 ~~~ n_8bc221d2
+    t1 ~~~ n_d2bbbeeb
+    t1 ~~~ n_b8f6a3cb
+    t1 ~~~ n_14391cb3
+    t1 ~~~ n_4ab2c233
+    t2 ~~~ n_916b272e
+    t2 ~~~ n_d3403ce4
+    t2 ~~~ n_13a89a11
+    t2 ~~~ n_0eb5cb15
+    t2 ~~~ n_933838ba
+    t3 ~~~ n_d8d19714
+    t3 ~~~ n_0a4130b0
+    t3 ~~~ n_0f721c25
+    t4 ~~~ n_746e2418
+    t4 ~~~ n_58257a82
+    t4 ~~~ n_edd79249
+    t5 ~~~ n_1cb08b38
+    t5 ~~~ n_460bcc71
+    t6 ~~~ n_7fcb5017
+    t6 ~~~ n_cf1be543
+    t6 ~~~ n_3420854e
+    t7 ~~~ n_286fb60c
+    t7 ~~~ n_c8b5e74c
+    t8 ~~~ n_b16548b6
+    t8 ~~~ n_bbe73b02
+    t8 ~~~ n_47003854
+    t8 ~~~ n_46229770
+    t8 ~~~ n_410e25e5
+    t9 ~~~ n_05a939d2
+    t9 ~~~ n_f935f082
+    t9 ~~~ n_63f75215
+
+    %% Node definitions
+    n_ec38dd00["(1) grabbing whatever drink is available ..."]
+    n_8bc221d2["(1) opportunistic availability of sugar-f... F1"]
+    n_d2bbbeeb["(1) low intentionality in choosing sugar-..."]
+    n_b8f6a3cb["(1) sitting at desk for extended hours du... F2"]
+    n_14391cb3["(1) avoiding a sugar crash during long se... F3"]
+    n_4ab2c233["(1) maintain steady energy and focus thro..."]
+    n_916b272e["(2) minimising decision effort when grabb..."]
+    n_d3403ce4["(2) drink is immediately accessible witho..."]
+    n_13a89a11["(2) having to go to a different store to ..."]
+    n_0eb5cb15["(2) feel less guilty about drink choice w..."]
+    n_933838ba["(2) reduce mental load around food and dr..."]
+    n_d8d19714["(3) navigating high cognitive demands thr... F4"]
+    n_0a4130b0["(3) being at the store and choosing a drink"]
+    n_0f721c25["(3) drink 'just works' without requiring ..."]
+    n_746e2418["(4) avoiding post-consumption calorie che..."]
+    n_58257a82["(4) enjoy the drink without mental load"]
+    n_edd79249["(4) feel at ease and guilt-free while con..."]
+    n_1cb08b38["(5) relief from nagging self-doubt while ..."]
+    n_460bcc71["(5) freedom from questioning whether a dr... F5"]
+    n_7fcb5017["(6) navigating decision fatigue across fo... F6"]
+    n_cf1be543["(6) knowing a drink won't interfere with ... F7"]
+    n_3420854e["(6) feel in control of health goals witho... F8"]
+    n_286fb60c["(7) avoiding self-judgment about health-r..."]
+    n_c8b5e74c["(7) absence of nagging doubt during consu..."]
+    n_b16548b6["(8) wanting something fizzy in the afternoon"]
+    n_bbe73b02["(8) afternoon slump as context for seekin..."]
+    n_47003854["(8) feel like progress toward health goal..."]
+    n_46229770["(8) avoiding a sugar crash in the afternoon"]
+    n_410e25e5["(8) choosing ZeroFizz as a fizzy drink th..."]
+    n_05a939d2["(9) self-doubt about drink choice persist..."]
+    n_f935f082["(9) sugar crash is temporary and finite c..."]
+    n_63f75215["(9) escape persistent post-consumption re..."]
+
+    %% Real edges
+    n_14391cb3 -->|supports| n_58257a82
+    n_14391cb3 -->|supports| n_edd79249
+    n_746e2418 -->|drives| n_58257a82
+    n_746e2418 -->|drives| n_edd79249
+    n_746e2418 -->|drives| n_0f721c25
+    n_58257a82 -->|supports| n_edd79249
+    n_58257a82 -->|supports| n_d8d19714
+    n_58257a82 -->|supports| n_0f721c25
+    n_edd79249 -->|supports| n_d8d19714
+    n_edd79249 -->|occurs_in| n_0a4130b0
+    n_edd79249 -->|supports| n_0f721c25
+    n_d8d19714 -->|triggers| n_1cb08b38
+    n_d8d19714 -->|triggers| n_460bcc71
+    n_1cb08b38 -->|implies| n_460bcc71
+    n_1cb08b38 -->|supports| n_58257a82
+    n_1cb08b38 -->|supports| n_edd79249
+    n_1cb08b38 -->|conflicts_with| n_746e2418
+    n_460bcc71 -->|conflicts_with| n_746e2418
+    n_7fcb5017 -->|triggers| n_286fb60c
+    n_7fcb5017 -->|triggers| n_c8b5e74c
+    n_286fb60c -->|implies| n_c8b5e74c
+    n_286fb60c -->|implies| n_cf1be543
+    n_286fb60c -->|supports| n_3420854e
+    n_c8b5e74c -->|supports| n_3420854e
+    n_b16548b6 -->|occurs_in| n_bbe73b02
+    n_b16548b6 -->|triggers| n_47003854
+    n_b16548b6 -->|triggers| n_46229770
+    n_b16548b6 -->|triggers| n_410e25e5
+    n_b16548b6 -->|triggers| n_286fb60c
+    n_b16548b6 -->|triggers| n_c8b5e74c
+    n_bbe73b02 -->|triggers| n_47003854
+    n_bbe73b02 -->|triggers| n_46229770
+    n_bbe73b02 -->|occurs_in| n_410e25e5
+    n_bbe73b02 -->|triggers| n_286fb60c
+    n_bbe73b02 -->|triggers| n_c8b5e74c
+    n_47003854 -->|drives| n_410e25e5
+    n_47003854 -->|achieves| n_c8b5e74c
+    n_46229770 -->|drives| n_410e25e5
+    n_46229770 -->|achieves| n_c8b5e74c
+    n_410e25e5 -->|addresses| n_286fb60c
+    n_410e25e5 -->|achieves| n_c8b5e74c
+    n_05a939d2 -->|supports| n_f935f082
+    n_05a939d2 -->|implies| n_63f75215
+    n_05a939d2 -->|conflicts_with| n_c8b5e74c
+    n_05a939d2 -->|implies| n_47003854
+    n_05a939d2 -->|addresses| n_410e25e5
+    n_f935f082 -->|implies| n_63f75215
+    n_f935f082 -->|implies| n_47003854
+    n_f935f082 -->|addresses| n_410e25e5
+    n_63f75215 -->|supports| n_286fb60c
+    n_63f75215 -->|drives| n_c8b5e74c
+    n_63f75215 -->|supports| n_47003854
+    n_63f75215 -->|drives| n_410e25e5
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_8bc221d2,n_b8f6a3cb,n_14391cb3,n_d8d19714,n_460bcc71,n_7fcb5017,n_cf1be543,n_3420854e focused
+    class n_ec38dd00,n_d2bbbeeb,n_4ab2c233,n_916b272e,n_d3403ce4,n_13a89a11,n_0eb5cb15,n_933838ba,n_0a4130b0,n_0f721c25,n_746e2418,n_58257a82,n_edd79249,n_1cb08b38,n_286fb60c,n_c8b5e74c,n_b16548b6,n_bbe73b02,n_47003854,n_46229770,n_410e25e5,n_05a939d2,n_f935f082,n_63f75215 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9 anchor

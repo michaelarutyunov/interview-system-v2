@@ -1,0 +1,268 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+    t11(( ))
+    t12(( ))
+    t13(( ))
+    t14(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10 ~~~ t11 ~~~ t12 ~~~ t13 ~~~ t14
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_987434ee
+    t1 ~~~ n_98f2698c
+    t1 ~~~ n_1d56c67e
+    t1 ~~~ n_5c473e77
+    t1 ~~~ n_f09ca186
+    t1 ~~~ n_49d88ed0
+    t1 ~~~ n_0f1caf18
+    t1 ~~~ n_b2492ebc
+    t2 ~~~ n_3d4604a2
+    t2 ~~~ n_f926c539
+    t2 ~~~ n_74ffda85
+    t2 ~~~ n_e5740b2f
+    t2 ~~~ n_85cad798
+    t2 ~~~ n_c484a5ee
+    t3 ~~~ n_6ab9cd75
+    t3 ~~~ n_0e723ccf
+    t4 ~~~ n_06c55347
+    t4 ~~~ n_fc25e2db
+    t5 ~~~ n_e477553d
+    t5 ~~~ n_fa0e1739
+    t5 ~~~ n_9a58cc59
+    t5 ~~~ n_e0265775
+    t6 ~~~ n_17fcc220
+    t6 ~~~ n_b00ec24f
+    t6 ~~~ n_44ca0a76
+    t6 ~~~ n_0b015931
+    t7 ~~~ n_fab22859
+    t7 ~~~ n_512d6bd8
+    t7 ~~~ n_3718c97f
+    t8 ~~~ n_926f95b7
+    t8 ~~~ n_395ef7dd
+    t8 ~~~ n_85add58d
+    t8 ~~~ n_f77e40bb
+    t9 ~~~ n_8e044a15
+    t9 ~~~ n_610f9e72
+    t9 ~~~ n_f43f4d23
+    t9 ~~~ n_79107614
+    t9 ~~~ n_39524e2e
+    t10 ~~~ n_e9b36f7d
+    t10 ~~~ n_07a1fcee
+    t11 ~~~ n_c0c62d78
+    t11 ~~~ n_f10ecf15
+    t11 ~~~ n_a3613f91
+    t11 ~~~ n_aabc16c5
+    t11 ~~~ n_45fdaf4a
+    t12 ~~~ n_f29c6bc0
+    t12 ~~~ n_e90df4da
+    t13 ~~~ n_396566ac
+    t13 ~~~ n_2f7fb607
+    t13 ~~~ n_acbd145e
+    t14 ~~~ n_5c3f3c6a
+    t14 ~~~ n_273f9943
+    t14 ~~~ n_a56ea63c
+    t14 ~~~ n_693248e2
+
+    %% Node definitions
+    n_987434ee["(1) being at work during the day F1"]
+    n_98f2698c["(1) needing a drink but wanting to avoid ..."]
+    n_1d56c67e["(1) avoid energy crash after drinking"]
+    n_5c473e77["(1) sugar crash disrupting energy levels"]
+    n_f09ca186["(1) already having too much caffeine that..."]
+    n_49d88ed0["(1) over-reliance on coffee leading to ex..."]
+    n_0f1caf18["(1) grabbing whatever sugar-free drink is..."]
+    n_b2492ebc["(1) staying energised and functional thro... F3"]
+    n_3d4604a2["(2) experiencing an energy dip around 3pm F2 F4"]
+    n_f926c539["(2) sugar causing a wired-then-crash roll..."]
+    n_74ffda85["(2) maintain focus on work without being ..."]
+    n_e5740b2f["(2) steady, uninterrupted focus during th... F5"]
+    n_85cad798["(2) feeling in control of energy without ..."]
+    n_c484a5ee["(2) drinking ZeroFizz sugar-free beverage..."]
+    n_6ab9cd75["(3) getting through afternoon meetings wi..."]
+    n_0e723ccf["(3) feeling like needing a nap during aft..."]
+    n_06c55347["(4) sitting passively through slide-based..."]
+    n_926f95b7["(8) back-to-back meetings running since m..."]
+    n_fc25e2db["(4) mental fatigue causing brain to check..."]
+    n_e477553d["(5) feeling foggy and unable to focus on ... F6"]
+    n_fa0e1739["(5) getting an energy kick without a cras..."]
+    n_9a58cc59["(5) being mentally present in meetings in..."]
+    n_e0265775["(5) passively waiting for meetings to end... F7"]
+    n_17fcc220["(6) missing meeting decisions and needing... F8"]
+    n_b00ec24f["(6) having direct, firsthand knowledge of..."]
+    n_44ca0a76["(6) staying informed and in the loop at work"]
+    n_0b015931["(6) feel competent and on top of things a..."]
+    n_fab22859["(7) getting immediate answers without del..."]
+    n_512d6bd8["(7) having clarity on what was actually s..."]
+    n_3718c97f["(7) chasing answers through phone tag and..."]
+    n_395ef7dd["(8) being heads-down focused on a project"]
+    n_85add58d["(8) deep focus making it hard to step away F9"]
+    n_f77e40bb["(8) no break between meetings preventing ... F10"]
+    n_8e044a15["(9) three or four consecutive meetings be..."]
+    n_610f9e72["(9) physical dryness signalling dehydrati..."]
+    n_f43f4d23["(9) not proactively hydrating before meet... F11"]
+    n_79107614["(9) feeling annoyed at missing the opport..."]
+    n_39524e2e["(9) grabbing a drink before meetings star..."]
+    n_e9b36f7d["(10) feeling prepared and ready for meetings"]
+    n_07a1fcee["(10) thirst distracting from focus during ..."]
+    n_c0c62d78["(11) high-stakes meetings requiring focuse..."]
+    n_f10ecf15["(11) losing train of thought mid-meeting d..."]
+    n_a3613f91["(11) feeling annoyed at yourself for not p..."]
+    n_aabc16c5["(11) feel attentive and self-disciplined d..."]
+    n_45fdaf4a["(11) low-stakes standups or non-critical m..."]
+    n_f29c6bc0["(12) grabbing whatever water or drink is n..."]
+    n_e90df4da["(12) drink availability near the meeting r..."]
+    n_396566ac["(13) break room being the fallback source ... F13"]
+    n_2f7fb607["(13) not making a dedicated trip just to g..."]
+    n_acbd145e["(13) grabbing whatever drink is convenient..."]
+    n_5c3f3c6a["(14) walking past the break room making a ..."]
+    n_273f9943["(14) avoiding the effort of backtracking t..."]
+    n_a56ea63c["(14) avoid feeling like taking a solitary ..."]
+    n_693248e2["(14) other people being in the break room ..."]
+
+    %% Real edges
+    n_987434ee -->|occurs_in| n_98f2698c
+    n_987434ee -->|occurs_in| n_f09ca186
+    n_98f2698c -->|implies| n_1d56c67e
+    n_98f2698c -->|implies| n_5c473e77
+    n_98f2698c -->|drives| n_0f1caf18
+    n_1d56c67e -->|drives| n_0f1caf18
+    n_1d56c67e -->|achieves| n_b2492ebc
+    n_5c473e77 -->|addresses| n_0f1caf18
+    n_5c473e77 -->|achieves| n_b2492ebc
+    n_f09ca186 -->|implies| n_49d88ed0
+    n_f09ca186 -->|drives| n_0f1caf18
+    n_49d88ed0 -->|addresses| n_0f1caf18
+    n_49d88ed0 -->|achieves| n_b2492ebc
+    n_0f1caf18 -->|achieves| n_b2492ebc
+    n_6ab9cd75 -->|implies| n_0e723ccf
+    n_6ab9cd75 -->|implies| n_f926c539
+    n_6ab9cd75 -->|achieves| n_e5740b2f
+    n_6ab9cd75 -->|achieves| n_85cad798
+    n_6ab9cd75 -->|drives| n_c484a5ee
+    n_0e723ccf -->|implies| n_74ffda85
+    n_0e723ccf -->|implies| n_e5740b2f
+    n_0e723ccf -->|implies| n_85cad798
+    n_0e723ccf -->|drives| n_c484a5ee
+    n_06c55347 -->|triggers| n_b2492ebc
+    n_926f95b7 -->|triggers| n_b2492ebc
+    n_fc25e2db -->|implies| n_b2492ebc
+    n_06c55347 -->|triggers| n_1d56c67e
+    n_926f95b7 -->|triggers| n_1d56c67e
+    n_fc25e2db -->|implies| n_1d56c67e
+    n_06c55347 -->|triggers| n_fc25e2db
+    n_926f95b7 -->|triggers| n_fc25e2db
+    n_06c55347 -->|triggers| n_6ab9cd75
+    n_06c55347 -->|triggers| n_0e723ccf
+    n_926f95b7 -->|triggers| n_6ab9cd75
+    n_926f95b7 -->|triggers| n_0e723ccf
+    n_fc25e2db -->|implies| n_6ab9cd75
+    n_e477553d -->|implies| n_fa0e1739
+    n_e477553d -->|implies| n_9a58cc59
+    n_fa0e1739 -->|supports| n_9a58cc59
+    n_e477553d -->|occurs_in| n_06c55347
+    n_e477553d -->|occurs_in| n_926f95b7
+    n_e477553d -->|implies| n_fc25e2db
+    n_e0265775 -->|occurs_in| n_06c55347
+    n_e0265775 -->|occurs_in| n_926f95b7
+    n_0b015931 -->|supports| n_6ab9cd75
+    n_17fcc220 -->|implies| n_b00ec24f
+    n_17fcc220 -->|implies| n_44ca0a76
+    n_17fcc220 -->|implies| n_0b015931
+    n_b00ec24f -->|supports| n_44ca0a76
+    n_b00ec24f -->|supports| n_0b015931
+    n_44ca0a76 -->|supports| n_0b015931
+    n_17fcc220 -->|implies| n_9a58cc59
+    n_b00ec24f -->|supports| n_9a58cc59
+    n_44ca0a76 -->|supports| n_9a58cc59
+    n_0b015931 -->|supports| n_9a58cc59
+    n_395ef7dd -->|triggers| n_85add58d
+    n_926f95b7 -->|triggers| n_f77e40bb
+    n_39524e2e -->|achieves| n_0b015931
+    n_39524e2e -->|achieves| n_44ca0a76
+    n_39524e2e -->|achieves| n_9a58cc59
+    n_39524e2e -->|achieves| n_b00ec24f
+    n_8e044a15 -->|triggers| n_610f9e72
+    n_8e044a15 -->|triggers| n_79107614
+    n_8e044a15 -->|triggers| n_39524e2e
+    n_610f9e72 -->|triggers| n_79107614
+    n_610f9e72 -->|triggers| n_39524e2e
+    n_f43f4d23 -->|triggers| n_79107614
+    n_f43f4d23 -->|drives| n_39524e2e
+    n_79107614 -->|drives| n_39524e2e
+    n_8e044a15 -->|occurs_in| n_926f95b7
+    n_8e044a15 -->|triggers| n_f77e40bb
+    n_610f9e72 -->|occurs_in| n_926f95b7
+    n_e9b36f7d -->|supports| n_07a1fcee
+    n_e9b36f7d -->|drives| n_39524e2e
+    n_07a1fcee -->|triggers| n_610f9e72
+    n_07a1fcee -->|implies| n_79107614
+    n_07a1fcee -->|drives| n_39524e2e
+    n_c0c62d78 -->|triggers| n_f10ecf15
+    n_c0c62d78 -->|triggers| n_a3613f91
+    n_c0c62d78 -->|triggers| n_aabc16c5
+    n_c0c62d78 -->|triggers| n_f29c6bc0
+    n_f10ecf15 -->|triggers| n_a3613f91
+    n_f10ecf15 -->|implies| n_aabc16c5
+    n_f10ecf15 -->|drives| n_f29c6bc0
+    n_a3613f91 -->|implies| n_aabc16c5
+    n_a3613f91 -->|drives| n_f29c6bc0
+    n_aabc16c5 -->|drives| n_f29c6bc0
+    n_45fdaf4a -->|triggers| n_f29c6bc0
+    n_c0c62d78 -->|triggers| n_e9b36f7d
+    n_c0c62d78 -->|triggers| n_07a1fcee
+    n_f10ecf15 -->|implies| n_e9b36f7d
+    n_a3613f91 -->|implies| n_e9b36f7d
+    n_e90df4da -->|triggers| n_39524e2e
+    n_e90df4da -->|triggers| n_79107614
+    n_e90df4da -->|triggers| n_f29c6bc0
+    n_e90df4da -->|triggers| n_aabc16c5
+    n_f29c6bc0 -->|achieves| n_aabc16c5
+    n_f29c6bc0 -->|occurs_in| n_45fdaf4a
+    n_2f7fb607 -->|drives| n_39524e2e
+    n_2f7fb607 -->|triggers| n_79107614
+    n_2f7fb607 -->|drives| n_acbd145e
+    n_2f7fb607 -->|drives| n_f29c6bc0
+    n_2f7fb607 -->|triggers| n_e90df4da
+    n_5c3f3c6a -->|triggers| n_396566ac
+    n_273f9943 -->|drives| n_396566ac
+    n_a56ea63c -->|drives| n_396566ac
+    n_693248e2 -->|supports| n_396566ac
+    n_5c3f3c6a -->|triggers| n_273f9943
+    n_5c3f3c6a -->|triggers| n_a56ea63c
+    n_5c3f3c6a -->|triggers| n_693248e2
+    n_273f9943 -->|implies| n_a56ea63c
+    n_273f9943 -->|supports| n_693248e2
+    n_a56ea63c -->|supports| n_693248e2
+    n_5c3f3c6a -->|triggers| n_2f7fb607
+    n_5c3f3c6a -->|triggers| n_acbd145e
+    n_273f9943 -->|drives| n_acbd145e
+    n_a56ea63c -->|implies| n_2f7fb607
+    n_a56ea63c -->|drives| n_acbd145e
+    n_693248e2 -->|implies| n_2f7fb607
+    n_693248e2 -->|supports| n_acbd145e
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_987434ee,n_b2492ebc,n_3d4604a2,n_e5740b2f,n_e477553d,n_e0265775,n_17fcc220,n_85add58d,n_f77e40bb,n_f43f4d23,n_396566ac focused
+    class n_98f2698c,n_1d56c67e,n_5c473e77,n_f09ca186,n_49d88ed0,n_0f1caf18,n_f926c539,n_74ffda85,n_85cad798,n_c484a5ee,n_6ab9cd75,n_0e723ccf,n_06c55347,n_926f95b7,n_fc25e2db,n_fa0e1739,n_9a58cc59,n_b00ec24f,n_44ca0a76,n_0b015931,n_fab22859,n_512d6bd8,n_3718c97f,n_395ef7dd,n_8e044a15,n_610f9e72,n_79107614,n_39524e2e,n_e9b36f7d,n_07a1fcee,n_c0c62d78,n_f10ecf15,n_a3613f91,n_aabc16c5,n_45fdaf4a,n_f29c6bc0,n_e90df4da,n_2f7fb607,n_acbd145e,n_5c3f3c6a,n_273f9943,n_a56ea63c,n_693248e2 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14 anchor

@@ -1,0 +1,164 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+    t11(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10 ~~~ t11
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_2d92a02f
+    t1 ~~~ n_785fe27d
+    t1 ~~~ n_31a4b6b3
+    t1 ~~~ n_14f78b8e
+    t1 ~~~ n_deb494dc
+    t1 ~~~ n_6e590795
+    t1 ~~~ n_ef3699e7
+    t2 ~~~ n_74c583e1
+    t2 ~~~ n_059280e7
+    t2 ~~~ n_de083209
+    t3 ~~~ n_610a0dbf
+    t3 ~~~ n_fa40e9e2
+    t3 ~~~ n_0b1416d3
+    t4 ~~~ n_62cef571
+    t4 ~~~ n_64ca7422
+    t4 ~~~ n_cb2b470b
+    t5 ~~~ n_85a49fc9
+    t5 ~~~ n_8abf3103
+    t5 ~~~ n_0be75e4f
+    t5 ~~~ n_431af28b
+    t6 ~~~ n_ce9fdd42
+    t6 ~~~ n_ad4b7093
+    t6 ~~~ n_dc276e65
+    t6 ~~~ n_e70d1976
+    t6 ~~~ n_b2bbc151
+    t7 ~~~ n_d54ad1dd
+    t7 ~~~ n_3e52d8f9
+    t7 ~~~ n_e66b3715
+    t7 ~~~ n_3df30535
+    t7 ~~~ n_d1dbd57a
+    t7 ~~~ n_a0d09f5f
+    t8 ~~~ n_3cb4fa4d
+    t8 ~~~ n_3c2436fa
+    t9 ~~~ n_a6905adb
+    t10 ~~~ n_650203a6
+    t10 ~~~ n_55f8ea5b
+    t11 ~~~ n_94a69b49
+    t11 ~~~ n_7fa5df30
+    t11 ~~~ n_d725b368
+
+    %% Node definitions
+    n_2d92a02f["(1) being at work and needing something cold"]
+    n_785fe27d["(1) needing something cold"]
+    n_31a4b6b3["(1) get a cold drink to satisfy an immedi..."]
+    n_14f78b8e["(1) reaching for Diet Coke out of habit"]
+    n_deb494dc["(1) office fridge stocked with Diet Coke"]
+    n_6e590795["(1) sugar-free choice driven by availabil... F1"]
+    n_ef3699e7["(1) no noticeable taste difference from r... F2 F3"]
+    n_74c583e1["(2) avoid guilt about sugar consumption"]
+    n_059280e7["(2) feel like I'm not sacrificing anything F4"]
+    n_de083209["(2) decent-tasting drink without sugar guilt"]
+    n_610a0dbf["(3) drink less sugar-free soda if taste w..."]
+    n_fa40e9e2["(3) taste parity makes the diet trade-off..."]
+    n_0b1416d3["(3) switching back to regular soda or water"]
+    n_62cef571["(4) high-stress meeting requiring caffeine"]
+    n_64ca7422["(4) get a caffeine kick to cope with high..."]
+    n_cb2b470b["(4) grabbing whatever drink is available ..."]
+    n_85a49fc9["(5) avoid feeling like I'm settling for a... F5"]
+    n_8abf3103["(5) drink something that tastes good and ..."]
+    n_0be75e4f["(5) diet soda feels like a forced health ..."]
+    n_431af28b["(5) noticeable taste difference in most d..."]
+    n_ce9fdd42["(6) drink what I genuinely want, not a le..."]
+    n_ad4b7093["(6) diet drinks feel like self-punishment"]
+    n_dc276e65["(6) enjoy a drink without guilt or aftert..."]
+    n_e70d1976["(6) feel like my choice reflects what I a..."]
+    n_b2bbc151["(6) choosing ZeroFizz as a genuine prefer..."]
+    n_d54ad1dd["(7) wanting something carbonated in the a..."]
+    n_3e52d8f9["(7) sugar crash after drinking regular soda"]
+    n_e66b3715["(7) feeling sluggish after afternoon soda"]
+    n_3df30535["(7) drinking soda in the afternoon"]
+    n_d1dbd57a["(7) get the fizzy sensation without the s..."]
+    n_a0d09f5f["(7) choosing ZeroFizz for carbonation wit..."]
+    n_3cb4fa4d["(8) not noticing a significant energy dif..."]
+    n_3c2436fa["(8) feeling slightly lighter without sugar"]
+    n_650203a6["(10) heavy feeling in stomach after regula..."]
+    n_a6905adb["(9) avoiding bloat from carbonated drinks"]
+    n_55f8ea5b["(10) uncomfortable fullness from regular soda"]
+    n_94a69b49["(11) fullness hits halfway through the can"]
+    n_7fa5df30["(11) drinking soda fast without sipping sl..."]
+    n_d725b368["(11) discomfort hits all at once when drin..."]
+
+    %% Real edges
+    n_2d92a02f -->|triggers| n_785fe27d
+    n_785fe27d -->|implies| n_31a4b6b3
+    n_deb494dc -->|triggers| n_14f78b8e
+    n_31a4b6b3 -->|drives| n_14f78b8e
+    n_14f78b8e -->|triggers| n_6e590795
+    n_14f78b8e -->|achieves| n_ef3699e7
+    n_de083209 -->|implies| n_74c583e1
+    n_74c583e1 -->|supports| n_059280e7
+    n_ef3699e7 -->|triggers| n_de083209
+    n_6e590795 -->|supports| n_059280e7
+    n_ef3699e7 -->|achieves| n_fa40e9e2
+    n_610a0dbf -->|implies| n_fa40e9e2
+    n_fa40e9e2 -->|drives| n_0b1416d3
+    n_0b1416d3 -->|conflicts_with| n_74c583e1
+    n_62cef571 -->|triggers| n_64ca7422
+    n_64ca7422 -->|drives| n_cb2b470b
+    n_cb2b470b -->|conflicts_with| n_ef3699e7
+    n_431af28b -->|triggers| n_0be75e4f
+    n_0be75e4f -->|implies| n_85a49fc9
+    n_8abf3103 -->|supports| n_85a49fc9
+    n_059280e7 -->|supports| n_85a49fc9
+    n_431af28b -->|conflicts_with| n_85a49fc9
+    n_ad4b7093 -->|implies| n_ce9fdd42
+    n_ce9fdd42 -->|supports| n_e70d1976
+    n_e70d1976 -->|drives| n_b2bbc151
+    n_b2bbc151 -->|achieves| n_dc276e65
+    n_b2bbc151 -->|addresses| n_ad4b7093
+    n_431af28b -->|triggers| n_ad4b7093
+    n_85a49fc9 -->|implies| n_e70d1976
+    n_3df30535 -->|triggers| n_e66b3715
+    n_d54ad1dd -->|triggers| n_3e52d8f9
+    n_3e52d8f9 -->|triggers| n_e66b3715
+    n_e66b3715 -->|implies| n_d1dbd57a
+    n_d1dbd57a -->|drives| n_a0d09f5f
+    n_a0d09f5f -->|addresses| n_e66b3715
+    n_e66b3715 -->|conflicts_with| n_3cb4fa4d
+    n_a0d09f5f -->|achieves| n_3c2436fa
+    n_3c2436fa -->|conflicts_with| n_3cb4fa4d
+    n_3e52d8f9 -->|triggers| n_650203a6
+    n_650203a6 -->|implies| n_a6905adb
+    n_a0d09f5f -->|achieves| n_a6905adb
+    n_650203a6 -->|triggers| n_55f8ea5b
+    n_55f8ea5b -->|triggers| n_650203a6
+    n_a6905adb -->|addresses| n_55f8ea5b
+    n_3e52d8f9 -->|triggers| n_55f8ea5b
+    n_7fa5df30 -->|triggers| n_94a69b49
+    n_94a69b49 -->|triggers| n_d725b368
+    n_55f8ea5b -->|triggers| n_94a69b49
+    n_d725b368 -->|implies| n_a6905adb
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_6e590795,n_ef3699e7,n_059280e7,n_85a49fc9 focused
+    class n_2d92a02f,n_785fe27d,n_31a4b6b3,n_14f78b8e,n_deb494dc,n_74c583e1,n_de083209,n_610a0dbf,n_fa40e9e2,n_0b1416d3,n_62cef571,n_64ca7422,n_cb2b470b,n_8abf3103,n_0be75e4f,n_431af28b,n_ce9fdd42,n_ad4b7093,n_dc276e65,n_e70d1976,n_b2bbc151,n_d54ad1dd,n_3e52d8f9,n_e66b3715,n_3df30535,n_d1dbd57a,n_a0d09f5f,n_3cb4fa4d,n_3c2436fa,n_650203a6,n_a6905adb,n_55f8ea5b,n_94a69b49,n_7fa5df30,n_d725b368 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11 anchor

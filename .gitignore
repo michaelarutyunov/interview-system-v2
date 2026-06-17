@@ -47,14 +47,14 @@ build/
 # .claude/worktrees/
 
 # working docs
-synthetic_interviews/
-interviews_real/
+# synthetic_interviews/
+# interviews_real/
 
 # reports
-reports/legacy/
-reports/explorations/
-reports/interviews/**
-reports/interviews_archive/**
+# reports/legacy/
+# reports/explorations/
+# reports/interviews/**
+# reports/interviews_archive/**
 
 # npm cache
 .npm-cache/

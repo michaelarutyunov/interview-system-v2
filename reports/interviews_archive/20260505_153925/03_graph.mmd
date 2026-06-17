@@ -1,0 +1,163 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+    t11(( ))
+    t12(( ))
+    t13(( ))
+    t14(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10 ~~~ t11 ~~~ t12 ~~~ t13 ~~~ t14
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_32d6f1b6
+    t1 ~~~ n_48f622c4
+    t1 ~~~ n_96d9eef1
+    t1 ~~~ n_6b07a17c
+    t1 ~~~ n_fb8162fa
+    t2 ~~~ n_f2ce35f6
+    t2 ~~~ n_20917ac0
+    t2 ~~~ n_d018ab45
+    t2 ~~~ n_adf09689
+    t3 ~~~ n_39c0f283
+    t3 ~~~ n_3f96d88c
+    t3 ~~~ n_9378df80
+    t3 ~~~ n_73f6c2e7
+    t4 ~~~ n_656ef487
+    t4 ~~~ n_67e7d175
+    t4 ~~~ n_c6093d0d
+    t4 ~~~ n_355cca5a
+    t4 ~~~ n_a568b7ad
+    t5 ~~~ n_c6836f20
+    t5 ~~~ n_3d2b66df
+    t5 ~~~ n_e31dfc12
+    t5 ~~~ n_9f26c3e2
+    t6 ~~~ n_3b784d3a
+    t6 ~~~ n_21cb7096
+    t6 ~~~ n_880fb186
+    t6 ~~~ n_a1a39406
+    t7 ~~~ n_2168342f
+    t7 ~~~ n_b6e87b84
+    t7 ~~~ n_7c03a82f
+    t7 ~~~ n_b06b2007
+    t7 ~~~ n_6e35b6f5
+    t8 ~~~ n_390db623
+    t8 ~~~ n_095ee8fa
+    t8 ~~~ n_617780c4
+    t8 ~~~ n_e031bf16
+    t8 ~~~ n_d47eb6b7
+    t9 ~~~ n_feae097c
+    t9 ~~~ n_02a6202b
+    t9 ~~~ n_4c66db4f
+    t9 ~~~ n_16c58d5c
+    t9 ~~~ n_7ba757d8
+    t10 ~~~ n_7e7dfdd0
+    t10 ~~~ n_f4668f80
+    t10 ~~~ n_6304ab7b
+    t10 ~~~ n_adb6d2be
+    t10 ~~~ n_b28cda55
+    t10 ~~~ n_4f125e24
+    t11 ~~~ n_ac931ace
+    t11 ~~~ n_dfcd381e
+    t11 ~~~ n_ce432627
+    t12 ~~~ n_236d355d
+    t12 ~~~ n_0a6e52d5
+    t12 ~~~ n_e4bcb207
+    t12 ~~~ n_a11b8d1e
+    t12 ~~~ n_2300ca86
+    t13 ~~~ n_ef7f224c
+    t13 ~~~ n_2ba8379d
+    t13 ~~~ n_e2f67db3
+    t14 ~~~ n_2b109b15
+    t14 ~~~ n_2e774350
+
+    %% Node definitions
+    n_32d6f1b6["(1) at work during the afternoon"]
+    n_48f622c4["(1) hitting the afternoon energy slump"]
+    n_96d9eef1["(1) needing to sustain energy through a m..."]
+    n_6b07a17c["(1) get a quick caffeine kick"]
+    n_fb8162fa["(1) grabbing a Coke at work"]
+    n_f2ce35f6["(2) sitting at desk with a spontaneous ur..."]
+    n_20917ac0["(2) grabbing whatever is available in the..."]
+    n_d018ab45["(2) drink choice driven by in-the-moment ..."]
+    n_adf09689["(2) occasionally bringing drinks from hom..."]
+    n_39c0f283["(3) rushing out in the morning"]
+    n_3f96d88c["(3) forgetting to pack a drink"]
+    n_9378df80["(3) preparing drinks the night before"]
+    n_73f6c2e7["(3) grabbing a drink at the store when un..."]
+    n_656ef487["(4) avoiding feeling gross after drinking"]
+    n_67e7d175["(4) regular soda causes a blood sugar spi..."]
+    n_c6093d0d["(4) find the path of least resistance whe..."]
+    n_355cca5a["(4) getting a drink that tastes decent wi..."]
+    n_a568b7ad["(4) feel physically okay and in control o..."]
+    n_c6836f20["(5) avoiding the post-drink energy crash"]
+    n_3d2b66df["(5) ZeroFizz does not deliver a noticeabl..."]
+    n_e31dfc12["(5) drinking without guilt"]
+    n_9f26c3e2["(5) choosing ZeroFizz to avoid guilt and ..."]
+    n_3b784d3a["(6) at work or running errands during the..."]
+    n_21cb7096["(6) drink choice driven by in-the-moment ..."]
+    n_880fb186["(6) noticing sluggishness mid-afternoon a..."]
+    n_a1a39406["(6) crash avoidance is reactive awareness..."]
+    n_2168342f["(7) feeling blah for the rest of the day ..."]
+    n_b6e87b84["(7) maintain focus on tasks without distr..."]
+    n_7c03a82f["(7) dreading the inevitable energy dip af..."]
+    n_b06b2007["(7) choosing ZeroFizz to stay focused and..."]
+    n_6e35b6f5["(7) feel physically in control and unimpe..."]
+    n_390db623["(8) hitting a wall and zoning out around ..."]
+    n_095ee8fa["(8) mindlessly checking phone instead of ..."]
+    n_617780c4["(8) push through and finish tasks before ..."]
+    n_e031bf16["(8) getting more done before mid-afternoon"]
+    n_d47eb6b7["(8) choosing ZeroFizz to push through the..."]
+    n_ef7f224c["(13) enjoying the taste and fizz of ZeroFizz"]
+    n_feae097c["(9) getting bored with plain water"]
+    n_02a6202b["(9) drink choice motivated by taste and s..."]
+    n_4c66db4f["(9) crash avoidance and focus benefits ar..."]
+    n_16c58d5c["(9) grabbing coffee when an actual energy..."]
+    n_7ba757d8["(9) ZeroFizz positioned as a water altern..."]
+    n_7e7dfdd0["(10) sitting at desk during a routine workday"]
+    n_f4668f80["(10) plain water feels unrewarding during ..."]
+    n_6304ab7b["(10) drinking something that feels like a ..."]
+    n_adb6d2be["(10) feel like I'm treating myself, not ju..."]
+    n_b28cda55["(10) choosing ZeroFizz for the sensory exp..."]
+    n_4f125e24["(10) benefit of ZeroFizz over water is psy..."]
+    n_ac931ace["(11) treat feeling from ZeroFizz is fleeti..."]
+    n_dfcd381e["(11) noticing focus benefits only after th..."]
+    n_ce432627["(11) functional benefits matter more than ..."]
+    n_236d355d["(12) noticing a moment of mental sharpness..."]
+    n_0a6e52d5["(12) recognizing a functional benefit rein..."]
+    n_e4bcb207["(12) choosing ZeroFizz as the smarter opti..."]
+    n_a11b8d1e["(12) feel like I'm making the sensible, sm..."]
+    n_2300ca86["(12) functional benefit awareness does not..."]
+    n_2ba8379d["(13) ZeroFizz taste has not yet won genuin..."]
+    n_e2f67db3["(13) tolerating ZeroFizz as acceptable rat..."]
+    n_2b109b15["(14) regular soda delivers a more satisfyi..."]
+    n_2e774350["(14) artificial sweetener aftertaste in Ze..."]
+
+    %% Real edges
+    n_adb6d2be -->|supports| n_ef7f224c
+    n_2ba8379d -->|triggers| n_e2f67db3
+    n_2ba8379d -->|implies| n_2300ca86
+    n_e2f67db3 -->|supports| n_2300ca86
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_32d6f1b6,n_48f622c4,n_96d9eef1,n_6b07a17c,n_fb8162fa,n_f2ce35f6,n_20917ac0,n_d018ab45,n_adf09689,n_39c0f283,n_3f96d88c,n_9378df80,n_73f6c2e7,n_656ef487,n_67e7d175,n_c6093d0d,n_355cca5a,n_a568b7ad,n_c6836f20,n_3d2b66df,n_e31dfc12,n_9f26c3e2,n_3b784d3a,n_21cb7096,n_880fb186,n_a1a39406,n_2168342f,n_b6e87b84,n_7c03a82f,n_b06b2007,n_6e35b6f5,n_390db623,n_095ee8fa,n_617780c4,n_e031bf16,n_d47eb6b7,n_ef7f224c,n_feae097c,n_02a6202b,n_4c66db4f,n_16c58d5c,n_7ba757d8,n_7e7dfdd0,n_f4668f80,n_6304ab7b,n_adb6d2be,n_b28cda55,n_4f125e24,n_ac931ace,n_dfcd381e,n_ce432627,n_236d355d,n_0a6e52d5,n_e4bcb207,n_a11b8d1e,n_2300ca86,n_2ba8379d,n_e2f67db3,n_2b109b15,n_2e774350 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14 anchor

@@ -1,0 +1,138 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+    t11(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10 ~~~ t11
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_eb277121
+    t1 ~~~ n_2a22a8eb
+    t1 ~~~ n_4057aabb
+    t1 ~~~ n_910d3b55
+    t1 ~~~ n_fcb1241d
+    t2 ~~~ n_286f2748
+    t2 ~~~ n_034414e0
+    t2 ~~~ n_6c53572f
+    t3 ~~~ n_21354f96
+    t3 ~~~ n_c7626757
+    t3 ~~~ n_8ab4c3b8
+    t4 ~~~ n_b9d20bc3
+    t4 ~~~ n_34e725a0
+    t4 ~~~ n_a34d3430
+    t4 ~~~ n_cb025c71
+    t5 ~~~ n_13e2f171
+    t5 ~~~ n_e9a0a22f
+    t5 ~~~ n_1e9e5151
+    t6 ~~~ n_f698f6b1
+    t6 ~~~ n_fe9c181d
+    t7 ~~~ n_683e2b88
+    t7 ~~~ n_1e55bc42
+    t8 ~~~ n_5da3b2d6
+    t8 ~~~ n_f1b8e4d0
+    t9 ~~~ n_d75d0095
+    t9 ~~~ n_dcee6c95
+    t9 ~~~ n_4a58bce8
+    t10 ~~~ n_26623427
+    t10 ~~~ n_52df2f8a
+    t10 ~~~ n_fa2b2f3e
+    t11 ~~~ n_6316a674
+    t11 ~~~ n_b88d9a53
+
+    %% Node definitions
+    n_eb277121["(1) feeling sluggish at work F2 F4 F6"]
+    n_2a22a8eb["(1) need for an energy boost"]
+    n_4057aabb["(1) availability in break room"]
+    n_910d3b55["(1) ease of access"]
+    n_fcb1241d["(1) grabbing a diet cola F1 F3"]
+    n_286f2748["(2) absence of weird aftertaste"]
+    n_034414e0["(2) actually drinkable / pleasant taste e..."]
+    n_6c53572f["(2) not feeling like doing a health thing"]
+    n_21354f96["(3) weird chemical taste as proof of diff... F8 F9 F10"]
+    n_c7626757["(3) feeling like cheating if diet soda ta..."]
+    n_8ab4c3b8["(3) not allowing oneself to have it too e... F5 F7"]
+    n_b9d20bc3["(4) zero sugar and calorie content"]
+    n_34e725a0["(4) consuming multiple cans without guilt"]
+    n_a34d3430["(4) feeling guilt-free about consumption"]
+    n_cb025c71["(4) keeping things reasonable / not overi..."]
+    n_13e2f171["(5) light / non-heavy formulation"]
+    n_e9a0a22f["(5) does not sit heavily in stomach"]
+    n_1e9e5151["(5) avoiding bloating after drinking"]
+    n_f698f6b1["(6) uncomfortable heavy feeling after dri..."]
+    n_fe9c181d["(6) disruption to the rest of the day"]
+    n_683e2b88["(7) difficulty focusing on work"]
+    n_1e55bc42["(7) feeling drained in the afternoon"]
+    n_5da3b2d6["(8) sticky film on teeth after regular soda"]
+    n_f1b8e4d0["(8) reduced oral discomfort awareness thr..."]
+    n_d75d0095["(9) not being constantly aware of oral di..."]
+    n_dcee6c95["(9) moving on without lingering annoyance"]
+    n_4a58bce8["(9) reduced mental load throughout the day"]
+    n_26623427["(10) no guilt attached to drinking ZeroFizz"]
+    n_52df2f8a["(10) not having to question whether one is..."]
+    n_fa2b2f3e["(10) making choices I can stand behind"]
+    n_6316a674["(11) not pretending it is healthy / no sel..."]
+    n_b88d9a53["(11) making a reasonable decision without ..."]
+
+    %% Real edges
+    n_eb277121 -->|leads_to| n_2a22a8eb
+    n_2a22a8eb -->|leads_to| n_fcb1241d
+    n_4057aabb -->|leads_to| n_fcb1241d
+    n_910d3b55 -->|leads_to| n_fcb1241d
+    n_286f2748 -->|leads_to| n_034414e0
+    n_034414e0 -->|leads_to| n_6c53572f
+    n_21354f96 -->|leads_to| n_6c53572f
+    n_c7626757 -->|leads_to| n_8ab4c3b8
+    n_21354f96 -->|leads_to| n_c7626757
+    n_b9d20bc3 -->|leads_to| n_34e725a0
+    n_34e725a0 -->|leads_to| n_a34d3430
+    n_a34d3430 -->|leads_to| n_cb025c71
+    n_cb025c71 -->|leads_to| n_8ab4c3b8
+    n_13e2f171 -->|leads_to| n_e9a0a22f
+    n_e9a0a22f -->|leads_to| n_1e9e5151
+    n_1e9e5151 -->|leads_to| n_34e725a0
+    n_1e9e5151 -->|leads_to| n_f698f6b1
+    n_f698f6b1 -->|leads_to| n_fe9c181d
+    n_f698f6b1 -->|leads_to| n_eb277121
+    n_eb277121 -->|leads_to| n_683e2b88
+    n_683e2b88 -->|leads_to| n_1e55bc42
+    n_5da3b2d6 -->|leads_to| n_f1b8e4d0
+    n_13e2f171 -->|leads_to| n_5da3b2d6
+    n_f1b8e4d0 -->|leads_to| n_1e55bc42
+    n_5da3b2d6 -->|leads_to| n_d75d0095
+    n_d75d0095 -->|leads_to| n_dcee6c95
+    n_dcee6c95 -->|leads_to| n_4a58bce8
+    n_4a58bce8 -->|leads_to| n_f1b8e4d0
+    n_b9d20bc3 -->|leads_to| n_52df2f8a
+    n_52df2f8a -->|leads_to| n_4a58bce8
+    n_52df2f8a -->|leads_to| n_26623427
+    n_26623427 -->|leads_to| n_a34d3430
+    n_26623427 -->|leads_to| n_fa2b2f3e
+    n_dcee6c95 -->|leads_to| n_52df2f8a
+    n_26623427 -->|leads_to| n_6316a674
+    n_6316a674 -->|leads_to| n_b88d9a53
+    n_b88d9a53 -->|leads_to| n_fa2b2f3e
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_eb277121,n_fcb1241d,n_21354f96,n_8ab4c3b8 focused
+    class n_2a22a8eb,n_4057aabb,n_910d3b55,n_286f2748,n_034414e0,n_6c53572f,n_c7626757,n_b9d20bc3,n_34e725a0,n_a34d3430,n_cb025c71,n_13e2f171,n_e9a0a22f,n_1e9e5151,n_f698f6b1,n_fe9c181d,n_683e2b88,n_1e55bc42,n_5da3b2d6,n_f1b8e4d0,n_d75d0095,n_dcee6c95,n_4a58bce8,n_26623427,n_52df2f8a,n_fa2b2f3e,n_6316a674,n_b88d9a53 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11 anchor

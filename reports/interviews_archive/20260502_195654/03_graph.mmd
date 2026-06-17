@@ -1,0 +1,81 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_30e69b7f
+    t1 ~~~ n_ca528256
+    t1 ~~~ n_18ca9496
+    t1 ~~~ n_179595a8
+    t1 ~~~ n_074200bf
+    t1 ~~~ n_0d918b14
+    t1 ~~~ n_eac3cf5f
+    t2 ~~~ n_60cd48a1
+    t2 ~~~ n_b3e259e4
+    t3 ~~~ n_3986735b
+    t3 ~~~ n_9d602ebf
+    t4 ~~~ n_1e6f6c7e
+    t4 ~~~ n_69a9295a
+    t4 ~~~ n_0d743757
+    t5 ~~~ n_c4e28650
+
+    %% Node definitions
+    n_30e69b7f["(1) working at desk in the afternoon"]
+    n_ca528256["(1) already had morning coffee, avoiding ..."]
+    n_18ca9496["(1) needing something more interesting th..."]
+    n_179595a8["(1) feeling too heavy or weighed down by ... F1"]
+    n_074200bf["(1) get a satisfying, flavorful drink wit..."]
+    n_0d918b14["(1) light, enjoyable taste without caffei... F3"]
+    n_eac3cf5f["(1) choosing LaCroix as afternoon desk drink"]
+    n_60cd48a1["(2) bloated and sluggish after drinking soda F4"]
+    n_b3e259e4["(2) stomach heaviness blocking productivity"]
+    n_3986735b["(3) difficulty focusing while feeling slu... F5"]
+    n_9d602ebf["(3) taking excessive breaks and phone scr..."]
+    n_1e6f6c7e["(4) avoid guilt about drinking soda"]
+    n_69a9295a["(4) choosing ZeroFizz as afternoon drink"]
+    n_0d743757["(4) drink choice does not change phone sc..."]
+    n_c4e28650["(5) drink part doesn't add to existing gu..."]
+
+    %% Real edges
+    n_30e69b7f -->|triggers| n_ca528256
+    n_ca528256 -->|triggers| n_18ca9496
+    n_18ca9496 -->|implies| n_074200bf
+    n_179595a8 -->|implies| n_074200bf
+    n_074200bf -->|drives| n_eac3cf5f
+    n_eac3cf5f -->|achieves| n_0d918b14
+    n_eac3cf5f -->|addresses| n_179595a8
+    n_60cd48a1 -->|implies| n_179595a8
+    n_b3e259e4 -->|implies| n_60cd48a1
+    n_b3e259e4 -->|implies| n_074200bf
+    n_30e69b7f -->|triggers| n_b3e259e4
+    n_60cd48a1 -->|triggers| n_3986735b
+    n_3986735b -->|triggers| n_9d602ebf
+    n_b3e259e4 -->|triggers| n_3986735b
+    n_9d602ebf -->|implies| n_074200bf
+    n_1e6f6c7e -->|drives| n_69a9295a
+    n_69a9295a -->|achieves| n_0d918b14
+    n_0d743757 -->|conflicts_with| n_9d602ebf
+    n_69a9295a -->|conflicts_with| n_0d743757
+    n_c4e28650 -->|achieves| n_69a9295a
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_179595a8,n_0d918b14,n_60cd48a1,n_3986735b focused
+    class n_30e69b7f,n_ca528256,n_18ca9496,n_074200bf,n_eac3cf5f,n_b3e259e4,n_9d602ebf,n_1e6f6c7e,n_69a9295a,n_0d743757,n_c4e28650 default
+    class t1,t2,t3,t4,t5 anchor

@@ -1,0 +1,175 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+    t11(( ))
+    t12(( ))
+    t13(( ))
+    t14(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10 ~~~ t11 ~~~ t12 ~~~ t13 ~~~ t14
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_8b0f5e99
+    t1 ~~~ n_d8ad35d1
+    t1 ~~~ n_c7360c0d
+    t1 ~~~ n_44982b3b
+    t1 ~~~ n_e0c9f325
+    t2 ~~~ n_1e5d521c
+    t2 ~~~ n_6c9d1cd2
+    t3 ~~~ n_c839df01
+    t3 ~~~ n_41566477
+    t4 ~~~ n_8235131c
+    t5 ~~~ n_d0b3b354
+    t5 ~~~ n_712829e3
+    t6 ~~~ n_058849a6
+    t6 ~~~ n_5065131d
+    t6 ~~~ n_71627bcd
+    t7 ~~~ n_5598d2bb
+    t7 ~~~ n_87c227e7
+    t7 ~~~ n_1e8438bd
+    t8 ~~~ n_41f4cabb
+    t8 ~~~ n_19c0f8b7
+    t9 ~~~ n_c407b174
+    t9 ~~~ n_c7846048
+    t9 ~~~ n_19f34b09
+    t10 ~~~ n_cb21076d
+    t10 ~~~ n_beab8eb1
+    t11 ~~~ n_2d32103a
+    t11 ~~~ n_346bab87
+    t11 ~~~ n_05ffc8d6
+    t11 ~~~ n_eb970bc6
+    t12 ~~~ n_908c8601
+    t12 ~~~ n_9b3fc1e0
+    t12 ~~~ n_887c2883
+    t12 ~~~ n_d7f3cb70
+    t13 ~~~ n_be6f02df
+    t13 ~~~ n_d00d0645
+    t14 ~~~ n_dd3d5e79
+    t14 ~~~ n_7166498a
+    t14 ~~~ n_b552521b
+    t14 ~~~ n_6ac4bcde
+
+    %% Node definitions
+    n_8b0f5e99["(1) working at desk during the day"]
+    n_d8ad35d1["(1) needing something to sip on"]
+    n_c7360c0d["(1) reduce sugar intake during the day"]
+    n_44982b3b["(1) regular soda has too much sugar F2"]
+    n_e0c9f325["(1) choosing ZeroFizz as habitual grab fr..."]
+    n_1e5d521c["(2) working through a task at desk"]
+    n_6c9d1cd2["(2) spontaneous urge to grab a drink whil..."]
+    n_c839df01["(3) feel guilty about making a bad food/d..."]
+    n_41566477["(3) easy alternative is available"]
+    n_8235131c["(4) visible availability of ZeroFizz driv..."]
+    n_d0b3b354["(5) grabbing water or regular soda as fal... F6"]
+    n_712829e3["(5) ZeroFizz is a preference not a depend..."]
+    n_058849a6["(6) craving the specific fizzy sensation ..."]
+    n_5065131d["(6) picking up ZeroFizz opportunistically..."]
+    n_71627bcd["(6) not willing to make a special trip fo..."]
+    n_5598d2bb["(7) water satisfies basic thirst but not ..."]
+    n_87c227e7["(7) regular soda better replicates fizzy ..."]
+    n_1e8438bd["(7) satisfy craving for fizzy sensation F7"]
+    n_41f4cabb["(8) feel like you're having something mea... F8"]
+    n_19c0f8b7["(8) carbonated drinks feel more interesti..."]
+    n_c407b174["(9) day feeling monotonous from grinding ..."]
+    n_c7846048["(9) break up the monotony of the workday"]
+    n_19f34b09["(9) feel like the day is less routine and... F9 F11"]
+    n_cb21076d["(10) grabbing coffee as alternative to Zer..."]
+    n_beab8eb1["(10) ZeroFizz absence would not be strongl..."]
+    n_2d32103a["(11) coffee serves a functional caffeine need"]
+    n_346bab87["(11) fizz feels like a treat rather than a..."]
+    n_05ffc8d6["(11) coffee feels like dosing yourself wit..."]
+    n_eb970bc6["(11) feel like you're treating yourself ra..."]
+    n_908c8601["(12) feel mentally refreshed during long d... F12"]
+    n_9b3fc1e0["(12) good taste makes work feel less like ..."]
+    n_887c2883["(12) feel like I'm just grinding through t..."]
+    n_d7f3cb70["(12) maintain a sense of enjoyment and hum... F13"]
+    n_be6f02df["(13) having something to do with hands dur..."]
+    n_d00d0645["(13) ZeroFizz provides physical ritual wit..."]
+    n_dd3d5e79["(14) healthy drinks that taste medicinal o..."]
+    n_7166498a["(14) genuinely wanting to reach for a drin..."]
+    n_b552521b["(14) drink loses its treat quality when it..."]
+    n_6ac4bcde["(14) preserve the sense of genuine desire ..."]
+
+    %% Real edges
+    n_8b0f5e99 -->|triggers| n_d8ad35d1
+    n_d8ad35d1 -->|implies| n_c7360c0d
+    n_44982b3b -->|implies| n_c7360c0d
+    n_c7360c0d -->|drives| n_e0c9f325
+    n_e0c9f325 -->|addresses| n_44982b3b
+    n_1e5d521c -->|triggers| n_6c9d1cd2
+    n_6c9d1cd2 -->|triggers| n_e0c9f325
+    n_1e5d521c -->|supports| n_8b0f5e99
+    n_c839df01 -->|implies| n_44982b3b
+    n_41566477 -->|triggers| n_c839df01
+    n_c839df01 -->|drives| n_e0c9f325
+    n_c7360c0d -->|supports| n_c839df01
+    n_41566477 -->|triggers| n_8235131c
+    n_8235131c -->|triggers| n_e0c9f325
+    n_c839df01 -->|drives| n_8235131c
+    n_d0b3b354 -->|implies| n_712829e3
+    n_712829e3 -->|supports| n_e0c9f325
+    n_058849a6 -->|triggers| n_5065131d
+    n_71627bcd -->|conflicts_with| n_5065131d
+    n_d0b3b354 -->|conflicts_with| n_058849a6
+    n_d0b3b354 -->|triggers| n_5598d2bb
+    n_058849a6 -->|triggers| n_1e8438bd
+    n_5598d2bb -->|implies| n_1e8438bd
+    n_87c227e7 -->|achieves| n_1e8438bd
+    n_87c227e7 -->|conflicts_with| n_44982b3b
+    n_1e8438bd -->|achieves| n_19c0f8b7
+    n_19c0f8b7 -->|implies| n_41f4cabb
+    n_1e8438bd -->|drives| n_41f4cabb
+    n_5598d2bb -->|conflicts_with| n_19c0f8b7
+    n_c407b174 -->|implies| n_c7846048
+    n_c7846048 -->|supports| n_19f34b09
+    n_41f4cabb -->|supports| n_19f34b09
+    n_8b0f5e99 -->|triggers| n_c407b174
+    n_beab8eb1 -->|drives| n_cb21076d
+    n_beab8eb1 -->|supports| n_712829e3
+    n_cb21076d -->|supports| n_d0b3b354
+    n_19f34b09 -->|conflicts_with| n_beab8eb1
+    n_cb21076d -->|implies| n_2d32103a
+    n_2d32103a -->|triggers| n_05ffc8d6
+    n_05ffc8d6 -->|conflicts_with| n_c7846048
+    n_346bab87 -->|supports| n_eb970bc6
+    n_eb970bc6 -->|supports| n_19f34b09
+    n_887c2883 -->|implies| n_908c8601
+    n_9b3fc1e0 -->|achieves| n_908c8601
+    n_9b3fc1e0 -->|achieves| n_d7f3cb70
+    n_c407b174 -->|triggers| n_887c2883
+    n_346bab87 -->|triggers| n_9b3fc1e0
+    n_19f34b09 -->|supports| n_d7f3cb70
+    n_be6f02df -->|achieves| n_9b3fc1e0
+    n_d00d0645 -->|achieves| n_be6f02df
+    n_d00d0645 -->|achieves| n_d7f3cb70
+    n_908c8601 -->|triggers| n_d00d0645
+    n_dd3d5e79 -->|triggers| n_b552521b
+    n_b552521b -->|implies| n_7166498a
+    n_7166498a -->|implies| n_6ac4bcde
+    n_6ac4bcde -->|drives| n_e0c9f325
+    n_d7f3cb70 -->|supports| n_6ac4bcde
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_44982b3b,n_d0b3b354,n_1e8438bd,n_41f4cabb,n_19f34b09,n_908c8601,n_d7f3cb70 focused
+    class n_8b0f5e99,n_d8ad35d1,n_c7360c0d,n_e0c9f325,n_1e5d521c,n_6c9d1cd2,n_c839df01,n_41566477,n_8235131c,n_712829e3,n_058849a6,n_5065131d,n_71627bcd,n_5598d2bb,n_87c227e7,n_19c0f8b7,n_c407b174,n_c7846048,n_cb21076d,n_beab8eb1,n_2d32103a,n_346bab87,n_05ffc8d6,n_eb970bc6,n_9b3fc1e0,n_887c2883,n_be6f02df,n_d00d0645,n_dd3d5e79,n_7166498a,n_b552521b,n_6ac4bcde default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14 anchor

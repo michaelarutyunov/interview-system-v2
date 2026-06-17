@@ -1,0 +1,17 @@
+# Interview Export Metadata
+timestamp: "20260502_002525"
+session_id: "e5edcc2d-ec09-43bd-b342-137711265acc"
+concept:
+  id: "zerofizz_beverage_mec"
+  name: "ZeroFizz Sugar-Free Carbonated Beverage - Means-End Chain"
+methodology: "means_end_chain_v2_strict"
+persona:
+  id: "baseline_cooperative"
+  name: "Baseline Cooperative Respondent"
+interview:
+  total_turns: 12
+  status: "Closing strategy selected"
+  saved_at: "2026-05-02T00:25:25.105199+00:00"
+source:
+  json_file: "synthetic_interviews/20260502_002525_zerofizz_beverage_mec_baseline_cooperative.json"
+  log_file: "interview_20260502_012205.log"

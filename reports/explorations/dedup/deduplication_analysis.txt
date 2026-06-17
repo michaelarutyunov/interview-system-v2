@@ -1,0 +1,77 @@
+================================================================================
+SEMANTIC DEDUPLICATION ANALYSIS
+================================================================================
+
+Session: 5d2e7092-af8b-4655-916a-9935aba6cad7
+Total nodes: 68
+Embedding model: all-MiniLM-L6-v2 (384-dim)
+Similarity metric: Cosine similarity
+Threshold: 0.85
+Type constraint: Same type only
+
+================================================================================
+SUMMARY
+================================================================================
+Duplicate clusters found: 3
+Nodes to eliminate: 3 (4.4%)
+Nodes after dedup: 65
+Expected node reduction: 68 → 65
+
+================================================================================
+THRESHOLD SWEEP
+================================================================================
+Threshold    Clusters     Eliminated   Remaining    Reduction   
+--------------------------------------------------------------------------------
+0.75         8            9            59           13.2        %
+0.80         4            4            64           5.9         %
+0.85         3            3            65           4.4         %
+0.90         2            2            66           2.9         %
+0.95         2            2            66           2.9         %
+
+================================================================================
+TOP 20 DUPLICATE CLUSTERS (threshold=0.85)
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+CLUSTER 1 (2 nodes, saves 1)
+────────────────────────────────────────────────────────────────────────────────
+✓ KEEP: [instrumental_value] being intentional with what I put into my body
+
+❌ MERGE (1 duplicates):
+   [instrumental_value] being intentional about what I'm putting into my body (similarity: 0.963)
+
+────────────────────────────────────────────────────────────────────────────────
+CLUSTER 2 (2 nodes, saves 1)
+────────────────────────────────────────────────────────────────────────────────
+✓ KEEP: [functional_consequence] feeling sluggish
+
+❌ MERGE (1 duplicates):
+   [functional_consequence] not feeling sluggish (similarity: 0.957)
+
+────────────────────────────────────────────────────────────────────────────────
+CLUSTER 3 (2 nodes, saves 1)
+────────────────────────────────────────────────────────────────────────────────
+✓ KEEP: [functional_consequence] can actually focus at work
+
+❌ MERGE (1 duplicates):
+   [functional_consequence] better focus at work (similarity: 0.898)
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+
+1. THRESHOLD SELECTION:
+   - 0.85: Good balance (current default)
+   - 0.90: More conservative, fewer false positives
+   - 0.80: More aggressive, catches more variations
+
+2. INTEGRATION APPROACH:
+   - Add semantic similarity check to GraphService.add_node()
+   - Before creating new node, search existing nodes with embeddings
+   - If similarity > threshold, reuse existing node
+   - Store embeddings in database or cache for fast lookup
+
+3. EXPECTED IMPACT:
+   - Node count: 68 → 65 (4.4% reduction)
+   - Edge/node ratio: Improves as duplicate nodes collapse
+   - Orphan nodes: Reduces as duplicates get merged with connected nodes

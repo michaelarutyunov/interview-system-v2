@@ -1,0 +1,128 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_cf073d61
+    t1 ~~~ n_a105ea82
+    t1 ~~~ n_1f907841
+    t2 ~~~ n_a5f29812
+    t2 ~~~ n_b9bafb21
+    t2 ~~~ n_d0f41a9e
+    t2 ~~~ n_7023a626
+    t3 ~~~ n_b7d61eaf
+    t3 ~~~ n_1d9a5fa9
+    t4 ~~~ n_72a2c62a
+    t4 ~~~ n_456f4d84
+    t4 ~~~ n_95734b42
+    t4 ~~~ n_063c8f83
+    t5 ~~~ n_a574353c
+    t5 ~~~ n_57ffe6d6
+    t5 ~~~ n_6d713cae
+    t6 ~~~ n_c3b3dfb0
+    t6 ~~~ n_be41b31a
+    t6 ~~~ n_782ed95a
+    t7 ~~~ n_097259e9
+    t7 ~~~ n_df427928
+    t7 ~~~ n_27dfd4bb
+    t7 ~~~ n_2bcf78d0
+    t7 ~~~ n_a5ac8bb5
+    t8 ~~~ n_840c729c
+    t8 ~~~ n_2481fe70
+    t8 ~~~ n_b39339ec
+    t8 ~~~ n_635dcdbd
+    t8 ~~~ n_8d132148
+    t9 ~~~ n_485eaf02
+    t9 ~~~ n_47d4cde2
+    t9 ~~~ n_dfad50cc
+
+    %% Node definitions
+    n_cf073d61["(1) drinking sugar-free soda when it is t..."]
+    n_a105ea82["(1) not actively seeking out sugar-free s..."]
+    n_1f907841["(1) passively consuming sugar-free soda w..."]
+    n_a5f29812["(2) off-putting taste of diet cola"]
+    n_b9bafb21["(2) choosing water to avoid unpleasant-ta..."]
+    n_d0f41a9e["(2) taste quality matters more than sugar..."]
+    n_7023a626["(2) low cognitive engagement when accepti..."]
+    n_b7d61eaf["(3) trusting the host to have considered ..."]
+    n_1d9a5fa9["(3) prior personal dislike as the thresho..."]
+    n_72a2c62a["(4) metallic taste of energy drinks"]
+    n_456f4d84["(4) heavy sweetness of fruit juices"]
+    n_95734b42["(4) skipping drinks with off-putting tast..."]
+    n_063c8f83["(4) level of thirst as the threshold that..."]
+    n_a574353c["(5) preferring a known drink over an unfa..."]
+    n_57ffe6d6["(5) risk of taste disappointment when thi..."]
+    n_6d713cae["(5) high thirst as the moment when taste ..."]
+    n_c3b3dfb0["(6) avoiding chemical or artificial taste..."]
+    n_be41b31a["(6) refusing to drink something unpleasan..."]
+    n_782ed95a["(6) drink must meet a minimum palatabilit..."]
+    n_097259e9["(7) absence of artificial aftertaste in Z..."]
+    n_df427928["(7) ZeroFizz tastes noticeably different ..."]
+    n_27dfd4bb["(7) not craving ZeroFizz the way one crav..."]
+    n_2bcf78d0["(7) accepting ZeroFizz as a satisfactory ..."]
+    n_a5ac8bb5["(7) ZeroFizz meets the minimum palatabili..."]
+    n_840c729c["(8) abandoning a drink mid-consumption wh..."]
+    n_2481fe70["(8) purchasing drinks with the intent to ..."]
+    n_b39339ec["(8) switching to sugar-free drinks withou..."]
+    n_635dcdbd["(8) feeling deprived or like settling whe..."]
+    n_8d132148["(8) reducing sugar intake without comprom..."]
+    n_485eaf02["(9) repurchasing a drink that meets the m..."]
+    n_47d4cde2["(9) sticking with a known acceptable drin..."]
+    n_dfad50cc["(9) low motivation to experiment with new..."]
+
+    %% Real edges
+    n_72a2c62a -->|triggers| n_95734b42
+    n_456f4d84 -->|triggers| n_95734b42
+    n_063c8f83 -->|drives| n_95734b42
+    n_063c8f83 -->|drives| n_a574353c
+    n_063c8f83 -->|implies| n_57ffe6d6
+    n_063c8f83 -->|occurs_in| n_6d713cae
+    n_a574353c -->|addresses| n_57ffe6d6
+    n_a574353c -->|occurs_in| n_6d713cae
+    n_57ffe6d6 -->|occurs_in| n_6d713cae
+    n_57ffe6d6 -->|drives| n_95734b42
+    n_6d713cae -->|drives| n_95734b42
+    n_c3b3dfb0 -->|drives| n_95734b42
+    n_c3b3dfb0 -->|drives| n_a574353c
+    n_be41b31a -->|drives| n_95734b42
+    n_be41b31a -->|drives| n_a574353c
+    n_782ed95a -->|drives| n_95734b42
+    n_782ed95a -->|drives| n_a574353c
+    n_c3b3dfb0 -->|supports| n_097259e9
+    n_c3b3dfb0 -->|drives| n_2bcf78d0
+    n_c3b3dfb0 -->|supports| n_a5ac8bb5
+    n_097259e9 -->|drives| n_2bcf78d0
+    n_097259e9 -->|supports| n_a5ac8bb5
+    n_097259e9 -->|supports| n_782ed95a
+    n_df427928 -->|drives| n_a574353c
+    n_27dfd4bb -->|drives| n_2bcf78d0
+    n_27dfd4bb -->|drives| n_a574353c
+    n_2bcf78d0 -->|drives| n_a5ac8bb5
+    n_2bcf78d0 -->|drives| n_782ed95a
+    n_a5ac8bb5 -->|drives| n_95734b42
+    n_a5ac8bb5 -->|drives| n_a574353c
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_cf073d61,n_a105ea82,n_1f907841,n_a5f29812,n_b9bafb21,n_d0f41a9e,n_7023a626,n_b7d61eaf,n_1d9a5fa9,n_72a2c62a,n_456f4d84,n_95734b42,n_063c8f83,n_a574353c,n_57ffe6d6,n_6d713cae,n_c3b3dfb0,n_be41b31a,n_782ed95a,n_097259e9,n_df427928,n_27dfd4bb,n_2bcf78d0,n_a5ac8bb5,n_840c729c,n_2481fe70,n_b39339ec,n_635dcdbd,n_8d132148,n_485eaf02,n_47d4cde2,n_dfad50cc default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9 anchor

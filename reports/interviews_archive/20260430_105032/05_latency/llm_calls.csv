@@ -1,0 +1,5 @@
+module,model,call_count,total_latency_ms,mean_latency_ms,total_tokens_in,mean_tokens_in,total_tokens_out,mean_tokens_out,total_cost_usd
+question_generation,claude-haiku-4-5,30,45185.57,1506.19,31570,1052.3,1572,52.4,0.03943
+extraction,claude-sonnet-4-6,14,166365.48,11883.25,18623,1330.2,12283,877.4,0.240114
+slot_scoring,claude-haiku-4-5,14,35747.61,2553.4,16825,1201.8,4664,333.1,0.040145
+signal_scoring,claude-haiku-4-5,14,62244.12,4446.01,38547,2753.4,6468,462.0,0.070887

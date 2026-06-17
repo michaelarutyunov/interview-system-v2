@@ -1,0 +1,129 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+    t11(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10 ~~~ t11
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_f8ea4584
+    t1 ~~~ n_b6d286b9
+    t1 ~~~ n_680ddf9a
+    t1 ~~~ n_291a5681
+    t1 ~~~ n_c8748367
+    t2 ~~~ n_a9ebe7a3
+    t2 ~~~ n_6959730f
+    t3 ~~~ n_8515c114
+    t3 ~~~ n_ce220c65
+    t4 ~~~ n_8db57bc2
+    t4 ~~~ n_cfb59c43
+    t5 ~~~ n_8d6318f0
+    t5 ~~~ n_7cc20c82
+    t6 ~~~ n_2b8a794b
+    t6 ~~~ n_4e8505b3
+    t7 ~~~ n_fe592727
+    t7 ~~~ n_a07a04dd
+    t8 ~~~ n_0fc41dae
+    t8 ~~~ n_24b5fee0
+    t8 ~~~ n_7eda1527
+    t8 ~~~ n_aeaa845e
+    t9 ~~~ n_4f09e721
+    t9 ~~~ n_86335f03
+    t10 ~~~ n_f357342e
+    t10 ~~~ n_babe8dca
+    t10 ~~~ n_a00db925
+    t10 ~~~ n_0f1351b6
+    t11 ~~~ n_78b3f9b5
+
+    %% Node definitions
+    n_f8ea4584["(1) light natural flavor"]
+    n_b6d286b9["(1) no sugar or sweeteners F1 F2 F7"]
+    n_680ddf9a["(1) avoiding post-consumption discomfort"]
+    n_291a5681["(1) avoiding sugar crash"]
+    n_c8748367["(1) convenient grab-and-go option"]
+    n_f357342e["(10) drinking without worry or guilt F3"]
+    n_a9ebe7a3["(2) off-taste of other diet drinks F8"]
+    n_6959730f["(2) not feeling like compromising to avoi..."]
+    n_8515c114["(3) feels like drinking a real soda F4"]
+    n_0fc41dae["(8) variety of desirable flavors available"]
+    n_ce220c65["(3) not feeling restricted to limited fla..."]
+    n_8db57bc2["(4) sense of having options when choosing... F6"]
+    n_cfb59c43["(4) not feeling locked into one thing F5"]
+    n_8d6318f0["(5) carbonation / fizz"]
+    n_7cc20c82["(5) actual bite sensation from carbonation"]
+    n_2b8a794b["(6) avoiding boredom from repetitive choices F10"]
+    n_4e8505b3["(6) not feeling locked into a routine F9"]
+    n_fe592727["(7) switching between citrus and berry fl..."]
+    n_a07a04dd["(7) not feeling like settling for a lesse..."]
+    n_24b5fee0["(8) not tasting like a diet drink"]
+    n_7eda1527["(8) artificial taste of competing brands"]
+    n_aeaa845e["(8) actively choosing what you want rathe..."]
+    n_4f09e721["(9) absence of artificial aftertaste"]
+    n_86335f03["(9) feeling like a choice rather than a c..."]
+    n_babe8dca["(10) grabbing a drink without feeling like..."]
+    n_a00db925["(10) not sacrificing taste for health"]
+    n_0f1351b6["(10) drink is actually enjoyable"]
+    n_78b3f9b5["(11) fizz provides sensation of actually d..."]
+
+    %% Real edges
+    n_f8ea4584 -->|leads_to| n_680ddf9a
+    n_b6d286b9 -->|leads_to| n_291a5681
+    n_680ddf9a -->|leads_to| n_f357342e
+    n_291a5681 -->|leads_to| n_f357342e
+    n_c8748367 -->|leads_to| n_680ddf9a
+    n_6959730f -->|leads_to| n_f357342e
+    n_8515c114 -->|leads_to| n_6959730f
+    n_0fc41dae -->|leads_to| n_ce220c65
+    n_ce220c65 -->|leads_to| n_6959730f
+    n_ce220c65 -->|leads_to| n_cfb59c43
+    n_8db57bc2 -->|leads_to| n_cfb59c43
+    n_f357342e -->|leads_to| n_cfb59c43
+    n_8d6318f0 -->|leads_to| n_7cc20c82
+    n_7cc20c82 -->|leads_to| n_8515c114
+    n_2b8a794b -->|leads_to| n_4e8505b3
+    n_cfb59c43 -->|leads_to| n_4e8505b3
+    n_0fc41dae -->|leads_to| n_fe592727
+    n_fe592727 -->|leads_to| n_8db57bc2
+    n_fe592727 -->|leads_to| n_a07a04dd
+    n_a07a04dd -->|leads_to| n_6959730f
+    n_a07a04dd -->|leads_to| n_4e8505b3
+    n_0fc41dae -->|leads_to| n_aeaa845e
+    n_aeaa845e -->|leads_to| n_a07a04dd
+    n_7eda1527 -->|leads_to| n_24b5fee0
+    n_b6d286b9 -->|leads_to| n_24b5fee0
+    n_a9ebe7a3 -->|leads_to| n_4f09e721
+    n_4f09e721 -->|leads_to| n_a00db925
+    n_a00db925 -->|leads_to| n_0f1351b6
+    n_babe8dca -->|leads_to| n_a00db925
+    n_0f1351b6 -->|leads_to| n_f357342e
+    n_f357342e -->|leads_to| n_f357342e
+    n_4e8505b3 -->|leads_to| n_f357342e
+    n_8d6318f0 -->|leads_to| n_78b3f9b5
+    n_78b3f9b5 -->|leads_to| n_0f1351b6
+    n_4f09e721 -->|leads_to| n_0f1351b6
+    n_78b3f9b5 -->|leads_to| n_2b8a794b
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_b6d286b9,n_f357342e,n_a9ebe7a3,n_8515c114,n_8db57bc2,n_cfb59c43,n_2b8a794b,n_4e8505b3 focused
+    class n_f8ea4584,n_680ddf9a,n_291a5681,n_c8748367,n_6959730f,n_0fc41dae,n_ce220c65,n_8d6318f0,n_7cc20c82,n_fe592727,n_a07a04dd,n_24b5fee0,n_7eda1527,n_aeaa845e,n_4f09e721,n_86335f03,n_babe8dca,n_a00db925,n_0f1351b6,n_78b3f9b5 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11 anchor

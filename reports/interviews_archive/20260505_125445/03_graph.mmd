@@ -1,0 +1,168 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+    t11(( ))
+    t12(( ))
+    t13(( ))
+    t14(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10 ~~~ t11 ~~~ t12 ~~~ t13 ~~~ t14
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_3fc3b5a4
+    t1 ~~~ n_2eb4f41b
+    t1 ~~~ n_cf25bd1c
+    t1 ~~~ n_032cbe91
+    t1 ~~~ n_b8d3ac15
+    t1 ~~~ n_9660be4d
+    t2 ~~~ n_bd7b7385
+    t2 ~~~ n_84d69065
+    t2 ~~~ n_02095391
+    t2 ~~~ n_bb784f3e
+    t3 ~~~ n_b03ca5e2
+    t3 ~~~ n_95b1ea7b
+    t4 ~~~ n_f37d754d
+    t4 ~~~ n_c447039b
+    t4 ~~~ n_dac558dd
+    t5 ~~~ n_a604576d
+    t5 ~~~ n_f755d74a
+    t5 ~~~ n_a9aa36f0
+    t6 ~~~ n_90320750
+    t6 ~~~ n_96e04712
+    t6 ~~~ n_d482f8bb
+    t6 ~~~ n_59084e3c
+    t7 ~~~ n_1ba74bd1
+    t7 ~~~ n_c7a62957
+    t7 ~~~ n_23b85806
+    t7 ~~~ n_2422ba25
+    t7 ~~~ n_c6ccbed6
+    t7 ~~~ n_6d9aa147
+    t8 ~~~ n_748a9b97
+    t8 ~~~ n_ccf4f3bb
+    t8 ~~~ n_55309121
+    t8 ~~~ n_04bd015b
+    t9 ~~~ n_80b3ca99
+    t9 ~~~ n_3bd8030b
+    t9 ~~~ n_883f0bd4
+    t9 ~~~ n_2fa9f600
+    t10 ~~~ n_70b977a9
+    t10 ~~~ n_8a9bf55f
+    t10 ~~~ n_0679118b
+    t10 ~~~ n_d19f843e
+    t10 ~~~ n_2bc88120
+    t11 ~~~ n_2daaa893
+    t11 ~~~ n_ecab2c06
+    t11 ~~~ n_fea82ea4
+    t11 ~~~ n_2ded6e55
+    t12 ~~~ n_afd3b8aa
+    t12 ~~~ n_66572929
+    t12 ~~~ n_09ad397f
+    t12 ~~~ n_1690a7f0
+    t13 ~~~ n_be72c1d5
+    t13 ~~~ n_97788971
+    t13 ~~~ n_c8787d83
+    t13 ~~~ n_503812ca
+    t14 ~~~ n_61c72894
+    t14 ~~~ n_94b7a0f0
+    t14 ~~~ n_24ccdee1
+    t14 ~~~ n_a26eff71
+
+    %% Node definitions
+    n_3fc3b5a4["(1) mid-afternoon energy slump at work F2"]
+    n_2eb4f41b["(1) at work during the afternoon F3"]
+    n_cf25bd1c["(1) get a quick pick-me-up without drinki..."]
+    n_032cbe91["(1) wanting something cold and caffeinated"]
+    n_b8d3ac15["(1) avoiding over-reliance on coffee for ..."]
+    n_9660be4d["(1) reaching for Diet Coke out of habit"]
+    n_bd7b7385["(2) gradually becoming aware of sugar intake"]
+    n_84d69065["(2) managing sugar consumption"]
+    n_02095391["(2) Diet Coke already being available and..."]
+    n_bb784f3e["(2) low-effort, passive habit formation r..."]
+    n_b03ca5e2["(3) avoiding the sugar crash after drinking"]
+    n_95b1ea7b["(3) choosing a drink that requires no men..."]
+    n_f37d754d["(4) feeling annoyed by having to evaluate... F4"]
+    n_c447039b["(4) grabbing whatever sounds appealing in..."]
+    n_dac558dd["(4) feeling free from decision fatigue ar..."]
+    n_a604576d["(5) questioning whether drink choice is g... F5 F7"]
+    n_f755d74a["(5) feeling less guilty about sugar with ..."]
+    n_a9aa36f0["(5) residual awareness that a choice is s..."]
+    n_90320750["(6) grabbing ZeroFizz automatically witho..."]
+    n_96e04712["(6) needing something cold and fizzy in t... F6 F8"]
+    n_d482f8bb["(6) craving the specific taste of ZeroFizz"]
+    n_59084e3c["(6) distinguishing genuine craving from r..."]
+    n_1ba74bd1["(7) feeling thirsty or hot in the moment F9"]
+    n_c7a62957["(7) getting immediate sensory satisfactio..."]
+    n_23b85806["(7) cold sensation feels more satisfying ..."]
+    n_2422ba25["(7) fizz elevates the drink beyond mere h..."]
+    n_c6ccbed6["(7) plain water feeling like an insuffici..."]
+    n_6d9aa147["(7) feeling like the drink is a real trea..."]
+    n_748a9b97["(8) sitting down and relaxing rather than..."]
+    n_ccf4f3bb["(8) carbonation creating a sense of indul..."]
+    n_55309121["(8) knowing ZeroFizz is low-calorie yet s..."]
+    n_04bd015b["(8) manner of consumption [sitting vs. ru..."]
+    n_80b3ca99["(9) grabbing a drink at the desk to satis..."]
+    n_3bd8030b["(9) sitting down with a drink as a delibe..."]
+    n_883f0bd4["(9) intentionally taking time as the cond..."]
+    n_2fa9f600["(9) feeling a small but meaningful sense ..."]
+    n_70b977a9["(10) wanting fizz and taste without guilt"]
+    n_8a9bf55f["(10) feeling like drink choice involves no..."]
+    n_0679118b["(10) artificial taste of other sugar-free ..."]
+    n_d19f843e["(10) enjoying the break without overthinki..."]
+    n_2bc88120["(10) choosing ZeroFizz as a guilt-free, gr..."]
+    n_2daaa893["(11) artificial sweetener aftertaste in co... F13"]
+    n_ecab2c06["(11) ZeroFizz having minimal artificial af..."]
+    n_fea82ea4["(11) feeling like you're forcing down a 'h..."]
+    n_2ded6e55["(11) drinking ZeroFizz without the sensati..."]
+    n_afd3b8aa["(12) being out with friends or at a meal F12"]
+    n_66572929["(12) grabbing whatever drink is available ..."]
+    n_09ad397f["(12) guilt-free framing only mattering dur..."]
+    n_1690a7f0["(12) intentionality of the moment as the p..."]
+    n_be72c1d5["(13) being out with friends when everyone ..."]
+    n_97788971["(13) feeling socially excluded by being th..."]
+    n_c8787d83["(13) being stuck with water due to sugar c..."]
+    n_503812ca["(13) fitting in with the group socially"]
+    n_61c72894["(14) grabbing ZeroFizz to participate soci..."]
+    n_94b7a0f0["(14) water feeling clinical or sterile in ..."]
+    n_24ccdee1["(14) feeling like a genuine participant in..."]
+    n_a26eff71["(14) having something in hand as a social ..."]
+
+    %% Real edges
+    n_b03ca5e2 -->|implies| n_95b1ea7b
+    n_2eb4f41b -->|occurs_in| n_c447039b
+    n_f37d754d -->|implies| n_c447039b
+    n_f37d754d -->|implies| n_dac558dd
+    n_f37d754d -->|implies| n_95b1ea7b
+    n_c447039b -->|supports| n_dac558dd
+    n_c447039b -->|achieves| n_95b1ea7b
+    n_dac558dd -->|achieves| n_95b1ea7b
+    n_a604576d -->|implies| n_95b1ea7b
+    n_a604576d -->|implies| n_dac558dd
+    n_f755d74a -->|supports| n_95b1ea7b
+    n_f755d74a -->|supports| n_dac558dd
+    n_a9aa36f0 -->|implies| n_95b1ea7b
+    n_a9aa36f0 -->|implies| n_dac558dd
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_3fc3b5a4,n_2eb4f41b,n_f37d754d,n_a604576d,n_96e04712,n_1ba74bd1,n_2daaa893,n_afd3b8aa focused
+    class n_cf25bd1c,n_032cbe91,n_b8d3ac15,n_9660be4d,n_bd7b7385,n_84d69065,n_02095391,n_bb784f3e,n_b03ca5e2,n_95b1ea7b,n_c447039b,n_dac558dd,n_f755d74a,n_a9aa36f0,n_90320750,n_d482f8bb,n_59084e3c,n_c7a62957,n_23b85806,n_2422ba25,n_c6ccbed6,n_6d9aa147,n_748a9b97,n_ccf4f3bb,n_55309121,n_04bd015b,n_80b3ca99,n_3bd8030b,n_883f0bd4,n_2fa9f600,n_70b977a9,n_8a9bf55f,n_0679118b,n_d19f843e,n_2bc88120,n_ecab2c06,n_fea82ea4,n_2ded6e55,n_66572929,n_09ad397f,n_1690a7f0,n_be72c1d5,n_97788971,n_c8787d83,n_503812ca,n_61c72894,n_94b7a0f0,n_24ccdee1,n_a26eff71 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14 anchor

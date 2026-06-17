@@ -1,0 +1,140 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+    t11(( ))
+    t12(( ))
+    t13(( ))
+    t14(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10 ~~~ t11 ~~~ t12 ~~~ t13 ~~~ t14
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_2026cc2f
+    t1 ~~~ n_531fc530
+    t1 ~~~ n_2eec80dd
+    t1 ~~~ n_6068a700
+    t1 ~~~ n_e5372a2d
+    t1 ~~~ n_7a44494c
+    t2 ~~~ n_6f486cae
+    t2 ~~~ n_6bd25af9
+    t2 ~~~ n_922797d2
+    t3 ~~~ n_157daf09
+    t3 ~~~ n_e22f0576
+    t4 ~~~ n_e9cc6a6e
+    t4 ~~~ n_4fcc856a
+    t5 ~~~ n_2656d57d
+    t5 ~~~ n_519f3fdc
+    t5 ~~~ n_e432b8df
+    t5 ~~~ n_0ce1e91e
+    t6 ~~~ n_4deb1a6e
+    t6 ~~~ n_7f69267d
+    t6 ~~~ n_56a53713
+    t6 ~~~ n_45eceef3
+    t7 ~~~ n_db574a09
+    t7 ~~~ n_759a411b
+    t7 ~~~ n_6710206e
+    t7 ~~~ n_270215fc
+    t8 ~~~ n_bf5cfe6d
+    t8 ~~~ n_d175b7bf
+    t8 ~~~ n_b45591bc
+    t9 ~~~ n_8f53366e
+    t9 ~~~ n_d27ec61e
+    t9 ~~~ n_6f9132ad
+    t9 ~~~ n_c5d58c69
+    t9 ~~~ n_40fc1c13
+    t10 ~~~ n_aefe6a4d
+    t10 ~~~ n_7fba32d4
+    t10 ~~~ n_949107de
+    t10 ~~~ n_bcaa68f5
+    t11 ~~~ n_9170aed8
+    t11 ~~~ n_bbade499
+    t11 ~~~ n_1cbd3695
+    t12 ~~~ n_03f6f003
+    t12 ~~~ n_c2459fff
+    t12 ~~~ n_876244df
+    t13 ~~~ n_0aaf965b
+    t13 ~~~ n_97882f82
+    t13 ~~~ n_7336a6ad
+    t13 ~~~ n_b81fa2fd
+    t14 ~~~ n_a1fd9f38
+    t14 ~~~ n_5ec7ec77
+    t14 ~~~ n_24def089
+
+    %% Node definitions
+    n_2026cc2f["(1) at work during the day F2"]
+    n_531fc530["(1) feeling thirsty with a drink readily ... F3"]
+    n_2eec80dd["(1) drink in fridge at work"]
+    n_6068a700["(1) growing tired of regular soda"]
+    n_e5372a2d["(1) cutting back on sugar intake"]
+    n_7a44494c["(1) feeling like a more health-conscious ..."]
+    n_6f486cae["(2) avoiding guilt after drinking somethi..."]
+    n_6bd25af9["(2) getting a drink that tastes decent an..."]
+    n_922797d2["(2) sugar-free drink does not meaningfull..."]
+    n_157daf09["(3) drink choice is driven by availabilit..."]
+    n_e22f0576["(3) drink selection carries no social sig..."]
+    n_e9cc6a6e["(4) avoiding the pressure of drink choice... F6"]
+    n_4fcc856a["(4) drinking without self-consciousness o..."]
+    n_2656d57d["(5) being a little more intentional about... F5"]
+    n_519f3fdc["(5) getting the fizz sensation without fe..."]
+    n_e432b8df["(5) feeling like drinking something bad f..."]
+    n_0ce1e91e["(5) choosing ZeroFizz as the drink that d..."]
+    n_4deb1a6e["(6) avoiding blood sugar disruption from ..."]
+    n_7f69267d["(6) feeling bloated after drinking soda"]
+    n_56a53713["(6) knowing regular soda is not good for ..."]
+    n_45eceef3["(6) getting good taste and fizz sensation..."]
+    n_db574a09["(7) consuming multiple sodas per day F7 F9"]
+    n_759a411b["(7) regular soda feeling heavy after repe..."]
+    n_6710206e["(7) experiencing a crash after drinking r..."]
+    n_270215fc["(7) avoiding the energy crash associated ..."]
+    n_bf5cfe6d["(8) feeling permitted to drink without re..."]
+    n_d175b7bf["(8) drinking without overthinking or seco..."]
+    n_b45591bc["(8) knowing exactly what you are getting ... F8 F10"]
+    n_8f53366e["(9) drink tasting unexpected or off-putti..."]
+    n_aefe6a4d["(10) drink containing an undesirable ingre..."]
+    n_d27ec61e["(9) grabbing a drink without checking its... F11"]
+    n_6f9132ad["(9) ending up with a drink that cannot be..."]
+    n_c5d58c69["(9) avoiding wasting money on a drink tha..."]
+    n_40fc1c13["(9) checking drink contents before purcha..."]
+    n_7fba32d4["(10) avoiding tooth damage from sugary drinks F12"]
+    n_949107de["(10) avoiding unexpected calorie intake fr..."]
+    n_bcaa68f5["(10) glancing at the label before purchasi..."]
+    n_9170aed8["(11) scanning for zero or minimal sugar on..."]
+    n_bbade499["(11) ignoring most label information beyon..."]
+    n_1cbd3695["(11) confirming a drink has zero or minima..."]
+    n_03f6f003["(12) reducing sugar consumption throughout..."]
+    n_c2459fff["(12) drink being genuinely healthier, not ..."]
+    n_876244df["(12) distrust of health marketing claims o..."]
+    n_0aaf965b["(13) brands shifting health messaging to m..."]
+    n_97882f82["(13) label claims contradicted by unrecogn..."]
+    n_7336a6ad["(13) suspecting brands are concealing some..."]
+    n_b81fa2fd["(13) scrutinising the ingredient list to v..."]
+    n_a1fd9f38["(14) avoiding artificial sweeteners like a..."]
+    n_5ec7ec77["(14) multiple artificial sweeteners combin..."]
+    n_24def089["(14) checking for artificial sweeteners an..."]
+
+    %% Real edges
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_2026cc2f,n_531fc530,n_e9cc6a6e,n_2656d57d,n_db574a09,n_b45591bc,n_d27ec61e,n_7fba32d4 focused
+    class n_2eec80dd,n_6068a700,n_e5372a2d,n_7a44494c,n_6f486cae,n_6bd25af9,n_922797d2,n_157daf09,n_e22f0576,n_4fcc856a,n_519f3fdc,n_e432b8df,n_0ce1e91e,n_4deb1a6e,n_7f69267d,n_56a53713,n_45eceef3,n_759a411b,n_6710206e,n_270215fc,n_bf5cfe6d,n_d175b7bf,n_8f53366e,n_aefe6a4d,n_6f9132ad,n_c5d58c69,n_40fc1c13,n_949107de,n_bcaa68f5,n_9170aed8,n_bbade499,n_1cbd3695,n_03f6f003,n_c2459fff,n_876244df,n_0aaf965b,n_97882f82,n_7336a6ad,n_b81fa2fd,n_a1fd9f38,n_5ec7ec77,n_24def089 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14 anchor

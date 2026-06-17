@@ -1,0 +1,17 @@
+# Interview Export Metadata
+timestamp: "20260430_181552"
+session_id: "4dd4c408-5dc3-4542-8a01-b8586c590625"
+concept:
+  id: "zerofizz_beverage_jtbd"
+  name: "ZeroFizz Sugar-Free Carbonated Beverage - Jobs to be Done"
+methodology: "jobs_to_be_done_v2"
+persona:
+  id: "brief_responder"
+  name: "Brief Responder"
+interview:
+  total_turns: 7
+  status: "quality_degraded"
+  saved_at: "2026-04-30T18:15:52.071527+00:00"
+source:
+  json_file: "synthetic_interviews/20260430_181552_zerofizz_beverage_jtbd_brief_responder.json"
+  log_file: "interview_20260430_191424.log"

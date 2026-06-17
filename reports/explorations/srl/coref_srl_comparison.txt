@@ -1,0 +1,220 @@
+================================================================================
+COREF + SRL ANALYSIS REPORT
+================================================================================
+
+Method: Rule-based pronoun resolution + dependency SRL
+Discourse: MARK/ADVCL dependencies (language-agnostic)
+
+
+================================================================================
+TURN 1
+================================================================================
+
+QUESTION: What else matters to you when you're choosing which oat milk to buy?
+
+📝 ORIGINAL: I always check the ingredient list - I want to make sure there's no added oils o...
+
+🔄 PRONOUN MAPPINGS (1):
+   'it' → 'grams'
+
+✏️  REWRITTEN: I always check the ingredient list - I want to make sure there's no added oils o...
+
+📌 DISCOURSE (7):
+   if (subordination)
+   implicit (adverbial_clause)
+   like (subordination)
+
+🎯 SRL (5):
+   check: ARG0=I, ARG1=list
+   want: ARG0=I
+   try: ARG0=I
+
+================================================================================
+TURN 2
+================================================================================
+
+QUESTION: Why does getting those nutrients matter to you?
+
+📝 ORIGINAL: I mean, I'm just trying to take care of my body, you know? I work out regularly ...
+
+🔄 PRONOUN MAPPINGS (1):
+   'it' → 'nutrients'
+
+✏️  REWRITTEN: I mean, I'm just trying to take care of my body, you know? I work out regularly ...
+
+📌 DISCOURSE (1):
+   so (subordination)
+
+🎯 SRL (12):
+   mean: ARG0=I
+   trying: ARG0=I
+   take: ARG1=care, ARGM-OF=body
+
+================================================================================
+TURN 3
+================================================================================
+
+QUESTION: So taking care of your body through oat milk is about having energy and working out well - is that right?
+
+📝 ORIGINAL: Yeah, exactly. I mean, the energy part is huge for me - I noticed when I switche...
+
+🔄 PRONOUN MAPPINGS (2):
+   'that' → 'fact'
+   'it' → 'fact'
+
+✏️  REWRITTEN: Yeah, exactly. I mean, the energy part is huge for me - I noticed when I switche...
+
+📌 DISCOURSE (1):
+   implicit (adverbial_clause)
+
+🎯 SRL (6):
+   mean: ARG0=I
+   noticed: ARG0=I
+   switched: ARG0=I, ARGM-FROM=milk
+
+================================================================================
+TURN 4
+================================================================================
+
+QUESTION: So oat milk helps you feel less sluggish and cleaner - what does feeling that way give you?
+
+📝 ORIGINAL: I'd say it just helps me stay more consistent with my routine, you know? Like wh...
+
+🔄 PRONOUN MAPPINGS (2):
+   'that' → 'work'
+   'It' → 'work'
+
+✏️  REWRITTEN: I'd say it just helps me stay more consistent with my routine, you know? Like wh...
+
+📌 DISCOURSE (1):
+   implicit (adverbial_clause)
+
+🎯 SRL (9):
+   say: ARG0=I
+   helps: ARG0=it
+   stay: ARG0=me
+
+================================================================================
+TURN 5
+================================================================================
+
+QUESTION: What does not fighting against your body mean for you?
+
+📝 ORIGINAL: I think it means choosing foods that work with my system rather than against it....
+
+🔄 PRONOUN MAPPINGS (3):
+   'that' → 'discomfort'
+   'it' → 'body'
+   'It' → 'body'
+
+✏️  REWRITTEN: I think body means choosing foods discomfort work with my system rather than aga...
+
+📌 DISCOURSE (3):
+   implicit (adverbial_clause)
+   because (subordination)
+   implicit (adverbial_clause)
+
+🎯 SRL (13):
+   think: ARG0=I
+   means: ARG0=body
+   choosing: ARG1=work
+
+================================================================================
+TURN 6
+================================================================================
+
+QUESTION: So choosing oat milk is part of listening to your body - why is that listening important to you?
+
+📝 ORIGINAL: I mean, I think it's just about respecting what my body's telling me, you know? ...
+
+🔄 PRONOUN MAPPINGS (2):
+   'that' → 'dairy'
+   'It' → 'digestion'
+
+✏️  REWRITTEN: I mean, I think it's just about respecting what my body's telling me, you know? ...
+
+📌 DISCOURSE (1):
+   implicit (adverbial_clause)
+
+🎯 SRL (13):
+   mean: ARG0=I
+   think: ARG0=I
+   telling: ARG0=body, ARG1=me
+
+================================================================================
+TURN 7
+================================================================================
+
+QUESTION: So understanding what works for you through choices like oat milk - what does that give you in your life?
+
+📝 ORIGINAL: You know, it gives me peace of mind, honestly. Like, I can go through my day kno...
+
+🔄 PRONOUN MAPPINGS (4):
+   'It' → 'dairy'
+   'it' → 'thing'
+   'that' → 'choice'
+   'them' → 'goals'
+
+✏️  REWRITTEN: You know, it gives me peace of mind, honestly. Like, I can go through my day kno...
+
+📌 DISCOURSE (1):
+   implicit (adverbial_clause)
+
+🎯 SRL (11):
+   know: ARG0=You
+   gives: ARG0=it, ARG1=peace
+   go: ARG0=I, ARGM-THROUGH=day
+
+================================================================================
+TURN 8
+================================================================================
+
+QUESTION: So oat milk helps support your wellness goals - what do those goals mean for how you want to live?
+
+📝 ORIGINAL: I want to feel good in my body, you know? Like, having sustained energy througho...
+
+🔄 PRONOUN MAPPINGS (3):
+   'It' → 'system'
+   'that' → 'choices'
+   'it' → 'work'
+
+✏️  REWRITTEN: I want to feel good in my body, you know? Like, having sustained energy througho...
+
+📌 DISCOURSE (2):
+   as (subordination)
+   implicit (adverbial_clause)
+
+🎯 SRL (11):
+   want: ARG0=I
+   feel: ARGM-IN=body
+   know: ARG0=you
+
+================================================================================
+TURN 9
+================================================================================
+
+QUESTION: Thank you for sharing your thoughts with me today. This has been very helpful.
+
+📝 ORIGINAL: You're welcome! I'm glad I could share my perspective on oat milk. It's definite...
+
+🔄 PRONOUN MAPPINGS (2):
+   'It' → 'milk'
+   'that' → 'products'
+
+✏️  REWRITTEN: You're welcome! I'm glad I could share my perspective on oat milk. milk's defini...
+
+📌 DISCOURSE (0):
+
+🎯 SRL (3):
+   share: ARG0=I, ARG1=perspective
+   become: ARG0=milk
+   align: ARG0=products, ARGM-WITH=goals
+
+================================================================================
+SUMMARY
+================================================================================
+Turns: 9
+Pronouns mapped: 20
+Discourse relations: 17
+SRL frames: 83
+Avg frames/turn: 9.2

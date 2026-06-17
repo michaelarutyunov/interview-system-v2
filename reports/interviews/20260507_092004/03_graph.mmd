@@ -1,0 +1,162 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+    t11(( ))
+    t12(( ))
+    t13(( ))
+    t14(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10 ~~~ t11 ~~~ t12 ~~~ t13 ~~~ t14
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_2598b92b
+    t1 ~~~ n_35e2891a
+    t1 ~~~ n_89fddd22
+    t1 ~~~ n_2406c47b
+    t1 ~~~ n_bacbcac6
+    t1 ~~~ n_0de2bdad
+    t2 ~~~ n_0171582c
+    t2 ~~~ n_840d546b
+    t2 ~~~ n_663203e7
+    t3 ~~~ n_307dda06
+    t3 ~~~ n_7aaee0ee
+    t3 ~~~ n_4662d80d
+    t3 ~~~ n_5e7634f7
+    t4 ~~~ n_a9febec9
+    t4 ~~~ n_ed5a6c17
+    t4 ~~~ n_de6104cd
+    t5 ~~~ n_e892420d
+    t5 ~~~ n_62dba493
+    t5 ~~~ n_72517037
+    t5 ~~~ n_f8d5b5fd
+    t6 ~~~ n_4e5f0913
+    t6 ~~~ n_bbadad1d
+    t6 ~~~ n_9cd46115
+    t6 ~~~ n_b736faf7
+    t7 ~~~ n_c90e13ea
+    t8 ~~~ n_c3bf068b
+    t8 ~~~ n_b74f999b
+    t8 ~~~ n_f3edf046
+    t8 ~~~ n_a231abee
+    t9 ~~~ n_b0c2c4ee
+    t9 ~~~ n_57b1f4b8
+    t10 ~~~ n_14d0704d
+    t10 ~~~ n_2a4d8eec
+    t10 ~~~ n_bdb61a6f
+    t11 ~~~ n_a48897e6
+    t11 ~~~ n_6b8d86ec
+    t11 ~~~ n_9294b237
+    t12 ~~~ n_d7c92ca1
+    t12 ~~~ n_08d88ae6
+    t12 ~~~ n_0c11efe8
+    t13 ~~~ n_20778732
+    t13 ~~~ n_7a215d7a
+    t13 ~~~ n_c4cf9de0
+    t13 ~~~ n_d14616d0
+    t13 ~~~ n_481c7604
+    t13 ~~~ n_e9d4d214
+    t14 ~~~ n_e6b8d3d2
+
+    %% Node definitions
+    n_2598b92b["(1) rushing before work in the morning F1 F3"]
+    n_35e2891a["(1) feeling tired and needing to wake up F2"]
+    n_89fddd22["(1) get an immediate energy boost to star..."]
+    n_2406c47b["(1) feeling alert and awake quickly"]
+    n_bacbcac6["(1) buying an iced coffee before work"]
+    n_0de2bdad["(1) feel reliably energized without secon..."]
+    n_0171582c["(2) uncertainty about whether a drink wil..."]
+    n_840d546b["(2) switching to a different drink when c..."]
+    n_663203e7["(2) avoid wasting time on an uncertain ch..."]
+    n_307dda06["(3) having ZeroFizz pre-stocked in the fr..."]
+    n_7aaee0ee["(3) drink availability at home in the mom... F4"]
+    n_4662d80d["(3) skipping beverages entirely when too ..."]
+    n_5e7634f7["(3) not having mental bandwidth to decide..."]
+    n_a9febec9["(4) drink placed in habitual grab spot [b..."]
+    n_ed5a6c17["(4) zero friction at point of grab when r..."]
+    n_de6104cd["(4) won't stop to make a specific drink c..."]
+    n_e892420d["(5) making healthier drink choices withou..."]
+    n_62dba493["(5) deliberating over every drink choice ... F5 F7"]
+    n_72517037["(5) defaulting to whatever drink is avail..."]
+    n_f8d5b5fd["(5) feel like healthy choices are effortl..."]
+    n_4e5f0913["(6) being at someone else's house with on... F6 F8"]
+    n_bbadad1d["(6) healthy drink goal falls away when no..."]
+    n_9cd46115["(6) avoid seeming difficult or high-maint..."]
+    n_b736faf7["(6) drinking whatever the host has withou..."]
+    n_c90e13ea["(7) low personal investment in having Zer..."]
+    n_c3bf068b["(8) arriving at a party without a drink i... F9"]
+    n_b74f999b["(8) avoid the social awkwardness of showi..."]
+    n_f3edf046["(8) having any drink available at a socia... F10"]
+    n_a231abee["(8) drink identity is irrelevant in socia..."]
+    n_b0c2c4ee["(9) buying whatever drink is on sale when..."]
+    n_57b1f4b8["(9) not deliberating over which drink to ..."]
+    n_14d0704d["(10) calibrating drink type and quantity t... F11 F13"]
+    n_2a4d8eec["(10) minimizing what to carry when heading... F12"]
+    n_bdb61a6f["(10) stocking up for the weekend or hostin..."]
+    n_a48897e6["(11) running out of drinks mid-gathering w..."]
+    n_6b8d86ec["(11) buying in larger quantity to ensure e..."]
+    n_9294b237["(11) marginal cost difference makes bulk q..."]
+    n_d7c92ca1["(12) cumulative weekly spend becoming noti..."]
+    n_08d88ae6["(12) defaulting to the cheaper drink optio..."]
+    n_0c11efe8["(12) taste equivalence as the threshold fo..."]
+    n_20778732["(13) chemical aftertaste making ZeroFizz u..."]
+    n_7a215d7a["(13) artificial taste profile of ZeroFizz ..."]
+    n_c4cf9de0["(13) eliminating artificial aftertaste as ..."]
+    n_d14616d0["(13) uncertainty about whether ZeroFizz ju..."]
+    n_481c7604["(13) drinking regular soda less frequently..."]
+    n_e9d4d214["(13) low brand loyalty — unwilling to comm..."]
+    n_e6b8d3d2["(14) brand name holding no perceived value..."]
+
+    %% Real edges
+    n_0171582c -->|drives| n_840d546b
+    n_0171582c -->|implies| n_663203e7
+    n_840d546b -->|achieves| n_663203e7
+    n_0171582c -->|implies| n_0de2bdad
+    n_840d546b -->|achieves| n_0de2bdad
+    n_663203e7 -->|supports| n_0de2bdad
+    n_de6104cd -->|occurs_in| n_2598b92b
+    n_a9febec9 -->|achieves| n_ed5a6c17
+    n_a9febec9 -->|addresses| n_de6104cd
+    n_a9febec9 -->|addresses| n_5e7634f7
+    n_bdb61a6f -->|triggers| n_14d0704d
+    n_a48897e6 -->|triggers| n_6b8d86ec
+    n_a48897e6 -->|implies| n_9294b237
+    n_6b8d86ec -->|achieves| n_9294b237
+    n_a48897e6 -->|occurs_in| n_bdb61a6f
+    n_6b8d86ec -->|occurs_in| n_bdb61a6f
+    n_20778732 -->|supports| n_7a215d7a
+    n_20778732 -->|implies| n_c4cf9de0
+    n_20778732 -->|supports| n_d14616d0
+    n_20778732 -->|drives| n_481c7604
+    n_20778732 -->|drives| n_e9d4d214
+    n_7a215d7a -->|implies| n_c4cf9de0
+    n_7a215d7a -->|supports| n_d14616d0
+    n_7a215d7a -->|drives| n_481c7604
+    n_7a215d7a -->|drives| n_e9d4d214
+    n_c4cf9de0 -->|drives| n_481c7604
+    n_d14616d0 -->|drives| n_481c7604
+    n_d14616d0 -->|drives| n_e9d4d214
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_2598b92b,n_35e2891a,n_7aaee0ee,n_62dba493,n_4e5f0913,n_c3bf068b,n_f3edf046,n_14d0704d,n_2a4d8eec focused
+    class n_89fddd22,n_2406c47b,n_bacbcac6,n_0de2bdad,n_0171582c,n_840d546b,n_663203e7,n_307dda06,n_4662d80d,n_5e7634f7,n_a9febec9,n_ed5a6c17,n_de6104cd,n_e892420d,n_72517037,n_f8d5b5fd,n_bbadad1d,n_9cd46115,n_b736faf7,n_c90e13ea,n_b74f999b,n_a231abee,n_b0c2c4ee,n_57b1f4b8,n_bdb61a6f,n_a48897e6,n_6b8d86ec,n_9294b237,n_d7c92ca1,n_08d88ae6,n_0c11efe8,n_20778732,n_7a215d7a,n_c4cf9de0,n_d14616d0,n_481c7604,n_e9d4d214,n_e6b8d3d2 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14 anchor

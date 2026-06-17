@@ -1,0 +1,171 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+    t11(( ))
+    t12(( ))
+    t13(( ))
+    t14(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10 ~~~ t11 ~~~ t12 ~~~ t13 ~~~ t14
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_39fcef42
+    t1 ~~~ n_fef20bb7
+    t1 ~~~ n_30fde29c
+    t1 ~~~ n_1bd7ab9b
+    t1 ~~~ n_ae2214a9
+    t2 ~~~ n_9cd0e988
+    t2 ~~~ n_dcdde026
+    t3 ~~~ n_3295a03e
+    t3 ~~~ n_4cd4c9ee
+    t3 ~~~ n_78012c57
+    t4 ~~~ n_1e3618ed
+    t4 ~~~ n_c6154ece
+    t4 ~~~ n_90e8f6cb
+    t4 ~~~ n_2684928f
+    t4 ~~~ n_8bf1db79
+    t4 ~~~ n_a93f5217
+    t4 ~~~ n_429e5951
+    t4 ~~~ n_0da95c6a
+    t5 ~~~ n_a54834a9
+    t5 ~~~ n_4ef1ef69
+    t5 ~~~ n_62c480a4
+    t5 ~~~ n_a20d9214
+    t6 ~~~ n_4df70f6c
+    t6 ~~~ n_4f9a89a8
+    t6 ~~~ n_bba85b9c
+    t7 ~~~ n_48053869
+    t7 ~~~ n_5e042fe9
+    t7 ~~~ n_b38d7d95
+    t7 ~~~ n_88ab9794
+    t7 ~~~ n_8daea68e
+    t8 ~~~ n_a7d176b3
+    t8 ~~~ n_c44df2c1
+    t8 ~~~ n_27174691
+    t8 ~~~ n_a930f0e7
+    t9 ~~~ n_e627b9b1
+    t9 ~~~ n_87434115
+    t9 ~~~ n_46782cf9
+    t10 ~~~ n_3a285bda
+    t10 ~~~ n_ab010ea6
+    t11 ~~~ n_ed3ea243
+    t11 ~~~ n_661e95b6
+    t11 ~~~ n_3aa6b983
+    t11 ~~~ n_ea044046
+    t12 ~~~ n_6f2158ff
+    t12 ~~~ n_0355a4de
+    t12 ~~~ n_8d0793a7
+    t13 ~~~ n_0ea0946d
+    t13 ~~~ n_431b5fcf
+    t13 ~~~ n_c7611958
+    t14 ~~~ n_77e485e6
+    t14 ~~~ n_bab54d9f
+    t14 ~~~ n_73470af4
+    t14 ~~~ n_8e08b160
+    t14 ~~~ n_aae3abc2
+    t14 ~~~ n_7d129218
+
+    %% Node definitions
+    n_39fcef42["(1) being at a social setting or restaura... F2"]
+    n_fef20bb7["(1) avoiding regular sugar in a drink"]
+    n_30fde29c["(1) not actively seeking out sugar-free d..."]
+    n_1bd7ab9b["(1) drinking sugar-free soda only when pa..."]
+    n_ae2214a9["(1) avoiding excess sugar rather than emb... F1 F3"]
+    n_9cd0e988["(2) feeling guilty about consuming regula..."]
+    n_dcdde026["(2) feeling free from guilt when drinking..."]
+    n_3295a03e["(3) feel relaxed and at ease while drinking"]
+    n_4cd4c9ee["(3) enjoy a drink without self-critical i..."]
+    n_78012c57["(3) feeling mentally lighter or unburdene..."]
+    n_1e3618ed["(4) after a heavy meal F6"]
+    n_c6154ece["(4) feeling physically weighed down after..."]
+    n_90e8f6cb["(4) drink feeling light and easy on the s..."]
+    n_2684928f["(4) during afternoon work hours when tryi... F8 F10 F12"]
+    n_8bf1db79["(4) maintain focus and productivity at work"]
+    n_a93f5217["(4) experiencing a sugar crash that disru... F4"]
+    n_429e5951["(4) feeling refreshed without a sugar crash"]
+    n_0da95c6a["(4) drinking ZeroFizz sugar-free soda in ..."]
+    n_a54834a9["(5) avoiding a hard sugar crash after dri..."]
+    n_4ef1ef69["(5) sustaining energy without feeling awf..."]
+    n_62c480a4["(5) caffeine as the functional driver of ..."]
+    n_a20d9214["(5) uncertainty about whether ZeroFizz me... F5"]
+    n_4df70f6c["(6) getting through the workday without e..."]
+    n_4f9a89a8["(6) dragging by 3pm mid-afternoon F7"]
+    n_6f2158ff["(12) experiencing a mid-afternoon energy d..."]
+    n_bba85b9c["(6) avoiding the afternoon energy dip mat..."]
+    n_48053869["(7) feeling normal and functional at work"]
+    n_5e042fe9["(7) staying late due to mid-afternoon pro... F9"]
+    n_b38d7d95["(7) feeling bad about unfinished work at ..."]
+    n_88ab9794["(7) sustain focus through the end of the ..."]
+    n_8daea68e["(7) watching the clock waiting for the da..."]
+    n_a7d176b3["(8) feeling engaged so that time passes u..."]
+    n_c44df2c1["(8) the workday feeling heavy and slow wh..."]
+    n_27174691["(8) feel mentally light and engaged rathe..."]
+    n_a930f0e7["(8) counting down the hours feeling depre..."]
+    n_e627b9b1["(9) drinking regular soda in the afternoon F11"]
+    n_87434115["(9) feeling sluggish for the rest of the ..."]
+    n_46782cf9["(9) maintaining consistent energy levels ..."]
+    n_3a285bda["(10) not feeling the urge to take a break ..."]
+    n_ab010ea6["(10) seeking a snack or break as a distrac..."]
+    n_ed3ea243["(11) being in a flow state at work without... F13"]
+    n_661e95b6["(11) constantly managing energy levels thr..."]
+    n_3aa6b983["(11) work feeling effortless rather than l..."]
+    n_ea044046["(11) needing an external stimulus to recov..."]
+    n_0355a4de["(12) drinking coffee to recover from after..."]
+    n_8d0793a7["(12) taking a walk around the office to ge..."]
+    n_0ea0946d["(13) physical movement away from the desk ..."]
+    n_431b5fcf["(13) a drink does not provide the same men..."]
+    n_c7611958["(13) get a genuine mental reset by physica..."]
+    n_77e485e6["(14) being already in a flow state while w..."]
+    n_bab54d9f["(14) getting up from the desk feels like b..."]
+    n_73470af4["(14) drink being immediately at hand remov..."]
+    n_8e08b160["(14) rationalising the drink as a sufficie..."]
+    n_aae3abc2["(14) preserve flow state by avoiding physi..."]
+    n_7d129218["(14) feel like I'm taking a break without ..."]
+
+    %% Real edges
+    n_ae2214a9 -->|implies| n_9cd0e988
+    n_ae2214a9 -->|drives| n_dcdde026
+    n_9cd0e988 -->|implies| n_dcdde026
+    n_9cd0e988 -->|triggers| n_fef20bb7
+    n_9cd0e988 -->|drives| n_1bd7ab9b
+    n_dcdde026 -->|drives| n_1bd7ab9b
+    n_5e042fe9 -->|implies| n_3a285bda
+    n_3a285bda -->|conflicts_with| n_ab010ea6
+    n_2684928f -->|occurs_in| n_0ea0946d
+    n_2684928f -->|occurs_in| n_431b5fcf
+    n_2684928f -->|occurs_in| n_c7611958
+    n_0ea0946d -->|conflicts_with| n_431b5fcf
+    n_0ea0946d -->|achieves| n_c7611958
+    n_0ea0946d -->|addresses| n_6f2158ff
+    n_0ea0946d -->|conflicts_with| n_0355a4de
+    n_0ea0946d -->|achieves| n_8d0793a7
+    n_431b5fcf -->|implies| n_c7611958
+    n_431b5fcf -->|supports| n_6f2158ff
+    n_431b5fcf -->|triggers| n_8d0793a7
+    n_c7611958 -->|supports| n_6f2158ff
+    n_c7611958 -->|drives| n_8d0793a7
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_39fcef42,n_ae2214a9,n_1e3618ed,n_2684928f,n_a93f5217,n_a20d9214,n_4f9a89a8,n_5e042fe9,n_e627b9b1,n_ed3ea243 focused
+    class n_fef20bb7,n_30fde29c,n_1bd7ab9b,n_9cd0e988,n_dcdde026,n_3295a03e,n_4cd4c9ee,n_78012c57,n_c6154ece,n_90e8f6cb,n_8bf1db79,n_429e5951,n_0da95c6a,n_a54834a9,n_4ef1ef69,n_62c480a4,n_4df70f6c,n_6f2158ff,n_bba85b9c,n_48053869,n_b38d7d95,n_88ab9794,n_8daea68e,n_a7d176b3,n_c44df2c1,n_27174691,n_a930f0e7,n_87434115,n_46782cf9,n_3a285bda,n_ab010ea6,n_661e95b6,n_3aa6b983,n_ea044046,n_0355a4de,n_8d0793a7,n_0ea0946d,n_431b5fcf,n_c7611958,n_77e485e6,n_bab54d9f,n_73470af4,n_8e08b160,n_aae3abc2,n_7d129218 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14 anchor

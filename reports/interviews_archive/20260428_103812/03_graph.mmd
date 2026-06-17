@@ -1,0 +1,157 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_29b2efc7
+    t1 ~~~ n_9bf7d60c
+    t1 ~~~ n_c1f04285
+    t1 ~~~ n_aca8fbcf
+    t1 ~~~ n_edd54cb0
+    t2 ~~~ n_6045486d
+    t2 ~~~ n_cfc8426f
+    t2 ~~~ n_69ea3d60
+    t2 ~~~ n_8a19cb05
+    t2 ~~~ n_ef7f7fd2
+    t3 ~~~ n_ce97d74a
+    t3 ~~~ n_dbc291c3
+    t3 ~~~ n_749fc0e9
+    t4 ~~~ n_2f35dff3
+    t4 ~~~ n_dfd794a7
+    t4 ~~~ n_5a2c2c5e
+    t4 ~~~ n_7dd72b49
+    t5 ~~~ n_0dec5703
+    t5 ~~~ n_aaf1a54f
+    t5 ~~~ n_b4838e96
+    t5 ~~~ n_3a8f5688
+    t6 ~~~ n_8868d701
+    t6 ~~~ n_71b575f2
+    t6 ~~~ n_f7afb438
+    t7 ~~~ n_2c99f480
+    t7 ~~~ n_5826e12d
+    t7 ~~~ n_3c2252ae
+    t7 ~~~ n_b666d8eb
+    t8 ~~~ n_13ad20e9
+    t8 ~~~ n_43b8c535
+    t8 ~~~ n_9ce02b93
+    t9 ~~~ n_6f35a49f
+    t9 ~~~ n_e83ff724
+    t9 ~~~ n_5660909b
+    t9 ~~~ n_845b8865
+    t10 ~~~ n_a8ae773d
+    t10 ~~~ n_fc78b4df
+    t10 ~~~ n_632ef5af
+    t10 ~~~ n_e191a749
+
+    %% Node definitions
+    n_29b2efc7["(1) afternoon slump at work around 3pm"]
+    n_9bf7d60c["(1) at work in the afternoon"]
+    n_c1f04285["(1) get a caffeine boost"]
+    n_aca8fbcf["(1) grabbing a Coke from the fridge"]
+    n_edd54cb0["(1) drinking without conscious considerat..."]
+    n_6045486d["(2) trying to cut back on something"]
+    n_cfc8426f["(2) seeing something new and eye-catching..."]
+    n_69ea3d60["(2) buying a drink for someone else"]
+    n_8a19cb05["(2) choose a drink that suits the other p..."]
+    n_ef7f7fd2["(2) make a considered, intentional drink ..."]
+    n_ce97d74a["(3) being conscious about eating choices ..."]
+    n_dbc291c3["(3) choose the lighter drink option avail..."]
+    n_749fc0e9["(3) low-effort, availability-driven selec..."]
+    n_2f35dff3["(4) fake aftertaste is a dealbreaker"]
+    n_dfd794a7["(4) drink tastes natural enough to forget..."]
+    n_5a2c2c5e["(4) find a sugar-free drink that doesn't ..."]
+    n_7dd72b49["(4) no expectation that sugar-free matche..."]
+    n_0dec5703["(5) eating heavy or greasy food"]
+    n_aaf1a54f["(5) carbonation cuts through heavy food b..."]
+    n_b4838e96["(5) reach for a carbonated drink with hea..."]
+    n_3a8f5688["(5) need something refreshing without thi..."]
+    n_8868d701["(6) lingering weird aftertaste in sugar-f..."]
+    n_71b575f2["(6) ZeroFizz avoids artificial aftertaste"]
+    n_f7afb438["(6) feel like I'm not doing something bad..."]
+    n_2c99f480["(7) already consumed coffee and breakfast..."]
+    n_5826e12d["(7) avoid loading up on sugar after prior..."]
+    n_3c2252ae["(7) guilt intensifies when already aware ..."]
+    n_b666d8eb["(7) feel like I'm not adding to the day's..."]
+    n_13ad20e9["(8) grabbing something cold to drink at w..."]
+    n_43b8c535["(8) drink is available and tastes fine — ..."]
+    n_9ce02b93["(8) guilt only surfaces when actively bei..."]
+    n_6f35a49f["(9) going through the motions of daily ro..."]
+    n_e83ff724["(9) health awareness absent during autopi..."]
+    n_5660909b["(9) someone commenting on what I'm eating"]
+    n_845b8865["(9) preoccupied with deadlines and weekly..."]
+    n_a8ae773d["(10) deeply focused on work task [in the z..."]
+    n_fc78b4df["(10) pushing through a slow or difficult task"]
+    n_632ef5af["(10) stay sharp and mentally alert during ..."]
+    n_e191a749["(10) caffeine helping maintain mental shar..."]
+
+    %% Real edges
+    n_29b2efc7 -->|triggers| n_c1f04285
+    n_29b2efc7 -->|occurs_in| n_9bf7d60c
+    n_c1f04285 -->|drives| n_aca8fbcf
+    n_edd54cb0 -->|triggers| n_aca8fbcf
+    n_6045486d -->|triggers| n_ef7f7fd2
+    n_cfc8426f -->|triggers| n_ef7f7fd2
+    n_69ea3d60 -->|triggers| n_8a19cb05
+    n_69ea3d60 -->|conflicts_with| n_edd54cb0
+    n_8a19cb05 -->|supports| n_ef7f7fd2
+    n_ce97d74a -->|triggers| n_dbc291c3
+    n_ef7f7fd2 -->|conflicts_with| n_749fc0e9
+    n_dbc291c3 -->|drives| n_749fc0e9
+    n_5a2c2c5e -->|achieves| n_dfd794a7
+    n_2f35dff3 -->|conflicts_with| n_749fc0e9
+    n_7dd72b49 -->|supports| n_dfd794a7
+    n_0dec5703 -->|triggers| n_b4838e96
+    n_b4838e96 -->|achieves| n_aaf1a54f
+    n_29b2efc7 -->|triggers| n_3a8f5688
+    n_3a8f5688 -->|drives| n_749fc0e9
+    n_71b575f2 -->|addresses| n_8868d701
+    n_71b575f2 -->|addresses| n_2f35dff3
+    n_c1f04285 -->|supports| n_f7afb438
+    n_29b2efc7 -->|triggers| n_f7afb438
+    n_2c99f480 -->|triggers| n_3c2252ae
+    n_2c99f480 -->|triggers| n_5826e12d
+    n_3c2252ae -->|implies| n_f7afb438
+    n_5826e12d -->|supports| n_b666d8eb
+    n_29b2efc7 -->|triggers| n_5826e12d
+    n_b666d8eb -->|drives| n_71b575f2
+    n_2c99f480 -->|triggers| n_ce97d74a
+    n_13ad20e9 -->|triggers| n_43b8c535
+    n_13ad20e9 -->|supports| n_749fc0e9
+    n_9ce02b93 -->|supports| n_3c2252ae
+    n_9ce02b93 -->|conflicts_with| n_f7afb438
+    n_43b8c535 -->|supports| n_71b575f2
+    n_6f35a49f -->|triggers| n_e83ff724
+    n_5660909b -->|triggers| n_9ce02b93
+    n_845b8865 -->|triggers| n_e83ff724
+    n_6f35a49f -->|triggers| n_edd54cb0
+    n_a8ae773d -->|triggers| n_edd54cb0
+    n_fc78b4df -->|triggers| n_632ef5af
+    n_e191a749 -->|achieves| n_632ef5af
+    n_fc78b4df -->|triggers| n_c1f04285
+    n_845b8865 -->|triggers| n_a8ae773d
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_29b2efc7,n_9bf7d60c,n_c1f04285,n_aca8fbcf,n_edd54cb0,n_6045486d,n_cfc8426f,n_69ea3d60,n_8a19cb05,n_ef7f7fd2,n_ce97d74a,n_dbc291c3,n_749fc0e9,n_2f35dff3,n_dfd794a7,n_5a2c2c5e,n_7dd72b49,n_0dec5703,n_aaf1a54f,n_b4838e96,n_3a8f5688,n_8868d701,n_71b575f2,n_f7afb438,n_2c99f480,n_5826e12d,n_3c2252ae,n_b666d8eb,n_13ad20e9,n_43b8c535,n_9ce02b93,n_6f35a49f,n_e83ff724,n_5660909b,n_845b8865,n_a8ae773d,n_fc78b4df,n_632ef5af,n_e191a749 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10 anchor

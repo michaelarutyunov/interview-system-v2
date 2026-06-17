@@ -1,0 +1,17 @@
+# Interview Export Metadata
+timestamp: "20260430_185205"
+session_id: "59b81834-5f4d-47a5-b172-e64cfb65866a"
+concept:
+  id: "zerofizz_beverage_jtbd"
+  name: "ZeroFizz Sugar-Free Carbonated Beverage - Jobs to be Done"
+methodology: "jobs_to_be_done_v2"
+persona:
+  id: "retrospective_rationalizer"
+  name: "Retrospective Rationalizer"
+interview:
+  total_turns: 11
+  status: "Closing strategy selected"
+  saved_at: "2026-04-30T18:52:05.076343+00:00"
+source:
+  json_file: "synthetic_interviews/20260430_185205_zerofizz_beverage_jtbd_retrospective_rationalizer.json"
+  log_file: "interview_20260430_194733.log"

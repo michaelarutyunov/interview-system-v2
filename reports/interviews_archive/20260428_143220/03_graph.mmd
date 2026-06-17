@@ -1,0 +1,118 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_75180a30
+    t1 ~~~ n_829c85c6
+    t1 ~~~ n_e3b74bcc
+    t1 ~~~ n_4124f503
+    t1 ~~~ n_2d01d83f
+    t1 ~~~ n_336fa40f
+    t1 ~~~ n_f28c9060
+    t2 ~~~ n_f1e11cf5
+    t2 ~~~ n_9eafe427
+    t2 ~~~ n_0bebc452
+    t3 ~~~ n_9ed67503
+    t3 ~~~ n_02d8363a
+    t3 ~~~ n_716d10d5
+    t4 ~~~ n_e61bdb05
+    t4 ~~~ n_f4e9a070
+    t4 ~~~ n_620e2994
+    t5 ~~~ n_9fd49391
+    t5 ~~~ n_077067d2
+    t6 ~~~ n_f63325a9
+    t6 ~~~ n_dcd3e22b
+    t7 ~~~ n_c8ecff41
+    t7 ~~~ n_047d353d
+    t8 ~~~ n_cfdb20d9
+    t9 ~~~ n_9b954e57
+    t9 ~~~ n_6f6d4583
+
+    %% Node definitions
+    n_75180a30["(1) low soda consumption in general"]
+    n_829c85c6["(1) drinks available in break room fridge..."]
+    n_e3b74bcc["(1) afternoon meetings coming up"]
+    n_4124f503["(1) feeling thirsty at work"]
+    n_2d01d83f["(1) avoid sugar crash before meetings"]
+    n_336fa40f["(1) stay alert and functional through aft..."]
+    n_f28c9060["(1) grabbing Diet Coke from break room"]
+    n_f1e11cf5["(2) mid-afternoon energy wall"]
+    n_9eafe427["(2) short-lived energy spike followed by ..."]
+    n_0bebc452["(2) inability to focus on work after suga..."]
+    n_9ed67503["(3) zoning out in afternoon meetings"]
+    n_02d8363a["(3) energy tanks by 2-3pm"]
+    n_716d10d5["(3) appearing engaged while mentally absent"]
+    n_e61bdb05["(4) stepping away from desk as mental reset"]
+    n_f4e9a070["(4) drink as excuse to leave desk"]
+    n_620e2994["(4) caffeine providing modest alertness b..."]
+    n_9fd49391["(5) ZeroFizz feels lighter and less syrup..."]
+    n_077067d2["(5) choosing ZeroFizz as afternoon break ..."]
+    n_f63325a9["(6) chemical aftertaste that lingers"]
+    n_dcd3e22b["(6) smoother, less artificial taste"]
+    n_c8ecff41["(7) grudging adaptation to unpleasant aft..."]
+    n_047d353d["(7) aftertaste intensity varies by brand"]
+    n_cfdb20d9["(8) other diet drinks leave chemical tast..."]
+    n_9b954e57["(9) avoiding lingering chemical aftertast..."]
+    n_6f6d4583["(9) ZeroFizz does not linger with chemica..."]
+
+    %% Real edges
+    n_829c85c6 -->|triggers| n_f28c9060
+    n_4124f503 -->|triggers| n_f28c9060
+    n_e3b74bcc -->|triggers| n_2d01d83f
+    n_2d01d83f -->|implies| n_336fa40f
+    n_2d01d83f -->|drives| n_f28c9060
+    n_f28c9060 -->|addresses| n_2d01d83f
+    n_2d01d83f -->|implies| n_9eafe427
+    n_f1e11cf5 -->|triggers| n_9eafe427
+    n_9eafe427 -->|triggers| n_0bebc452
+    n_0bebc452 -->|implies| n_336fa40f
+    n_f1e11cf5 -->|triggers| n_0bebc452
+    n_f1e11cf5 -->|triggers| n_02d8363a
+    n_02d8363a -->|triggers| n_9ed67503
+    n_0bebc452 -->|triggers| n_9ed67503
+    n_9ed67503 -->|triggers| n_716d10d5
+    n_716d10d5 -->|implies| n_336fa40f
+    n_75180a30 -->|drives| n_f4e9a070
+    n_f28c9060 -->|achieves| n_e61bdb05
+    n_f4e9a070 -->|achieves| n_e61bdb05
+    n_620e2994 -->|achieves| n_336fa40f
+    n_e61bdb05 -->|achieves| n_336fa40f
+    n_620e2994 -->|conflicts_with| n_e61bdb05
+    n_e61bdb05 -->|drives| n_077067d2
+    n_077067d2 -->|achieves| n_9fd49391
+    n_9fd49391 -->|achieves| n_dcd3e22b
+    n_f63325a9 -->|implies| n_dcd3e22b
+    n_f28c9060 -->|triggers| n_f63325a9
+    n_077067d2 -->|achieves| n_dcd3e22b
+    n_f63325a9 -->|implies| n_cfdb20d9
+    n_f63325a9 -->|implies| n_9b954e57
+    n_9b954e57 -->|drives| n_6f6d4583
+    n_077067d2 -->|addresses| n_9b954e57
+    n_cfdb20d9 -->|triggers| n_9b954e57
+    n_077067d2 -->|achieves| n_6f6d4583
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_75180a30,n_829c85c6,n_e3b74bcc,n_4124f503,n_2d01d83f,n_336fa40f,n_f28c9060,n_f1e11cf5,n_9eafe427,n_0bebc452,n_9ed67503,n_02d8363a,n_716d10d5,n_e61bdb05,n_f4e9a070,n_620e2994,n_9fd49391,n_077067d2,n_f63325a9,n_dcd3e22b,n_c8ecff41,n_047d353d,n_cfdb20d9,n_9b954e57,n_6f6d4583 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9 anchor

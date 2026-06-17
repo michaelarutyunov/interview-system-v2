@@ -1,0 +1,162 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+    t11(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10 ~~~ t11
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_98148e9d
+    t1 ~~~ n_1c584bcb
+    t1 ~~~ n_0fc41e1d
+    t1 ~~~ n_12108eb3
+    t2 ~~~ n_b3ab31fe
+    t2 ~~~ n_5f0b3ebd
+    t2 ~~~ n_0a2106c2
+    t2 ~~~ n_00e91922
+    t3 ~~~ n_fd36c0cd
+    t4 ~~~ n_a4859fac
+    t4 ~~~ n_bf6f91e7
+    t4 ~~~ n_ec09fd49
+    t5 ~~~ n_21b43195
+    t5 ~~~ n_89a3998d
+    t6 ~~~ n_3ab33930
+    t6 ~~~ n_b104dc94
+    t6 ~~~ n_b85aac4e
+    t6 ~~~ n_76e522fc
+    t6 ~~~ n_bacf6f90
+    t7 ~~~ n_13146b04
+    t7 ~~~ n_ab9b2010
+    t7 ~~~ n_06ee69b7
+    t8 ~~~ n_fbdf2c16
+    t8 ~~~ n_c81f929b
+    t8 ~~~ n_9f87b406
+    t8 ~~~ n_fe39a0ee
+    t8 ~~~ n_52f1cb1c
+    t9 ~~~ n_8653da5d
+    t9 ~~~ n_7689bc60
+    t9 ~~~ n_4e50d0d1
+    t10 ~~~ n_8f946492
+    t10 ~~~ n_8131442f
+    t10 ~~~ n_726b00d0
+    t11 ~~~ n_ab72e9ba
+    t11 ~~~ n_20a5c70f
+    t11 ~~~ n_a3cc3879
+    t11 ~~~ n_a9640448
+
+    %% Node definitions
+    n_98148e9d["(1) eating out at a restaurant F3"]
+    n_1c584bcb["(1) avoiding sugar in regular soda"]
+    n_0fc41e1d["(1) low engagement with fizzy drinks cate... F1"]
+    n_12108eb3["(1) occasionally choosing a sugar-free fi..."]
+    n_b3ab31fe["(2) no craving for fizzy drinks"]
+    n_5f0b3ebd["(2) preferring water or juice when thirsty"]
+    n_0a2106c2["(2) artificial sweetener taste is off-put... F2"]
+    n_00e91922["(2) stay hydrated with natural-tasting dr..."]
+    n_fd36c0cd["(3) lingering metallic or chemical aftert... F5"]
+    n_a4859fac["(4) grabbing an alternative drink when av..."]
+    n_bf6f91e7["(4) aftertaste signals artificiality"]
+    n_ec09fd49["(4) feel like the drinking experience is ..."]
+    n_21b43195["(5) feel like I'm tricking myself with a ..."]
+    n_89a3998d["(5) water feels like the real thing"]
+    n_3ab33930["(6) eating heavy or greasy food like pizz..."]
+    n_b104dc94["(6) carbonation cuts through heavy food F6 F7"]
+    n_b85aac4e["(6) being in a social setting where every..."]
+    n_76e522fc["(6) avoid standing out as the person only..."]
+    n_bacf6f90["(6) wanting a carbonated drink to fit the..."]
+    n_13146b04["(7) meal feeling cloying and uncomfortabl..."]
+    n_ab9b2010["(7) keep eating comfortably without feeli..."]
+    n_06ee69b7["(7) enjoy a meal without it feeling like ..."]
+    n_fbdf2c16["(8) constantly monitoring food intake and..."]
+    n_c81f929b["(8) worrying about blood sugar spikes or ..."]
+    n_9f87b406["(8) eat and socialize without health anxi..."]
+    n_fe39a0ee["(8) feel free from self-monitoring and di... F8"]
+    n_52f1cb1c["(8) be fully present in the social eating..."]
+    n_8653da5d["(9) guilt awareness when drinking sugary ..."]
+    n_7689bc60["(9) drinking without a guilty inner voice F9"]
+    n_4e50d0d1["(9) choosing ZeroFizz to drink without guilt"]
+    n_8f946492["(10) enjoy drinking without nagging body-a..."]
+    n_8131442f["(10) persistent awareness of what you're p..."]
+    n_726b00d0["(10) feel at ease and unselfconscious whil... F10"]
+    n_ab72e9ba["(11) already managing enough food and drin..."]
+    n_20a5c70f["(11) avoid adding more self-second-guessin..."]
+    n_a3cc3879["(11) decision fatigue from constant dietar..."]
+    n_a9640448["(11) have a soda without guilt occupying m..."]
+
+    %% Real edges
+    n_98148e9d -->|triggers| n_1c584bcb
+    n_1c584bcb -->|drives| n_12108eb3
+    n_0fc41e1d -->|conflicts_with| n_12108eb3
+    n_0fc41e1d -->|triggers| n_b3ab31fe
+    n_b3ab31fe -->|implies| n_00e91922
+    n_0a2106c2 -->|implies| n_00e91922
+    n_00e91922 -->|drives| n_5f0b3ebd
+    n_0a2106c2 -->|conflicts_with| n_12108eb3
+    n_fd36c0cd -->|implies| n_0a2106c2
+    n_fd36c0cd -->|triggers| n_bf6f91e7
+    n_bf6f91e7 -->|conflicts_with| n_ec09fd49
+    n_ec09fd49 -->|drives| n_a4859fac
+    n_a4859fac -->|supports| n_0fc41e1d
+    n_0a2106c2 -->|implies| n_bf6f91e7
+    n_ec09fd49 -->|drives| n_89a3998d
+    n_ec09fd49 -->|conflicts_with| n_21b43195
+    n_bf6f91e7 -->|triggers| n_21b43195
+    n_21b43195 -->|drives| n_5f0b3ebd
+    n_3ab33930 -->|triggers| n_b104dc94
+    n_b104dc94 -->|conflicts_with| n_5f0b3ebd
+    n_b85aac4e -->|triggers| n_bacf6f90
+    n_bacf6f90 -->|supports| n_76e522fc
+    n_76e522fc -->|drives| n_12108eb3
+    n_3ab33930 -->|occurs_in| n_98148e9d
+    n_bacf6f90 -->|conflicts_with| n_fd36c0cd
+    n_13146b04 -->|implies| n_ab9b2010
+    n_b104dc94 -->|addresses| n_13146b04
+    n_b104dc94 -->|achieves| n_ab9b2010
+    n_ab9b2010 -->|implies| n_06ee69b7
+    n_b104dc94 -->|achieves| n_06ee69b7
+    n_c81f929b -->|implies| n_9f87b406
+    n_fbdf2c16 -->|implies| n_fe39a0ee
+    n_9f87b406 -->|supports| n_fe39a0ee
+    n_9f87b406 -->|supports| n_52f1cb1c
+    n_c81f929b -->|conflicts_with| n_52f1cb1c
+    n_b104dc94 -->|drives| n_fe39a0ee
+    n_8653da5d -->|implies| n_7689bc60
+    n_4e50d0d1 -->|achieves| n_7689bc60
+    n_1c584bcb -->|triggers| n_8653da5d
+    n_4e50d0d1 -->|addresses| n_fbdf2c16
+    n_fe39a0ee -->|triggers| n_7689bc60
+    n_8131442f -->|implies| n_8f946492
+    n_4e50d0d1 -->|achieves| n_8f946492
+    n_8f946492 -->|supports| n_726b00d0
+    n_7689bc60 -->|supports| n_726b00d0
+    n_ab72e9ba -->|triggers| n_a3cc3879
+    n_a3cc3879 -->|implies| n_20a5c70f
+    n_20a5c70f -->|supports| n_a9640448
+    n_a9640448 -->|drives| n_4e50d0d1
+    n_fbdf2c16 -->|triggers| n_a3cc3879
+    n_726b00d0 -->|supports| n_20a5c70f
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_98148e9d,n_0fc41e1d,n_0a2106c2,n_fd36c0cd,n_b104dc94,n_fe39a0ee,n_7689bc60,n_726b00d0 focused
+    class n_1c584bcb,n_12108eb3,n_b3ab31fe,n_5f0b3ebd,n_00e91922,n_a4859fac,n_bf6f91e7,n_ec09fd49,n_21b43195,n_89a3998d,n_3ab33930,n_b85aac4e,n_76e522fc,n_bacf6f90,n_13146b04,n_ab9b2010,n_06ee69b7,n_fbdf2c16,n_c81f929b,n_9f87b406,n_52f1cb1c,n_8653da5d,n_4e50d0d1,n_8f946492,n_8131442f,n_ab72e9ba,n_20a5c70f,n_a3cc3879,n_a9640448 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11 anchor

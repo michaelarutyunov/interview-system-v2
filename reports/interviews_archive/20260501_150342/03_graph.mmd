@@ -1,0 +1,137 @@
+%%{init: {'theme': 'base', 'themeVariables': {
+  'fontSize': '16px',
+  'fontFamily': 'Arial',
+  'padding': '12px'
+}}}%%
+
+graph LR
+
+    %% Hidden anchor nodes per turn (for column alignment)
+    t1(( ))
+    t2(( ))
+    t3(( ))
+    t4(( ))
+    t5(( ))
+    t6(( ))
+    t7(( ))
+    t8(( ))
+    t9(( ))
+    t10(( ))
+    t11(( ))
+
+    %% Anchor chain sets column order
+    t1 ~~~ t2 ~~~ t3 ~~~ t4 ~~~ t5 ~~~ t6 ~~~ t7 ~~~ t8 ~~~ t9 ~~~ t10 ~~~ t11
+
+    %% Invisible links from anchors to turn nodes
+    t1 ~~~ n_7ab35cff
+    t1 ~~~ n_2038f8e0
+    t1 ~~~ n_158b1eca
+    t1 ~~~ n_64c61bc5
+    t2 ~~~ n_e0ddcad2
+    t2 ~~~ n_382fe8cb
+    t3 ~~~ n_be8794eb
+    t3 ~~~ n_42a1199b
+    t3 ~~~ n_aba06f12
+    t4 ~~~ n_c481e338
+    t4 ~~~ n_28c6eb1b
+    t4 ~~~ n_4ad70ff5
+    t5 ~~~ n_e7ef5c91
+    t5 ~~~ n_cd581609
+    t6 ~~~ n_72fe75e7
+    t6 ~~~ n_60c783be
+    t6 ~~~ n_bb8f210a
+    t6 ~~~ n_5ae7cb88
+    t7 ~~~ n_09a64de5
+    t7 ~~~ n_4de5c0b9
+    t8 ~~~ n_174e7afd
+    t8 ~~~ n_1a6db7cc
+    t9 ~~~ n_6a521fc2
+    t9 ~~~ n_56c5cbcb
+    t9 ~~~ n_c415c45f
+    t9 ~~~ n_02eb46f0
+    t9 ~~~ n_39402e8d
+    t10 ~~~ n_78cd411c
+    t10 ~~~ n_38b2fb66
+    t11 ~~~ n_1271d25b
+    t11 ~~~ n_cd1a1c21
+
+    %% Node definitions
+    n_7ab35cff["(1) zero sugar formulation F1 F2"]
+    n_2038f8e0["(1) avoiding energy crash after consumption"]
+    n_158b1eca["(1) acceptable taste despite no sugar F3 F4 F6 F8 F9"]
+    n_64c61bc5["(1) deliberate beverage choice-making"]
+    n_e0ddcad2["(2) absence of artificial sweetener after..."]
+    n_382fe8cb["(2) avoiding unpleasant taste experience F5"]
+    n_be8794eb["(3) carbonation level"]
+    n_42a1199b["(3) strong fizz sensation in the mouth"]
+    n_aba06f12["(3) drink feeling pointless or unsatisfying"]
+    n_c481e338["(4) perception of cheap or low-quality pr..."]
+    n_28c6eb1b["(4) inference that corners were cut in pr..."]
+    n_4ad70ff5["(4) vibe of a product not made right"]
+    n_e7ef5c91["(5) packaging appearance"]
+    n_cd581609["(5) taste expectations specific to soda c..."]
+    n_72fe75e7["(6) understanding what consumers want fro..."]
+    n_60c783be["(6) not overcomplicating or over-healthif..."]
+    n_bb8f210a["(6) authentic soda experience"]
+    n_5ae7cb88["(6) brand trustworthiness and consumer un..."]
+    n_09a64de5["(7) feeling that brand paid attention to ..."]
+    n_4de5c0b9["(7) brand prioritizing what people actual... F7"]
+    n_174e7afd["(8) taste quality achieved without chemic..."]
+    n_1a6db7cc["(8) inference that product was tested wit..."]
+    n_6a521fc2["(9) cap opens without getting stuck"]
+    n_56c5cbcb["(9) bottle shape designed for grip"]
+    n_c415c45f["(9) ease of physical handling during use"]
+    n_02eb46f0["(9) noticing when companies skip usabilit... F10"]
+    n_39402e8d["(9) inference that packaging was designed..."]
+    n_78cd411c["(10) carbonation retention over time"]
+    n_38b2fb66["(10) inference that product was developed ..."]
+    n_1271d25b["(11) product feels physically sturdy and r..."]
+    n_cd1a1c21["(11) perception of getting value for money"]
+
+    %% Real edges
+    n_7ab35cff -->|leads_to| n_2038f8e0
+    n_2038f8e0 -->|leads_to| n_64c61bc5
+    n_158b1eca -->|leads_to| n_7ab35cff
+    n_7ab35cff -->|leads_to| n_e0ddcad2
+    n_e0ddcad2 -->|leads_to| n_382fe8cb
+    n_be8794eb -->|leads_to| n_42a1199b
+    n_be8794eb -->|leads_to| n_aba06f12
+    n_42a1199b -->|leads_to| n_382fe8cb
+    n_158b1eca -->|leads_to| n_be8794eb
+    n_aba06f12 -->|leads_to| n_28c6eb1b
+    n_28c6eb1b -->|leads_to| n_c481e338
+    n_c481e338 -->|leads_to| n_4ad70ff5
+    n_be8794eb -->|leads_to| n_28c6eb1b
+    n_cd581609 -->|leads_to| n_4ad70ff5
+    n_be8794eb -->|leads_to| n_cd581609
+    n_cd581609 -->|leads_to| n_bb8f210a
+    n_bb8f210a -->|leads_to| n_60c783be
+    n_60c783be -->|leads_to| n_72fe75e7
+    n_72fe75e7 -->|leads_to| n_5ae7cb88
+    n_382fe8cb -->|leads_to| n_5ae7cb88
+    n_bb8f210a -->|leads_to| n_09a64de5
+    n_4de5c0b9 -->|leads_to| n_5ae7cb88
+    n_e0ddcad2 -->|leads_to| n_174e7afd
+    n_174e7afd -->|leads_to| n_1a6db7cc
+    n_174e7afd -->|leads_to| n_4de5c0b9
+    n_158b1eca -->|leads_to| n_6a521fc2
+    n_6a521fc2 -->|leads_to| n_c415c45f
+    n_56c5cbcb -->|leads_to| n_c415c45f
+    n_c415c45f -->|leads_to| n_39402e8d
+    n_02eb46f0 -->|leads_to| n_39402e8d
+    n_39402e8d -->|leads_to| n_1a6db7cc
+    n_1a6db7cc -->|leads_to| n_5ae7cb88
+    n_be8794eb -->|leads_to| n_78cd411c
+    n_38b2fb66 -->|leads_to| n_5ae7cb88
+    n_39402e8d -->|leads_to| n_38b2fb66
+    n_56c5cbcb -->|leads_to| n_78cd411c
+    n_c415c45f -->|leads_to| n_1271d25b
+    n_02eb46f0 -->|leads_to| n_1271d25b
+
+    classDef focused fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef default fill:#f5f5f5,stroke:#616161,stroke-width:1px
+    classDef anchor fill:none,stroke:none
+
+    class n_7ab35cff,n_158b1eca,n_382fe8cb,n_4de5c0b9,n_02eb46f0 focused
+    class n_2038f8e0,n_64c61bc5,n_e0ddcad2,n_be8794eb,n_42a1199b,n_aba06f12,n_c481e338,n_28c6eb1b,n_4ad70ff5,n_e7ef5c91,n_cd581609,n_72fe75e7,n_60c783be,n_bb8f210a,n_5ae7cb88,n_09a64de5,n_174e7afd,n_1a6db7cc,n_6a521fc2,n_56c5cbcb,n_c415c45f,n_39402e8d,n_78cd411c,n_38b2fb66,n_1271d25b,n_cd1a1c21 default
+    class t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11 anchor
